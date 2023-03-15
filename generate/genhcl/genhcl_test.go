@@ -1577,6 +1577,65 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate HCL on stack with lets referencing indexing variable",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Expr("use", `{
+								providers = {
+									aws = true
+								}
+							}`),
+							Expr("_available_providers", `{
+								aws = {
+								  source  = "hashicorp/aws"
+								  version = "~> 4.14"
+								}
+								vault = {
+								  source  = "hashicorp/vault"
+								  version = "~> 3.10"
+								}
+								postgresql = {
+								  source  = "cyrilgdn/postgresql"
+								  version = "~> 1.18.0"
+								}
+								mysql = {
+								  source  = "petoju/mysql"
+								  version = "~> 3.0.29"
+								}
+							  }`),
+							Expr("required_providers", `{for k, v in let._available_providers : k => v if tm_try(let.use.providers[k], false)}`),
+						),
+						Content(
+							Block("testblock",
+								Expr("required_providers", "let.required_providers"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						condition: true,
+						body: Block("testblock",
+							EvalExpr(t, "required_providers", `{
+								aws = {
+									source  = "hashicorp/aws"
+									version = "~> 4.14"
+								  }	
+							}`),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL with duplicated lets block",
 			stack: "/stack",
 			configs: []hclconfig{

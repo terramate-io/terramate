@@ -30,9 +30,6 @@ const (
 	ErrPartial             errors.Kind = "partial evaluation failed"
 	ErrInterpolation       errors.Kind = "interpolation failed"
 	ErrForExprDisallowEval errors.Kind = "`for` expression disallow globals/terramate variables"
-	ErrNonLiteralKey       errors.Kind = ("If this expression is intended to be a reference, wrap it in" +
-		" parentheses. If it's instead intended as a literal name containing periods, wrap it in quotes " +
-		"to create a string literal.")
 )
 
 func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, err error) {
@@ -222,20 +219,32 @@ func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
 }
 
 func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, error) {
-	travExpr, isTraversal := key.Wrapped.(*hclsyntax.ScopeTraversalExpr)
-	if isTraversal {
-		if !key.ForceNonLiteral {
-			if len(travExpr.Traversal) > 1 || c.hasTerramateVars(key.Wrapped) {
-				return nil, errors.E(ErrNonLiteralKey, key.Range())
-			}
-			return key, nil
-		}
-		// can partial evaluate
+	var (
+		wrapped hhcl.Expression
+		err     error
+	)
+
+	switch vexpr := key.Wrapped.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		wrapped, err = c.partialEvalScopeTrav(vexpr, partialEvalOption{
+			// back-compatibility with old partial evaluator.
+			// global = 1
+			forbidRootEval: true,
+		})
+	case *hclsyntax.ParenthesesExpr:
+		wrapped, err = c.partialEvalParenExpr(vexpr, partialEvalOption{
+			// back-compatibility with old partial evaluator.
+			// (global) = 1
+			forbidRootEval: true,
+		})
+	default:
+		wrapped, err = c.partialEval(key.Wrapped)
 	}
-	wrapped, err := c.partialEval(key.Wrapped)
+
 	if err != nil {
 		return nil, err
 	}
+
 	key.Wrapped = asSyntax(wrapped)
 	return key, nil
 }
@@ -297,7 +306,13 @@ func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Exp
 	return cond, nil
 }
 
-func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hclsyntax.Expression, error) {
+type partialEvalOption struct {
+	// if set to true, then root traversals like `global` or `iter` will not evaluate.
+	forbidRootEval bool
+}
+
+func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts ...partialEvalOption) (hclsyntax.Expression, error) {
+	assertPartialExprOpt(opts)
 	ns, ok := scope.Traversal[0].(hhcl.TraverseRoot)
 	if !ok {
 		return scope, nil
@@ -305,6 +320,14 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hcl
 	if !c.HasNamespace(ns.Name) {
 		return scope, nil
 	}
+	forbidRootEval := false
+	if len(opts) == 1 {
+		forbidRootEval = opts[0].forbidRootEval
+	}
+	if len(scope.Traversal) == 1 && forbidRootEval {
+		return scope, nil
+	}
+
 	val, err := c.Eval(scope)
 	if err != nil {
 		return nil, err
@@ -316,11 +339,28 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hcl
 	}, nil
 }
 
-func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr) (hhcl.Expression, error) {
-	newexpr, err := c.partialEval(paren.Expression)
+func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr, opts ...partialEvalOption) (hhcl.Expression, error) {
+	assertPartialExprOpt(opts)
+	forbidRootEval := false
+	if len(opts) == 1 {
+		forbidRootEval = opts[0].forbidRootEval
+	}
+
+	var (
+		newexpr hhcl.Expression
+		err     error
+	)
+
+	if scope, ok := paren.Expression.(*hclsyntax.ScopeTraversalExpr); ok && forbidRootEval {
+		newexpr, err = c.partialEvalScopeTrav(scope, opts...)
+	} else {
+		newexpr, err = c.partialEval(paren.Expression)
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	paren.Expression = asSyntax(newexpr)
 	return paren, nil
 }
@@ -347,4 +387,10 @@ func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl
 
 func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	return expr.(hclsyntax.Expression)
+}
+
+func assertPartialExprOpt(opts []partialEvalOption) {
+	if len(opts) > 1 {
+		panic(errors.E(errors.ErrInternal, "only 1 option object allowed in partialEvalOption"))
+	}
 }
