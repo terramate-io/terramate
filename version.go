@@ -17,8 +17,6 @@ package terramate
 import (
 	_ "embed"
 	"strings"
-
-	"github.com/mineiros-io/terramate/versions"
 )
 
 //go:embed VERSION
@@ -29,9 +27,4 @@ var version string
 // Version of terramate.
 func Version() string {
 	return strings.TrimSpace(version)
-}
-
-// CheckVersion checks Terramate version against the given constraint.
-func CheckVersion(vconstraint string, allowPrereleases bool) error {
-	return versions.Check(Version(), vconstraint, allowPrereleases)
 }

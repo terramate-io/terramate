@@ -19,12 +19,12 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog"
 
 	"github.com/mineiros-io/terramate/test"
@@ -3959,7 +3959,7 @@ func testGlobals(t *testing.T, tcase testcase) {
 			return
 		}
 
-		stackEntries, err := terramate.ListStacks(cfg)
+		stackEntries, err := stack.List(cfg)
 		assert.NoError(t, err)
 
 		var stacks config.List[*config.SortableStack]

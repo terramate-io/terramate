@@ -15,12 +15,9 @@
 package stack
 
 import (
-	"strings"
-
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stdlib"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // EvalCtx represents the evaluation context of a stack.
@@ -52,15 +49,4 @@ func (e *EvalCtx) SetMetadata(st *config.Stack) {
 	runtime := e.root.Runtime()
 	runtime.Merge(st.RuntimeValues(e.root))
 	e.SetNamespace("terramate", runtime)
-}
-
-// SetEnv sets the given environment on the env namespace of the evaluation context.
-// environ must be on the same format as os.Environ().
-func (e *EvalCtx) SetEnv(environ []string) {
-	env := map[string]cty.Value{}
-	for _, v := range environ {
-		parsed := strings.Split(v, "=")
-		env[parsed[0]] = cty.StringVal(parsed[1])
-	}
-	e.SetNamespace("env", env)
 }

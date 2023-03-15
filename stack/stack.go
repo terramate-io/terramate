@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2023 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package stack
 
-import (
-	"github.com/mineiros-io/terramate/config"
-)
+import "github.com/mineiros-io/terramate/config"
 
-// ListStacks walks the config tree looking for terramate stacks.
+// List loads from the config all terramate stacks.
 // It returns a lexicographic sorted list of stack directories.
-func ListStacks(cfg *config.Tree) ([]Entry, error) {
+func List(cfg *config.Tree) ([]Entry, error) {
 	stacks, err := config.LoadAllStacks(cfg)
 	if err != nil {
 		return nil, err
