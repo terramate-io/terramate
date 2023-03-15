@@ -3026,6 +3026,251 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "indexing references are postponed until all other globals with base prefix are evaluated",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("use_providers", `{}`),
+							Expr("_available_providers", `{
+								aws = {
+								  source  = "hashicorp/aws"
+								  version = "~> 4.14"
+								}
+								vault = {
+								  source  = "hashicorp/vault"
+								  version = "~> 3.10"
+								}
+								postgresql = {
+								  source  = "cyrilgdn/postgresql"
+								  version = "~> 1.18.0"
+								}
+								mysql = {
+								  source  = "petoju/mysql"
+								  version = "~> 3.0.29"
+								}
+							  }`),
+							Expr("required_providers", `{for k, v in global._available_providers : k => v if tm_try(global.use_providers[k], false)}`),
+						),
+						Globals(
+							Labels("use_providers"),
+							Bool("aws", true),
+						),
+						Globals(
+							Labels("use_providers"),
+							Bool("mysql", true),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "use_providers", `{
+						aws = true
+						mysql = true	
+					}`),
+					EvalExpr(t, "_available_providers", `{
+						aws = {
+						  source  = "hashicorp/aws"
+						  version = "~> 4.14"
+						}
+						vault = {
+						  source  = "hashicorp/vault"
+						  version = "~> 3.10"
+						}
+						postgresql = {
+						  source  = "cyrilgdn/postgresql"
+						  version = "~> 1.18.0"
+						}
+						mysql = {
+						  source  = "petoju/mysql"
+						  version = "~> 3.0.29"
+						}
+					  }`),
+					EvalExpr(t, "required_providers", `{
+						aws = {
+						  source  = "hashicorp/aws"
+						  version = "~> 4.14"
+						}
+						mysql = {
+						  source  = "petoju/mysql"
+						  version = "~> 3.0.29"
+						}
+					  }`),
+				),
+			},
+		},
+		{
+			name:   "indexing references are postponed until all other globals with base prefix are evaluated - case 2",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("use", `{
+								providers = {}
+							}`),
+							Expr("_available_providers", `{
+								aws = {
+								  source  = "hashicorp/aws"
+								  version = "~> 4.14"
+								}
+								vault = {
+								  source  = "hashicorp/vault"
+								  version = "~> 3.10"
+								}
+								postgresql = {
+								  source  = "cyrilgdn/postgresql"
+								  version = "~> 1.18.0"
+								}
+								mysql = {
+								  source  = "petoju/mysql"
+								  version = "~> 3.0.29"
+								}
+							  }`),
+							Expr("required_providers", `{for k, v in global._available_providers : k => v if tm_try(global.use.providers[k], false)}`),
+						),
+						Globals(
+							Labels("use", "providers"),
+							Bool("aws", true),
+						),
+						Globals(
+							Labels("use", "providers"),
+							Bool("mysql", true),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "use", `{
+						providers = {
+							aws = true
+							mysql = true
+						}	
+					}`),
+					EvalExpr(t, "_available_providers", `{
+						aws = {
+						  source  = "hashicorp/aws"
+						  version = "~> 4.14"
+						}
+						vault = {
+						  source  = "hashicorp/vault"
+						  version = "~> 3.10"
+						}
+						postgresql = {
+						  source  = "cyrilgdn/postgresql"
+						  version = "~> 1.18.0"
+						}
+						mysql = {
+						  source  = "petoju/mysql"
+						  version = "~> 3.0.29"
+						}
+					  }`),
+					EvalExpr(t, "required_providers", `{
+						aws = {
+						  source  = "hashicorp/aws"
+						  version = "~> 4.14"
+						}
+						mysql = {
+						  source  = "petoju/mysql"
+						  version = "~> 3.0.29"
+						}
+					  }`),
+				),
+			},
+		},
+		{
+			name:   "indexing references are postponed until all other globals with base prefix are evaluated - case 3",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("a", "b", "c"),
+							Expr("providers", `{}`),
+							Expr("_available_providers", `{
+								aws = {
+								  source  = "hashicorp/aws"
+								  version = "~> 4.14"
+								}
+								vault = {
+								  source  = "hashicorp/vault"
+								  version = "~> 3.10"
+								}
+								postgresql = {
+								  source  = "cyrilgdn/postgresql"
+								  version = "~> 1.18.0"
+								}
+								mysql = {
+								  source  = "petoju/mysql"
+								  version = "~> 3.0.29"
+								}
+							  }`),
+						),
+						Globals(
+							Labels("a", "b", "c"),
+							Expr("required_providers", `{for k, v in global.a.b.c._available_providers : k => v if tm_try(global.a.b.c.providers[k], false)}`),
+						),
+						Globals(
+							Labels("a", "b", "c", "providers"),
+							Bool("aws", true),
+						),
+						Globals(
+							Labels("a", "b", "c", "providers"),
+							Bool("mysql", true),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{
+						b = {
+							c = {
+								_available_providers = {
+									aws = {
+										source  = "hashicorp/aws"
+										version = "~> 4.14"
+									}
+									vault = {
+										source  = "hashicorp/vault"
+										version = "~> 3.10"
+									}
+									postgresql = {
+										source  = "cyrilgdn/postgresql"
+										version = "~> 1.18.0"
+									}
+									mysql = {
+										source  = "petoju/mysql"
+										version = "~> 3.0.29"
+									}
+								}
+								providers = {
+									aws = true
+									mysql = true
+								}
+								required_providers = {
+									aws = {
+									  source  = "hashicorp/aws"
+									  version = "~> 4.14"
+									}
+									mysql = {
+									  source  = "petoju/mysql"
+									  version = "~> 3.0.29"
+									}
+								  }
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
 			name:   "globals.map unknowns are postponed in the evaluator even when parent depends on child",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -3558,11 +3803,6 @@ func TestLoadGlobalsErrors(t *testing.T) {
 		}
 	)
 
-	// These test scenarios where quite hard to describe with the
-	// core test fixture (core model doesn't allow duplicated fields
-	// by nature, and it never creates malformed global blocks),
-	// hence this separate error tests exists :-).
-
 	tcases := []testcase{
 		{
 			name:   "stack config has invalid global definition",
@@ -3606,8 +3846,6 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			// FIXME(katcipis): would be better to have ErrGlobalRedefined
-			// for now we get an error directly from hcl for this.
 			want: errors.E(hcl.ErrHCLSyntax),
 		},
 		{
@@ -3624,8 +3862,6 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			// FIXME(katcipis): would be better to have ErrGlobalRedefined
-			// for now we get an error directly from hcl for this.
 			want: errors.E(hcl.ErrHCLSyntax),
 		},
 		{
