@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
+	"github.com/mineiros-io/terramate/versions"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -59,6 +60,8 @@ func Functions(basedir string) map[string]function.Function {
 
 	// sane ternary
 	tmfuncs["tm_ternary"] = TernaryFunc()
+
+	tmfuncs["tm_version_match"] = VersionMatch()
 	return tmfuncs
 
 }
@@ -159,6 +162,53 @@ func HCLExpressionFunc() function.Function {
 		},
 		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return hclExpr(args[0])
+		},
+	})
+}
+
+// VersionMatch returns the `tm_version_match` function spec, which checks if
+// the provided version matches the constraint.
+// If the third argument is provided, then it uses the flags to customize the
+// version matcher. At the moment, only the propery `allow_prereleases` is
+// supported, which enables matchs against prereleases using default Semver
+// ordering semantics.
+func VersionMatch() function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "version",
+				Type: cty.String,
+			},
+			{
+				Name: "constraint",
+				Type: cty.String,
+			},
+		},
+		VarParam: &function.Parameter{
+			Name: "optional_flags",
+			Type: cty.Object(map[string]cty.Type{
+				"allow_prereleases": cty.Bool,
+			}),
+		},
+		Type: function.StaticReturnType(cty.Bool),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			version := args[0].AsString()
+			constraint := args[1].AsString()
+
+			if len(args) > 3 {
+				return cty.NilVal, errors.E("invalid number of arguments")
+			}
+
+			var allowPrereleases bool
+			if len(args) == 3 {
+				v := args[2].GetAttr("allow_prereleases")
+				allowPrereleases = v.True()
+			}
+			match, err := versions.Match(version, constraint, allowPrereleases)
+			if err != nil {
+				return cty.NilVal, err
+			}
+			return cty.BoolVal(match), nil
 		},
 	})
 }

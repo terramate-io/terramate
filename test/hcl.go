@@ -101,9 +101,7 @@ func NewExpr(t *testing.T, expr string) hhcl.Expression {
 	t.Helper()
 
 	res, err := ast.ParseExpression(expr, "test")
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
+	assert.NoError(t, err)
 	return res
 }
 

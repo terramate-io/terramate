@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2023 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
-
-import (
-	_ "embed"
-	"strings"
-
-	"github.com/mineiros-io/terramate/versions"
-)
-
-//go:embed VERSION
-var version string
-
-// ErrVersion indicates failure when checking Terramate version.
-
-// Version of terramate.
-func Version() string {
-	return strings.TrimSpace(version)
-}
-
-// CheckVersion checks Terramate version against the given constraint.
-func CheckVersion(vconstraint string, allowPrereleases bool) error {
-	return versions.Check(Version(), vconstraint, allowPrereleases)
-}
+// Package versions provide helper functions for version constraint matching.
+package versions

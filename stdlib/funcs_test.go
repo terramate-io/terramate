@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog"
 )
@@ -177,6 +178,129 @@ func TestTmVendor(t *testing.T) {
 				assert.NoError(t, err)
 				assert.EqualStrings(t, tcase.want, val.AsString())
 			})
+		})
+	}
+}
+
+func TestStdlibTmVersionMatch(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		expr    string
+		wantErr error
+		want    bool
+	}
+
+	for _, tc := range []testcase{
+		{
+			expr: `tm_version_match("1.0.0", "1.0.0")`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "1.0.0", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "= 1.0.0")`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "= 1.0.0", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", ">= 1.0.0")`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", ">= 1.0.0", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "<= 1.0.0")`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "<= 1.0.0", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "< 1.0.0")`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "< 1.0.0", {allow_prereleases = true})`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "> 1.0.0")`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "> 1.0.0", {allow_prereleases = true})`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "!= 1.0.0")`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("1.0.0", "!= 1.0.0", {allow_prereleases = true})`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("2.0.0", "> 1")`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("2.0.0", "> 1", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("2", "> 1")`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("2.0.0-dev", "> 1")`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("2.0.0-dev", "> 1", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("2.0.0-dev", "~> 1")`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("2.0.0-dev", "~> 1", {allow_prereleases = true})`,
+			want: true,
+		},
+		{
+			expr: `tm_version_match("2.0.0-dev", "~> 1.0", {allow_prereleases = true})`,
+			// 2.0.0-dev < 2.0.0
+			want: true,
+		},
+		{
+			expr: `tm_version_match("2.0.0-dev", "~> 1.0", {allow_prereleases = false})`,
+			want: false,
+		},
+		{
+			expr: `tm_version_match("2.0.1-dev", "~> 1.0", {allow_prereleases = true})`,
+			want: false,
+		},
+	} {
+		tc := tc
+		t.Run(tc.expr, func(t *testing.T) {
+			rootdir := t.TempDir()
+			ctx := eval.NewContext(stdlib.Functions(rootdir))
+			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
+			errors.Assert(t, err, tc.wantErr)
+			if err != nil {
+				return
+			}
+			gotBool := val.True()
+			assert.IsTrue(t, gotBool == tc.want)
 		})
 	}
 }
