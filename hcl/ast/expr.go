@@ -311,6 +311,9 @@ func (builder *tokenBuilder) funcallTokens(fn *hclsyntax.FunctionCallExpr) {
 			builder.add(comma())
 		}
 	}
+	if fn.ExpandFinal {
+		builder.add(ellipsis())
+	}
 	builder.add(cparen())
 }
 
@@ -507,6 +510,13 @@ func cparen() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenCParen,
 		Bytes: []byte{')'},
+	}
+}
+
+func ellipsis() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenEllipsis,
+		Bytes: []byte("..."),
 	}
 }
 
