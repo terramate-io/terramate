@@ -130,6 +130,7 @@ the following schema:
 | name             |      type      | description |
 |------------------|----------------|-------------|
 | required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
+| required_version_allow_prereleases | bool | Enable _prerelease_ matches in the `required_version` constraint. |
 | [config](#terramateconfig-block-schema) |     block      | project configuration |
 
 ## terramate.config block schema
