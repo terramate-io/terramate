@@ -219,6 +219,56 @@ generate_hcl "test2.hcl" {
 	assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
 }
 
+func TestStackClonesTags(t *testing.T) {
+	const (
+		stackName        = "stack name"
+		stackDesc        = "stack description"
+		stackCfgFilename = "stack.tm.hcl"
+		stackCfgTemplate = `
+stack {
+  // Commenting stack name
+  name = %q // More comments !!
+  // Commenting stack description
+  description = %q
+
+  tags = ["a", "b", "c"]
+}
+`
+	)
+	s := sandbox.New(t)
+	s.BuildTree([]string{"d:stack"})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
+		stackName, stackDesc))
+
+	srcdir := filepath.Join(s.RootDir(), "stack")
+	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+
+	err := stack.Clone(s.Config(), destdir, srcdir)
+	assert.NoError(t, err)
+
+	cfg := test.ParseTerramateConfig(t, destdir)
+	if cfg.Stack == nil {
+		t.Fatalf("cloned stack has no stack block: %v", cfg)
+	}
+
+	assert.EqualStrings(t, stackName, cfg.Stack.Name)
+	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
+
+	assert.EqualInts(t, len(cfg.Stack.Tags), 3)
+	assert.EqualStrings(t, cfg.Stack.Tags[0], "a")
+	assert.EqualStrings(t, cfg.Stack.Tags[1], "b")
+	assert.EqualStrings(t, cfg.Stack.Tags[2], "c")
+
+	want := fmt.Sprintf(stackCfgTemplate, stackName, stackDesc)
+
+	clonedStackEntry := s.DirEntry("cloned-stack")
+	got := string(clonedStackEntry.ReadFile(stackCfgFilename))
+
+	assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
+}
+
 func entriesNames(entries []os.DirEntry) []string {
 	names := make([]string, len(entries))
 	for i, v := range entries {
