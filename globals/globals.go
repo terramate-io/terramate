@@ -391,9 +391,14 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 						switch attr := ns.(type) {
 						case hhcl.TraverseAttr:
 							varPaths = append(varPaths, attr.Name)
-						case hhcl.TraverseIndex, hhcl.TraverseSplat:
+						case hhcl.TraverseSplat:
 							break
+						case hhcl.TraverseIndex:
+							if !attr.Key.Type().Equals(cty.String) {
+								break
+							}
 
+							varPaths = append(varPaths, attr.Key.AsString())
 						default:
 							panic(errors.E(
 								errors.ErrInternal,

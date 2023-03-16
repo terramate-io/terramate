@@ -159,6 +159,28 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending global but referencing by indexing the globals map",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{path: "/stacks", add: Globals(Expr("parent", `global["a"]`))},
+				{path: "/stacks/stack-1", add: Globals(Number("a", 1))},
+				{path: "/stacks/stack-2", add: Globals(Number("a", 2))},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("parent", 1),
+					Number("a", 1),
+				),
+				"/stacks/stack-2": Globals(
+					Number("parent", 2),
+					Number("a", 2),
+				),
+			},
+		},
+		{
 			name: "multiple stacks with config on root dir",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -368,6 +390,66 @@ func TestLoadGlobals(t *testing.T) {
 					Str("ref_stack_path", "/stack"),
 					Str("interpolation", "/stack-some-string"),
 					Str("ref_interpolation", "/stack-some-string"),
+				),
+			},
+		},
+		{
+			name:   "stack with globals referencing globals by indexing",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Str("field", "some-string"),
+						Expr("stack_path", "terramate.stack.path.absolute"),
+						Expr("ref_field", `global["field"]`),
+						Expr("ref_stack_path", `global["stack_path"]`),
+						Expr("interpolation", `"${global["ref_stack_path"]}-${global["ref_field"]}"`),
+						Expr("ref_interpolation", `global["interpolation"]`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("field", "some-string"),
+					Str("stack_path", "/stack"),
+					Str("ref_field", "some-string"),
+					Str("ref_stack_path", "/stack"),
+					Str("interpolation", "/stack-some-string"),
+					Str("ref_interpolation", "/stack-some-string"),
+				),
+			},
+		},
+		{
+			name:   "globals referencing globals by nested indexing",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("object"),
+							Str("dummy", "test"),
+						),
+						Globals(
+							Expr("terramate", `tm_upper(global.object["child"]["string"])`),
+						),
+						Globals(
+							Labels("object", "child"),
+							Str("string", "terramate"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("terramate", "TERRAMATE"),
+					EvalExpr(t, "object", `{
+						child = {
+							string = "terramate"
+						},
+						dummy = "test"
+					}`),
 				),
 			},
 		},
@@ -3267,6 +3349,83 @@ func TestLoadGlobals(t *testing.T) {
 							}
 						}
 					}`),
+				),
+			},
+		},
+		{
+			name:   "expression dependency are tracked when using indexing",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("use_providers", `{}`),
+							Expr("_available_providers", `{
+								aws = {
+								  source  = "hashicorp/aws"
+								  version = "~> 4.14"
+								}
+								vault = {
+								  source  = "hashicorp/vault"
+								  version = "~> 3.10"
+								}
+								postgresql = {
+								  source  = "cyrilgdn/postgresql"
+								  version = "~> 1.18.0"
+								}
+								mysql = {
+								  source  = "petoju/mysql"
+								  version = "~> 3.0.29"
+								}
+							  }`),
+							Expr("required_providers", `{for k, v in global._available_providers : k => v if tm_try(global["use_providers"][k], false)}`),
+						),
+						Globals(
+							Labels("use_providers"),
+							Bool("aws", true),
+						),
+						Globals(
+							Labels("use_providers"),
+							Bool("mysql", true),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "use_providers", `{
+						aws = true
+						mysql = true	
+					}`),
+					EvalExpr(t, "_available_providers", `{
+						aws = {
+						  source  = "hashicorp/aws"
+						  version = "~> 4.14"
+						}
+						vault = {
+						  source  = "hashicorp/vault"
+						  version = "~> 3.10"
+						}
+						postgresql = {
+						  source  = "cyrilgdn/postgresql"
+						  version = "~> 1.18.0"
+						}
+						mysql = {
+						  source  = "petoju/mysql"
+						  version = "~> 3.0.29"
+						}
+					  }`),
+					EvalExpr(t, "required_providers", `{
+						aws = {
+						  source  = "hashicorp/aws"
+						  version = "~> 4.14"
+						}
+						mysql = {
+						  source  = "petoju/mysql"
+						  version = "~> 3.0.29"
+						}
+					  }`),
 				),
 			},
 		},
