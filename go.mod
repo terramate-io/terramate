@@ -13,6 +13,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.14.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
+	github.com/i4ki/go-checkpoint v0.0.0-20230322135254-b728828d7181
 	github.com/madlambda/spells v0.4.2
 	github.com/posener/complete v1.2.3
 	github.com/willabides/kongplete v0.2.0
@@ -26,7 +27,6 @@ require (
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/i4ki/go-checkpoint v0.0.0-20230322135254-b728828d7181 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
