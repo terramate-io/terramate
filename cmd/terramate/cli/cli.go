@@ -309,6 +309,14 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
 	go runCheckpoint(version, checkpointResults)
 
+	verbose := parsedArgs.Verbose
+
+	if parsedArgs.Quiet {
+		verbose = -1
+	}
+
+	output := out.New(verbose, stdout, stderr)
+
 	switch ctx.Command() {
 	case "version":
 		logger.Debug().Msg("Get terramate version with version subcommand.")
@@ -317,10 +325,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		info := <-checkpointResults
 
 		if info != nil && info.Outdated {
-			logger.Info().Msgf("Your version of Terramate is out of date! The latest version\n"+
+			output.MsgStdOut("Your version of Terramate is out of date! The latest version\n"+
 				"is %s. You can update by downloading from %s", info.CurrentVersion,
 				info.CurrentDownloadURL)
-
 		}
 
 		return &cli{exit: true}
@@ -385,18 +392,12 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
-	verbose := parsedArgs.Verbose
-
-	if parsedArgs.Quiet {
-		verbose = -1
-	}
-
 	return &cli{
 		version:           version,
 		stdin:             stdin,
 		stdout:            stdout,
 		stderr:            stderr,
-		output:            out.New(verbose, stdout, stderr),
+		output:            output,
 		parsedArgs:        &parsedArgs,
 		ctx:               ctx,
 		prj:               prj,
