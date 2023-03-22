@@ -18,6 +18,7 @@ import (
 	stdfmt "fmt"
 	"io"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/i4ki/go-checkpoint"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/config/filter"
 	"github.com/mineiros-io/terramate/config/tag"
@@ -236,6 +238,8 @@ type cli struct {
 	exit       bool
 	prj        project
 
+	checkpointResults chan *checkpoint.CheckResponse
+
 	tags filter.TagClause
 }
 
@@ -302,10 +306,23 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		Str("action", "newCli()").
 		Logger()
 
+	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
+	go runCheckpoint(version, checkpointResults)
+
 	switch ctx.Command() {
 	case "version":
 		logger.Debug().Msg("Get terramate version with version subcommand.")
 		stdfmt.Println(version)
+
+		info := <-checkpointResults
+
+		if info != nil && info.Outdated {
+			logger.Info().Msgf("Your version of Terramate is out of date! The latest version\n"+
+				"is %s. You can update by downloading from %s", info.CurrentVersion,
+				info.CurrentDownloadURL)
+
+		}
+
 		return &cli{exit: true}
 	case "install-completions":
 		logger.Debug().Msg("Handle `install-completions` command.")
@@ -375,14 +392,15 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	return &cli{
-		version:    version,
-		stdin:      stdin,
-		stdout:     stdout,
-		stderr:     stderr,
-		output:     out.New(verbose, stdout, stderr),
-		parsedArgs: &parsedArgs,
-		ctx:        ctx,
-		prj:        prj,
+		version:           version,
+		stdin:             stdin,
+		stdout:            stdout,
+		stderr:            stderr,
+		output:            out.New(verbose, stdout, stderr),
+		parsedArgs:        &parsedArgs,
+		ctx:               ctx,
+		prj:               prj,
+		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
 	}
 }
 
@@ -1705,6 +1723,42 @@ func (c cli) checkVersion() {
 	); err != nil {
 		fatal(err)
 	}
+}
+
+func runCheckpoint(version string, result chan *checkpoint.CheckResponse) {
+	var (
+		signatureFile string
+		cacheFile     string
+	)
+
+	logger := log.With().
+		Str("action", "runCheckpoint()").
+		Logger()
+
+	const terramateHomeConfigDir = ".terramate.d"
+
+	usr, err := user.Current()
+	if err == nil && usr.HomeDir != "" {
+		tmDir := filepath.Join(usr.HomeDir, terramateHomeConfigDir)
+		signatureFile = filepath.Join(tmDir, "checkpoint_signature")
+		cacheFile = filepath.Join(tmDir, "checkpoint_cache")
+	} else {
+		logger.Debug().Msg("signature and cache are disabled because user HOME was not detected")
+	}
+
+	resp, err := checkpoint.Check(&checkpoint.CheckParams{
+		Product:       "terramate",
+		Version:       version,
+		SignatureFile: signatureFile,
+		CacheFile:     cacheFile,
+	})
+
+	if err != nil {
+		logger.Debug().Msgf("checkpoint error: %v", err)
+		resp = nil
+	}
+
+	result <- resp
 }
 
 func (c *cli) setupFilterTags() {
