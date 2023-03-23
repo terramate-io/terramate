@@ -324,12 +324,31 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 		info := <-checkpointResults
 
-		if info != nil && info.Outdated {
-			releaseDate := time.Unix(int64(info.CurrentReleaseDate), 0).UTC()
-			output.MsgStdOut("Your version of Terramate is out of date! The latest version\n"+
-				"is %s (released on %s). You can update by downloading from %s",
-				info.CurrentVersion, releaseDate.Format(time.UnixDate),
-				info.CurrentDownloadURL)
+		if info != nil {
+			if info.Outdated {
+				releaseDate := time.Unix(int64(info.CurrentReleaseDate), 0).UTC()
+				output.MsgStdOut("\nYour version of Terramate is out of date! The latest version\n"+
+					"is %s (released on %s).\nYou can update by downloading from %s",
+					info.CurrentVersion, releaseDate.Format(time.UnixDate),
+					info.CurrentDownloadURL)
+			}
+
+			if len(info.Alerts) > 0 {
+				plural := ""
+				if len(info.Alerts) > 1 {
+					plural = "s"
+				}
+
+				output.MsgStdOut("\nYour version of Terramate has %d alert%s:\n", len(info.Alerts), plural)
+
+				for _, alert := range info.Alerts {
+					urlDesc := ""
+					if alert.URL != "" {
+						urlDesc = stdfmt.Sprintf(" (more information at %s)", alert.URL)
+					}
+					output.MsgStdOut("\t- [%s] %s%s", alert.Level, alert.Message, urlDesc)
+				}
+			}
 		}
 
 		return &cli{exit: true}
