@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -148,11 +149,17 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 
 	allargs = append(allargs, args...)
 
+	env := tm.env
+	if len(env) == 0 {
+		env = os.Environ()
+	}
+	env = append(env, "CHECKPOINT_DISABLE=1")
+
 	cmd := exec.Command(terramateTestBin, allargs...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
-	cmd.Env = tm.env
+	cmd.Env = env
 
 	return &testCmd{
 		t:      t,

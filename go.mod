@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.14.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
-	github.com/i4ki/go-checkpoint v0.0.0-20230322135254-b728828d7181
+	github.com/i4ki/go-checkpoint v0.0.0-20230323112005-d8ee97cebfa8
 	github.com/madlambda/spells v0.4.2
 	github.com/posener/complete v1.2.3
 	github.com/willabides/kongplete v0.2.0

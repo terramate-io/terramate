@@ -325,8 +325,10 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		info := <-checkpointResults
 
 		if info != nil && info.Outdated {
+			releaseDate := time.Unix(int64(info.CurrentReleaseDate), 0).UTC()
 			output.MsgStdOut("Your version of Terramate is out of date! The latest version\n"+
-				"is %s. You can update by downloading from %s", info.CurrentVersion,
+				"is %s (released on %s). You can update by downloading from %s",
+				info.CurrentVersion, releaseDate.Format(time.UnixDate),
 				info.CurrentDownloadURL)
 		}
 
@@ -1747,12 +1749,14 @@ func runCheckpoint(version string, result chan *checkpoint.CheckResponse) {
 		logger.Debug().Msg("signature and cache are disabled because user HOME was not detected")
 	}
 
-	resp, err := checkpoint.Check(&checkpoint.CheckParams{
-		Product:       "terramate",
-		Version:       version,
-		SignatureFile: signatureFile,
-		CacheFile:     cacheFile,
-	})
+	resp, err := checkpoint.CheckAt(defaultTelemetryEndpoint(),
+		&checkpoint.CheckParams{
+			Product:       "terramate",
+			Version:       version,
+			SignatureFile: signatureFile,
+			CacheFile:     cacheFile,
+		},
+	)
 
 	if err != nil {
 		logger.Debug().Msgf("checkpoint error: %v", err)
