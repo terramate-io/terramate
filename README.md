@@ -168,4 +168,4 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Timeline)](https://star-history.com/#mineiros-io/terramate&Timeline)
+[![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Date)](https://star-history.com/#mineiros-io/terramate&Date)
