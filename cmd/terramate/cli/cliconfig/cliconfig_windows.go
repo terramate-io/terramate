@@ -17,8 +17,8 @@
 package cliconfig
 
 import (
-	"filepath"
 	"os"
+	"path/filepath"
 )
 
 // Filename is the name of the CLI configuration file.
