@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -67,7 +68,7 @@ func LoadFrom(fname string) (Config, error) {
 	for name, attr := range body.Attributes {
 		val, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
-			return Config{}, errors.E(diags, `failed to evaluate the "%s" attribute`, name)
+			return Config{}, errors.E(diags, eval.ErrEval, `failed to evaluate the "%s" attribute`, name)
 		}
 		switch name {
 		case "disable_checkpoint":

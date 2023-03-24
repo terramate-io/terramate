@@ -7,6 +7,7 @@ import (
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
@@ -38,26 +39,77 @@ func TestLoad(t *testing.T) {
 		},
 		{
 			name: "disable_checkpoint with wrong type",
-			cfg: `disable_checkpoint = 1
-			`,
+			cfg:  `disable_checkpoint = 1`,
 			want: want{
 				err: errors.E(cliconfig.ErrInvalidAttributeType),
 			},
 		},
 		{
 			name: "disable_checkpoint_signature with wrong type",
-			cfg: `disable_checkpoint_signature = 1
-			`,
+			cfg:  `disable_checkpoint_signature = 1`,
 			want: want{
 				err: errors.E(cliconfig.ErrInvalidAttributeType),
 			},
 		},
 		{
 			name: "unrecognized attribute",
-			cfg: `unrecognized = true
-			`,
+			cfg:  `unrecognized = true`,
 			want: want{
 				err: errors.E(cliconfig.ErrUnknownAttribute),
+			},
+		},
+		{
+			name: "disable_checkpoint = anytrue(true) - TM functions not supported",
+			cfg:  `disable_checkpoint = tm_anytrue(false, true)`,
+			want: want{
+				err: errors.E(eval.ErrEval),
+			},
+		},
+		{
+			name: "disable_checkpoint = anytrue(true) - TF functions not supported",
+			cfg:  `disable_checkpoint = anytrue(false, true)`,
+			want: want{
+				err: errors.E(eval.ErrEval),
+			},
+		},
+		{
+			name: "valid disable_checkpoint",
+			cfg:  `disable_checkpoint = true`,
+			want: want{
+				cfg: cliconfig.Config{
+					DisableCheckpoint: true,
+				},
+			},
+		},
+		{
+			name: "valid disable_checkpoint_signature",
+			cfg:  `disable_checkpoint_signature = true`,
+			want: want{
+				cfg: cliconfig.Config{
+					DisableCheckpointSignature: true,
+				},
+			},
+		},
+		{
+			name: "disable_checkpoint and disable_checkpoint_signature",
+			cfg: `disable_checkpoint = true
+			disable_checkpoint_signature = true`,
+			want: want{
+				cfg: cliconfig.Config{
+					DisableCheckpointSignature: true,
+					DisableCheckpoint:          true,
+				},
+			},
+		},
+		{
+			name: "disable_checkpoint and disable_checkpoint_signature -- diff values",
+			cfg: `disable_checkpoint = true
+			disable_checkpoint_signature = false`,
+			want: want{
+				cfg: cliconfig.Config{
+					DisableCheckpointSignature: false,
+					DisableCheckpoint:          true,
+				},
 			},
 		},
 	} {
