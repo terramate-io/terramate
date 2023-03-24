@@ -1,4 +1,4 @@
-# [<img src="https://raw.githubusercontent.com/mineiros-io/brand/38f6e5c20a176c62dc673f707a3987c9ec3691cd/terramate-vertical-logo-black-font.svg" height="120"/>](https://mineiros.io/?ref=terramate)[<img align="right" src="https://raw.githubusercontent.com/mineiros-io/brand/3bffd30e8bdbbde32c143e2650b2faa55f1df3ea/mineiros-primary-logo.svg" height="23" alt="Mineiros"/>](https://mineiros.io/?ref=terramate)
+# [<picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mineiros-io/brand/8b5320e3061f4ccfae3e6058075f1befb3fd1836/terramate-vertical-logo-white-font.svg" height="120"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/mineiros-io/brand/8b5320e3061f4ccfae3e6058075f1befb3fd1836/terramate-vertical-logo-black-font.svg" height="120"><img alt="Logo of Terramate" src="https://raw.githubusercontent.com/mineiros-io/brand/38f6e5c20a176c62dc673f707a3987c9ec3691cd/terramate-vertical-logo-black-font.svg" height="120"></picture>](https://mineiros.io/?ref=terramate)[<picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mineiros-io/brand/6b002091344262d08c5e1d4d1606398f23d306b8/mineiros-logo-inverted.svg" height="60"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/mineiros-io/brand/6b002091344262d08c5e1d4d1606398f23d306b8/mineiros-logo.svg" height="60"><img alt="Logo of Mineiros" align="right" src="https://raw.githubusercontent.com/mineiros-io/brand/6b002091344262d08c5e1d4d1606398f23d306b8/mineiros-logo.svg" height="60"></picture>](https://mineiros.io/?ref=terramate)
 
 [![GoDoc](https://pkg.go.dev/badge/github.com/mineiros-io/terramate)](https://pkg.go.dev/github.com/mineiros-io/terramate)
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
@@ -151,6 +151,12 @@ In a setup with no VCS change detection features will not be available.
 
 You can also check our [live example](https://github.com/mineiros-io/terramate-example-code-generation).
 
+## Getting involved
+
+- Give the project a star!
+- Join us on [Slack](https://mineiros.io/slack)
+- Contact us via email at [hello@mineiros.io](mailto:hello@mineiros.io)
+
 ## Versioning
 
 Terramate follows the principles of [Semantic Versioning (SemVer)].
@@ -168,4 +174,4 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Timeline)](https://star-history.com/#mineiros-io/terramate&Timeline)
+[![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Date)](https://star-history.com/#mineiros-io/terramate&Date)
