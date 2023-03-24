@@ -315,6 +315,8 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		fatal(err, "failed to load cli configuration file")
 	}
 
+	// cmdline flags override configuration file.
+
 	if parsedArgs.DisableCheckpoint {
 		clicfg.DisableCheckpoint = parsedArgs.DisableCheckpoint
 	}
