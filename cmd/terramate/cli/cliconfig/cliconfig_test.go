@@ -55,7 +55,7 @@ func TestLoad(t *testing.T) {
 			name: "unrecognized attribute",
 			cfg:  `unrecognized = true`,
 			want: want{
-				err: errors.E(cliconfig.ErrUnknownAttribute),
+				err: errors.E(cliconfig.ErrUnrecognizedAttribute),
 			},
 		},
 		{

@@ -28,9 +28,13 @@ import (
 
 const configPathEnv = "TM_CLI_CONFIG_FILE"
 
-const ErrInvalidAttributeType errors.Kind = "attribute with invalid type"
+const (
+	// ErrInvalidAttributeType indicates the attribute has an invalid type.
+	ErrInvalidAttributeType errors.Kind = "attribute with invalid type"
 
-const ErrUnknownAttribute errors.Kind = "unrecognized attribute"
+	// ErrUnrecognizedAttribute indicates the attribute is unrecognized.
+	ErrUnrecognizedAttribute errors.Kind = "unrecognized attribute"
+)
 
 // Config is the evaluated CLI configuration options.
 type Config struct {
@@ -51,6 +55,7 @@ func Load() (cfg Config, err error) {
 	return LoadFrom(fname)
 }
 
+// LoadFrom loads the CLI configuration file from fname.
 func LoadFrom(fname string) (Config, error) {
 	content, err := os.ReadFile(fname)
 	if err != nil {
@@ -82,7 +87,7 @@ func LoadFrom(fname string) (Config, error) {
 			}
 			cfg.DisableCheckpointSignature = val.True()
 		default:
-			return cfg, errors.E(ErrUnknownAttribute, name)
+			return cfg, errors.E(ErrUnrecognizedAttribute, name)
 		}
 	}
 
