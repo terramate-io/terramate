@@ -10,11 +10,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// Config is the evaluated CLI configuration options.
 type Config struct {
 	DisableCheckpoint          bool
 	DisableCheckpointSignature bool
 }
 
+// LoadAll loads (parses and evaluates) all CLI configuration files.
 func LoadAll() (cfg Config, err error) {
 	abspath, found := configAbsPath()
 	if !found {

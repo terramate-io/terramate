@@ -1,3 +1,5 @@
+//go:build aix || android || darwin || dragonfly || freebsd || hurd || illumos || ios || linux || netbsd || openbsd || solaris
+
 package cliconfig
 
 import (
@@ -5,6 +7,7 @@ import (
 	"path/filepath"
 )
 
+// Filename is the name of the CLI configuration file.
 const Filename = ".terramaterc"
 
 func configAbsPath() (string, bool) {
