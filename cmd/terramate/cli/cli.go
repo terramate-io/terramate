@@ -310,7 +310,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		Str("action", "newCli()").
 		Logger()
 
-	clicfg, err := cliconfig.LoadAll()
+	clicfg, err := cliconfig.Load()
 	if err != nil {
 		fatal(err, "failed to load cli configuration file")
 	}

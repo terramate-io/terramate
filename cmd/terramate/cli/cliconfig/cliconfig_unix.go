@@ -24,6 +24,9 @@ import (
 // Filename is the name of the CLI configuration file.
 const Filename = ".terramaterc"
 
+// DirEnv is the environment variable used to define the config location.
+const DirEnv = "HOME"
+
 func configAbsPath() (string, bool) {
 	usr, err := user.Current()
 	if err != nil {

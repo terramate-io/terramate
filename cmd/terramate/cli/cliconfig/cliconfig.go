@@ -21,8 +21,15 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/zclconf/go-cty/cty"
 )
+
+const configPathEnv = "TM_CLI_CONFIG_FILE"
+
+const ErrInvalidAttributeType errors.Kind = "attribute with invalid type"
+
+const ErrUnknownAttribute errors.Kind = "unrecognized attribute"
 
 // Config is the evaluated CLI configuration options.
 type Config struct {
@@ -30,56 +37,64 @@ type Config struct {
 	DisableCheckpointSignature bool
 }
 
-// LoadAll loads (parses and evaluates) all CLI configuration files.
-func LoadAll() (cfg Config, err error) {
-	// TODO(i4k): handle TM_CLI_CONFIG_FILE
-
-	abspath, found := configAbsPath()
-	if !found {
-		return cfg, nil
+// Load loads (parses and evaluates) all CLI configuration files.
+func Load() (cfg Config, err error) {
+	fname := os.Getenv(configPathEnv)
+	if fname == "" {
+		var found bool
+		fname, found = configAbsPath()
+		if !found {
+			return cfg, nil
+		}
 	}
+	return LoadFrom(fname)
+}
 
-	content, err := os.ReadFile(abspath)
+func LoadFrom(fname string) (Config, error) {
+	content, err := os.ReadFile(fname)
 	if err != nil {
-		return cfg, nil
+		return Config{}, nil
 	}
 
 	parser := hclparse.NewParser()
-	hclfile, diags := parser.ParseHCL(content, abspath)
+	hclfile, diags := parser.ParseHCL(content, fname)
 	if diags.HasErrors() {
-		return cfg, errors.E(diags, "failed to parse %s", abspath)
+		return Config{}, errors.E(hcl.ErrHCLSyntax, diags, "failed to parse %s", fname)
 	}
 
+	var cfg Config
 	body := hclfile.Body.(*hclsyntax.Body)
-	disableCheckpointAttr, ok := body.Attributes["disable_checkpoint"]
-	if ok {
-		val, diags := disableCheckpointAttr.Expr.Value(nil)
+	for name, attr := range body.Attributes {
+		val, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
-			return cfg, errors.E(diags, `failed to evaluate the "disable_checkpoint" attribute`)
+			return Config{}, errors.E(diags, `failed to evaluate the "%s" attribute`, name)
 		}
-		if !val.Type().Equals(cty.Bool) {
-			return cfg, errors.E(
-				`the "disable_checkpoint" attribute expects a boolean value but type %s was given (value %s)`,
-				val.Type().FriendlyName(), hclwrite.TokensForValue(val),
-			)
+		switch name {
+		case "disable_checkpoint":
+			if err := checkBoolType(val, name); err != nil {
+				return Config{}, err
+			}
+			cfg.DisableCheckpoint = val.True()
+		case "disable_checkpoint_signature":
+			if err := checkBoolType(val, name); err != nil {
+				return Config{}, err
+			}
+			cfg.DisableCheckpointSignature = val.True()
+		default:
+			return cfg, errors.E(ErrUnknownAttribute, name)
 		}
-
-		cfg.DisableCheckpoint = val.True()
 	}
 
-	disableCheckpointSignatureAttr, ok := body.Attributes["disable_checkpoint_signature"]
-	if ok {
-		val, diags := disableCheckpointSignatureAttr.Expr.Value(nil)
-		if diags.HasErrors() {
-			return cfg, errors.E(diags, `failed to evaluate the "disable_checkpoint_signature" attribute`)
-		}
-		if !val.Type().Equals(cty.Bool) {
-			return cfg, errors.E(
-				`the "disable_checkpoint_signature" attribute expects a boolean value but type %s was given (value %s)`,
-				val.Type().FriendlyName(), hclwrite.TokensForValue(val),
-			)
-		}
-		cfg.DisableCheckpointSignature = val.True()
-	}
 	return cfg, nil
+}
+
+func checkBoolType(val cty.Value, name string) error {
+	if !val.Type().Equals(cty.Bool) {
+		return errors.E(
+			ErrInvalidAttributeType,
+			`%q attribute expects a boolean value but a value of type %s was given (value %s)`,
+			name, val.Type().FriendlyName(), hclwrite.TokensForValue(val),
+		)
+	}
+	return nil
 }
