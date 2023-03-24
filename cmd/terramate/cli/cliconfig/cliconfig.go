@@ -32,6 +32,8 @@ type Config struct {
 
 // LoadAll loads (parses and evaluates) all CLI configuration files.
 func LoadAll() (cfg Config, err error) {
+	// TODO(i4k): handle TM_CLI_CONFIG_FILE
+
 	abspath, found := configAbsPath()
 	if !found {
 		return cfg, nil

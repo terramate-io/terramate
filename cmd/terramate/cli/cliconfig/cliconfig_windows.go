@@ -16,6 +16,11 @@
 
 package cliconfig
 
+import (
+	"filepath"
+	"os"
+)
+
 // Filename is the name of the CLI configuration file.
 const Filename = "terramate.rc"
 
