@@ -159,7 +159,7 @@ You can also check our [live example](https://github.com/mineiros-io/terramate-e
 
 ## Versioning
 
-Terramate follows the principles of [Semantic Versioning (SemVer)].
+Terramate follows the principles of [Semantic Versioning (SemVer)](https://semver.org/).
 
 Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
