@@ -36,6 +36,7 @@ import (
 	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/generate2"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -142,7 +143,9 @@ type cliSpec struct {
 		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
-	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
+	Generate struct {
+		V2 bool `default:"false" help:"use generate v2"`
+	} `cmd:"" help:"Generate terraform code for stacks"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
@@ -734,7 +737,18 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate() {
-	report, vendorReport := c.gencodeWithVendor()
+	type reporter interface {
+		Full() string
+		HasFailures() bool
+	}
+
+	var report reporter
+	var vendorReport download.Report
+	if c.parsedArgs.Generate.V2 {
+		report, vendorReport = c.gencodeWithVendor2()
+	} else {
+		report, vendorReport = c.gencodeWithVendor()
+	}
 
 	c.output.MsgStdOut(report.Full())
 
@@ -767,6 +781,43 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 	log.Debug().Msg("generating code")
 
 	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+
+	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
+
+	close(vendorRequestEvents)
+
+	log.Debug().Msg("waiting for vendor report merging")
+
+	vendorReport := <-mergedVendorReport
+
+	log.Debug().Msg("waiting for all progress events")
+
+	close(vendorProgressEvents)
+	<-progressHandlerDone
+
+	log.Debug().Msg("all handlers stopped, generating final report")
+
+	return report, vendorReport
+}
+
+// gencodeWithVendor2 will generate code for the whole project providing automatic
+// vendoring of all tm_vendor calls.
+func (c *cli) gencodeWithVendor2() (generate2.Report, download.Report) {
+	vendorProgressEvents := download.NewEventStream()
+	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
+
+	vendorRequestEvents := make(chan event.VendorRequest)
+	vendorReports := download.HandleVendorRequests(
+		c.prj.rootdir,
+		vendorRequestEvents,
+		vendorProgressEvents,
+	)
+
+	mergedVendorReport := download.MergeVendorReports(vendorReports)
+
+	log.Debug().Msg("generating code")
+
+	report := generate2.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 

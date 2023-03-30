@@ -30,12 +30,11 @@ const ErrEval errors.Kind = "eval expression"
 // Context is used to evaluate HCL code.
 type Context struct {
 	hclctx *hhcl.EvalContext
+
+	Globals *Object
 }
 
 // NewContext creates a new HCL evaluation context.
-// The basedir is the base directory used by any interpolation functions that
-// accept filesystem paths as arguments.
-// The basedir must be an absolute path to a directory.
 func NewContext(funcs map[string]function.Function) *Context {
 	hclctx := &hhcl.EvalContext{
 		Functions: funcs,
