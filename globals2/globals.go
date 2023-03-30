@@ -1,12 +1,21 @@
 package globals2
 
-import "github.com/zclconf/go-cty/cty"
+import (
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/mineiros-io/terramate/config"
+	"github.com/zclconf/go-cty/cty"
+)
 
-type Variables map[Accessor]cty.Value
-
-type Query struct {
-	Variables Variables
-	Evaluated int
+type G struct {
+	tree *config.Tree
 }
 
-func EvalFor
+func New(tree *config.Tree) *G {
+	return &G{
+		tree: tree,
+	}
+}
+
+func (g *G) Eval(expr hhcl.Expression) (cty.Value, error) {
+
+}
