@@ -84,7 +84,7 @@ When set to `true`, disables [upgrade and security bulletin checks](./upgrade-ch
 
 - `disable_checkpoint_signature`
 
- when set to `true`, allows the [upgrade and security bulletin checks](./upgrade-check.md)
+ when set to `true`, still allows the [upgrade and security bulletin checks](./upgrade-check.md)
  described above but disables the use of an anonymous id used to de-duplicate warning messages.
 
 ## Location
@@ -92,7 +92,10 @@ When set to `true`, disables [upgrade and security bulletin checks](./upgrade-ch
 The configuration should be placed in a different path depending on the operating
 system:
 
-On _Windows_, the file must be named `terraform.rc` and placed in the user's `%APPDATA%` directory. The location of this directory depends on your _Windows_ version and system configuration. You can the command below in _PowerShell_ to find its location:
+On _Windows_, the file must be named `terraform.rc` and placed in the user's 
+`%APPDATA%` directory. The location of this directory depends on your _Windows_ 
+version and system configuration. You can the command below in _PowerShell_ to 
+find its location:
 
 ```sh
 $env:APPDATA
