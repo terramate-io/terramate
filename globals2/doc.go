@@ -17,4 +17,12 @@
 // Then, in the Terramate terminology, directories are variable scopes.
 // As in most programming languages, child scopes can shadow the globals from
 // parent scopes by declaring a variable with same name.
+//
+// Implementation:
+//
+// Because of the nature of Globals in Terramate, they must only be evaluated
+// when needed because a project can be organized with hundreds of directories
+// and then each directory being a variable scope, means that evaluating
+// everything is very expensive as Terramate needs to traverse all directories
+// for each stack from the stack directory up to root, evaluating everything.
 package globals2

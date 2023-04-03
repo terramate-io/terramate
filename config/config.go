@@ -65,7 +65,8 @@ type Tree struct {
 	// Parent is the parent node or nil if none.
 	Parent *Tree
 
-	dir string
+	dir  string
+	pdir project.Path
 }
 
 // DirElem represents a node which is represented by a directory.
@@ -295,7 +296,10 @@ func (tree *Tree) HostDir() string {
 
 // Dir returns the directory as a project dir.
 func (tree *Tree) Dir() project.Path {
-	return project.PrjAbsPath(tree.RootDir(), tree.dir)
+	if tree.pdir.String() == "" {
+		tree.pdir = project.PrjAbsPath(tree.RootDir(), tree.dir)
+	}
+	return tree.pdir
 }
 
 // RootDir returns the tree root directory..
