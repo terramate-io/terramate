@@ -55,7 +55,7 @@ Commands:
 Run "terramate <command> --help" for more information on a command.
 ```
 
-All sub-commands supports the `--help` flag as well for specific details.
+All sub-commands support the `--help` flag as well for specific details.
 
 Terramate supports autocompletion of commands for `bash`, `zsh` and `fish`. To
 install the completion just run the command below and open a new shell session:
