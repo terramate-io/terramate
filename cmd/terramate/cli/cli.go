@@ -18,6 +18,7 @@ import (
 	stdfmt "fmt"
 	"io"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/i4ki/go-checkpoint"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/config/filter"
 	"github.com/mineiros-io/terramate/config/tag"
@@ -236,6 +238,8 @@ type cli struct {
 	exit       bool
 	prj        project
 
+	checkpointResults chan *checkpoint.CheckResponse
+
 	tags filter.TagClause
 }
 
@@ -302,10 +306,51 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		Str("action", "newCli()").
 		Logger()
 
+	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
+	go runCheckpoint(version, checkpointResults)
+
+	verbose := parsedArgs.Verbose
+
+	if parsedArgs.Quiet {
+		verbose = -1
+	}
+
+	output := out.New(verbose, stdout, stderr)
+
 	switch ctx.Command() {
 	case "version":
 		logger.Debug().Msg("Get terramate version with version subcommand.")
 		stdfmt.Println(version)
+
+		info := <-checkpointResults
+
+		if info != nil {
+			if info.Outdated {
+				releaseDate := time.Unix(int64(info.CurrentReleaseDate), 0).UTC()
+				output.MsgStdOut("\nYour version of Terramate is out of date! The latest version\n"+
+					"is %s (released on %s).\nYou can update by downloading from %s",
+					info.CurrentVersion, releaseDate.Format(time.UnixDate),
+					info.CurrentDownloadURL)
+			}
+
+			if len(info.Alerts) > 0 {
+				plural := ""
+				if len(info.Alerts) > 1 {
+					plural = "s"
+				}
+
+				output.MsgStdOut("\nYour version of Terramate has %d alert%s:\n", len(info.Alerts), plural)
+
+				for _, alert := range info.Alerts {
+					urlDesc := ""
+					if alert.URL != "" {
+						urlDesc = stdfmt.Sprintf(" (more information at %s)", alert.URL)
+					}
+					output.MsgStdOut("\t- [%s] %s%s", alert.Level, alert.Message, urlDesc)
+				}
+			}
+		}
+
 		return &cli{exit: true}
 	case "install-completions":
 		logger.Debug().Msg("Handle `install-completions` command.")
@@ -368,21 +413,16 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
-	verbose := parsedArgs.Verbose
-
-	if parsedArgs.Quiet {
-		verbose = -1
-	}
-
 	return &cli{
-		version:    version,
-		stdin:      stdin,
-		stdout:     stdout,
-		stderr:     stderr,
-		output:     out.New(verbose, stdout, stderr),
-		parsedArgs: &parsedArgs,
-		ctx:        ctx,
-		prj:        prj,
+		version:           version,
+		stdin:             stdin,
+		stdout:            stdout,
+		stderr:            stderr,
+		output:            output,
+		parsedArgs:        &parsedArgs,
+		ctx:               ctx,
+		prj:               prj,
+		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
 	}
 }
 
@@ -1705,6 +1745,44 @@ func (c cli) checkVersion() {
 	); err != nil {
 		fatal(err)
 	}
+}
+
+func runCheckpoint(version string, result chan *checkpoint.CheckResponse) {
+	var (
+		signatureFile string
+		cacheFile     string
+	)
+
+	logger := log.With().
+		Str("action", "runCheckpoint()").
+		Logger()
+
+	const terramateHomeConfigDir = ".terramate.d"
+
+	usr, err := user.Current()
+	if err == nil && usr.HomeDir != "" {
+		tmDir := filepath.Join(usr.HomeDir, terramateHomeConfigDir)
+		signatureFile = filepath.Join(tmDir, "checkpoint_signature")
+		cacheFile = filepath.Join(tmDir, "checkpoint_cache")
+	} else {
+		logger.Debug().Msg("signature and cache are disabled because user HOME was not detected")
+	}
+
+	resp, err := checkpoint.CheckAt(defaultTelemetryEndpoint(),
+		&checkpoint.CheckParams{
+			Product:       "terramate",
+			Version:       version,
+			SignatureFile: signatureFile,
+			CacheFile:     cacheFile,
+		},
+	)
+
+	if err != nil {
+		logger.Debug().Msgf("checkpoint error: %v", err)
+		resp = nil
+	}
+
+	result <- resp
 }
 
 func (c *cli) setupFilterTags() {
