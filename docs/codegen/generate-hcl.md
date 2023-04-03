@@ -169,6 +169,49 @@ block {
 }
 ```
 
+Additionally, a `labels` attribute can be provided for generating the block's
+labels. Example:
+
+```hcl
+globals {
+  values = ["a", "b", "c"]
+}
+
+generate_hcl "file.tf" {
+  content {
+    tm_dynamic "block" {
+      for_each = global.values
+      iterator = value
+      labels = ["some", "labels", value.value]
+
+      content {
+        key = value.key
+        value = value.value
+      }
+    }
+  }
+}
+```
+
+which generates:
+
+```hcl
+block "some" "labels" "a" {
+  key   = 0
+  value = "a"
+}
+block "some" "labels" "b" {
+  key   = 1
+  value = "b"
+}
+block "some" "labels" "c" {
+  key   = 2
+  value = "c"
+}
+```
+
+The `labels` must evaluate to a list of strings, otherwise it fails.
+
 The `tm_dynamic` content block only evaluates the Terramate variables/functions,
 everything else is just copied as is to the final generated code.
 
