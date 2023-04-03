@@ -28,6 +28,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/i4ki/go-checkpoint"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/config/filter"
 	"github.com/mineiros-io/terramate/config/tag"
@@ -107,6 +108,9 @@ type cliSpec struct {
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
+
+	DisableCheckpoint          bool `optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
+	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
 
 	Create struct {
 		Path           string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
@@ -306,8 +310,28 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		Str("action", "newCli()").
 		Logger()
 
+	clicfg, err := cliconfig.Load()
+	if err != nil {
+		fatal(err, "failed to load cli configuration file")
+	}
+
+	// cmdline flags override configuration file.
+
+	if parsedArgs.DisableCheckpoint {
+		clicfg.DisableCheckpoint = parsedArgs.DisableCheckpoint
+	}
+
+	if parsedArgs.DisableCheckpointSignature {
+		clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
+	}
+
 	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
-	go runCheckpoint(version, checkpointResults)
+	go runCheckpoint(
+		version,
+		clicfg.DisableCheckpoint,
+		clicfg.DisableCheckpointSignature,
+		checkpointResults,
+	)
 
 	verbose := parsedArgs.Verbose
 
@@ -1747,11 +1771,21 @@ func (c cli) checkVersion() {
 	}
 }
 
-func runCheckpoint(version string, result chan *checkpoint.CheckResponse) {
+func runCheckpoint(
+	version string,
+	disableCheckpoint bool,
+	disableCheckpointSignature bool,
+	result chan *checkpoint.CheckResponse,
+) {
 	var (
 		signatureFile string
 		cacheFile     string
 	)
+
+	if disableCheckpoint {
+		result <- nil
+		return
+	}
 
 	logger := log.With().
 		Str("action", "runCheckpoint()").
@@ -1762,8 +1796,12 @@ func runCheckpoint(version string, result chan *checkpoint.CheckResponse) {
 	usr, err := user.Current()
 	if err == nil && usr.HomeDir != "" {
 		tmDir := filepath.Join(usr.HomeDir, terramateHomeConfigDir)
-		signatureFile = filepath.Join(tmDir, "checkpoint_signature")
+
 		cacheFile = filepath.Join(tmDir, "checkpoint_cache")
+
+		if !disableCheckpointSignature {
+			signatureFile = filepath.Join(tmDir, "checkpoint_signature")
+		}
 	} else {
 		logger.Debug().Msg("signature and cache are disabled because user HOME was not detected")
 	}
