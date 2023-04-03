@@ -94,7 +94,7 @@ system:
 
 On _Windows_, the file must be named `terraform.rc` and placed in the user's 
 `%APPDATA%` directory. The location of this directory depends on your _Windows_ 
-version and system configuration. You can the command below in _PowerShell_ to 
+version and system configuration. You can use the command below in _PowerShell_ to 
 find its location:
 
 ```sh
