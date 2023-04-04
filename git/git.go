@@ -750,6 +750,10 @@ func (git *Git) IsRepository() bool {
 	return err == nil
 }
 
+func (git *Git) AddSubmodule(name string, url string) (string, error) {
+	return git.exec("-c", "protocol.file.allow=always", "submodule", "add", url, name)
+}
+
 // Exec executes any provided git command. We don't allow Exec if AllowPorcelain
 // is set to false.
 func (git *Git) Exec(command string, args ...string) (string, error) {
