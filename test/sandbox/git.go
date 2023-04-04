@@ -233,7 +233,7 @@ func (git Git) Pull(branch string) {
 }
 
 // CommitAll will add all changed files and commit all of them.
-// It requires files to be commited otherwise it fails.
+// It requires files to be committed otherwise it fails.
 func (git Git) CommitAll(msg string, ignoreErr ...bool) {
 	git.t.Helper()
 
