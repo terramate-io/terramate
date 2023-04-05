@@ -162,6 +162,7 @@ func (git Git) Add(files ...string) {
 	}
 }
 
+// AddSubmodule adds name as a submodule for the provided url.
 func (git Git) AddSubmodule(name string, url string) {
 	git.t.Helper()
 	if _, err := git.g.AddSubmodule(name, url); err != nil {
