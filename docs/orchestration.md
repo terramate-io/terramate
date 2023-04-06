@@ -245,7 +245,7 @@ on it, it will be ignored when calculating order.
 An example of such a command would be using terramate to run **terraform apply**,
 but only on changes stacks, like this:
 
-```
+```bash
 terramate run --changed terraform apply
 ```
 

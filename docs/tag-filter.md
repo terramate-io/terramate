@@ -34,7 +34,7 @@ Examples:
 
 Below is the formal grammar definition:
 
-```
+```ebnf
 query         ::= or_term {',' or_term}
 or_term       ::= and_term {':' and_term}
 and_term      ::= tagname

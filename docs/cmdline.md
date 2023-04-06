@@ -60,7 +60,7 @@ All sub-commands support the `--help` flag as well for specific details.
 Terramate supports autocompletion of commands for `bash`, `zsh` and `fish`. To
 install the completion just run the command below and open a new shell session:
 
-```sh
+```bash
 terramate install-completions
 ```
 
@@ -97,7 +97,7 @@ On _Windows_, the file must be named `terraform.rc` and placed in the user's
 version and system configuration. You can use the command below in _PowerShell_ to 
 find its location:
 
-```sh
+```PowerShell
 $env:APPDATA
 ```
 
@@ -108,6 +108,6 @@ The default location of the Terramate CLI configuration file can also be specifi
 using the `TM_CLI_CONFIG_FILE` environment variable. 
 Example:
 
-```sh
+```bash
 TM_CLI_CONFIG_FILE=/etc/terramaterc terramate run -- <cmd>
 ```
