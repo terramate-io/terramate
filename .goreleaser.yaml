@@ -75,3 +75,15 @@ announce:
     channel: '#terramate'
     username: 'terramate'
     icon_emoji: ':terramate-logo:'
+
+  discord:
+    enabled: true
+
+    message_template: |
+      🥳 We just released #Terramate {{.Tag}} 🚀🚀🚀
+      {{ .ReleaseURL }}
+
+    author: 'terramate'
+
+    # Default: 'https://goreleaser.com/static/avatar.png'
+    icon_url: ''
