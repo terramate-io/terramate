@@ -98,6 +98,8 @@ and a [PostgreSQL](https://postgresql.org) containers using the Terraform
 
 But first, let's create a git feature branch for the `nginx` service:
 
+> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> 
 > This is important for understanding the Terramate change detection feature.
 
 ```
@@ -210,6 +212,8 @@ resource "docker_container" "nginx" {
 The Terraform configuration above creates two resources, the `docker_image` and 
 the `docker_container` for running a `nginx` service exposed on host port `8000`.
 
+> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> 
 > If your docker daemon is running on a custom port or you use Windows, then the
 > "docker" provider need an additional `host` attribute for daemon address.
 > On Windows, the config below is commonly needed:
