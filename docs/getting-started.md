@@ -25,7 +25,7 @@ If you are new to Terramate or if you are creating a new project using it,
 make sure you have the latest version installed. The command `terramate version` 
 will inform you if your installed version is not the latest.
 
-```console
+```ShellSession
 $ terramate version
 0.2.16
 
@@ -59,7 +59,7 @@ working, etc.
 
 Let's say you cloned the repository into a `my-iac` directory:
 
-```console
+```ShellSession
 $ git clone <url> my-iac
 ```
 
@@ -105,7 +105,7 @@ Switched to a new branch 'nginx-service'
 
 Terramate comes with a handy `terramate create` command to easily create stacks.
 
-```console
+```ShellSession2
 $ terramate create nginx
 Created stack /nginx
 ```
@@ -130,7 +130,7 @@ documentation page.
 Now if you execute `terramate list` you must see your brand new stack listed
 in the output:
 
-```console
+```ShellSession
 $ terramate list
 2023-04-08T02:45:01+01:00 WRN repository has untracked files
 nginx
@@ -143,7 +143,7 @@ and pushed to the remote git server. This behavior can be customized with the
 
 When all the files are committed, the command returns:
 
-```console
+```ShellSession
 $ terramate list
 nginx
 ```
@@ -192,7 +192,7 @@ the `docker_container` for running a `nginx` service exposed on host port `8000`
 
 From the root directory, run:
 
-```console
+```ShellSession
 $ terramate run -- terraform init
 ```
 
@@ -227,7 +227,7 @@ terraform.tfstate*
 
 Executing `terramate run -- terraform apply` will create the resources.
 
-```console
+```ShellSession
 $ terramate run -- terraform apply
 
 Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
@@ -320,7 +320,7 @@ Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
 Then now the `nginx` service should be running, you can check this with the
 `docker ps` command:
 
-```console
+```ShellSession
 $ docker ps
 CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS         PORTS                  NAMES
 0854270a6008   080ed0ed8312   "/docker-entrypoint.…"   2 minutes ago   Up 2 minutes   0.0.0.0:8000->80/tcp   terramate-tutorial-nginx
