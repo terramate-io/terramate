@@ -605,6 +605,10 @@ Then your CI/CD pipeline for changes in the `main` branch can be simply:
 > Additionally, a Terraform plan file can be created with `-out=pr.tfplan` and
 > saved as an artifact for later be used by the pipeline running on `main`.
 
+# Code generation
+
+TODO
+
 Now let's create the _PostgreSQL_ stack.
 
 ```shell
