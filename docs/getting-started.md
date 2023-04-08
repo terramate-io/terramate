@@ -500,6 +500,43 @@ docker_image.nginx: Destruction complete after 0s
 Destroy complete! Resources: 2 destroyed.
 ```
 
+> <img src="https://cdn-icons-png.flaticon.com/512/1680/1680012.png" width="24px" />
+> 
+> When you need to explicitly _destroy_ stacks, it's better to `cd` into the
+> specific stack and invoke `terraform destroy` directly because `terramate run`
+> will execute in all stacks by default.
+
+Done! You're now again in a clean slate.
+
+So the changes you did in this branch works, then now it's time to commit
+everything and follow your git workflow to get this merged into production.
+
+```shell
+$ git add nginx
+$ git commit -m "feat: create the NGINX service"
+[nginx-service 8969b0c] feat: create the NGINX service
+ 1 file changed, 2 insertions(+)
+```
+
+But first, let's check what the `--changed` option of Terramate tells us:
+
+```shell
+$ terramate list --changed
+nginx
+```
+
+The `--changed` option compares the current commit against the _default branch_
+latest commit and computes which stacks has differences (changes to be applied).
+
+The process now depends on your company's standards, policy, coding culture, etc
+but usually it involves pushing your branch to the git upstream (commonly `origin`)
+and create a request for code review (a _Pull Request_ in Github or a 
+_Merge Request_ in GitLab).
+
+Eventually, your contribution is going to be accepted and merged into the
+_default branch_ and then the CI/CD can kick in and deploy the changes in the
+infrastructure.
+
 Now let's create the _PostgreSQL_ stack.
 
 ```shell
@@ -514,12 +551,6 @@ $ terramate list
 nginx
 postgresql
 ```
-
-> <img src="https://cdn-icons-png.flaticon.com/512/1680/1680012.png" width="24px" />
-> 
-> When you need to explicitly _destroy_ stacks, it's better to `cd` into the
-> specific stack and invoke `terraform destroy` directly because `terramate run`
-> will execute in all stacks by default.
 
 TODO: create postgres docker and make both stacks DRY
 
