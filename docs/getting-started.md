@@ -230,13 +230,15 @@ The command above will execute `terraform init` in all Terramate stacks (just `n
 > You can think of `terramate run -- cmd` as a more robust version of the shell
 > script below:
 > 
+>   ```shell
 >   for stack in $(terramate list); do
 >     cd $stack;
 >     cmd;
 >   done
+>   ```
 >
-> But the `terramate run` also computes the correct execution order, pulls `wanted`
-> stacks, etc.
+> But the `terramate run` also pulls `wanted`, computes the correct stack 
+> execution order, detect changed stacks, run safeguards, etc.
 
 The Terraform initialization will create the directory `nginx/.terraform` and
 the file `nginx/.terraform.lock.hcl`. These files must never be committed to
@@ -368,7 +370,15 @@ $ terramate create postgresql
 Created stack /postgresql
 ```
 
-Running list show
+Running list now shows:
+
+```shell
+$ terramate list
+nginx
+postgresql
+```
+
+
 TODO: create postgres docker and make both stacks DRY
 
 TODO: configure the www index page of the container using code generation.
