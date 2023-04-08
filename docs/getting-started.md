@@ -78,9 +78,11 @@ The stacks are independent configurations that create resources when executed.
 Sometimes it's not easy to figure if two resources must be kept in the same
 stack or separated but asking the questions below to yourself could help:
 
-- a
-- b
-- c
+- TBD: help please
+- Are they related to the same cloud resource?
+- Is it acceptable that changes to one resource could affect the other?
+- Do they have similar lifecycles? Eg.: destroying one always imply destroying
+  the other?
 
 For more information about them, have a look at the [stack](./stack.md)
 documentation page.
@@ -141,7 +143,34 @@ it because you should never deploy infrastructure from code that's not committed
 and pushed to the remote git server. This behavior can be customized with the 
 `terramate.config.git` config object, see [here](./project-config.md).
 
-When all the files are committed, the command returns:
+In a real world IaC project, only the CI/CD should deploy infrastructure, then
+those safeguards are in place to avoid infrastructure being deployed with
+temporary, uncommitted, unreviewed files.
+
+For the purpose of this tutorial, let's disable those safeguards locally by
+creating a `.gitignored` file called `disable_git_safeguards.tm.hcl` with
+content below:
+
+```hcl
+terramate {
+  config {
+    git {
+      check_untracked = false
+      check_uncommitted = false
+    }
+  }
+}
+```
+
+Please, don't forget to `gitignore` this file because those checks must always
+be `enabled` in the CI/CD:
+
+```
+# .gitignore
+disable_git_safeguards.tm.hcl
+```
+
+Now the `terramate list` returns:
 
 ```shell
 $ terramate list
@@ -211,7 +240,7 @@ The command above will execute `terraform init` in all Terramate stacks (just `n
 
 The Terraform initialization will create the directory `nginx/.terraform` and
 the file `nginx/.terraform.lock.hcl`. These files must never be committed to
-the version control and it's recommended to be added to the `.gitignore` file.
+the version control and it's recommended to be added to the `.gitignore` as well.
 Additionally, you should also ignore the `terraform.tfstate` file as it contains
 sensitive information.
 
@@ -220,6 +249,10 @@ Example:
 ```
 # .gitignore
 
+# Terramate files
+disable_git_safeguards.tm.hcl
+
+# Terraform files
 terraform.tfstate*
 .terraform
 .terraform.lock.hcl
@@ -328,7 +361,14 @@ CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS   
 
 or opening [http://localhost:8000/](https://localhost:8000/) in the browser.
 
+Now let's create the _PostgreSQL_ stack.
 
+```shell
+$ terramate create postgresql
+Created stack /postgresql
+```
+
+Running list show
 TODO: create postgres docker and make both stacks DRY
 
 TODO: configure the www index page of the container using code generation.
