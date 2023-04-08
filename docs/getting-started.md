@@ -69,7 +69,7 @@ valid _Terramate Project_. The Terramate tool behaves nicely with other language
 files in the same repository and it adds **no constraints** to the organization
 of your directories and files.
 
-# Create Stacks
+# Creating and listing Stacks
 
 When working with Infrastructure as Code it's considered to be a best practice
 to split up and organize your IaC into several smaller and isolated stacks.
@@ -185,6 +185,8 @@ Now the `terramate list` returns:
 $ terramate list
 nginx
 ```
+
+# Managing resources
 
 Now let's create docker resources with Terraform.
 Drop the file below into the `nginx/main.tf` file:
@@ -508,6 +510,8 @@ Destroy complete! Resources: 2 destroyed.
 
 Done! You're now again in a clean slate.
 
+# Change detection
+
 So the changes you did in this branch works, then now it's time to commit
 everything and follow your git workflow to get this merged into production.
 
@@ -527,15 +531,79 @@ nginx
 
 The `--changed` option compares the current commit against the _default branch_
 latest commit and computes which stacks has differences (changes to be applied).
+It's always wise to check the changed stacks before going forward, so you know
+exactly what's going to be applied in production.
 
-The process now depends on your company's standards, policy, coding culture, etc
-but usually it involves pushing your branch to the git upstream (commonly `origin`)
-and create a request for code review (a _Pull Request_ in Github or a 
-_Merge Request_ in GitLab).
+Now the process to get this merged and applied into _production_ depends on your
+company's standards, policy, coding culture, etc, but usually it involves pushing 
+your branch to the default git upstream (commonly `origin`) and create a request 
+for code review (a _Pull Request_ in Github or a _Merge Request_ in GitLab).
 
 Eventually, your contribution is going to be accepted and merged into the
 _default branch_ and then the CI/CD can kick in and deploy the changes in the
-infrastructure.
+infrastructure. 
+
+Let's mimick here in simple terms what would happen in a CI/CD pipeline for applying changes to the _default branch_.
+
+> Note: every CI is different and advanced git features are used in most CIs to
+> ensure low network bandwitch, low storage utilization, faster merges, and so on.
+> The steps described below are useful for you understand the concepts behind
+> a CI pipeline running on the `main` branch.
+
+So let's move to the `main` branch and merge your _feature branch_ into it:
+
+```shell
+$ git checkout main
+$ git merge --no-ff nginx-service
+Merge made by the 'ort' strategy.
+ .gitignore         |  9 +++++++++
+ nginx/main.tf      | 26 ++++++++++++++++++++++++++
+ nginx/stack.tm.hcl |  5 +++++
+ 3 files changed, 41 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 nginx/main.tf
+ create mode 100644 nginx/stack.tm.hcl
+```
+
+See the `--no-ff` flag to `git merge`? It's the default in most (if not all)
+git hostings (GitHub, GitLab, Bitbucket, etc) and it means that a _merge commit_
+will always be created even when it's not needed. Terramate uses this _merge commit_
+to figure what was the last merged code, ie what's the base revision used when
+comparing differences. For more information about this process, see the
+[change detection](./change-detection.md) documentation page.
+
+Then executing `terramate list --changed` in the _default branch_ (`main` in 
+this case) automatically computes introduced by the last merged _Pull/Merge
+Request_.
+
+```
+$ git branch
+* main
+  nginx-service
+$ terramate list --changed
+nginx
+```
+
+Then your CI/CD pipeline for changes in the `main` branch can be simply:
+
+- `terramate run --changed -- terraform init`
+- `terramate run --changed -- terraform apply -input=false`
+
+> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> 
+> It's a good practice to have some kind of automation in the users _Pull/Merge_
+> _Request_ to execute a Terraform Plan of the introduced changes with the
+> output submitted for reviewers (eg.: a link to the CI/CD log of the run can
+> be submitted as a comment in the git interface).
+> The plan should be against the changed stacks:
+> ```shell
+> terramate run --changed -- terraform plan -input=false
+> ```
+>
+> Then when changes are merged into `main`, Terramate will just apply the same
+> set of changes already reviewed and approved.
+> Additionally, a Terraform plan file can be created with `-out=pr.tfplan` and
+> saved as an artifact for later be used by the pipeline running on `main`.
 
 Now let's create the _PostgreSQL_ stack.
 
