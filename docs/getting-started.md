@@ -100,7 +100,14 @@ But first, let's create a git feature branch for the `nginx` service:
 
 > <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
 > 
-> This is important for understanding the Terramate change detection feature.
+> This is an important step for understanding the Terramate change detection 
+> feature.
+> The _default branch_ (commonly `main`, but some teams uses another branch like
+> `production` or `default`) represents the _production_ deployed infrastructure.
+> At this point, the _default branch_ has no resources defined, but later on,
+> Terramate will be able to compare your _work_ branch (_feature_ or _fix_)
+> against the _default branch_ and identify which stacks changed, ie which
+> stacks requires a `terraform apply`. 
 
 ```
 $ git checkout -b nginx-service
@@ -369,6 +376,128 @@ CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS   
 
 or opening [http://localhost:8000/](https://localhost:8000/) in the browser.
 
+You just deployed something locally. Yay!!!
+
+> <img src="https://cdn-icons-png.flaticon.com/512/1680/1680012.png" width="24px" />
+>
+> When using real world cloud infrastructure (`aws` or `gcloud` providers) you 
+> should use a _development_ or _testing cloud_ account when invoking 
+> `terraform apply` from your own machine.
+
+Now that you tested and the resource is working, you can _destroy_ it and prep
+for making it into _production_.
+
+Terramate does not prevent you from invoking `terraform` directly as other similar
+tools, then let's go ahead and call `terraform destroy` from the `nginx` directory:
+
+```shell
+$ cd nginx
+$ terraform destroy
+docker_image.nginx: Refreshing state... [id=sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6bnginx:latest]
+docker_container.nginx: Refreshing state... [id=0854270a600861cb72f36d3a78084c240826170601171416bfe3a8e0f1a4547c]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+  # docker_container.nginx will be destroyed
+  - resource "docker_container" "nginx" {
+      - attach                                      = false -> null
+      - command                                     = [
+          - "nginx",
+          - "-g",
+          - "daemon off;",
+        ] -> null
+      - container_read_refresh_timeout_milliseconds = 15000 -> null
+      - cpu_shares                                  = 0 -> null
+      - dns                                         = [] -> null
+      - dns_opts                                    = [] -> null
+      - dns_search                                  = [] -> null
+      - entrypoint                                  = [
+          - "/docker-entrypoint.sh",
+        ] -> null
+      - env                                         = [] -> null
+      - group_add                                   = [] -> null
+      - hostname                                    = "0854270a6008" -> null
+      - id                                          = "0854270a600861cb72f36d3a78084c240826170601171416bfe3a8e0f1a4547c" -> null
+      - image                                       = "sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6b" -> null
+      - init                                        = false -> null
+      - ipc_mode                                    = "private" -> null
+      - log_driver                                  = "json-file" -> null
+      - log_opts                                    = {} -> null
+      - logs                                        = false -> null
+      - max_retry_count                             = 0 -> null
+      - memory                                      = 0 -> null
+      - memory_swap                                 = 0 -> null
+      - must_run                                    = true -> null
+      - name                                        = "terramate-tutorial-nginx" -> null
+      - network_data                                = [
+          - {
+              - gateway                   = "172.17.0.1"
+              - global_ipv6_address       = ""
+              - global_ipv6_prefix_length = 0
+              - ip_address                = "172.17.0.2"
+              - ip_prefix_length          = 16
+              - ipv6_gateway              = ""
+              - mac_address               = "02:42:ac:11:00:02"
+              - network_name              = "bridge"
+            },
+        ] -> null
+      - network_mode                                = "default" -> null
+      - privileged                                  = false -> null
+      - publish_all_ports                           = false -> null
+      - read_only                                   = false -> null
+      - remove_volumes                              = true -> null
+      - restart                                     = "no" -> null
+      - rm                                          = false -> null
+      - runtime                                     = "runc" -> null
+      - security_opts                               = [] -> null
+      - shm_size                                    = 64 -> null
+      - start                                       = true -> null
+      - stdin_open                                  = false -> null
+      - stop_signal                                 = "SIGQUIT" -> null
+      - stop_timeout                                = 0 -> null
+      - storage_opts                                = {} -> null
+      - sysctls                                     = {} -> null
+      - tmpfs                                       = {} -> null
+      - tty                                         = false -> null
+      - wait                                        = false -> null
+      - wait_timeout                                = 60 -> null
+
+      - ports {
+          - external = 8000 -> null
+          - internal = 80 -> null
+          - ip       = "0.0.0.0" -> null
+          - protocol = "tcp" -> null
+        }
+    }
+
+  # docker_image.nginx will be destroyed
+  - resource "docker_image" "nginx" {
+      - id           = "sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6bnginx:latest" -> null
+      - image_id     = "sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6b" -> null
+      - keep_locally = false -> null
+      - name         = "nginx:latest" -> null
+      - repo_digest  = "nginx@sha256:2ab30d6ac53580a6db8b657abf0f68d75360ff5cc1670a85acb5bd85ba1b19c0" -> null
+    }
+
+Plan: 0 to add, 0 to change, 2 to destroy.
+
+Do you really want to destroy all resources?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value: yes
+
+docker_container.nginx: Destroying... [id=0854270a600861cb72f36d3a78084c240826170601171416bfe3a8e0f1a4547c]
+docker_container.nginx: Destruction complete after 1s
+docker_image.nginx: Destroying... [id=sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6bnginx:latest]
+docker_image.nginx: Destruction complete after 0s
+
+Destroy complete! Resources: 2 destroyed.
+```
+
 Now let's create the _PostgreSQL_ stack.
 
 ```shell
@@ -384,6 +513,11 @@ nginx
 postgresql
 ```
 
+> <img src="https://cdn-icons-png.flaticon.com/512/1680/1680012.png" width="24px" />
+> 
+> When you need to explicitly _destroy_ stacks, it's better to `cd` into the
+> specific stack and invoke `terraform destroy` directly because `terramate run`
+> will execute in all stacks by default.
 
 TODO: create postgres docker and make both stacks DRY
 
