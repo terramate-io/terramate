@@ -225,9 +225,11 @@ the `docker_container` for running a `nginx` service exposed on host port `8000`
 > "docker" provider need an additional `host` attribute for daemon address.
 > On Windows, the config below is commonly needed:
 > 
+> ```hcl
 > provider "docker" {
 >   host    = "npipe:////.//pipe//docker_engine"
 > }
+> ```
 
 
 From the root directory, run:
