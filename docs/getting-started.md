@@ -227,7 +227,7 @@ $ terramate run -- terraform init
 
 The command above will execute `terraform init` in all Terramate stacks (just `nginx` stack at this point).
 
-> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="16px" />
+> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
 > You can think of `terramate run -- cmd` as a more robust version of the shell
 > script below:
 > 
