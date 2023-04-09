@@ -748,29 +748,270 @@ their contents.
 As the infrastructure is semantically the same, then executing 
 `terramate run -- terraform apply` should result in no changes.
 
-```shell
-$ terramate run -- terraform apply
-docker_image.nginx: Refreshing state... [id=sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6bnginx:latest]
-docker_container.nginx: Refreshing state... [id=d68df54bed55efc9087e7f1fb69241599da2be8f7f873dc84d9c25ababcf1d31]
+Let's make this configuration more useful in a real world project.
+First, let's make the generation configurable by defining a `providers` object
+and make the `generate_hcl` generates the blocks based on it.
 
-No changes. Your infrastructure matches the configuration.
+Have a look in the [globals](./sharing-data.md) declaration below:
 
-Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
-
-Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
-docker_image.postgres: Refreshing state... [id=sha256:80c558ffdc314a930fe201d69d9cd58a0fc0f6a833e3f5014268a02d36438c65postgres:latest]
-docker_container.postgres: Refreshing state... [id=20f221b68168c385597772519366143f8c07c460bd8d93414c33406894dc08cc]
-
-No changes. Your infrastructure matches the configuration.
-
-Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
-
-Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+```hcl
+globals {
+  providers = {
+    docker = {
+      source = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
+  }
+}
 ```
 
+It declares the `global.providers` variable with the object definition of our
+docker provider but there are a more poweful way of declaring it:
 
+```hcl
+globals "providers" "docker" {
+  source = "kreuzwerker/docker"
+  version = "~> 3.0.2"
+}
+```
 
-TODO: create postgres docker and make both stacks DRY
+The syntax above is preferred when the defined object (in this case `providers`)
+should support having its internal keys customized by child globals scopes.
+If you're still not sure about the benefits, just hang on that's going to become
+clear by the end of this section.
+
+Then let's change our `generate_hcl` block in the `/providers.tm.hcl` to use that:
+
+```hcl
+globals "providers" "docker" {
+  source = "kreuzwerker/docker"
+  version = "~> 3.0.2"
+}
+
+generate_hcl "_generated_provider.tf" {
+  content {
+    terraform {
+      tm_dynamic "required_provider" {
+        attributes = global.providers
+      }
+    }
+  }
+}
+```
+
+As the name implies, the [tm_dynamic](./codegen/generate-hcl.md#tm_dynamic-block) 
+block is used for dynamically creating blocks :-)
+The `"required_provider"` label defines the name of the generated block and the
+`attributes` declares the attributes of the block. 
+The `tm_dynamic` is powerful and can be used to generate a single block, as in
+this example, or multiple blocks with a single declaration.
+
+Please, execute `terramate generate`. It should generate the file inside each stack
+with content below:
+
+```hcl
+// TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
+
+terraform {
+  required_provider {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
+  }
+}
+```
+
+We are quite there but still we are missing the `provider` block.
+But before doing that, let's extend the `global.providers` object adding another
+provider type, so we can check if this handles a more real example:
+
+The two blocks below:
+
+```hcl
+globals "providers" "docker" {
+  source = "kreuzwerker/docker"
+  version = "~> 3.0.2"
+}
+
+globals "providers" "google" {
+  source = "hashicorp/google"
+  version = "4.60.2"
+}
+```
+
+declares the single `global.providers` object below:
+
+```hcl
+{
+  docker = {
+    source = "kreuzwerker/docker"
+    version = "~> 3.0.2"
+  }
+  google = {
+    source = "hashicorp/google"
+    version = "4.60.2"
+  }
+}
+```
+
+It's nice because the two blocks can be defined in different files or even in
+different directories (if they are in the same hierarchical branch of directories)
+and still the same `global.providers` will be defined.
+This way the `providers` configuration defined in the parent directories can be 
+extended by the child ones.
+
+Then now have a look in the new `providers.tm.hcl`:
+
+```hcl
+# generates the provider configuration on each stack.
+
+globals "providers" "docker" {
+  source = "kreuzwerker/docker"
+  version = "~> 3.0.2"
+}
+
+globals "providers" "google" {
+  source = "hashicorp/google"
+  version = "4.60.2"
+}
+
+generate_hcl "_generated_provider.tf" {
+  content {
+    terraform {
+      tm_dynamic "required_provider" {
+        attributes = global.providers
+      }
+    }
+
+    tm_dynamic "provider" {
+      for_each = [for k, _ in global.providers : k]
+      iterator = each
+      labels = [each.value]
+      content {
+
+      }
+    }
+  }
+}
+```
+
+The second `tm_dynamic` generates each `provider` block (`docker` and `google`)
+by iterating the list provided to the `for_each` attribute.
+With the optional `iterator` attribute you can change the variable name that holds
+the current element being iterated (by default it's the block name).
+The `labels` is an optional list of strings to be used as labels for each generated
+block. The `content` block defines the content of the dynamic block, and here we
+just define it empty for now.
+
+Executing `terramate generate` generates the file:
+
+```hcl
+// TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
+
+terraform {
+  required_provider {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
+    google = {
+      source  = "hashicorp/google"
+      version = "4.60.2"
+    }
+  }
+}
+provider "docker" {
+}
+provider "google" {
+}
+```
+
+We are almost there!
+
+The `provider` block can have specific configurations. How can we solve that?
+Easy! Let's improve our configuration object:
+
+```hcl
+# generates the provider configuration on each stack.
+
+globals "providers" "docker" {
+  module = {
+    source = "kreuzwerker/docker"
+    version = "~> 3.0.2"
+  }
+  config = {}
+}
+
+globals "providers" "google" {
+  module = {
+    source  = "hashicorp/google"
+    version = "4.60.2"
+  }
+
+  config = {
+    project = "my-project-id"
+    region  = "us-central1"
+  }
+}
+
+generate_hcl "_generated_provider.tf" {
+  lets {
+    required_providers = {for k, v in global.providers : k => v.module}
+    providers_config =  [for k, v in global.providers : {
+        name = k
+        config = v.config
+      }
+    ]
+  }
+  content {
+    terraform {
+      tm_dynamic "required_provider" {
+        attributes = let.required_providers
+      }
+    }
+
+    tm_dynamic "provider" {
+      for_each = let.providers_config
+      iterator = each
+      labels = [each.value.name]
+      attributes = each.value.config
+    }
+  }
+}
+```
+
+In the code above, the `global.providers` was updated to store the _module source_
+and the _config_ in separate object keys, `module` and `config` respectively.
+Then the object is massaged using [For Expressions](https://developer.hashicorp.com/terraform/language/expressions/for) and the results stored in [lets](./codegen/overview.md#lets) variables (`lets` are local variables).
+
+When generated it results in the code below:
+
+```hcl
+// TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
+
+terraform {
+  required_provider {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
+    google = {
+      source  = "hashicorp/google"
+      version = "4.60.2"
+    }
+  }
+}
+provider "docker" {
+}
+provider "google" {
+  project = "my-project-id"
+  region  = "us-central1"
+}
+```
+
+Pretty cool, isn't it?
+
 
 TODO: configure the www index page of the container using code generation.
 ```hcl
