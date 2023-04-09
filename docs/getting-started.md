@@ -607,9 +607,12 @@ Then your CI/CD pipeline for changes in the `main` branch can be simply:
 
 # Code generation
 
-TODO
-
 Now let's create the _PostgreSQL_ stack.
+But first please create another _feature_ branch for the work:
+
+```
+
+```
 
 ```shell
 $ terramate create postgresql
@@ -622,6 +625,12 @@ Running list now shows:
 $ terramate list
 nginx
 postgresql
+```
+
+And drop the file below into `postgresql/main.tf`:
+
+```hcl
+
 ```
 
 TODO: create postgres docker and make both stacks DRY
