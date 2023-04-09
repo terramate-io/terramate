@@ -610,11 +610,9 @@ Then your CI/CD pipeline for changes in the `main` branch can be simply:
 Now let's create the _PostgreSQL_ stack.
 But first please create another _feature_ branch for the work:
 
-```
-
-```
-
 ```shell
+$ git checkout -b postgres-service
+Switched to a new branch 'postgres-service'
 $ terramate create postgresql
 Created stack /postgresql
 ```
@@ -630,8 +628,147 @@ postgresql
 And drop the file below into `postgresql/main.tf`:
 
 ```hcl
+terraform {
+  required_providers {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
+  }
+}
 
+provider "docker" {}
+
+resource "docker_image" "postgres" {
+  name         = "postgres:latest"
+  keep_locally = false
+}
+
+resource "docker_container" "postgres" {
+  image = docker_image.postgres.image_id
+  name  = "terramate-tutorial-postgresql"
+  ports {
+    internal = 5432
+    external = 5432
+  }
+  env = [
+    "POSTGRES_DB=terramate-tutorial",
+    "POSTGRES_PASSWORD=secret"
+  ]
+}
 ```
+
+Go ahead and execute `terramate run -- terraform apply` to spin up the local 
+postgresql server.
+Running `docker ps` now outputs:
+
+```shell
+$ docker ps
+CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS         PORTS                    NAMES
+20f221b68168   80c558ffdc31   "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   0.0.0.0:5432->5432/tcp   terramate-tutorial-postgresql
+d68df54bed55   nginx          "/docker-entrypoint.…"   5 minutes ago   Up 5 minutes   0.0.0.0:8000->80/tcp     terramate-tutorial-nginx
+```
+
+It works but if you look closely, there are lots of duplicated configuration and
+hardcoded configuration in both the `nginx` and `postgresql` stacks.
+
+The code below is the same on both stacks:
+```hcl
+terraform {
+  required_providers {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
+  }
+}
+
+provider "docker" {}
+```
+
+In a real IaC project there could be hundreds of stacks and all targeting the
+same Terraform provider (eg.: `aws` or `google`). 
+
+Ideally, there should be a single definition of that, so let's fix that with
+Terramate:
+
+Drop the file `providers.tm.hcl` at the root of the repository with content below:
+
+```hcl
+# generates the provider configuration on each stack.
+
+generate_hcl "_generated_provider.tf" {
+  content {
+    terraform {
+      required_providers {
+        docker = {
+          source  = "kreuzwerker/docker"
+          version = "~> 3.0.2"
+        }
+      }
+    }
+
+    provider "docker" {}
+  }
+}
+```
+
+The [generate_hcl](./codegen/generate-hcl.md) block is a `generate` block with
+lots of `HCL` features but in this example we're only using the bare minimum,
+the `content` block, which defines the file output.
+The `generate_hcl` label declares the name of the output file, in this case it's
+`_generated_provider.tf`. It's a relative path because it's going to be generated
+inside each stack, then the final path is `<stack path>/<filename>`.
+
+We are going to go over the others `generate_hcl` features later in this section,
+but now edit the `nginx/main.tf` and `postgresql/main.tf` removing the provider 
+blocks that we intend to generate.
+
+Then go back to the console and execute `terramate generate`:
+
+```shell
+$ terramate generate
+Code generation report
+
+Successes:
+
+- /nginx
+	[+] _generated_provider.tf
+
+- /postgresql
+	[+] _generated_provider.tf
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+```
+
+The output tells us that the file was generated inside each stack.
+The generated content should be the provider configuration, go ahead and check
+their contents.
+
+As the infrastructure is semantically the same, then executing 
+`terramate run -- terraform apply` should result in no changes.
+
+```shell
+$ terramate run -- terraform apply
+docker_image.nginx: Refreshing state... [id=sha256:080ed0ed8312deca92e9a769b518cdfa20f5278359bd156f3469dd8fa532db6bnginx:latest]
+docker_container.nginx: Refreshing state... [id=d68df54bed55efc9087e7f1fb69241599da2be8f7f873dc84d9c25ababcf1d31]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+docker_image.postgres: Refreshing state... [id=sha256:80c558ffdc314a930fe201d69d9cd58a0fc0f6a833e3f5014268a02d36438c65postgres:latest]
+docker_container.postgres: Refreshing state... [id=20f221b68168c385597772519366143f8c07c460bd8d93414c33406894dc08cc]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+```
+
+
 
 TODO: create postgres docker and make both stacks DRY
 
@@ -641,7 +778,7 @@ terraform {
   required_providers {
     docker = {
       source  = "kreuzwerker/docker"
-      version = "~> 3.0.1"
+      version = "~> 3.0.2"
     }
   }
 }
