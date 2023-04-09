@@ -69,7 +69,7 @@ valid _Terramate Project_. The Terramate tool behaves nicely with other language
 files in the same repository and it adds **no constraints** to the organization
 of your directories and files.
 
-# Creating and listing Stacks
+## Creating and listing Stacks
 
 When working with Infrastructure as Code it's considered to be a best practice
 to split up and organize your IaC into several smaller and isolated stacks.
@@ -98,7 +98,7 @@ and a [PostgreSQL](https://postgresql.org) containers using the Terraform
 
 But first, let's create a git feature branch for the `nginx` service:
 
-> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> <img src="./assets/lamp.png" width="24px" />
 > 
 > This is an important step for understanding the Terramate change detection 
 > feature.
@@ -186,7 +186,7 @@ $ terramate list
 nginx
 ```
 
-# Managing resources
+## Managing resources
 
 Now let's create docker resources with Terraform.
 Drop the file below into the `nginx/main.tf` file:
@@ -221,7 +221,7 @@ resource "docker_container" "nginx" {
 The Terraform configuration above creates two resources, the `docker_image` and 
 the `docker_container` for running a `nginx` service exposed on host port `8000`.
 
-> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> <img src="./assets/lamp.png" width="24px" />
 > 
 > If your docker daemon is running on a custom port or you use Windows, then the
 > "docker" provider need an additional `host` attribute for daemon address.
@@ -242,7 +242,7 @@ $ terramate run -- terraform init
 
 The command above will execute `terraform init` in all Terramate stacks (just `nginx` stack at this point).
 
-> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> <img src="./assets/lamp.png" width="24px" />
 > 
 > You can think of `terramate run -- cmd` as a more robust version of the shell
 > script below:
@@ -382,7 +382,7 @@ or opening [http://localhost:8000/](https://localhost:8000/) in the browser.
 
 You just deployed something locally. Yay!!!
 
-> <img src="https://cdn-icons-png.flaticon.com/512/1680/1680012.png" width="24px" />
+> <img src="./assets/attention.png" width="24px" />
 >
 > When using real world cloud infrastructure (`aws` or `gcloud` providers) you 
 > should use a _development_ or _testing cloud_ account when invoking 
@@ -510,7 +510,7 @@ Destroy complete! Resources: 2 destroyed.
 
 Done! You're now again in a clean slate.
 
-# Change detection
+## Change detection
 
 So the changes you did in this branch works, then now it's time to commit
 everything and follow your git workflow to get this merged into production.
@@ -589,7 +589,7 @@ Then your CI/CD pipeline for changes in the `main` branch can be simply:
 - `terramate run --changed -- terraform init`
 - `terramate run --changed -- terraform apply -input=false`
 
-> <img src="https://cdn-icons-png.flaticon.com/512/427/427735.png" width="24px" />
+> <img src="./assets/lamp.png" width="24px" />
 > 
 > It's a good practice to have some kind of automation in the users _Pull/Merge_
 > _Request_ to execute a Terraform Plan of the introduced changes with the
@@ -605,9 +605,15 @@ Then your CI/CD pipeline for changes in the `main` branch can be simply:
 > Additionally, a Terraform plan file can be created with `-out=pr.tfplan` and
 > saved as an artifact for later be used by the pipeline running on `main`.
 
-# Code generation
+## Code generation
 
-Now let's create the _PostgreSQL_ stack.
+The _Terramate Code Generation_ is a very powerful feature and its benefits
+become obvious at scale but even in small projects, if it has more than one
+stack, it still shines. 
+
+So for demonstrating that, let's create a stack for instantiating a 
+local _PostgreSQL_ database.
+
 But first please create another _feature_ branch for the work:
 
 ```shell
@@ -660,6 +666,11 @@ resource "docker_container" "postgres" {
 
 Go ahead and execute `terramate run -- terraform apply` to spin up the local 
 postgresql server.
+
+> <img src="./assets/lamp.png" width="24px" />
+> Note: if you commit the new stack files, you can use the `--changed` to apply
+> only the `postgresql` stack.
+
 Running `docker ps` now outputs:
 
 ```shell
@@ -1011,6 +1022,17 @@ provider "google" {
 ```
 
 Pretty cool, isn't it?
+
+## Terramate Hierarchical Features
+
+Terramate leverages the project's organization to provide a sensible default
+behavior across its features.
+When we organize code or configuration into directories, we commonly group them
+in a way that more specific subjects are stored inside less specific subjects.
+
+We have shortly covered that in the [code generation](#code-generation) section.
+The _generate_ blocks generates in all child stacks of the directory where it's
+defined.
 
 
 TODO: configure the www index page of the container using code generation.
