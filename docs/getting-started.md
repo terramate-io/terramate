@@ -502,7 +502,7 @@ docker_image.nginx: Destruction complete after 0s
 Destroy complete! Resources: 2 destroyed.
 ```
 
-> <img src="https://cdn-icons-png.flaticon.com/512/1680/1680012.png" width="24px" />
+> <img src="./assets/attention.png" width="24px" />
 > 
 > When you need to explicitly _destroy_ stacks, it's better to `cd` into the
 > specific stack and invoke `terraform destroy` directly because `terramate run`
