@@ -822,7 +822,7 @@ terraform {
 }
 ```
 
-We are quite there but still we are missing the `provider` block.
+We are not quite there yet, we're still missing the `provider` block.
 But before doing that, let's extend the `global.providers` object adding another
 provider type, so we can check if this handles a more real example:
 
