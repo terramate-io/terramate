@@ -820,7 +820,7 @@ globals "providers" "docker" {
 generate_hcl "_generated_provider.tf" {
   content {
     terraform {
-      tm_dynamic "required_provider" {
+      tm_dynamic "required_providers" {
         attributes = global.providers
       }
     }
@@ -830,7 +830,7 @@ generate_hcl "_generated_provider.tf" {
 
 As the name implies, the [tm_dynamic](./codegen/generate-hcl.md#tm_dynamic-block) 
 block is used for dynamically creating blocks :-)
-The `"required_provider"` label defines the name of the generated block and the
+The `"required_providers"` label defines the name of the generated block and the
 `attributes` declares the attributes of the block. 
 The `tm_dynamic` is powerful and can be used to generate a single block, as in
 this example, or multiple blocks with a single declaration.
@@ -842,7 +842,7 @@ stack with content below:
 // TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
 
 terraform {
-  required_provider {
+  required_providers {
     docker = {
       source  = "kreuzwerker/docker"
       version = "~> 3.0.2"
@@ -908,7 +908,7 @@ globals "providers" "google" {
 generate_hcl "_generated_provider.tf" {
   content {
     terraform {
-      tm_dynamic "required_provider" {
+      tm_dynamic "required_providers" {
         attributes = global.providers
       }
     }
@@ -939,7 +939,7 @@ Executing `terramate generate` generates the file:
 // TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
 
 terraform {
-  required_provider {
+  required_providers {
     docker = {
       source  = "kreuzwerker/docker"
       version = "~> 3.0.2"
@@ -997,7 +997,7 @@ generate_hcl "_generated_provider.tf" {
   }
   content {
     terraform {
-      tm_dynamic "required_provider" {
+      tm_dynamic "required_providers" {
         attributes = let.required_providers
       }
     }
@@ -1022,7 +1022,7 @@ When generated it results in the code below:
 // TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
 
 terraform {
-  required_provider {
+  required_providers {
     docker = {
       source  = "kreuzwerker/docker"
       version = "~> 3.0.2"
@@ -1161,6 +1161,9 @@ globals "providers" "google" {
 Then executing `terramate generate` is going to generate only the `docker` 
 provider for the _postgresql stack_.
 
+Before continuing, please just remove the configurations for the `google` provider
+in the `/providers.tm.hcl` because this tutorial will not use it.
+
 ## Generating any file type
 
 Until now we have showed examples of generating *HCL* content but Terramate can
@@ -1169,7 +1172,7 @@ generate any kind of file.
 Let's pretend our *NGINX* service will host the *Status Page* (a page that shows
 the status of the infrastructure and potential existent incidents).
 Then let's generate a file into `/nginx/html/index.html` that makes use of some
-*globals*.
+Terramate variables:
 
 Please create the file `/nginx/index.tm.hcl` with content below:
 
@@ -1218,6 +1221,33 @@ Then when executing `terramate generate` it's going to generate the file
   </body>
 </html>
 ```
+
+Now let's change the `/nginx/main.tf` to have the content below:
+
+```
+resource "docker_image" "nginx" {
+  name         = "nginx:latest"
+  keep_locally = false
+}
+
+resource "docker_container" "nginx" {
+  image = docker_image.nginx.image_id
+  name  = "tutorial"
+  ports {
+    internal = 80
+    external = 8000
+  }
+
+  volumes {
+    host_path      = "${abspath(".")}/html"
+    container_path = "/usr/share/nginx/html"
+  }
+}
+```
+
+Then executing `terramate run -- terraform apply` should re-deploy the *NGINX*
+service hosting our status page. Go ahead and check it in the browser at
+[http://localhost:8000/](http://localhost:8000/).
 
 ## Interfacing with Terraform
 
