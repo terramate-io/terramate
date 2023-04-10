@@ -605,7 +605,7 @@ Then your CI/CD pipeline for changes in the `main` branch can be simply:
 > Additionally, a Terraform plan file can be created with `-out=pr.tfplan` and
 > saved as an artifact for later be used by the pipeline running on `main`.
 
-## Code generation
+## Code generation (basics)
 
 The _Terramate Code Generation_ is a very powerful feature and its benefits
 become obvious at scale but even in small projects, if it has more than one
@@ -817,8 +817,8 @@ The `"required_provider"` label defines the name of the generated block and the
 The `tm_dynamic` is powerful and can be used to generate a single block, as in
 this example, or multiple blocks with a single declaration.
 
-Please, execute `terramate generate`. It should generate the file inside each stack
-with content below:
+Please, execute `terramate generate`. It should generate the file inside each 
+stack with content below:
 
 ```hcl
 // TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT
@@ -947,6 +947,7 @@ Easy! Let's improve our configuration object:
 # generates the provider configuration on each stack.
 
 globals "providers" "docker" {
+  enabled = true
   module = {
     source = "kreuzwerker/docker"
     version = "~> 3.0.2"
@@ -955,6 +956,7 @@ globals "providers" "docker" {
 }
 
 globals "providers" "google" {
+  enabled = true
   module = {
     source  = "hashicorp/google"
     version = "4.60.2"
@@ -968,11 +970,11 @@ globals "providers" "google" {
 
 generate_hcl "_generated_provider.tf" {
   lets {
-    required_providers = {for k, v in global.providers : k => v.module}
+    required_providers = {for k, v in global.providers : k => v.module if v.enabled}
     providers_config =  [for k, v in global.providers : {
         name = k
         config = v.config
-      }
+      } if v.enabled
     ]
   }
   content {
@@ -1030,10 +1032,113 @@ behavior across its features.
 When we organize code or configuration into directories, we commonly group them
 in a way that more specific subjects are stored inside less specific subjects.
 
-We have shortly covered that in the [code generation](#code-generation) section.
-The _generate_ blocks generates in all child stacks of the directory where it's
-defined.
+When talking about IaC code, it's often desirable that some configuration could
+be reused by the entire code base, or reused in some tree of directories.
+The companies implementing monorepos can benefit of it by having organizational
+-level configurations in the repository root, then team- or product- level
+configurations in subtrees, and so on, until to the more specific configurations
+of the leaf stacks. 
 
+The modular repositories still can have the organizational- level configurations
+handled by [imports](./config-overview.md#import-block-schema) and then product-
+and stack-level configurations in subtrees of the repository.
+
+There are several examples of project-level configuration but the most common
+is the [cloud region](https://cloud.google.com/about/locations).
+
+Both [globals](./sharing-data.md) and [code generation](./codegen/overview.md)
+supports the hierarchical view of the project.
+
+### Globals
+
+The _globals_ variables defined in a directory are available in all child directories. The child directories can redefine any _global_ or extend the any 
+parent globals if it's an object.
+
+Example of redefinition:
+
+Let's say we have the file `/root.tm.hcl` with content below:
+
+```hcl
+globals {
+  config {
+    region = "us-west-1"
+  }
+}
+```
+
+This defines the default region used across the project but if one specific product
+needs a different region, it could override the parent value by simply defining
+a global with same name in a child directory (or in a child stack):
+
+```hcl
+# file: /child/stack/config.tm.hcl
+
+globals {
+  config {
+    region = "eu-central-1"
+  }
+}
+```
+
+The definition above will be defined only for `/child/stack` directory and the
+rest of the project still uses the `us-west-1` (the default).
+
+This is very useful but what if the `config` object contains a lot of other
+definitions but I want to override just the `global.config.region` in the
+`/child/stack` directory?
+
+That's why the _labeled globals_ exists.
+
+Let's say the `/root.tm.hcl` contains the content below:
+
+```hcl
+globals "config" {
+  domain = "terramate.io"
+  cloud = {
+    region = "us-west-1"
+  }
+  other  = global.other_value
+}
+```
+
+If the `/child/stack` needs the same root config values except the 
+`global.cloud.region`, then it can update it using the _labeled globals_ block
+below:
+
+```hcl
+globals "config" "cloud" {
+  region = "us-central-1"
+}
+```
+
+The definition above is similar to the pseudo code below:
+
+```
+global.config.cloud.region = "us-central-1"
+```
+
+### Generation
+
+We did shortly covered that in the [code generation](#code-generation-basics) 
+section, when adding a `generate_hcl` block in the repository root directory
+generated the `_generated_providers.tf` file in all stacks.
+
+The _generate_ blocks generates in all child stacks of the directory where it's
+defined and you can use _globals_ to better control the generation.
+
+As an example, let's improve the code defined in the previous section and make it
+disable the `google` provider just inside the `/postgresql` stack.
+
+To do that, it's as easy as just setting `global.providers.google.enabled = false`
+in the stack.
+
+```
+# /postgresql/providers.tm
+
+globals "providers" "google" {
+  enabled = false
+}
+```
 
 TODO: configure the www index page of the container using code generation.
 ```hcl
