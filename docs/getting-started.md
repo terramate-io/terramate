@@ -1378,6 +1378,8 @@ For more details on the concepts used in this page:
 
 - Read about the all Terramate blocks and configurations in the 
 [Config Overview](./config-overview.md).
+- Read more about the [tm_dynamic](./codegen/generate-hcl.md#tm_dynamic-block) block.
 - Read about the [Terramate Functions](./functions.md).
 - Read about about general generation concepts in the [Code Generation Overview](./codegen/overview.md) page.
-- Read more about the [orchestration](./orchestration.md) feature.
+- Read more about advanced ways of doing [orchestration](./orchestration.md) of stacks.
+- Read about the interesting [Map feature](./map.md).
