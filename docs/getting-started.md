@@ -116,7 +116,7 @@ and a [PostgreSQL](https://postgresql.org) containers using the Terraform
 
 But first, let's create a git feature branch for the `nginx` service:
 
-> <img src="./assets/lamp.png" width="24px" />
+> <img src="assets/lamp.png" width="24px" />
 > 
 > This is an important step for understanding the Terramate change detection 
 > feature.
