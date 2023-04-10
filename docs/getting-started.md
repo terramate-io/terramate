@@ -1064,8 +1064,8 @@ and stack-level configurations in subtrees of the repository.
 There are several examples of project-level configuration but the most common
 is the [cloud region](https://cloud.google.com/about/locations).
 
-Both [globals](./sharing-data.md) and [code generation](./codegen/overview.md)
-supports the hierarchical view of the project.
+Not only [globals](./sharing-data.md) and [code generation](./codegen/overview.md)
+supports the hierarchical view of the project, but also [orchestration](./orchestration.md) (explained later in this tutorial).
 
 ### Globals
 
@@ -1309,6 +1309,68 @@ generate_hcl "_generated_load_balancer.tf" {
 > <img src="./assets/lamp.png" />
 > If you want more information about the `condition` flag, have a look in the
 > documentation [here](./codegen/generate-hcl.md#conditional-code-generation).
+
+# Orchestration
+
+Last but not least, let's talk about some ways to [orchestrate](./orchestration.md)
+the stack's execution.
+
+It's very common that some stacks should run after others and Terramate supports
+several features for controlling that.
+
+By default the `terramate run` also makes use of the [hierarchy of stacks](#terramate-hierarchical-features)
+for figuring the correct order of execution.
+
+> If a stack has child stacks (stacks defined in its child directories), then all
+> child stacks execute before the parent stack.
+
+But sometimes they are unrelated stacks and the filesystem organization does not
+help, then in this case you can have explicit configurations for that.
+
+The `stack` block has the attributes `after` and `before` to control that:
+
+- `stack.after`: The list of stacks that must run **before** this stack.
+- `stack.before`: The list of stacks that must run **after** this stack.
+
+So going back to our example, let's see in what order the stack is being executed
+with current configuration. You can check this with the `--dry-run` option of the
+`terramate run`.
+
+```shell
+$ terramate run --dry-run -- any cmd
+The stacks will be executed using order below:
+	0. nginx (nginx)
+	1. postgresql (postgresql)
+```
+
+So `nginx` executes first.
+
+If we want to ensure that the `nginx` stack executes after the `postgresql` stack,
+then we can just edit the `nginx/stack.tm.hcl` and make that explicit. 
+Example:
+
+```hcl
+stack {
+  name        = "nginx"
+  description = "nginx"
+  id          = "8b9c6e39-5145-40f1-90f1-67d022b6a6e9"
+
+  after = ["/postgresql"]
+}
+```
+
+Let's check the order now:
+
+```shell
+$ terramate run --dry-run -- cmd
+The stacks will be executed using order below:
+	0. postgresql (postgresql)
+	1. nginx (nginx)
+```
+
+The other way around also works, you could set the `stack.before` of the 
+`postgresql` stack stating that it has to execute before the `nginx` stack.
+It's up to you and what's more clear in your use case.
 
 # Next steps
 
