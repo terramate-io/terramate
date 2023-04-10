@@ -19,7 +19,7 @@ whenever possible. See [Config Merging](#config-merging) for details.
 Each configuration can import other configurations using the `import` block.
 See the example below:
 
-```
+```hcl
 # globals.tm
 
 import {
@@ -69,7 +69,7 @@ The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-da
 
 For example, the configuration below is valid:
 
-```
+```hcl
 terramate {
     required_version = "~> 0.1"
 }
@@ -87,7 +87,7 @@ And the blocks can also be defined in different files.
 
 But the following is invalid:
 
-```
+```hcl
 terramate {
     required_version = "~> 0.1"
 }

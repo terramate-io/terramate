@@ -162,6 +162,14 @@ func (git Git) Add(files ...string) {
 	}
 }
 
+// AddSubmodule adds name as a submodule for the provided url.
+func (git Git) AddSubmodule(name string, url string) {
+	git.t.Helper()
+	if _, err := git.g.AddSubmodule(name, url); err != nil {
+		git.t.Fatalf("Git.AddSubmodule(%v) = %v", url, err)
+	}
+}
+
 // CurrentBranch returns the short branch name that HEAD points to.
 func (git *Git) CurrentBranch() string {
 	git.t.Helper()
@@ -225,12 +233,19 @@ func (git Git) Pull(branch string) {
 	}
 }
 
-// CommitAll will add all changed files and commit all of them
-func (git Git) CommitAll(msg string) {
+// CommitAll will add all changed files and commit all of them.
+// It requires files to be committed otherwise it fails.
+func (git Git) CommitAll(msg string, ignoreErr ...bool) {
 	git.t.Helper()
 
-	git.Add(".")
-	git.Commit(msg)
+	ignore := len(ignoreErr) > 0 && ignoreErr[0]
+
+	if err := git.g.Add("."); err != nil && !ignore {
+		git.t.Fatalf("Git.Add(.) = %v", err)
+	}
+	if err := git.g.Commit(msg); err != nil && !ignore {
+		git.t.Fatalf("Git.Commit(%q) = %v", msg, err)
+	}
 }
 
 // Checkout will checkout a pre-existing revision
