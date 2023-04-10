@@ -33,7 +33,7 @@ The **globals** block also supports setting attributes inside an
 existent object. For the globals defined in the above example, the block
 below will set additional properties of the `global.obj` variable:
 
-```
+```hcl
 globals obj {
   number = 10
 }
@@ -52,7 +52,7 @@ In the same way, multiple labels can be provided, and Terramate will
 automatically create the object keys as needed to fulfill the user
 intent. Example:
 
-```
+```hcl
 globals "obj" "child" "grandchild" {
   list = []
 }
@@ -198,7 +198,7 @@ globals {
 
 Now `stacks/stack-1` globals set is:
 
-```
+```hcl
 project_name = "awesome-project"
 useful       = "overriden by stack-1"
 stack_data   = "some specialized stack-1 data"
@@ -206,7 +206,7 @@ stack_data   = "some specialized stack-1 data"
 
 And for `stacks/stack-2` it remains:
 
-```
+```hcl
 project_name = "awesome-project"
 useful       = "useful"
 ```
@@ -235,7 +235,7 @@ globals {
 
 Now `stacks/stack-1` globals set is:
 
-```
+```hcl
 project_name = "awesome-project"
 useful       = "useful"
 object       = { field_a = "overriden_field_a" }
@@ -243,7 +243,7 @@ object       = { field_a = "overriden_field_a" }
 
 And for `stacks/stack-2`:
 
-```
+```hcl
 project_name = "awesome-project"
 useful       = "useful"
 object       = { field_a = "field_a", field_b = "field_b" }
@@ -251,7 +251,7 @@ object       = { field_a = "field_a", field_b = "field_b" }
 
 It is also possible to **unset** a global by setting it to the value `unset`:
 
-```
+```hcl
 globals {
   a = unset
 }

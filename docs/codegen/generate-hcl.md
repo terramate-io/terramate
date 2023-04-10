@@ -358,7 +358,7 @@ generate_hcl "main.tf" {
 
 And it will generate the following `main.tf` file:
 
-```
+```hcl
 resource "myresource" "name" {
   count = var.enabled ? 1 : 0
   data  = "terramate_data"
