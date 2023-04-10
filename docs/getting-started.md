@@ -16,6 +16,24 @@ the 80% of Terramate concepts that you will use on a daily basis.
 No cloud account will be needed for this tutorial as we will play with pure
 Terramate.
 
+## Prerequisites
+
+- [Docker](https://www.docker.com/products/docker-desktop/)
+- [Terraform](https://terraform.io/)
+- [Basic knowledge of Terraform concepts](https://developer.hashicorp.com/terraform/intro).
+
+When installed, you can check if they are properly set up by executing:
+
+```shell
+$ docker version
+```
+
+and
+
+```shell
+$ terraform version
+```
+
 ## Project Setup
 
 If you don't have Terramate installed, then first head to the 
