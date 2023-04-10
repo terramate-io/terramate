@@ -1158,6 +1158,122 @@ globals "providers" "google" {
 }
 ```
 
+Then executing `terramate generate` is going to generate only the `docker` 
+provider for the _postgresql stack_.
+
+## Generating any file type
+
+Until now we have showed examples of generating *HCL* content but Terramate can
+generate any kind of file.
+
+Let's pretend our *NGINX* service will host the *Status Page* (a page that shows
+the status of the infrastructure and potential existent incidents).
+Then let's generate a file into `/nginx/html/index.html` that makes use of some
+*globals*.
+
+Please create the file `/nginx/index.tm.hcl` with content below:
+
+```hcl
+generate_file "html/index.html" {
+  content = <<-EOT
+    <html>
+      <head>
+        <title>Status page for ${global.org.name}</title>
+      </head>
+      <body>
+        <ul>
+        %{ for stack in terramate.stacks.list ~}
+          <li>${stack}: ok</li>
+        %{ endfor ~}
+        </ul>
+      </body>
+    </html>
+  EOT
+}
+```
+
+and then add the `global.org` config somewhere in the project root:
+
+```hcl
+# /org.tm.hcl
+
+globals "org" {
+  name = "My Company"
+}
+```
+
+Then when executing `terramate generate` it's going to generate the file 
+`/nginx/html/index.html` with content:
+
+```html
+<html>
+  <head>
+    <title>Status page for My Company</title>
+  </head>
+  <body>
+    <ul>
+       <li>/nginx: ok</li>
+       <li>/postgresql: ok</li>
+    </ul>
+  </body>
+</html>
+```
+
+## Interfacing with Terraform
+
+> Terramate is not opinionated!
+
+It's up to you, your organization and your team's culture to decide on how to
+manage the IaC.
+
+Options:
+
+1. Generate the module's [input variables](https://developer.hashicorp.com/terraform/language/values/variables) with default values that comes from 
+[globals](./sharing-data.md) variables.
+2. Generate the [local values](https://developer.hashicorp.com/terraform/language/values/locals) from [globals](./sharing-data.md).
+3. Generate the actual `.tf` module entirely.
+
+The options **1** and **2** could be interesting when just introducing Terramate
+to a big existing code base, because with a small step like this you already have
+big wins as most Terraform projects have lots of duplications in their
+_input variables_ declarations across the project.
+
+The third option is best when the user wants to control everything from Terramate,
+so advanced use cases are possible. Some examples below:
+
+- Generate the `module` declaration.
+
+```hcl
+generate_hcl "_generated_main.tf" {
+  content {
+    module "vpn" {
+      source = global.vpn.module.source
+      name   = terramate.stack.path.basename
+      region = global.config.region
+      # etc...
+    }
+  }
+}
+```
+
+- Conditionally add features
+
+```hcl
+generate_hcl "_generated_load_balancer.tf" {
+  condition = global.load_balancer_enabled
+  content {
+    module "load-balancer" {
+      # etc...
+    }
+  }
+}
+```
+
+> <img src="./assets/lamp.png" />
+> If you want more information about the `condition` flag, have a look in the
+> documentation [here](./codegen/generate-hcl.md#conditional-code-generation).
+
+
 TODO: configure the www index page of the container using code generation.
 ```hcl
 terraform {
