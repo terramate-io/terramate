@@ -1245,6 +1245,13 @@ resource "docker_container" "nginx" {
 }
 ```
 
+> <img src="./assets/lamp.png" />
+> The Terraform [abspath](https://developer.hashicorp.com/terraform/language/functions/abspath)
+> function returns the _absolute path_ for the provided path.
+> The `terramate run` command always _change directory_ into the stack path before
+> executing the command, then `abspath(".")` returns the absolute path of the
+> stack.
+
 Then executing `terramate run -- terraform apply` should re-deploy the *NGINX*
 service hosting our status page. Go ahead and check it in the browser at
 [http://localhost:8000/](http://localhost:8000/).
@@ -1303,3 +1310,12 @@ generate_hcl "_generated_load_balancer.tf" {
 > If you want more information about the `condition` flag, have a look in the
 > documentation [here](./codegen/generate-hcl.md#conditional-code-generation).
 
+# Next steps
+
+For more details on the concepts used in this page:
+
+- Read about the all Terramate blocks and configurations in the 
+[Config Overview](./config-overview.md).
+- Read about the [Terramate Functions](./functions.md).
+- Read about about general generation concepts in the [Code Generation Overview](./codegen/overview.md) page.
+- Read more about the [orchestration](./orchestration.md) feature.
