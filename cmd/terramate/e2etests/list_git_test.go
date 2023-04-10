@@ -15,7 +15,9 @@
 package e2etest
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terramate/test"
@@ -41,6 +43,51 @@ func TestE2EListWithGit(t *testing.T) {
 			for _, filter := range tc.filterNoTags {
 				args = append(args, "--no-tags", filter)
 			}
+			assertRunResult(t, cli.listStacks(args...), tc.want)
+		})
+	}
+}
+
+func TestE2EListWithGitSubModules(t *testing.T) {
+	t.Parallel()
+
+	for _, tcase := range listTestcases() {
+		tc := tcase
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rootSandbox := sandbox.New(t)
+			subSandbox := sandbox.New(t)
+
+			subSandbox.BuildTree(tc.layout)
+
+			if len(tc.layout) > 0 {
+				subGit := subSandbox.Git()
+				subGit.CommitAll("sub1 commit", true)
+			}
+
+			rootGit := rootSandbox.Git()
+			rootGit.AddSubmodule("sub", subSandbox.RootDir())
+
+			rootGit.CommitAll("add submodule")
+
+			cli := newCLI(t, rootSandbox.RootDir())
+			var args []string
+			for _, filter := range tc.filterTags {
+				args = append(args, "--tags", filter)
+			}
+			for _, filter := range tc.filterNoTags {
+				args = append(args, "--no-tags", filter)
+			}
+			wantStdout := []string{}
+			for _, line := range strings.Split(tc.want.Stdout, "\n") {
+				if line != "" {
+					wantStdout = append(wantStdout, fmt.Sprintf("sub/%s", line))
+				} else {
+					wantStdout = append(wantStdout, "")
+				}
+			}
+			tc.want.Stdout = strings.Join(wantStdout, "\n")
 			assertRunResult(t, cli.listStacks(args...), tc.want)
 		})
 	}
