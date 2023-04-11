@@ -58,7 +58,7 @@ the stacks modified by the last rebase, you first need to identify the base
 commit (the commit before the merge) and then provide this commit hash in the
 `--git-change-base` flag.
 
-```
+```console
 $ git branch
 main
 $ git rev-parse HEAD
@@ -93,7 +93,7 @@ they change.
 
 Example:
 
-```
+```hcl
 stack {
    watch = [
       "/external/file1.txt",

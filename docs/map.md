@@ -56,7 +56,7 @@ Now it's time for a more useful example.
 
 Have a look in the `global.orders` list declared below:
 
-```
+```hcl
 globals {
   orders = [
     {name = "Morpheus", product = "sunglass", price = 100.5},
@@ -73,7 +73,7 @@ globals {
 
 Let's aggregate those values by `name`, by using the `map` block as defined below:
 
-```
+```hcl
 globals {
   map totals {
     for_each = global.orders
@@ -89,7 +89,7 @@ globals {
 
 Which will result in the global object below:
 
-```
+```hcl
 totals = {
   Anderson = {
     total_spent = 112.3

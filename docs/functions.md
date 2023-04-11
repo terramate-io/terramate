@@ -61,7 +61,7 @@ allowed, which currently is only the `generate_hcl.content` block.
 
 To use `tm_hcl_expression`, lets say we have a global named data defined like this:
 
-```
+```hcl
 globals {
   data = "data"
 }
