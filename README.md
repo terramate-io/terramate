@@ -16,7 +16,7 @@
   <a href="https://codecov.io/gh/mineiros-io/terramate"><img src="https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4" alt="Code Coverage" /></a>
   <a href="https://github.com/mineiros-io/terramate/actions?query=branch%3Amain"><img src="https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg" alt="Terramate CI Status" /></a>
   <a href="https://github.com/mineiros-io/terramate/stargazers" rel="nofollow"><img src="https://img.shields.io/github/stars/mineiros-io/terramate" alt="Stars"></a>
-  <a href="https://discord.gg/CyzcScEPkc" rel="nofollow"><img src="https://img.shields.io/discord/1088753599951151154?label=Discord&logo=discord&logoColor=white" alt="Discord Server"></a>
+  <a href="https://terramate.io/discord" rel="nofollow"><img src="https://img.shields.io/discord/1088753599951151154?label=Discord&logo=discord&logoColor=white" alt="Discord Server"></a>
 </p>
 
 
