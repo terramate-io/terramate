@@ -47,7 +47,7 @@ type MergedBlock struct {
 // BlockType represents a block type.
 type BlockType string
 
-// Labels are the serialized labels
+// SerializedLabels are the serialized labels
 type SerializedLabels string
 
 // LabelBlockType represents a labelled block type.
@@ -233,6 +233,7 @@ func sameLabels(lb1, lb2 []string) bool {
 	return true
 }
 
+// NewSerializedLabels returns a serialized labels object.
 func NewSerializedLabels(labels []string) SerializedLabels {
 	s := ""
 	for _, l := range labels {
@@ -242,6 +243,7 @@ func NewSerializedLabels(labels []string) SerializedLabels {
 	return SerializedLabels(s)
 }
 
+// First label.
 func (s SerializedLabels) First() string {
 	var begin int
 	var pos int
@@ -258,6 +260,7 @@ func (s SerializedLabels) First() string {
 	return ""
 }
 
+// Unserialize the labels.
 func (s SerializedLabels) Unserialize() []string {
 	var labels []string
 	var begin int
