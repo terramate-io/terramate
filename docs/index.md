@@ -32,15 +32,15 @@ Terramate helps you to:
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md)
-- [Why Stacks](docs/why-stacks.md)
-- [Change Detection](docs/change-detection.md)
-- [Config Overview](docs/config-overview.md)
-- [Configuring a Project](docs/project-config.md)
-- [Functions](docs/functions.md)
-- [Sharing Data](docs/sharing-data.md)
-- [Code Generation](docs/codegen/overview.md)
-- [Orchestrating Stacks Execution](docs/orchestration.md)
+- [Getting Started](./getting-started.md)
+- [Why Stacks](./why-stacks.md)
+- [Change Detection](./change-detection.md)
+- [Config Overview](./config-overview.md)
+- [Configuring a Project](./project-config.md)
+- [Functions](./functions.md)
+- [Sharing Data](./sharing-data.md)
+- [Code Generation](./codegen/overview.md)
+- [Orchestrating Stacks Execution](./orchestration.md)
 - Guides (coming soon)
 
 
