@@ -13,7 +13,35 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: 'Examples',
+        text: '📔 Introduction',
+        items: [
+          { text: 'Markdown Examples', link: '/markdown-examples' },
+          { text: 'Runtime API Examples', link: '/api-examples' }
+        ]
+      },
+      {
+        text: '⚙️ Core Concepts',
+        items: [
+          { text: 'Markdown Examples', link: '/markdown-examples' },
+          { text: 'Runtime API Examples', link: '/api-examples' }
+        ]
+      },
+      {
+        text: 'Guides',
+        items: [
+          { text: 'Markdown Examples', link: '/markdown-examples' },
+          { text: 'Runtime API Examples', link: '/api-examples' }
+        ]
+      },
+      {
+        text: '🙌 Community',
+        items: [
+          { text: 'Markdown Examples', link: '/markdown-examples' },
+          { text: 'Runtime API Examples', link: '/api-examples' }
+        ]
+      },
+      {
+        text: '🙌 Contributions',
         items: [
           { text: 'Markdown Examples', link: '/markdown-examples' },
           { text: 'Runtime API Examples', link: '/api-examples' }
