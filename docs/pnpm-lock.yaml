@@ -4,9 +4,6 @@ devDependencies:
   vitepress:
     specifier: 1.0.0-alpha.65
     version: 1.0.0-alpha.65(@algolia/client-search@4.17.0)
-  vitepress-sidebar:
-    specifier: ^1.2.0
-    version: 1.2.0
 
 packages:
 
@@ -720,11 +717,6 @@ packages:
       rollup: 3.20.2
     optionalDependencies:
       fsevents: 2.3.2
-    dev: true
-
-  /vitepress-sidebar@1.2.0:
-    resolution: {integrity: sha512-rqEEedayIBoGWWp8qqSQQ4ZTzpx+jqWcV+BtHCmxXD7EV5fGukwFg8oL9wQBhlUxLfLJZGK1xutgfcNMcRyanw==}
-    engines: {node: '>=14.0.0'}
     dev: true
 
   /vitepress@1.0.0-alpha.65(@algolia/client-search@4.17.0):
