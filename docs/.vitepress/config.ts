@@ -50,7 +50,10 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
+      { icon: 'github', link: 'https://github.com/mineiros-io/terramate' },
+      { icon: 'discord', link: 'https://terramate.io/discord' },
+      { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
+      { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
     ]
   }
 })
