@@ -17,9 +17,10 @@ package ast
 import (
 	"path/filepath"
 	"sort"
+	"strconv"
+	"unicode/utf8"
 
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
 )
 
 // MergedBlock represents a block that spans multiple files.
@@ -46,11 +47,14 @@ type MergedBlock struct {
 // BlockType represents a block type.
 type BlockType string
 
+// Labels are the serialized labels
+type SerializedLabels string
+
 // LabelBlockType represents a labelled block type.
 type LabelBlockType struct {
-	Type      BlockType                       // Type of the block
-	Labels    [project.MaxGlobalLabels]string // Labels are the block labels.
-	NumLabels int                             // NumLabels is the number of defined labels.
+	Type      BlockType        // Type of the block
+	Labels    SerializedLabels // SerializedLabels are the block serialized labels.
+	NumLabels int              // NumLabels is the number of defined labels.
 }
 
 // MergedBlocks maps the block name to the MergedBlock.
@@ -72,15 +76,9 @@ func NewMergedBlock(typ string, labels []string) *MergedBlock {
 
 // NewLabelBlockType returns a new LabelBlockType.
 func NewLabelBlockType(typ string, labels []string) (LabelBlockType, error) {
-	if len(labels) > project.MaxGlobalLabels {
-		return LabelBlockType{}, errors.E(
-			"maximum number of global labels is %d but got %d",
-			project.MaxGlobalLabels, len(labels),
-		)
-	}
 	return LabelBlockType{
 		Type:      BlockType(typ),
-		Labels:    newLabels(labels),
+		Labels:    NewSerializedLabels(labels),
 		NumLabels: len(labels),
 	}, nil
 }
@@ -223,12 +221,6 @@ func sameDir(file1, file2 string) bool {
 	return filepath.Dir(file1) == filepath.Dir(file2)
 }
 
-func newLabels(labels []string) [project.MaxGlobalLabels]string {
-	var arrlabels [project.MaxGlobalLabels]string
-	copy(arrlabels[:], labels)
-	return arrlabels
-}
-
 func sameLabels(lb1, lb2 []string) bool {
 	if len(lb1) != len(lb2) {
 		return false
@@ -239,4 +231,48 @@ func sameLabels(lb1, lb2 []string) bool {
 		}
 	}
 	return true
+}
+
+func NewSerializedLabels(labels []string) SerializedLabels {
+	s := ""
+	for _, l := range labels {
+		s += strconv.Itoa(len(l)) + ":"
+		s += l
+	}
+	return SerializedLabels(s)
+}
+
+func (s SerializedLabels) First() string {
+	var begin int
+	var pos int
+	for pos < len(s) {
+		r, rsize := utf8.DecodeRuneInString(string(s[pos:]))
+		// NOTE: it's valid utf8 at this point.
+
+		if r == ':' {
+			size, _ := strconv.Atoi(string(s[begin:pos]))
+			return string(s[pos+rsize : pos+rsize+size])
+		}
+		pos += rsize
+	}
+	return ""
+}
+
+func (s SerializedLabels) Unserialize() []string {
+	var labels []string
+	var begin int
+	var pos int
+	for pos < len(s) {
+		r, rsize := utf8.DecodeRuneInString(string(s[pos:]))
+		// NOTE: it's valid utf8 at this point.
+
+		if r == ':' {
+			size, _ := strconv.Atoi(string(s[begin:pos]))
+			labels = append(labels, string(s[pos+rsize:pos+rsize+size]))
+			pos += size
+			begin = pos + rsize
+		}
+		pos += rsize
+	}
+	return labels
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/mapexpr"
 
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -58,24 +59,20 @@ type (
 	// The reason is that slices cannot be used as map key because the equality
 	// operator is not defined, then this type implements a fixed size struct.
 	GlobalPathKey struct {
-		path     [project.MaxGlobalLabels]string
-		isattr   bool
-		numPaths int
+		path   ast.SerializedLabels
+		isattr bool
 	}
 )
 
 // Path returns the global accessor path (labels + attribute name).
-func (a GlobalPathKey) Path() []string { return a.path[:a.numPaths] }
+func (a GlobalPathKey) Path() []string { return a.path.Unserialize() }
 
 func (a GlobalPathKey) rootname() string {
-	if a.numPaths == 0 {
-		return ""
-	}
-	return a.path[0]
+	return a.path.First()
 }
 
 func (a GlobalPathKey) name() string {
-	return strings.Join(a.path[:a.numPaths], ".")
+	return strings.Join(a.path.Unserialize(), ".")
 }
 
 // ForDir loads all the globals from the cfgdir.
@@ -443,10 +440,10 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 				// The first global block would evaluate before but as it has
 				// pending variables, then we need to postpone the second block
 				// as well.
-				if len(accessor.Path()) > 1 {
-					for size := accessor.numPaths; size >= 1; size-- {
-						base := accessor.path[0 : size-1]
-						attr := accessor.path[size-1]
+				if accessorPath := accessor.Path(); len(accessorPath) > 1 {
+					for size := len(accessorPath); size >= 1; size-- {
+						base := accessorPath[0 : size-1]
+						attr := accessorPath[size-1]
 						v, isPending := pendingExprs[newGlobalPath(base, attr)]
 
 						if isPending &&
@@ -605,13 +602,13 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 
 func newGlobalPath(basepath []string, name string) GlobalPathKey {
 	accessor := GlobalPathKey{}
-	accessor.numPaths = len(basepath)
-	copy(accessor.path[:], basepath)
+	clone := make([]string, len(basepath), len(basepath)+1)
+	copy(clone[:], basepath[:])
 	if name != "" {
-		accessor.path[len(basepath)] = name
-		accessor.numPaths++
+		clone = append(clone, name)
 		accessor.isattr = true
 	}
+	accessor.path = ast.NewSerializedLabels(clone)
 	return accessor
 }
 

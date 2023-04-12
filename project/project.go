@@ -42,10 +42,6 @@ type Paths []Path
 // Runtime is a map of runtime values exposed in the terramate namespace.
 type Runtime map[string]cty.Value
 
-// MaxGlobalLabels allowed to be used in a globals block.
-// TODO(i4k): get rid of this limit.
-const MaxGlobalLabels = 256
-
 // NewPath creates a new project path.
 // It panics if a relative path is provided.
 func NewPath(p string) Path {
