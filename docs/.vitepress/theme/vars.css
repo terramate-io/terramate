@@ -1,0 +1,4 @@
+:root {
+  --vp-c-green: #747bff;
+  --vp-c-brand: var(--vp-c-green);
+}

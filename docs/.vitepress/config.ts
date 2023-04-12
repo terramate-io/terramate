@@ -8,43 +8,63 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
+      /* { text: 'Examples', link: '/markdown-examples' } */
     ],
 
     sidebar: [
       {
-        text: '📔 Introduction',
+        text: '👋 What is Terramate',
+        items: [
+          { text: 'Overview', link: '/' },
+        ]
+      },
+      {
+        text: '🛠️ Getting Started',
+        items: [
+          { text: 'Installation', link: 'installation.md' },
+          { text: 'Quick Start', link: 'getting-started.md' }
+        ]
+      },
+      {
+        text: '📚 Core Concepts',
+        items: [
+          { text: 'Stacks', link: 'stacks.md' },
+          { text: 'Orchestration', link: 'orchestration.md' },
+          { text: 'Change Detection', link: 'change-detection.md' },
+          { text: 'Code Generation', items: [
+             { text: 'Overview', link: 'codegen/overview.md' },
+             { text: 'Generate HCL', link: 'codegen/generate-hcl.md' },
+             { text: 'Generate File', link: 'codegen/generate-file.md' },
+            ]
+          },
+          { text: 'Sharing Data', link: 'sharing-data.md' },
+          { text: 'Functions', link: 'functions.md' },
+          { text: 'Observability (coming soon)', link: '/' },
+          /* { text: 'Import existing resources (coming soon)', link: '/' }, */
+        ]
+      },
+      {
+        text: '⚙️ Configuration',
+        items: [
+          { text: 'Telemetry', link: '/telemetry' },
+        ]
+      },
+      {
+        text: '🤓 Guides',
         items: [
           { text: 'Markdown Examples', link: '/markdown-examples' },
           { text: 'Runtime API Examples', link: '/api-examples' }
         ]
       },
       {
-        text: '⚙️ Core Concepts',
+        text: '🥰 Community',
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
+          { text: 'Discord', link: 'https://terramate.io/discord' },
         ]
       },
       {
-        text: 'Guides',
+        text: '🤝🙇 Contributions',
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
-        ]
-      },
-      {
-        text: '🙌 Community',
-        items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
-        ]
-      },
-      {
-        text: '🙌 Contributions',
-        items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
         ]
       }
     ],
