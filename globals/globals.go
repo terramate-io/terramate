@@ -64,9 +64,6 @@ type (
 	}
 )
 
-// Path returns the global accessor path (labels + attribute name).
-func (a GlobalPathKey) Path() []string { return a.path.Unserialize() }
-
 func (a GlobalPathKey) rootname() string {
 	return a.path.First()
 }
@@ -156,7 +153,7 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range,
 				ConfigDir:  tree.Dir(),
-				LabelPath:  key.Path(),
+				LabelPath:  key.path.Unserialize(),
 				Expression: expr,
 			}
 		}
@@ -178,7 +175,7 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 			}
 			exprs.expressions[key] = Expr{
 				Origin:     varsBlock.RawOrigins[0].Range,
-				LabelPath:  key.Path(),
+				LabelPath:  key.path.Unserialize(),
 				Expression: expr,
 			}
 		}
@@ -192,7 +189,7 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 			exprs.expressions[key] = Expr{
 				Origin:     attr.Range,
 				ConfigDir:  tree.Dir(),
-				LabelPath:  key.Path(),
+				LabelPath:  key.path.Unserialize(),
 				Expression: attr.Expr,
 			}
 		}
@@ -236,7 +233,7 @@ func (dirExprs HierarchicalExprs) SetOverride(
 	exprSet.expressions[path] = Expr{
 		Origin:     origin,
 		ConfigDir:  dir,
-		LabelPath:  path.Path(),
+		LabelPath:  path.path.Unserialize(),
 		Expression: expr,
 	}
 }
@@ -276,7 +273,7 @@ func (dirExprs ExprSet) sort() []GlobalPathKey {
 	}
 
 	sort.SliceStable(res, func(i, j int) bool {
-		return len(res[i].Path()) < len(res[j].Path())
+		return len(dirExprs.expressions[res[i]].LabelPath) < len(dirExprs.expressions[res[j]].LabelPath)
 	})
 
 	return res
@@ -347,15 +344,15 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 
 				logger := logger.With().
 					Stringer("origin", sortedGlobals.origin).
-					Strs("global", accessor.Path()).
+					Strs("global", expr.LabelPath).
 					Logger()
 
 				logger.Trace().Msg("checking var access inside expression")
 
 				traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
 				if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
-					if _, ok := globals.GetKeyPath(accessor.Path()); ok {
-						err := globals.DeleteAt(accessor.Path())
+					if _, ok := globals.GetKeyPath(expr.LabelPath); ok {
+						err := globals.DeleteAt(expr.LabelPath)
 						if err != nil {
 							panic(errors.E(errors.ErrInternal, err))
 						}
@@ -412,9 +409,9 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 						return b
 					}
 
-					for accessPath := range pendingExprs {
+					for _, expr := range pendingExprs {
 						found := true
-						accessPathPaths := accessPath.Path()
+						accessPathPaths := expr.LabelPath
 						for i := min(len(accessPathPaths), len(varPaths)) - 1; i >= 0; i-- {
 							if accessPathPaths[i] != varPaths[i] {
 								found = false
@@ -440,7 +437,7 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 				// The first global block would evaluate before but as it has
 				// pending variables, then we need to postpone the second block
 				// as well.
-				if accessorPath := accessor.Path(); len(accessorPath) > 1 {
+				if accessorPath := expr.LabelPath; len(accessorPath) > 1 {
 					for size := len(accessorPath); size >= 1; size-- {
 						base := accessorPath[0 : size-1]
 						attr := accessorPath[size-1]
@@ -448,7 +445,7 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 
 						if isPending &&
 							// is not this global path
-							!isSameObjectPath(v.LabelPath, accessor.Path()) &&
+							!isSameObjectPath(v.LabelPath, accessorPath) &&
 							// dependent comes from same or higher level
 							strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String()) {
 							continue pendingExpression
@@ -464,7 +461,7 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 				// This catches a schema error that cannot be detected at the parser.
 				// When a nested object is defined either by literal or funcalls,
 				// it can't be detected at the parser.
-				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
+				oldValue, hasOldValue := globals.GetKeyPath(expr.LabelPath)
 				if hasOldValue &&
 					accessor.isattr &&
 					oldValue.Info().DefinedAt.Dir().String() == expr.Origin.Path().Dir().String() {
@@ -575,9 +572,10 @@ func isSameObjectPath(a, b eval.ObjectPath) bool {
 
 // setGlobal sets the global accordingly to the hierarchical rules.
 func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) error {
-	oldVal, hasOldVal := globals.GetKeyPath(accessor.Path())
+	accessorPath := accessor.path.Unserialize()
+	oldVal, hasOldVal := globals.GetKeyPath(accessorPath)
 	if !hasOldVal {
-		return globals.SetAt(accessor.Path(), newVal)
+		return globals.SetAt(accessorPath, newVal)
 	}
 
 	newConfigDir := newVal.Info().Dir
@@ -596,7 +594,7 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 
 	// newval comes from lower layer.
 
-	return globals.SetAt(accessor.Path(), newVal)
+	return globals.SetAt(accessorPath, newVal)
 
 }
 
