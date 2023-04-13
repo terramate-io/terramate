@@ -1,9 +1,22 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig, HeadConfig } from 'vitepress'
+
+const getPath = (path: string) => {
+  const uri = path.replace('.md', '')
+
+  return uri === 'index' ? '' : uri
+}
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Terramate",
   description: "A VitePress Site",
+  cleanUrls: true,
+  transformHead: ({ pageData }) => {
+    const head: HeadConfig[] = []
+    head.push(['link', { rel: 'canonical', content: `https://terramate.io/docs/${getPath(pageData.relativePath)}` }])
+
+    return head
+  },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
