@@ -1,10 +1,11 @@
 [build.environment]
   NODE_VERSION = "18"
-  VITE_BASE = "/docs/"
 
-# [context.deploy-preview.environment]
-#   VITE_BASE = "/"
+[context.deploy-preview.environment]
+  command = "pnpm docs:build"
+
+[context.production]
+  command = "pnpm docs:build --base='/docs/'"
 
 [build]
-  command = "pnpm docs:build"
   publish = ".vitepress/dist"
