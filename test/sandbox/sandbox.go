@@ -29,9 +29,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
@@ -117,6 +119,19 @@ func NoGit(t testing.TB) S {
 	// directories.
 
 	outerDir := t.TempDir()
+
+	if runtime.GOOS == "windows" {
+		t.Cleanup(func() {
+			for {
+				err := os.RemoveAll(outerDir)
+				if err == nil {
+					break
+				}
+				time.Sleep(1 * time.Millisecond)
+				fmt.Printf("trying to remove again: %v", err)
+			}
+		})
+	}
 
 	buildTree(t, config.NewRoot(config.NewTree(outerDir)), []string{
 		"s:this-stack-must-never-be-visible",
