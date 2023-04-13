@@ -1,10 +1,10 @@
+[build.environment]
+  NODE_VERSION = "18"
+  VITE_BASE = "/docs/"
+
+# [context.deploy-preview.environment]
+#   VITE_BASE = "/"
+
 [build]
   command = "pnpm docs:build"
   publish = ".vitepress/dist"
-
-# This redirect rule ensures that instead of serving from the subdomain, we always proxy form http://terramate.io/guide
-# The proxy configuration is configured in the terramate.io netlify site and can be seen in https://app.netlify.com/sites/terramate-io/overview
-[[redirects]]
-  from = "/*"
-  to = "https://terramate.io/guide/:splat"
-  status = 301

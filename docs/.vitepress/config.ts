@@ -1,10 +1,12 @@
 import { defineConfig } from 'vitepress'
 
+console.log(import.meta)
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Terramate",
   description: "A VitePress Site",
-  base: '/guide/',
+  base: '/docs/',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
