@@ -4,11 +4,11 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Terramate",
   description: "A VitePress Site",
+  base: '/guide/',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
-      /* { text: 'Examples', link: '/markdown-examples' } */
     ],
 
     sidebar: [
