@@ -63,6 +63,7 @@ type (
 		Origin Ref
 	}
 
+	// Stmts is a list of statements.
 	Stmts []Stmt
 )
 
@@ -118,7 +119,7 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 				// This can happen when the current scope is overriding the parent
 				// object but still the target expr is looking for the entire object
 				// so we still have to ascent into parent scope and then the "already
-				// overriden" refs show up here.
+				// overridden" refs show up here.
 				continue
 			}
 			if stmt.Special {
@@ -132,7 +133,10 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 					return cty.NilVal, errors.E(err, ErrEval, "evaluating %s from %s scope", stmt.LHS, stmt.Scope)
 				}
 
-				g.set(stmt.LHS, val)
+				err = g.set(stmt.LHS, val)
+				if err != nil {
+					return cty.NilVal, errors.E(ErrEval, err)
+				}
 			}
 		}
 	}
@@ -209,7 +213,7 @@ func (g *G) lookupStmtsAt(ref Ref, tree *config.Tree) (Stmts, error) {
 	if err != nil {
 		return nil, err
 	}
-	filtered, found := stmts.filter(ref)
+	filtered, found := stmts.selectBy(ref)
 	if found || tree.Parent == nil {
 		return filtered, nil
 	}
@@ -291,7 +295,7 @@ func (g *G) set(ref Ref, val cty.Value) error {
 	return nil
 }
 
-func (stmts Stmts) filter(ref Ref) (Stmts, bool) {
+func (stmts Stmts) selectBy(ref Ref) (Stmts, bool) {
 	filtered := Stmts{}
 	found := false
 	for _, stmt := range stmts {
@@ -309,6 +313,7 @@ func (stmts Stmts) filter(ref Ref) (Stmts, bool) {
 	return filtered, found
 }
 
+// String representation of the statement.
 func (stmt Stmt) String() string {
 	var rhs string
 	if stmt.Special {

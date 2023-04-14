@@ -41,6 +41,7 @@ type (
 	Refs []Ref
 )
 
+// AsKey returns a ref suitable to be used as a map key.
 func (ref Ref) AsKey() RefStr { return RefStr(ref.String()) }
 
 // String returns a string representation of the Ref.
