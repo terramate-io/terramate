@@ -1150,7 +1150,7 @@ func ValueAsStringList(val cty.Value) ([]string, error) {
 	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
 	// we have to check the elements themselves.
 	if !val.Type().IsTupleType() && !val.Type().IsListType() {
-		return nil, errors.E("value must be a set(string), got %q",
+		return nil, errors.E("value must be a list(string), got %q",
 			val.Type().FriendlyName())
 	}
 

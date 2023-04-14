@@ -157,6 +157,59 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "tm_dynamic with duplicated labels elements",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("labels", `["label", "label"]`),
+						),
+						GenerateHCL(
+							Labels("tm_dynamic_test.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a", "b", "c"]`),
+									Expr("labels", `global.labels`),
+									Content(
+										Expr("value", "my_block.value"),
+										Expr("key", "my_block.key"),
+									),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("my_block",
+								Labels("label", "label"),
+								Number("key", 0),
+								Str("value", "a"),
+							),
+							Block("my_block",
+								Labels("label", "label"),
+								Number("key", 1),
+								Str("value", "b"),
+							),
+							Block("my_block",
+								Labels("label", "label"),
+								Number("key", 2),
+								Str("value", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic with labels from iterator variable",
 			stack: "/stack",
 			configs: []hclconfig{

@@ -15,7 +15,10 @@
 package test
 
 import (
+	"os"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/git"
@@ -59,6 +62,17 @@ func EmptyRepo(t testing.TB, bare bool) string {
 	gw := NewGitWrapper(t, "", []string{})
 
 	repodir := t.TempDir()
+	if runtime.GOOS == "windows" {
+		t.Cleanup(func() {
+			for {
+				err := os.RemoveAll(repodir)
+				if err == nil {
+					break
+				}
+				time.Sleep(1 * time.Millisecond)
+			}
+		})
+	}
 	err := gw.Init(repodir, DefBranch, bare)
 	assert.NoError(t, err, "git init")
 
