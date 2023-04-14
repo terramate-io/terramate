@@ -17,9 +17,9 @@ package genfile_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/schema"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
@@ -64,7 +64,7 @@ func TestGenerateFileAssert(t *testing.T) {
 					file: genFile{
 						condition: true,
 						body:      "value",
-						asserts: []config.Assert{
+						asserts: []schema.Assert{
 							{
 								Range:     Mkrange("/stack/generate.tm", Start(7, 17, 88), End(7, 34, 105)),
 								Assertion: true,
@@ -107,7 +107,7 @@ func TestGenerateFileAssert(t *testing.T) {
 					file: genFile{
 						condition: true,
 						body:      "",
-						asserts: []config.Assert{
+						asserts: []schema.Assert{
 							{
 								Range:     Mkrange("/stack/generate.tm", Start(4, 17, 58), End(4, 21, 62)),
 								Assertion: true,
@@ -177,7 +177,7 @@ func TestGenerateFileAssert(t *testing.T) {
 					file: genFile{
 						condition: true,
 						body:      "generating code is fun",
-						asserts: []config.Assert{
+						asserts: []schema.Assert{
 							{
 								Range:     Mkrange("/stack/generate.tm", Start(4, 17, 58), End(4, 21, 62)),
 								Assertion: true,

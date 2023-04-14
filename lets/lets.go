@@ -18,8 +18,8 @@ package lets
 import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/mapexpr"
@@ -58,17 +58,17 @@ type (
 )
 
 // Load loads all the lets from the hcl blocks.
-func Load(letblock *ast.MergedBlock, ctx *eval.Context) error {
+func Load(letblock *ast.MergedBlock, g *globals3.G) error {
 	exprs, err := loadExprs(letblock)
 	if err != nil {
 		return err
 	}
 
-	return exprs.Eval(ctx)
+	return exprs.Eval(g)
 }
 
 // Eval evaluates all lets expressions and returns an EvalReport..
-func (letExprs Exprs) Eval(ctx *eval.Context) error {
+func (letExprs Exprs) Eval(g *globals3.G) error {
 	logger := log.With().
 		Str("action", "Exprs.Eval()").
 		Logger()
@@ -80,8 +80,9 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 	copyexprs(pendingExprs, letExprs)
 	removeUnset(pendingExprs)
 
-	if !ctx.HasNamespace("let") {
-		ctx.SetNamespace("let", map[string]cty.Value{})
+	evalctx := g.Context()
+	if !evalctx.HasNamespace("let") {
+		evalctx.SetNamespace("let", map[string]cty.Value{})
 	}
 
 	for len(pendingExprs) > 0 {
@@ -102,7 +103,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 			logger.Trace().Msg("checking var access inside expression")
 
 			for _, namespace := range vars {
-				if !ctx.HasNamespace(namespace.RootName()) {
+				if !evalctx.HasNamespace(namespace.RootName()) {
 					pendingExprsErrs[name].Append(errors.E(
 						ErrEval,
 						namespace.SourceRange(),
@@ -132,7 +133,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 			logger.Trace().Msg("evaluating expression")
 
-			val, err := ctx.Eval(expr)
+			val, err := g.Eval(expr)
 			if err != nil {
 				pendingExprsErrs[name].Append(errors.E(ErrEval, err, "let.%s", name))
 				continue
@@ -150,7 +151,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 			logger.Trace().Msg("updating lets eval context with evaluated attribute")
 
-			ctx.SetNamespace("let", lets.Attributes())
+			evalctx.SetNamespace("let", lets.Attributes())
 		}
 
 		if amountEvaluated == 0 {

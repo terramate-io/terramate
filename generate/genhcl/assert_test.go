@@ -17,9 +17,9 @@ package genhcl_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/schema"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
@@ -70,7 +70,7 @@ func TestGenerateHCLAssert(t *testing.T) {
 						body: Doc(
 							Str("a", "value"),
 						),
-						asserts: []config.Assert{
+						asserts: []schema.Assert{
 							{
 								Range:     Mkrange("/stack/generate.tm", Start(7, 17, 87), End(7, 34, 104)),
 								Assertion: true,
@@ -117,7 +117,7 @@ func TestGenerateHCLAssert(t *testing.T) {
 					hcl: genHCL{
 						condition: true,
 						body:      Doc(),
-						asserts: []config.Assert{
+						asserts: []schema.Assert{
 							{
 								Range:     Mkrange("/stack/generate.tm", Start(4, 17, 57), End(4, 21, 61)),
 								Assertion: true,
@@ -196,7 +196,7 @@ func TestGenerateHCLAssert(t *testing.T) {
 						body: Doc(
 							Str("a", "generating code is fun"),
 						),
-						asserts: []config.Assert{
+						asserts: []schema.Assert{
 							{
 								Range:     Mkrange("/stack/generate.tm", Start(4, 17, 57), End(4, 21, 61)),
 								Assertion: true,

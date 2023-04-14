@@ -23,14 +23,14 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/event"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/schema"
 	"github.com/mineiros-io/terramate/stdlib"
 
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -69,7 +69,7 @@ type File struct {
 	origin    info.Range
 	body      string
 	condition bool
-	asserts   []config.Assert
+	asserts   []schema.Assert
 }
 
 // Label of the original generate_file block.
@@ -101,7 +101,7 @@ func (f File) Context() string {
 // Asserts returns all (if any) of the evaluated assert configs of the
 // generate_file block. If [File.Condition] returns false then assert configs
 // will always be empty since they are not evaluated at all in that case.
-func (f File) Asserts() []config.Assert {
+func (f File) Asserts() []schema.Assert {
 	return f.asserts
 }
 
@@ -131,7 +131,7 @@ func (f File) String() string {
 func Load(
 	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	g *globals3.G,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
@@ -148,14 +148,14 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
+		evalctx := g.Context()
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
-		file, err := Eval(genFileBlock, evalctx.Context)
+		file, err := Eval(g, genFileBlock)
 		if err != nil {
 			return nil, err
 		}
@@ -170,16 +170,16 @@ func Load(
 }
 
 // Eval the generate_file block.
-func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
+func Eval(g *globals3.G, block hcl.GenFileBlock) (File, error) {
 	name := block.Label
-	err := lets.Load(block.Lets, evalctx)
+	err := lets.Load(block.Lets, g)
 	if err != nil {
 		return File{}, err
 	}
 
 	condition := true
 	if block.Condition != nil {
-		value, err := evalctx.Eval(block.Condition.Expr)
+		value, err := g.Eval(block.Condition.Expr)
 		if err != nil {
 			return File{}, errors.E(ErrConditionEval, err)
 		}
@@ -202,12 +202,12 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 		}, nil
 	}
 
-	asserts := make([]config.Assert, len(block.Asserts))
+	asserts := make([]schema.Assert, len(block.Asserts))
 	assertsErrs := errors.L()
 	assertFailed := false
 
 	for i, assertCfg := range block.Asserts {
-		assert, err := config.EvalAssert(evalctx, assertCfg)
+		assert, err := schema.EvalAssert(g, assertCfg)
 		if err != nil {
 			assertsErrs.Append(err)
 			continue
@@ -232,7 +232,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 		}, nil
 	}
 
-	value, err := evalctx.Eval(block.Content.Expr)
+	value, err := g.Eval(block.Content.Expr)
 	if err != nil {
 		return File{}, errors.E(ErrContentEval, err)
 	}

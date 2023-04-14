@@ -38,11 +38,12 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 )
 
@@ -128,7 +129,6 @@ func NoGit(t testing.TB) S {
 					break
 				}
 				time.Sleep(1 * time.Millisecond)
-				fmt.Printf("trying to remove again: %v", err)
 			}
 		})
 	}
@@ -258,12 +258,18 @@ func (s S) LoadStacks() config.List[*config.SortableStack] {
 func (s S) LoadStackGlobals(
 	root *config.Root,
 	st *config.Stack,
-) *eval.Object {
+) *globals3.G {
 	s.t.Helper()
 
-	report := globals.ForStack(root, st)
-	assert.NoError(s.t, report.AsError())
-	return report.Globals
+	ctx := eval.NewContext(
+		stdlib.Functions(st.HostDir(root)),
+	)
+	runtime := root.Runtime()
+	runtime.Merge(st.RuntimeValues(root))
+	ctx.SetNamespace("terramate", runtime)
+	tree, _ := root.Lookup(st.Dir)
+	g := globals3.New(ctx, tree)
+	return g
 }
 
 // RootDir returns the root directory of the test env. All dirs/files created

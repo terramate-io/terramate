@@ -183,7 +183,7 @@ globals "a" "b" {}
 
 is interpreted as:
 
-```
+```js
 if (!global.a) {
     global.a = {}
 }
@@ -246,7 +246,7 @@ The `child` scope inherits the `root` scope.
 
 - implicit order of evaluation 
 
-The order of evaluation of global values are implicitly defined by their dependencies and _ref_ traversal size (ie `global.a` evaluates before `global.a.b`).
+The order of evaluation of global values are implicitly defined by their dependencies and _origin ref_ size (ie `global.a` evaluates before `global.a.b`).
 
 Case 1:
 
@@ -309,7 +309,7 @@ Case 1: _ref_ is in the same scope (no dependency).
 
 target ref: `global.a.b` in `/child` scope
 
-```
+```hcl
 # /root.tm
 globals {
     a = {
@@ -322,20 +322,20 @@ globals {
 }
 ```
 
-```
+```hcl
 # /child/globals.tm
 globals a {
     b = 2
 }
 ```
 
-evaluates to `2` and only the statement `global.a.b = 2` is evaluated.
+evaluates to `2` and only the statement `global.a.b = 2` from the `/child` scope is evaluated.
 
 Case 2: _ref_ is in the same scope (with dependencies).
 
 target ref: `global.a.b` in `/child` scope
 
-```
+```hcl
 # /root.tm
 globals "a" {
     b = 1
@@ -346,7 +346,7 @@ globals {
 }
 ```
 
-```
+```hcl
 # /child/globals.tm
 globals "a" {
     b = global.c
@@ -354,3 +354,44 @@ globals "a" {
 ```
 evaluates to `2` because _origin ref_ `global.a.b` is found in the same scope,
 then `global.c` is lookup in parent scope.
+
+Case 3: _ref_ is in the parent scope (no deps)
+
+target ref: `global.a.b` in `/child` scope
+
+```hcl
+# /root.tm
+globals "a" {
+    b = 1
+}
+```
+
+```hcl
+# /child/globals.tm
+```
+
+evaluates to `1` and only the `global.a.b = 1` from `/` is evaluated.
+
+Case 4: lazy evaluation
+
+target ref: `global.a.b` from `/child`.
+
+```hcl
+# /root.tm
+globals "a" {
+    b = global.c
+}
+
+globals {
+    c = 1
+}
+```
+
+```hcl
+# /child/globals.tm
+globals {
+    c = 2
+}
+```
+
+It evaluates to `2` and only `global.a.b = global.c` from `/` and `global.c` from `/child` are evaluated.

@@ -38,11 +38,6 @@ const (
 	SkipFilename = ".tmskip"
 )
 
-const (
-	// ErrSchema indicates that the configuration has an invalid schema.
-	ErrSchema errors.Kind = "config has an invalid schema"
-)
-
 // Root is the root configuration tree.
 // This type is just for ensure better type checking for the cases where a
 // configuration for the root directory is expected and not from anywhere else.

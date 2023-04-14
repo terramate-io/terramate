@@ -28,12 +28,12 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/schema"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -76,7 +76,7 @@ type GenFile interface {
 	// Condition is true if the origin generate block had a true condition, false otherwise.
 	Condition() bool
 	// Asserts is the origin generate block assert blocks.
-	Asserts() []config.Assert
+	Asserts() []schema.Assert
 }
 
 // LoadResult represents all generated files of a specific directory.
@@ -105,18 +105,18 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	results := make([]LoadResult, len(stacks))
 
 	for i, st := range stacks {
 		res := LoadResult{Dir: st.Dir()}
-		loadres := globals.ForStack(root, st.Stack)
-		if err := loadres.AsError(); err != nil {
-			res.Err = err
-			results[i] = res
-			continue
-		}
-
-		generated, err := loadStackCodeCfgs(root, st.Stack, loadres.Globals, vendorDir, nil)
+		ctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
+		runtime := root.Runtime()
+		runtime.Merge(st.RuntimeValues(root))
+		ctx.SetNamespace("terramate", runtime)
+		tree, _ := root.Lookup(st.Dir())
+		g := globals3.New(ctx, tree)
+		generated, err := loadStackCodeCfgs(root, g, st.Stack, vendorDir, nil)
 		if err != nil {
 			res.Err = errors.E(err, "while loading configs of stack %s", st.Dir())
 			results[i] = res
@@ -131,7 +131,10 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.Dir()}
-		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir()))
+		ctx := eval.NewContext(stdlib.Functions(dircfg.HostDir()))
+		runtime := root.Runtime()
+		ctx.SetNamespace("terramate", runtime)
+		g := globals3.New(ctx, dircfg)
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -139,7 +142,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 				continue
 			}
 
-			file, err := genfile.Eval(block, evalctx)
+			file, err := genfile.Eval(g, block)
 			if err != nil {
 				res.Err = errors.L(res.Err, err).AsError()
 				results = append(results, res)
@@ -198,7 +201,6 @@ func Do(
 func doStackGeneration(
 	root *config.Root,
 	stack *config.Stack,
-	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) dirReport {
@@ -212,7 +214,13 @@ func doStackGeneration(
 
 	logger.Debug().Msg("generating files")
 
-	generated, err := loadStackCodeCfgs(root, stack, globals, vendorDir, vendorRequests)
+	ctx := eval.NewContext(stdlib.Functions(stack.HostDir(root)))
+	runtime := root.Runtime()
+	runtime.Merge(stack.RuntimeValues(root))
+	ctx.SetNamespace("terramate", runtime)
+	tree, _ := root.Lookup(stack.Dir)
+	g := globals3.New(ctx, tree)
+	generated, err := loadStackCodeCfgs(root, g, stack, vendorDir, vendorRequests)
 	if err != nil {
 		report.err = err
 		return report
@@ -317,6 +325,7 @@ func doRootGeneration(root *config.Root) Report {
 	report := Report{}
 	evalctx := eval.NewContext(stdlib.Functions(root.HostDir()))
 	evalctx.SetNamespace("terramate", root.Runtime())
+	g := globals3.New(evalctx, root.Tree())
 
 	var files []GenFile
 	for _, cfg := range root.Tree().AsList() {
@@ -356,7 +365,7 @@ func doRootGeneration(root *config.Root) Report {
 
 			logger.Debug().Msg("block validated successfully")
 
-			file, err := genfile.Eval(block, evalctx)
+			file, err := genfile.Eval(g, block)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report
@@ -387,7 +396,7 @@ func doRootGeneration(root *config.Root) Report {
 	return report
 }
 
-func handleAsserts(rootdir string, dir string, asserts []config.Assert) error {
+func handleAsserts(rootdir string, dir string, asserts []schema.Assert) error {
 	logger := log.With().
 		Str("action", "generate.handleAsserts()").
 		Str("dir", dir).
@@ -515,7 +524,10 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
+		tree, _ := root.Lookup(stack.Dir())
+		ctx := eval.NewContext(stdlib.Functions(stack.HostDir(root)))
+		g := globals3.New(ctx, tree)
+		outdated, err := stackOutdated(root, g, stack.Stack, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -560,6 +572,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 // If the stack has an invalid configuration it will return an error.
 func stackOutdated(
 	root *config.Root,
+	g *globals3.G,
 	st *config.Stack,
 	vendorDir project.Path,
 ) ([]string, error) {
@@ -568,13 +581,7 @@ func stackOutdated(
 		Stringer("stack", st).
 		Logger()
 
-	report := globals.ForStack(root, st)
-	if err := report.AsError(); err != nil {
-		return nil, errors.E(err, "checking for outdated code")
-	}
-
-	globals := report.Globals
-	generated, err := loadStackCodeCfgs(root, st, globals, vendorDir, nil)
+	generated, err := loadStackCodeCfgs(root, g, st, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +784,6 @@ func readFile(path string) (string, bool, error) {
 type forEachStackFunc func(
 	*config.Root,
 	*config.Stack,
-	*eval.Object,
 	project.Path,
 	chan<- event.VendorRequest,
 ) dirReport
@@ -808,17 +814,9 @@ func forEachStack(
 			Stringer("stack", elem).
 			Logger()
 
-		logger.Trace().Msg("Load stack globals.")
-
-		globalsReport := globals.ForStack(root, elem.Stack)
-		if err := globalsReport.AsError(); err != nil {
-			report.addFailure(elem.Dir(), errors.E(ErrLoadingGlobals, err))
-			continue
-		}
-
 		logger.Trace().Msg("Calling stack callback.")
 
-		stackReport := fn(root, elem.Stack, globalsReport.Globals, vendorDir, vendorRequests)
+		stackReport := fn(root, elem.Stack, vendorDir, vendorRequests)
 		report.addDirReport(elem.Dir(), stackReport)
 	}
 
@@ -1196,7 +1194,7 @@ func checkFileConflict(generated []GenFile) map[string]error {
 	return errsmap
 }
 
-func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]config.Assert, error) {
+func loadAsserts(root *config.Root, st *config.Stack, g *globals3.G) ([]schema.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", root.HostDir()).
@@ -1204,7 +1202,7 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 		Logger()
 
 	curdir := st.Dir
-	asserts := []config.Assert{}
+	asserts := []schema.Assert{}
 	errs := errors.L()
 
 	for {
@@ -1212,11 +1210,10 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 			Stringer("curdir", curdir).
 			Logger()
 
-		evalctx := stack.NewEvalCtx(root, st, globals)
 		cfg, ok := root.Lookup(curdir)
 		if ok {
 			for _, assertCfg := range cfg.Node.Asserts {
-				assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+				assert, err := schema.EvalAssert(g, assertCfg)
 				if err != nil {
 					errs.Append(err)
 				} else {
@@ -1241,24 +1238,24 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 
 func loadStackCodeCfgs(
 	root *config.Root,
+	g *globals3.G,
 	st *config.Stack,
-	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
-	asserts, err := loadAsserts(root, st, globals)
+	asserts, err := loadAsserts(root, st, g)
 	if err != nil {
 		return nil, err
 	}
 
 	var genfilesConfigs []GenFile
 
-	genfiles, err := genfile.Load(root, st, globals, vendorDir, vendorRequests)
+	genfiles, err := genfile.Load(root, st, g, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(root, st, globals, vendorDir, vendorRequests)
+	genhcls, err := genhcl.Load(root, st, g, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}

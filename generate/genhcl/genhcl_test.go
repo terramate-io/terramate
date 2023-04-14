@@ -29,6 +29,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/schema"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
@@ -1707,7 +1708,7 @@ type (
 		body      fmt.Stringer
 		origin    info.Range
 		condition bool
-		asserts   []config.Assert
+		asserts   []schema.Assert
 	}
 	result struct {
 		name string

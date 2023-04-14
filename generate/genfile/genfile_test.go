@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/schema"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
@@ -949,7 +950,7 @@ type (
 		origin    info.Range
 		body      string
 		condition bool
-		asserts   []config.Assert
+		asserts   []schema.Assert
 	}
 	result struct {
 		name string

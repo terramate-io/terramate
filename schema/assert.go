@@ -1,26 +1,17 @@
-// Copyright 2022 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package config
+package schema
 
 import (
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+)
+
+const (
+	// ErrSchema indicates that the configuration has an invalid schema.
+	ErrSchema errors.Kind = "config has an invalid schema"
 )
 
 // Assert represents evaluated assert block configuration.
@@ -33,11 +24,11 @@ type Assert struct {
 
 // EvalAssert evaluates a given assert configuration and returns its
 // evaluated form.
-func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
+func EvalAssert(g *globals3.G, cfg hcl.AssertConfig) (Assert, error) {
 	res := Assert{}
 	errs := errors.L()
 
-	assertion, err := evalBool(evalctx, cfg.Assertion, "assert.assertion")
+	assertion, err := evalBool(g, cfg.Assertion, "assert.assertion")
 	if err != nil {
 		errs.Append(err)
 	} else {
@@ -45,7 +36,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 		res.Range = cfg.Assertion.Range()
 	}
 
-	message, err := evalString(evalctx, cfg.Message, "assert.message")
+	message, err := evalString(g, cfg.Message, "assert.message")
 	if err != nil {
 		errs.Append(err)
 	} else {
@@ -53,7 +44,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	}
 
 	if cfg.Warning != nil {
-		warning, err := evalBool(evalctx, cfg.Warning, "assert.warning")
+		warning, err := evalBool(g, cfg.Warning, "assert.warning")
 		if err != nil {
 			errs.Append(err)
 		} else {
@@ -68,11 +59,11 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	return res, nil
 }
 
-func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, error) {
+func evalBool(g *globals3.G, expr hhcl.Expression, name string) (bool, error) {
 	if expr == nil {
 		return false, errors.E(ErrSchema, "%s must be defined", name)
 	}
-	val, err := evalctx.Eval(expr)
+	val, err := g.Eval(expr)
 	if err != nil {
 		return false, errors.E(err, "evaluating %s", name)
 	}
@@ -82,11 +73,11 @@ func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, e
 	return val.True(), nil
 }
 
-func evalString(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
+func evalString(g *globals3.G, expr hhcl.Expression, name string) (string, error) {
 	if expr == nil {
 		return "", errors.E(ErrSchema, "%s must be defined", name)
 	}
-	val, err := evalctx.Eval(expr)
+	val, err := g.Eval(expr)
 	if err != nil {
 		return "", errors.E(err, "evaluating %s", name)
 	}

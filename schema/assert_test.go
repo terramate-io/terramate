@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config_test
+package schema_test
 
 import (
 	"fmt"
@@ -22,10 +22,13 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/schema"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -34,7 +37,7 @@ func TestAssertConfigEval(t *testing.T) {
 		name       string
 		assert     hcl.AssertConfig
 		namespaces namespaces
-		want       config.Assert
+		want       schema.Assert
 		wantErr    error
 	}
 
@@ -49,7 +52,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Assertion: expr(`"a" == "terramate"`),
 				Message:   expr(`"something"`),
 			},
-			want: config.Assert{
+			want: schema.Assert{
 				Assertion: false,
 				Message:   "something",
 			},
@@ -68,7 +71,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Assertion: expr(`ns.a == "terramate"`),
 				Message:   expr(`ns2.msg`),
 			},
-			want: config.Assert{
+			want: schema.Assert{
 				Assertion: true,
 				Message:   "message",
 			},
@@ -85,7 +88,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Message:   expr(`"msg"`),
 				Warning:   expr("warning.val"),
 			},
-			want: config.Assert{
+			want: schema.Assert{
 				Assertion: true,
 				Message:   "msg",
 				Warning:   true,
@@ -96,14 +99,14 @@ func TestAssertConfigEval(t *testing.T) {
 			assert: hcl.AssertConfig{
 				Message: expr(`"something"`),
 			},
-			wantErr: errors.E(config.ErrSchema),
+			wantErr: errors.E(schema.ErrSchema),
 		},
 		{
 			name: "message undefined fails",
 			assert: hcl.AssertConfig{
 				Assertion: expr(`true`),
 			},
-			wantErr: errors.E(config.ErrSchema),
+			wantErr: errors.E(schema.ErrSchema),
 		},
 		{
 			name: "assertion is not boolean fails",
@@ -111,7 +114,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Assertion: expr(`[]`),
 				Message:   expr(`"something"`),
 			},
-			wantErr: errors.E(config.ErrSchema),
+			wantErr: errors.E(schema.ErrSchema),
 		},
 		{
 			name: "assertion eval fails",
@@ -127,7 +130,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Assertion: expr(`true`),
 				Message:   expr(`false`),
 			},
-			wantErr: errors.E(config.ErrSchema),
+			wantErr: errors.E(schema.ErrSchema),
 		},
 		{
 			name: "message eval fails",
@@ -144,7 +147,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Message:   expr(`"msg"`),
 				Warning:   expr("[]"),
 			},
-			wantErr: errors.E(config.ErrSchema),
+			wantErr: errors.E(schema.ErrSchema),
 		},
 		{
 			name: "warning eval fails",
@@ -164,7 +167,7 @@ func TestAssertConfigEval(t *testing.T) {
 			},
 			wantErr: errors.L(
 				errors.E(eval.ErrEval),
-				errors.E(config.ErrSchema),
+				errors.E(schema.ErrSchema),
 				errors.E(eval.ErrEval),
 			),
 		},
@@ -174,7 +177,7 @@ func TestAssertConfigEval(t *testing.T) {
 				Assertion: expr(`"A" == tm_upper("a")`),
 				Message:   expr(`tm_upper("func")`),
 			},
-			want: config.Assert{
+			want: schema.Assert{
 				Assertion: true,
 				Message:   "FUNC",
 			},
@@ -183,13 +186,18 @@ func TestAssertConfigEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			hclctx := eval.NewContext(stdlib.Functions(t.TempDir()))
+			s := sandbox.New(t)
+			root, err := config.LoadRoot(s.RootDir())
+			assert.NoError(t, err)
+			hclctx := eval.NewContext(stdlib.Functions(s.RootDir()))
 
 			for k, v := range tcase.namespaces {
 				hclctx.SetNamespace(k, v.asCtyMap())
 			}
 
-			got, err := config.EvalAssert(hclctx, tcase.assert)
+			g := globals3.New(hclctx, root.Tree())
+
+			got, err := schema.EvalAssert(g, tcase.assert)
 			assert.IsError(t, err, tcase.wantErr)
 			if !equalAsserts(tcase.want, got) {
 				t.Fatalf("got %#v != want %#v", got, tcase.want)
@@ -219,7 +227,7 @@ func (e nsvalues) asCtyMap() map[string]cty.Value {
 	return vals
 }
 
-func equalAsserts(a config.Assert, o config.Assert) bool {
+func equalAsserts(a schema.Assert, o schema.Assert) bool {
 	// Since expression are built inside the test itself here
 	// They don't have a proper Filename on their Ranges so checking
 	// The range on these tests would be tricky to check properly.

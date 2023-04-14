@@ -26,16 +26,16 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/event"
+	"github.com/mineiros-io/terramate/globals3"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/schema"
 	"github.com/mineiros-io/terramate/stdlib"
 
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -48,7 +48,7 @@ type HCL struct {
 	origin    info.Range
 	body      string
 	condition bool
-	asserts   []config.Assert
+	asserts   []schema.Assert
 }
 
 const (
@@ -98,7 +98,7 @@ func (h HCL) Label() string {
 // Asserts returns all (if any) of the evaluated assert configs of the
 // generate_hcl block. If [HCL.Condition] returns false then assert configs
 // will always be empty since they are not evaluated at all in that case.
-func (h HCL) Asserts() []config.Assert {
+func (h HCL) Asserts() []schema.Assert {
 	return h.asserts
 }
 
@@ -147,7 +147,7 @@ func (h HCL) String() string {
 func Load(
 	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	g *globals3.G,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
@@ -168,7 +168,7 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
+		evalctx := g.Context()
 
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
@@ -179,7 +179,7 @@ func Load(
 			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 		)
 
-		err := lets.Load(hclBlock.Lets, evalctx.Context)
+		err := lets.Load(hclBlock.Lets, g)
 		if err != nil {
 			return nil, err
 		}
@@ -210,12 +210,12 @@ func Load(
 			continue
 		}
 
-		asserts := make([]config.Assert, len(hclBlock.Asserts))
+		asserts := make([]schema.Assert, len(hclBlock.Asserts))
 		assertsErrs := errors.L()
 		assertFailed := false
 
 		for i, assertCfg := range hclBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			assert, err := schema.EvalAssert(g, assertCfg)
 			if err != nil {
 				assertsErrs.Append(err)
 				continue

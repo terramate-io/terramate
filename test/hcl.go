@@ -23,11 +23,11 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/schema"
 )
 
 // ParseTerramateConfig parses the Terramate configuration found
@@ -106,7 +106,7 @@ func NewExpr(t *testing.T, expr string) hhcl.Expression {
 }
 
 // AssertConfigEquals asserts that two [config.Assert] are equal.
-func AssertConfigEquals(t *testing.T, got, want []config.Assert) {
+func AssertConfigEquals(t *testing.T, got, want []schema.Assert) {
 	t.Helper()
 
 	if len(got) != len(want) {
