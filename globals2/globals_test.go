@@ -23,6 +23,7 @@ import (
 	hhclwrite "github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals2"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -433,6 +434,27 @@ func TestGlobals3(t *testing.T) {
 			evalDir: "/stack",
 			expr:    `global.a`,
 			want:    `"value from stack"`,
+		},
+		{
+			name:   "globals with cycles in the same scope",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("obj", `{
+							val = global.a1
+						}`),
+						Expr("a1", `tm_upper(global.a2)`),
+						Expr("a2", `tm_lower(global.a3)`),
+						Expr("a3", `tm_upper(global.a4)`),
+						Expr("a4", `global.a1`),
+					),
+				},
+			},
+			evalDir: "/stack",
+			expr:    `global.obj`,
+			wantErr: errors.E(globals2.ErrCycle),
 		},
 	} {
 		tc := tc

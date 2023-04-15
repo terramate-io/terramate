@@ -32,7 +32,8 @@ import (
 
 // Errors returned when parsing and evaluating globals.
 const (
-	ErrEval errors.Kind = "global eval"
+	ErrEval  errors.Kind = "global eval"
+	ErrCycle errors.Kind = "cycle detected"
 )
 
 type (
@@ -94,7 +95,12 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 	refs := refsOf(expr)
 	for _, dep := range refs {
 		if _, ok := visited[dep.AsKey()]; ok {
-			return cty.NilVal, errors.E(ErrEval, "cycle detected") // TODO(i4k): improve error msg
+			return cty.NilVal, errors.E(
+				ErrCycle,
+				expr.Range(),
+				"globals have circular dependencies: reference %s already evaluated",
+				dep,
+			)
 
 		}
 		visited[dep.AsKey()] = dep
