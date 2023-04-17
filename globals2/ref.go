@@ -118,10 +118,6 @@ func refsOf(expr hhcl.Expression) Refs {
 			Object: trav[0].(hhcl.TraverseRoot).Name,
 		}
 
-		if ref.Object != "global" {
-			continue
-		}
-
 	inner:
 		for _, tt := range trav[1:] {
 			switch t := tt.(type) {

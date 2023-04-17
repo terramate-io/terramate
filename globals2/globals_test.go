@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/globals2"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -487,7 +488,7 @@ func TestGlobals3(t *testing.T) {
 			}
 
 			ctx := eval.NewContext(stdlib.Functions(tree.HostDir()))
-			g := globals2.New(ctx, tree)
+			g := globals2.New(ctx, globals.NewResolver(tree))
 			val, err := g.Eval(expr)
 			errtest.Assert(t, err, tc.wantErr)
 

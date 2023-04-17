@@ -300,10 +300,13 @@ global.a.b.c.d = 1  # origin reference is global.a.b.c
 
  # Evaluation
 
-When evaluating an expression, just the _referenced_ globals are evaluated.
-If a target _ref_ is not found in the current scope, then it's looked up in the 
-parent scope until root is reached or a _origin reference_ is found which is a 
-subpath of the target _ref_.
+ ## Single evaluation
+
+When evaluating a single expression, just the _referenced_ globals are 
+evaluated.
+If a target _ref_ is not found in the current scope, then it's looked 
+up in the parent scope until root is reached or a _origin reference_ 
+is found which is a subpath of the target _ref_.
 
 Case 1: _ref_ is in the same scope (no dependency).
 
@@ -395,3 +398,36 @@ globals {
 ```
 
 It evaluates to `2` and only `global.a.b = global.c` from `/` and `global.c` from `/child` are evaluated.
+
+## Evaluating all globals for a stack
+
+The project consists of a tree of configurations where each node is a
+directory, then the process of evaluating all globals for a single 
+stack consist of evaluating the globals for the _stack configuration
+ branch_ (the branch starts at the root (`/`) and ends in the stack 
+ directory) but applying the rules below.
+
+ - Configurations from lower directories override parent directories.
+ - References in all scopes are lazy evaluated.
+
+ Algorithm:
+
+ - All statements from the stack directory are collected.
+ - For each directory from root until the stack:
+    - collect the statements
+    - sort them by _origin ref_ length
+    - for each statement:
+        - evaluate its dependencies:
+            - if the dependency is defined in the target stack, use it. (lazy eval)
+            - otherwise evaluate the dependency recursively
+        - evaluate the rhs
+        - set the globals (override parent if already evaluated)
+
+Example:
+
+```
+
+evaluating the root globals, then the first path 
+steps below:
+
+1. 

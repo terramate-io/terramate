@@ -16,13 +16,9 @@ package globals2
 
 import (
 	"fmt"
-	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -39,13 +35,19 @@ const (
 type (
 	// G is the globals evaluator.
 	G struct {
-		ctx     *eval.Context
-		tree    *config.Tree
-		globals globals
+		ctx *eval.Context
+		ns  namespaces
 
-		// Scopes is a cache of scoped statements.
-		Scopes map[project.Path]Stmts
+		evaluators map[string]StmtLookup
 	}
+
+	StmtLookup interface {
+		Root() string
+		LoadStmts() (Stmts, error)
+		LookupRef(Ref) (Stmts, error)
+	}
+
+	namespaces map[string]globals
 
 	globals struct {
 		byref map[RefStr]cty.Value
@@ -70,23 +72,30 @@ type (
 
 // New globals evaluator.
 // TODO(i4k): better document.
-func New(ctx *eval.Context, tree *config.Tree) *G {
-	ctx.SetNamespace("global", map[string]cty.Value{})
-	return &G{
-		ctx:    ctx,
-		tree:   tree,
-		Scopes: make(map[project.Path]Stmts),
-		globals: globals{
+func New(ctx *eval.Context, evaluators ...StmtLookup) *G {
+	g := &G{
+		ctx:        ctx,
+		evaluators: map[string]StmtLookup{},
+		ns:         namespaces{},
+	}
+
+	for _, ev := range evaluators {
+		g.evaluators[ev.Root()] = ev
+		g.ns[ev.Root()] = globals{
 			byref: make(map[RefStr]cty.Value),
 			bykey: orderedmap.New[string, any](),
-		},
+		}
 	}
+
+	return g
 }
 
-// Context returns the internal globals context.
-func (g *G) Context() *eval.Context { return g.ctx }
-
-// Eval the given expr.
+// Eval the given expr and all of its dependency references (if needed)
+// using a bottom-up algorithm (starts in the target g.tree directory
+// and lookup references in parent directories when needed).
+// The algorithm is reliable but it does the minimum required work to
+// get the expr evaluated, and then it does not validate all globals
+// scopes but only the ones it traversed into.
 func (g *G) Eval(expr hhcl.Expression) (cty.Value, error) {
 	return g.eval(expr, map[RefStr]Ref{})
 }
@@ -104,12 +113,21 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 
 		}
 		visited[dep.AsKey()] = dep
-		if _, ok := g.globals.byref[dep.AsKey()]; ok {
+		if _, ok := g.ns.Get(dep); ok {
 			// dep already evaluated.
 			continue
 		}
 
-		stmts, err := g.lookupStmts(dep)
+		stmtResolver, ok := g.evaluators[dep.Object]
+		if !ok {
+			return cty.NilVal, errors.E(
+				ErrEval,
+				"unknown variable namespace %s: evaluating %s",
+				dep.Object, ast.TokensForExpression(expr).Bytes(),
+			)
+		}
+
+		stmts, err := stmtResolver.LookupRef(dep)
 		if err != nil {
 			return cty.NilVal, err
 		}
@@ -120,7 +138,7 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 				ast.TokensForExpression(expr).Bytes(), dep)
 		}
 		for _, stmt := range stmts {
-			if _, ok := g.globals.byref[stmt.LHS.AsKey()]; ok {
+			if _, ok := g.ns.Get(stmt.LHS); ok {
 				// stmt already evaluated.
 				// This can happen when the current scope is overriding the parent
 				// object but still the target expr is looking for the entire object
@@ -147,7 +165,9 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 		}
 	}
 
-	g.ctx.SetNamespace("global", tocty(g.globals.bykey).AsValueMap())
+	for nsname, object := range g.ns {
+		g.ctx.SetNamespace(nsname, tocty(object.bykey).AsValueMap())
+	}
 
 	val, err := g.ctx.Eval(expr)
 	if err != nil {
@@ -156,125 +176,14 @@ func (g *G) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error
 	return val, nil
 }
 
-func (g *G) loadStmtsAt(tree *config.Tree) (Stmts, error) {
-	stmts, ok := g.Scopes[tree.Dir()]
-	if ok {
-		return stmts, nil
-	}
-	for _, block := range tree.Node.Globals.AsList() {
-		if len(block.Labels) > 0 && !hclsyntax.ValidIdentifier(block.Labels[0]) {
-			return nil, errors.E(
-				hcl.ErrTerramateSchema,
-				"first global label must be a valid identifier but got %s",
-				block.Labels[0],
-			)
-		}
-
-		if len(block.Labels) > 0 && len(block.Attributes) == 0 {
-			stmts = append(stmts, Stmt{
-				Origin: Ref{
-					Object: "global",
-					Path:   block.Labels,
-				},
-				LHS: Ref{
-					Object: "global",
-					Path:   block.Labels,
-				},
-				Special: true,
-				Scope:   tree.Dir(),
-			})
-			continue
-		}
-
-		for _, attr := range block.Attributes.SortedList() {
-			origin := Ref{
-				Object: "global",
-				Path:   make([]string, len(block.Labels)+1),
-			}
-			copy(origin.Path, block.Labels)
-			origin.Path[len(block.Labels)] = attr.Name
-			blockStmts, err := g.stmtsOf(tree.Dir(), origin, origin.Path, attr.Expr)
-			if err != nil {
-				return nil, err
-			}
-			stmts = append(stmts, blockStmts...)
-		}
-	}
-
-	// bigger refs -> smaller refs
-	sort.Slice(stmts, func(i, j int) bool {
-		return len(stmts[i].Origin.Path) > len(stmts[j].Origin.Path)
-	})
-
-	g.Scopes[tree.Dir()] = stmts
-	return stmts, nil
-}
-
-func (g *G) lookupStmts(ref Ref) (Stmts, error) {
-	return g.lookupStmtsAt(ref, g.tree)
-}
-
-func (g *G) lookupStmtsAt(ref Ref, tree *config.Tree) (Stmts, error) {
-	stmts, err := g.loadStmtsAt(tree)
-	if err != nil {
-		return nil, err
-	}
-	filtered, found := stmts.selectBy(ref)
-	if found || tree.Parent == nil {
-		return filtered, nil
-	}
-	parentStmts, err := g.lookupStmtsAt(ref, tree.Parent)
-	if err != nil {
-		return nil, err
-	}
-	filtered = append(filtered, parentStmts...)
-	return filtered, nil
-}
-
-func (g *G) stmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression) (Stmts, error) {
-	stmts := Stmts{}
-	newbase := make([]string, len(base)+1)
-	copy(newbase, base)
-	last := len(newbase) - 1
-	switch e := expr.(type) {
-	case *hclsyntax.ObjectConsExpr:
-		for _, item := range e.Items {
-			val, err := g.Eval(item.KeyExpr)
-			if err != nil {
-				return nil, err
-			}
-
-			if !val.Type().Equals(cty.String) {
-				panic(errors.E("unexpected key type %s", val.Type().FriendlyName()))
-			}
-
-			newbase[last] = val.AsString()
-			newStmts, err := g.stmtsOf(scope, origin, newbase, item.ValueExpr)
-			if err != nil {
-				return nil, err
-			}
-			stmts = append(stmts, newStmts...)
-		}
-	default:
-		lhs := Ref{
-			Object: "global",
-			Path:   newbase[0:last],
-		}
-		stmts = append(stmts, Stmt{
-			Origin: origin,
-			LHS:    lhs,
-			RHS:    expr,
-			Scope:  scope,
-		})
-	}
-
-	return stmts, nil
-}
-
 func (g *G) set(ref Ref, val cty.Value) error {
-	g.globals.byref[ref.AsKey()] = val
-	// bykey
-	obj := g.globals.bykey
+	if _, ok := g.ns[ref.Object]; !ok {
+		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
+	}
+
+	g.ns[ref.Object].byref[ref.AsKey()] = val
+
+	obj := g.ns[ref.Object].bykey
 
 	// len(path) >= 1
 
@@ -288,7 +197,7 @@ func (g *G) set(ref Ref, val cty.Value) error {
 			case cty.Value:
 				return errors.E("%s points to a %s type but expects an object", ref, vv.Type().FriendlyName())
 			default:
-				panic("unexpected")
+				panic("TODO")
 			}
 		} else {
 			tempMap := orderedmap.New[string, any]()
@@ -301,7 +210,7 @@ func (g *G) set(ref Ref, val cty.Value) error {
 	return nil
 }
 
-func (stmts Stmts) selectBy(ref Ref) (Stmts, bool) {
+func (stmts Stmts) SelectBy(ref Ref) (Stmts, bool) {
 	filtered := Stmts{}
 	found := false
 	for _, stmt := range stmts {
@@ -346,4 +255,13 @@ func tocty(globals *orderedmap.OrderedMap[string, any]) cty.Value {
 		}
 	}
 	return cty.ObjectVal(ret)
+}
+
+func (ns namespaces) Get(ref Ref) (cty.Value, bool) {
+	if v, ok := ns[ref.Object]; ok {
+		if vv, ok := v.byref[ref.AsKey()]; ok {
+			return vv, true
+		}
+	}
+	return cty.NilVal, false
 }
