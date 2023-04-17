@@ -9,8 +9,8 @@ To do so, Terramate works with configuration files that have the suffixes:
 * `tm`
 * `tm.hcl`
 
-Terramate files can be found in any non-hidden directory of a Terramate project 
-and all non-hidden files in a single directory will be handled as the 
+Terramate files can be found in any non-hidden directory of a Terramate project
+and all non-hidden files in a single directory will be handled as the
 concatenation of all of them in a single file, forming a single **configuration**.
 
 The configuration blocks can be defined multiple times and their values are merged
@@ -46,7 +46,7 @@ An imported file can import other files but cycles are not allowed.
 A Terramate project is essentially a collection of Terraform code organized into
 stacks.
 
-It is not a hard requirement for Terramate to work that the project uses Git 
+It is not a hard requirement for Terramate to work that the project uses Git
 for version control (support to other VCS might be added in the future), but
 features like change detection do depend on a VCS to work and will fail if this
 soft requirement is not met.
@@ -64,7 +64,7 @@ The configuration defined in a directory is merged into a single configuration
 where multiple blocks of same type can be defined if their contents do not
 conflict. In other words, the definition of a block can be split into multiple
 blocks where each defines a part of the whole definition. The only exceptions are
-the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` blocks. 
+the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` blocks.
 The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extends the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
@@ -198,7 +198,7 @@ can be defined multiple times and has the following schema:
 
 ## globals block schema
 
-The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of 
+The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of
 [map](#map-block) blocks.
 
 For more information about `globals`, see the [Sharing Data](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md#globals) documentation.

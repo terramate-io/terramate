@@ -36,6 +36,7 @@ export default defineConfig({
       },
       {
         text: '🛠️ Getting Started',
+        collapsed: false,
         items: [
           { text: 'Installation', link: 'installation.md' },
           { text: 'Quick Start', link: 'getting-started.md' }
@@ -43,37 +44,57 @@ export default defineConfig({
       },
       {
         text: '📚 Core Concepts',
+        collapsed: false,
         items: [
           { text: 'Stacks', link: 'stacks.md' },
           { text: 'Orchestration', link: 'orchestration.md' },
           { text: 'Change Detection', link: 'change-detection.md' },
-          { text: 'Code Generation', items: [
-             { text: 'Overview', link: 'codegen/overview.md' },
-             { text: 'Generate HCL', link: 'codegen/generate-hcl.md' },
-             { text: 'Generate File', link: 'codegen/generate-file.md' },
-            ]
-          },
-          { text: 'Sharing Data', link: 'sharing-data.md' },
-          { text: 'Functions', link: 'functions.md' },
-          { text: 'Observability (coming soon)', link: '/' },
-          /* { text: 'Import existing resources (coming soon)', link: '/' }, */
         ]
       },
       {
-        text: '⚙️ Configuration',
+        text: '🔗 Sharing Data', link: 'sharing-data.md',
+        collapsed: false,
+        items : [
+          {text: 'Globals', link: 'sharing-data.md#globals'},
+          {text: 'Lazy Evaluation', link: 'sharing-data.md#lazy-evaluation'},
+          {text: 'Metadata', link: 'sharing-data.md#metadata'},
+        ]
+      },
+      {
+        text: '🔧 Functions', link: 'functions.md',
+        items : [
+          {text: 'tm_ternary', link: 'functions.md#tm-ternary-bool-expr-expr-expr'},
+          {text: 'tm_hcl_expression', link: 'functions.md#tm-hcl-expression-string-expr'},
+          {text: 'tm_version_match', link: 'functions.md#tm-version-match-version-string-constraint-string-optional-arg-object'},
+          {text: 'Experimental Functions',link: 'functions.md#experimental-functions'},
+        ]
+      },
+      {
+        text: '😍 Code Generation',
+        collapsed: false,
         items: [
-          { text: 'Telemetry', link: '/telemetry' },
+           { text: 'Overview', link: 'codegen/overview.md' },
+           { text: 'Generate HCL', link: 'codegen/generate-hcl.md' },
+           { text: 'Generate File', link: 'codegen/generate-file.md' },
+          ]
+      },
+      {
+        text: '⚙️ Configuration',
+        collapsed: false,
+        items: [
+          { text: 'Configuration Overview', link: '/configuration' },
+          { text: 'Upgrade Check', link: '/upgrade-check' },
         ]
       },
       {
         text: '🤓 Guides',
+        collapsed: false,
         items: [
           { text: 'Markdown Examples', link: '/markdown-examples' },
           { text: 'Runtime API Examples', link: '/api-examples' }
         ]
       },
       {
-        text: '🥰 Community',
         items: [
           { text: 'Discord', link: 'https://terramate.io/discord' },
         ]
