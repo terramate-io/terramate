@@ -4,7 +4,7 @@ Terramate supports the generation of arbitrary text files referencing
 [Terramate defined data](../sharing-data.md).
 
 File generation is done using `generate_file`
-blocks in [Terramate configuration files](../config-overview.md).
+blocks in [Terramate configuration files](../configuration.md).
 
 Each `generate_file` block requires a single label that is the path
 where the generated file will be saved.
@@ -15,7 +15,7 @@ The block has an optional **`context`** attribute which overrides the [generatio
 
 The **`content`** attribute defines the string that will be written on the file.
 
-The value of the **`content`** has access to different Terramate features 
+The value of the **`content`** has access to different Terramate features
 depending on the `context` defined.
 
 For `context=root` it has access to:

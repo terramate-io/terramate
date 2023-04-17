@@ -49,7 +49,7 @@ Terramate helps you to:
 - [Getting Started](docs/getting-started.md)
 - [Why Stacks](docs/why-stacks.md)
 - [Change Detection](docs/change-detection.md)
-- [Config Overview](docs/config-overview.md)
+- [Config Overview](docs/configuration.md)
 - [Configuring a Project](docs/project-config.md)
 - [Functions](docs/functions.md)
 - [Sharing Data](docs/sharing-data.md)

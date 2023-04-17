@@ -1,17 +1,17 @@
 # HCL Code Generation
 
-Terramate supports the generation of arbitrary HCL code referencing 
+Terramate supports the generation of arbitrary HCL code referencing
 [Terramate defined data](../sharing-data.md).
 
 The generated code can then be composed/referenced by any Terraform code
 inside a stack (or any other tool that uses HCL, like [Packer](https://www.packer.io/)).
 
 HCL code generation is done using `generate_hcl`
-blocks in [Terramate configuration files](../config-overview.md).
+blocks in [Terramate configuration files](../configuration.md).
 
 The code may include:
 
-* Blocks, sub blocks, etc 
+* Blocks, sub blocks, etc
 * Attributes initialized by literals
 * Terramate Global references
 * Terramate Metadata references
@@ -125,7 +125,7 @@ but supports partial evaluation of the expanded code.
 
 The generate block's attributes can be provided by a `content` block, an
 `attributes` attribute, or even both if they don't conflict.
-When using the `content` block, additional sub-blocks can be generated and 
+When using the `content` block, additional sub-blocks can be generated and
 nested `tm_dynamic` blocks can be defined.
 
 Example using the `content` block:
@@ -142,7 +142,7 @@ generate_hcl "file.tf" {
       iterator = value
 
       content {
-        attr = "index: ${value.key}, value: ${value.value}" 
+        attr = "index: ${value.key}, value: ${value.value}"
         attr2 = not_evaluated.attr
       }
     }
@@ -229,7 +229,7 @@ generate_hcl "file.tf" {
       iterator = value
 
       attributes = {
-        attr = "index: ${value.key}, value: ${value.value}" 
+        attr = "index: ${value.key}, value: ${value.value}"
         attr2 = not_evaluated.attr
       }
     }

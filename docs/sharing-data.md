@@ -17,7 +17,7 @@ Globals provide a way to define data that can be reused
 across stacks with a clear hierarchical/merge semantic.
 
 Defining globals is fairly straightforward, you just need to
-add a **globals** block to your [Terramate configuration file](config-overview.md):
+add a **globals** block to your [Terramate configuration file](configuration.md):
 
 ```hcl
 globals {
@@ -112,7 +112,7 @@ Globals can be defined on multiple Terramate files, let's call this
 set of files in a specific directory a **configuration**. Given
 this definition:
 
-* A project has multiple configurations, one for each of its directories. 
+* A project has multiple configurations, one for each of its directories.
 * The most specific configuration is the stack directory.
 * The most general configuration is the project root directory.
 * Globals can't be redefined in the same configuration.
@@ -148,7 +148,7 @@ The configurations available, from more specific to more general, for `stack-1` 
 * . (the project root dir)
 
 To create globals that will be available for all stacks in the entire project
-just add a [Terramate configuration file](config-overview.md) on the project
+just add a [Terramate configuration file](configuration.md) on the project
 root with some useful globals:
 
 ```hcl
@@ -159,7 +159,7 @@ globals {
 ```
 
 Now any stack on the project can reference these globals on their
-[Terramate configuration](config-overview.md).
+[Terramate configuration](configuration.md).
 
 Now, let's say one of the stacks wants to add more globals, to do
 so we can add globals on the stack configuration by creating the file
@@ -268,7 +268,7 @@ to a global.
 
 So far, we've described how globals on different configurations are merged.
 Given that globals can reference other globals and Terramate metadata, it is
-important to be clear about how/when evaluation happens. 
+important to be clear about how/when evaluation happens.
 
 Globals are lazily evaluated. The per stack process can
 be described in this order:

@@ -124,7 +124,7 @@
     },
     {
         "title": "Configuration Language",
-        "sourceURL": "/docs/config-overview.md",
+        "sourceURL": "/docs/configuration.md",
         "topics": [
             {
                 "title": "Terramate Configuration Overview",
