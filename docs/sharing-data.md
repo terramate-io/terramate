@@ -390,7 +390,7 @@ The ID of the stack as defined on the stack configuration.
 If the stack doesn't have a ID defined on its configuration
 this metadata will be undefined (no default value provided).
 
-Please consider [stack configuration](stack.md) to see how
+Please consider [stack configuration](stacks.md) to see how
 you can define the stack ID.
 
 ### terramate.stack.name (string)
@@ -419,14 +419,14 @@ you can change the default stack name.
 The description of the stack, if it has any.
 The default value is an empty string.
 
-Please consider [stack configuration](stack.md) to see how
+Please consider [stack configuration](stacks.md) to see how
 you can change the default stack description.
 
 ### terramate.stack.tags (list)
 
 The list of stack tags. The default value is an empty list.
 
-Please consider [stack configuration](stack.md) to see how you can change the stack tags.
+Please consider [stack configuration](stacks.md) to see how you can change the stack tags.
 
 ## Deprecated
 

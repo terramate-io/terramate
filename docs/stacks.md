@@ -1,70 +1,93 @@
-# Why Use Stacks
+# Stack
 
-The stack concept is advised for several reasons. But before we go into
-**why** lets talk a little about **what** a stack is.
+When working with Infrastructure as Code it's considered to be a best practice
+to split up and organize your IaC into several smaller and isolated stacks.
 
-The stack concept is not defined by Hashicorp's Terraform tooling but just a
-convention used by the _Terraform community_, so a stack can be loosely defined as:
+Typically, each stack comes with its own Terraform state which allows us
+to plan and apply each stack on its own.
 
+A Terramate stack is:
+
+* A directory inside your project.
+* Has at least one or more Terramate configuration files.
+* One of the configuration files has a `stack {}` block on it.
+
+What separates a stack from any other directory is the `stack{}` block.
+It doesn't require any attributes by default, but it can be used
+to describe stacks and orchestrate their execution.
+
+Stack configurations related to orchestration can be found [here](orchestration.md).
+
+Besides orchestration the `stack` block also define attributes that are
+used to describe the `stack`.
+
+Only [Terramate Functions](functions.md) are available when defining
+the `stack` block.
+
+## stack.id (string)(optional)
+
+The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
+The ID can't be bigger than 64 bytes and **must** be unique on the
+whole project.
+
+There is no default value determined for the stack ID.
+
+Eg:
+
+```hcl
+stack {
+  id = "some_id_that_must_be_unique"
+}
 ```
-A terraform stack is a runnable terraform module that operates on a subset of
-the infrastructure's resources.
+
+## stack.name (string)(optional)
+
+The stack name can be any string and it defaults to the stack directory
+base name.
+
+Eg:
+
+```hcl
+stack {
+  name = "My Awesome Stack Name"
+}
 ```
 
-By _runnable_ it means it has everything needed to call
-`terraform init/plan/apply` . For example, a module used by other modules, ie,
-don't have the `provider` explicitly set, is not runnable hence it's
-**not a stack**.
+## stack.description (string)(optional)
 
-If your runnable Terraform module creates your whole infrastructure, *it's
-also not a stack*, since the idea of stacks is to be a unit of infrastructure
-decomposition.
+The stack description can be any string and it defaults to an empty string.
 
-## Isolate code with higher change frequency
+Eg:
 
-If you have a high change frequency in your infrastructure, for example, several
-deploys per day/week or several configuration changes per day/week, then if you
-apply the change in your single Terraform project, some dependent resources can
-be recreated leading to increased downtime. There are several reasons why a
-dependent module can be recreated, eg.: attributes with variable interpolation
-from recreated resources; underspecified attributes refreshing during plan, etc.
+```hcl
+stack {
+  description = "My Awesome Stack Description"
+}
+```
 
-By using stacks you can modify only the stacks affected by the deploys or
-configuration changes needed, but you have to choose the size of the stack
-wisely to avoid duplication.
+## stack.tags (set(string))(optional)
 
-The overall principle being, code that changes at different rate change for
-different reasons and code that changes for different reasons should be as
-isolated from each other as possible.
+The tags must be a unique set of strings, where each tag must adhere to the following rules:
 
-## Reduce the blast radius
+- It must start with a lowercase ASCII alphabetic character (`[a-z]`).
+- It must end with a lowercase ASCII alphanumeric character (`[0-9a-z]`).
+- It must have only lowercase ASCII alphanumeric, `_` and `-` characters (`[0-9a-z_-]`).
 
-A small change can lead to catastrophic events if you're not careful or makes a
-mistake like forgetting a "prevent_destroy" attribute in the production database
-lifecycle declaration. Someone may commit mistakes and it's better if
-you could reduce the impact of such errors.
-An extreme example is: avoiding a database instance destroy because of a DNS TTL
-change.
+## stack.watch (list)(optional)
 
-## Reduce execution time
+The list of files that must be watched for changes in the
+[change detection](change-detection.md).
 
-By using stacks you can reduce the time an infrastructure change takes to finish.
-This is even more appealing if your Terraform changes are applied through CI
-builders running in the cloud because faster integration/builds leads to reduced
-cloud costs.
+## stack.after (set(string))(optional)
 
-## Ownership
+The `after` defines the list of stacks which this stack must run after.
+It accepts project absolute paths (like `/other/stack`), paths relative to
+the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](tag-filter.md).
+See [orchestration docs](orchestration.md#stacks-ordering) for details.
 
-In the case of a big organization you probably don't want a single person or
-team responsible for the whole infrastructure. The company's stacks can be
-spread over several repositories and managed by different teams.
+## stack.before (set(string))(optional)
 
-By having this separation, it also makes it easier when you want separation
-by resource permissions, so having some stacks that can only be run by
-specific individuals or teams.
-
-## Others
-
-There are lots of other opinionated reasons why stacks would be a good option:
-stacks per environment or deploy region location, stacks per topic (IAM vs
-actual resources) and so on.
+The `before` defines the list of stacks which this stack must run before.
+It accepts project absolute paths (like `/other/stack`), paths relative to
+the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](tag-filter.md).
+See [orchestration docs](orchestration.md#stacks-ordering) for details.

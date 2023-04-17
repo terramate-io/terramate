@@ -32,6 +32,7 @@ export default defineConfig({
         text: '👋 What is Terramate',
         items: [
           { text: 'Overview', link: '/' },
+          { text: 'About Stacks', link: 'about-stacks.md' },
         ]
       },
       {
@@ -58,6 +59,7 @@ export default defineConfig({
           {text: 'Globals', link: 'sharing-data.md#globals'},
           {text: 'Lazy Evaluation', link: 'sharing-data.md#lazy-evaluation'},
           {text: 'Metadata', link: 'sharing-data.md#metadata'},
+          {text: 'Map', link: 'map.md'},
         ]
       },
       {
@@ -82,8 +84,9 @@ export default defineConfig({
         text: '⚙️ Configuration',
         collapsed: false,
         items: [
-          { text: 'Configuration Overview', link: '/configuration' },
-          { text: 'Upgrade Check', link: '/upgrade-check' },
+          { text: 'Configuring Terramate', link: '/configuration.md' },
+          { text: 'Project Configuration', link: '/project-config.md' },
+          { text: 'Upgrade Check', link: '/upgrade-check.md' },
         ]
       },
       {
@@ -96,14 +99,14 @@ export default defineConfig({
       },
       {
         items: [
-          { text: 'Discord', link: 'https://terramate.io/discord' },
+          { text: '💬 Discord', link: 'https://terramate.io/discord' },
         ]
       },
-      {
-        text: '🤝🙇 Contributions',
-        items: [
-        ]
-      }
+      // {
+      //   text: '🤝🙇 Contributions',
+      //   items: [
+      //   ]
+      // }
     ],
 
     socialLinks: [
