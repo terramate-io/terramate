@@ -1,4 +1,4 @@
-# Why Use Stacks ?
+# Why Use Stacks
 
 The stack concept is advised for several reasons. But before we go into
 **why** lets talk a little about **what** a stack is.

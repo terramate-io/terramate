@@ -1,7 +1,7 @@
 import { defineConfig, HeadConfig } from 'vitepress'
 
 const getPath = (path: string) => {
-  const uri = path.replace('.md', '')
+  const uri = path.replace(/(?:(^|\/)index)?\.md$/, '$1')
 
   return uri === 'index' ? '' : uri
 }
@@ -20,7 +20,11 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/' },
+      {
+        text: 'Home', link: '/'},
+      {
+        text: 'Playground', link: 'https://play.terramate.io',
+      },
     ],
 
     sidebar: [

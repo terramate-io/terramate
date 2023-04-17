@@ -9,6 +9,7 @@
 </p>
 <br/>
 
+
 <p align="center">
   <a href="https://github.com/mineiros-io/terramate/releases"><img src="https://img.shields.io/github/v/release/mineiros-io/terramate?color=%239F50DA&display_name=tag&label=Version" alt="Latest Release" /></a>
   <a href="https://pkg.go.dev/github.com/mineiros-io/terramate"><img src="https://pkg.go.dev/badge/github.com/mineiros-io/terramate" alt="Go Docs" /></a>
