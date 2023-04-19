@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { defineConfig, HeadConfig } from 'vitepress'
+import type { HeadConfig } from 'vitepress'
+import { defineConfig } from 'vitepress'
 
-const getPath = (path: string) => {
+function getPath(path: string) {
   const uri = path.replace(/(?:(^|\/)index)?\.md$/, '$1')
 
   return uri === 'index' ? '' : uri
@@ -24,8 +25,8 @@ const getPath = (path: string) => {
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "Terramate",
-  description: "A VitePress Site",
+  title: 'Terramate',
+  description: 'A VitePress Site',
   cleanUrls: true,
   transformHead: ({ pageData }) => {
     const head: HeadConfig[] = []
@@ -36,11 +37,7 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      {
-        text: 'Docs', link: '/about-stacks'},
-      {
-        text: 'Playground', link: 'https://play.terramate.io',
-      },
+      { text: 'Docs', link: '/about-stacks' },
     ],
 
     sidebar: [
@@ -49,15 +46,15 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/' },
           { text: 'About Stacks', link: 'about-stacks' },
-        ]
+        ],
       },
       {
         text: '🛠️ Getting Started',
         collapsed: false,
         items: [
           { text: 'Installation', link: 'installation' },
-          { text: 'Quick Start', link: 'getting-started' }
-        ]
+          { text: 'Quick Start', link: 'getting-started' },
+        ],
       },
       {
         text: '📚 Core Concepts',
@@ -66,35 +63,38 @@ export default defineConfig({
           { text: 'Stacks', link: 'stacks' },
           { text: 'Orchestration', link: 'orchestration' },
           { text: 'Change Detection', link: 'change-detection' },
-        ]
+        ],
       },
       {
-        text: '🔗 Sharing Data', link: 'sharing-data',
-        collapsed: false,
-        items : [
-          {text: 'Globals', link: 'sharing-data#globals'},
-          {text: 'Lazy Evaluation', link: 'sharing-data#lazy-evaluation'},
-          {text: 'Metadata', link: 'sharing-data#metadata'},
-          {text: 'Map', link: 'map'},
-        ]
-      },
-      {
-        text: '😍 Code Generation', link: 'code-generation/',
+        text: '🔗 Sharing Data',
+        link: 'sharing-data',
         collapsed: false,
         items: [
-           { text: 'Overview', link: 'code-generation/' },
-           { text: 'Generate HCL', link: 'code-generation/generate-hcl' },
-           { text: 'Generate File', link: 'code-generation/generate-file' },
-          ]
+          { text: 'Globals', link: 'sharing-data#globals' },
+          { text: 'Lazy Evaluation', link: 'sharing-data#lazy-evaluation' },
+          { text: 'Metadata', link: 'sharing-data#metadata' },
+          { text: 'Map', link: 'map' },
+        ],
       },
       {
-        text: '🔧 Functions', link: 'functions',
-        items : [
-          {text: 'tm_ternary', link: 'functions#tm-ternary-bool-expr-expr-expr'},
-          {text: 'tm_hcl_expression', link: 'functions#tm-hcl-expression-string-expr'},
-          {text: 'tm_version_match', link: 'functions#tm-version-match-version-string-constraint-string-optional-arg-object'},
-          {text: 'Experimental Functions',link: 'functions#experimental-functions'},
-        ]
+        text: '😍 Code Generation',
+        link: 'code-generation/',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: 'code-generation/' },
+          { text: 'Generate HCL', link: 'code-generation/generate-hcl' },
+          { text: 'Generate File', link: 'code-generation/generate-file' },
+        ],
+      },
+      {
+        text: '🔧 Functions',
+        link: 'functions',
+        items: [
+          { text: 'tm_ternary', link: 'functions#tm-ternary-bool-expr-expr-expr' },
+          { text: 'tm_hcl_expression', link: 'functions#tm-hcl-expression-string-expr' },
+          { text: 'tm_version_match', link: 'functions#tm-version-match-version-string-constraint-string-optional-arg-object' },
+          { text: 'Experimental Functions', link: 'functions#experimental-functions' },
+        ],
       },
       {
         text: '⚙️ Configuration',
@@ -103,20 +103,23 @@ export default defineConfig({
           { text: 'Configuring Terramate', link: '/configuration' },
           { text: 'Project Configuration', link: '/project-config' },
           { text: 'Upgrade Check', link: '/upgrade-check' },
-        ]
+        ],
       },
       {
         text: '🤓 Guides',
         collapsed: false,
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
-        ]
+          { text: 'Introducing Terramate — An Orchestrator and Code Generator for Terraform', link: 'https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055' },
+          { text: 'Understanding the basics of Terramate', link: 'https://blog.mineiros.io/understanding-the-basics-of-terramate-e0d8778f5c53' },
+          { text: 'Terramate and Terragrunt', link: 'https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f' },
+          { text: 'How to keep your Terraform code DRY by using Terramate', link: 'https://blog.mineiros.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6' },
+          { text: 'Introducing the Terramate VSCode Extension and Language Server', link: 'https://blog.mineiros.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c' },
+        ],
       },
       {
         items: [
           { text: '💬 Discord', link: 'https://terramate.io/discord' },
-        ]
+        ],
       },
       // {
       //   text: '🤝🙇 Contributions',
@@ -130,6 +133,6 @@ export default defineConfig({
       { icon: 'discord', link: 'https://terramate.io/discord' },
       { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
       { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
-    ]
-  }
+    ],
+  },
 })

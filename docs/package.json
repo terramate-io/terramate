@@ -1,11 +1,19 @@
 {
+  "packageManager": "pnpm@8.2.0",
   "scripts": {
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview"
+    "docs:preview": "vitepress preview",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^0.38.5",
+    "eslint_d": "^12.2.1",
     "vitepress": "1.0.0-alpha.65"
   },
-  "packageManager": "pnpm@8.2.0"
+  "eslintConfig": {
+    "extends": [
+      "@antfu"
+    ]
+  }
 }
