@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/mineiros-io/brand/16aa786a3cd6d0ae2fb89ed756f96c695d0f88e1/terramate-logo.svg" width="160px" align="center" alt="Terramate Logo" />
   <h1 align="center">Terramate</h1>
   <p align="center">
-    ✨ <a href="https://terramate.io/docs">https://terramate.io</a> ✨
+    ✨ <a href="https://terramate.io/docs/cli">https://terramate.io</a> ✨
     <br/>
       Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
   </p>
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://terramate.io/docs">📖 Documentation</a> | <a href="https://play.terramate.io">⚡ Playground</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/discord" title="Slack invite">🙌 Join Us</a>
+  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://play.terramate.io">⚡ Playground</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/discord" title="Slack invite">🙌 Join Us</a>
 </p>
 
 <br>

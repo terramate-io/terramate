@@ -29,7 +29,7 @@ export default defineConfig({
   cleanUrls: true,
   transformHead: ({ pageData }) => {
     const head: HeadConfig[] = []
-    head.push(['link', { rel: 'canonical', content: `https://terramate.io/docs/${getPath(pageData.relativePath)}` }])
+    head.push(['link', { rel: 'canonical', content: `https://terramate.io/docs/cli/${getPath(pageData.relativePath)}` }])
 
     return head
   },
