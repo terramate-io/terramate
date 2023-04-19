@@ -1,3 +1,16 @@
+---
+title: Stacks | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Installation'
+  link: '/installation'
+
+next:
+  text: 'Orchestration'
+  link: '/orchestration'
+---
+
 # Stack
 
 When working with Infrastructure as Code it's considered to be a best practice

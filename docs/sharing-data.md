@@ -1,3 +1,16 @@
+---
+title: Sharing Data - Globals | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Change Detection'
+  link: '/change-detection'
+
+next:
+  text: 'Map'
+  link: '/map'
+---
+
 # Sharing Data
 
 To keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
@@ -9,7 +22,7 @@ the user, similar to how you would define locals in Terraform, and metadata
 is provided by Terramate.
 
 Terramate globals and metadata are integrated with Terraform using code
-generation, you can check it into more details [here](codegen/overview.md).
+generation, you can check it into more details [here](code-generation/index.md).
 
 # Globals
 
@@ -75,7 +88,7 @@ This will make the `global.obj` look like:
 Additionally, the [map](./map.md) block is supported inside the `globals` block
 for building complex objects.
 
-The **globals** can be referenced on the [code generation](codegen/overview.md):
+The **globals** can be referenced on the [code generation](code-generation/index.md):
 
 ```hcl
 generate_hcl "backend.tf" {
@@ -411,7 +424,7 @@ Given this stack layout (from the root of the project):
 * **stack-a** = stack-a
 * **stack-b** = stack-b
 
-Please consider [stack configuration](stack.md) to see how
+Please consider [stack configuration](stacks.md) to see how
 you can change the default stack name.
 
 ### terramate.stack.description (string)

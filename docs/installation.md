@@ -1,4 +1,17 @@
-# Installing
+---
+title: Installation | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Overview'
+  link: '/overview'
+
+next:
+  text: 'Getting Started'
+  link: '/getting-started'
+---
+
+# Installation
 
 ## Using Go
 

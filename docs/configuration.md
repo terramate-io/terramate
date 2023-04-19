@@ -1,3 +1,8 @@
+---
+title: Configuration Overview | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+---
+
 # Terramate Configuration Overview
 
 Different configurations can be done in Terramate, ranging from avoiding
@@ -64,7 +69,7 @@ The configuration defined in a directory is merged into a single configuration
 where multiple blocks of same type can be defined if their contents do not
 conflict. In other words, the definition of a block can be split into multiple
 blocks where each defines a part of the whole definition. The only exceptions are
-the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` blocks.
+the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/code-generation/) blocks and the `import` blocks.
 The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extends the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
@@ -232,7 +237,7 @@ The `generate_file` block requires one label, **do not** support [merging](#conf
 | content          | string         | The content to be generated |
 
 
-For detailed documentation about this block, see the [File Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-file.md) docs.
+For detailed documentation about this block, see the [File Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/code-generation/generate-file.md) docs.
 
 ## generate_hcl block schema
 
@@ -244,7 +249,7 @@ The `generate_hcl` block requires one label, **do not** support [merging](#confi
 | condition        | bool           | The condition for generation |
 | [content](#generate_hclcontent-block-schema) | block | The content to be generated |
 
-For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-hcl.md) docs.
+For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/code-generation/generate-hcl.md) docs.
 
 ## lets block schema
 

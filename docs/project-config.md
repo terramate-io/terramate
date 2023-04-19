@@ -1,3 +1,8 @@
+---
+title: Project Configuration | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+---
+
 # Project Configuration
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.

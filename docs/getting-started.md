@@ -1,3 +1,16 @@
+---
+title: Getting Started | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Installation'
+  link: '/installation'
+
+next:
+  text: 'Getting Started'
+  link: '/getting-started'
+---
+
 # Getting Started
 
 ## Project Setup

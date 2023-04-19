@@ -1,3 +1,16 @@
+---
+title: Generate Files | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Generate HCL'
+  link: '/generate-hcl'
+
+next:
+  text: 'Generate HCL'
+  link: '/code-generation/generate-hcl'
+---
+
 # File Generation
 
 Terramate supports the generation of arbitrary text files referencing
@@ -8,10 +21,10 @@ blocks in [Terramate configuration files](../configuration.md).
 
 Each `generate_file` block requires a single label that is the path
 where the generated file will be saved.
-For more details about how code generation use labels check the [Labels Overview](overview.md#labels) docs.
+For more details about how code generation use labels check the [Labels Overview](index.md#labels) docs.
 
 The block has an optional **`context`** attribute which overrides the [generation context]
-(overview.md#generation-context).
+(index.md#generation-context).
 
 The **`content`** attribute defines the string that will be written on the file.
 

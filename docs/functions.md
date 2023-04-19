@@ -1,3 +1,8 @@
+---
+title: Functions | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+---
+
 # Terramate Functions
 
 Terramate provides the same built-in functions as

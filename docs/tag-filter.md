@@ -1,9 +1,14 @@
+---
+title: Tags and Filter | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+---
+
 # Tag Filter
 
 The **Tag Filter** can be used in multiple Terramate features:
 
-- [stack.after](stack.md#stackafter-setstringoptional)
-- [stack.before](stack.md#stackbefore-setstringoptional)
+- [stack.after](stacks.md#stackafter-setstringoptional)
+- [stack.before](stacks.md#stackbefore-setstringoptional)
 - `terramate --tags <filter>`
 
 The filter returns a list of stacks containing `tags` which satisfies the filter
@@ -46,6 +51,6 @@ lowercase     ::= 'a' | 'b' | ... | 'z'
 ```
 
 The `ident` definition is a simplification and you should refer to
-[stack.tags](stack.md#stacktags-setstringoptional) for the correct definition
+[stack.tags](stacks.md#stacktags-setstringoptional) for the correct definition
 (in prose) for the expected declaration of tag names.
 

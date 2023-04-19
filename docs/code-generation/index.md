@@ -1,10 +1,23 @@
+---
+title: Code Generation | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Map Block'
+  link: '/map'
+
+next:
+  text: 'Generate HCL'
+  link: '/code-generation/generate-hcl'
+---
+
 # Code Generation
 
 Code generation is the main way you can glue [Terramate data](../sharing-data.md)
 to other tools, like Terraform.
 
 Different code generation strategies will be provided in the future to support
-each integration scenario in the best way possible. 
+each integration scenario in the best way possible.
 
 Currently, we support:
 
@@ -74,13 +87,13 @@ For `root` context, the constraints are:
 The `lets` block can be used to define local scoped variables inside the
 generate blocks. Each `generate_*` block has its own `lets` scope that
 has access to **globals** and **terramate** namespaces. The symbols defined
-in the block are discarded after the block is executed. 
+in the block are discarded after the block is executed.
 
 The syntax for defining variables is the same as **globals** with the
 exception that `lets` does not support labels in the block.
 
 After the block is evaluated, it's values are available in the `let`
-namespace. 
+namespace.
 
 ```hcl
 generate_file "sum.txt" {
@@ -94,7 +107,7 @@ generate_file "sum.txt" {
 
 # Assertions
 
-Assertions can be used in order to fail code generation for one or more stacks 
+Assertions can be used in order to fail code generation for one or more stacks
 if some pre-condition is not met, helping to catch mistakes in your configuration.
 
 Assertions can be only used when the [generation context](#generation-context)

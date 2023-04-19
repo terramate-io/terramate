@@ -378,7 +378,7 @@
         "children": [
             {
                 "title": "Overview",
-                "sourceURL": "/docs/codegen/overview.md",
+                "sourceURL": "/docs/code-generation/",
                 "topics": [
                     {
                         "title": "Code Generation",
@@ -404,7 +404,7 @@
             },
             {
                 "title": "HCL Code Generation",
-                "sourceURL": "/docs/codegen/generate-hcl.md",
+                "sourceURL": "/docs/code-generation/generate-hcl.md",
                 "topics": [
                     {
                         "title": "HCL Code Generation",

@@ -1,3 +1,8 @@
+---
+title: Command Line Interface (CLI) | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+---
+
 # Command Line Interface (CLI)
 
 The `terramate` tool has a rich command-line interface, supporting verbosity

@@ -1,4 +1,17 @@
-# map block
+---
+title: Map | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Sharing Data'
+  link: '/sharing-data'
+
+next:
+  text: 'Code Generation'
+  link: '/code-generation'
+---
+
+# Map Block
 
 The `map` block can be used to create complex maps/objects inside
 [Globals](sharing-data.md) and [Lets](./codegen/overview.md#lets) blocks.

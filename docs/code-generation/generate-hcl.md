@@ -1,3 +1,16 @@
+---
+title: HCL Code Generation | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Code Generation Overview'
+  link: '/code-generation/'
+
+next:
+  text: 'Generate Files'
+  link: '/code-generation/generate-file'
+---
+
 # HCL Code Generation
 
 Terramate supports the generation of arbitrary HCL code referencing
@@ -24,7 +37,7 @@ other reference is just transported to the generated code (partial evaluation).
 
 Each `generate_hcl` block requires a single label that is the path
 where the generated file will be saved.
-For more details about how code generation use labels check the [Labels Overview](overview.md#labels)) docs.
+For more details about how code generation use labels check the [Labels Overview](index.md#labels)) docs.
 
 Inside the `generate_hcl` block a `content` block is required.
 All code inside `content` is going to be used to generate the final HCL code.

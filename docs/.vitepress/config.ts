@@ -1,3 +1,19 @@
+/**
+ * Copyright 2023 Mineiros GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { defineConfig, HeadConfig } from 'vitepress'
 
 const getPath = (path: string) => {
@@ -21,7 +37,7 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       {
-        text: 'Home', link: '/'},
+        text: 'Docs', link: '/about-stacks'},
       {
         text: 'Playground', link: 'https://play.terramate.io',
       },
@@ -32,61 +48,61 @@ export default defineConfig({
         text: '👋 What is Terramate',
         items: [
           { text: 'Overview', link: '/' },
-          { text: 'About Stacks', link: 'about-stacks.md' },
+          { text: 'About Stacks', link: 'about-stacks' },
         ]
       },
       {
         text: '🛠️ Getting Started',
         collapsed: false,
         items: [
-          { text: 'Installation', link: 'installation.md' },
-          { text: 'Quick Start', link: 'getting-started.md' }
+          { text: 'Installation', link: 'installation' },
+          { text: 'Quick Start', link: 'getting-started' }
         ]
       },
       {
         text: '📚 Core Concepts',
         collapsed: false,
         items: [
-          { text: 'Stacks', link: 'stacks.md' },
-          { text: 'Orchestration', link: 'orchestration.md' },
-          { text: 'Change Detection', link: 'change-detection.md' },
+          { text: 'Stacks', link: 'stacks' },
+          { text: 'Orchestration', link: 'orchestration' },
+          { text: 'Change Detection', link: 'change-detection' },
         ]
       },
       {
-        text: '🔗 Sharing Data', link: 'sharing-data.md',
+        text: '🔗 Sharing Data', link: 'sharing-data',
         collapsed: false,
         items : [
-          {text: 'Globals', link: 'sharing-data.md#globals'},
-          {text: 'Lazy Evaluation', link: 'sharing-data.md#lazy-evaluation'},
-          {text: 'Metadata', link: 'sharing-data.md#metadata'},
-          {text: 'Map', link: 'map.md'},
+          {text: 'Globals', link: 'sharing-data#globals'},
+          {text: 'Lazy Evaluation', link: 'sharing-data#lazy-evaluation'},
+          {text: 'Metadata', link: 'sharing-data#metadata'},
+          {text: 'Map', link: 'map'},
         ]
       },
       {
-        text: '🔧 Functions', link: 'functions.md',
-        items : [
-          {text: 'tm_ternary', link: 'functions.md#tm-ternary-bool-expr-expr-expr'},
-          {text: 'tm_hcl_expression', link: 'functions.md#tm-hcl-expression-string-expr'},
-          {text: 'tm_version_match', link: 'functions.md#tm-version-match-version-string-constraint-string-optional-arg-object'},
-          {text: 'Experimental Functions',link: 'functions.md#experimental-functions'},
-        ]
-      },
-      {
-        text: '😍 Code Generation',
+        text: '😍 Code Generation', link: 'code-generation/',
         collapsed: false,
         items: [
-           { text: 'Overview', link: 'codegen/overview.md' },
-           { text: 'Generate HCL', link: 'codegen/generate-hcl.md' },
-           { text: 'Generate File', link: 'codegen/generate-file.md' },
+           { text: 'Overview', link: 'code-generation/' },
+           { text: 'Generate HCL', link: 'code-generation/generate-hcl' },
+           { text: 'Generate File', link: 'code-generation/generate-file' },
           ]
+      },
+      {
+        text: '🔧 Functions', link: 'functions',
+        items : [
+          {text: 'tm_ternary', link: 'functions#tm-ternary-bool-expr-expr-expr'},
+          {text: 'tm_hcl_expression', link: 'functions#tm-hcl-expression-string-expr'},
+          {text: 'tm_version_match', link: 'functions#tm-version-match-version-string-constraint-string-optional-arg-object'},
+          {text: 'Experimental Functions',link: 'functions#experimental-functions'},
+        ]
       },
       {
         text: '⚙️ Configuration',
         collapsed: false,
         items: [
-          { text: 'Configuring Terramate', link: '/configuration.md' },
-          { text: 'Project Configuration', link: '/project-config.md' },
-          { text: 'Upgrade Check', link: '/upgrade-check.md' },
+          { text: 'Configuring Terramate', link: '/configuration' },
+          { text: 'Project Configuration', link: '/project-config' },
+          { text: 'Upgrade Check', link: '/upgrade-check' },
         ]
       },
       {
