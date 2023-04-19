@@ -1,8 +1,9 @@
 # map block
 
 The `map` block can be used to create complex maps/objects inside 
-[Globals](sharing-data.md). It can be used to aggregate lists
-of objects into maps that have duplicated keys and need a defined way of deep merging values of the same key.
+[Globals](sharing-data.md) and [Lets](./codegen/overview.md#lets) blocks. 
+It can be used to aggregate lists of objects into maps that have duplicated keys 
+and need a defined way of deep merging values of the same key.
 
 The following is a very basic example introducing the `map` block inside a `globals` block:
 
