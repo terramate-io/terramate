@@ -1,6 +1,14 @@
 ---
 title: Stacks Execution Orchestration | Terramate
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+
+prev:
+  text: 'Stacks'
+  link: '/stacks'
+
+next:
+  text: 'Change Detection'
+  link: '/change-detection'
 ---
 
 # Stacks Execution Orchestration
