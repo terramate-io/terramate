@@ -139,7 +139,7 @@ func TestTmVendor(t *testing.T) {
 
 			funcs := stdlib.Functions(rootdir)
 			funcs[stdlib.Name("vendor")] = stdlib.VendorFunc(targetdir, vendordir, events)
-			ctx := eval.NewContext(funcs)
+			ctx := eval.New(funcs)
 
 			gotEvents := []event.VendorRequest{}
 			done := make(chan struct{})
@@ -172,7 +172,7 @@ func TestTmVendor(t *testing.T) {
 			t.Run("works with nil events channel", func(t *testing.T) {
 				funcs := stdlib.Functions(rootdir)
 				funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, nil)
-				ctx := eval.NewContext(funcs)
+				ctx := eval.New(funcs)
 
 				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
 				assert.NoError(t, err)
@@ -293,7 +293,7 @@ func TestStdlibTmVersionMatch(t *testing.T) {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
 			rootdir := t.TempDir()
-			ctx := eval.NewContext(stdlib.Functions(rootdir))
+			ctx := eval.New(stdlib.Functions(rootdir))
 			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
 			errors.Assert(t, err, tc.wantErr)
 			if err != nil {

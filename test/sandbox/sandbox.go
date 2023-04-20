@@ -36,9 +36,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -236,19 +234,6 @@ func (s S) LoadStacks() config.List[*config.SortableStack] {
 	}
 
 	return stacks
-}
-
-// LoadStackGlobals loads globals for specific stack on the sandbox.
-// Fails the caller test if an error is found.
-func (s S) LoadStackGlobals(
-	root *config.Root,
-	st *config.Stack,
-) *eval.Object {
-	s.t.Helper()
-
-	report := globals.ForStack(root, st)
-	assert.NoError(s.t, report.AsError())
-	return report.Globals
 }
 
 // RootDir returns the root directory of the test env. All dirs/files created

@@ -40,7 +40,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/versions"
 
@@ -1311,8 +1310,11 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
-		report := globals.ForStack(c.cfg(), stack)
-		if err := report.AsError(); err != nil {
+		tree := stackEntry.Stack.Tree()
+		evalctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
+		expr, _ := ast.ParseExpression(`global`, `<print-globals>`)
+		globals, err := evalctx.Eval(expr)
+		if err != nil {
 			logger := log.With().
 				Stringer("stack", stack.Dir).
 				Logger()
@@ -1320,7 +1322,7 @@ func (c *cli) printStacksGlobals() {
 			errlog.Fatal(logger, err, "listing stacks globals: loading stack")
 		}
 
-		globalsStrRepr := report.Globals.String()
+		globalsStrRepr := fmt.FormatAttributes(globals.AsValueMap())
 		if globalsStrRepr == "" {
 			continue
 		}
@@ -1485,10 +1487,32 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 }
 
 func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context {
-	ctx := eval.NewContext(stdlib.Functions(c.wd()))
+	pdir := prj.PrjAbsPath(c.rootdir(), c.wd())
+
+	var overrideStmts eval.Stmts
+	for name, exprStr := range overrideGlobals {
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			fatal(errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr))
+		}
+		parts := strings.Split(name, ".")
+		ref := eval.Ref{
+			Object: "global",
+			Path:   parts,
+		}
+		overrideStmts = append(overrideStmts, eval.Stmt{
+			Origin: ref,
+			LHS:    ref,
+			Scope:  pdir,
+			RHS:    expr,
+		})
+	}
+	tree, _ := c.cfg().Lookup(pdir)
+	globalsResolver := globals.NewResolver(tree, overrideStmts...)
+	ctx := eval.New(stdlib.Functions(c.wd()), globalsResolver)
 	runtime := c.cfg().Runtime()
 	if config.IsStack(c.cfg(), c.wd()) {
-		st, err := config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+		st, err := config.LoadStack(c.cfg(), pdir)
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
@@ -1496,38 +1520,6 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 	}
 
 	ctx.SetNamespace("terramate", runtime)
-
-	wdPath := prj.PrjAbsPath(c.rootdir(), c.wd())
-	tree, ok := c.cfg().Lookup(wdPath)
-	if !ok {
-		fatal(errors.E("configuration at %s not found", wdPath))
-	}
-	exprs, err := globals.LoadExprs(tree)
-	if err != nil {
-		fatal(err, "loading globals expressions")
-	}
-
-	for name, exprStr := range overrideGlobals {
-		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
-		if err != nil {
-			fatal(errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr))
-		}
-		parts := strings.Split(name, ".")
-		length := len(parts)
-		globalPath := globals.NewGlobalAttrPath(parts[0:length-1], parts[length-1])
-		exprs.SetOverride(
-			wdPath,
-			globalPath,
-			expr,
-			info.NewRange(c.rootdir(), hhcl.Range{
-				Filename: "<eval argument>",
-				Start:    hhcl.InitialPos,
-				End:      hhcl.InitialPos,
-			}),
-		)
-	}
-
-	_ = exprs.Eval(ctx)
 	return ctx
 }
 

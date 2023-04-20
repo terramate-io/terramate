@@ -24,9 +24,11 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -1726,7 +1728,6 @@ EOT
 
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
-			stack := stackEntry.Load(s.Config())
 			path := filepath.Join(s.RootDir(), stackname)
 			if tcase.globals == nil {
 				tcase.globals = Globals()
@@ -1752,9 +1753,12 @@ EOT
 
 			assert.NoError(t, err)
 
-			globals := s.LoadStackGlobals(root, stack)
+			stack := stackEntry.Load(root)
+			tree := stack.Tree()
+
+			evalctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
 			vendorDir := project.NewPath("/modules")
-			got, err := genhcl.Load(root, stack, globals, vendorDir, nil)
+			got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

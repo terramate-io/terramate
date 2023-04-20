@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
@@ -87,7 +88,10 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 	t.Helper()
 
-	if diff := cmp.Diff(got, want, cmp.AllowUnexported(project.Path{})); diff != "" {
+	if diff := cmp.Diff(got, want,
+		cmp.AllowUnexported(project.Path{}),
+		cmpopts.IgnoreUnexported(config.Stack{}),
+	); diff != "" {
 		errmsg := fmt.Sprintf("-(got) +(want):\n%s", diff)
 		if len(msg) > 0 {
 			errmsg = fmt.Sprintf(msg[0].(string), msg[1:]...) + ": " + errmsg

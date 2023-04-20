@@ -16,11 +16,16 @@ package run
 
 import (
 	"os"
+	"strings"
+
+	"github.com/mineiros-io/terramate/runtime"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 
 	"github.com/rs/zerolog/log"
@@ -28,9 +33,6 @@ import (
 )
 
 const (
-	// ErrLoadingGlobals indicates that an error happened while loading globals.
-	ErrLoadingGlobals errors.Kind = "loading globals to evaluate terramate.config.run.env configuration"
-
 	// ErrEval indicates that an error happened while evaluating one of the
 	// terramate.config.run.env attributes.
 	ErrEval errors.Kind = "evaluating terramate.config.run.env attribute"
@@ -64,17 +66,16 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 
 	logger.Trace().Msg("loading globals")
 
-	globalsReport := globals.ForStack(root, st)
-	if err := globalsReport.AsError(); err != nil {
-		return nil, errors.E(ErrLoadingGlobals, err)
-	}
+	tree, _ := root.Lookup(st.Dir)
 
-	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
-	runtime := root.Runtime()
-	runtime.Merge(st.RuntimeValues(root))
-	evalctx.SetNamespace("terramate", runtime)
-	evalctx.SetNamespace("global", globalsReport.Globals.AsValueMap())
-	evalctx.SetEnv(os.Environ())
+	evalctx := eval.New(
+		stdlib.Functions(st.HostDir(root)),
+		globals.NewResolver(tree),
+		runtime.NewResolver(root, st),
+		&resolver{
+			env: os.Environ(),
+		},
+	)
 
 	envVars := EnvVars{}
 
@@ -108,4 +109,45 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	}
 
 	return envVars, nil
+}
+
+type resolver struct {
+	env []string
+}
+
+func (r *resolver) Root() string { return "env" }
+
+func (r *resolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
+
+func (r *resolver) LoadStmts() (eval.Stmts, error) {
+	stmts := make(eval.Stmts, len(r.env))
+	for _, env := range r.env {
+		nameval := strings.Split(env, "=")
+
+		ref := eval.Ref{
+			Object: r.Root(),
+			Path:   []string{nameval[0]},
+		}
+
+		val := cty.StringVal(strings.Join(nameval[1:], "="))
+		tokens := ast.TokensForValue(val)
+		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<environ>`)
+
+		stmts = append(stmts, eval.Stmt{
+			Origin: ref,
+			LHS:    ref,
+			RHS:    expr,
+			Scope:  project.NewPath("/"), // env is root-scoped
+		})
+	}
+	return stmts, nil
+}
+
+func (r *resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
+	stmts, err := r.LoadStmts()
+	if err != nil {
+		return nil, err
+	}
+	filtered, _ := stmts.SelectBy(ref)
+	return filtered, nil
 }

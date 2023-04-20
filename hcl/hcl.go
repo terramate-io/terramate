@@ -223,24 +223,6 @@ type GenFileBlock struct {
 	Asserts []AssertConfig
 }
 
-// Evaluator represents a Terramate evaluator
-type Evaluator interface {
-	// Eval evaluates the given expression returning a value.
-	Eval(hcl.Expression) (cty.Value, error)
-
-	// PartialEval partially evaluates the given expression returning the
-	// tokens that form the result of the partial evaluation. Any unknown
-	// namespace access are ignored and left as is, while known namespaces
-	// are substituted by its value.
-	PartialEval(hcl.Expression) (hcl.Expression, error)
-
-	// SetNamespace adds a new namespace, replacing any with the same name.
-	SetNamespace(name string, values map[string]cty.Value)
-
-	// DeleteNamespace deletes a namespace.
-	DeleteNamespace(name string)
-}
-
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
 // this API allows you to define the exact set of files (and contents) that are
@@ -314,7 +296,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		Config:      NewTopLevelRawConfig(),
 		Imported:    NewTopLevelRawConfig(),
 		parsedFiles: make(map[string]parsedFile),
-		evalctx:     eval.NewContext(stdlib.Functions(dir)),
+		evalctx:     eval.New(stdlib.Functions(dir)),
 	}, nil
 }
 

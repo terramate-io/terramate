@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package globals2_test
+package globals_test
 
 import (
 	"path/filepath"
@@ -24,8 +24,8 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+
 	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/globals2"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -38,24 +38,24 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type (
-	hclconfig struct {
-		path     string
-		filename string
-		add      *hclwrite.Block
-	}
-	testcase struct {
-		name    string
-		layout  []string
-		configs []hclconfig
-		expr    string
-		evalDir string
-		want    string
-		wantErr error
-	}
-)
+func TestGlobals2(t *testing.T) {
+	type (
+		hclconfig struct {
+			path     string
+			filename string
+			add      *hclwrite.Block
+		}
+		testcase struct {
+			name    string
+			layout  []string
+			configs []hclconfig
+			expr    string
+			evalDir string
+			want    string
+			wantErr error
+		}
+	)
 
-func TestGlobals3(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:    "no globals",
@@ -455,7 +455,7 @@ func TestGlobals3(t *testing.T) {
 			},
 			evalDir: "/stack",
 			expr:    `global.obj`,
-			wantErr: errors.E(globals2.ErrCycle),
+			wantErr: errors.E(eval.ErrCycle),
 		},
 	} {
 		tc := tc
@@ -487,9 +487,8 @@ func TestGlobals3(t *testing.T) {
 				t.Fatal(diags.Error())
 			}
 
-			ctx := eval.NewContext(stdlib.Functions(tree.HostDir()))
-			g := globals2.New(ctx, globals.NewResolver(tree))
-			val, err := g.Eval(expr)
+			ctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
+			val, err := ctx.Eval(expr)
 			errtest.Assert(t, err, tc.wantErr)
 
 			if tc.wantErr != nil {

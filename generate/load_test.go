@@ -22,7 +22,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -432,11 +431,11 @@ func TestLoad(t *testing.T) {
 			want: []result{
 				{
 					dir: "/stack-1",
-					err: errors.E(globals.ErrEval),
+					err: errors.E(eval.ErrEval),
 				},
 				{
 					dir: "/stack-2",
-					err: errors.E(globals.ErrEval),
+					err: errors.E(eval.ErrEval),
 				},
 				{
 					dir: "/stack-3",

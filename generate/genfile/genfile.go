@@ -30,7 +30,6 @@ import (
 
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -130,8 +129,8 @@ func (f File) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
+	evalctx *eval.Context,
 	st *config.Stack,
-	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
@@ -148,14 +147,13 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
-		file, err := Eval(genFileBlock, evalctx.Context)
+		file, err := Eval(genFileBlock, evalctx)
 		if err != nil {
 			return nil, err
 		}

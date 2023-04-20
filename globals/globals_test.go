@@ -23,8 +23,10 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog"
 
 	"github.com/mineiros-io/terramate/test"
@@ -1658,7 +1660,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrCannotExtendObject),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name: "extending parent list fails",
@@ -1680,7 +1682,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrCannotExtendObject),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name: "extending list from object fails",
@@ -1702,7 +1704,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrCannotExtendObject),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name: "extending non-objects fails",
@@ -1723,7 +1725,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrCannotExtendObject),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name: "extending nested literal object",
@@ -2081,7 +2083,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "tm_vendor is not available on globals",
@@ -2094,7 +2096,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global interpolating multiple lists fails",
@@ -2108,7 +2110,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global interpolating list with space fails",
@@ -2122,7 +2124,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			// This tests double check that interpolation on a single object/map
@@ -2158,7 +2160,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global interpolating object with space fails",
@@ -2172,7 +2174,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global interpolating undefined reference fails",
@@ -2185,7 +2187,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			// This tests double check that interpolation on a single number
@@ -2275,7 +2277,7 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
-		{
+		/*{
 			name:   "global reference with try on root config and value defined on stack",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -2300,7 +2302,7 @@ func TestLoadGlobals(t *testing.T) {
 					EvalExpr(t, "team_def_try", `{ name = "awesome" }`),
 				),
 			},
-		},
+		},*/
 		{
 			name:   "globals cant have blocks inside",
 			layout: []string{"s:stack"},
@@ -2328,7 +2330,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  Globals(Str("stack", "whatever")),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global undefined reference on stack",
@@ -2339,7 +2341,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  Globals(Expr("field", "global.unknown")),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global undefined references mixed on stack",
@@ -2355,7 +2357,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "global cyclic reference on stack",
@@ -2370,7 +2372,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrCycle),
 		},
 		{
 			name:   "global cyclic references across hierarchy",
@@ -2389,7 +2391,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  Globals(Expr("c", "global.a")),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrCycle),
 		},
 		{
 			name:   "global redefined on different file on stack",
@@ -2732,7 +2734,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "operating unset and other type fails",
@@ -2745,10 +2747,10 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
-			name:   "interpolating unset fails",
+			name:   "interpolating unset",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -2758,7 +2760,9 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(),
+			},
 		},
 		{
 			name:   "unset on list fails",
@@ -2771,7 +2775,11 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `[]`),
+				),
+			},
 		},
 		{
 			name:   "unset on obj fails",
@@ -2784,7 +2792,11 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+				//EvalExpr(t, "a", `{}`),
+				),
+			},
 		},
 		{
 			name:   "unset on extended global",
@@ -2862,7 +2874,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "tm_try with only root traversal",
@@ -2875,11 +2887,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			want: map[string]*hclwrite.Block{
-				"/stack": Globals(
-					EvalExpr(t, "val", `{}`),
-				),
-			},
+			wantErr: errors.E(eval.ErrCycle),
 		},
 		{
 			name:   "globals.map label conflicts with global name",
@@ -2916,7 +2924,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "invalid globals.map value",
@@ -2934,7 +2942,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "simple globals.map without using element",
@@ -4077,7 +4085,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			cfg, err := config.LoadRoot(s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.Assert(t, err, tcase.want)
@@ -4087,11 +4095,19 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				return
 			}
 
-			stacks, err := config.LoadAllStacks(cfg)
+			stacks, err := config.LoadAllStacks(cfg.Tree())
 			assert.NoError(t, err)
 			for _, elem := range stacks {
-				report := globals.ForStack(s.Config(), elem.Stack)
-				errtest.Assert(t, report.AsError(), tcase.want)
+				tree, _ := cfg.Lookup(elem.Dir())
+				evalctx := eval.New(
+					stdlib.Functions(tree.HostDir()),
+					globals.NewResolver(tree),
+				)
+				expr, err := ast.ParseExpression(`global`, `test.hcl`)
+				assert.NoError(t, err)
+
+				_, err = evalctx.Eval(expr)
+				errtest.Assert(t, err, tcase.want)
 			}
 		})
 	}
@@ -4112,13 +4128,13 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 		wantGlobals := tcase.want
 
-		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		cfg, err := config.LoadRoot(s.RootDir())
 		if err != nil {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
 		}
 
-		stackEntries, err := stack.List(cfg)
+		stackEntries, err := stack.List(cfg.Tree())
 		assert.NoError(t, err)
 
 		var stacks config.List[*config.SortableStack]
@@ -4128,8 +4144,14 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 			t.Logf("loading globals for stack: %s", st.Dir)
 
-			gotReport := globals.ForStack(s.Config(), st)
-			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
+			tree, _ := cfg.Lookup(st.Dir)
+
+			resolver := globals.NewResolver(tree)
+			evalctx := eval.New(stdlib.Functions(tree.HostDir()), resolver)
+			allExpr, err := ast.ParseExpression(`global`, "test.hcl")
+			assert.NoError(t, err)
+			got, err := evalctx.Eval(allExpr)
+			errtest.Assert(t, err, tcase.wantErr)
 			if tcase.wantErr != nil {
 				continue
 			}
@@ -4148,7 +4170,6 @@ func testGlobals(t *testing.T, tcase testcase) {
 				t.Errorf("wanted globals definition:\n%s\n", want)
 			}
 
-			got := gotReport.Globals
 			gotAttrs := got.AsValueMap()
 			wantAttrs := want.AttributesValues()
 

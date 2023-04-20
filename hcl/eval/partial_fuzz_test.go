@@ -102,7 +102,7 @@ EOT`,
 		if diags.HasErrors() {
 			return
 		}
-		ctx := NewContext(map[string]function.Function{})
+		ctx := New(map[string]function.Function{})
 		ctx.SetNamespace("global", globals)
 		ctx.SetNamespace("terramate", terramate)
 

@@ -20,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	maptest "github.com/mineiros-io/terramate/mapexpr/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -86,7 +87,7 @@ func TestGlobalsMap(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "invalid globals.map value",
@@ -104,7 +105,7 @@ func TestGlobalsMap(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:   "simple globals.map without using element",

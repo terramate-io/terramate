@@ -58,7 +58,7 @@ func TestEvalTmFuncall(t *testing.T) {
 		},
 		{
 			name: "tm_ternary - cond is false, with partial not evaluated",
-			expr: `tm_ternary(false, local.var, "world")`,
+			expr: `tm_ternary(false, unset, "world")`,
 			want: want{
 				value: cty.StringVal("world"),
 			},
@@ -87,7 +87,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			ctx := eval.NewContext(stdlib.Functions(basedir))
+			ctx := eval.New(stdlib.Functions(basedir))
 
 			const attrname = "value"
 

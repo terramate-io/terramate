@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package globals2
+package eval
 
 import (
 	"bytes"
 	"strconv"
+	"strings"
+	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/errors"
@@ -32,6 +34,8 @@ type (
 	Ref struct {
 		Object string
 		Path   []string
+
+		Range hhcl.Range
 	}
 
 	// RefStr is a string representation of the ref used as map keys.
@@ -40,6 +44,14 @@ type (
 	// Refs is a list of references.
 	Refs []Ref
 )
+
+func NewRef(t *testing.T, varname string) Ref {
+	paths := strings.Split(varname, ".")
+	return Ref{
+		Object: paths[0],
+		Path:   paths[1:],
+	}
+}
 
 // AsKey returns a ref suitable to be used as a map key.
 func (ref Ref) AsKey() RefStr { return RefStr(ref.String()) }
@@ -116,6 +128,7 @@ func refsOf(expr hhcl.Expression) Refs {
 		// they are all root traversals
 		ref := Ref{
 			Object: trav[0].(hhcl.TraverseRoot).Name,
+			Range:  trav.SourceRange(),
 		}
 
 	inner:

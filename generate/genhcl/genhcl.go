@@ -35,7 +35,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -146,8 +145,8 @@ func (h HCL) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
+	evalctx *eval.Context,
 	st *config.Stack,
-	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
@@ -168,8 +167,6 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
-
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
@@ -179,7 +176,7 @@ func Load(
 			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 		)
 
-		err := lets.Load(hclBlock.Lets, evalctx.Context)
+		err := lets.Load(hclBlock.Lets, evalctx)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +212,7 @@ func Load(
 		assertFailed := false
 
 		for i, assertCfg := range hclBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			assert, err := config.EvalAssert(evalctx, assertCfg)
 			if err != nil {
 				assertsErrs.Append(err)
 				continue
@@ -311,7 +308,7 @@ func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) error {
+func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "genhcl.copyBody()").
 		Logger()
@@ -332,7 +329,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 			Expression: attr.Expr.(hclsyntax.Expression),
 		}
 
-		newexpr, err := eval.PartialEval(expr)
+		newexpr, err := evalctx.PartialEval(expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -344,7 +341,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 	logger.Trace().Msg("appending blocks")
 
 	for _, block := range src.Blocks {
-		err := appendBlock(dest, block, eval)
+		err := appendBlock(dest, block, evalctx)
 		if err != nil {
 			return err
 		}
@@ -353,14 +350,14 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 	return nil
 }
 
-func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluator) error {
+func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, evalctx *eval.Context) error {
 	if block.Type == "tm_dynamic" {
-		return appendDynamicBlocks(target, block, eval)
+		return appendDynamicBlocks(target, block, evalctx)
 	}
 
 	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 	if block.Body != nil {
-		err := copyBody(targetBlock.Body(), block.Body, eval)
+		err := copyBody(targetBlock.Body(), block.Body, evalctx)
 		if err != nil {
 			return err
 		}
@@ -370,14 +367,14 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluat
 
 func appendDynamicBlock(
 	destination *hclwrite.Body,
-	evaluator hcl.Evaluator,
+	evalctx *eval.Context,
 	genBlockType string,
 	attrs dynBlockAttributes,
 	contentBlock *hclsyntax.Block,
 ) error {
 	var labels []string
 	if attrs.labels != nil {
-		labelsVal, err := evaluator.Eval(attrs.labels.Expr)
+		labelsVal, err := evalctx.Eval(attrs.labels.Expr)
 		if err != nil {
 			return errors.E(ErrInvalidDynamicLabels,
 				err, attrs.labels.Range(),
@@ -396,7 +393,7 @@ func appendDynamicBlock(
 
 	attributeNames := map[string]struct{}{}
 	if attrs.attributes != nil {
-		attrsExpr, err := evaluator.PartialEval(attrs.attributes.Expr)
+		attrsExpr, err := evalctx.PartialEval(attrs.attributes.Expr)
 		if err != nil {
 			return errors.E(ErrDynamicAttrsEval, err, attrs.attributes.Range())
 		}
@@ -427,7 +424,7 @@ func appendDynamicBlock(
 
 		case *hclsyntax.ObjectConsExpr:
 			for _, item := range objectExpr.Items {
-				keyVal, err := evaluator.Eval(item.KeyExpr)
+				keyVal, err := evalctx.Eval(item.KeyExpr)
 				if err != nil {
 					return errors.E(ErrDynamicAttrsEval, err,
 						item.KeyExpr.Range(),
@@ -440,7 +437,7 @@ func appendDynamicBlock(
 						keyVal.Type().FriendlyName())
 				}
 
-				valExpr, err := evaluator.PartialEval(item.ValueExpr)
+				valExpr, err := evalctx.PartialEval(item.ValueExpr)
 				if err != nil {
 					return errors.E(
 						ErrDynamicAttrsEval,
@@ -482,7 +479,7 @@ func appendDynamicBlock(
 				)
 			}
 		}
-		err := copyBody(newblock.Body(), contentBlock.Body, evaluator)
+		err := copyBody(newblock.Body(), contentBlock.Body, evalctx)
 		if err != nil {
 			return err
 		}
@@ -509,7 +506,7 @@ func setBodyAttributes(body *hclwrite.Body, attrs []tmAttribute) error {
 	return nil
 }
 
-func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
+func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
@@ -544,7 +541,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 		Logger()
 
 	if attrs.condition != nil {
-		condition, err := evaluator.Eval(attrs.condition.Expr)
+		condition, err := evalctx.Eval(attrs.condition.Expr)
 		if err != nil {
 			return errors.E(ErrDynamicConditionEval, err)
 		}
@@ -562,7 +559,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 	if attrs.foreach != nil {
 		logger.Trace().Msg("evaluating for_each attribute")
 
-		foreach, err = evaluator.Eval(attrs.foreach.Expr)
+		foreach, err = evalctx.Eval(attrs.foreach.Expr)
 		if err != nil {
 			return wrapAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
 		}
@@ -583,8 +580,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 				"iterator should not be defined when for_each is omitted")
 		}
 
-		return appendDynamicBlock(target, evaluator,
-			genBlockType, attrs, contentBlock)
+		return appendDynamicBlock(target, evalctx, genBlockType, attrs, contentBlock)
 	}
 
 	logger.Trace().Msg("defining iterator name")
@@ -615,13 +611,12 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 	var tmDynamicErr error
 
 	foreach.ForEachElement(func(key, value cty.Value) (stop bool) {
-		evaluator.SetNamespace(iterator, map[string]cty.Value{
+		evalctx.SetNamespace(iterator, map[string]cty.Value{
 			"key":   key,
 			"value": value,
 		})
 
-		if err := appendDynamicBlock(target, evaluator,
-			genBlockType, attrs, contentBlock); err != nil {
+		if err := appendDynamicBlock(target, evalctx, genBlockType, attrs, contentBlock); err != nil {
 			tmDynamicErr = err
 			return true
 		}
@@ -629,7 +624,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 		return false
 	})
 
-	evaluator.DeleteNamespace(iterator)
+	evalctx.DeleteNamespace(iterator)
 	return tmDynamicErr
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/test"
@@ -183,7 +184,7 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 			want: map[string]result{
 				"stack": {
-					enverr: errors.E(run.ErrLoadingGlobals),
+					enverr: errors.E(eval.ErrEval),
 				},
 			},
 		},

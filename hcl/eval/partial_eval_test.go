@@ -15,19 +15,20 @@
 package eval_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stdlib"
 	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestPartialEval(t *testing.T) {
@@ -343,26 +344,23 @@ EOT
 	} {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
-			ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
-			ctx.SetNamespace("global", map[string]cty.Value{
-				"number": cty.NumberIntVal(10),
-				"string": cty.StringVal("terramate"),
-				"list": cty.ListVal([]cty.Value{
-					cty.NumberIntVal(0),
-					cty.NumberIntVal(1),
-					cty.NumberIntVal(2),
-					cty.NumberIntVal(3),
-				}),
-				"strings": cty.ListVal([]cty.Value{
-					cty.StringVal("terramate"),
-					cty.StringVal("is"),
-					cty.StringVal("fun"),
-				}),
-				"obj": cty.ObjectVal(map[string]cty.Value{
-					"a": cty.NumberIntVal(0),
-					"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
-				}),
-			})
+			s := sandbox.New(t)
+			root, err := config.LoadRoot(s.RootDir())
+			assert.NoError(t, err)
+			predefined := eval.Stmts{}
+			predefined = append(predefined, eval.NewStmtHelper(t, "global.string", `"terramate"`)...)
+			predefined = append(predefined, eval.NewStmtHelper(t, "global.number", `10`)...)
+			predefined = append(predefined, eval.NewStmtHelper(t, "global.list", `[0, 1, 2, 3]`)...)
+			predefined = append(predefined, eval.NewStmtHelper(t, "global.strings", `["terramate", "is", "fun"]`)...)
+			predefined = append(predefined, eval.NewStmtHelper(t, "global.obj", `{
+				a = 0
+				b = ["terramate"]
+			}`)...)
+			ctx := eval.New(
+				stdlib.Functions(s.RootDir()),
+				globals.NewResolver(root.Tree(), predefined...),
+			)
+
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			if diags.HasErrors() {
 				t.Fatalf(diags.Error())
