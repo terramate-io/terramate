@@ -78,9 +78,14 @@ var TotalNumberOfInvocations uint64
 var TotalNumberOfPatternsCompiled uint64
 
 var debug = false
+var cache map[string]*regexp.Regexp
+
+func init() {
+	cache = map[string]*regexp.Regexp{}
+	fmt.Printf("global regexp cache initialized!\n")
+}
 
 func Regex() function.Function {
-	cache := map[string]*regexp.Regexp{}
 
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
@@ -107,7 +112,7 @@ func Regex() function.Function {
 				return cty.DynamicPseudoType, nil
 			}
 
-			retTy, err := regexPatternResultType(cache, args[0].AsString())
+			retTy, err := regexPatternResultType(args[0].AsString())
 			if err != nil {
 				err = function.NewArgError(0, err)
 			}
@@ -151,9 +156,12 @@ func Regex() function.Function {
 //
 // Returns an error if parsing fails or if the pattern uses a mixture of
 // named and unnamed capture groups, which is not permitted.
-func regexPatternResultType(cache map[string]*regexp.Regexp, pattern string) (cty.Type, error) {
+func regexPatternResultType(pattern string) (cty.Type, error) {
 	re, ok := cache[pattern]
 	if !ok {
+		if debug {
+			fmt.Printf("compiling: %s\n", pattern)
+		}
 		var rawErr error
 		re, rawErr = regexp.Compile(pattern)
 		switch err := rawErr.(type) {
