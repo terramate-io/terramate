@@ -76,6 +76,7 @@ func Functions(basedir string) map[string]function.Function {
 
 var TotalTimeSpentOnRegex time.Duration
 var TotalNumberOfInvocations uint64
+var TotalNumberOfTypeInvocations uint64
 
 var debug = false
 
@@ -99,6 +100,7 @@ func Regex() function.Function {
 					fmt.Printf("regex.type() took: %s\n", spent)
 				}
 				TotalTimeSpentOnRegex += spent
+				TotalNumberOfTypeInvocations++
 			}()
 			if !args[0].IsKnown() {
 				// We can't predict our type without seeing our pattern
