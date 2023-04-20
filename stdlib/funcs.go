@@ -82,7 +82,9 @@ var cache map[string]*regexp.Regexp
 
 func init() {
 	cache = map[string]*regexp.Regexp{}
-	fmt.Printf("global regexp cache initialized!\n")
+	if debug {
+		fmt.Printf("global regexp cache initialized!\n")
+	}
 }
 
 func Regex() function.Function {
