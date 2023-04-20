@@ -41,6 +41,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor/download"
+	"github.com/mineiros-io/terramate/runtime"
 	"github.com/mineiros-io/terramate/versions"
 
 	"github.com/mineiros-io/terramate/stack/trigger"
@@ -1311,7 +1312,9 @@ func (c *cli) printStacksGlobals() {
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
 		tree := stackEntry.Stack.Tree()
-		evalctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
+		evalctx := eval.New(stdlib.Functions(tree.HostDir()),
+			runtime.NewResolver(c.cfg(), stack),
+			globals.NewResolver(tree))
 		expr, _ := ast.ParseExpression(`global`, `<print-globals>`)
 		globals, err := evalctx.Eval(expr)
 		if err != nil {
