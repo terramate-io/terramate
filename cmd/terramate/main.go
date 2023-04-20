@@ -32,10 +32,9 @@ import (
 func main() {
 	cli.Exec(terramate.Version(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 	fmt.Printf(
-		"regex stats: (total time spent: %s) (total number of invocations: %d) (total number of type invocations: %d) (total number of regex compilations: %d)\n",
+		"regex stats: (total time spent: %s) (total number of invocations: %d) (total number of regex compilations: %d)\n",
 		stdlib.TotalTimeSpentOnRegex,
 		stdlib.TotalNumberOfInvocations,
-		stdlib.TotalNumberOfTypeInvocations,
-		stdlib.TotalNumberOfInvocations+stdlib.TotalNumberOfTypeInvocations,
+		stdlib.TotalNumberOfPatternsCompiled,
 	)
 }
