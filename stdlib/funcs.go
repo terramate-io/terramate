@@ -15,8 +15,13 @@
 package stdlib
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"time"
+
+	resyntax "regexp/syntax"
 
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	tflang "github.com/hashicorp/terraform/lang"
@@ -30,6 +35,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
 // Functions returns all the Terramate default functions.
@@ -55,6 +61,9 @@ func Functions(basedir string) map[string]function.Function {
 		tmfuncs["tm_"+name] = function
 	}
 
+	// hack regex
+	tmfuncs["tm_regex"] = Regex()
+
 	// fix terraform broken abspath()
 	tmfuncs["tm_abspath"] = AbspathFunc(basedir)
 
@@ -63,7 +72,114 @@ func Functions(basedir string) map[string]function.Function {
 
 	tmfuncs["tm_version_match"] = VersionMatch()
 	return tmfuncs
+}
 
+var TotalTimeSpentOnRegex time.Duration
+var TotalNumberOfInvocations uint64
+
+var debug = false
+
+func Regex() function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "pattern",
+				Type: cty.String,
+			},
+			{
+				Name: "string",
+				Type: cty.String,
+			},
+		},
+		Type: func(args []cty.Value) (cty.Type, error) {
+			start := time.Now()
+			defer func() {
+				spent := time.Since(start)
+				if debug {
+					fmt.Printf("regex.type() took: %s\n", spent)
+				}
+				TotalTimeSpentOnRegex += spent
+			}()
+			if !args[0].IsKnown() {
+				// We can't predict our type without seeing our pattern
+				return cty.DynamicPseudoType, nil
+			}
+
+			retTy, err := regexPatternResultType(args[0].AsString())
+			if err != nil {
+				err = function.NewArgError(0, err)
+			}
+			return retTy, err
+		},
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			TotalNumberOfInvocations++
+			start := time.Now()
+			defer func() {
+				spent := time.Since(start)
+				TotalTimeSpentOnRegex += spent
+				if debug {
+					fmt.Printf("regex.call() took: %s (total time: %s) (total invocations: %d)\n", spent, TotalTimeSpentOnRegex, TotalNumberOfInvocations)
+				}
+			}()
+
+			return stdlib.RegexFunc.Call([]cty.Value{args[0], args[1]})
+		},
+	})
+}
+
+// regexPatternResultType parses the given regular expression pattern and
+// returns the structural type that would be returned to represent its
+// capture groups.
+//
+// Returns an error if parsing fails or if the pattern uses a mixture of
+// named and unnamed capture groups, which is not permitted.
+func regexPatternResultType(pattern string) (cty.Type, error) {
+	re, rawErr := regexp.Compile(pattern)
+	switch err := rawErr.(type) {
+	case *resyntax.Error:
+		return cty.NilType, fmt.Errorf("invalid regexp pattern: %s in %s", err.Code, err.Expr)
+	case error:
+		// Should never happen, since all regexp compile errors should
+		// be resyntax.Error, but just in case...
+		return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
+	}
+
+	allNames := re.SubexpNames()[1:]
+	var names []string
+	unnamed := 0
+	for _, name := range allNames {
+		if name == "" {
+			unnamed++
+		} else {
+			if names == nil {
+				names = make([]string, 0, len(allNames))
+			}
+			names = append(names, name)
+		}
+	}
+	switch {
+	case unnamed == 0 && len(names) == 0:
+		// If there are no capture groups at all then we'll return just a
+		// single string for the whole match.
+		return cty.String, nil
+	case unnamed > 0 && len(names) > 0:
+		return cty.NilType, fmt.Errorf("invalid regexp pattern: cannot mix both named and unnamed capture groups")
+	case unnamed > 0:
+		// For unnamed captures, we return a tuple of them all in order.
+		etys := make([]cty.Type, unnamed)
+		for i := range etys {
+			etys[i] = cty.String
+		}
+		return cty.Tuple(etys), nil
+	default:
+		// For named captures, we return an object using the capture names
+		// as keys.
+		atys := make(map[string]cty.Type, len(names))
+		for _, name := range names {
+			atys[name] = cty.String
+		}
+		return cty.Object(atys), nil
+	}
 }
 
 // Name converts the function name into the exported Terramate name.

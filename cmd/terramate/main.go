@@ -21,12 +21,19 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/stdlib"
 )
 
 func main() {
 	cli.Exec(terramate.Version(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	fmt.Printf(
+		"regex stats: (total time spent: %s) (total number of invocations: %d)\n",
+		stdlib.TotalTimeSpentOnRegex,
+		stdlib.TotalNumberOfInvocations,
+	)
 }
