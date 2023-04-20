@@ -35,7 +35,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
-	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
 // Functions returns all the Terramate default functions.
@@ -81,6 +80,8 @@ var TotalNumberOfTypeInvocations uint64
 var debug = false
 
 func Regex() function.Function {
+	cache := map[string]*regexp.Regexp{}
+
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -107,7 +108,7 @@ func Regex() function.Function {
 				return cty.DynamicPseudoType, nil
 			}
 
-			retTy, err := regexPatternResultType(args[0].AsString())
+			retTy, err := regexPatternResultType(cache, args[0].AsString())
 			if err != nil {
 				err = function.NewArgError(0, err)
 			}
@@ -124,7 +125,23 @@ func Regex() function.Function {
 				}
 			}()
 
-			return stdlib.RegexFunc.Call([]cty.Value{args[0], args[1]})
+			if retType == cty.DynamicPseudoType {
+				return cty.DynamicVal, nil
+			}
+
+			re, ok := cache[args[0].AsString()]
+			if !ok {
+				panic("should be in the cache")
+			}
+
+			str := args[1].AsString()
+
+			captureIdxs := re.FindStringSubmatchIndex(str)
+			if captureIdxs == nil {
+				return cty.NilVal, fmt.Errorf("pattern did not match any part of the given string")
+			}
+
+			return regexPatternResult(re, str, captureIdxs, retType), nil
 		},
 	})
 }
@@ -135,15 +152,21 @@ func Regex() function.Function {
 //
 // Returns an error if parsing fails or if the pattern uses a mixture of
 // named and unnamed capture groups, which is not permitted.
-func regexPatternResultType(pattern string) (cty.Type, error) {
-	re, rawErr := regexp.Compile(pattern)
-	switch err := rawErr.(type) {
-	case *resyntax.Error:
-		return cty.NilType, fmt.Errorf("invalid regexp pattern: %s in %s", err.Code, err.Expr)
-	case error:
-		// Should never happen, since all regexp compile errors should
-		// be resyntax.Error, but just in case...
-		return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
+func regexPatternResultType(cache map[string]*regexp.Regexp, pattern string) (cty.Type, error) {
+	re, ok := cache[pattern]
+	if !ok {
+		var rawErr error
+		re, rawErr = regexp.Compile(pattern)
+		switch err := rawErr.(type) {
+		case *resyntax.Error:
+			return cty.NilType, fmt.Errorf("invalid regexp pattern: %s in %s", err.Code, err.Expr)
+		case error:
+			// Should never happen, since all regexp compile errors should
+			// be resyntax.Error, but just in case...
+			return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
+		}
+
+		cache[pattern] = re
 	}
 
 	allNames := re.SubexpNames()[1:]
@@ -181,6 +204,42 @@ func regexPatternResultType(pattern string) (cty.Type, error) {
 			atys[name] = cty.String
 		}
 		return cty.Object(atys), nil
+	}
+}
+
+func regexPatternResult(re *regexp.Regexp, str string, captureIdxs []int, retType cty.Type) cty.Value {
+	switch {
+	case retType == cty.String:
+		start, end := captureIdxs[0], captureIdxs[1]
+		return cty.StringVal(str[start:end])
+	case retType.IsTupleType():
+		captureIdxs = captureIdxs[2:] // index 0 is the whole pattern span, which we ignore by skipping one pair
+		vals := make([]cty.Value, len(captureIdxs)/2)
+		for i := range vals {
+			start, end := captureIdxs[i*2], captureIdxs[i*2+1]
+			if start < 0 || end < 0 {
+				vals[i] = cty.NullVal(cty.String) // Did not match anything because containing group didn't match
+				continue
+			}
+			vals[i] = cty.StringVal(str[start:end])
+		}
+		return cty.TupleVal(vals)
+	case retType.IsObjectType():
+		captureIdxs = captureIdxs[2:] // index 0 is the whole pattern span, which we ignore by skipping one pair
+		vals := make(map[string]cty.Value, len(captureIdxs)/2)
+		names := re.SubexpNames()[1:]
+		for i, name := range names {
+			start, end := captureIdxs[i*2], captureIdxs[i*2+1]
+			if start < 0 || end < 0 {
+				vals[name] = cty.NullVal(cty.String) // Did not match anything because containing group didn't match
+				continue
+			}
+			vals[name] = cty.StringVal(str[start:end])
+		}
+		return cty.ObjectVal(vals)
+	default:
+		// Should never happen
+		panic(fmt.Sprintf("invalid return type %#v", retType))
 	}
 }
 
