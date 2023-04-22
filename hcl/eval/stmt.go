@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -16,11 +17,13 @@ import (
 type (
 	// Stmt represents a `var-decl` stmt.
 	Stmt struct {
-		LHS   Ref
-		RHS   hhcl.Expression
-		Scope project.Path
+		LHS          Ref
+		RHS          hhcl.Expression
+		RHSEvaluated cty.Value
+		Scope        project.Path
 
-		Special bool
+		IsEvaluated bool
+		Special     bool
 
 		// Origin is the *origin ref*. If it's nil, then it's the same as LHS.
 		Origin Ref
@@ -30,7 +33,7 @@ type (
 	Stmts []Stmt
 )
 
-func NewStmtHelper(t *testing.T, lhs string, rhs string) Stmts {
+func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
 	lhsRef := NewRef(t, lhs)
 	tmpExpr, err := ast.ParseExpression(rhs, `<test>`)
 	assert.NoError(t, err)
@@ -41,7 +44,7 @@ func NewStmtHelper(t *testing.T, lhs string, rhs string) Stmts {
 	return stmts
 }
 
-func NewStmt(t *testing.T, lhs string, rhs string) Stmt {
+func NewStmt(t testing.TB, lhs string, rhs string) Stmt {
 	lhsRef := NewRef(t, lhs)
 	rhsExpr, err := ast.ParseExpression(rhs, `<test>`)
 	assert.NoError(t, err)
@@ -91,6 +94,10 @@ func StmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression
 				}
 
 				key = string(ast.TokensForExpression(v).Bytes())
+				if key[0] == '"' {
+					// TODO(i4k): test this
+					key, _ = strconv.Unquote(key)
+				}
 			default:
 				// TODO(i4k): test this.
 				panic(errors.E("unexpected key type %T", v))
@@ -119,19 +126,30 @@ func StmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression
 }
 
 func (stmts Stmts) SelectBy(ref Ref) (Stmts, bool) {
-	filtered := Stmts{}
 	found := false
+	has := Stmts{}
+	isContained := Stmts{}
 	for _, stmt := range stmts {
+		//fmt.Printf("%s has %s: %t\n", stmt.LHS, ref, stmt.LHS.has(ref))
 		if stmt.LHS.has(ref) {
-			filtered = append(filtered, stmt)
+			has = append(has, stmt)
 			if stmt.Origin.equal(ref) || stmt.LHS.equal(ref) {
 				found = true
 			}
 		} else {
 			if found {
-				break
+				return has, true
+			}
+			if ref.has(stmt.LHS) {
+				isContained = append(isContained, stmt)
 			}
 		}
 	}
-	return filtered, found
+
+	if len(has) == 0 {
+		return isContained, false
+	}
+
+	has = append(has, isContained...)
+	return has, false
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
@@ -34,7 +35,7 @@ import (
 
 // Functions returns all the Terramate default functions.
 // The `basedir` must be an absolute path for an existent directory or it panics.
-func Functions(basedir string) map[string]function.Function {
+func Functions(evalctx *eval.Context, basedir string) map[string]function.Function {
 	if !filepath.IsAbs(basedir) {
 		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
 	}
@@ -59,7 +60,7 @@ func Functions(basedir string) map[string]function.Function {
 	tmfuncs["tm_abspath"] = AbspathFunc(basedir)
 
 	// sane ternary
-	tmfuncs["tm_ternary"] = TernaryFunc()
+	tmfuncs["tm_ternary"] = TernaryFunc(evalctx)
 
 	tmfuncs["tm_version_match"] = VersionMatch()
 	return tmfuncs

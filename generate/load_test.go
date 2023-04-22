@@ -399,15 +399,18 @@ func TestLoad(t *testing.T) {
 				{
 					path: "config.tm",
 					body: Doc(
+						Globals(
+							Str("a", "from root"),
+						),
 						GenerateHCL(
 							Labels("test.hcl"),
 							Content(
-								Str("stacks", "test"),
+								Expr("stacks", `global.a`),
 							),
 						),
 						GenerateFile(
 							Labels("test.txt"),
-							Str("content", "test"),
+							Expr("content", `global.a`),
 						),
 					),
 				},
@@ -445,8 +448,8 @@ func TestLoad(t *testing.T) {
 							condition: true,
 							blockRange: Range(
 								"/config.tm",
-								Start(1, 1, 0),
-								End(5, 2, 63),
+								Start(4, 1, 30),
+								End(8, 2, 95),
 							),
 						},
 						{
@@ -454,8 +457,8 @@ func TestLoad(t *testing.T) {
 							condition: true,
 							blockRange: Range(
 								"/config.tm",
-								Start(6, 1, 64),
-								End(8, 2, 111),
+								Start(9, 1, 96),
+								End(11, 2, 145),
 							),
 						},
 					},

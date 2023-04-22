@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -39,13 +40,12 @@ type (
 		hclctx *hhcl.EvalContext
 		ns     namespaces
 
-		evaluators map[string]StmtLookup
+		evaluators map[string]Resolver
 	}
 
-	StmtLookup interface {
+	Resolver interface {
 		Root() string
 		Prevalue() cty.Value
-		LoadStmts() (Stmts, error)
 		LookupRef(Ref) (Stmts, error)
 	}
 
@@ -67,47 +67,61 @@ func init() {
 
 // New evaluator.
 // TODO(i4k): better document.
-func New(funcs map[string]function.Function, evaluators ...StmtLookup) *Context {
+func New(evaluators ...Resolver) *Context {
 	hclctx := &hhcl.EvalContext{
-		Functions: funcs,
+		Functions: map[string]function.Function{},
 		Variables: map[string]cty.Value{},
 	}
 	evalctx := &Context{
 		hclctx:     hclctx,
-		evaluators: map[string]StmtLookup{},
+		evaluators: map[string]Resolver{},
 		ns:         namespaces{},
 	}
 
 	for _, ev := range evaluators {
-		evalctx.evaluators[ev.Root()] = ev
-		ns := namespace{
-			persist: true,
-			byref:   make(map[RefStr]cty.Value),
-			bykey:   orderedmap.New[string, any](),
-		}
-		evalctx.ns[ev.Root()] = ns
-
-		prevalue := ev.Prevalue()
-		if prevalue.Type().IsObjectType() {
-			values := prevalue.AsValueMap()
-			for key, val := range values {
-				err := evalctx.set(Ref{
-					Object: ev.Root(),
-					Path:   []string{key},
-				}, val, false)
-				if err != nil {
-					panic(errors.E(errors.ErrInternal, "failed to initialize context"))
-				}
-			}
-		}
-
-		hclctx.Variables[ev.Root()] = prevalue
+		evalctx.SetResolver(ev)
 	}
 
 	unsetVal := cty.CapsuleVal(unset, &struct{}{})
 	evalctx.hclctx.Variables["unset"] = unsetVal
 
 	return evalctx
+}
+
+func (g *Context) SetResolver(ev Resolver) {
+	g.evaluators[ev.Root()] = ev
+	ns := namespace{
+		persist: true,
+		byref:   make(map[RefStr]cty.Value),
+		bykey:   orderedmap.New[string, any](),
+	}
+	g.ns[ev.Root()] = ns
+
+	prevalue := ev.Prevalue()
+	if prevalue.Type().IsObjectType() {
+		values := prevalue.AsValueMap()
+		for key, val := range values {
+			err := g.set(Stmt{
+				Origin: Ref{
+					Object: ev.Root(),
+					Path:   []string{key},
+				},
+				LHS: Ref{
+					Object: ev.Root(),
+					Path:   []string{key},
+				},
+			}, val)
+			if err != nil {
+				panic(errors.E(errors.ErrInternal, "failed to initialize context"))
+			}
+		}
+	}
+
+	g.hclctx.Variables[ev.Root()] = prevalue
+}
+
+func (g *Context) DeleteResolver(name string) {
+	delete(g.evaluators, name)
 }
 
 // Eval the given expr and all of its dependency references (if needed)
@@ -117,12 +131,13 @@ func New(funcs map[string]function.Function, evaluators ...StmtLookup) *Context 
 // get the expr evaluated, and then it does not validate all globals
 // scopes but only the ones it traversed into.
 func (g *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
-	return g.eval(expr, map[RefStr]Ref{})
+	return g.eval(expr, map[RefStr]hhcl.Expression{})
 }
 
-func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value, error) {
+func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression) (cty.Value, error) {
 	refs := refsOf(expr)
 	unsetRefs := map[RefStr]bool{}
+	//fmt.Printf("dependencies of %s (%T) are %+v\n", ast.TokensForExpression(expr).Bytes(), expr, refs)
 	for _, dep := range refs {
 		if dep.String() == "unset" {
 			continue
@@ -133,30 +148,23 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value,
 			continue
 		}
 
-		if _, ok := visited[dep.AsKey()]; ok {
+		if originalExpr, ok := visited[dep.AsKey()]; ok {
 			return cty.NilVal, errors.E(
 				ErrCycle,
 				expr.Range(),
-				"variable have circular dependencies: reference %s already evaluated",
+				"variable have circular dependencies: "+
+					"reference %s already evaluated in the expression %s",
 				dep,
+				ast.TokensForExpression(originalExpr).Bytes(),
 			)
-
 		}
-		visited[dep.AsKey()] = dep
+
+		visited[dep.AsKey()] = expr
 
 		stmtResolver, ok := g.evaluators[dep.Object]
 		if !ok {
-			if _, ok := g.hclctx.Variables[dep.Object]; ok {
-				// if the namespace was explicitly added then we assume they were
-				// eagerly evaluated.
-				continue
-			}
-			return cty.NilVal, errors.E(
-				ErrEval,
-				dep.Range,
-				"unknown variable namespace %s",
-				dep.Object,
-			)
+			// because tm_ternary
+			continue
 		}
 
 		stmts, err := stmtResolver.LookupRef(dep)
@@ -164,6 +172,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value,
 			return cty.NilVal, err
 		}
 
+		//fmt.Printf("Found stmts for %s: %+v\n", dep, stmts)
 		for _, stmt := range stmts {
 			if _, ok := g.ns.Get(stmt.LHS); ok {
 				// stmt already evaluated
@@ -173,6 +182,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value,
 				// overridden" refs show up here.
 				continue
 			}
+
 			var val cty.Value
 			var err error
 			if stmt.Special {
@@ -194,7 +204,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value,
 				continue
 			}
 
-			err = g.set(stmt.LHS, val, stmt.Special)
+			err = g.set(stmt, val)
 			if err != nil {
 				return cty.NilVal, errors.E(ErrEval, err)
 			}
@@ -215,46 +225,40 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]Ref) (cty.Value,
 	return val, nil
 }
 
-func (g *Context) delete(ref Ref) {
-	ns, ok := g.ns[ref.Object]
-	if !ok {
-		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
-	}
+func (g *Context) set(stmt Stmt, val cty.Value) error {
+	ref := stmt.LHS
 
-	delete(ns.byref, ref.AsKey())
-	ns.persist = true
+	//fmt.Printf("set %s = %s\n", stmt.LHS, ast.TokensForValue(val).Bytes())
 
-	obj := ns.bykey
-
-	// len(path) >= 1
-
-	lastIndex := len(ref.Path) - 1
-	for _, path := range ref.Path[:lastIndex] {
-		v, ok := obj.Get(path)
-		if ok {
-			switch vv := v.(type) {
-			case *orderedmap.OrderedMap[string, any]:
-				obj = vv
-			default:
-				return
-			}
-		} else {
-			return
+	if val.Type().IsObjectType() && !stmt.Special {
+		origin := Ref{
+			Object: ref.Object,
+			Path:   make([]string, len(ref.Path)),
 		}
+		copy(origin.Path, ref.Path)
+		tokens := ast.TokensForValue(val)
+		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<eval>`)
+
+		stmts, err := StmtsOf(stmt.Scope, origin, origin.Path, expr)
+		if err != nil {
+			return err
+		}
+		for _, s := range stmts {
+			v, _ := s.RHS.Value(nil)
+			err := g.set(s, v)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
-	//panic(fmt.Sprintf("ref found... deleting %s", ref))
-	obj.Delete(ref.Path[lastIndex])
-}
-
-func (g *Context) set(ref Ref, val cty.Value, special bool) error {
-	//fmt.Printf("set %s = %s (special:%t)\n", ref, ast.TokensForValue(val).Bytes(), special)
 	ns, ok := g.ns[ref.Object]
 	if !ok {
 		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
 	}
 
-	if special {
+	if stmt.Special {
 		if _, ok := ns.byref[ref.AsKey()]; !ok {
 			ns.byref[ref.AsKey()] = val
 			ns.persist = true
@@ -287,7 +291,7 @@ func (g *Context) set(ref Ref, val cty.Value, special bool) error {
 		}
 	}
 
-	if special {
+	if stmt.Special {
 		_, found := obj.Get(ref.Path[lastIndex])
 		if found {
 			return nil
@@ -296,6 +300,7 @@ func (g *Context) set(ref Ref, val cty.Value, special bool) error {
 		obj.Set(ref.Path[lastIndex], tempMap)
 		return nil
 	}
+
 	ns.persist = true
 	obj.Set(ref.Path[lastIndex], val)
 	return nil
@@ -349,6 +354,10 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
 // SetFunction sets the function in the context.
 func (c *Context) SetFunction(name string, fn function.Function) {
 	c.hclctx.Functions[name] = fn
+}
+
+func (c *Context) SetFunctions(funcs map[string]function.Function) {
+	c.hclctx.Functions = funcs
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.

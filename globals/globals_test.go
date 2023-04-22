@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/runtime"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog"
@@ -318,7 +319,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": Globals(
-					EvalExpr(t, "stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
+					EvalExpr(t, "stacks_list", `["/stacks/stack-1", "/stacks/stack-2"]`),
 					Str("stack_path_abs", "/stacks/stack-1"),
 					Str("stack_path_rel", "stacks/stack-1"),
 					Str("stack_path_to_root", "../.."),
@@ -326,10 +327,10 @@ func TestLoadGlobals(t *testing.T) {
 					Str("stack_id", "no-id"),
 					Str("stack_name", "stack-1"),
 					Str("stack_description", ""),
-					EvalExpr(t, "stack_tags", "tolist([])"),
+					EvalExpr(t, "stack_tags", "[]"),
 				),
 				"/stacks/stack-2": Globals(
-					EvalExpr(t, "stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
+					EvalExpr(t, "stacks_list", `["/stacks/stack-1", "/stacks/stack-2"]`),
 					Str("stack_path_abs", "/stacks/stack-2"),
 					Str("stack_path_rel", "stacks/stack-2"),
 					Str("stack_path_to_root", "../.."),
@@ -337,7 +338,7 @@ func TestLoadGlobals(t *testing.T) {
 					Str("stack_id", "stack-2-id"),
 					Str("stack_name", "stack-2"),
 					Str("stack_description", "someDescriptionStack2"),
-					EvalExpr(t, "stack_tags", `tolist(["tag1", "tag2", "tag3"])`),
+					EvalExpr(t, "stack_tags", `["tag1", "tag2", "tag3"]`),
 				),
 			},
 		},
@@ -4099,10 +4100,8 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			assert.NoError(t, err)
 			for _, elem := range stacks {
 				tree, _ := cfg.Lookup(elem.Dir())
-				evalctx := eval.New(
-					stdlib.Functions(tree.HostDir()),
-					globals.NewResolver(tree),
-				)
+				evalctx := eval.New(globals.NewResolver(tree))
+				evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 				expr, err := ast.ParseExpression(`global`, `test.hcl`)
 				assert.NoError(t, err)
 
@@ -4128,13 +4127,13 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 		wantGlobals := tcase.want
 
-		cfg, err := config.LoadRoot(s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if err != nil {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
 		}
 
-		stackEntries, err := stack.List(cfg.Tree())
+		stackEntries, err := stack.List(root.Tree())
 		assert.NoError(t, err)
 
 		var stacks config.List[*config.SortableStack]
@@ -4144,10 +4143,12 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 			t.Logf("loading globals for stack: %s", st.Dir)
 
-			tree, _ := cfg.Lookup(st.Dir)
+			tree, _ := root.Lookup(st.Dir)
 
-			resolver := globals.NewResolver(tree)
-			evalctx := eval.New(stdlib.Functions(tree.HostDir()), resolver)
+			evalctx := eval.New(
+				runtime.NewResolver(root, st),
+				globals.NewResolver(tree))
+			evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 			allExpr, err := ast.ParseExpression(`global`, "test.hcl")
 			assert.NoError(t, err)
 			got, err := evalctx.Eval(allExpr)

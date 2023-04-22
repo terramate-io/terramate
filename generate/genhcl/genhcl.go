@@ -28,11 +28,11 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/stdlib"
 
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -166,97 +166,14 @@ func Load(
 
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
-		name := hclBlock.Label
-		vendorTargetDir := project.NewPath(path.Join(
-			st.Dir.String(),
-			path.Dir(name)))
-
-		evalctx.SetFunction(
-			stdlib.Name("vendor"),
-			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
-		)
-
-		err := lets.Load(hclBlock.Lets, evalctx)
+		hcl, ok, err := evalBlock(evalctx, hclBlock, st, vendorDir, vendorRequests)
 		if err != nil {
 			return nil, err
 		}
 
-		condition := true
-		if hclBlock.Condition != nil {
-			value, err := evalctx.Eval(hclBlock.Condition.Expr)
-			if err != nil {
-				return nil, errors.E(ErrConditionEval, err)
-			}
-			if value.Type() != cty.Bool {
-				return nil, errors.E(
-					ErrInvalidConditionType,
-					"condition has type %s but must be boolean",
-					value.Type().FriendlyName(),
-				)
-			}
-			condition = value.True()
+		if ok {
+			hcls = append(hcls, hcl)
 		}
-
-		if !condition {
-			hcls = append(hcls, HCL{
-				label:     name,
-				origin:    hclBlock.Range,
-				condition: condition,
-			})
-
-			continue
-		}
-
-		asserts := make([]config.Assert, len(hclBlock.Asserts))
-		assertsErrs := errors.L()
-		assertFailed := false
-
-		for i, assertCfg := range hclBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx, assertCfg)
-			if err != nil {
-				assertsErrs.Append(err)
-				continue
-			}
-			asserts[i] = assert
-			if !assert.Assertion && !assert.Warning {
-				assertFailed = true
-			}
-		}
-
-		if err := assertsErrs.AsError(); err != nil {
-			return nil, err
-		}
-
-		if assertFailed {
-			hcls = append(hcls, HCL{
-				label:     name,
-				origin:    hclBlock.Range,
-				condition: condition,
-				asserts:   asserts,
-			})
-			continue
-		}
-
-		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
-
-		gen := hclwrite.NewEmptyFile()
-		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
-		}
-
-		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
-		if err != nil {
-			panic(errors.E(err,
-				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
-			))
-		}
-		hcls = append(hcls, HCL{
-			label:     name,
-			origin:    hclBlock.Range,
-			body:      formatted,
-			condition: condition,
-			asserts:   asserts,
-		})
 	}
 
 	sort.SliceStable(hcls, func(i, j int) bool {
@@ -265,6 +182,104 @@ func Load(
 
 	logger.Trace().Msg("evaluated all blocks with success")
 	return hcls, nil
+}
+
+func evalBlock(evalctx *eval.Context,
+	hclBlock hcl.GenHCLBlock,
+	st *config.Stack,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+) (HCL, bool, error) {
+	name := hclBlock.Label
+	vendorTargetDir := project.NewPath(path.Join(
+		st.Dir.String(),
+		path.Dir(name)))
+
+	evalctx.SetFunction(
+		stdlib.Name("vendor"),
+		stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
+	)
+
+	letsResolver := lets.NewResolver(hclBlock.Range.Path().Dir(), hclBlock.Lets)
+	evalctx.SetResolver(letsResolver)
+	defer func() {
+		evalctx.DeleteResolver("let")
+	}()
+
+	condition := true
+	if hclBlock.Condition != nil {
+		value, err := evalctx.Eval(hclBlock.Condition.Expr)
+		if err != nil {
+			return HCL{}, false, errors.E(ErrConditionEval, err)
+		}
+		if value.Type() != cty.Bool {
+			return HCL{}, false, errors.E(
+				ErrInvalidConditionType,
+				"condition has type %s but must be boolean",
+				value.Type().FriendlyName(),
+			)
+		}
+		condition = value.True()
+	}
+
+	if !condition {
+		return HCL{
+			label:     name,
+			origin:    hclBlock.Range,
+			condition: condition,
+		}, true, nil
+	}
+
+	asserts := make([]config.Assert, len(hclBlock.Asserts))
+	assertsErrs := errors.L()
+	assertFailed := false
+
+	for i, assertCfg := range hclBlock.Asserts {
+		assert, err := config.EvalAssert(evalctx, assertCfg)
+		if err != nil {
+			assertsErrs.Append(err)
+			continue
+		}
+		asserts[i] = assert
+		if !assert.Assertion && !assert.Warning {
+			assertFailed = true
+		}
+	}
+
+	if err := assertsErrs.AsError(); err != nil {
+		return HCL{}, false, err
+	}
+
+	if assertFailed {
+		return HCL{
+			label:     name,
+			origin:    hclBlock.Range,
+			condition: condition,
+			asserts:   asserts,
+		}, true, nil
+	}
+
+	evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
+
+	gen := hclwrite.NewEmptyFile()
+	if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
+		return HCL{}, false, errors.E(ErrContentEval, err, "generate_hcl %q", name)
+	}
+
+	formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
+	if err != nil {
+		panic(errors.E(err,
+			"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
+		))
+	}
+
+	return HCL{
+		label:     name,
+		origin:    hclBlock.Range,
+		body:      formatted,
+		condition: condition,
+		asserts:   asserts,
+	}, true, nil
 }
 
 type dynBlockAttributes struct {
@@ -611,10 +626,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalc
 	var tmDynamicErr error
 
 	foreach.ForEachElement(func(key, value cty.Value) (stop bool) {
-		evalctx.SetNamespace(iterator, map[string]cty.Value{
-			"key":   key,
-			"value": value,
-		})
+		evalctx.SetResolver(newTmDynamicResolver(iterator, key, value))
 
 		if err := appendDynamicBlock(target, evalctx, genBlockType, attrs, contentBlock); err != nil {
 			tmDynamicErr = err
@@ -624,7 +636,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalc
 		return false
 	})
 
-	evalctx.DeleteNamespace(iterator)
+	evalctx.DeleteResolver(iterator)
 	return tmDynamicErr
 }
 
@@ -698,4 +710,32 @@ func attrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
 
 func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrParsing, err, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
+}
+
+type tmDynamicIteratorResolver struct {
+	name     string
+	iterator cty.Value
+}
+
+func newTmDynamicResolver(name string, key, val cty.Value) *tmDynamicIteratorResolver {
+	obj := map[string]cty.Value{
+		"key":   key,
+		"value": val,
+	}
+	return &tmDynamicIteratorResolver{
+		name:     name,
+		iterator: cty.ObjectVal(obj),
+	}
+}
+
+func (r *tmDynamicIteratorResolver) Root() string { return r.name }
+
+func (r *tmDynamicIteratorResolver) Prevalue() cty.Value { return r.iterator }
+
+func (r *tmDynamicIteratorResolver) LoadStmts() (eval.Stmts, error) {
+	return eval.Stmts{}, nil
+}
+
+func (r *tmDynamicIteratorResolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
+	return eval.Stmts{}, nil
 }

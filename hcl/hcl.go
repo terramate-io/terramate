@@ -288,6 +288,9 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("%s is not a directory", dir)
 	}
 
+	evalctx := eval.New()
+	evalctx.SetFunctions(stdlib.Functions(evalctx, dir))
+
 	return &TerramateParser{
 		rootdir:     rootdir,
 		dir:         dir,
@@ -296,7 +299,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		Config:      NewTopLevelRawConfig(),
 		Imported:    NewTopLevelRawConfig(),
 		parsedFiles: make(map[string]parsedFile),
-		evalctx:     eval.New(stdlib.Functions(dir)),
+		evalctx:     evalctx,
 	}, nil
 }
 

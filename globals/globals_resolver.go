@@ -45,10 +45,6 @@ func (r *Resolver) Prevalue() cty.Value {
 	return cty.EmptyObjectVal
 }
 
-func (r *Resolver) LoadStmts() (eval.Stmts, error) {
-	return r.loadStmtsAt(r.tree)
-}
-
 func (r *Resolver) LoadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 	return r.loadStmtsAt(tree)
 }
@@ -163,6 +159,7 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree) (eval.Stmts, e
 	if found || tree.Parent == nil {
 		return filtered, nil
 	}
+
 	parent := tree.NonEmptyGlobalsParent()
 	if parent == nil {
 		return filtered, nil

@@ -87,7 +87,8 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			ctx := eval.New(stdlib.Functions(basedir))
+			evalctx := eval.New()
+			evalctx.SetFunctions(stdlib.Functions(evalctx, basedir))
 
 			const attrname = "value"
 
@@ -102,7 +103,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			body := file.Body.(*hclsyntax.Body)
 			attr := body.Attributes[attrname]
 
-			got, err := ctx.Eval(attr.Expr)
+			got, err := evalctx.Eval(attr.Expr)
 
 			errtest.Assert(t, err, tc.want.err)
 			if tc.want.err == nil {

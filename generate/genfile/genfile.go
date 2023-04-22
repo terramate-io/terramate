@@ -140,7 +140,6 @@ func Load(
 	}
 
 	var files []File
-
 	for _, genFileBlock := range genFileBlocks {
 		if genFileBlock.Context != StackContext {
 			continue
@@ -170,10 +169,11 @@ func Load(
 // Eval the generate_file block.
 func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 	name := block.Label
-	err := lets.Load(block.Lets, evalctx)
-	if err != nil {
-		return File{}, err
-	}
+	letsResolver := lets.NewResolver(block.Range.Path().Dir(), block.Lets)
+	evalctx.SetResolver(letsResolver)
+	defer func() {
+		evalctx.DeleteResolver("let")
+	}()
 
 	condition := true
 	if block.Condition != nil {

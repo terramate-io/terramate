@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/runtime"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -973,13 +974,12 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stack := s.LoadStacks()[0].Stack
 
 		for _, cfg := range tcase.configs {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 		}
 
-		root, err := config.LoadRoot(s.RootDir())
+		_, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -987,8 +987,14 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		tree := stack.Tree()
-		evalctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
+		root := s.ReloadConfig()
+		stack := s.LoadStacks()[0].Stack
+
+		evalctx := eval.New(
+			runtime.NewResolver(root, stack),
+			globals.NewResolver(stack.Tree()))
+		evalctx.SetFunctions(stdlib.Functions(evalctx, stack.HostDir(root)))
+
 		vendorDir := project.NewPath("/modules")
 		got, err := genfile.Load(root, evalctx, stack, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)

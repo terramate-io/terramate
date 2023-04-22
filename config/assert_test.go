@@ -183,7 +183,9 @@ func TestAssertConfigEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			hclctx := eval.New(stdlib.Functions(t.TempDir()))
+			hclctx := eval.New()
+			funcs := stdlib.Functions(hclctx, t.TempDir())
+			hclctx.SetFunctions(funcs)
 
 			for k, v := range tcase.namespaces {
 				hclctx.SetNamespace(k, v.asCtyMap())

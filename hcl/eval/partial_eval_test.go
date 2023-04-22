@@ -356,10 +356,8 @@ EOT
 				a = 0
 				b = ["terramate"]
 			}`)...)
-			ctx := eval.New(
-				stdlib.Functions(s.RootDir()),
-				globals.NewResolver(root.Tree(), predefined...),
-			)
+			ctx := eval.New(globals.NewResolver(root.Tree(), predefined...))
+			ctx.SetFunctions(stdlib.Functions(ctx, s.RootDir()))
 
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			if diags.HasErrors() {

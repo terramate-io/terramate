@@ -45,7 +45,7 @@ type (
 	Refs []Ref
 )
 
-func NewRef(t *testing.T, varname string) Ref {
+func NewRef(t testing.TB, varname string) Ref {
 	paths := strings.Split(varname, ".")
 	return Ref{
 		Object: paths[0],

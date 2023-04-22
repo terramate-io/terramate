@@ -27,7 +27,8 @@ import (
 )
 
 func setupContext(b *testing.B) *eval.Context {
-	ctx := eval.New(stdlib.Functions(os.TempDir()))
+	ctx := eval.New()
+	ctx.SetFunctions(stdlib.Functions(ctx, os.TempDir()))
 	ctx.SetNamespace("global", map[string]cty.Value{
 		"true":   cty.True,
 		"false":  cty.False,

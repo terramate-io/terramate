@@ -1312,9 +1312,11 @@ func (c *cli) printStacksGlobals() {
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
 		tree := stackEntry.Stack.Tree()
-		evalctx := eval.New(stdlib.Functions(tree.HostDir()),
+		evalctx := eval.New(
 			runtime.NewResolver(c.cfg(), stack),
 			globals.NewResolver(tree))
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
+
 		expr, _ := ast.ParseExpression(`global`, `<print-globals>`)
 		globals, err := evalctx.Eval(expr)
 		if err != nil {
@@ -1511,18 +1513,22 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 		})
 	}
 	tree, _ := c.cfg().Lookup(pdir)
-	globalsResolver := globals.NewResolver(tree, overrideStmts...)
-	ctx := eval.New(stdlib.Functions(c.wd()), globalsResolver)
-	runtime := c.cfg().Runtime()
+
+	var st *config.Stack
 	if config.IsStack(c.cfg(), c.wd()) {
-		st, err := config.LoadStack(c.cfg(), pdir)
+		var err error
+		st, err = config.LoadStack(c.cfg(), pdir)
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
-		runtime.Merge(st.RuntimeValues(c.cfg()))
 	}
 
-	ctx.SetNamespace("terramate", runtime)
+	ctx := eval.New(
+		runtime.NewResolver(c.cfg(), st),
+		globals.NewResolver(tree, overrideStmts...),
+	)
+
+	ctx.SetFunctions(stdlib.Functions(ctx, c.wd()))
 	return ctx
 }
 

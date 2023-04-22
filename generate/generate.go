@@ -111,10 +111,11 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 		res := LoadResult{Dir: st.Dir()}
 		tree, _ := root.Lookup(st.Dir())
 		evalctx := eval.New(
-			stdlib.Functions(tree.HostDir()),
 			runtime.NewResolver(root, st.Stack),
 			globals.NewResolver(tree),
 		)
+
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 
 		generated, err := loadStackCodeCfgs(root, evalctx, st.Stack, vendorDir, nil)
 		if err != nil {
@@ -131,10 +132,8 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.Dir()}
-		evalctx := eval.New(
-			stdlib.Functions(dircfg.HostDir()),
-			globals.NewResolver(dircfg),
-		)
+		evalctx := eval.New(globals.NewResolver(dircfg))
+		evalctx.SetFunctions(stdlib.Functions(evalctx, dircfg.HostDir()))
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -318,8 +317,11 @@ func doRootGeneration(root *config.Root) Report {
 		Logger()
 
 	report := Report{}
-	evalctx := eval.New(stdlib.Functions(root.HostDir()), globals.NewResolver(root.Tree()))
-	evalctx.SetNamespace("terramate", root.Runtime())
+	evalctx := eval.New(
+		runtime.NewResolver(root, nil),
+		globals.NewResolver(root.Tree()),
+	)
+	evalctx.SetFunctions(stdlib.Functions(evalctx, root.HostDir()))
 
 	var files []GenFile
 	for _, cfg := range root.Tree().AsList() {
@@ -519,9 +521,11 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 
 	for _, stack := range stacks {
 		tree := stack.Tree()
-		evalctx := eval.New(stdlib.Functions(tree.HostDir()),
+		evalctx := eval.New(
 			runtime.NewResolver(root, stack.Stack),
-			globals.NewResolver(tree))
+			globals.NewResolver(tree),
+		)
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 		outdated, err := stackOutdated(root, evalctx, stack.Stack, vendorDir)
 		if err != nil {
 			errs.Append(err)
@@ -814,9 +818,10 @@ func forEachStack(
 
 		tree := elem.Stack.Tree()
 		evalctx := eval.New(
-			stdlib.Functions(tree.HostDir()),
 			runtime.NewResolver(root, elem.Stack),
-			globals.NewResolver(tree))
+			globals.NewResolver(tree),
+		)
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 
 		logger.Trace().Msg("Calling stack callback.")
 

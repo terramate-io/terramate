@@ -317,9 +317,12 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts
 	if !ok {
 		return scope, nil
 	}
-	if !c.HasNamespace(ns.Name) {
+
+	// check if there's a resolver
+	if _, ok := c.evaluators[ns.Name]; !ok {
 		return scope, nil
 	}
+
 	forbidRootEval := false
 	if len(opts) == 1 {
 		forbidRootEval = opts[0].forbidRootEval

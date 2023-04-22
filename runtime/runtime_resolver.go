@@ -12,7 +12,9 @@ type Resolver struct {
 
 func NewResolver(root *config.Root, stack *config.Stack) *Resolver {
 	runtime := root.Runtime()
-	runtime.Merge(stack.RuntimeValues(root))
+	if stack != nil {
+		runtime.Merge(stack.RuntimeValues(root))
+	}
 	return &Resolver{
 		terramate: cty.ObjectVal(runtime),
 	}

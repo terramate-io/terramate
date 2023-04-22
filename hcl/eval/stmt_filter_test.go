@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/mineiros-io/terramate/project"
 )
@@ -108,7 +110,12 @@ func TestStmtsLookupRef(t *testing.T) {
 					Origin: Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want:  Stmts{},
+			want: Stmts{
+				Stmt{
+					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+				},
+			},
 			found: false,
 		},
 		{
@@ -170,7 +177,9 @@ func TestStmtsLookupRef(t *testing.T) {
 			if found != tc.found {
 				t.Fatalf("expected found=%t but got %t", found, tc.found)
 			}
-			if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Stmt{}, project.Path{})); diff != "" {
+			if diff := cmp.Diff(got, tc.want,
+				cmp.AllowUnexported(Stmt{}, project.Path{}),
+				cmpopts.IgnoreTypes(cty.Value{})); diff != "" {
 				t.Fatal(diff)
 			}
 		})

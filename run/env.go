@@ -69,13 +69,13 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	tree, _ := root.Lookup(st.Dir)
 
 	evalctx := eval.New(
-		stdlib.Functions(st.HostDir(root)),
 		globals.NewResolver(tree),
 		runtime.NewResolver(root, st),
 		&resolver{
 			env: os.Environ(),
 		},
 	)
+	evalctx.SetFunctions(stdlib.Functions(evalctx, st.HostDir(root)))
 
 	envVars := EnvVars{}
 

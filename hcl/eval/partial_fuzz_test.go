@@ -14,20 +14,21 @@
 
 //go:build go1.18 && !windows
 
-package eval
+package eval_test
 
 import (
-	"math/big"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/runtime"
+	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 )
 
 func FuzzPartialEval(f *testing.F) {
@@ -62,25 +63,8 @@ EOT`,
 		f.Add(seed)
 	}
 
-	globals := map[string]cty.Value{
-		"str":  cty.StringVal("mineiros.io"),
-		"bool": cty.BoolVal(true),
-		"list": cty.ListVal([]cty.Value{
-			cty.NumberVal(big.NewFloat(1)),
-			cty.NumberVal(big.NewFloat(2)),
-			cty.NumberVal(big.NewFloat(3)),
-		}),
-		"obj": cty.ObjectVal(map[string]cty.Value{
-			"a": cty.StringVal("b"),
-			"b": cty.StringVal("c"),
-			"c": cty.StringVal("d"),
-		}),
-	}
-
-	terramate := map[string]cty.Value{
-		"path": cty.StringVal("/my/project"),
-		"name": cty.StringVal("happy stack"),
-	}
+	s := sandbox.New(f)
+	root := s.Config()
 
 	f.Fuzz(func(t *testing.T, str string) {
 		// WHY? because HCL uses the big.Float library for numbers and then
@@ -102,9 +86,28 @@ EOT`,
 		if diags.HasErrors() {
 			return
 		}
-		ctx := New(map[string]function.Function{})
-		ctx.SetNamespace("global", globals)
-		ctx.SetNamespace("terramate", terramate)
+
+		//resolver := globals.NewResolver(root.Tree())
+
+		globalsStmts := eval.Stmts{
+			eval.NewStmt(t, `global.str`, `"mineiros.io"`),
+			eval.NewStmt(t, `global.bool`, `true`),
+			eval.NewStmt(t, `global.list`, `[1, 2, 3]`),
+		}
+
+		globalsStmts = append(globalsStmts, eval.NewStmtHelper(t, `global.obj`, `{
+			a = "b"
+			b = "c"
+			c = "d"
+		}`)...)
+
+		ctx := eval.New(
+			runtime.NewResolver(root, nil),
+			globals.NewResolver(
+				root.Tree(),
+				globalsStmts...,
+			),
+		)
 
 		gotExpr, err := ctx.PartialEval(parsedExpr)
 		if err != nil {

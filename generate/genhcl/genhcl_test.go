@@ -30,6 +30,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/runtime"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1742,7 +1743,7 @@ func (tcase testcase) run(t *testing.T) {
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 
-		cfg, err := config.LoadRoot(s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -1750,10 +1751,14 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		tree, _ := cfg.Lookup(stack.Dir)
-		evalctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
+		tree, _ := root.Lookup(stack.Dir)
+		evalctx := eval.New(
+			runtime.NewResolver(root, stack),
+			globals.NewResolver(tree),
+		)
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(cfg, evalctx, stack, vendorDir, nil)
+		got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

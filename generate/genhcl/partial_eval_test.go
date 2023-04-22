@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/runtime"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1756,7 +1757,11 @@ EOT
 			stack := stackEntry.Load(root)
 			tree := stack.Tree()
 
-			evalctx := eval.New(stdlib.Functions(tree.HostDir()), globals.NewResolver(tree))
+			evalctx := eval.New(
+				runtime.NewResolver(root, stack),
+				globals.NewResolver(tree),
+			)
+			evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 			vendorDir := project.NewPath("/modules")
 			got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
