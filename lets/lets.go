@@ -106,7 +106,7 @@ func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
 	if len(ref.Path) == 0 {
 		filtered = stmts
 	} else {
-		filtered, _ = stmts.SelectBy(ref)
+		filtered, _ = stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
 	}
 
 	return filtered, nil

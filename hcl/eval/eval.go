@@ -209,6 +209,10 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 				return cty.NilVal, errors.E(ErrEval, err)
 			}
 		}
+
+		if _, ok := g.ns.Get(dep); !ok {
+			delete(visited, dep.AsKey())
+		}
 	}
 
 	for nsname, ns := range g.ns {

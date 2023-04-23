@@ -148,6 +148,6 @@ func (r *resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
 	if err != nil {
 		return nil, err
 	}
-	filtered, _ := stmts.SelectBy(ref)
+	filtered, _ := stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
 	return filtered, nil
 }

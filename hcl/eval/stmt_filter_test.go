@@ -173,7 +173,7 @@ func TestStmtsLookupRef(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got, found := tc.stmts.SelectBy(tc.ref)
+			got, found := tc.stmts.SelectBy(tc.ref, map[RefStr]Ref{})
 			if found != tc.found {
 				t.Fatalf("expected found=%t but got %t", found, tc.found)
 			}

@@ -73,7 +73,7 @@ func (ref Ref) String() string {
 	return out.String()
 }
 
-func (ref Ref) has(other Ref) bool {
+func (ref Ref) Has(other Ref) bool {
 	if ref.Object != other.Object {
 		return false
 	}

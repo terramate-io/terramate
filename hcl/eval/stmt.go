@@ -125,31 +125,47 @@ func StmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression
 	return stmts, nil
 }
 
-func (stmts Stmts) SelectBy(ref Ref) (Stmts, bool) {
+func (stmts Stmts) SelectBy(ref Ref, atChild map[RefStr]Ref) (Stmts, bool) {
 	found := false
-	has := Stmts{}
-	isContained := Stmts{}
+	contains := Stmts{}
+	isContainedBy := Stmts{}
+outer:
 	for _, stmt := range stmts {
-		//fmt.Printf("%s has %s: %t\n", stmt.LHS, ref, stmt.LHS.has(ref))
-		if stmt.LHS.has(ref) {
-			has = append(has, stmt)
+		fmt.Printf("%s has %s: %t (scope %s): ", stmt.LHS, ref, stmt.LHS.Has(ref), stmt.Scope)
+
+		if !stmt.Special {
+			for _, gotRef := range atChild {
+				if stmt.LHS.Has(gotRef) {
+					fmt.Printf("ignored because origin %s already found in lower levels\n", gotRef)
+					continue outer
+				}
+			}
+		}
+
+		if stmt.LHS.Has(ref) {
+			fmt.Printf("contains\n")
+			contains = append(contains, stmt)
 			if stmt.Origin.equal(ref) || stmt.LHS.equal(ref) {
 				found = true
 			}
 		} else {
 			if found {
-				return has, true
+				fmt.Printf("found\n")
+				return contains, true
 			}
-			if ref.has(stmt.LHS) {
-				isContained = append(isContained, stmt)
+			if ref.Has(stmt.LHS) {
+				fmt.Printf("is contained\n")
+				isContainedBy = append(isContainedBy, stmt)
+			} else {
+				fmt.Printf("unrelated\n")
 			}
 		}
 	}
 
-	if len(has) == 0 {
-		return isContained, false
+	if len(contains) == 0 {
+		return isContainedBy, false
 	}
 
-	has = append(has, isContained...)
-	return has, false
+	contains = append(contains, isContainedBy...)
+	return contains, false
 }

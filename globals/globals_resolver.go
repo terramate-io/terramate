@@ -140,20 +140,21 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 }
 
 func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	return r.lookupStmtsAt(ref, r.tree)
+	return r.lookupStmtsAt(ref, r.tree, map[eval.RefStr]eval.Ref{})
 }
 
-func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree) (eval.Stmts, error) {
-	stmts, err := r.loadStmtsAt(tree)
+func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[eval.RefStr]eval.Ref) (stmts eval.Stmts, err error) {
+	stmts, err = r.loadStmtsAt(tree)
 	if err != nil {
 		return nil, err
 	}
+
 	var filtered eval.Stmts
 	var found bool
 	if len(ref.Path) == 0 {
 		filtered = stmts
 	} else {
-		filtered, found = stmts.SelectBy(ref)
+		filtered, found = stmts.SelectBy(ref, origins)
 	}
 
 	if found || tree.Parent == nil {
@@ -165,7 +166,13 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree) (eval.Stmts, e
 		return filtered, nil
 	}
 
-	parentStmts, err := r.lookupStmtsAt(ref, parent)
+	for _, s := range filtered {
+		if !s.Special {
+			origins[s.Origin.AsKey()] = s.Origin
+		}
+	}
+
+	parentStmts, err := r.lookupStmtsAt(ref, parent, origins)
 	if err != nil {
 		return nil, err
 	}
