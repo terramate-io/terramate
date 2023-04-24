@@ -36,10 +36,10 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-var cache map[string]*regexp.Regexp
+var regexCache map[string]*regexp.Regexp
 
 func init() {
-	cache = map[string]*regexp.Regexp{}
+	regexCache = map[string]*regexp.Regexp{}
 }
 
 // Functions returns all the Terramate default functions.
@@ -107,7 +107,7 @@ func Regex() function.Function {
 				return cty.DynamicVal, nil
 			}
 
-			re, ok := cache[args[0].AsString()]
+			re, ok := regexCache[args[0].AsString()]
 			if !ok {
 				panic("should be in the cache")
 			}
@@ -131,7 +131,7 @@ func Regex() function.Function {
 // Returns an error if parsing fails or if the pattern uses a mixture of
 // named and unnamed capture groups, which is not permitted.
 func regexPatternResultType(pattern string) (cty.Type, error) {
-	re, ok := cache[pattern]
+	re, ok := regexCache[pattern]
 	if !ok {
 		var rawErr error
 		re, rawErr = regexp.Compile(pattern)
@@ -144,7 +144,7 @@ func regexPatternResultType(pattern string) (cty.Type, error) {
 			return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
 		}
 
-		cache[pattern] = re
+		regexCache[pattern] = re
 	}
 
 	allNames := re.SubexpNames()[1:]
