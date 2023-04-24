@@ -401,33 +401,5 @@ It evaluates to `2` and only `global.a.b = global.c` from `/` and `global.c` fro
 
 ## Evaluating all globals for a stack
 
-The project consists of a tree of configurations where each node is a
-directory, then the process of evaluating all globals for a single 
-stack consist of evaluating the globals for the _stack configuration
- branch_ (the branch starts at the root (`/`) and ends in the stack 
- directory) but applying the rules below.
-
- - Configurations from lower directories override parent directories.
- - References in all scopes are lazy evaluated.
-
- Algorithm:
-
- - All statements from the stack directory are collected.
- - For each directory from root until the stack:
-    - collect the statements
-    - sort them by _origin ref_ length
-    - for each statement:
-        - evaluate its dependencies:
-            - if the dependency is defined in the target stack, use it. (lazy eval)
-            - otherwise evaluate the dependency recursively
-        - evaluate the rhs
-        - set the globals (override parent if already evaluated)
-
-Example:
-
-```
-
-evaluating the root globals, then the first path 
-steps below:
-
-1. 
+The evaluation of all globals consists of evaluating the `global` object.
+The process is the same as evaluating a single exp

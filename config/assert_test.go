@@ -183,15 +183,15 @@ func TestAssertConfigEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			hclctx := eval.New()
-			funcs := stdlib.Functions(hclctx, t.TempDir())
-			hclctx.SetFunctions(funcs)
+			evalctx := eval.New()
+			funcs := stdlib.Functions(evalctx, t.TempDir())
+			evalctx.SetFunctions(funcs)
 
 			for k, v := range tcase.namespaces {
-				hclctx.SetNamespace(k, v.asCtyMap())
+				evalctx.SetNamespace(k, v.asCtyMap())
 			}
 
-			got, err := config.EvalAssert(hclctx, tcase.assert)
+			got, err := config.EvalAssert(evalctx, tcase.assert)
 			assert.IsError(t, err, tcase.wantErr)
 			if !equalAsserts(tcase.want, got) {
 				t.Fatalf("got %#v != want %#v", got, tcase.want)
