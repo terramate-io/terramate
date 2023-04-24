@@ -78,6 +78,8 @@ func Functions(basedir string) map[string]function.Function {
 	return tmfuncs
 }
 
+// Regex is a copy of Terraform [stdlib.RegexFunc] but with cached compiled
+// patterns.
 func Regex() function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
