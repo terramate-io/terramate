@@ -80,8 +80,8 @@ func BenchmarkGenerate(b *testing.B) {
 }
 
 func BenchmarkGenerateRegex(b *testing.B) {
-	// benchmarks the case when there are a lot of tm_regex() reusing with
-	// patterns. The tm_regex() function must cache its compiled patterns.
+	// benchmarks the case when there are a lot of tm_regex() with same
+	// pattern. The tm_regex() function must cache its compiled patterns.
 
 	b.StopTimer()
 	s := sandbox.New(b)
