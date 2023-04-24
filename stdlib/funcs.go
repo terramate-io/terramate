@@ -65,7 +65,7 @@ func Functions(basedir string) map[string]function.Function {
 		tmfuncs["tm_"+name] = function
 	}
 
-	// hack regex
+	// optimized regex
 	tmfuncs["tm_regex"] = Regex()
 
 	// fix terraform broken abspath()
