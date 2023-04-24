@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"time"
 
 	resyntax "regexp/syntax"
 
@@ -36,6 +35,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
+
+var cache map[string]*regexp.Regexp
+
+func init() {
+	cache = map[string]*regexp.Regexp{}
+}
 
 // Functions returns all the Terramate default functions.
 // The `basedir` must be an absolute path for an existent directory or it panics.
@@ -73,22 +78,7 @@ func Functions(basedir string) map[string]function.Function {
 	return tmfuncs
 }
 
-var TotalTimeSpentOnRegex time.Duration
-var TotalNumberOfInvocations uint64
-var TotalNumberOfPatternsCompiled uint64
-
-var debug = false
-var cache map[string]*regexp.Regexp
-
-func init() {
-	cache = map[string]*regexp.Regexp{}
-	if debug {
-		fmt.Printf("global regexp cache initialized!\n")
-	}
-}
-
 func Regex() function.Function {
-
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -101,14 +91,6 @@ func Regex() function.Function {
 			},
 		},
 		Type: func(args []cty.Value) (cty.Type, error) {
-			start := time.Now()
-			defer func() {
-				spent := time.Since(start)
-				if debug {
-					fmt.Printf("regex.type() took: %s\n", spent)
-				}
-				TotalTimeSpentOnRegex += spent
-			}()
 			if !args[0].IsKnown() {
 				// We can't predict our type without seeing our pattern
 				return cty.DynamicPseudoType, nil
@@ -121,16 +103,6 @@ func Regex() function.Function {
 			return retTy, err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			TotalNumberOfInvocations++
-			start := time.Now()
-			defer func() {
-				spent := time.Since(start)
-				TotalTimeSpentOnRegex += spent
-				if debug {
-					fmt.Printf("regex.call() took: %s (total time: %s) (total invocations: %d)\n", spent, TotalTimeSpentOnRegex, TotalNumberOfInvocations)
-				}
-			}()
-
 			if retType == cty.DynamicPseudoType {
 				return cty.DynamicVal, nil
 			}
@@ -161,9 +133,6 @@ func Regex() function.Function {
 func regexPatternResultType(pattern string) (cty.Type, error) {
 	re, ok := cache[pattern]
 	if !ok {
-		if debug {
-			fmt.Printf("compiling: %s\n", pattern)
-		}
 		var rawErr error
 		re, rawErr = regexp.Compile(pattern)
 		switch err := rawErr.(type) {
@@ -174,8 +143,6 @@ func regexPatternResultType(pattern string) (cty.Type, error) {
 			// be resyntax.Error, but just in case...
 			return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
 		}
-
-		TotalNumberOfPatternsCompiled++
 
 		cache[pattern] = re
 	}
