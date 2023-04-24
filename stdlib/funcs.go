@@ -92,7 +92,7 @@ func Regex() function.Function {
 		},
 		Type: func(args []cty.Value) (cty.Type, error) {
 			if !args[0].IsKnown() {
-				// We can't predict our type without seeing our pattern
+				// We can't predict our type without seeing the pattern
 				return cty.DynamicPseudoType, nil
 			}
 
