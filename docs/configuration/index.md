@@ -1,6 +1,14 @@
 ---
-title: Configuration Overview | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+title: Configure Terramate | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Functions'
+  link: '/functions/'
+
+next:
+  text: 'Project Setup'
+  link: '/configuration/project-setup'
 ---
 
 # Terramate Configuration Overview
@@ -188,7 +196,7 @@ and has the following schema:
 | before           | list(string)   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
 | after            | list(string)   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
-| watch            | list(string)   | The list of `watch` files. See [change detection](change-detection.md) for details |
+| watch            | list(string)   | The list of `watch` files. See [change detection](../change-detection/index.md) for details |
 
 ## assert block schema
 
@@ -254,7 +262,7 @@ For detailed documentation about this block, see the [HCL Code Generation](https
 ## lets block schema
 
 The `lets` block has no labels, supports [merging](#config-merging) of blocks
-in the same level, accepts **any** attribute and supports any number of 
+in the same level, accepts **any** attribute and supports any number of
 [map](#map-block) blocks.
 
 ## generate_hcl.content block schema

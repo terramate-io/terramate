@@ -9,7 +9,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^0.38.5",
     "eslint_d": "^12.2.1",
-    "vitepress": "1.0.0-alpha.65"
+    "vitepress": "1.0.0-alpha.74"
   },
   "eslintConfig": {
     "extends": [

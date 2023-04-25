@@ -1,6 +1,6 @@
 ---
 title: Map | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
   text: 'Sharing Data'
@@ -8,13 +8,13 @@ prev:
 
 next:
   text: 'Code Generation'
-  link: '/code-generation'
+  link: '/code-generation/'
 ---
 
 # Map Block
 
 The `map` block can be used to create complex maps/objects inside
-[Globals](sharing-data.md) and [Lets](./codegen/overview.md#lets) blocks.
+[Globals](./data-sharing/index.md) and [Lets](./code-generation/index.md#lets) blocks.
 It can be used to aggregate lists of objects into maps that have duplicated keys
 and need a defined way of deep merging values of the same key.
 
@@ -24,11 +24,11 @@ The following is a very basic example introducing the `map` block inside a `glob
 globals {
   map obj {
     for_each = [
-      {name="a", value=5},
-      {name="c", value=0},
-      {name="a", value=15},
-      {name="b", value=5},
-      {name="c", value=20},
+      { name = "a", value = 5 },
+      { name = "c", value = 0 },
+      { name = "a", value = 15 },
+      { name = "b", value = 5 },
+      { name = "c", value = 20 },
     ]
 
     iterator = elem

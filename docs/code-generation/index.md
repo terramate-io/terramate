@@ -1,6 +1,6 @@
 ---
 title: Code Generation | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
   text: 'Map Block'
@@ -13,7 +13,7 @@ next:
 
 # Code Generation
 
-Code generation is the main way you can glue [Terramate data](../sharing-data.md)
+Code generation is the main way you can glue [Terramate data](../data-sharing/index.md)
 to other tools, like Terraform.
 
 Different code generation strategies will be provided in the future to support
@@ -33,16 +33,16 @@ Code generation supports two execution contexts:
 
 The `stack` context gives access to all code generation features, like:
 
-* [Globals](../sharing-data.md#globals)
-* [All Metadata](../sharing-data.md#metadata)
-* [Functions](../functions.md)
+* [Globals](../data-sharing/index.md#globals)
+* [All Metadata](../data-sharing/index.md#metadata)
+* [Functions](../functions/index.md)
 * [Lets](#lets)
 * [Assertions](#assertions)
 
 But the `root` context gives access to:
 
-* [Project Metadata](../sharing-data.md#project-metadata)
-* [Functions](../functions.md)
+* [Project Metadata](../data-sharing/index.md#project-metadata)
+* [Functions](../functions/index.md)
 * [Lets](#lets)
 
 If not specified the default generation context is `stack`.

@@ -4,7 +4,7 @@
   <p align="center">
     ✨ <a href="https://terramate.io/docs/cli">https://terramate.io</a> ✨
     <br/>
-      Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+      Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
   </p>
 </p>
 <br/>
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://play.terramate.io">⚡ Playground</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/discord" title="Slack invite">🙌 Join Us</a>
+  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://play.terramate.io">⚡ Playground</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/discord" title="Discord invite">🙌 Join Us</a>
 </p>
 
 <br>
@@ -46,16 +46,7 @@ Terramate helps you to:
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md)
-- [Why Stacks](docs/why-stacks.md)
-- [Change Detection](docs/change-detection.md)
-- [Config Overview](docs/configuration.md)
-- [Configuring a Project](docs/project-config.md)
-- [Functions](docs/functions.md)
-- [Sharing Data](docs/sharing-data.md)
-- [Code Generation](docs/codegen/overview.md)
-- [Orchestrating Stacks Execution](docs/orchestration.md)
-- Guides (coming soon)
+Please follow the documentation at [terramate.io](https://terramate.io/docs/cli/)!
 
 ## Join the community
 

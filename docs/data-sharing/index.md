@@ -1,14 +1,14 @@
 ---
 title: Sharing Data - Globals | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
   text: 'Change Detection'
-  link: '/change-detection'
+  link: '/change-detection/'
 
 next:
-  text: 'Map'
-  link: '/map'
+  text: 'Code Generation'
+  link: '/code-generation/'
 ---
 
 # Sharing Data
@@ -22,7 +22,7 @@ the user, similar to how you would define locals in Terraform, and metadata
 is provided by Terramate.
 
 Terramate globals and metadata are integrated with Terraform using code
-generation, you can check it into more details [here](code-generation/index.md).
+generation, you can check it into more details [here](../code-generation/index.md).
 
 # Globals
 
@@ -30,7 +30,7 @@ Globals provide a way to define data that can be reused
 across stacks with a clear hierarchical/merge semantic.
 
 Defining globals is fairly straightforward, you just need to
-add a **globals** block to your [Terramate configuration file](configuration.md):
+add a **globals** block to your [Terramate configuration file](../configuration/index.md):
 
 ```hcl
 globals {
@@ -85,10 +85,10 @@ This will make the `global.obj` look like:
 }
 ```
 
-Additionally, the [map](./map.md) block is supported inside the `globals` block
+Additionally, the [map](../map.md) block is supported inside the `globals` block
 for building complex objects.
 
-The **globals** can be referenced on the [code generation](code-generation/index.md):
+The **globals** can be referenced on the [code generation](../code-generation/index.md):
 
 ```hcl
 generate_hcl "backend.tf" {
@@ -161,7 +161,7 @@ The configurations available, from more specific to more general, for `stack-1` 
 * . (the project root dir)
 
 To create globals that will be available for all stacks in the entire project
-just add a [Terramate configuration file](configuration.md) on the project
+just add a [Terramate configuration file](../configuration/index.md) on the project
 root with some useful globals:
 
 ```hcl
@@ -172,7 +172,7 @@ globals {
 ```
 
 Now any stack on the project can reference these globals on their
-[Terramate configuration](configuration.md).
+[Terramate configuration](../configuration/index.md).
 
 Now, let's say one of the stacks wants to add more globals, to do
 so we can add globals on the stack configuration by creating the file
@@ -403,7 +403,7 @@ The ID of the stack as defined on the stack configuration.
 If the stack doesn't have a ID defined on its configuration
 this metadata will be undefined (no default value provided).
 
-Please consider [stack configuration](stacks.md) to see how
+Please consider [stack configuration](../stacks/index.md) to see how
 you can define the stack ID.
 
 ### terramate.stack.name (string)
@@ -424,7 +424,7 @@ Given this stack layout (from the root of the project):
 * **stack-a** = stack-a
 * **stack-b** = stack-b
 
-Please consider [stack configuration](stacks.md) to see how
+Please consider [stack configuration](../stacks/index.md) to see how
 you can change the default stack name.
 
 ### terramate.stack.description (string)
@@ -432,14 +432,14 @@ you can change the default stack name.
 The description of the stack, if it has any.
 The default value is an empty string.
 
-Please consider [stack configuration](stacks.md) to see how
+Please consider [stack configuration](../stacks/index.md) to see how
 you can change the default stack description.
 
 ### terramate.stack.tags (list)
 
 The list of stack tags. The default value is an empty list.
 
-Please consider [stack configuration](stacks.md) to see how you can change the stack tags.
+Please consider [stack configuration](../stacks/index.md) to see how you can change the stack tags.
 
 ## Deprecated
 

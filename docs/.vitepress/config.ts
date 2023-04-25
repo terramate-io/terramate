@@ -35,14 +35,34 @@ export default defineConfig({
     return head
   },
   themeConfig: {
+    // https://vitepress.dev/reference/default-theme-config#sitetitle
+    siteTitle: '🦄 Terramate',
+    // https://vitepress.dev/reference/default-theme-config#logo
+    // logo: {
+    //   light: '/assets/logo-white.svg',
+    //   dark: '/assets/logo-dark.svg',
+    //   alt: 'Terramate',
+    // },
+
+    // https://vitepress.dev/reference/default-theme-search#local-search
+    search: {
+      provider: 'local',
+    },
+
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Docs', link: '/about-stacks' },
+      { text: 'Blog', link: 'https://blog.mineiros.io/' },
+      { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/mineiros.io/' },
+      { text: 'Releases', link: 'https://github.com/mineiros-io/terramate/releases' },
+      { text: '💻 Playground', link: 'https://play.terramate.io/' },
+
     ],
 
     sidebar: [
       {
         text: '👋 What is Terramate',
+        collapsed: false,
         items: [
           { text: 'Overview', link: '/' },
           { text: 'About Stacks', link: 'about-stacks' },
@@ -53,26 +73,35 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Installation', link: 'installation' },
-          { text: 'Quick Start', link: 'getting-started' },
+          { text: 'Quick Start', link: 'getting-started/' },
         ],
       },
       {
-        text: '📚 Core Concepts',
+        text: '📚 Stacks',
         collapsed: false,
         items: [
-          { text: 'Stacks', link: 'stacks' },
-          { text: 'Orchestration', link: 'orchestration' },
-          { text: 'Change Detection', link: 'change-detection' },
+          { text: 'Stack Configuration', link: 'stacks/' },
+          { text: 'Orchestration', link: 'orchestration/' },
+          { text: 'Tag Filter', link: 'tag-filter' },
         ],
+      },
+      {
+        text: '🕵️ Change Detection',
+        collapses: false,
+        items: [
+          { text: 'Stacks', link: 'change-detection/#change-detection' },
+          { text: 'Modules', link: 'change-detection/#module-change-detection' },
+          { text: 'Arbitrary Files', link: 'change-detection/#arbitrary-files-change-detection' },
+        ]
       },
       {
         text: '🔗 Sharing Data',
-        link: 'sharing-data',
+        link: 'data-sharing',
         collapsed: false,
         items: [
-          { text: 'Globals', link: 'sharing-data#globals' },
-          { text: 'Lazy Evaluation', link: 'sharing-data#lazy-evaluation' },
-          { text: 'Metadata', link: 'sharing-data#metadata' },
+          { text: 'Globals', link: 'data-sharing/#globals' },
+          { text: 'Lazy Evaluation', link: 'data-sharing/#lazy-evaluation' },
+          { text: 'Metadata', link: 'data-sharing/#metadata' },
           { text: 'Map', link: 'map' },
         ],
       },
@@ -90,19 +119,20 @@ export default defineConfig({
         text: '🔧 Functions',
         link: 'functions',
         items: [
-          { text: 'tm_ternary', link: 'functions#tm-ternary-bool-expr-expr-expr' },
-          { text: 'tm_hcl_expression', link: 'functions#tm-hcl-expression-string-expr' },
-          { text: 'tm_version_match', link: 'functions#tm-version-match-version-string-constraint-string-optional-arg-object' },
-          { text: 'Experimental Functions', link: 'functions#experimental-functions' },
+          { text: 'tm_ternary', link: 'functions/#tm-ternary-bool-expr-expr-expr' },
+          { text: 'tm_hcl_expression', link: 'functions/#tm-hcl-expression-string-expr' },
+          { text: 'tm_version_match', link: 'functions/#tm-version-match-version-string-constraint-string-optional-arg-object' },
+          { text: 'Experimental Functions', link: 'functions/#experimental-functions' },
         ],
       },
       {
         text: '⚙️ Configuration',
         collapsed: false,
         items: [
-          { text: 'Configuring Terramate', link: '/configuration' },
-          { text: 'Project Configuration', link: '/project-config' },
-          { text: 'Upgrade Check', link: '/upgrade-check' },
+          { text: 'Terramate Configuration', link: 'configuration/' },
+          { text: 'Project Setup', link: 'configuration/project-setup' },
+          { text: 'Project Configuration', link: 'configuration/project-config' },
+          { text: 'Upgrade Check', link: 'configuration/upgrade-check' },
         ],
       },
       {

@@ -1,6 +1,6 @@
 ---
 title: Command Line Interface (CLI) | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 ---
 
 # Command Line Interface (CLI)
@@ -85,11 +85,11 @@ Below is a list of options:
 
 - `disable_checkpoint`
 
-When set to `true`, disables [upgrade and security bulletin checks](./upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
+When set to `true`, disables [upgrade and security bulletin checks](./configuration/upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
 
 - `disable_checkpoint_signature`
 
- when set to `true`, still allows the [upgrade and security bulletin checks](./upgrade-check.md)
+ when set to `true`, still allows the [upgrade and security bulletin checks](./configuration/upgrade-check.md)
  described above but disables the use of an anonymous id used to de-duplicate warning messages.
 
 ## Location

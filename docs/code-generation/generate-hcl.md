@@ -1,26 +1,26 @@
 ---
 title: HCL Code Generation | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
   text: 'Code Generation Overview'
   link: '/code-generation/'
 
 next:
-  text: 'Generate Files'
+  text: 'Generate File'
   link: '/code-generation/generate-file'
 ---
 
 # HCL Code Generation
 
 Terramate supports the generation of arbitrary HCL code referencing
-[Terramate defined data](../sharing-data.md).
+[Terramate defined data](../data-sharing/index.md).
 
 The generated code can then be composed/referenced by any Terraform code
 inside a stack (or any other tool that uses HCL, like [Packer](https://www.packer.io/)).
 
 HCL code generation is done using `generate_hcl`
-blocks in [Terramate configuration files](../configuration.md).
+blocks in [Terramate configuration files](../configuration/index.md).
 
 The code may include:
 

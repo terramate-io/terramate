@@ -1,10 +1,10 @@
 ---
 title: Installation | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
-  text: 'Overview'
-  link: '/overview'
+  text: 'About Stacks'
+  link: '/about-stacks'
 
 next:
   text: 'Getting Started'

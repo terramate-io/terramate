@@ -1,19 +1,17 @@
 ---
-title: Getting Started | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+title: Project Setup | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
-  text: 'Installation'
-  link: '/installation'
+  text: 'Terramate Configuration'
+  link: '/configuration/'
 
 next:
-  text: 'Getting Started'
-  link: '/getting-started'
+  text: 'Project Configuration'
+  link: '/configuration/project-config'
 ---
 
-# Getting Started
-
-## Project Setup
+# Project Setup
 
 If you already have a project versioned on Git setting up
 Terramate is as easy as just [installing Terramate](#installing).

@@ -1,6 +1,10 @@
 ---
 title: Upgrade and Security Bulletin Checks | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Projet Configuration'
+  link: '/configuration/project-configuration'
 ---
 
 # Upgrade and Security Bulletin Checks

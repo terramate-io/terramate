@@ -1,14 +1,14 @@
 ---
 title: Change Detection | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
   text: 'Stacks'
-  link: '/stacks'
+  link: '/stacks/'
 
 next:
   text: 'Sharing Data'
-  link: '/sharing-data'
+  link: '/data-sharing/'
 ---
 
 # Change Detection
@@ -63,7 +63,7 @@ merged but alternatively the terraform plan/apply can be run in the PR's branch
 just before merge using the default branch base ref (`origin/main`).
 
 The `baseref` can be manually changed by the terramate command line at any given
-point in time using the `--git-change-base` option or through the [project configuration](project-config.md),
+point in time using the `--git-change-base` option or through the [project configuration](../configuration/project-config.md),
 so different strategies for computing the changes are supported.
 
 Then, if you use rebase as the merge strategy and need to apply the changes to
@@ -94,7 +94,7 @@ The rationale is that if any module referenced by a stack changed then the stack
 
 For more details see the example below:
 
-![Module Change Detection](./assets/module-change-detection.gif)
+![Module Change Detection](../assets/module-change-detection.gif)
 
 In order to do that, Terramate will parse all `.tf` files inside the stack and
 check if the local modules it depends on have changed.

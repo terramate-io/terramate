@@ -1,6 +1,14 @@
 ---
 title: Project Configuration | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Projet Setup'
+  link: '/configuration/project-setup'
+
+next:
+  text: 'Upgrade Check'
+  link: '/configuration/upgrade-check'
 ---
 
 # Project Configuration
@@ -70,7 +78,7 @@ terramate {
 ```
 
 For a list of all configurations and their full schema check the
-[configuration overview](configuration.md#terramateconfiggit-block-schema).
+[configuration overview](index.md#terramateconfiggit-block-schema).
 
 ### The `terramate.config.run` Block
 
@@ -78,7 +86,7 @@ Configuration for the `terramate run` command can be set in the
 `terramate.config.run` block.
 
 For a list of all configurations and their full schema check the
-[configuration overview](configuration.md#terramateconfigrun-block-schema).
+[configuration overview](index.md#terramateconfigrun-block-schema).
 
 #### The `terramate.config.run.env` Block
 

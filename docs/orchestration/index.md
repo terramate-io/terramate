@@ -1,14 +1,14 @@
 ---
 title: Stacks Execution Orchestration | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, globals and more to Terraform.
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks'
+  text: 'Stack Configuration'
+  link: '/stacks/'
 
 next:
-  text: 'Change Detection'
-  link: '/change-detection'
+  text: 'Tag Filter'
+  link: '/tag-filter'
 ---
 
 # Stacks Execution Orchestration
@@ -24,7 +24,7 @@ execute and terramate provides three ways of configuring that:
 
 1. Change detection
 
-The [change detection](./change-detection.md) filter out stacks not changed.
+The [change detection](../change-detection/index.md) filter out stacks not changed.
 
 2. Current directory
 
@@ -310,7 +310,7 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 
 It is possible to control the environment variables of commands when they are
 executed on a stack. That is done through the `terramate.config.run.env` block.
-More details on how to use can be find [Project Configuration](project-config.md#terramateconfigrunenv)
+More details on how to use can be find [Project Configuration](../configuration/project-config.md#terramateconfigrunenv)
 documentation.
 
 
