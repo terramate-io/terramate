@@ -101,7 +101,7 @@ func BenchmarkGenerateRegex(b *testing.B) {
 
 	s.BuildTree(layout)
 
-	const numGlobalsPerStack = 100
+	const numGlobalsPerStack = 10
 	for _, sp := range stackPaths {
 		content := `globals {
 			list = tm_range(1000)
