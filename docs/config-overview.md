@@ -249,7 +249,8 @@ For detailed documentation about this block, see the [HCL Code Generation](https
 ## lets block schema
 
 The `lets` block has no labels, supports [merging](#config-merging) of blocks
-in the same level, accepts **any** attribute and **disallow** child blocks.
+in the same level, accepts **any** attribute and supports any number of 
+[map](#map-block) blocks.
 
 ## generate_hcl.content block schema
 
