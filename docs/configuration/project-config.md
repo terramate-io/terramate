@@ -1,3 +1,16 @@
+---
+title: Project Configuration | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Projet Setup'
+  link: '/configuration/project-setup'
+
+next:
+  text: 'Upgrade Check'
+  link: '/configuration/upgrade-check'
+---
+
 # Project Configuration
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.
@@ -12,11 +25,11 @@ Required version is defined by the attribute `terramate.required_version` attrib
 where `required_version` accepts a version constraint string that specifies which
 versions of Terramate can be used inside a Terramate project.
 
-The `terramate.required_version_allow_prereleases` attribute controls if **prereleases** should be matched according to 
+The `terramate.required_version_allow_prereleases` attribute controls if **prereleases** should be matched according to
 [Semantic Versioning](https://semver.org/) precedence ordering. It's **false** by
 default and if set to `true`, then Terramate will also accept prereleases if they
 match the provided constraint.
-_It's not usually recommended to change it unless you know what you are doing._ 
+_It's not usually recommended to change it unless you know what you are doing._
 _When dealing with infrastructure code you must be extra cautious about experimental releases as they could lead to dangerous changes._
 
 We recommend pinning the exact version to use and updating the config when updating Terramate.
@@ -65,7 +78,7 @@ terramate {
 ```
 
 For a list of all configurations and their full schema check the
-[configuration overview](config-overview.md#terramateconfiggit-block-schema).
+[configuration overview](index.md#terramateconfiggit-block-schema).
 
 ### The `terramate.config.run` Block
 
@@ -73,7 +86,7 @@ Configuration for the `terramate run` command can be set in the
 `terramate.config.run` block.
 
 For a list of all configurations and their full schema check the
-[configuration overview](config-overview.md#terramateconfigrun-block-schema).
+[configuration overview](index.md#terramateconfigrun-block-schema).
 
 #### The `terramate.config.run.env` Block
 

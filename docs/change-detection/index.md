@@ -1,3 +1,16 @@
+---
+title: Change Detection | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Stacks'
+  link: '/stacks/'
+
+next:
+  text: 'Sharing Data'
+  link: '/data-sharing/'
+---
+
 # Change Detection
 
 When changing your infrastructure (made up of a set of stacks) it's common to
@@ -10,8 +23,8 @@ We solve that by leveraging the power of the VCS (Version Control System)
 already in place. At the moment, Terramate only supports `git` but other VCSs
 can be added in the future.
 
-The approach is as simple as computing the changed stacks from the changed files 
-discovered by the `git diff` between the revision of the last `terraform applied` 
+The approach is as simple as computing the changed stacks from the changed files
+discovered by the `git diff` between the revision of the last `terraform applied`
 change (ie. the released revision) and the current change.
 
 Let's call the released revision `baseref`, which means `base reference` which
@@ -25,7 +38,7 @@ default branch or in a feature branch, and they are:
 
 The [HEAD^](https://git-scm.com/docs/gitrevisions) syntax means the first
 parent of the `HEAD` commit and the reasoning for using it for the default
-branch is that once you merged your PR you need to apply the changes in the CI 
+branch is that once you merged your PR you need to apply the changes in the CI
 or locally. So if the project uses
 [non-fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge)
 all commits (except first) in the default branch are merge commits, then by
@@ -50,7 +63,7 @@ merged but alternatively the terraform plan/apply can be run in the PR's branch
 just before merge using the default branch base ref (`origin/main`).
 
 The `baseref` can be manually changed by the terramate command line at any given
-point in time using the `--git-change-base` option or through the [project configuration](project-config.md),
+point in time using the `--git-change-base` option or through the [project configuration](../configuration/project-config.md),
 so different strategies for computing the changes are supported.
 
 Then, if you use rebase as the merge strategy and need to apply the changes to
@@ -81,7 +94,7 @@ The rationale is that if any module referenced by a stack changed then the stack
 
 For more details see the example below:
 
-![Module Change Detection](/docs/assets/module-change-detection.gif)
+![Module Change Detection](../assets/module-change-detection.gif)
 
 In order to do that, Terramate will parse all `.tf` files inside the stack and
 check if the local modules it depends on have changed.

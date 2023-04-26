@@ -1,3 +1,16 @@
+---
+title: Stacks Execution Orchestration | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Stack Configuration'
+  link: '/stacks/'
+
+next:
+  text: 'Tag Filter'
+  link: '/tag-filter'
+---
+
 # Stacks Execution Orchestration
 
 The orchestration of stack's execution is driven by the `terramate run` command
@@ -11,7 +24,7 @@ execute and terramate provides three ways of configuring that:
 
 1. Change detection
 
-The [change detection](./change-detection.md) filter out stacks not changed.
+The [change detection](../change-detection/index.md) filter out stacks not changed.
 
 2. Current directory
 
@@ -25,7 +38,7 @@ project structure will select only stacks that are children of the current direc
 The `wants` attribute of the stack block defines an explicit relationship
 between a stack and its list of wanted stacks, that when provided it says
 that when a stack is selected all the stacks listed on its `wants` list will also be
-selected, always, independent of any other selection criteria. 
+selected, always, independent of any other selection criteria.
 
 Example:
 
@@ -70,13 +83,13 @@ parent stacks before their children.
 
 This is a double-edged sword because it allows you to move stacks around to
 better resemble the cloud infrastructure and the order of which things must
-be executed with zero code change but in counterpart beware that moving stacks 
+be executed with zero code change but in counterpart beware that moving stacks
 just for cosmetic purposes can potentially change the execution order and break things.
 
 ### Explicit Order Of Execution
 
 Order of execution can be explicitly declared inside the **stack** block using
-the fields **before** and **after**. 
+the fields **before** and **after**.
 
 Each field is a set of string (**set(string)**), where each string is a path that
 references another directory, which can be a stack or contain stacks inside.
@@ -99,10 +112,10 @@ Or they can be relative to the project root, starting with "/":
 ```
 
 **before** ensures that the configured stack is executed before the
-stacks contained in the directory paths. As the stack you are saying: 
+stacks contained in the directory paths. As the stack you are saying:
 "I execute before all stacks inside these directories".
 
-**after** ensures the opposite, that the stacks contained in the provided 
+**after** ensures the opposite, that the stacks contained in the provided
 directories are executed before the current stack. As the stack, you are saying:
 "I execute after all stacks inside these directories".
 
@@ -297,7 +310,7 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 
 It is possible to control the environment variables of commands when they are
 executed on a stack. That is done through the `terramate.config.run.env` block.
-More details on how to use can be find [Project Configuration](project-config.md#terramateconfigrunenv)
+More details on how to use can be find [Project Configuration](../configuration/project-config.md#terramateconfigrunenv)
 documentation.
 
 
