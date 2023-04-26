@@ -29,7 +29,7 @@ export default defineConfig({
   description:
     'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
   cleanUrls: true,
-  transformHead: ({ pageData }) => {
+  transformHead: ({ pageData, siteData }) => {
     const head: HeadConfig[] = [
       [
         'link',
@@ -45,7 +45,7 @@ export default defineConfig({
         {
           rel: 'apple-touch-icon',
           sizes: '180x180',
-          href: '/favicons/apple-touch-icon.png',
+          href: `${siteData.base}favicons/apple-touch-icon.png`,
         },
       ],
       [
@@ -54,7 +54,7 @@ export default defineConfig({
           rel: 'icon',
           type: 'image/png',
           sizes: '32x32',
-          href: '/favicons/favicon-32x32.png',
+          href: `${siteData.base}favicons/favicon-32x32.png`,
         },
       ],
       [
@@ -63,19 +63,31 @@ export default defineConfig({
           rel: 'icon',
           type: 'image/png',
           sizes: '16x16',
-          href: '/favicons/favicon-16x16.png',
+          href: `${siteData.base}favicons/favicon-16x16.png`,
         },
       ],
-      ['link', { rel: 'manifest', href: '/favicons/site.webmanifest' }],
+      [
+        'link',
+        {
+          rel: 'manifest',
+          href: `${siteData.base}favicons/site.webmanifest`,
+        },
+      ],
       [
         'link',
         {
           rel: 'mask-icon',
-          href: '/favicons/safari-pinned-tab.svg',
+          href: `${siteData.base}favicons/safari-pinned-tab.svg`,
           color: '#3a0839',
         },
       ],
-      ['link', { rel: 'shortcut icon', href: '/favicons/favicon.ico' }],
+      [
+        'link',
+        {
+          rel: 'shortcut icon',
+          href: `${siteData.base}favicons/favicon.ico`,
+        },
+      ],
       // ["meta", { name: "msapplication-TileColor", content: "#3a0839" }],
       // [
       //   "meta",
