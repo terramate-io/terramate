@@ -1,8 +1,21 @@
-# map block
+---
+title: Map | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
-The `map` block can be used to create complex maps/objects inside 
-[Globals](sharing-data.md) and [Lets](./codegen/overview.md#lets) blocks. 
-It can be used to aggregate lists of objects into maps that have duplicated keys 
+prev:
+  text: 'Sharing Data'
+  link: '/sharing-data'
+
+next:
+  text: 'Code Generation'
+  link: '/code-generation/'
+---
+
+# Map Block
+
+The `map` block can be used to create complex maps/objects inside
+[Globals](./data-sharing/index.md) and [Lets](./code-generation/index.md#lets) blocks.
+It can be used to aggregate lists of objects into maps that have duplicated keys
 and need a defined way of deep merging values of the same key.
 
 The following is a very basic example introducing the `map` block inside a `globals` block:
@@ -11,11 +24,11 @@ The following is a very basic example introducing the `map` block inside a `glob
 globals {
   map obj {
     for_each = [
-      {name="a", value=5},
-      {name="c", value=0},
-      {name="a", value=15},
-      {name="b", value=5},
-      {name="c", value=20},
+      { name = "a", value = 5 },
+      { name = "c", value = 0 },
+      { name = "a", value = 15 },
+      { name = "b", value = 5 },
+      { name = "c", value = 20 },
     ]
 
     iterator = elem
@@ -80,7 +93,7 @@ globals {
     for_each = global.orders
 
     key = element.new.name
-    
+
     value {
       total_spent = tm_try(element.old.total_spent, 0) + element.new.price
     }
@@ -104,7 +117,7 @@ totals = {
 }
 ```
 
-Using nested `map` blocks and then aggregate by `product` for each `name` can be achieved using the following: 
+Using nested `map` blocks and then aggregate by `product` for each `name` can be achieved using the following:
 
 Example:
 
@@ -114,7 +127,7 @@ globals {
     for_each = global.orders
 
     iterator = per_name
-    
+
     key = per_name.new.name
 
     value {
@@ -124,7 +137,7 @@ globals {
         for_each = [for v in global.orders : v if v.name == per_name.new.name]
 
         iterator = per_product
-      
+
         key = per_product.new.product
 
         value {
