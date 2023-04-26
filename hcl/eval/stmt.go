@@ -48,12 +48,14 @@ type (
 	// Stmts is a list of statements.
 	Stmts []Stmt
 
+	// Info contains origin information for the statement.
 	Info struct {
 		Scope     project.Path
 		DefinedAt info.Range
 	}
 )
 
+// NewStmtHelper is a testing purspose method that initializes a Stmt.
 func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
 	lhsRef := NewRef(t, lhs)
 	tmpExpr, err := ast.ParseExpression(rhs, `<test>`)
@@ -65,6 +67,7 @@ func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
 	return stmts
 }
 
+// NewStmt is a testing purspose method that initializes a Stmt.
 func NewStmt(t testing.TB, lhs string, rhs string) Stmt {
 	lhsRef := NewRef(t, lhs)
 	rhsExpr, err := ast.ParseExpression(rhs, `<test>`)
@@ -96,6 +99,7 @@ func (stmt Stmt) String() string {
 	)
 }
 
+// StmtsOf returns all statements of the expr.
 func StmtsOf(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts, error) {
 	stmts := Stmts{}
 	newbase := make([]string, len(base)+1)
@@ -150,6 +154,7 @@ func StmtsOf(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts,
 	return stmts, nil
 }
 
+// SelectBy selects the statements related to ref.
 func (stmts Stmts) SelectBy(ref Ref, atChild map[RefStr]Ref) (Stmts, bool) {
 	found := false
 	contains := Stmts{}
@@ -193,6 +198,7 @@ func newSameInfo(path string) Info {
 	}
 }
 
+// NewInfo returns a new Info.
 func NewInfo(scope project.Path, rng info.Range) Info {
 	return Info{
 		Scope:     scope,

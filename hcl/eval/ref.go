@@ -45,6 +45,7 @@ type (
 	Refs []Ref
 )
 
+// NewRef returns a new variable reference.
 func NewRef(t testing.TB, varname string) Ref {
 	paths := strings.Split(varname, ".")
 	return Ref{
@@ -56,6 +57,7 @@ func NewRef(t testing.TB, varname string) Ref {
 // AsKey returns a ref suitable to be used as a map key.
 func (ref Ref) AsKey() RefStr { return RefStr(ref.String()) }
 
+// Comb returns all sub references of this one.
 func (ref Ref) Comb() Refs {
 	refs := Refs{}
 	for i := len(ref.Path) - 1; i >= 0; i-- {
@@ -86,6 +88,7 @@ func (ref Ref) String() string {
 	return out.String()
 }
 
+// Has returns true if ref contains the other ref and false otherwise.
 func (ref Ref) Has(other Ref) bool {
 	if ref.Object != other.Object {
 		return false

@@ -101,20 +101,20 @@ func New(evaluators ...Resolver) *Context {
 }
 
 // SetResolver sets the resolver ev into the context.
-func (g *Context) SetResolver(ev Resolver) {
-	g.evaluators[ev.Name()] = ev
+func (c *Context) SetResolver(ev Resolver) {
+	c.evaluators[ev.Name()] = ev
 	ns := namespace{
 		persist: true,
 		byref:   make(map[RefStr]value),
 		bykey:   orderedmap.New[string, any](),
 	}
-	g.ns[ev.Name()] = ns
+	c.ns[ev.Name()] = ns
 
 	prevalue := ev.Prevalue()
 	if prevalue.Type().IsObjectType() {
 		values := prevalue.AsValueMap()
 		for key, val := range values {
-			err := g.set(Stmt{
+			err := c.set(Stmt{
 				Origin: Ref{
 					Object: ev.Name(),
 					Path:   []string{key},
@@ -130,12 +130,12 @@ func (g *Context) SetResolver(ev Resolver) {
 		}
 	}
 
-	g.hclctx.Variables[ev.Name()] = prevalue
+	c.hclctx.Variables[ev.Name()] = prevalue
 }
 
 // DeleteResolver removes the resolver.
-func (g *Context) DeleteResolver(name string) {
-	delete(g.evaluators, name)
+func (c *Context) DeleteResolver(name string) {
+	delete(c.evaluators, name)
 }
 
 // Eval the given expr and all of its dependency references (if needed)
@@ -144,11 +144,11 @@ func (g *Context) DeleteResolver(name string) {
 // The algorithm is reliable but it does the minimum required work to
 // get the expr evaluated, and then it does not validate all globals
 // scopes but only the ones it traversed into.
-func (g *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
-	return g.eval(expr, map[RefStr]hhcl.Expression{})
+func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
+	return c.eval(expr, map[RefStr]hhcl.Expression{})
 }
 
-func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression) (cty.Value, error) {
+func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression) (cty.Value, error) {
 	refs := refsOf(expr)
 	unsetRefs := map[RefStr]bool{}
 
@@ -157,7 +157,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			continue
 		}
 
-		if _, ok := g.ns.Get(dep); ok {
+		if _, ok := c.ns.Get(dep); ok {
 			// dep already evaluated.
 			continue
 		}
@@ -175,7 +175,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 
 		visited[dep.AsKey()] = expr
 
-		stmtResolver, ok := g.evaluators[dep.Object]
+		stmtResolver, ok := c.evaluators[dep.Object]
 		if !ok {
 			// because tm_ternary
 			continue
@@ -187,7 +187,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 		}
 
 		for _, stmt := range stmts {
-			if v, ok := g.ns.Get(stmt.LHS); ok {
+			if v, ok := c.ns.Get(stmt.LHS); ok {
 				if !stmt.Special && !v.stmt.Special &&
 					v.info.Scope == stmt.Info.Scope &&
 					v.info.DefinedAt.Path().Dir() == stmt.Info.DefinedAt.Path().Dir() &&
@@ -212,7 +212,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			if stmt.Special {
 				val = cty.ObjectVal(map[string]cty.Value{})
 			} else {
-				val, err = g.eval(stmt.RHS, visited)
+				val, err = c.eval(stmt.RHS, visited)
 			}
 
 			if err != nil {
@@ -228,32 +228,32 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 				continue
 			}
 
-			err = g.set(stmt, val)
+			err = c.set(stmt, val)
 			if err != nil {
 				return cty.NilVal, errors.E(ErrEval, err)
 			}
 		}
 
-		if _, ok := g.ns.Get(dep); !ok {
+		if _, ok := c.ns.Get(dep); !ok {
 			delete(visited, dep.AsKey())
 		}
 	}
 
-	for nsname, ns := range g.ns {
+	for nsname, ns := range c.ns {
 		if ns.persist {
-			g.SetNamespace(nsname, tocty(ns.bykey).AsValueMap())
+			c.SetNamespace(nsname, tocty(ns.bykey).AsValueMap())
 			ns.persist = false
 		}
 	}
 
-	val, diags := expr.Value(g.hclctx)
+	val, diags := expr.Value(c.hclctx)
 	if diags.HasErrors() {
 		return cty.NilVal, errors.E(ErrEval, diags)
 	}
 	return val, nil
 }
 
-func (g *Context) set(lhs Stmt, val cty.Value) error {
+func (c *Context) set(lhs Stmt, val cty.Value) error {
 	ref := lhs.LHS
 
 	if val.Type().IsObjectType() && !lhs.Special {
@@ -271,7 +271,7 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 		}
 		for _, s := range stmts {
 			v, _ := s.RHS.Value(nil)
-			if other, ok := g.ns.Get(s.LHS); ok {
+			if other, ok := c.ns.Get(s.LHS); ok {
 				if !s.Special && !other.stmt.Special &&
 					other.info.Scope == s.Info.Scope &&
 					other.info.DefinedAt.Path().Dir() == s.Info.DefinedAt.Path().Dir() &&
@@ -290,7 +290,7 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 				}
 			}
 
-			err := g.set(s, v)
+			err := c.set(s, v)
 			if err != nil {
 				return err
 			}
@@ -300,7 +300,7 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 		}
 	}
 
-	ns, ok := g.ns[ref.Object]
+	ns, ok := c.ns[ref.Object]
 	if !ok {
 		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
 	}
@@ -453,6 +453,7 @@ func (c *Context) SetFunction(name string, fn function.Function) {
 	c.hclctx.Functions[name] = fn
 }
 
+// SetFunctions sets the functions of the context.
 func (c *Context) SetFunctions(funcs map[string]function.Function) {
 	c.hclctx.Functions = funcs
 }

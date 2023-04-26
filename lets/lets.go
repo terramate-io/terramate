@@ -25,9 +25,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-const ErrRedefined errors.Kind = "lets redefined"
+const (
+	// ErrRedefined indicates the lets variable is being redefined in the same
+	// scope.
+	ErrRedefined errors.Kind = "lets redefined"
 
-const nsName = "let"
+	nsName = "let"
+)
 
 // Resolver is the lets resolver.
 type Resolver struct {
@@ -55,6 +59,7 @@ func (r *Resolver) Prevalue() cty.Value {
 	return cty.EmptyObjectVal
 }
 
+// LookupRef lookup the lets references.
 func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
 	stmts, err := r.loadStmts()
 	if err != nil {
