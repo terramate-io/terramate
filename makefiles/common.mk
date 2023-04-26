@@ -1,7 +1,7 @@
 GO_RELEASER_VERSION=v1.14.0
 GOLANGCI_LINT_VERSION ?= v1.49.0
 COVERAGE_REPORT ?= coverage.txt
-RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
+RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore '**/*.yml' -ignore 'docs/**'
 BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
 
 ## Format go code
@@ -31,7 +31,7 @@ license/check:
 
 ## generates coverage report
 .PHONY: coverage
-coverage: 
+coverage:
 	go test -count=1 -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
 
 ## generates coverage report and shows it on the browser locally
@@ -97,12 +97,12 @@ bench/cleanup:
 
 ## executes a dry run of the release process
 .PHONY: release/dry-run
-release/dry-run: 
+release/dry-run:
 	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --snapshot --rm-dist
 
 ## generates a terramate release
 .PHONY: release
-release: 
+release:
 	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
 
 ## Display help for all targets
