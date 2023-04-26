@@ -1718,11 +1718,15 @@ func (c *cli) filterStacks(stacks []stack.Entry) []stack.Entry {
 }
 
 func (c *cli) filterStacksByWorkingDir(stacks []stack.Entry) []stack.Entry {
-	relwd := prj.PrjAbsPath(c.rootdir(), c.wd())
-
+	relwd := prj.PrjAbsPath(c.rootdir(), c.wd()).String()
+	if relwd != "/" {
+		relwd += string(filepath.Separator)
+	}
 	filtered := []stack.Entry{}
 	for _, e := range stacks {
-		if e.Stack.Dir.HasPrefix(relwd.String()) {
+		stackdir := e.Stack.Dir.String() + string(filepath.Separator)
+
+		if strings.HasPrefix(stackdir, relwd) {
 			filtered = append(filtered, e)
 		}
 	}
