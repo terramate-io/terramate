@@ -728,7 +728,7 @@ func newTmDynamicResolver(name string, key, val cty.Value) *tmDynamicIteratorRes
 	}
 }
 
-func (r *tmDynamicIteratorResolver) Root() string { return r.name }
+func (r *tmDynamicIteratorResolver) Name() string { return r.name }
 
 func (r *tmDynamicIteratorResolver) Prevalue() cty.Value { return r.iterator }
 

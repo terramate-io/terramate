@@ -27,10 +27,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// ErrRedefined indicates the global is redefined.
 const ErrRedefined errors.Kind = "global redefined"
 
 const nsName = "global"
 
+// Resolver is the globals resolver.
 type Resolver struct {
 	tree *config.Tree
 
@@ -39,6 +41,7 @@ type Resolver struct {
 	Scopes map[project.Path]eval.Stmts
 }
 
+// NewResolver creates a new globals resolver.
 func NewResolver(tree *config.Tree, overrides ...eval.Stmt) *Resolver {
 	r := &Resolver{
 		tree:     tree,
@@ -53,14 +56,17 @@ func NewResolver(tree *config.Tree, overrides ...eval.Stmt) *Resolver {
 	return r
 }
 
-func (*Resolver) Root() string { return nsName }
+// Name of the variable.
+func (*Resolver) Name() string { return nsName }
 
+// Prevalue is the predeclared globals.
 func (r *Resolver) Prevalue() cty.Value {
 	return cty.EmptyObjectVal
 }
 
-func (r *Resolver) LoadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
-	return r.loadStmtsAt(tree)
+// LookupRef lookups global references.
+func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
+	return r.lookupStmtsAt(ref, r.tree, map[eval.RefStr]eval.Ref{})
 }
 
 func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
@@ -168,10 +174,6 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 
 	r.Scopes[tree.Dir()] = stmts
 	return stmts, nil
-}
-
-func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	return r.lookupStmtsAt(ref, r.tree, map[eval.RefStr]eval.Ref{})
 }
 
 func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[eval.RefStr]eval.Ref) (stmts eval.Stmts, err error) {

@@ -119,7 +119,7 @@ type resolver struct {
 	env     []string
 }
 
-func (r *resolver) Root() string { return "env" }
+func (r *resolver) Name() string { return "env" }
 
 func (r *resolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
 
@@ -129,7 +129,7 @@ func (r *resolver) LoadStmts() (eval.Stmts, error) {
 		nameval := strings.Split(env, "=")
 
 		ref := eval.Ref{
-			Object: r.Root(),
+			Object: r.Name(),
 			Path:   []string{nameval[0]},
 		}
 

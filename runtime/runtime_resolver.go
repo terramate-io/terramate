@@ -20,10 +20,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// Resolver is the runtime resolver.
+// It resolves references to variables of form `terramate.<object path>`
 type Resolver struct {
 	terramate cty.Value
 }
 
+// NewResolver returns a new resolver for terramate runtime variables.
 func NewResolver(root *config.Root, stack *config.Stack) *Resolver {
 	runtime := root.Runtime()
 	if stack != nil {
@@ -34,14 +37,13 @@ func NewResolver(root *config.Root, stack *config.Stack) *Resolver {
 	}
 }
 
-func (r *Resolver) Root() string { return "terramate" }
+// Name returns the variable name.
+func (r *Resolver) Name() string { return "terramate" }
 
+// Prevalue returns a predeclared value.
 func (r *Resolver) Prevalue() cty.Value { return r.terramate }
 
-func (r *Resolver) LoadStmts() (eval.Stmts, error) {
-	return eval.Stmts{}, nil
-}
-
+// LookupRef lookup pending runtime variables. Not implemeneted at the moment.
 func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
 	return eval.Stmts{}, nil
 }

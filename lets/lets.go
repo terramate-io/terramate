@@ -29,6 +29,7 @@ const ErrRedefined errors.Kind = "lets redefined"
 
 const nsName = "let"
 
+// Resolver is the lets resolver.
 type Resolver struct {
 	scope project.Path
 	block *ast.MergedBlock
@@ -37,6 +38,7 @@ type Resolver struct {
 	cached eval.Stmts
 }
 
+// NewResolver is a resolver for let.* references.
 func NewResolver(scope project.Path, block *ast.MergedBlock) *Resolver {
 	r := &Resolver{
 		scope: scope,
@@ -45,13 +47,30 @@ func NewResolver(scope project.Path, block *ast.MergedBlock) *Resolver {
 	return r
 }
 
-func (*Resolver) Root() string { return nsName }
+// Name of the resolver.
+func (*Resolver) Name() string { return nsName }
 
+// Prevalue returns predeclared lets variables.
 func (r *Resolver) Prevalue() cty.Value {
 	return cty.EmptyObjectVal
 }
 
-func (r *Resolver) LoadStmts() (eval.Stmts, error) {
+func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
+	stmts, err := r.loadStmts()
+	if err != nil {
+		return nil, err
+	}
+	var filtered eval.Stmts
+	if len(ref.Path) == 0 {
+		filtered = stmts
+	} else {
+		filtered, _ = stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
+	}
+
+	return filtered, nil
+}
+
+func (r *Resolver) loadStmts() (eval.Stmts, error) {
 	stmts := r.cached
 	if stmts != nil {
 		return stmts, nil
@@ -109,19 +128,4 @@ func (r *Resolver) LoadStmts() (eval.Stmts, error) {
 
 	r.cached = stmts
 	return stmts, nil
-}
-
-func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	stmts, err := r.LoadStmts()
-	if err != nil {
-		return nil, err
-	}
-	var filtered eval.Stmts
-	if len(ref.Path) == 0 {
-		filtered = stmts
-	} else {
-		filtered, _ = stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
-	}
-
-	return filtered, nil
 }

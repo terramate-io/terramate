@@ -15,7 +15,6 @@
 package eval
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -31,15 +30,17 @@ import (
 // Errors returned when parsing and evaluating globals.
 const (
 	// ErrEval indicates a failure during the evaluation process
-	ErrEval      errors.Kind = "eval expression"
-	ErrCycle     errors.Kind = "cycle detected"
+	ErrEval errors.Kind = "eval expression"
+
+	// ErrCycle indicates there's a cycle in the variable declarations.
+	ErrCycle errors.Kind = "cycle detected"
+
+	// ErrRedefined indicates the variable was already defined in this scope.
 	ErrRedefined errors.Kind = "variable redefined"
 )
 
-const debug = false
-
 type (
-	// G is the globals evaluator.
+	// Context is the variables evaluator.
 	Context struct {
 		hclctx *hhcl.EvalContext
 		ns     namespaces
@@ -47,8 +48,9 @@ type (
 		evaluators map[string]Resolver
 	}
 
+	// Resolver resolves unknown variable references.
 	Resolver interface {
-		Root() string
+		Name() string
 		Prevalue() cty.Value
 		LookupRef(Ref) (Stmts, error)
 	}
@@ -98,14 +100,15 @@ func New(evaluators ...Resolver) *Context {
 	return evalctx
 }
 
+// SetResolver sets the resolver ev into the context.
 func (g *Context) SetResolver(ev Resolver) {
-	g.evaluators[ev.Root()] = ev
+	g.evaluators[ev.Name()] = ev
 	ns := namespace{
 		persist: true,
 		byref:   make(map[RefStr]value),
 		bykey:   orderedmap.New[string, any](),
 	}
-	g.ns[ev.Root()] = ns
+	g.ns[ev.Name()] = ns
 
 	prevalue := ev.Prevalue()
 	if prevalue.Type().IsObjectType() {
@@ -113,11 +116,11 @@ func (g *Context) SetResolver(ev Resolver) {
 		for key, val := range values {
 			err := g.set(Stmt{
 				Origin: Ref{
-					Object: ev.Root(),
+					Object: ev.Name(),
 					Path:   []string{key},
 				},
 				LHS: Ref{
-					Object: ev.Root(),
+					Object: ev.Name(),
 					Path:   []string{key},
 				},
 			}, val)
@@ -127,9 +130,10 @@ func (g *Context) SetResolver(ev Resolver) {
 		}
 	}
 
-	g.hclctx.Variables[ev.Root()] = prevalue
+	g.hclctx.Variables[ev.Name()] = prevalue
 }
 
+// DeleteResolver removes the resolver.
 func (g *Context) DeleteResolver(name string) {
 	delete(g.evaluators, name)
 }
@@ -147,12 +151,6 @@ func (g *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression) (cty.Value, error) {
 	refs := refsOf(expr)
 	unsetRefs := map[RefStr]bool{}
-	debugf(func() []any {
-		return []any{"dependencies of %s (%T) are %+v\n",
-			ast.TokensForExpression(expr).Bytes(),
-			expr,
-			refs}
-	})
 
 	for _, dep := range refs {
 		if dep.String() == "unset" {
@@ -188,7 +186,6 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			return cty.NilVal, err
 		}
 
-		debugf(func() []any { return []any{"Found stmts for %s: %+v\n", dep, stmts} })
 		for _, stmt := range stmts {
 			if v, ok := g.ns.Get(stmt.LHS); ok {
 				if !stmt.Special && !v.stmt.Special &&
@@ -200,7 +197,6 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 						stmt, stmt.Info.Scope, v.info.DefinedAt.String())
 				}
 				if !v.value.Type().IsObjectType() || !v.stmt.Special {
-					debugf(func() []any { return []any{"ignoring %s (has %s)\n", stmt, v.value.Type().FriendlyName()} })
 
 					// stmt already evaluated
 					// This can happen when the current scope is overriding the parent
@@ -209,11 +205,6 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 					// overridden" refs show up here.
 					continue
 				}
-
-				debugf(func() []any {
-					return []any{"old %s found but overriding anyway (has %s)\n", stmt, v.value.Type().FriendlyName()}
-				})
-
 			}
 
 			var val cty.Value
@@ -265,8 +256,6 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 func (g *Context) set(lhs Stmt, val cty.Value) error {
 	ref := lhs.LHS
 
-	debugf(func() []any { return []any{"set entry: %s = %s\n", lhs, ast.TokensForValue(val).Bytes()} })
-
 	if val.Type().IsObjectType() && !lhs.Special {
 		origin := Ref{
 			Object: ref.Object,
@@ -292,7 +281,6 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 						s, s.Info.Scope, other.info.DefinedAt.String())
 				}
 				if !other.value.Type().IsObjectType() || !other.stmt.Special {
-					debugf(func() []any { return []any{"ignoring %s (has %s)\n", s, other.value.Type().FriendlyName()} })
 					// stmt already evaluated
 					// This can happen when the current scope is overriding the parent
 					// object but still the target expr is looking for the entire object
@@ -317,13 +305,7 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
 	}
 
-	debugf(func() []any { return []any{"checking if %s exists:", ref} })
 	oldval, hasold := ns.byref[ref.AsKey()]
-	if hasold {
-		debugf(func() []any { return []any{"true (value: %s)\n", ast.TokensForValue(oldval.value).Bytes()} })
-	} else {
-		debugf(func() []any { return []any{"false\n"} })
-	}
 	if lhs.Special {
 		if !hasold {
 			for _, r := range ref.Comb() {
@@ -406,11 +388,8 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 		tempMap := orderedmap.New[string, any]()
 		obj.Set(ref.Path[lastIndex], tempMap)
 
-		debugf(func() []any { return []any{"set %s = %s\n", lhs.LHS, ast.TokensForValue(val).Bytes()} })
 		return nil
 	}
-
-	debugf(func() []any { return []any{"set %s = %s\n", lhs.LHS, ast.TokensForValue(val).Bytes()} })
 
 	if hasold && oldval.stmt.Special && oldval.info.Scope == lhs.Info.Scope {
 		return errors.E(
@@ -421,13 +400,6 @@ func (g *Context) set(lhs Stmt, val cty.Value) error {
 	}
 	ns.persist = true
 	obj.Set(ref.Path[lastIndex], val)
-	debugf(func() []any {
-		if hasold {
-			return []any{"%s set (old was %s)\n", ref, ast.TokensForValue(oldval.value)}
-		} else {
-			return []any{"%s set\n", ref}
-		}
-	})
 	return nil
 }
 
@@ -541,12 +513,5 @@ func (c *Context) Unwrap() *hhcl.EvalContext {
 func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
-	}
-}
-
-func debugf(lazy func() []any) {
-	if debug {
-		args := lazy()
-		fmt.Printf(args[0].(string), args[1:]...)
 	}
 }
