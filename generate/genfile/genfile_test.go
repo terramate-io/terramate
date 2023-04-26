@@ -120,7 +120,8 @@ stack_path_basename=${terramate.stack.path.basename}
 stack_id=${tm_try(terramate.stack.id, "no-id")}
 stack_name=${terramate.stack.name}
 stack_description=${terramate.stack.description}
-EOT`,
+EOT
+`,
 						)),
 				},
 			},
@@ -154,7 +155,8 @@ stack_description=
 						Expr("content", `<<EOT
 
 stack_id=${terramate.stack.id}
-EOT`,
+EOT
+`,
 						)),
 				},
 			},

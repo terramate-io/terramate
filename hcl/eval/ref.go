@@ -56,6 +56,19 @@ func NewRef(t testing.TB, varname string) Ref {
 // AsKey returns a ref suitable to be used as a map key.
 func (ref Ref) AsKey() RefStr { return RefStr(ref.String()) }
 
+func (ref Ref) Comb() Refs {
+	refs := Refs{}
+	for i := len(ref.Path) - 1; i >= 0; i-- {
+		newRef := Ref{
+			Object: ref.Object,
+			Path:   make([]string, i+1),
+		}
+		copy(newRef.Path, ref.Path[:i+1])
+		refs = append(refs, newRef)
+	}
+	return refs
+}
+
 // String returns a string representation of the Ref.
 // Note that it does not represent the syntactic ref found in the source file.
 // This is an internal representation that better fits the implementation design.

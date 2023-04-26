@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	hhclwrite "github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -36,7 +38,6 @@ import (
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
-	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
 type (
@@ -1664,7 +1665,7 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(eval.ErrEval),
 		},
 		{
-			name: "extending parent list fails",
+			name: "extending parent list works -- override",
 			layout: []string{
 				"s:stack",
 			},
@@ -1683,7 +1684,13 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrEval),
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Expr("lst", `{
+						other = []
+					}`),
+				),
+			},
 		},
 		{
 			name: "extending list from object fails",
@@ -1784,7 +1791,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(eval.ErrRedefined),
 		},
 		{
 			name: "funcall object with a conflict",
@@ -1809,7 +1816,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(eval.ErrRedefined),
 		},
 		{
 			name: "globals hierarchically defined with different filenames",
@@ -2859,7 +2866,7 @@ func TestLoadGlobals(t *testing.T) {
 			want: map[string]*hclwrite.Block{
 				"/stack": Globals(
 					Bool("a", true),
-					EvalExpr(t, "val", `{}`),
+					Expr("val", `{}`),
 				),
 			},
 		},
@@ -2875,7 +2882,12 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrEval),
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Bool("a", true),
+					Expr("val", `[local.a]`),
+				),
+			},
 		},
 		{
 			name:   "tm_try with only root traversal",
@@ -4147,7 +4159,9 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 			evalctx := eval.New(
 				runtime.NewResolver(root, st),
-				globals.NewResolver(tree))
+				globals.NewResolver(tree),
+			)
+
 			evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 			allExpr, err := ast.ParseExpression(`global`, "test.hcl")
 			assert.NoError(t, err)
@@ -4166,10 +4180,10 @@ func testGlobals(t *testing.T, tcase testcase) {
 			// Could have one type for globals configs and another type
 			// for wanted evaluated globals, but that would make
 			// globals building more annoying (two sets of functions).
-			if want.HasExpressions() {
-				t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
-				t.Errorf("wanted globals definition:\n%s\n", want)
-			}
+			//if want.HasExpressions() {
+			//	t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
+			//	t.Errorf("wanted globals definition:\n%s\n", want)
+			//}
 
 			gotAttrs := got.AsValueMap()
 			wantAttrs := want.AttributesValues()
@@ -4184,10 +4198,12 @@ func testGlobals(t *testing.T, tcase testcase) {
 					t.Errorf("wanted global.%s is missing", name)
 					continue
 				}
-				if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
+				wantStr := string(hhclwrite.Format(ast.TokensForValue(wantVal).Bytes()))
+				gotStr := string(hhclwrite.Format(ast.TokensForValue(gotVal).Bytes()))
+				if diff := cmp.Diff(wantStr, gotStr); diff != "" {
 					t.Errorf("global.%s doesn't match expectation", name)
-					t.Errorf("want: %s", ctydebug.ValueString(wantVal))
-					t.Errorf("got: %s", ctydebug.ValueString(gotVal))
+					t.Errorf("want: %s", wantStr)
+					t.Errorf("got: %s", gotStr)
 					t.Errorf("diff:\n%s", diff)
 				}
 			}

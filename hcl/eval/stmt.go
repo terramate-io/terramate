@@ -10,6 +10,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -20,17 +21,23 @@ type (
 		LHS          Ref
 		RHS          hhcl.Expression
 		RHSEvaluated cty.Value
-		Scope        project.Path
 
 		IsEvaluated bool
 		Special     bool
 
 		// Origin is the *origin ref*. If it's nil, then it's the same as LHS.
 		Origin Ref
+
+		Info Info
 	}
 
 	// Stmts is a list of statements.
 	Stmts []Stmt
+
+	Info struct {
+		Scope     project.Path
+		DefinedAt info.Range
+	}
 )
 
 func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
@@ -38,7 +45,7 @@ func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
 	tmpExpr, err := ast.ParseExpression(rhs, `<test>`)
 	assert.NoError(t, err)
 
-	stmts, err := StmtsOf(project.NewPath("/"), lhsRef, lhsRef.Path, tmpExpr)
+	stmts, err := StmtsOf(newSameInfo("/"), lhsRef, lhsRef.Path, tmpExpr)
 	assert.NoError(t, err)
 
 	return stmts
@@ -52,7 +59,7 @@ func NewStmt(t testing.TB, lhs string, rhs string) Stmt {
 		Origin: lhsRef,
 		LHS:    lhsRef,
 		RHS:    rhsExpr,
-		Scope:  project.NewPath("/"),
+		Info:   newSameInfo("/"),
 	}
 }
 
@@ -62,16 +69,20 @@ func (stmt Stmt) String() string {
 	var rhs string
 	if stmt.Special {
 		rhs = "{} (special)"
+	} else if stmt.RHS == nil {
+		rhs = string(ast.TokensForValue(stmt.RHSEvaluated).Bytes())
 	} else {
 		rhs = string(ast.TokensForExpression(stmt.RHS).Bytes())
 	}
-	return fmt.Sprintf("%s = %s (defined at %s)",
+	return fmt.Sprintf("%s = %s (scope=%s, definedAt=%s)",
 		stmt.LHS,
 		rhs,
-		stmt.Scope)
+		stmt.Info.Scope,
+		stmt.Info.DefinedAt,
+	)
 }
 
-func StmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression) (Stmts, error) {
+func StmtsOf(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts, error) {
 	stmts := Stmts{}
 	newbase := make([]string, len(base)+1)
 	copy(newbase, base)
@@ -104,7 +115,7 @@ func StmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression
 			}
 
 			newbase[last] = key
-			newStmts, err := StmtsOf(scope, origin, newbase, item.ValueExpr)
+			newStmts, err := StmtsOf(info, origin, newbase, item.ValueExpr)
 			if err != nil {
 				return nil, err
 			}
@@ -117,8 +128,8 @@ func StmtsOf(scope project.Path, origin Ref, base []string, expr hhcl.Expression
 				Object: origin.Object,
 				Path:   newbase[0:last],
 			},
-			RHS:   expr,
-			Scope: scope,
+			RHS:  expr,
+			Info: info,
 		})
 	}
 
@@ -131,33 +142,33 @@ func (stmts Stmts) SelectBy(ref Ref, atChild map[RefStr]Ref) (Stmts, bool) {
 	isContainedBy := Stmts{}
 outer:
 	for _, stmt := range stmts {
-		fmt.Printf("%s has %s: %t (scope %s): ", stmt.LHS, ref, stmt.LHS.Has(ref), stmt.Scope)
+		//fmt.Printf("%s has %s: %t (scope %s): ", stmt.LHS, ref, stmt.LHS.Has(ref), stmt.Info.Scope)
 
 		if !stmt.Special {
 			for _, gotRef := range atChild {
 				if stmt.LHS.Has(gotRef) {
-					fmt.Printf("ignored because origin %s already found in lower levels\n", gotRef)
+					//fmt.Printf("ignored because origin %s already found in lower levels\n", gotRef)
 					continue outer
 				}
 			}
 		}
 
 		if stmt.LHS.Has(ref) {
-			fmt.Printf("contains\n")
+			//fmt.Printf("contains\n")
 			contains = append(contains, stmt)
 			if stmt.Origin.equal(ref) || stmt.LHS.equal(ref) {
 				found = true
 			}
 		} else {
 			if found {
-				fmt.Printf("found\n")
+				//fmt.Printf("found\n")
 				return contains, true
 			}
 			if ref.Has(stmt.LHS) {
-				fmt.Printf("is contained\n")
+				//fmt.Printf("is contained\n")
 				isContainedBy = append(isContainedBy, stmt)
 			} else {
-				fmt.Printf("unrelated\n")
+				//fmt.Printf("unrelated\n")
 			}
 		}
 	}
@@ -168,4 +179,17 @@ outer:
 
 	contains = append(contains, isContainedBy...)
 	return contains, false
+}
+
+func newSameInfo(path string) Info {
+	return Info{
+		Scope: project.NewPath(path),
+	}
+}
+
+func NewInfo(scope project.Path, rng info.Range) Info {
+	return Info{
+		Scope:     scope,
+		DefinedAt: rng,
+	}
 }

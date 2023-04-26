@@ -40,6 +40,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/runtime"
 	"github.com/mineiros-io/terramate/versions"
@@ -1508,8 +1509,12 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 		overrideStmts = append(overrideStmts, eval.Stmt{
 			Origin: ref,
 			LHS:    ref,
-			Scope:  pdir,
-			RHS:    expr,
+			Info: eval.NewInfo(pdir, info.NewRange(c.rootdir(), hhcl.Range{
+				Start:    hhcl.InitialPos,
+				End:      hhcl.InitialPos,
+				Filename: `<cmdline>`,
+			})),
+			RHS: expr,
 		})
 	}
 	tree, _ := c.cfg().Lookup(pdir)

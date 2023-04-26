@@ -55,8 +55,11 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 		return stmts, nil
 	}
 
+	overrideMap := map[eval.RefStr]struct{}{}
+
 	for _, override := range r.override {
 		stmts = append(stmts, override)
+		overrideMap[override.Origin.AsKey()] = struct{}{}
 	}
 
 	for _, block := range tree.Node.Globals.AsList() {
@@ -70,6 +73,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 
 		attrs := block.Attributes.SortedList()
 		if len(block.Labels) > 0 {
+			scope := tree.Dir()
 			stmts = append(stmts, eval.Stmt{
 				Origin: eval.Ref{
 					Object: nsName,
@@ -80,7 +84,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 					Path:   block.Labels,
 				},
 				Special: true,
-				Scope:   tree.Dir(),
+				Info:    eval.NewInfo(scope, block.RawOrigins[0].Range),
 			})
 		}
 
@@ -92,6 +96,8 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 					"map label %s conflicts with global.%s attribute", varName, varName)
 			}
 
+			definedAt := varsBlock.RawOrigins[0].Range
+
 			origin := eval.Ref{
 				Object: nsName,
 				Path:   make([]string, len(block.Labels)+1),
@@ -100,12 +106,17 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 			copy(origin.Path, block.Labels)
 			origin.Path[len(block.Labels)] = varName
 
+			if _, ok := overrideMap[origin.AsKey()]; ok {
+				continue
+			}
+
 			expr, err := mapexpr.NewMapExpr(varsBlock)
 			if err != nil {
 				return nil, errors.E(err, "failed to interpret map block")
 			}
 
-			blockStmts, err := eval.StmtsOf(tree.Dir(), origin, origin.Path, expr)
+			info := eval.NewInfo(tree.Dir(), definedAt)
+			blockStmts, err := eval.StmtsOf(info, origin, origin.Path, expr)
 			if err != nil {
 				return nil, err
 			}
@@ -119,7 +130,13 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 			}
 			copy(origin.Path, block.Labels)
 			origin.Path[len(block.Labels)] = attr.Name
-			blockStmts, err := eval.StmtsOf(tree.Dir(), origin, origin.Path, attr.Expr)
+
+			if _, ok := overrideMap[origin.AsKey()]; ok {
+				continue
+			}
+
+			info := eval.NewInfo(tree.Dir(), attr.Range)
+			blockStmts, err := eval.StmtsOf(info, origin, origin.Path, attr.Expr)
 			if err != nil {
 				return nil, err
 			}
@@ -149,12 +166,12 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[ev
 		return nil, err
 	}
 
-	var filtered eval.Stmts
-	var found bool
-	if len(ref.Path) == 0 {
-		filtered = stmts
-	} else {
-		filtered, found = stmts.SelectBy(ref, origins)
+	filtered, found := stmts.SelectBy(ref, origins)
+
+	for _, s := range filtered {
+		if !s.Special {
+			origins[s.Origin.AsKey()] = s.Origin
+		}
 	}
 
 	if found || tree.Parent == nil {
@@ -164,12 +181,6 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[ev
 	parent := tree.NonEmptyGlobalsParent()
 	if parent == nil {
 		return filtered, nil
-	}
-
-	for _, s := range filtered {
-		if !s.Special {
-			origins[s.Origin.AsKey()] = s.Origin
-		}
 	}
 
 	parentStmts, err := r.lookupStmtsAt(ref, parent, origins)

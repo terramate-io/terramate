@@ -18,6 +18,7 @@ import (
 	"os"
 	"strings"
 
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/runtime"
 
 	"github.com/mineiros-io/terramate/config"
@@ -25,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 
@@ -72,7 +74,8 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		globals.NewResolver(tree),
 		runtime.NewResolver(root, st),
 		&resolver{
-			env: os.Environ(),
+			rootdir: root.HostDir(),
+			env:     os.Environ(),
 		},
 	)
 	evalctx.SetFunctions(stdlib.Functions(evalctx, st.HostDir(root)))
@@ -112,7 +115,8 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 }
 
 type resolver struct {
-	env []string
+	rootdir string
+	env     []string
 }
 
 func (r *resolver) Root() string { return "env" }
@@ -137,7 +141,11 @@ func (r *resolver) LoadStmts() (eval.Stmts, error) {
 			Origin: ref,
 			LHS:    ref,
 			RHS:    expr,
-			Scope:  project.NewPath("/"), // env is root-scoped
+			Info: eval.NewInfo(project.NewPath("/"), info.NewRange(r.rootdir, hhcl.Range{
+				Start:    hhcl.InitialPos,
+				End:      hhcl.InitialPos,
+				Filename: `<environ>`,
+			})), // env is root-scoped
 		})
 	}
 	return stmts, nil

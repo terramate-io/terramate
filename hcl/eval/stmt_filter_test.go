@@ -5,8 +5,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
 
@@ -178,7 +180,7 @@ func TestStmtsLookupRef(t *testing.T) {
 				t.Fatalf("expected found=%t but got %t", found, tc.found)
 			}
 			if diff := cmp.Diff(got, tc.want,
-				cmp.AllowUnexported(Stmt{}, project.Path{}),
+				cmp.AllowUnexported(Stmt{}, project.Path{}, info.Range{}, info.Pos{}, hhcl.Range{}),
 				cmpopts.IgnoreTypes(cty.Value{})); diff != "" {
 				t.Fatal(diff)
 			}

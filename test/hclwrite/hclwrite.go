@@ -33,8 +33,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/zclconf/go-cty/cty"
 
@@ -44,9 +46,8 @@ import (
 
 // Block represents an HCL block.
 type Block struct {
-	name    string
-	labels  []string
-	hasexpr bool
+	name   string
+	labels []string
 	// Not cool to keep 2 copies of values but casting around
 	// cty values is quite annoying, so this is a lazy solution.
 	ctyvalues map[string]cty.Value
@@ -60,9 +61,13 @@ func (b *Block) AddLabel(name string) {
 
 // AddExpr adds an expression to the block. The expressions are kept as is on the
 // final document.
-func (b *Block) AddExpr(name string, expr string) {
-	b.hasexpr = true
-	b.addAttr(name, expr)
+func (b *Block) AddExpr(name string, exprStr string) {
+	expr, err := ast.ParseExpression(exprStr, `<add-expr>`)
+	if err != nil {
+		panic(err)
+	}
+	b.ctyvalues[name] = customdecode.ExpressionVal(expr)
+	b.addAttr(name, exprStr)
 }
 
 // AddNumberInt adds a number to the block.
@@ -92,12 +97,6 @@ func (b *Block) AddBlock(child *Block) {
 // values. Added expressions are ignored.
 func (b *Block) AttributesValues() map[string]cty.Value {
 	return b.ctyvalues
-}
-
-// HasExpressions returns true if block has any non-evaluated
-// expressions.
-func (b *Block) HasExpressions() bool {
-	return b.hasexpr
 }
 
 // Build builds the given parent block by adding itself on it.

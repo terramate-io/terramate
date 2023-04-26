@@ -15,6 +15,7 @@
 package eval
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -30,9 +31,12 @@ import (
 // Errors returned when parsing and evaluating globals.
 const (
 	// ErrEval indicates a failure during the evaluation process
-	ErrEval  errors.Kind = "eval expression"
-	ErrCycle errors.Kind = "cycle detected"
+	ErrEval      errors.Kind = "eval expression"
+	ErrCycle     errors.Kind = "cycle detected"
+	ErrRedefined errors.Kind = "variable redefined"
 )
+
+const debug = false
 
 type (
 	// G is the globals evaluator.
@@ -51,8 +55,14 @@ type (
 
 	namespaces map[string]namespace
 
+	value struct {
+		stmt  Stmt
+		value cty.Value
+		info  Info
+	}
+
 	namespace struct {
-		byref map[RefStr]cty.Value
+		byref map[RefStr]value
 		bykey *orderedmap.OrderedMap[string, any]
 
 		persist bool // whether persistence into internal context is needed.
@@ -92,7 +102,7 @@ func (g *Context) SetResolver(ev Resolver) {
 	g.evaluators[ev.Root()] = ev
 	ns := namespace{
 		persist: true,
-		byref:   make(map[RefStr]cty.Value),
+		byref:   make(map[RefStr]value),
 		bykey:   orderedmap.New[string, any](),
 	}
 	g.ns[ev.Root()] = ns
@@ -137,7 +147,13 @@ func (g *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression) (cty.Value, error) {
 	refs := refsOf(expr)
 	unsetRefs := map[RefStr]bool{}
-	//fmt.Printf("dependencies of %s (%T) are %+v\n", ast.TokensForExpression(expr).Bytes(), expr, refs)
+	debugf(func() []any {
+		return []any{"dependencies of %s (%T) are %+v\n",
+			ast.TokensForExpression(expr).Bytes(),
+			expr,
+			refs}
+	})
+
 	for _, dep := range refs {
 		if dep.String() == "unset" {
 			continue
@@ -172,15 +188,32 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			return cty.NilVal, err
 		}
 
-		//fmt.Printf("Found stmts for %s: %+v\n", dep, stmts)
+		debugf(func() []any { return []any{"Found stmts for %s: %+v\n", dep, stmts} })
 		for _, stmt := range stmts {
-			if _, ok := g.ns.Get(stmt.LHS); ok {
-				// stmt already evaluated
-				// This can happen when the current scope is overriding the parent
-				// object but still the target expr is looking for the entire object
-				// so we still have to ascent into parent scope and then the "already
-				// overridden" refs show up here.
-				continue
+			if v, ok := g.ns.Get(stmt.LHS); ok {
+				if !stmt.Special && !v.stmt.Special &&
+					v.info.Scope == stmt.Info.Scope &&
+					v.info.DefinedAt.Path().Dir() == stmt.Info.DefinedAt.Path().Dir() &&
+					v.info.DefinedAt != stmt.Info.DefinedAt {
+					return cty.NilVal, errors.E(ErrRedefined, stmt.Info.DefinedAt,
+						"variable %s already set in the scope %s at %s",
+						stmt, stmt.Info.Scope, v.info.DefinedAt.String())
+				}
+				if !v.value.Type().IsObjectType() || !v.stmt.Special {
+					debugf(func() []any { return []any{"ignoring %s (has %s)\n", stmt, v.value.Type().FriendlyName()} })
+
+					// stmt already evaluated
+					// This can happen when the current scope is overriding the parent
+					// object but still the target expr is looking for the entire object
+					// so we still have to ascent into parent scope and then the "already
+					// overridden" refs show up here.
+					continue
+				}
+
+				debugf(func() []any {
+					return []any{"old %s found but overriding anyway (has %s)\n", stmt, v.value.Type().FriendlyName()}
+				})
+
 			}
 
 			var val cty.Value
@@ -192,7 +225,7 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			}
 
 			if err != nil {
-				return cty.NilVal, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Scope)
+				return cty.NilVal, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Info.Scope)
 			}
 
 			if val.Type().Equals(unset) {
@@ -229,12 +262,12 @@ func (g *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 	return val, nil
 }
 
-func (g *Context) set(stmt Stmt, val cty.Value) error {
-	ref := stmt.LHS
+func (g *Context) set(lhs Stmt, val cty.Value) error {
+	ref := lhs.LHS
 
-	//fmt.Printf("set %s = %s\n", stmt.LHS, ast.TokensForValue(val).Bytes())
+	debugf(func() []any { return []any{"set entry: %s = %s\n", lhs, ast.TokensForValue(val).Bytes()} })
 
-	if val.Type().IsObjectType() && !stmt.Special {
+	if val.Type().IsObjectType() && !lhs.Special {
 		origin := Ref{
 			Object: ref.Object,
 			Path:   make([]string, len(ref.Path)),
@@ -243,18 +276,40 @@ func (g *Context) set(stmt Stmt, val cty.Value) error {
 		tokens := ast.TokensForValue(val)
 		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<eval>`)
 
-		stmts, err := StmtsOf(stmt.Scope, origin, origin.Path, expr)
+		stmts, err := StmtsOf(lhs.Info, origin, origin.Path, expr)
 		if err != nil {
 			return err
 		}
 		for _, s := range stmts {
 			v, _ := s.RHS.Value(nil)
+			if other, ok := g.ns.Get(s.LHS); ok {
+				if !s.Special && !other.stmt.Special &&
+					other.info.Scope == s.Info.Scope &&
+					other.info.DefinedAt.Path().Dir() == s.Info.DefinedAt.Path().Dir() &&
+					other.info.DefinedAt != s.Info.DefinedAt {
+					return errors.E(ErrRedefined, s.Info.DefinedAt,
+						"variable %s already set in the scope %s at %s",
+						s, s.Info.Scope, other.info.DefinedAt.String())
+				}
+				if !other.value.Type().IsObjectType() || !other.stmt.Special {
+					debugf(func() []any { return []any{"ignoring %s (has %s)\n", s, other.value.Type().FriendlyName()} })
+					// stmt already evaluated
+					// This can happen when the current scope is overriding the parent
+					// object but still the target expr is looking for the entire object
+					// so we still have to ascent into parent scope and then the "already
+					// overridden" refs show up here.
+					continue
+				}
+			}
+
 			err := g.set(s, v)
 			if err != nil {
 				return err
 			}
 		}
-		return nil
+		if len(stmts) > 0 {
+			return nil
+		}
 	}
 
 	ns, ok := g.ns[ref.Object]
@@ -262,13 +317,61 @@ func (g *Context) set(stmt Stmt, val cty.Value) error {
 		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
 	}
 
-	if stmt.Special {
-		if _, ok := ns.byref[ref.AsKey()]; !ok {
-			ns.byref[ref.AsKey()] = val
-			ns.persist = true
+	debugf(func() []any { return []any{"checking if %s exists:", ref} })
+	oldval, hasold := ns.byref[ref.AsKey()]
+	if hasold {
+		debugf(func() []any { return []any{"true (value: %s)\n", ast.TokensForValue(oldval.value).Bytes()} })
+	} else {
+		debugf(func() []any { return []any{"false\n"} })
+	}
+	if lhs.Special {
+		if !hasold {
+			for _, r := range ref.Comb() {
+				if _, ok := ns.byref[r.AsKey()]; !ok {
+					ns.byref[r.AsKey()] = value{
+						stmt: Stmt{
+							LHS:          r,
+							Origin:       r,
+							Special:      true,
+							RHSEvaluated: cty.EmptyObjectVal,
+						},
+						value: cty.EmptyObjectVal,
+						info:  lhs.Info,
+					}
+					ns.persist = true
+				} else {
+					break
+				}
+			}
 		}
 	} else {
-		ns.byref[ref.AsKey()] = val
+		if hasold {
+			if len(oldval.info.Scope.String()) > len(lhs.Info.Scope.String()) {
+				return nil
+			}
+		}
+		for _, r := range ref.Comb() {
+			if _, ok := ns.byref[r.AsKey()]; !ok {
+				ns.byref[r.AsKey()] = value{
+					stmt: Stmt{
+						LHS:          r,
+						Origin:       r,
+						Special:      true,
+						RHSEvaluated: cty.EmptyObjectVal,
+					},
+					value: cty.EmptyObjectVal,
+					info:  lhs.Info,
+				}
+				ns.persist = true
+			} else {
+				break
+			}
+		}
+		ns.byref[ref.AsKey()] = value{
+			stmt:  lhs,
+			value: val,
+			info:  lhs.Info,
+		}
 		ns.persist = true
 	}
 
@@ -295,18 +398,36 @@ func (g *Context) set(stmt Stmt, val cty.Value) error {
 		}
 	}
 
-	if stmt.Special {
+	if lhs.Special {
 		_, found := obj.Get(ref.Path[lastIndex])
 		if found {
 			return nil
 		}
 		tempMap := orderedmap.New[string, any]()
 		obj.Set(ref.Path[lastIndex], tempMap)
+
+		debugf(func() []any { return []any{"set %s = %s\n", lhs.LHS, ast.TokensForValue(val).Bytes()} })
 		return nil
 	}
 
+	debugf(func() []any { return []any{"set %s = %s\n", lhs.LHS, ast.TokensForValue(val).Bytes()} })
+
+	if hasold && oldval.stmt.Special && oldval.info.Scope == lhs.Info.Scope {
+		return errors.E(
+			ErrEval,
+			"variable %s being extended but was previously evaluated as %s in the same scope",
+			lhs.LHS, ast.TokensForValue(oldval.value).Bytes(),
+		)
+	}
 	ns.persist = true
 	obj.Set(ref.Path[lastIndex], val)
+	debugf(func() []any {
+		if hasold {
+			return []any{"%s set (old was %s)\n", ref, ast.TokensForValue(oldval.value)}
+		} else {
+			return []any{"%s set\n", ref}
+		}
+	})
 	return nil
 }
 
@@ -340,13 +461,13 @@ func tocty(globals *orderedmap.OrderedMap[string, any]) cty.Value {
 	return cty.ObjectVal(ret)
 }
 
-func (ns namespaces) Get(ref Ref) (cty.Value, bool) {
+func (ns namespaces) Get(ref Ref) (value, bool) {
 	if v, ok := ns[ref.Object]; ok {
 		if vv, ok := v.byref[ref.AsKey()]; ok {
 			return vv, true
 		}
 	}
-	return cty.NilVal, false
+	return value{}, false
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -420,5 +541,12 @@ func (c *Context) Unwrap() *hhcl.EvalContext {
 func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
+	}
+}
+
+func debugf(lazy func() []any) {
+	if debug {
+		args := lazy()
+		fmt.Printf(args[0].(string), args[1:]...)
 	}
 }
