@@ -26,7 +26,7 @@ function getPath(path: string) {
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'Terramate',
-  description: 'A VitePress Site',
+  description: 'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
   cleanUrls: true,
   transformHead: ({ pageData }) => {
     const head: HeadConfig[] = []
