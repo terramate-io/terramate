@@ -14,68 +14,68 @@
  * limitations under the License.
  */
 
-import type { HeadConfig } from "vitepress";
-import { defineConfig } from "vitepress";
+import type { HeadConfig } from 'vitepress'
+import { defineConfig } from 'vitepress'
 
 function getPath(path: string) {
-  const uri = path.replace(/(?:(^|\/)index)?\.md$/, "$1");
+  const uri = path.replace(/(?:(^|\/)index)?\.md$/, '$1')
 
-  return uri === "index" ? "" : uri;
+  return uri === 'index' ? '' : uri
 }
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "Terramate",
+  title: 'Terramate',
   description:
-    "Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.",
+    'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
   cleanUrls: true,
   transformHead: ({ pageData }) => {
     const head: HeadConfig[] = [
       [
-        "link",
+        'link',
         {
-          rel: "canonical",
+          rel: 'canonical',
           href: `https://terramate.io/docs/cli/${getPath(
-            pageData.relativePath
+            pageData.relativePath,
           )}`,
         },
       ],
       [
-        "link",
+        'link',
         {
-          rel: "apple-touch-icon",
-          sizes: "180x180",
-          href: "/favicons/apple-touch-icon.png",
+          rel: 'apple-touch-icon',
+          sizes: '180x180',
+          href: '/favicons/apple-touch-icon.png',
         },
       ],
       [
-        "link",
+        'link',
         {
-          rel: "icon",
-          type: "image/png",
-          sizes: "32x32",
-          href: "/favicons/favicon-32x32.png",
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '32x32',
+          href: '/favicons/favicon-32x32.png',
         },
       ],
       [
-        "link",
+        'link',
         {
-          rel: "icon",
-          type: "image/png",
-          sizes: "16x16",
-          href: "/favicons/favicon-16x16.png",
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '16x16',
+          href: '/favicons/favicon-16x16.png',
         },
       ],
-      ["link", { rel: "manifest", href: "/favicons/site.webmanifest" }],
+      ['link', { rel: 'manifest', href: '/favicons/site.webmanifest' }],
       [
-        "link",
+        'link',
         {
-          rel: "mask-icon",
-          href: "/favicons/safari-pinned-tab.svg",
-          color: "#3a0839",
+          rel: 'mask-icon',
+          href: '/favicons/safari-pinned-tab.svg',
+          color: '#3a0839',
         },
       ],
-      ["link", { rel: "shortcut icon", href: "/favicons/favicon.ico" }],
+      ['link', { rel: 'shortcut icon', href: '/favicons/favicon.ico' }],
       // ["meta", { name: "msapplication-TileColor", content: "#3a0839" }],
       // [
       //   "meta",
@@ -85,13 +85,13 @@ export default defineConfig({
       //   },
       // ],
       // ["meta", { name: "theme-color", content: "#ffffff" }],
-    ];
+    ]
 
-    return head;
+    return head
   },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config#sitetitle
-    siteTitle: "🦄 Terramate",
+    siteTitle: '🦄 Terramate',
     // https://vitepress.dev/reference/default-theme-config#logo
     // logo: {
     //   light: '/logo-white.svg',
@@ -100,150 +100,150 @@ export default defineConfig({
     // },
 
     // https://vitepress.dev/reference/site-config#appearance
-    appearance: "dark",
+    appearance: 'dark',
 
     // https://vitepress.dev/reference/default-theme-search#local-search
     search: {
-      provider: "local",
+      provider: 'local',
     },
 
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: "Docs", link: "/about-stacks" },
-      { text: "Blog", link: "https://blog.mineiros.io/" },
-      { text: "We are hiring!", link: "https://jobs.ashbyhq.com/mineiros.io/" },
+      { text: 'Docs', link: '/about-stacks' },
+      { text: 'Blog', link: 'https://blog.mineiros.io/' },
+      { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/mineiros.io/' },
       {
-        text: "Releases",
-        link: "https://github.com/mineiros-io/terramate/releases",
+        text: 'Releases',
+        link: 'https://github.com/mineiros-io/terramate/releases',
       },
-      { text: "💻 Playground", link: "https://play.terramate.io/" },
+      { text: '💻 Playground', link: 'https://play.terramate.io/' },
     ],
 
     sidebar: [
       {
-        text: "👋 What is Terramate",
+        text: '👋 What is Terramate',
         collapsed: false,
         items: [
-          { text: "Overview", link: "/" },
-          { text: "About Stacks", link: "about-stacks" },
+          { text: 'Overview', link: '/' },
+          { text: 'About Stacks', link: 'about-stacks' },
         ],
       },
       {
-        text: "🛠️ Getting Started",
+        text: '🛠️ Getting Started',
         collapsed: false,
         items: [
-          { text: "Installation", link: "installation" },
-          { text: "Quick Start", link: "getting-started/" },
+          { text: 'Installation', link: 'installation' },
+          { text: 'Quick Start', link: 'getting-started/' },
         ],
       },
       {
-        text: "📚 Stacks",
+        text: '📚 Stacks',
         collapsed: false,
         items: [
-          { text: "Stack Configuration", link: "stacks/" },
-          { text: "Orchestration", link: "orchestration/" },
-          { text: "Tag Filter", link: "tag-filter" },
+          { text: 'Stack Configuration', link: 'stacks/' },
+          { text: 'Orchestration', link: 'orchestration/' },
+          { text: 'Tag Filter', link: 'tag-filter' },
         ],
       },
       {
-        text: "🕵️ Change Detection",
+        text: '🕵️ Change Detection',
         collapses: false,
         items: [
-          { text: "Stacks", link: "change-detection/#change-detection" },
+          { text: 'Stacks', link: 'change-detection/#change-detection' },
           {
-            text: "Modules",
-            link: "change-detection/#module-change-detection",
+            text: 'Modules',
+            link: 'change-detection/#module-change-detection',
           },
           {
-            text: "Arbitrary Files",
-            link: "change-detection/#arbitrary-files-change-detection",
+            text: 'Arbitrary Files',
+            link: 'change-detection/#arbitrary-files-change-detection',
           },
         ],
       },
       {
-        text: "🔗 Sharing Data",
-        link: "data-sharing",
+        text: '🔗 Sharing Data',
+        link: 'data-sharing',
         collapsed: false,
         items: [
-          { text: "Globals", link: "data-sharing/#globals" },
-          { text: "Lazy Evaluation", link: "data-sharing/#lazy-evaluation" },
-          { text: "Metadata", link: "data-sharing/#metadata" },
-          { text: "Map", link: "map" },
+          { text: 'Globals', link: 'data-sharing/#globals' },
+          { text: 'Lazy Evaluation', link: 'data-sharing/#lazy-evaluation' },
+          { text: 'Metadata', link: 'data-sharing/#metadata' },
+          { text: 'Map', link: 'map' },
         ],
       },
       {
-        text: "😍 Code Generation",
-        link: "code-generation/",
+        text: '😍 Code Generation',
+        link: 'code-generation/',
         collapsed: false,
         items: [
-          { text: "Overview", link: "code-generation/" },
-          { text: "Generate HCL", link: "code-generation/generate-hcl" },
-          { text: "Generate File", link: "code-generation/generate-file" },
+          { text: 'Overview', link: 'code-generation/' },
+          { text: 'Generate HCL', link: 'code-generation/generate-hcl' },
+          { text: 'Generate File', link: 'code-generation/generate-file' },
         ],
       },
       {
-        text: "🔧 Functions",
-        link: "functions",
+        text: '🔧 Functions',
+        link: 'functions',
         items: [
           {
-            text: "tm_ternary",
-            link: "functions/#tm-ternary-bool-expr-expr-expr",
+            text: 'tm_ternary',
+            link: 'functions/#tm-ternary-bool-expr-expr-expr',
           },
           {
-            text: "tm_hcl_expression",
-            link: "functions/#tm-hcl-expression-string-expr",
+            text: 'tm_hcl_expression',
+            link: 'functions/#tm-hcl-expression-string-expr',
           },
           {
-            text: "tm_version_match",
-            link: "functions/#tm-version-match-version-string-constraint-string-optional-arg-object",
+            text: 'tm_version_match',
+            link: 'functions/#tm-version-match-version-string-constraint-string-optional-arg-object',
           },
           {
-            text: "Experimental Functions",
-            link: "functions/#experimental-functions",
+            text: 'Experimental Functions',
+            link: 'functions/#experimental-functions',
           },
         ],
       },
       {
-        text: "⚙️ Configuration",
+        text: '⚙️ Configuration',
         collapsed: false,
         items: [
-          { text: "Terramate Configuration", link: "configuration/" },
-          { text: "Project Setup", link: "configuration/project-setup" },
+          { text: 'Terramate Configuration', link: 'configuration/' },
+          { text: 'Project Setup', link: 'configuration/project-setup' },
           {
-            text: "Project Configuration",
-            link: "configuration/project-config",
+            text: 'Project Configuration',
+            link: 'configuration/project-config',
           },
-          { text: "Upgrade Check", link: "configuration/upgrade-check" },
+          { text: 'Upgrade Check', link: 'configuration/upgrade-check' },
         ],
       },
       {
-        text: "🤓 Guides",
+        text: '🤓 Guides',
         collapsed: false,
         items: [
           {
-            text: "Introducing Terramate — An Orchestrator and Code Generator for Terraform",
-            link: "https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055",
+            text: 'Introducing Terramate — An Orchestrator and Code Generator for Terraform',
+            link: 'https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055',
           },
           {
-            text: "Understanding the basics of Terramate",
-            link: "https://blog.mineiros.io/understanding-the-basics-of-terramate-e0d8778f5c53",
+            text: 'Understanding the basics of Terramate',
+            link: 'https://blog.mineiros.io/understanding-the-basics-of-terramate-e0d8778f5c53',
           },
           {
-            text: "Terramate and Terragrunt",
-            link: "https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f",
+            text: 'Terramate and Terragrunt',
+            link: 'https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f',
           },
           {
-            text: "How to keep your Terraform code DRY by using Terramate",
-            link: "https://blog.mineiros.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6",
+            text: 'How to keep your Terraform code DRY by using Terramate',
+            link: 'https://blog.mineiros.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6',
           },
           {
-            text: "Introducing the Terramate VSCode Extension and Language Server",
-            link: "https://blog.mineiros.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c",
+            text: 'Introducing the Terramate VSCode Extension and Language Server',
+            link: 'https://blog.mineiros.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c',
           },
         ],
       },
       {
-        items: [{ text: "💬 Discord", link: "https://terramate.io/discord" }],
+        items: [{ text: '💬 Discord', link: 'https://terramate.io/discord' }],
       },
       // {
       //   text: '🤝🙇 Contributions',
@@ -253,10 +253,10 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/mineiros-io/terramate" },
-      { icon: "discord", link: "https://terramate.io/discord" },
-      { icon: "twitter", link: "https://twitter.com/mineirosio" },
-      { icon: "linkedin", link: "https://www.linkedin.com/company/terramate" },
+      { icon: 'github', link: 'https://github.com/mineiros-io/terramate' },
+      { icon: 'discord', link: 'https://terramate.io/discord' },
+      { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
+      { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
     ],
   },
-});
+})
