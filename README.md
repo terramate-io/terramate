@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://play.terramate.io">⚡ Playground</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/discord" title="Discord invite">🙌 Join Us</a>
+  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://play.terramate.io">⚡ Playground</a> | <a href="https://jobs.ashbyhq.com/mineiros.io" title="Terrmate Job Board">🙌 Join Us</a>
 </p>
 
 <br>
