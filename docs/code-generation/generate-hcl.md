@@ -1,17 +1,30 @@
+---
+title: HCL Code Generation | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Code Generation Overview'
+  link: '/code-generation/'
+
+next:
+  text: 'Generate File'
+  link: '/code-generation/generate-file'
+---
+
 # HCL Code Generation
 
-Terramate supports the generation of arbitrary HCL code referencing 
-[Terramate defined data](../sharing-data.md).
+Terramate supports the generation of arbitrary HCL code referencing
+[Terramate defined data](../data-sharing/index.md).
 
 The generated code can then be composed/referenced by any Terraform code
 inside a stack (or any other tool that uses HCL, like [Packer](https://www.packer.io/)).
 
 HCL code generation is done using `generate_hcl`
-blocks in [Terramate configuration files](../config-overview.md).
+blocks in [Terramate configuration files](../configuration/index.md).
 
 The code may include:
 
-* Blocks, sub blocks, etc 
+* Blocks, sub blocks, etc
 * Attributes initialized by literals
 * Terramate Global references
 * Terramate Metadata references
@@ -24,7 +37,7 @@ other reference is just transported to the generated code (partial evaluation).
 
 Each `generate_hcl` block requires a single label that is the path
 where the generated file will be saved.
-For more details about how code generation use labels check the [Labels Overview](overview.md#labels)) docs.
+For more details about how code generation use labels check the [Labels Overview](index.md#labels)) docs.
 
 Inside the `generate_hcl` block a `content` block is required.
 All code inside `content` is going to be used to generate the final HCL code.
@@ -125,7 +138,7 @@ but supports partial evaluation of the expanded code.
 
 The generate block's attributes can be provided by a `content` block, an
 `attributes` attribute, or even both if they don't conflict.
-When using the `content` block, additional sub-blocks can be generated and 
+When using the `content` block, additional sub-blocks can be generated and
 nested `tm_dynamic` blocks can be defined.
 
 Example using the `content` block:
@@ -142,7 +155,7 @@ generate_hcl "file.tf" {
       iterator = value
 
       content {
-        attr = "index: ${value.key}, value: ${value.value}" 
+        attr = "index: ${value.key}, value: ${value.value}"
         attr2 = not_evaluated.attr
       }
     }
@@ -229,7 +242,7 @@ generate_hcl "file.tf" {
       iterator = value
 
       attributes = {
-        attr = "index: ${value.key}, value: ${value.value}" 
+        attr = "index: ${value.key}, value: ${value.value}"
         attr2 = not_evaluated.attr
       }
     }

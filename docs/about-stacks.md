@@ -1,4 +1,17 @@
-# Why Use Stacks ?
+---
+title: An introduction to Stacks | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Overview'
+  link: '/'
+
+next:
+  text: 'Installation'
+  link: '/installation'
+---
+
+# About Stacks
 
 The stack concept is advised for several reasons. But before we go into
 **why** lets talk a little about **what** a stack is.

@@ -1,7 +1,12 @@
+---
+title: Command Line Interface (CLI) | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+---
+
 # Command Line Interface (CLI)
 
 The `terramate` tool has a rich command-line interface, supporting verbosity
-levels, logging levels, multiple sub-commands (+experimental), autocompletion 
+levels, logging levels, multiple sub-commands (+experimental), autocompletion
 and so on.
 
 To view a list of available commands and global flags, execute `terramate --help`:
@@ -66,7 +71,7 @@ terramate install-completions
 
 # CLI Configuration File
 
-Terramate supports a per-user configuration file called `.terramaterc` (or 
+Terramate supports a per-user configuration file called `.terramaterc` (or
 `terramate.rc` on Windows) which applies to all Terramate projects in the user's
 machine by setting up default values for some CLI flags.
 
@@ -80,11 +85,11 @@ Below is a list of options:
 
 - `disable_checkpoint`
 
-When set to `true`, disables [upgrade and security bulletin checks](./upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
+When set to `true`, disables [upgrade and security bulletin checks](./configuration/upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
 
 - `disable_checkpoint_signature`
 
- when set to `true`, still allows the [upgrade and security bulletin checks](./upgrade-check.md)
+ when set to `true`, still allows the [upgrade and security bulletin checks](./configuration/upgrade-check.md)
  described above but disables the use of an anonymous id used to de-duplicate warning messages.
 
 ## Location
@@ -92,9 +97,9 @@ When set to `true`, disables [upgrade and security bulletin checks](./upgrade-ch
 The configuration should be placed in a different path depending on the operating
 system:
 
-On _Windows_, the file must be named `terraform.rc` and placed in the user's 
-`%APPDATA%` directory. The location of this directory depends on your _Windows_ 
-version and system configuration. You can use the command below in _PowerShell_ to 
+On _Windows_, the file must be named `terraform.rc` and placed in the user's
+`%APPDATA%` directory. The location of this directory depends on your _Windows_
+version and system configuration. You can use the command below in _PowerShell_ to
 find its location:
 
 ```PowerShell
@@ -105,7 +110,7 @@ On Unix-based systems (_Linux_, _MacOS_, _*BSD_, etc), the file must be named
 `.terraformrc` and placed in the home directory of the relevant user.
 
 The default location of the Terramate CLI configuration file can also be specified
-using the `TM_CLI_CONFIG_FILE` environment variable. 
+using the `TM_CLI_CONFIG_FILE` environment variable.
 Example:
 
 ```bash

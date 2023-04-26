@@ -1,0 +1,40 @@
+/**
+ * Copyright 2023 Mineiros GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+:root {
+  --vp-c-brand: #DC5C72;
+  --vp-c-brand-light: var(--vp-c-green-light);
+  --vp-c-brand-lighter: var(--vp-c-green-lighter);
+  --vp-c-brand-dark: #9F4FDA;
+  --vp-c-brand-darker: #9F4FDA;
+  --vp-button-brand-hover-border: #9F4FDA;
+  --vp-c-green-lighter: #DC5C72;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(292.7deg, #DC5C72 14.54%, #9F4FDA 84.59%);
+  --vp-home-hero-image-filter: blur(72px);
+}
+
+/**
+ * Component: Button
+ * -------------------------------------------------------------------------- */
+
+.clip {
+  background: var(--vp-home-hero-name-background);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: var(--vp-home-hero-name-color);
+}
+
