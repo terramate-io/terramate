@@ -44,6 +44,9 @@ export default defineConfig({
     //   alt: 'Terramate',
     // },
 
+    // https://vitepress.dev/reference/site-config#appearance
+    appearance: 'dark',
+
     // https://vitepress.dev/reference/default-theme-search#local-search
     search: {
       provider: 'local',
