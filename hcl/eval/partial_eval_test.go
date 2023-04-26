@@ -343,7 +343,7 @@ EOT
 		},
 	} {
 		tc := tc
-		t.Run(tc.expr, func(t *testing.T) {
+		t.Run(firstN(tc.expr, 10), func(t *testing.T) {
 			s := sandbox.New(t)
 			root, err := config.LoadRoot(s.RootDir())
 			assert.NoError(t, err)
@@ -376,4 +376,15 @@ EOT
 			assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 		})
 	}
+}
+
+func firstN(s string, n int) string {
+	i := 0
+	for j := range s {
+		if i == n {
+			return s[:j]
+		}
+		i++
+	}
+	return s
 }
