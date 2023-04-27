@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eval
+package eval_test
 
 import (
 	"testing"
@@ -22,179 +22,182 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
 
-func TestStmtsLookupRef(t *testing.T) {
+func TestStmtSelectBy(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
 		name  string
-		ref   Ref
-		stmts Stmts
-		want  Stmts
+		ref   eval.Ref
+		stmts eval.Stmts
+		want  eval.Stmts
 		found bool
 	}
 
 	for _, tc := range []testcase{
 		{
 			name: "exact match with origin",
-			ref:  Ref{Object: "global", Path: []string{"a", "b"}},
-			stmts: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			ref:  eval.Ref{Object: "global", Path: []string{"a", "b"}},
+			stmts: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"c"}},
-					Origin: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			want: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
 			},
 			found: true,
 		},
 		{
 			name: "exact match with lhs",
-			ref:  Ref{Object: "global", Path: []string{"a", "b"}},
-			stmts: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a"}},
+			ref:  eval.Ref{Object: "global", Path: []string{"a", "b"}},
+			stmts: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"c"}},
-					Origin: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a"}},
+			want: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a"}},
 				},
 			},
 			found: true,
 		},
 		{
 			name: "partial match",
-			ref:  Ref{Object: "global", Path: []string{"a"}},
-			stmts: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			ref:  eval.Ref{Object: "global", Path: []string{"a"}},
+			stmts: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "c"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "c"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"c"}},
-					Origin: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			want: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "c"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "c"}},
 				},
 			},
 			found: false,
 		},
 		{
 			name: "no match -- in same branch",
-			ref:  Ref{Object: "global", Path: []string{"a", "b", "c"}},
-			stmts: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			ref:  eval.Ref{Object: "global", Path: []string{"a", "b", "c"}},
+			stmts: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "c"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "c"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"c"}},
-					Origin: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			want: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
 			},
 			found: false,
 		},
 		{
 			name: "no match -- in different branch",
-			ref:  Ref{Object: "global", Path: []string{"unknown"}},
-			stmts: Stmts{
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "b"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "b"}},
+			ref:  eval.Ref{Object: "global", Path: []string{"unknown"}},
+			stmts: eval.Stmts{
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "b"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"a", "c"}},
-					Origin: Ref{Object: "global", Path: []string{"a", "c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"a", "c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"a", "c"}},
 				},
-				Stmt{
-					LHS:    Ref{Object: "global", Path: []string{"c"}},
-					Origin: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS:    eval.Ref{Object: "global", Path: []string{"c"}},
+					Origin: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want:  Stmts{},
+			want:  eval.Stmts{},
 			found: false,
 		},
 		{
 			name: "root match -- should always return all globals",
-			ref:  Ref{Object: "global"},
-			stmts: Stmts{
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"a", "b"}},
+			ref:  eval.Ref{Object: "global"},
+			stmts: eval.Stmts{
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"a"}},
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"a"}},
 				},
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"b"}},
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"b"}},
 				},
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
-			want: Stmts{
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"a", "b"}},
+			want: eval.Stmts{
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"a", "b"}},
 				},
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"a"}},
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"a"}},
 				},
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"b"}},
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"b"}},
 				},
-				Stmt{
-					LHS: Ref{Object: "global", Path: []string{"c"}},
+				eval.Stmt{
+					LHS: eval.Ref{Object: "global", Path: []string{"c"}},
 				},
 			},
 		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got, found := tc.stmts.SelectBy(tc.ref, map[RefStr]Ref{})
+			t.Parallel()
+
+			got, found := tc.stmts.SelectBy(tc.ref, map[eval.RefStr]eval.Ref{})
 			if found != tc.found {
 				t.Fatalf("expected found=%t but got %t", found, tc.found)
 			}
 			if diff := cmp.Diff(got, tc.want,
-				cmp.AllowUnexported(Stmt{}, project.Path{}, info.Range{}, info.Pos{}, hhcl.Range{}),
+				cmp.AllowUnexported(eval.Stmt{}, project.Path{}, info.Range{}, info.Pos{}, hhcl.Range{}),
 				cmpopts.IgnoreTypes(cty.Value{})); diff != "" {
 				t.Fatal(diff)
 			}

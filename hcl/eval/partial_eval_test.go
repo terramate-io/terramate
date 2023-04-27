@@ -348,11 +348,11 @@ EOT
 			root, err := config.LoadRoot(s.RootDir())
 			assert.NoError(t, err)
 			predefined := eval.Stmts{}
-			predefined = append(predefined, eval.NewStmtHelper(t, "global.string", `"terramate"`)...)
-			predefined = append(predefined, eval.NewStmtHelper(t, "global.number", `10`)...)
-			predefined = append(predefined, eval.NewStmtHelper(t, "global.list", `[0, 1, 2, 3]`)...)
-			predefined = append(predefined, eval.NewStmtHelper(t, "global.strings", `["terramate", "is", "fun"]`)...)
-			predefined = append(predefined, eval.NewStmtHelper(t, "global.obj", `{
+			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.string", `"terramate"`)...)
+			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.number", `10`)...)
+			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.list", `[0, 1, 2, 3]`)...)
+			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.strings", `["terramate", "is", "fun"]`)...)
+			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.obj", `{
 				a = 0
 				b = ["terramate"]
 			}`)...)

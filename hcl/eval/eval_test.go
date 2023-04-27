@@ -33,6 +33,7 @@ type want struct {
 	err   error
 	value cty.Value
 }
+
 type testcase struct {
 	name    string
 	basedir string

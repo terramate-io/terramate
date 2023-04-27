@@ -90,12 +90,12 @@ EOT`,
 		//resolver := globals.NewResolver(root.Tree())
 
 		globalsStmts := eval.Stmts{
-			eval.NewStmt(t, `global.str`, `"mineiros.io"`),
-			eval.NewStmt(t, `global.bool`, `true`),
-			eval.NewStmt(t, `global.list`, `[1, 2, 3]`),
+			eval.NewTestStmt(t, `global.str`, `"mineiros.io"`),
+			eval.NewTestStmt(t, `global.bool`, `true`),
+			eval.NewTestStmt(t, `global.list`, `[1, 2, 3]`),
 		}
 
-		globalsStmts = append(globalsStmts, eval.NewStmtHelper(t, `global.obj`, `{
+		globalsStmts = append(globalsStmts, eval.NewTestStmtFrom(t, `global.obj`, `{
 			a = "b"
 			b = "c"
 			c = "d"

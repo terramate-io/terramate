@@ -16,7 +16,6 @@ package eval
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
@@ -103,11 +102,7 @@ func New(evaluators ...Resolver) *Context {
 // SetResolver sets the resolver ev into the context.
 func (c *Context) SetResolver(ev Resolver) {
 	c.evaluators[ev.Name()] = ev
-	ns := namespace{
-		persist: true,
-		byref:   make(map[RefStr]value),
-		bykey:   orderedmap.New[string, any](),
-	}
+	ns := newNamespace()
 	c.ns[ev.Name()] = ns
 
 	prevalue := ev.Prevalue()
@@ -312,10 +307,9 @@ func (c *Context) set(lhs Stmt, val cty.Value) error {
 				if _, ok := ns.byref[r.AsKey()]; !ok {
 					ns.byref[r.AsKey()] = value{
 						stmt: Stmt{
-							LHS:          r,
-							Origin:       r,
-							Special:      true,
-							RHSEvaluated: cty.EmptyObjectVal,
+							LHS:     r,
+							Origin:  r,
+							Special: true,
 						},
 						value: cty.EmptyObjectVal,
 						info:  lhs.Info,
@@ -336,10 +330,9 @@ func (c *Context) set(lhs Stmt, val cty.Value) error {
 			if _, ok := ns.byref[r.AsKey()]; !ok {
 				ns.byref[r.AsKey()] = value{
 					stmt: Stmt{
-						LHS:          r,
-						Origin:       r,
-						Special:      true,
-						RHSEvaluated: cty.EmptyObjectVal,
+						LHS:     r,
+						Origin:  r,
+						Special: true,
 					},
 					value: cty.EmptyObjectVal,
 					info:  lhs.Info,
@@ -458,17 +451,6 @@ func (c *Context) SetFunctions(funcs map[string]function.Function) {
 	c.hclctx.Functions = funcs
 }
 
-// SetEnv sets the given environment on the env namespace of the evaluation context.
-// environ must be on the same format as os.Environ().
-func (c *Context) SetEnv(environ []string) {
-	env := map[string]cty.Value{}
-	for _, v := range environ {
-		parsed := strings.Split(v, "=")
-		env[parsed[0]] = cty.StringVal(parsed[1])
-	}
-	c.SetNamespace("env", env)
-}
-
 // DeleteNamespace deletes the namespace name from the context.
 // If name is not in the context, it's a no-op.
 func (c *Context) DeleteNamespace(name string) {
@@ -514,5 +496,13 @@ func (c *Context) Unwrap() *hhcl.EvalContext {
 func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
+	}
+}
+
+func newNamespace() namespace {
+	return namespace{
+		persist: true,
+		byref:   make(map[RefStr]value),
+		bykey:   orderedmap.New[string, any](),
 	}
 }

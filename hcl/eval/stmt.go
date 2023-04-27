@@ -32,12 +32,10 @@ import (
 type (
 	// Stmt represents a `var-decl` stmt.
 	Stmt struct {
-		LHS          Ref
-		RHS          hhcl.Expression
-		RHSEvaluated cty.Value
+		LHS Ref
+		RHS hhcl.Expression
 
-		IsEvaluated bool
-		Special     bool
+		Special bool
 
 		// Origin is the *origin ref*. If it's nil, then it's the same as LHS.
 		Origin Ref
@@ -55,8 +53,17 @@ type (
 	}
 )
 
-// NewStmtHelper is a testing purspose method that initializes a Stmt.
-func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
+// NewStmt creates a new stmt.
+func NewStmt(origin Ref, lhs Ref, rhs hhcl.Expression) Stmt {
+	return Stmt{
+		Origin: origin,
+		LHS:    lhs,
+		RHS:    rhs,
+	}
+}
+
+// NewTestStmtFrom is a testing purspose method that initializes a Stmt.
+func NewTestStmtFrom(t testing.TB, lhs string, rhs string) Stmts {
 	lhsRef := NewRef(t, lhs)
 	tmpExpr, err := ast.ParseExpression(rhs, `<test>`)
 	assert.NoError(t, err)
@@ -67,8 +74,8 @@ func NewStmtHelper(t testing.TB, lhs string, rhs string) Stmts {
 	return stmts
 }
 
-// NewStmt is a testing purspose method that initializes a Stmt.
-func NewStmt(t testing.TB, lhs string, rhs string) Stmt {
+// NewTestStmt is a testing purspose method that initializes a Stmt.
+func NewTestStmt(t testing.TB, lhs string, rhs string) Stmt {
 	lhsRef := NewRef(t, lhs)
 	rhsExpr, err := ast.ParseExpression(rhs, `<test>`)
 	assert.NoError(t, err)
@@ -86,8 +93,6 @@ func (stmt Stmt) String() string {
 	var rhs string
 	if stmt.Special {
 		rhs = "{} (special)"
-	} else if stmt.RHS == nil {
-		rhs = string(ast.TokensForValue(stmt.RHSEvaluated).Bytes())
 	} else {
 		rhs = string(ast.TokensForExpression(stmt.RHS).Bytes())
 	}
