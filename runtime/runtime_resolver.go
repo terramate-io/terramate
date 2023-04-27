@@ -17,6 +17,7 @@ package runtime
 import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,18 +25,27 @@ import (
 // It resolves references to variables of form `terramate.<object path>`
 type Resolver struct {
 	terramate cty.Value
+	scope     project.Path
 }
 
 // NewResolver returns a new resolver for terramate runtime variables.
 func NewResolver(root *config.Root, stack *config.Stack) *Resolver {
 	runtime := root.Runtime()
+	var scope project.Path
 	if stack != nil {
 		runtime.Merge(stack.RuntimeValues(root))
+		scope = stack.Dir
+	} else {
+		scope = project.NewPath("/")
 	}
 	return &Resolver{
 		terramate: cty.ObjectVal(runtime),
+		scope:     scope,
 	}
 }
+
+// Scope of the runtime resolver.
+func (r *Resolver) Scope() project.Path { return project.NewPath("/") }
 
 // Name returns the variable name.
 func (r *Resolver) Name() string { return "terramate" }

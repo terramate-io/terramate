@@ -1514,7 +1514,7 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 				End:      hhcl.InitialPos,
 				Filename: `<cmdline>`,
 			})),
-			RHS: expr,
+			RHS: eval.NewExprRHS(expr),
 		})
 	}
 	tree, _ := c.cfg().Lookup(pdir)

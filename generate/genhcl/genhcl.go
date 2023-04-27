@@ -262,7 +262,7 @@ func evalBlock(evalctx *eval.Context,
 	evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 	gen := hclwrite.NewEmptyFile()
-	if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
+	if err := copyBody(st.Dir, gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
 		return HCL{}, false, errors.E(ErrContentEval, err, "generate_hcl %q", name)
 	}
 
@@ -323,9 +323,10 @@ func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
+func copyBody(scope project.Path, dest *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "genhcl.copyBody()").
+		Stringer("scope", scope).
 		Logger()
 
 	logger.Trace().Msg("sorting attributes")
@@ -356,7 +357,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) e
 	logger.Trace().Msg("appending blocks")
 
 	for _, block := range src.Blocks {
-		err := appendBlock(dest, block, evalctx)
+		err := appendBlock(scope, dest, block, evalctx)
 		if err != nil {
 			return err
 		}
@@ -365,14 +366,14 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) e
 	return nil
 }
 
-func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, evalctx *eval.Context) error {
+func appendBlock(scope project.Path, target *hclwrite.Body, block *hclsyntax.Block, evalctx *eval.Context) error {
 	if block.Type == "tm_dynamic" {
-		return appendDynamicBlocks(target, block, evalctx)
+		return appendDynamicBlocks(scope, target, block, evalctx)
 	}
 
 	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 	if block.Body != nil {
-		err := copyBody(targetBlock.Body(), block.Body, evalctx)
+		err := copyBody(scope, targetBlock.Body(), block.Body, evalctx)
 		if err != nil {
 			return err
 		}
@@ -381,6 +382,7 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, evalctx *eval.Co
 }
 
 func appendDynamicBlock(
+	scope project.Path,
 	destination *hclwrite.Body,
 	evalctx *eval.Context,
 	genBlockType string,
@@ -494,7 +496,7 @@ func appendDynamicBlock(
 				)
 			}
 		}
-		err := copyBody(newblock.Body(), contentBlock.Body, evalctx)
+		err := copyBody(scope, newblock.Body(), contentBlock.Body, evalctx)
 		if err != nil {
 			return err
 		}
@@ -521,7 +523,7 @@ func setBodyAttributes(body *hclwrite.Body, attrs []tmAttribute) error {
 	return nil
 }
 
-func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalctx *eval.Context) error {
+func appendDynamicBlocks(scope project.Path, target *hclwrite.Body, dynblock *hclsyntax.Block, evalctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
@@ -595,7 +597,7 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalc
 				"iterator should not be defined when for_each is omitted")
 		}
 
-		return appendDynamicBlock(target, evalctx, genBlockType, attrs, contentBlock)
+		return appendDynamicBlock(scope, target, evalctx, genBlockType, attrs, contentBlock)
 	}
 
 	logger.Trace().Msg("defining iterator name")
@@ -626,9 +628,9 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalc
 	var tmDynamicErr error
 
 	foreach.ForEachElement(func(key, value cty.Value) (stop bool) {
-		evalctx.SetResolver(newTmDynamicResolver(iterator, key, value))
+		evalctx.SetResolver(newTmDynamicResolver(iterator, scope, key, value))
 
-		if err := appendDynamicBlock(target, evalctx, genBlockType, attrs, contentBlock); err != nil {
+		if err := appendDynamicBlock(scope, target, evalctx, genBlockType, attrs, contentBlock); err != nil {
 			tmDynamicErr = err
 			return true
 		}
@@ -714,15 +716,17 @@ func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...inter
 
 type tmDynamicIteratorResolver struct {
 	name     string
+	scope    project.Path
 	iterator cty.Value
 }
 
-func newTmDynamicResolver(name string, key, val cty.Value) *tmDynamicIteratorResolver {
+func newTmDynamicResolver(name string, scope project.Path, key, val cty.Value) *tmDynamicIteratorResolver {
 	obj := map[string]cty.Value{
 		"key":   key,
 		"value": val,
 	}
 	return &tmDynamicIteratorResolver{
+		scope:    scope,
 		name:     name,
 		iterator: cty.ObjectVal(obj),
 	}
@@ -731,6 +735,8 @@ func newTmDynamicResolver(name string, key, val cty.Value) *tmDynamicIteratorRes
 func (r *tmDynamicIteratorResolver) Name() string { return r.name }
 
 func (r *tmDynamicIteratorResolver) Prevalue() cty.Value { return r.iterator }
+
+func (r *tmDynamicIteratorResolver) Scope() project.Path { return r.scope }
 
 func (r *tmDynamicIteratorResolver) LoadStmts() (eval.Stmts, error) {
 	return eval.Stmts{}, nil

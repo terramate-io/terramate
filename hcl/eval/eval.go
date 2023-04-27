@@ -19,6 +19,7 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/project"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -52,6 +53,7 @@ type (
 		Name() string
 		Prevalue() cty.Value
 		LookupRef(Ref) (Stmts, error)
+		Scope() project.Path
 	}
 
 	namespaces map[string]namespace
@@ -109,16 +111,8 @@ func (c *Context) SetResolver(ev Resolver) {
 	if prevalue.Type().IsObjectType() {
 		values := prevalue.AsValueMap()
 		for key, val := range values {
-			err := c.set(Stmt{
-				Origin: Ref{
-					Object: ev.Name(),
-					Path:   []string{key},
-				},
-				LHS: Ref{
-					Object: ev.Name(),
-					Path:   []string{key},
-				},
-			}, val)
+			origin := NewRef(ev.Name(), []string{key}...)
+			err := c.set(NewValStmt(origin, origin, val, newBuiltinInfo(ev.Scope())))
 			if err != nil {
 				panic(errors.E(errors.ErrInternal, "failed to initialize context"))
 			}
@@ -202,16 +196,25 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 				}
 			}
 
-			var val cty.Value
-			var err error
 			if stmt.Special {
-				val = cty.ObjectVal(map[string]cty.Value{})
-			} else {
-				val, err = c.eval(stmt.RHS, visited)
+				err := c.setExtend(stmt)
+				if err != nil {
+					return cty.NilVal, errors.E(ErrEval, err)
+				}
+				continue
 			}
 
-			if err != nil {
-				return cty.NilVal, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Info.Scope)
+			var val cty.Value
+			var err error
+			if stmt.RHS.IsEvaluated {
+				val, _ = stmt.RHS.Value(nil)
+			} else {
+				val, err = c.eval(stmt.RHS, visited)
+				if err != nil {
+					return cty.NilVal, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Info.Scope)
+				}
+				stmt.RHS.value = val
+				stmt.RHS.IsEvaluated = true
 			}
 
 			if val.Type().Equals(unset) {
@@ -223,7 +226,7 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 				continue
 			}
 
-			err = c.set(stmt, val)
+			err = c.set(stmt)
 			if err != nil {
 				return cty.NilVal, errors.E(ErrEval, err)
 			}
@@ -248,106 +251,27 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 	return val, nil
 }
 
-func (c *Context) set(lhs Stmt, val cty.Value) error {
-	ref := lhs.LHS
-
-	if val.Type().IsObjectType() && !lhs.Special {
-		origin := Ref{
-			Object: ref.Object,
-			Path:   make([]string, len(ref.Path)),
-		}
-		copy(origin.Path, ref.Path)
-		tokens := ast.TokensForValue(val)
-		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<eval>`)
-
-		stmts, err := StmtsOf(lhs.Info, origin, origin.Path, expr)
-		if err != nil {
-			return err
-		}
-		for _, s := range stmts {
-			v, _ := s.RHS.Value(nil)
-			if other, ok := c.ns.Get(s.LHS); ok {
-				if !s.Special && !other.stmt.Special &&
-					other.info.Scope == s.Info.Scope &&
-					other.info.DefinedAt.Path().Dir() == s.Info.DefinedAt.Path().Dir() &&
-					other.info.DefinedAt != s.Info.DefinedAt {
-					return errors.E(ErrRedefined, s.Info.DefinedAt,
-						"variable %s already set in the scope %s at %s",
-						s, s.Info.Scope, other.info.DefinedAt.String())
-				}
-				if !other.value.Type().IsObjectType() || !other.stmt.Special {
-					// stmt already evaluated
-					// This can happen when the current scope is overriding the parent
-					// object but still the target expr is looking for the entire object
-					// so we still have to ascent into parent scope and then the "already
-					// overridden" refs show up here.
-					continue
-				}
-			}
-
-			err := c.set(s, v)
-			if err != nil {
-				return err
-			}
-		}
-		if len(stmts) > 0 {
-			return nil
-		}
-	}
-
+func (c *Context) setExtend(stmt Stmt) error {
+	ref := stmt.LHS
 	ns, ok := c.ns[ref.Object]
 	if !ok {
 		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
 	}
 
-	oldval, hasold := ns.byref[ref.AsKey()]
-	if lhs.Special {
-		if !hasold {
-			for _, r := range ref.Comb() {
-				if _, ok := ns.byref[r.AsKey()]; !ok {
-					ns.byref[r.AsKey()] = value{
-						stmt: Stmt{
-							LHS:     r,
-							Origin:  r,
-							Special: true,
-						},
-						value: cty.EmptyObjectVal,
-						info:  lhs.Info,
-					}
-					ns.persist = true
-				} else {
-					break
-				}
-			}
-		}
-	} else {
-		if hasold {
-			if len(oldval.info.Scope.String()) > len(lhs.Info.Scope.String()) {
-				return nil
-			}
-		}
+	_, hasold := ns.byref[ref.AsKey()]
+	if !hasold {
 		for _, r := range ref.Comb() {
 			if _, ok := ns.byref[r.AsKey()]; !ok {
 				ns.byref[r.AsKey()] = value{
-					stmt: Stmt{
-						LHS:     r,
-						Origin:  r,
-						Special: true,
-					},
+					stmt:  NewExtendStmt(r, stmt.Info),
 					value: cty.EmptyObjectVal,
-					info:  lhs.Info,
+					info:  stmt.Info,
 				}
 				ns.persist = true
 			} else {
 				break
 			}
 		}
-		ns.byref[ref.AsKey()] = value{
-			stmt:  lhs,
-			value: val,
-			info:  lhs.Info,
-		}
-		ns.persist = true
 	}
 
 	obj := ns.bykey
@@ -373,22 +297,123 @@ func (c *Context) set(lhs Stmt, val cty.Value) error {
 		}
 	}
 
-	if lhs.Special {
-		_, found := obj.Get(ref.Path[lastIndex])
-		if found {
+	_, found := obj.Get(ref.Path[lastIndex])
+	if found {
+		return nil
+	}
+	tempMap := orderedmap.New[string, any]()
+	obj.Set(ref.Path[lastIndex], tempMap)
+	return nil
+}
+
+func (c *Context) set(stmt Stmt) error {
+	if !stmt.RHS.IsEvaluated {
+		panic(errors.E(errors.ErrInternal, "stmt must be evaluated"))
+	}
+	ref := stmt.LHS
+	val, _ := stmt.RHS.Value(nil)
+
+	if val.Type().IsObjectType() {
+		origin := NewRef(ref.Object, ref.Path...)
+		tokens := ast.TokensForValue(val)
+		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<eval>`)
+
+		stmts, err := StmtsOf(stmt.Info, origin, origin.Path, expr)
+		if err != nil {
+			return err
+		}
+		for _, s := range stmts {
+			v, _ := s.RHS.Value(nil)
+			if other, ok := c.ns.Get(s.LHS); ok {
+				if !s.Special && !other.stmt.Special &&
+					other.info.Scope == s.Info.Scope &&
+					other.info.DefinedAt.Path().Dir() == s.Info.DefinedAt.Path().Dir() &&
+					other.info.DefinedAt != s.Info.DefinedAt {
+					return errors.E(ErrRedefined, s.Info.DefinedAt,
+						"variable %s already set in the scope %s at %s",
+						s, s.Info.Scope, other.info.DefinedAt.String())
+				}
+				if !other.value.Type().IsObjectType() || !other.stmt.Special {
+					// stmt already evaluated
+					// This can happen when the current scope is overriding the parent
+					// object but still the target expr is looking for the entire object
+					// so we still have to ascent into parent scope and then the "already
+					// overridden" refs show up here.
+					continue
+				}
+			}
+
+			s.RHS.value = v
+			s.RHS.IsEvaluated = true
+
+			err := c.set(s)
+			if err != nil {
+				return err
+			}
+		}
+		if len(stmts) > 0 {
 			return nil
 		}
-		tempMap := orderedmap.New[string, any]()
-		obj.Set(ref.Path[lastIndex], tempMap)
+	}
 
+	ns, ok := c.ns[ref.Object]
+	if !ok {
+		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
+	}
+
+	oldval, hasold := ns.byref[ref.AsKey()]
+
+	if hasold && len(oldval.info.Scope.String()) > len(stmt.Info.Scope.String()) {
 		return nil
 	}
 
-	if hasold && oldval.stmt.Special && oldval.info.Scope == lhs.Info.Scope {
+	for _, r := range ref.Comb() {
+		if _, ok := ns.byref[r.AsKey()]; !ok {
+			ns.byref[r.AsKey()] = value{
+				stmt:  NewExtendStmt(r, stmt.Info),
+				value: cty.EmptyObjectVal,
+				info:  stmt.Info,
+			}
+			ns.persist = true
+		} else {
+			break
+		}
+	}
+	ns.byref[ref.AsKey()] = value{
+		stmt:  stmt,
+		value: val,
+		info:  stmt.Info,
+	}
+
+	ns.persist = true
+	obj := ns.bykey
+
+	// len(path) >= 1
+
+	lastIndex := len(ref.Path) - 1
+	for _, path := range ref.Path[:lastIndex] {
+		v, ok := obj.Get(path)
+		if ok {
+			switch vv := v.(type) {
+			case *orderedmap.OrderedMap[string, any]:
+				obj = vv
+			case cty.Value:
+				return errors.E("%s points to a %s type but expects an object", ref, vv.Type().FriendlyName())
+			default:
+				panic(vv)
+			}
+		} else {
+			tempMap := orderedmap.New[string, any]()
+			obj.Set(path, tempMap)
+			obj = tempMap
+		}
+	}
+
+	if hasold && oldval.stmt.Special && oldval.info.Scope == stmt.Info.Scope {
 		return errors.E(
 			ErrEval,
 			"variable %s being extended but was previously evaluated as %s in the same scope",
-			lhs.LHS, ast.TokensForValue(oldval.value).Bytes(),
+			stmt.LHS, ast.TokensForValue(oldval.value).Bytes(),
 		)
 	}
 	ns.persist = true

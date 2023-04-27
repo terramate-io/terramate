@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/runtime"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -90,12 +91,12 @@ EOT`,
 		//resolver := globals.NewResolver(root.Tree())
 
 		globalsStmts := eval.Stmts{
-			eval.NewTestStmt(t, `global.str`, `"mineiros.io"`),
-			eval.NewTestStmt(t, `global.bool`, `true`),
-			eval.NewTestStmt(t, `global.list`, `[1, 2, 3]`),
+			test.NewStmt(t, `global.str`, `"mineiros.io"`),
+			test.NewStmt(t, `global.bool`, `true`),
+			test.NewStmt(t, `global.list`, `[1, 2, 3]`),
 		}
 
-		globalsStmts = append(globalsStmts, eval.NewTestStmtFrom(t, `global.obj`, `{
+		globalsStmts = append(globalsStmts, test.NewStmtFrom(t, `global.obj`, `{
 			a = "b"
 			b = "c"
 			c = "d"

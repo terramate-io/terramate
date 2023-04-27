@@ -17,11 +17,10 @@ package eval
 import (
 	"fmt"
 	"strconv"
-	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/madlambda/spells/assert"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/info"
@@ -33,14 +32,22 @@ type (
 	// Stmt represents a `var-decl` stmt.
 	Stmt struct {
 		LHS Ref
-		RHS hhcl.Expression
+		RHS *RHS
 
 		Special bool
 
-		// Origin is the *origin ref*. If it's nil, then it's the same as LHS.
+		// Origin is the *origin ref*.
 		Origin Ref
 
 		Info Info
+	}
+
+	// RHS is the right-hand side of an statement.
+	// It could be an evaluated value or an expression.
+	RHS struct {
+		IsEvaluated bool
+		hhcl.Expression
+		value cty.Value
 	}
 
 	// Stmts is a list of statements.
@@ -53,37 +60,80 @@ type (
 	}
 )
 
-// NewStmt creates a new stmt.
-func NewStmt(origin Ref, lhs Ref, rhs hhcl.Expression) Stmt {
+// ensures RHS is a tokenizer
+var _ ast.Tokenizer = NewExprRHS(nil)
+
+// NewExprStmt creates a new stmt.
+func NewExprStmt(origin Ref, lhs Ref, rhs hhcl.Expression, info Info) Stmt {
 	return Stmt{
 		Origin: origin,
 		LHS:    lhs,
-		RHS:    rhs,
+		RHS:    NewExprRHS(rhs),
+		Info:   info,
 	}
 }
 
-// NewTestStmtFrom is a testing purspose method that initializes a Stmt.
-func NewTestStmtFrom(t testing.TB, lhs string, rhs string) Stmts {
-	lhsRef := NewRef(t, lhs)
-	tmpExpr, err := ast.ParseExpression(rhs, `<test>`)
-	assert.NoError(t, err)
-
-	stmts, err := StmtsOf(newSameInfo("/"), lhsRef, lhsRef.Path, tmpExpr)
-	assert.NoError(t, err)
-
-	return stmts
+// NewValStmt creates a new stmt.
+func NewValStmt(origin Ref, lhs Ref, rhs cty.Value, info Info) Stmt {
+	return Stmt{
+		Origin: origin,
+		LHS:    lhs,
+		RHS:    NewValRHS(rhs),
+		Info:   info,
+	}
 }
 
-// NewTestStmt is a testing purspose method that initializes a Stmt.
-func NewTestStmt(t testing.TB, lhs string, rhs string) Stmt {
-	lhsRef := NewRef(t, lhs)
-	rhsExpr, err := ast.ParseExpression(rhs, `<test>`)
-	assert.NoError(t, err)
+// NewValRHS creates a new RHS for an evaluated value.
+func NewValRHS(val cty.Value) *RHS {
+	return &RHS{
+		value:       val,
+		IsEvaluated: true,
+	}
+}
+
+// NewExprRHS creates a new RHS for an unevaluated expression.
+func NewExprRHS(expr hhcl.Expression) *RHS {
+	return &RHS{
+		Expression: expr,
+	}
+}
+
+// Value evaluates the RHS or returns the value if already evaluated.
+func (rhs *RHS) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
+	if rhs.IsEvaluated {
+		return rhs.value, nil
+	}
+	v, diags := rhs.Expression.Value(ctx)
+	if !diags.HasErrors() {
+		rhs.value = v
+		rhs.IsEvaluated = true
+	}
+	return v, diags
+}
+
+// String returns the string representation of the RHS.
+func (rhs *RHS) String() string {
+	if rhs.IsEvaluated {
+		return ast.StringForValue(rhs.value)
+	}
+	return string(ast.TokensForExpression(rhs.Expression).Bytes())
+}
+
+// Tokens tokenizes the RHS.
+func (rhs *RHS) Tokens() hclwrite.Tokens {
+	if rhs.IsEvaluated {
+		return ast.TokensForValue(rhs.value)
+	}
+	return ast.TokensForExpression(rhs.Expression)
+}
+
+// NewExtendStmt returns a statement that extend existent object accessors.
+func NewExtendStmt(origin Ref, info Info) Stmt {
 	return Stmt{
-		Origin: lhsRef,
-		LHS:    lhsRef,
-		RHS:    rhsExpr,
-		Info:   newSameInfo("/"),
+		Origin:  origin,
+		LHS:     origin,
+		Special: true,
+		Info:    info,
 	}
 }
 
@@ -92,9 +142,11 @@ func NewTestStmt(t testing.TB, lhs string, rhs string) Stmt {
 func (stmt Stmt) String() string {
 	var rhs string
 	if stmt.Special {
-		rhs = "{} (special)"
+		rhs = "{} (Extend)"
+	} else if stmt.RHS.IsEvaluated {
+		rhs = string(ast.TokensForValue(stmt.RHS.value).Bytes())
 	} else {
-		rhs = string(ast.TokensForExpression(stmt.RHS).Bytes())
+		rhs = string(ast.TokensForExpression(stmt.RHS.Expression).Bytes())
 	}
 	return fmt.Sprintf("%s = %s (scope=%s, definedAt=%s)",
 		stmt.LHS,
@@ -145,15 +197,12 @@ func StmtsOf(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts,
 			stmts = append(stmts, newStmts...)
 		}
 	default:
-		stmts = append(stmts, Stmt{
-			Origin: origin,
-			LHS: Ref{
-				Object: origin.Object,
-				Path:   newbase[0:last],
-			},
-			RHS:  expr,
-			Info: info,
-		})
+		stmts = append(stmts, NewExprStmt(
+			origin,
+			NewRef(origin.Object, newbase[0:last]...),
+			expr,
+			info,
+		))
 	}
 
 	return stmts, nil
@@ -197,16 +246,16 @@ outer:
 	return contains, false
 }
 
-func newSameInfo(path string) Info {
-	return Info{
-		Scope: project.NewPath(path),
-	}
-}
-
 // NewInfo returns a new Info.
 func NewInfo(scope project.Path, rng info.Range) Info {
 	return Info{
 		Scope:     scope,
 		DefinedAt: rng,
+	}
+}
+
+func newBuiltinInfo(scope project.Path) Info {
+	return Info{
+		Scope: scope,
 	}
 }

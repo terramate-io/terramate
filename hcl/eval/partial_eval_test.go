@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -348,11 +349,11 @@ EOT
 			root, err := config.LoadRoot(s.RootDir())
 			assert.NoError(t, err)
 			predefined := eval.Stmts{}
-			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.string", `"terramate"`)...)
-			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.number", `10`)...)
-			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.list", `[0, 1, 2, 3]`)...)
-			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.strings", `["terramate", "is", "fun"]`)...)
-			predefined = append(predefined, eval.NewTestStmtFrom(t, "global.obj", `{
+			predefined = append(predefined, test.NewStmtFrom(t, "global.string", `"terramate"`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.number", `10`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.list", `[0, 1, 2, 3]`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.strings", `["terramate", "is", "fun"]`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.obj", `{
 				a = 0
 				b = ["terramate"]
 			}`)...)

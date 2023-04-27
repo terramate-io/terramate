@@ -24,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -123,6 +122,8 @@ func (r *resolver) Name() string { return "env" }
 
 func (r *resolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
 
+func (r *resolver) Scope() project.Path { return project.NewPath("/") }
+
 func (r *resolver) LoadStmts() (eval.Stmts, error) {
 	stmts := make(eval.Stmts, len(r.env))
 	for _, env := range r.env {
@@ -134,13 +135,10 @@ func (r *resolver) LoadStmts() (eval.Stmts, error) {
 		}
 
 		val := cty.StringVal(strings.Join(nameval[1:], "="))
-		tokens := ast.TokensForValue(val)
-		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<environ>`)
-
 		stmts = append(stmts, eval.Stmt{
 			Origin: ref,
 			LHS:    ref,
-			RHS:    expr,
+			RHS:    eval.NewValRHS(val),
 			Info: eval.NewInfo(project.NewPath("/"), info.NewRange(r.rootdir, hhcl.Range{
 				Start:    hhcl.InitialPos,
 				End:      hhcl.InitialPos,

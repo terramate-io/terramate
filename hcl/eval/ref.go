@@ -17,8 +17,6 @@ package eval
 import (
 	"bytes"
 	"strconv"
-	"strings"
-	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/errors"
@@ -45,13 +43,16 @@ type (
 	Refs []Ref
 )
 
-// NewRef returns a new variable reference.
-func NewRef(t testing.TB, varname string) Ref {
-	paths := strings.Split(varname, ".")
-	return Ref{
-		Object: paths[0],
-		Path:   paths[1:],
+// NewRef creates a new reference.
+// The provided accessor is copied, and then safe to be modified.
+func NewRef(varname string, accessor ...string) Ref {
+	r := Ref{
+		Object: varname,
+		Path:   accessor,
 	}
+	r.Path = make([]string, len(accessor))
+	copy(r.Path, accessor)
+	return r
 }
 
 // AsKey returns a ref suitable to be used as a map key.

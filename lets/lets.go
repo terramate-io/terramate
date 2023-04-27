@@ -59,6 +59,9 @@ func (r *Resolver) Prevalue() cty.Value {
 	return cty.EmptyObjectVal
 }
 
+// Scope of the lets block.
+func (r *Resolver) Scope() project.Path { return r.scope }
+
 // LookupRef lookup the lets references.
 func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
 	stmts, err := r.loadStmts()

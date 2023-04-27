@@ -56,6 +56,9 @@ func NewResolver(tree *config.Tree, overrides ...eval.Stmt) *Resolver {
 	return r
 }
 
+// Scope of the resolver.
+func (r *Resolver) Scope() project.Path { return r.tree.Dir() }
+
 // Name of the variable.
 func (*Resolver) Name() string { return nsName }
 
@@ -95,14 +98,8 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 		if len(block.Labels) > 0 {
 			scope := tree.Dir()
 			stmts = append(stmts, eval.Stmt{
-				Origin: eval.Ref{
-					Object: nsName,
-					Path:   block.Labels,
-				},
-				LHS: eval.Ref{
-					Object: nsName,
-					Path:   block.Labels,
-				},
+				Origin:  eval.NewRef(nsName, block.Labels...),
+				LHS:     eval.NewRef(nsName, block.Labels...),
 				Special: true,
 				Info:    eval.NewInfo(scope, block.RawOrigins[0].Range),
 			})
@@ -118,13 +115,8 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 
 			definedAt := varsBlock.RawOrigins[0].Range
 
-			origin := eval.Ref{
-				Object: nsName,
-				Path:   make([]string, len(block.Labels)+1),
-			}
-
-			copy(origin.Path, block.Labels)
-			origin.Path[len(block.Labels)] = varName
+			origin := eval.NewRef(nsName, block.Labels...)
+			origin.Path = append(origin.Path, varName)
 
 			if _, ok := overrideMap[origin.AsKey()]; ok {
 				continue
@@ -144,12 +136,8 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 		}
 
 		for _, attr := range attrs {
-			origin := eval.Ref{
-				Object: nsName,
-				Path:   make([]string, len(block.Labels)+1),
-			}
-			copy(origin.Path, block.Labels)
-			origin.Path[len(block.Labels)] = attr.Name
+			origin := eval.NewRef(nsName, block.Labels...)
+			origin.Path = append(origin.Path, attr.Name)
 
 			if _, ok := overrideMap[origin.AsKey()]; ok {
 				continue
