@@ -267,22 +267,7 @@ func (c *Context) setExtend(stmt Stmt) error {
 		panic(errors.E(errors.ErrInternal, "there's no evaluator for namespace %q", ref.Object))
 	}
 
-	_, hasold := ns.byref[ref.AsKey()]
-	if !hasold {
-		for _, r := range ref.Comb() {
-			if _, ok := ns.byref[r.AsKey()]; ok {
-				break
-			}
-			ns.byref[r.AsKey()] = value{
-				stmt:  NewExtendStmt(r, stmt.Info),
-				value: cty.EmptyObjectVal,
-				info:  stmt.Info,
-			}
-			ns.persist = true
-		}
-	}
-
-	obj, err := traverseObject(&ns, ref)
+	obj, err := traverseObject(&ns, ref, stmt.Info)
 	if err != nil {
 		return err
 	}
@@ -304,14 +289,8 @@ func (c *Context) set(stmt Stmt) error {
 	val, _ := stmt.RHS.Value(nil)
 
 	if val.Type().IsObjectType() {
-		origin := NewRef(ref.Object, ref.Path...)
-		tokens := ast.TokensForValue(val)
-		expr, _ := ast.ParseExpression(string(tokens.Bytes()), `<eval>`)
-
-		stmts, err := StmtsOf(stmt.Info, origin, origin.Path, expr)
-		if err != nil {
-			return err
-		}
+		origin := ref
+		stmts := StmtsOfValue(stmt.Info, origin, origin.Path, val)
 		for _, s := range stmts {
 			val, hasVal, err := c.evalStmt(s, map[RefStr]hhcl.Expression{})
 			if err != nil {
@@ -344,18 +323,6 @@ func (c *Context) set(stmt Stmt) error {
 		return nil
 	}
 
-	for _, r := range ref.Comb() {
-		if _, ok := ns.byref[r.AsKey()]; !ok {
-			ns.byref[r.AsKey()] = value{
-				stmt:  NewExtendStmt(r, stmt.Info),
-				value: cty.EmptyObjectVal,
-				info:  stmt.Info,
-			}
-			ns.persist = true
-		} else {
-			break
-		}
-	}
 	ns.byref[ref.AsKey()] = value{
 		stmt:  stmt,
 		value: val,
@@ -364,7 +331,7 @@ func (c *Context) set(stmt Stmt) error {
 
 	ns.persist = true
 
-	obj, err := traverseObject(&ns, ref)
+	obj, err := traverseObject(&ns, ref, stmt.Info)
 	if err != nil {
 		return err
 	}
@@ -381,13 +348,13 @@ func (c *Context) set(stmt Stmt) error {
 	return nil
 }
 
-func traverseObject(ns *namespace, ref Ref) (*orderedmap.OrderedMap[string, any], error) {
+func traverseObject(ns *namespace, ref Ref, info Info) (*orderedmap.OrderedMap[string, any], error) {
 	obj := ns.bykey
 
 	// len(path) >= 1
 
 	lastIndex := len(ref.Path) - 1
-	for _, path := range ref.Path[:lastIndex] {
+	for i, path := range ref.Path[:lastIndex] {
 		v, ok := obj.Get(path)
 		if ok {
 			switch vv := v.(type) {
@@ -399,6 +366,14 @@ func traverseObject(ns *namespace, ref Ref) (*orderedmap.OrderedMap[string, any]
 				panic(vv)
 			}
 		} else {
+			r := ref
+			r.Path = r.Path[:i+1]
+			ns.byref[r.AsKey()] = value{
+				stmt:  NewExtendStmt(r, info),
+				value: cty.EmptyObjectVal,
+				info:  info,
+			}
+
 			tempMap := orderedmap.New[string, any]()
 			obj.Set(path, tempMap)
 			obj = tempMap

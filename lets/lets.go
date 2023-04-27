@@ -104,7 +104,7 @@ func (r *Resolver) loadStmts() (eval.Stmts, error) {
 			return nil, errors.E(err, "failed to interpret map block")
 		}
 
-		blockStmts, err := eval.StmtsOf(eval.NewInfo(r.scope, varsBlock.RawOrigins[0].Range), origin, origin.Path, expr)
+		blockStmts, err := eval.StmtsOfExpr(eval.NewInfo(r.scope, varsBlock.RawOrigins[0].Range), origin, origin.Path, expr)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +119,7 @@ func (r *Resolver) loadStmts() (eval.Stmts, error) {
 		}
 
 		origin.Path[0] = attr.Name
-		blockStmts, err := eval.StmtsOf(eval.NewInfo(r.scope, attr.Range), origin, origin.Path, attr.Expr)
+		blockStmts, err := eval.StmtsOfExpr(eval.NewInfo(r.scope, attr.Range), origin, origin.Path, attr.Expr)
 		if err != nil {
 			return nil, err
 		}

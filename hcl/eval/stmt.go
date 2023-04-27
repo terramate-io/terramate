@@ -82,7 +82,7 @@ func NewValStmt(origin Ref, rhs cty.Value, info Info) Stmt {
 func NewInnerValStmt(origin Ref, lhs Ref, rhs cty.Value, info Info) Stmt {
 	return Stmt{
 		Origin: origin,
-		LHS:    origin,
+		LHS:    lhs,
 		RHS:    NewValRHS(rhs),
 		Info:   info,
 	}
@@ -161,8 +161,31 @@ func (stmt Stmt) String() string {
 	)
 }
 
-// StmtsOf returns all statements of the expr.
-func StmtsOf(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts, error) {
+func StmtsOfValue(info Info, origin Ref, base []string, val cty.Value) Stmts {
+	stmts := Stmts{}
+	if !val.Type().IsObjectType() {
+		stmts = append(stmts, NewInnerValStmt(
+			origin,
+			NewRef(origin.Object, base...),
+			val,
+			info,
+		))
+		return stmts
+	}
+
+	newbase := make([]string, len(base)+1)
+	copy(newbase, base)
+	last := len(newbase) - 1
+	objMap := val.AsValueMap()
+	for key, value := range objMap {
+		newbase[last] = key
+		stmts = append(stmts, StmtsOfValue(info, origin, newbase, value)...)
+	}
+	return stmts
+}
+
+// StmtsOfExpr returns all statements of the expr.
+func StmtsOfExpr(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts, error) {
 	stmts := Stmts{}
 	newbase := make([]string, len(base)+1)
 	copy(newbase, base)
@@ -195,7 +218,7 @@ func StmtsOf(info Info, origin Ref, base []string, expr hhcl.Expression) (Stmts,
 			}
 
 			newbase[last] = key
-			newStmts, err := StmtsOf(info, origin, newbase, item.ValueExpr)
+			newStmts, err := StmtsOfExpr(info, origin, newbase, item.ValueExpr)
 			if err != nil {
 				return nil, err
 			}

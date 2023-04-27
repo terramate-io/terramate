@@ -124,7 +124,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 			}
 
 			info := eval.NewInfo(tree.Dir(), varsBlock.RawOrigins[0].Range)
-			blockStmts, err := eval.StmtsOf(info, origin, origin.Path, expr)
+			blockStmts, err := eval.StmtsOfExpr(info, origin, origin.Path, expr)
 			if err != nil {
 				return nil, err
 			}
@@ -140,7 +140,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 			}
 
 			info := eval.NewInfo(tree.Dir(), attr.Range)
-			blockStmts, err := eval.StmtsOf(info, origin, origin.Path, attr.Expr)
+			blockStmts, err := eval.StmtsOfExpr(info, origin, origin.Path, attr.Expr)
 			if err != nil {
 				return nil, err
 			}
