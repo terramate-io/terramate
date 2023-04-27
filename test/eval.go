@@ -44,7 +44,7 @@ func NewStmtFrom(t testing.TB, lhs string, rhs string) eval.Stmts {
 	tmpExpr, err := ast.ParseExpression(rhs, `<test>`)
 	assert.NoError(t, err)
 
-	stmts, err := eval.StmtsOf(newSameInfo("/"), lhsRef, lhsRef.Path, tmpExpr)
+	stmts, err := eval.StmtsOfExpr(newSameInfo("/"), lhsRef, lhsRef.Path, tmpExpr)
 	assert.NoError(t, err)
 
 	return stmts

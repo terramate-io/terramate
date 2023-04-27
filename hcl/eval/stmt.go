@@ -161,6 +161,7 @@ func (stmt Stmt) String() string {
 	)
 }
 
+// StmtsOfValue returns all inners statements of the provided value.
 func StmtsOfValue(info Info, origin Ref, base []string, val cty.Value) Stmts {
 	stmts := Stmts{}
 	if !val.Type().IsObjectType() {
