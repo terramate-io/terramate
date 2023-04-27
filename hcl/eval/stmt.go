@@ -215,6 +215,11 @@ func (stmts Stmts) SelectBy(ref Ref, atChild map[RefStr]Ref) (Stmts, bool) {
 	isContainedBy := Stmts{}
 outer:
 	for _, stmt := range stmts {
+		if stmt.LHS.Object != ref.Object {
+			// unrelated
+			continue
+		}
+
 		if !stmt.Special {
 			for _, gotRef := range atChild {
 				if stmt.LHS.Has(gotRef) {

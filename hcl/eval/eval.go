@@ -151,14 +151,14 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			continue
 		}
 
-		if originalExpr, ok := visited[dep.AsKey()]; ok {
+		if previousExpr, ok := visited[dep.AsKey()]; ok {
 			return cty.NilVal, errors.E(
 				ErrCycle,
 				expr.Range(),
 				"variable have circular dependencies: "+
 					"reference %s already evaluated in the expression %s",
 				dep,
-				ast.TokensForExpression(originalExpr).Bytes(),
+				ast.TokensForExpression(previousExpr).Bytes(),
 			)
 		}
 
@@ -166,7 +166,7 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 
 		stmtResolver, ok := c.evaluators[dep.Object]
 		if !ok {
-			// because tm_ternary
+			// ignore unknowns in partial expressions
 			continue
 		}
 

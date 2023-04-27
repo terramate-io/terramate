@@ -97,12 +97,10 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 		attrs := block.Attributes.SortedList()
 		if len(block.Labels) > 0 {
 			scope := tree.Dir()
-			stmts = append(stmts, eval.Stmt{
-				Origin:  eval.NewRef(nsName, block.Labels...),
-				LHS:     eval.NewRef(nsName, block.Labels...),
-				Special: true,
-				Info:    eval.NewInfo(scope, block.RawOrigins[0].Range),
-			})
+			stmts = append(stmts, eval.NewExtendStmt(
+				eval.NewRef(nsName, block.Labels...),
+				eval.NewInfo(scope, block.RawOrigins[0].Range),
+			))
 		}
 
 		for _, varsBlock := range block.Blocks {
