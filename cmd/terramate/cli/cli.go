@@ -1502,10 +1502,7 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 			fatal(errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr))
 		}
 		parts := strings.Split(name, ".")
-		ref := eval.Ref{
-			Object: "global",
-			Path:   parts,
-		}
+		ref := eval.NewRef("global", parts...)
 		overrideStmts = append(overrideStmts, eval.Stmt{
 			Origin: ref,
 			LHS:    ref,

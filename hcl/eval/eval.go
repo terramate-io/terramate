@@ -177,10 +177,7 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 
 		for _, stmt := range stmts {
 			if v, ok := c.ns.Get(stmt.LHS); ok {
-				if !stmt.Special && !v.stmt.Special &&
-					v.info.Scope == stmt.Info.Scope &&
-					v.info.DefinedAt.Path().Dir() == stmt.Info.DefinedAt.Path().Dir() &&
-					v.info.DefinedAt != stmt.Info.DefinedAt {
+				if isRedefined(stmt, v) {
 					return cty.NilVal, errors.E(ErrRedefined, stmt.Info.DefinedAt,
 						"variable %s already set in the scope %s at %s",
 						stmt, stmt.Info.Scope, v.info.DefinedAt.String())
@@ -323,12 +320,8 @@ func (c *Context) set(stmt Stmt) error {
 			return err
 		}
 		for _, s := range stmts {
-			v, _ := s.RHS.Value(nil)
 			if other, ok := c.ns.Get(s.LHS); ok {
-				if !s.Special && !other.stmt.Special &&
-					other.info.Scope == s.Info.Scope &&
-					other.info.DefinedAt.Path().Dir() == s.Info.DefinedAt.Path().Dir() &&
-					other.info.DefinedAt != s.Info.DefinedAt {
+				if isRedefined(s, other) {
 					return errors.E(ErrRedefined, s.Info.DefinedAt,
 						"variable %s already set in the scope %s at %s",
 						s, s.Info.Scope, other.info.DefinedAt.String())
@@ -343,6 +336,7 @@ func (c *Context) set(stmt Stmt) error {
 				}
 			}
 
+			v, _ := s.RHS.Value(nil)
 			s.RHS.value = v
 			s.RHS.IsEvaluated = true
 
@@ -530,4 +524,11 @@ func newNamespace() namespace {
 		byref:   make(map[RefStr]value),
 		bykey:   orderedmap.New[string, any](),
 	}
+}
+
+func isRedefined(new Stmt, v value) bool {
+	return !new.Special && !v.stmt.Special &&
+		v.info.Scope == new.Info.Scope &&
+		v.info.DefinedAt.Path().Dir() == new.Info.DefinedAt.Path().Dir() &&
+		v.info.DefinedAt != new.Info.DefinedAt
 }
