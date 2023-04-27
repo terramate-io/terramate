@@ -830,6 +830,32 @@ func TestCLIRunOrder(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "regression: stacks with same prefix as working dir but outside the fs branch",
+			layout: []string{
+				"s:stacks/test",
+				"s:stacks/test-foo",
+			},
+			workingDir: "/stacks/test",
+			want: runExpected{
+				Stdout: listStacks(
+					"/stacks/test",
+				),
+			},
+		},
+		{
+			name: "regression: stacks with same prefix as working dir but outside the fs branch",
+			layout: []string{
+				"s:test",
+				"s:tests",
+			},
+			workingDir: "/test",
+			want: runExpected{
+				Stdout: listStacks(
+					"/test",
+				),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sandboxes := []sandbox.S{
