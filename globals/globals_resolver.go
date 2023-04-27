@@ -39,14 +39,18 @@ type Resolver struct {
 	override map[eval.RefStr]eval.Stmt
 	// Scopes is a cache of scoped statements.
 	Scopes map[project.Path]eval.Stmts
+
+	// path -> map[ref] -> Stmts
+	cacheByRef map[project.Path]map[eval.RefStr]eval.Stmts
 }
 
 // NewResolver creates a new globals resolver.
 func NewResolver(tree *config.Tree, overrides ...eval.Stmt) *Resolver {
 	r := &Resolver{
-		tree:     tree,
-		Scopes:   make(map[project.Path]eval.Stmts),
-		override: make(map[eval.RefStr]eval.Stmt),
+		tree:       tree,
+		Scopes:     make(map[project.Path]eval.Stmts),
+		override:   make(map[eval.RefStr]eval.Stmt),
+		cacheByRef: make(map[project.Path]map[eval.RefStr]eval.Stmts),
 	}
 
 	for _, override := range overrides {
@@ -166,12 +170,27 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[ev
 		return nil, err
 	}
 
+	treedir := tree.Dir()
+
+	if refCache, ok := r.cacheByRef[treedir]; ok {
+		if stmts, ok := refCache[ref.AsKey()]; ok {
+			return stmts, nil
+		}
+	}
+
 	filtered, found := stmts.SelectBy(ref, origins)
 	for _, s := range filtered {
 		if !s.Special {
 			origins[s.Origin.AsKey()] = s.Origin
 		}
 	}
+
+	refCache, ok := r.cacheByRef[treedir]
+	if !ok {
+		refCache = make(map[eval.RefStr]eval.Stmts)
+	}
+
+	refCache[ref.AsKey()] = filtered
 
 	if found || tree.Parent == nil {
 		return filtered, nil
@@ -187,5 +206,7 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[ev
 		return nil, err
 	}
 	filtered = append(filtered, parentStmts...)
+
+	refCache[ref.AsKey()] = filtered
 	return filtered, nil
 }
