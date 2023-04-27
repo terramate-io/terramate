@@ -112,7 +112,7 @@ func (c *Context) SetResolver(ev Resolver) {
 		values := prevalue.AsValueMap()
 		for key, val := range values {
 			origin := NewRef(ev.Name(), []string{key}...)
-			err := c.set(NewValStmt(origin, origin, val, newBuiltinInfo(ev.Scope())))
+			err := c.set(NewValStmt(origin, val, newBuiltinInfo(ev.Scope())))
 			if err != nil {
 				panic(errors.E(errors.ErrInternal, "failed to initialize context"))
 			}
@@ -270,16 +270,15 @@ func (c *Context) setExtend(stmt Stmt) error {
 	_, hasold := ns.byref[ref.AsKey()]
 	if !hasold {
 		for _, r := range ref.Comb() {
-			if _, ok := ns.byref[r.AsKey()]; !ok {
-				ns.byref[r.AsKey()] = value{
-					stmt:  NewExtendStmt(r, stmt.Info),
-					value: cty.EmptyObjectVal,
-					info:  stmt.Info,
-				}
-				ns.persist = true
-			} else {
+			if _, ok := ns.byref[r.AsKey()]; ok {
 				break
 			}
+			ns.byref[r.AsKey()] = value{
+				stmt:  NewExtendStmt(r, stmt.Info),
+				value: cty.EmptyObjectVal,
+				info:  stmt.Info,
+			}
+			ns.persist = true
 		}
 	}
 

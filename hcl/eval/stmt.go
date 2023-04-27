@@ -74,10 +74,15 @@ func NewExprStmt(origin Ref, lhs Ref, rhs hhcl.Expression, info Info) Stmt {
 }
 
 // NewValStmt creates a new stmt.
-func NewValStmt(origin Ref, lhs Ref, rhs cty.Value, info Info) Stmt {
+func NewValStmt(origin Ref, rhs cty.Value, info Info) Stmt {
+	return NewInnerValStmt(origin, origin, rhs, info)
+}
+
+// NewInnerValStmt creates a new stmt.
+func NewInnerValStmt(origin Ref, lhs Ref, rhs cty.Value, info Info) Stmt {
 	return Stmt{
 		Origin: origin,
-		LHS:    lhs,
+		LHS:    origin,
 		RHS:    NewValRHS(rhs),
 		Info:   info,
 	}

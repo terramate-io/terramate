@@ -19,37 +19,50 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func setupContext(b *testing.B) *eval.Context {
-	ctx := eval.New()
+	s := sandbox.New(b)
+	builtinInfo := eval.Info{
+		Scope: project.NewPath("/"),
+		DefinedAt: info.NewRange(s.RootDir(), hhcl.Range{
+			Start: hhcl.InitialPos,
+			End:   hhcl.InitialPos,
+		}),
+	}
+	ctx := eval.New(
+		globals.NewResolver(
+			s.Config().Tree(),
+			eval.NewValStmt(eval.NewRef("global", "true"), cty.True, builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "false"), cty.False, builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "number"), cty.NumberFloatVal(3.141516), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "string"), cty.StringVal("terramate"), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "list"), cty.ListVal([]cty.Value{
+				cty.NumberIntVal(0),
+				cty.NumberIntVal(1),
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(3),
+			}), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "strings"), cty.ListVal([]cty.Value{
+				cty.StringVal("terramate"),
+				cty.StringVal("is"),
+				cty.StringVal("fun"),
+			}), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "obj"), cty.ObjectVal(map[string]cty.Value{
+				"a": cty.NumberIntVal(0),
+				"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
+			}), builtinInfo),
+		))
 	ctx.SetFunctions(stdlib.Functions(ctx, os.TempDir()))
-	ctx.SetNamespace("global", map[string]cty.Value{
-		"true":   cty.True,
-		"false":  cty.False,
-		"number": cty.NumberFloatVal(3.141516),
-		"string": cty.StringVal("terramate"),
-		"list": cty.ListVal([]cty.Value{
-			cty.NumberIntVal(0),
-			cty.NumberIntVal(1),
-			cty.NumberIntVal(2),
-			cty.NumberIntVal(3),
-		}),
-		"strings": cty.ListVal([]cty.Value{
-			cty.StringVal("terramate"),
-			cty.StringVal("is"),
-			cty.StringVal("fun"),
-		}),
-		"obj": cty.ObjectVal(map[string]cty.Value{
-			"a": cty.NumberIntVal(0),
-			"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
-		}),
-	})
 	return ctx
 }
 
@@ -107,7 +120,7 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -126,7 +139,7 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -145,7 +158,7 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -164,7 +177,7 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -188,7 +201,7 @@ func BenchmarkPartialEvalObject(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}

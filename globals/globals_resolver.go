@@ -111,8 +111,6 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 					"map label %s conflicts with global.%s attribute", varName, varName)
 			}
 
-			definedAt := varsBlock.RawOrigins[0].Range
-
 			origin := eval.NewRef(nsName, block.Labels...)
 			origin.Path = append(origin.Path, varName)
 
@@ -125,7 +123,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 				return nil, errors.E(err, "failed to interpret map block")
 			}
 
-			info := eval.NewInfo(tree.Dir(), definedAt)
+			info := eval.NewInfo(tree.Dir(), varsBlock.RawOrigins[0].Range)
 			blockStmts, err := eval.StmtsOf(info, origin, origin.Path, expr)
 			if err != nil {
 				return nil, err
@@ -169,7 +167,6 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[ev
 	}
 
 	filtered, found := stmts.SelectBy(ref, origins)
-
 	for _, s := range filtered {
 		if !s.Special {
 			origins[s.Origin.AsKey()] = s.Origin

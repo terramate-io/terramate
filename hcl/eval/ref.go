@@ -62,11 +62,7 @@ func (ref Ref) AsKey() RefStr { return RefStr(ref.String()) }
 func (ref Ref) Comb() Refs {
 	refs := Refs{}
 	for i := len(ref.Path) - 1; i >= 0; i-- {
-		newRef := Ref{
-			Object: ref.Object,
-			Path:   make([]string, i+1),
-		}
-		copy(newRef.Path, ref.Path[:i+1])
+		newRef := NewRef(ref.Object, ref.Path[:i+1]...)
 		refs = append(refs, newRef)
 	}
 	return refs
