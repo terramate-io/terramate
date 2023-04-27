@@ -176,42 +176,13 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 		}
 
 		for _, stmt := range stmts {
-			if v, ok := c.ns.Get(stmt.LHS); ok {
-				if isRedefined(stmt, v) {
-					return cty.NilVal, errors.E(ErrRedefined, stmt.Info.DefinedAt,
-						"variable %s already set in the scope %s at %s",
-						stmt, stmt.Info.Scope, v.info.DefinedAt.String())
-				}
-				if !v.value.Type().IsObjectType() || !v.stmt.Special {
-
-					// stmt already evaluated
-					// This can happen when the current scope is overriding the parent
-					// object but still the target expr is looking for the entire object
-					// so we still have to ascent into parent scope and then the "already
-					// overridden" refs show up here.
-					continue
-				}
+			val, hasVal, err := c.evalStmt(stmt, visited)
+			if err != nil {
+				return cty.NilVal, err
 			}
 
-			if stmt.Special {
-				err := c.setExtend(stmt)
-				if err != nil {
-					return cty.NilVal, errors.E(ErrEval, err)
-				}
+			if !hasVal {
 				continue
-			}
-
-			var val cty.Value
-			var err error
-			if stmt.RHS.IsEvaluated {
-				val, _ = stmt.RHS.Value(nil)
-			} else {
-				val, err = c.eval(stmt.RHS, visited)
-				if err != nil {
-					return cty.NilVal, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Info.Scope)
-				}
-				stmt.RHS.value = val
-				stmt.RHS.IsEvaluated = true
 			}
 
 			if val.Type().Equals(unset) {
@@ -246,6 +217,47 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 		return cty.NilVal, errors.E(ErrEval, diags)
 	}
 	return val, nil
+}
+
+func (c *Context) evalStmt(stmt Stmt, visited map[RefStr]hhcl.Expression) (cty.Value, bool, error) {
+	if v, ok := c.ns.Get(stmt.LHS); ok {
+		if isRedefined(stmt, v) {
+			return cty.NilVal, false, errors.E(ErrRedefined, stmt.Info.DefinedAt,
+				"variable %s already set in the scope %s at %s",
+				stmt, stmt.Info.Scope, v.info.DefinedAt.String())
+		}
+		if !v.value.Type().IsObjectType() || !v.stmt.Special {
+
+			// stmt already evaluated
+			// This can happen when the current scope is overriding the parent
+			// object but still the target expr is looking for the entire object
+			// so we still have to ascent into parent scope and then the "already
+			// overridden" refs show up here.
+			return cty.NilVal, false, nil
+		}
+	}
+
+	if stmt.Special {
+		err := c.setExtend(stmt)
+		if err != nil {
+			return cty.NilVal, false, errors.E(ErrEval, err)
+		}
+		return cty.NilVal, false, nil
+	}
+
+	var val cty.Value
+	var err error
+	if stmt.RHS.IsEvaluated {
+		val, _ = stmt.RHS.Value(nil)
+	} else {
+		val, err = c.eval(stmt.RHS, visited)
+		if err != nil {
+			return cty.NilVal, false, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Info.Scope)
+		}
+		stmt.RHS.value = val
+		stmt.RHS.IsEvaluated = true
+	}
+	return val, true, nil
 }
 
 func (c *Context) setExtend(stmt Stmt) error {
@@ -320,27 +332,17 @@ func (c *Context) set(stmt Stmt) error {
 			return err
 		}
 		for _, s := range stmts {
-			if other, ok := c.ns.Get(s.LHS); ok {
-				if isRedefined(s, other) {
-					return errors.E(ErrRedefined, s.Info.DefinedAt,
-						"variable %s already set in the scope %s at %s",
-						s, s.Info.Scope, other.info.DefinedAt.String())
-				}
-				if !other.value.Type().IsObjectType() || !other.stmt.Special {
-					// stmt already evaluated
-					// This can happen when the current scope is overriding the parent
-					// object but still the target expr is looking for the entire object
-					// so we still have to ascent into parent scope and then the "already
-					// overridden" refs show up here.
-					continue
-				}
+			val, hasVal, err := c.evalStmt(s, map[RefStr]hhcl.Expression{})
+			if err != nil {
+				return err
+			}
+			if !hasVal {
+				continue
 			}
 
-			v, _ := s.RHS.Value(nil)
-			s.RHS.value = v
+			s.RHS.value = val
 			s.RHS.IsEvaluated = true
-
-			err := c.set(s)
+			err = c.set(s)
 			if err != nil {
 				return err
 			}
