@@ -72,6 +72,9 @@ func (ref Ref) Comb() Refs {
 	return refs
 }
 
+// LastAcessor returns the last part of the accessor.
+// Eg.: for `global.a.b.c` it returns "c".
+// Eg.: for `global` it returns "global".
 func (ref Ref) LastAccessor() string {
 	if len(ref.Path) == 0 {
 		return ref.Object
