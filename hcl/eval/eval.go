@@ -283,35 +283,17 @@ func (c *Context) setExtend(stmt Stmt) error {
 		}
 	}
 
-	obj := ns.bykey
-
-	// len(path) >= 1
-
-	lastIndex := len(ref.Path) - 1
-	for _, path := range ref.Path[:lastIndex] {
-		v, ok := obj.Get(path)
-		if ok {
-			switch vv := v.(type) {
-			case *orderedmap.OrderedMap[string, any]:
-				obj = vv
-			case cty.Value:
-				return errors.E("%s points to a %s type but expects an object", ref, vv.Type().FriendlyName())
-			default:
-				panic(vv)
-			}
-		} else {
-			tempMap := orderedmap.New[string, any]()
-			obj.Set(path, tempMap)
-			obj = tempMap
-		}
+	obj, err := traverseObject(&ns, ref)
+	if err != nil {
+		return err
 	}
 
-	_, found := obj.Get(ref.Path[lastIndex])
+	_, found := obj.Get(ref.LastAccessor())
 	if found {
 		return nil
 	}
 	tempMap := orderedmap.New[string, any]()
-	obj.Set(ref.Path[lastIndex], tempMap)
+	obj.Set(ref.LastAccessor(), tempMap)
 	return nil
 }
 
@@ -382,6 +364,25 @@ func (c *Context) set(stmt Stmt) error {
 	}
 
 	ns.persist = true
+
+	obj, err := traverseObject(&ns, ref)
+	if err != nil {
+		return err
+	}
+
+	if hasold && oldval.stmt.Special && oldval.info.Scope == stmt.Info.Scope {
+		return errors.E(
+			ErrEval,
+			"variable %s being extended but was previously evaluated as %s in the same scope",
+			stmt.LHS, ast.TokensForValue(oldval.value).Bytes(),
+		)
+	}
+	ns.persist = true
+	obj.Set(ref.LastAccessor(), val)
+	return nil
+}
+
+func traverseObject(ns *namespace, ref Ref) (*orderedmap.OrderedMap[string, any], error) {
 	obj := ns.bykey
 
 	// len(path) >= 1
@@ -394,7 +395,7 @@ func (c *Context) set(stmt Stmt) error {
 			case *orderedmap.OrderedMap[string, any]:
 				obj = vv
 			case cty.Value:
-				return errors.E("%s points to a %s type but expects an object", ref, vv.Type().FriendlyName())
+				return nil, errors.E("%s points to a %s type but expects an object", ref, vv.Type().FriendlyName())
 			default:
 				panic(vv)
 			}
@@ -404,17 +405,7 @@ func (c *Context) set(stmt Stmt) error {
 			obj = tempMap
 		}
 	}
-
-	if hasold && oldval.stmt.Special && oldval.info.Scope == stmt.Info.Scope {
-		return errors.E(
-			ErrEval,
-			"variable %s being extended but was previously evaluated as %s in the same scope",
-			stmt.LHS, ast.TokensForValue(oldval.value).Bytes(),
-		)
-	}
-	ns.persist = true
-	obj.Set(ref.Path[lastIndex], val)
-	return nil
+	return obj, nil
 }
 
 func tocty(globals *orderedmap.OrderedMap[string, any]) cty.Value {

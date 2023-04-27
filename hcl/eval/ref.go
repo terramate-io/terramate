@@ -72,6 +72,13 @@ func (ref Ref) Comb() Refs {
 	return refs
 }
 
+func (ref Ref) LastAccessor() string {
+	if len(ref.Path) == 0 {
+		return ref.Object
+	}
+	return ref.Path[len(ref.Path)-1]
+}
+
 // String returns a string representation of the Ref.
 // Note that it does not represent the syntactic ref found in the source file.
 // This is an internal representation that better fits the implementation design.
