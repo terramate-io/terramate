@@ -92,12 +92,7 @@ func (r *Resolver) loadStmts() (eval.Stmts, error) {
 				"map label %s conflicts with let.%s attribute", varName, varName)
 		}
 
-		origin := eval.Ref{
-			Object: nsName,
-			Path:   make([]string, 1),
-		}
-
-		origin.Path[0] = varName
+		origin := eval.NewRef(nsName, varName)
 
 		expr, err := mapexpr.NewMapExpr(varsBlock)
 		if err != nil {
@@ -113,12 +108,7 @@ func (r *Resolver) loadStmts() (eval.Stmts, error) {
 
 	attrs := r.block.Attributes.SortedList()
 	for _, attr := range attrs {
-		origin := eval.Ref{
-			Object: nsName,
-			Path:   make([]string, 1),
-		}
-
-		origin.Path[0] = attr.Name
+		origin := eval.NewRef(nsName, attr.Name)
 		blockStmts, err := eval.StmtsOfExpr(eval.NewInfo(r.scope, attr.Range), origin, origin.Path, attr.Expr)
 		if err != nil {
 			return nil, err

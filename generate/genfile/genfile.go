@@ -152,7 +152,7 @@ func Load(
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
-		file, err := Eval(genFileBlock, evalctx)
+		file, err := Eval(genFileBlock, evalctx, st.Dir)
 		if err != nil {
 			return nil, err
 		}
@@ -167,9 +167,9 @@ func Load(
 }
 
 // Eval the generate_file block.
-func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
+func Eval(block hcl.GenFileBlock, evalctx *eval.Context, scope project.Path) (File, error) {
 	name := block.Label
-	letsResolver := lets.NewResolver(block.Range.Path().Dir(), block.Lets)
+	letsResolver := lets.NewResolver(scope, block.Lets)
 	evalctx.SetResolver(letsResolver)
 	defer func() {
 		evalctx.DeleteResolver("let")

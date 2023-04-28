@@ -83,6 +83,11 @@ func (ref Ref) LastAccessor() string {
 // This is an internal representation that better fits the implementation design.
 func (ref Ref) String() string {
 	var out bytes.Buffer
+	out.Grow(
+		len(ref.Object) +
+			len(ref.Path)*10 + /* average key size */
+			+len(ref.Path)*2, /* brackets */
+	)
 
 	// NOTE: the buffer methods never return errors and always write the full content.
 	// it panics if more memory cannot be allocated.

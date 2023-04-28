@@ -141,7 +141,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 				continue
 			}
 
-			file, err := genfile.Eval(block, evalctx)
+			file, err := genfile.Eval(block, evalctx, dircfg.Dir())
 			if err != nil {
 				res.Err = errors.L(res.Err, err).AsError()
 				results = append(results, res)
@@ -361,7 +361,7 @@ func doRootGeneration(root *config.Root) Report {
 
 			logger.Debug().Msg("block validated successfully")
 
-			file, err := genfile.Eval(block, evalctx)
+			file, err := genfile.Eval(block, evalctx, cfg.Dir())
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report

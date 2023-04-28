@@ -406,7 +406,7 @@ func tocty(globals *orderedmap.OrderedMap[string, any]) cty.Value {
 			}
 			ret[pair.Key] = vv
 		default:
-			panic("unexpected")
+			panic(errors.E(errors.ErrInternal, "unexpected type %T", vv))
 		}
 	}
 	return cty.ObjectVal(ret)

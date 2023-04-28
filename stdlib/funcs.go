@@ -37,10 +37,15 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-var regexCache map[string]*regexp.Regexp
+type regexDataCache struct {
+	pattern *regexp.Regexp
+	retType cty.Type
+}
+
+var regexCache map[string]regexDataCache
 
 func init() {
-	regexCache = map[string]*regexp.Regexp{}
+	regexCache = map[string]regexDataCache{}
 }
 
 // Functions returns all the Terramate default functions.
@@ -99,6 +104,12 @@ func Regex() function.Function {
 				return cty.DynamicPseudoType, nil
 			}
 
+			pattern := args[0].AsString()
+			cache, ok := regexCache[pattern]
+			if ok {
+				return cache.retType, nil
+			}
+
 			retTy, err := regexPatternResultType(args[0].AsString())
 			if err != nil {
 				err = function.NewArgError(0, err)
@@ -110,19 +121,19 @@ func Regex() function.Function {
 				return cty.DynamicVal, nil
 			}
 
-			re, ok := regexCache[args[0].AsString()]
+			pattern := args[0].AsString()
+			cache, ok := regexCache[pattern]
 			if !ok {
-				panic("should be in the cache")
+				panic(errors.E(errors.ErrInternal, "pattern %s should be in the cache", pattern))
 			}
 
 			str := args[1].AsString()
-
-			captureIdxs := re.FindStringSubmatchIndex(str)
+			captureIdxs := cache.pattern.FindStringSubmatchIndex(str)
 			if captureIdxs == nil {
 				return cty.NilVal, fmt.Errorf("pattern did not match any part of the given string")
 			}
 
-			return regexPatternResult(re, str, captureIdxs, retType), nil
+			return regexPatternResult(cache.pattern, str, captureIdxs, retType), nil
 		},
 	})
 }
@@ -133,24 +144,32 @@ func Regex() function.Function {
 //
 // Returns an error if parsing fails or if the pattern uses a mixture of
 // named and unnamed capture groups, which is not permitted.
-func regexPatternResultType(pattern string) (cty.Type, error) {
-	re, ok := regexCache[pattern]
-	if !ok {
-		var rawErr error
-		re, rawErr = regexp.Compile(pattern)
-		switch err := rawErr.(type) {
-		case *resyntax.Error:
-			return cty.NilType, fmt.Errorf("invalid regexp pattern: %s in %s", err.Code, err.Expr)
-		case error:
-			// Should never happen, since all regexp compile errors should
-			// be resyntax.Error, but just in case...
-			return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
-		}
-
-		regexCache[pattern] = re
+func regexPatternResultType(pattern string) (retType cty.Type, err error) {
+	cache, ok := regexCache[pattern]
+	if ok {
+		panic(errors.E(errors.ErrInternal, "regex should not be cached at this point"))
+	}
+	var rawErr error
+	re, rawErr := regexp.Compile(pattern)
+	switch err := rawErr.(type) {
+	case *resyntax.Error:
+		return cty.NilType, fmt.Errorf("invalid regexp pattern: %s in %s", err.Code, err.Expr)
+	case error:
+		// Should never happen, since all regexp compile errors should
+		// be resyntax.Error, but just in case...
+		return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
 	}
 
-	allNames := re.SubexpNames()[1:]
+	cache = regexDataCache{
+		pattern: re,
+	}
+
+	defer func() {
+		cache.retType = retType
+		regexCache[pattern] = cache
+	}()
+
+	allNames := cache.pattern.SubexpNames()[1:]
 	var names []string
 	unnamed := 0
 	for _, name := range allNames {

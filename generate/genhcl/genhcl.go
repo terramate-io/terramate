@@ -200,7 +200,7 @@ func evalBlock(evalctx *eval.Context,
 		stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 	)
 
-	letsResolver := lets.NewResolver(hclBlock.Range.Path().Dir(), hclBlock.Lets)
+	letsResolver := lets.NewResolver(st.Dir, hclBlock.Lets)
 	evalctx.SetResolver(letsResolver)
 	defer func() {
 		evalctx.DeleteResolver("let")
