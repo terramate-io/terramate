@@ -46,6 +46,7 @@ type Runtime map[string]cty.Value
 // TODO(i4k): get rid of this limit.
 const MaxGlobalLabels = 256
 
+// RootPath is the root ("/") path.
 var RootPath = NewPath("/")
 
 // NewPath creates a new project path.

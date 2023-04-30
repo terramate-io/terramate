@@ -261,6 +261,7 @@ func (s *S) Config() *config.Root {
 	return cfg
 }
 
+// Globals returns the globals resolver for the sandbox config.
 func (s *S) Globals() *globals.Resolver {
 	s.t.Helper()
 	if s.globals != nil {

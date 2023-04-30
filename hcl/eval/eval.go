@@ -446,11 +446,6 @@ func (c *Context) HasNamespace(name string) bool {
 	return has
 }
 
-func (c *Context) GetNamespace(name string) (cty.Value, bool) {
-	val, ok := c.hclctx.Variables[name]
-	return val, ok
-}
-
 // PartialEval evaluates only the terramate variable expressions from the list
 // of tokens, leaving all the rest as-is. It returns a modified list of tokens
 // with  no reference to terramate namespaced variables (globals and terramate)
