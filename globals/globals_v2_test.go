@@ -487,7 +487,7 @@ func TestGlobals2(t *testing.T) {
 				t.Fatal(diags.Error())
 			}
 
-			ctx := eval.New(globals.NewResolver(tree))
+			ctx := eval.New(tree.Dir(), globals.NewResolver(cfg))
 			ctx.SetFunctions(stdlib.Functions(ctx, tree.HostDir()))
 			val, err := ctx.Eval(expr)
 			errtest.Assert(t, err, tc.wantErr)

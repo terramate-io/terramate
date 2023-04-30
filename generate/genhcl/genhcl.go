@@ -200,7 +200,7 @@ func evalBlock(evalctx *eval.Context,
 		stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 	)
 
-	letsResolver := lets.NewResolver(st.Dir, hclBlock.Lets)
+	letsResolver := lets.NewResolver(hclBlock.Lets)
 	evalctx.SetResolver(letsResolver)
 	defer func() {
 		evalctx.DeleteResolver("let")
@@ -628,7 +628,7 @@ func appendDynamicBlocks(scope project.Path, target *hclwrite.Body, dynblock *hc
 	var tmDynamicErr error
 
 	foreach.ForEachElement(func(key, value cty.Value) (stop bool) {
-		evalctx.SetResolver(newTmDynamicResolver(iterator, scope, key, value))
+		evalctx.SetResolver(newTmDynamicResolver(iterator, key, value))
 
 		if err := appendDynamicBlock(scope, target, evalctx, genBlockType, attrs, contentBlock); err != nil {
 			tmDynamicErr = err
@@ -716,17 +716,15 @@ func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...inter
 
 type tmDynamicIteratorResolver struct {
 	name     string
-	scope    project.Path
 	iterator cty.Value
 }
 
-func newTmDynamicResolver(name string, scope project.Path, key, val cty.Value) *tmDynamicIteratorResolver {
+func newTmDynamicResolver(name string, key, val cty.Value) *tmDynamicIteratorResolver {
 	obj := map[string]cty.Value{
 		"key":   key,
 		"value": val,
 	}
 	return &tmDynamicIteratorResolver{
-		scope:    scope,
 		name:     name,
 		iterator: cty.ObjectVal(obj),
 	}
@@ -736,12 +734,6 @@ func (r *tmDynamicIteratorResolver) Name() string { return r.name }
 
 func (r *tmDynamicIteratorResolver) Prevalue() cty.Value { return r.iterator }
 
-func (r *tmDynamicIteratorResolver) Scope() project.Path { return r.scope }
-
-func (r *tmDynamicIteratorResolver) LoadStmts() (eval.Stmts, error) {
-	return eval.Stmts{}, nil
-}
-
-func (r *tmDynamicIteratorResolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	return eval.Stmts{}, nil
+func (r *tmDynamicIteratorResolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+	return []eval.Stmts{}, nil
 }

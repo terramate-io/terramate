@@ -70,7 +70,8 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	tree, _ := root.Lookup(st.Dir)
 
 	evalctx := eval.New(
-		globals.NewResolver(tree),
+		tree.Dir(),
+		globals.NewResolver(root),
 		runtime.NewResolver(root, st),
 		&resolver{
 			rootdir: root.HostDir(),
@@ -122,9 +123,7 @@ func (r *resolver) Name() string { return "env" }
 
 func (r *resolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
 
-func (r *resolver) Scope() project.Path { return project.NewPath("/") }
-
-func (r *resolver) LoadStmts() (eval.Stmts, error) {
+func (r *resolver) loadStmts() (eval.Stmts, error) {
 	stmts := make(eval.Stmts, len(r.env))
 	for _, env := range r.env {
 		nameval := strings.Split(env, "=")
@@ -149,11 +148,11 @@ func (r *resolver) LoadStmts() (eval.Stmts, error) {
 	return stmts, nil
 }
 
-func (r *resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	stmts, err := r.LoadStmts()
+func (r *resolver) LookupRef(scope project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+	stmts, err := r.loadStmts()
 	if err != nil {
 		return nil, err
 	}
 	filtered, _ := stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
-	return filtered, nil
+	return []eval.Stmts{filtered}, nil
 }

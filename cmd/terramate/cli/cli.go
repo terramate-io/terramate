@@ -438,6 +438,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
+	globalsResolver := globals.NewResolver(&prj.root)
+	prj.globals = globalsResolver
+
 	return &cli{
 		version:           version,
 		stdin:             stdin,
@@ -767,7 +770,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), c.globals(), c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
@@ -1265,7 +1268,7 @@ func (c *cli) generateDebug() {
 		selectedStacks[stack.Dir()] = struct{}{}
 	}
 
-	results, err := generate.Load(c.cfg(), c.vendorDir())
+	results, err := generate.Load(c.cfg(), c.globals(), c.vendorDir())
 	if err != nil {
 		fatal(err, "generate debug: loading generated code")
 	}
@@ -1314,8 +1317,10 @@ func (c *cli) printStacksGlobals() {
 		stack := stackEntry.Stack
 		tree := stackEntry.Stack.Tree()
 		evalctx := eval.New(
+			stack.Dir,
 			runtime.NewResolver(c.cfg(), stack),
-			globals.NewResolver(tree))
+			c.globals(),
+		)
 		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 
 		expr, _ := ast.ParseExpression(`global`, `<print-globals>`)
@@ -1526,8 +1531,9 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 	}
 
 	ctx := eval.New(
+		tree.Dir(),
 		runtime.NewResolver(c.cfg(), st),
-		globals.NewResolver(tree, overrideStmts...),
+		globals.NewResolver(c.cfg(), overrideStmts...),
 	)
 
 	ctx.SetFunctions(stdlib.Functions(ctx, c.wd()))
@@ -1550,7 +1556,7 @@ func (c *cli) checkOutdatedGeneratedCode() {
 
 	logger.Trace().Msg("checking if any stack has outdated code")
 
-	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
+	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.globals(), c.vendorDir())
 
 	if err != nil {
 		fatal(err, "failed to check outdated code on project")
@@ -1673,10 +1679,11 @@ func (c *cli) runOnStacks() {
 	}
 }
 
-func (c *cli) wd() string           { return c.prj.wd }
-func (c *cli) rootdir() string      { return c.prj.rootdir }
-func (c *cli) cfg() *config.Root    { return &c.prj.root }
-func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
+func (c *cli) wd() string                 { return c.prj.wd }
+func (c *cli) rootdir() string            { return c.prj.rootdir }
+func (c *cli) cfg() *config.Root          { return &c.prj.root }
+func (c *cli) globals() *globals.Resolver { return c.prj.globals }
+func (c *cli) rootNode() hcl.Config       { return c.prj.root.Tree().Node }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)

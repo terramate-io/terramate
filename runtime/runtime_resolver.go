@@ -44,9 +44,6 @@ func NewResolver(root *config.Root, stack *config.Stack) *Resolver {
 	}
 }
 
-// Scope of the runtime resolver.
-func (r *Resolver) Scope() project.Path { return project.NewPath("/") }
-
 // Name returns the variable name.
 func (r *Resolver) Name() string { return "terramate" }
 
@@ -54,6 +51,6 @@ func (r *Resolver) Name() string { return "terramate" }
 func (r *Resolver) Prevalue() cty.Value { return r.terramate }
 
 // LookupRef lookup pending runtime variables. Not implemeneted at the moment.
-func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	return eval.Stmts{}, nil
+func (r *Resolver) LookupRef(_ project.Path, _ eval.Ref) ([]eval.Stmts, error) {
+	return []eval.Stmts{}, nil
 }

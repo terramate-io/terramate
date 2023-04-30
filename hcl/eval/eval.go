@@ -42,6 +42,7 @@ const (
 type (
 	// Context is the variables evaluator.
 	Context struct {
+		scope  project.Path
 		hclctx *hhcl.EvalContext
 		ns     namespaces
 
@@ -52,8 +53,7 @@ type (
 	Resolver interface {
 		Name() string
 		Prevalue() cty.Value
-		LookupRef(Ref) (Stmts, error)
-		Scope() project.Path
+		LookupRef(scope project.Path, ref Ref) ([]Stmts, error)
 	}
 
 	namespaces map[string]namespace
@@ -80,12 +80,13 @@ func init() {
 
 // New evaluator.
 // TODO(i4k): better document.
-func New(evaluators ...Resolver) *Context {
+func New(scope project.Path, evaluators ...Resolver) *Context {
 	hclctx := &hhcl.EvalContext{
 		Functions: map[string]function.Function{},
 		Variables: map[string]cty.Value{},
 	}
 	evalctx := &Context{
+		scope:      scope,
 		hclctx:     hclctx,
 		evaluators: map[string]Resolver{},
 		ns:         namespaces{},
@@ -112,19 +113,20 @@ func (c *Context) SetResolver(ev Resolver) {
 		values := prevalue.AsValueMap()
 		for key, val := range values {
 			origin := NewRef(ev.Name(), []string{key}...)
-			err := c.set(NewValStmt(origin, val, newBuiltinInfo(ev.Scope())))
+			err := c.set(NewValStmt(origin, val, newBuiltinInfo(c.scope)), val)
 			if err != nil {
 				panic(errors.E(errors.ErrInternal, "failed to initialize context"))
 			}
 		}
+	} else {
+		c.hclctx.Variables[ev.Name()] = prevalue
 	}
-
-	c.hclctx.Variables[ev.Name()] = prevalue
 }
 
 // DeleteResolver removes the resolver.
 func (c *Context) DeleteResolver(name string) {
 	delete(c.evaluators, name)
+	delete(c.hclctx.Variables, name)
 }
 
 // Eval the given expr and all of its dependency references (if needed)
@@ -170,33 +172,35 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 			continue
 		}
 
-		stmts, err := stmtResolver.LookupRef(dep)
+		scopeStmts, err := stmtResolver.LookupRef(c.scope, dep)
 		if err != nil {
 			return cty.NilVal, err
 		}
 
-		for _, stmt := range stmts {
-			val, hasVal, err := c.evalStmt(stmt, visited)
-			if err != nil {
-				return cty.NilVal, err
-			}
+		for _, stmts := range scopeStmts {
+			for _, stmt := range stmts {
+				val, hasVal, err := c.evalStmt(stmt, visited)
+				if err != nil {
+					return cty.NilVal, err
+				}
 
-			if !hasVal {
-				continue
-			}
+				if !hasVal {
+					continue
+				}
 
-			if val.Type().Equals(unset) {
-				unsetRefs[stmt.LHS.AsKey()] = true
-				continue
-			}
+				if val.Type().Equals(unset) {
+					unsetRefs[stmt.LHS.AsKey()] = true
+					continue
+				}
 
-			if unsetRefs[stmt.LHS.AsKey()] {
-				continue
-			}
+				if unsetRefs[stmt.LHS.AsKey()] {
+					continue
+				}
 
-			err = c.set(stmt)
-			if err != nil {
-				return cty.NilVal, errors.E(ErrEval, err)
+				err = c.set(stmt, val)
+				if err != nil {
+					return cty.NilVal, errors.E(ErrEval, err)
+				}
 			}
 		}
 
@@ -216,6 +220,7 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 	if diags.HasErrors() {
 		return cty.NilVal, errors.E(ErrEval, diags)
 	}
+
 	return val, nil
 }
 
@@ -248,14 +253,12 @@ func (c *Context) evalStmt(stmt Stmt, visited map[RefStr]hhcl.Expression) (cty.V
 	var val cty.Value
 	var err error
 	if stmt.RHS.IsEvaluated {
-		val, _ = stmt.RHS.Value(nil)
+		val = stmt.RHS.Value
 	} else {
-		val, err = c.eval(stmt.RHS, visited)
+		val, err = c.eval(stmt.RHS.Expression, visited)
 		if err != nil {
 			return cty.NilVal, false, errors.E(err, "evaluating %s from %s scope", stmt.LHS, stmt.Info.Scope)
 		}
-		stmt.RHS.value = val
-		stmt.RHS.IsEvaluated = true
 	}
 	return val, true, nil
 }
@@ -281,12 +284,8 @@ func (c *Context) setExtend(stmt Stmt) error {
 	return nil
 }
 
-func (c *Context) set(stmt Stmt) error {
-	if !stmt.RHS.IsEvaluated {
-		panic(errors.E(errors.ErrInternal, "stmt must be evaluated"))
-	}
+func (c *Context) set(stmt Stmt, val cty.Value) error {
 	ref := stmt.LHS
-	val, _ := stmt.RHS.Value(nil)
 
 	if val.Type().IsObjectType() {
 		origin := ref
@@ -300,9 +299,7 @@ func (c *Context) set(stmt Stmt) error {
 				continue
 			}
 
-			s.RHS.value = val
-			s.RHS.IsEvaluated = true
-			err = c.set(s)
+			err = c.set(s, val)
 			if err != nil {
 				return err
 			}
@@ -447,6 +444,11 @@ func (c *Context) DeleteNamespace(name string) {
 func (c *Context) HasNamespace(name string) bool {
 	_, has := c.hclctx.Variables[name]
 	return has
+}
+
+func (c *Context) GetNamespace(name string) (cty.Value, bool) {
+	val, ok := c.hclctx.Variables[name]
+	return val, ok
 }
 
 // PartialEval evaluates only the terramate variable expressions from the list

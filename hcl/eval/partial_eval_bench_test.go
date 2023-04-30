@@ -40,8 +40,9 @@ func setupContext(b *testing.B) *eval.Context {
 		}),
 	}
 	ctx := eval.New(
+		s.Config().Tree().Dir(),
 		globals.NewResolver(
-			s.Config().Tree(),
+			s.Config(),
 			eval.NewValStmt(eval.NewRef("global", "true"), cty.True, builtinInfo),
 			eval.NewValStmt(eval.NewRef("global", "false"), cty.False, builtinInfo),
 			eval.NewValStmt(eval.NewRef("global", "number"), cty.NumberFloatVal(3.141516), builtinInfo),

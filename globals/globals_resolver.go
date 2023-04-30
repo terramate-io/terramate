@@ -34,18 +34,22 @@ const nsName = "global"
 
 // Resolver is the globals resolver.
 type Resolver struct {
-	tree *config.Tree
-
+	root     *config.Root
 	override map[eval.RefStr]eval.Stmt
 	// Scopes is a cache of scoped statements.
-	Scopes map[project.Path]eval.Stmts
+	Scopes map[project.Path]cacheData
+}
+
+type cacheData struct {
+	tree  *config.Tree
+	stmts eval.Stmts
 }
 
 // NewResolver creates a new globals resolver.
-func NewResolver(tree *config.Tree, overrides ...eval.Stmt) *Resolver {
+func NewResolver(root *config.Root, overrides ...eval.Stmt) *Resolver {
 	r := &Resolver{
-		tree:     tree,
-		Scopes:   make(map[project.Path]eval.Stmts),
+		root:     root,
+		Scopes:   make(map[project.Path]cacheData),
 		override: make(map[eval.RefStr]eval.Stmt),
 	}
 
@@ -56,9 +60,6 @@ func NewResolver(tree *config.Tree, overrides ...eval.Stmt) *Resolver {
 	return r
 }
 
-// Scope of the resolver.
-func (r *Resolver) Scope() project.Path { return r.tree.Dir() }
-
 // Name of the variable.
 func (*Resolver) Name() string { return nsName }
 
@@ -68,17 +69,24 @@ func (r *Resolver) Prevalue() cty.Value {
 }
 
 // LookupRef lookups global references.
-func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
-	return r.lookupStmtsAt(ref, r.tree, map[eval.RefStr]eval.Ref{})
+func (r *Resolver) LookupRef(scope project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+	return r.lookupStmtsAt(ref, scope, map[eval.RefStr]eval.Ref{})
 }
 
-func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
-	stmts, ok := r.Scopes[tree.Dir()]
+func (r *Resolver) loadStmtsAt(scope project.Path) (eval.Stmts, *config.Tree, error) {
+	cache, ok := r.Scopes[scope]
 	if ok {
-		return stmts, nil
+		return cache.stmts, cache.tree, nil
+	}
+
+	tree, ok := r.root.Lookup(scope)
+	if !ok {
+		panic(scope)
 	}
 
 	overrideMap := map[eval.RefStr]struct{}{}
+
+	var stmts eval.Stmts
 
 	for _, override := range r.override {
 		stmts = append(stmts, override)
@@ -87,7 +95,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 
 	for _, block := range tree.Node.Globals.AsList() {
 		if len(block.Labels) > 0 && !hclsyntax.ValidIdentifier(block.Labels[0]) {
-			return nil, errors.E(
+			return nil, nil, errors.E(
 				hcl.ErrTerramateSchema,
 				"first global label must be a valid identifier but got %s",
 				block.Labels[0],
@@ -106,7 +114,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 		for _, varsBlock := range block.Blocks {
 			varName := varsBlock.Labels[0]
 			if _, ok := block.Attributes[varName]; ok {
-				return nil, errors.E(
+				return nil, nil, errors.E(
 					ErrRedefined,
 					"map label %s conflicts with global.%s attribute", varName, varName)
 			}
@@ -120,13 +128,13 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 
 			expr, err := mapexpr.NewMapExpr(varsBlock)
 			if err != nil {
-				return nil, errors.E(err, "failed to interpret map block")
+				return nil, nil, errors.E(err, "failed to interpret map block")
 			}
 
 			info := eval.NewInfo(tree.Dir(), varsBlock.RawOrigins[0].Range)
 			blockStmts, err := eval.StmtsOfExpr(info, origin, origin.Path, expr)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			stmts = append(stmts, blockStmts...)
 		}
@@ -142,7 +150,7 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 			info := eval.NewInfo(tree.Dir(), attr.Range)
 			blockStmts, err := eval.StmtsOfExpr(info, origin, origin.Path, attr.Expr)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			stmts = append(stmts, blockStmts...)
 		}
@@ -156,12 +164,17 @@ func (r *Resolver) loadStmtsAt(tree *config.Tree) (eval.Stmts, error) {
 		return len(stmts[i].LHS.Path) > len(stmts[j].LHS.Path)
 	})
 
-	r.Scopes[tree.Dir()] = stmts
-	return stmts, nil
+	r.Scopes[tree.Dir()] = cacheData{
+		tree:  tree,
+		stmts: stmts,
+	}
+
+	return stmts, tree, nil
 }
 
-func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[eval.RefStr]eval.Ref) (stmts eval.Stmts, err error) {
-	stmts, err = r.loadStmtsAt(tree)
+func (r *Resolver) lookupStmtsAt(ref eval.Ref, scope project.Path, origins map[eval.RefStr]eval.Ref) ([]eval.Stmts, error) {
+	ret := make([]eval.Stmts, 0, 10)
+	stmts, tree, err := r.loadStmtsAt(scope)
 	if err != nil {
 		return nil, err
 	}
@@ -173,19 +186,21 @@ func (r *Resolver) lookupStmtsAt(ref eval.Ref, tree *config.Tree, origins map[ev
 		}
 	}
 
+	ret = append(ret, filtered)
+
 	if found || tree.Parent == nil {
-		return filtered, nil
+		return ret, nil
 	}
 
 	parent := tree.NonEmptyGlobalsParent()
 	if parent == nil {
-		return filtered, nil
+		return ret, nil
 	}
 
-	parentStmts, err := r.lookupStmtsAt(ref, parent, origins)
+	parentStmts, err := r.lookupStmtsAt(ref, parent.Dir(), origins)
 	if err != nil {
 		return nil, err
 	}
-	filtered = append(filtered, parentStmts...)
-	return filtered, nil
+	ret = append(ret, parentStmts...)
+	return ret, nil
 }

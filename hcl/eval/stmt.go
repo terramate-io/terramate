@@ -46,8 +46,8 @@ type (
 	// It could be an evaluated value or an expression.
 	RHS struct {
 		IsEvaluated bool
-		hhcl.Expression
-		value cty.Value
+		Expression  hhcl.Expression
+		Value       cty.Value
 	}
 
 	// Stmts is a list of statements.
@@ -91,7 +91,7 @@ func NewInnerValStmt(origin Ref, lhs Ref, rhs cty.Value, info Info) Stmt {
 // NewValRHS creates a new RHS for an evaluated value.
 func NewValRHS(val cty.Value) *RHS {
 	return &RHS{
-		value:       val,
+		Value:       val,
 		IsEvaluated: true,
 	}
 }
@@ -103,23 +103,10 @@ func NewExprRHS(expr hhcl.Expression) *RHS {
 	}
 }
 
-// Value evaluates the RHS or returns the value if already evaluated.
-func (rhs *RHS) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
-	if rhs.IsEvaluated {
-		return rhs.value, nil
-	}
-	v, diags := rhs.Expression.Value(ctx)
-	if !diags.HasErrors() {
-		rhs.value = v
-		rhs.IsEvaluated = true
-	}
-	return v, diags
-}
-
 // String returns the string representation of the RHS.
 func (rhs *RHS) String() string {
 	if rhs.IsEvaluated {
-		return ast.StringForValue(rhs.value)
+		return ast.StringForValue(rhs.Value)
 	}
 	return string(ast.TokensForExpression(rhs.Expression).Bytes())
 }
@@ -127,7 +114,7 @@ func (rhs *RHS) String() string {
 // Tokens tokenizes the RHS.
 func (rhs *RHS) Tokens() hclwrite.Tokens {
 	if rhs.IsEvaluated {
-		return ast.TokensForValue(rhs.value)
+		return ast.TokensForValue(rhs.Value)
 	}
 	return ast.TokensForExpression(rhs.Expression)
 }
@@ -149,7 +136,7 @@ func (stmt Stmt) String() string {
 	if stmt.Special {
 		rhs = "{} (Extend)"
 	} else if stmt.RHS.IsEvaluated {
-		rhs = string(ast.TokensForValue(stmt.RHS.value).Bytes())
+		rhs = string(ast.TokensForValue(stmt.RHS.Value).Bytes())
 	} else {
 		rhs = string(ast.TokensForExpression(stmt.RHS.Expression).Bytes())
 	}

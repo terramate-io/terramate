@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -88,7 +89,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			evalctx := eval.New()
+			evalctx := eval.New(project.RootPath)
 			evalctx.SetFunctions(stdlib.Functions(evalctx, basedir))
 
 			const attrname = "value"

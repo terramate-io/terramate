@@ -43,9 +43,8 @@ type Resolver struct {
 }
 
 // NewResolver is a resolver for let.* references.
-func NewResolver(scope project.Path, block *ast.MergedBlock) *Resolver {
+func NewResolver(block *ast.MergedBlock) *Resolver {
 	r := &Resolver{
-		scope: scope,
 		block: block,
 	}
 	return r
@@ -59,11 +58,8 @@ func (r *Resolver) Prevalue() cty.Value {
 	return cty.EmptyObjectVal
 }
 
-// Scope of the lets block.
-func (r *Resolver) Scope() project.Path { return r.scope }
-
 // LookupRef lookup the lets references.
-func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
+func (r *Resolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
 	stmts, err := r.loadStmts()
 	if err != nil {
 		return nil, err
@@ -75,7 +71,7 @@ func (r *Resolver) LookupRef(ref eval.Ref) (eval.Stmts, error) {
 		filtered, _ = stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
 	}
 
-	return filtered, nil
+	return []eval.Stmts{filtered}, nil
 }
 
 func (r *Resolver) loadStmts() (eval.Stmts, error) {

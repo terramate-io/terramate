@@ -103,9 +103,10 @@ EOT`,
 		}`)...)
 
 		ctx := eval.New(
+			root.Tree().Dir(),
 			runtime.NewResolver(root, nil),
 			globals.NewResolver(
-				root.Tree(),
+				root,
 				globalsStmts...,
 			),
 		)

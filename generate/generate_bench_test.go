@@ -22,6 +22,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -70,9 +71,11 @@ func BenchmarkGenerate(b *testing.B) {
 	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(b, err)
 
+	globals := globals.NewResolver(root)
+
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report := generate.Do(root, project.NewPath("/vendor"), nil)
+		report := generate.Do(root, globals, project.NewPath("/vendor"), nil)
 		if report.HasFailures() {
 			b.Fatal(report.Full())
 		}
@@ -125,9 +128,10 @@ func BenchmarkGenerateRegex(b *testing.B) {
 	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(b, err)
 
+	globals := globals.NewResolver(root)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report := generate.Do(root, project.NewPath("/vendor"), nil)
+		report := generate.Do(root, globals, project.NewPath("/vendor"), nil)
 		if report.HasFailures() {
 			b.Fatal(report.Full())
 		}

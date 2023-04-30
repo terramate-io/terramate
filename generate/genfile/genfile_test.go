@@ -993,8 +993,9 @@ func testGenfile(t *testing.T, tcase testcase) {
 		stack := s.LoadStacks()[0].Stack
 
 		evalctx := eval.New(
+			stack.Dir,
 			runtime.NewResolver(root, stack),
-			globals.NewResolver(stack.Tree()))
+			globals.NewResolver(root))
 		evalctx.SetFunctions(stdlib.Functions(evalctx, stack.HostDir(root)))
 
 		vendorDir := project.NewPath("/modules")

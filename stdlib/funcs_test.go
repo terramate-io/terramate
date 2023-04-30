@@ -137,7 +137,7 @@ func TestTmVendor(t *testing.T) {
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
-			ctx := eval.New()
+			ctx := eval.New(project.NewPath("/"))
 			funcs := stdlib.Functions(ctx, rootdir)
 			funcs[stdlib.Name("vendor")] = stdlib.VendorFunc(targetdir, vendordir, events)
 			ctx.SetFunctions(funcs)
@@ -171,7 +171,7 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				ctx := eval.New()
+				ctx := eval.New(project.NewPath("/"))
 				funcs := stdlib.Functions(ctx, rootdir)
 				funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, nil)
 				ctx.SetFunctions(funcs)
@@ -295,7 +295,7 @@ func TestStdlibTmVersionMatch(t *testing.T) {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
 			rootdir := t.TempDir()
-			ctx := eval.New()
+			ctx := eval.New(project.NewPath("/"))
 			funcs := stdlib.Functions(ctx, rootdir)
 			ctx.SetFunctions(funcs)
 			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
@@ -316,7 +316,7 @@ func TestStdlibNewFunctionsMustPanicIfRelativeBaseDir(t *testing.T) {
 			t.Fatal("eval.NewContext() did not panic with relative basedir")
 		}
 	}()
-	_ = stdlib.Functions(eval.New(), "relative")
+	_ = stdlib.Functions(eval.New(project.NewPath("/")), "relative")
 }
 
 func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
@@ -327,7 +327,7 @@ func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
 		}
 	}()
 
-	stdlib.Functions(eval.New(), filepath.Join(t.TempDir(), "non-existent"))
+	stdlib.Functions(eval.New(project.NewPath("/")), filepath.Join(t.TempDir(), "non-existent"))
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
@@ -339,7 +339,7 @@ func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
 	}()
 
 	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
-	_ = stdlib.Functions(eval.New(), path)
+	_ = stdlib.Functions(eval.New(project.NewPath("/")), path)
 }
 
 func init() {

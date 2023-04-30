@@ -19,6 +19,7 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -100,6 +101,15 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 			Iterator:   iterator,
 		},
 	}, nil
+}
+
+func (m *MapExpr) Tokens() hclwrite.Tokens {
+	return hclwrite.Tokens{
+		&hclwrite.Token{
+			Type:  hclsyntax.TokenIdent,
+			Bytes: []byte{'a'},
+		},
+	}
 }
 
 // Range of the map block.

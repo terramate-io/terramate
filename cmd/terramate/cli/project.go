@@ -20,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
 )
@@ -30,6 +31,7 @@ type project struct {
 	isRepo  bool
 	root    config.Root
 	baseRef string
+	globals *globals.Resolver
 
 	git struct {
 		wrapper                   *git.Git

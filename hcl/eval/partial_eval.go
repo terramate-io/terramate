@@ -211,7 +211,7 @@ func (c *Context) hasUnknownVars(expr hclsyntax.Expression) bool {
 
 func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
 	for _, namespace := range expr.Variables() {
-		if c.HasNamespace(namespace.RootName()) {
+		if _, ok := c.evaluators[namespace.RootName()]; ok {
 			return true
 		}
 	}

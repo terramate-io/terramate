@@ -1753,8 +1753,9 @@ func (tcase testcase) run(t *testing.T) {
 
 		tree, _ := root.Lookup(stack.Dir)
 		evalctx := eval.New(
+			stack.Dir,
 			runtime.NewResolver(root, stack),
-			globals.NewResolver(tree),
+			globals.NewResolver(root),
 		)
 		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 		vendorDir := project.NewPath("/modules")

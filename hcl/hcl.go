@@ -30,6 +30,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -288,7 +289,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("%s is not a directory", dir)
 	}
 
-	evalctx := eval.New()
+	evalctx := eval.New(project.RootPath)
 	evalctx.SetFunctions(stdlib.Functions(evalctx, dir))
 
 	return &TerramateParser{

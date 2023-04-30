@@ -4112,7 +4112,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			assert.NoError(t, err)
 			for _, elem := range stacks {
 				tree, _ := cfg.Lookup(elem.Dir())
-				evalctx := eval.New(globals.NewResolver(tree))
+				evalctx := eval.New(elem.Dir(), globals.NewResolver(cfg))
 				evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 				expr, err := ast.ParseExpression(`global`, `test.hcl`)
 				assert.NoError(t, err)
@@ -4157,9 +4157,10 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 			tree, _ := root.Lookup(st.Dir)
 
-			evalctx := eval.New(
+			// TODO(i4k): optimize by moving resolver out of the loop
+			evalctx := eval.New(st.Dir,
 				runtime.NewResolver(root, st),
-				globals.NewResolver(tree),
+				globals.NewResolver(root),
 			)
 
 			evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))

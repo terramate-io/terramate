@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
@@ -183,7 +184,7 @@ func TestAssertConfigEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			evalctx := eval.New()
+			evalctx := eval.New(project.RootPath)
 			funcs := stdlib.Functions(evalctx, t.TempDir())
 			evalctx.SetFunctions(funcs)
 

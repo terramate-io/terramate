@@ -36,6 +36,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -49,6 +50,7 @@ type S struct {
 	git     *Git
 	rootdir string
 	cfg     *config.Root
+	globals *globals.Resolver
 }
 
 // DirEntry represents a directory and can be used to create files inside the
@@ -204,7 +206,7 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root, vendorDir, nil)
+	report := generate.Do(root, globals.NewResolver(root), vendorDir, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
@@ -259,10 +261,21 @@ func (s *S) Config() *config.Root {
 	return cfg
 }
 
+func (s *S) Globals() *globals.Resolver {
+	s.t.Helper()
+	if s.globals != nil {
+		return s.globals
+	}
+	g := globals.NewResolver(s.Config())
+	s.globals = g
+	return g
+}
+
 // ReloadConfig reloads the sandbox configuration.
 func (s *S) ReloadConfig() *config.Root {
 	s.t.Helper()
 	s.cfg = nil
+	s.globals = nil
 	return s.Config()
 }
 

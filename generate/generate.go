@@ -100,7 +100,7 @@ type LoadResult struct {
 // If a critical error that fails the loading of all results happens it returns
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
-func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
+func Load(root *config.Root, globals *globals.Resolver, vendorDir project.Path) ([]LoadResult, error) {
 	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
 		return nil, err
@@ -111,8 +111,9 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 		res := LoadResult{Dir: st.Dir()}
 		tree, _ := root.Lookup(st.Dir())
 		evalctx := eval.New(
+			st.Dir(),
 			runtime.NewResolver(root, st.Stack),
-			globals.NewResolver(tree),
+			globals,
 		)
 
 		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
@@ -132,7 +133,11 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.Dir()}
-		evalctx := eval.New(globals.NewResolver(dircfg))
+		evalctx := eval.New(
+			dircfg.Dir(),
+			runtime.NewResolver(root, nil),
+			globals,
+		)
 		evalctx.SetFunctions(stdlib.Functions(evalctx, dircfg.HostDir()))
 
 		var generated []GenFile
@@ -187,12 +192,13 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // obtained and the report needs to be inspected to check.
 func Do(
 	root *config.Root,
+	globalsResolver *globals.Resolver,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
-	stackReport := forEachStack(root, vendorDir,
+	stackReport := forEachStack(root, globalsResolver, vendorDir,
 		vendorRequests, doStackGeneration)
-	rootReport := doRootGeneration(root)
+	rootReport := doRootGeneration(root, globalsResolver)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
 }
@@ -311,15 +317,16 @@ func doStackGeneration(
 	return report
 }
 
-func doRootGeneration(root *config.Root) Report {
+func doRootGeneration(root *config.Root, globalsResolver *globals.Resolver) Report {
 	logger := log.With().
 		Str("action", "generate.doRootGeneration").
 		Logger()
 
 	report := Report{}
 	evalctx := eval.New(
+		project.RootPath,
 		runtime.NewResolver(root, nil),
-		globals.NewResolver(root.Tree()),
+		globalsResolver,
 	)
 	evalctx.SetFunctions(stdlib.Functions(evalctx, root.HostDir()))
 
@@ -504,7 +511,7 @@ processSubdirs:
 
 // DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error) {
+func DetectOutdated(root *config.Root, globals *globals.Resolver, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
 		Logger()
@@ -522,8 +529,9 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 	for _, stack := range stacks {
 		tree := stack.Tree()
 		evalctx := eval.New(
+			stack.Dir(),
 			runtime.NewResolver(root, stack.Stack),
-			globals.NewResolver(tree),
+			globals,
 		)
 		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 		outdated, err := stackOutdated(root, evalctx, stack.Stack, vendorDir)
@@ -790,6 +798,7 @@ type forEachStackFunc func(
 
 func forEachStack(
 	root *config.Root,
+	globalsResolver *globals.Resolver,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 	fn forEachStackFunc,
@@ -818,8 +827,9 @@ func forEachStack(
 
 		tree := elem.Stack.Tree()
 		evalctx := eval.New(
+			tree.Dir(),
 			runtime.NewResolver(root, elem.Stack),
-			globals.NewResolver(tree),
+			globalsResolver,
 		)
 		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 
