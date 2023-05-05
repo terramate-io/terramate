@@ -1,4 +1,17 @@
-# Stack
+---
+title: Stacks | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Getting Started'
+  link: '/getting-started/'
+
+next:
+  text: 'Orchestration'
+  link: '/orchestration/'
+---
+
+# Stack Configuration
 
 When working with Infrastructure as Code it's considered to be a best practice
 to split up and organize your IaC into several smaller and isolated stacks.
@@ -15,13 +28,13 @@ A Terramate stack is:
 What separates a stack from any other directory is the `stack{}` block.
 It doesn't require any attributes by default, but it can be used
 to describe stacks and orchestrate their execution.
-
-Stack configurations related to orchestration can be found [here](orchestration.md).
+
+Stack configurations related to orchestration can be found [here](../orchestration/index.md).
 
 Besides orchestration the `stack` block also define attributes that are
 used to describe the `stack`.
 
-Only [Terramate Functions](functions.md) are available when defining
+Only [Terramate Functions](../functions/index.md) are available when defining
 the `stack` block.
 
 ## stack.id (string)(optional)
@@ -76,18 +89,18 @@ The tags must be a unique set of strings, where each tag must adhere to the foll
 ## stack.watch (list)(optional)
 
 The list of files that must be watched for changes in the
-[change detection](change-detection.md).
+[change detection](../change-detection/index.md).
 
 ## stack.after (set(string))(optional)
 
 The `after` defines the list of stacks which this stack must run after.
 It accepts project absolute paths (like `/other/stack`), paths relative to
-the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](tag-filter.md).
-See [orchestration docs](orchestration.md#stacks-ordering) for details.
+the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md).
+See [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
 
 ## stack.before (set(string))(optional)
 
 The `before` defines the list of stacks which this stack must run before.
 It accepts project absolute paths (like `/other/stack`), paths relative to
-the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](tag-filter.md).
-See [orchestration docs](orchestration.md#stacks-ordering) for details.
+the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md).
+See [orchestration docs](../orchestration/index.md#stacks-ordering) for details.

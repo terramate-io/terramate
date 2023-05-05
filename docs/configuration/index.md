@@ -1,3 +1,16 @@
+---
+title: Configure Terramate | Terramate
+description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+
+prev:
+  text: 'Functions'
+  link: '/functions/'
+
+next:
+  text: 'Project Setup'
+  link: '/configuration/project-setup'
+---
+
 # Terramate Configuration Overview
 
 Different configurations can be done in Terramate, ranging from avoiding
@@ -9,8 +22,8 @@ To do so, Terramate works with configuration files that have the suffixes:
 * `tm`
 * `tm.hcl`
 
-Terramate files can be found in any non-hidden directory of a Terramate project 
-and all non-hidden files in a single directory will be handled as the 
+Terramate files can be found in any non-hidden directory of a Terramate project
+and all non-hidden files in a single directory will be handled as the
 concatenation of all of them in a single file, forming a single **configuration**.
 
 The configuration blocks can be defined multiple times and their values are merged
@@ -46,7 +59,7 @@ An imported file can import other files but cycles are not allowed.
 A Terramate project is essentially a collection of Terraform code organized into
 stacks.
 
-It is not a hard requirement for Terramate to work that the project uses Git 
+It is not a hard requirement for Terramate to work that the project uses Git
 for version control (support to other VCS might be added in the future), but
 features like change detection do depend on a VCS to work and will fail if this
 soft requirement is not met.
@@ -64,7 +77,7 @@ The configuration defined in a directory is merged into a single configuration
 where multiple blocks of same type can be defined if their contents do not
 conflict. In other words, the definition of a block can be split into multiple
 blocks where each defines a part of the whole definition. The only exceptions are
-the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` blocks. 
+the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/code-generation/) blocks and the `import` blocks.
 The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extends the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
@@ -183,7 +196,7 @@ and has the following schema:
 | before           | list(string)   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
 | after            | list(string)   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
-| watch            | list(string)   | The list of `watch` files. See [change detection](change-detection.md) for details |
+| watch            | list(string)   | The list of `watch` files. See [change detection](../change-detection/index.md) for details |
 
 ## assert block schema
 
@@ -198,7 +211,7 @@ can be defined multiple times and has the following schema:
 
 ## globals block schema
 
-The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of 
+The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of
 [map](#map-block) blocks.
 
 For more information about `globals`, see the [Sharing Data](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md#globals) documentation.
@@ -232,7 +245,7 @@ The `generate_file` block requires one label, **do not** support [merging](#conf
 | content          | string         | The content to be generated |
 
 
-For detailed documentation about this block, see the [File Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-file.md) docs.
+For detailed documentation about this block, see the [File Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/code-generation/generate-file.md) docs.
 
 ## generate_hcl block schema
 
@@ -244,12 +257,13 @@ The `generate_hcl` block requires one label, **do not** support [merging](#confi
 | condition        | bool           | The condition for generation |
 | [content](#generate_hclcontent-block-schema) | block | The content to be generated |
 
-For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-hcl.md) docs.
+For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/code-generation/generate-hcl.md) docs.
 
 ## lets block schema
 
 The `lets` block has no labels, supports [merging](#config-merging) of blocks
-in the same level, accepts **any** attribute and **disallow** child blocks.
+in the same level, accepts **any** attribute and supports any number of
+[map](#map-block) blocks.
 
 ## generate_hcl.content block schema
 

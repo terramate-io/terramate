@@ -61,7 +61,7 @@ changelog:
 
 announce:
   twitter:
-    enabled: true
+    enabled: false
     message_template: |
       🥳 We just released #Terramate {{.Tag}} 🚀🚀🚀
       {{ .ReleaseURL }}
