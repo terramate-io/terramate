@@ -29,6 +29,7 @@
 package hclwrite
 
 import (
+	"bytes"
 	stdfmt "fmt"
 	"strings"
 	"testing"
@@ -122,7 +123,7 @@ func (b *Block) String() string {
 		}
 		code += "}"
 	}
-	return Format(code)
+	return string(Format([]byte(code)))
 }
 
 // BlockBuilder provides a general purpose way to build blocks.
@@ -229,12 +230,12 @@ func NumberInt(name string, val int64) BlockBuilder {
 }
 
 // Format formats the given HCL code.
-func Format(code string) string {
+func Format(code []byte) []byte {
 	formatted, err := fmt.FormatMultiline(code, "gen.hcl")
 	if err != nil {
 		panic(stdfmt.Errorf("invalid code:\n%s\ncan't be formatted: %v", code, err))
 	}
-	return strings.Trim(formatted, "\n ")
+	return bytes.Trim(formatted, "\n ")
 }
 
 // Build calls the underlying builder function to build the given block.

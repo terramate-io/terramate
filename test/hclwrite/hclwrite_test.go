@@ -260,7 +260,7 @@ func TestHCLWrite(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			want := hclwrite.Format(tcase.want)
+			want := hclwrite.Format([]byte(tcase.want))
 			got := tcase.hcl.String()
 
 			assertIsValidHCL(t, got)

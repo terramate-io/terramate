@@ -35,7 +35,7 @@ name = "name"
 	test = true
 	}
 	`
-	formattedHCL, err := fmt.Format(unformattedHCL, "")
+	formattedHCL, err := fmt.Format([]byte(unformattedHCL), "")
 	assert.NoError(t, err)
 
 	s := sandbox.New(t)
@@ -122,17 +122,17 @@ name = "name"
 		assertRunResult(t, cli.run("fmt"), runExpected{
 			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, string(formattedHCL))
 	})
 
 	t.Run("checking succeeds when all files are formatted", func(t *testing.T) {
 		assertRunResult(t, cli.run("fmt", "--check"), runExpected{})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, string(formattedHCL))
 	})
 
 	t.Run("formatting succeeds when all files are formatted", func(t *testing.T) {
 		assertRunResult(t, cli.run("fmt"), runExpected{})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, string(formattedHCL))
 	})
 
 	t.Run("update unformatted files in subdirs", func(t *testing.T) {
@@ -148,9 +148,9 @@ name = "name"
 			}),
 		})
 
-		assertFileContents(t, "another-stacks/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", formattedHCL)
+		assertFileContents(t, "another-stacks/globals.tm.hcl", string(formattedHCL))
+		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", string(formattedHCL))
+		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", string(formattedHCL))
 
 		assertFileContents(t, "globals.tm", unformattedHCL)
 		assertFileContents(t, "stacks/globals.tm", unformattedHCL)
@@ -167,12 +167,12 @@ name = "name"
 			}),
 		})
 
-		assertFileContents(t, "another-stacks/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "stacks/globals.tm", formattedHCL)
-		assertFileContents(t, "stacks/stack-1/globals.tm", formattedHCL)
-		assertFileContents(t, "stacks/stack-2/globals.tm", formattedHCL)
+		assertFileContents(t, "another-stacks/globals.tm.hcl", string(formattedHCL))
+		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", string(formattedHCL))
+		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", string(formattedHCL))
+		assertFileContents(t, "stacks/globals.tm", string(formattedHCL))
+		assertFileContents(t, "stacks/stack-1/globals.tm", string(formattedHCL))
+		assertFileContents(t, "stacks/stack-2/globals.tm", string(formattedHCL))
 
 		assertFileContents(t, "globals.tm", unformattedHCL)
 
@@ -181,6 +181,6 @@ name = "name"
 			Stdout: filesListOutput([]string{"globals.tm"}),
 		})
 
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, string(formattedHCL))
 	})
 }

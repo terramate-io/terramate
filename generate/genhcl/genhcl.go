@@ -45,7 +45,7 @@ import (
 type HCL struct {
 	label     string
 	origin    info.Range
-	body      string
+	body      []byte
 	condition bool
 	asserts   []config.Assert
 }
@@ -266,7 +266,7 @@ func evalBlock(evalctx *eval.Context,
 		return HCL{}, false, errors.E(ErrContentEval, err, "generate_hcl %q", name)
 	}
 
-	formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
+	formatted, err := fmt.FormatMultiline(gen.Bytes(), hclBlock.Range.HostPath())
 	if err != nil {
 		panic(errors.E(err,
 			"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),

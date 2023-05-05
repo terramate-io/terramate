@@ -1259,7 +1259,7 @@ var = [
 		t.Run(tcase.name, func(t *testing.T) {
 			tempdir := t.TempDir()
 
-			got, err := fmt.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))
+			got, err := fmt.FormatMultiline([]byte(tcase.input), filepath.Join(tempdir, filename))
 
 			FixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
@@ -1277,7 +1277,7 @@ var = [
 
 			got2, err := fmt.FormatMultiline(got, "formatted.hcl")
 			assert.NoError(t, err)
-			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
+			assert.EqualStrings(t, string(got), string(got2), "reformatting should produce identical results")
 		})
 	}
 }
@@ -1342,9 +1342,9 @@ d = []
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			got, err := fmt.Format(tcase.input, filename)
+			got, err := fmt.Format([]byte(tcase.input), filename)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
-			assert.EqualStrings(t, tcase.want, got)
+			assert.EqualStrings(t, tcase.want, string(got))
 
 			if err != nil {
 				return
@@ -1352,7 +1352,7 @@ d = []
 
 			got2, err := fmt.Format(got, "formatted.hcl")
 			assert.NoError(t, err)
-			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
+			assert.EqualStrings(t, string(got), string(got2), "reformatting should produce identical results")
 		})
 
 		if tcase.input == tcase.want {
@@ -1404,7 +1404,7 @@ d = []
 			assert.EqualInts(t, 2, len(got), "want 2 formatted files, got: %v", got)
 
 			for _, res := range got {
-				assert.EqualStrings(t, tcase.want, res.Formatted())
+				assert.EqualStrings(t, tcase.want, string(res.Formatted()))
 				assertFileContains(t, res.Path(), tcase.input)
 			}
 
@@ -1414,7 +1414,7 @@ d = []
 			t.Run("saving format results", func(t *testing.T) {
 				for _, res := range got {
 					assert.NoError(t, res.Save())
-					assertFileContains(t, res.Path(), res.Formatted())
+					assertFileContains(t, res.Path(), string(res.Formatted()))
 				}
 
 				got, err := fmt.FormatTree(rootdir)
