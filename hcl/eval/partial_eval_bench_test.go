@@ -26,7 +26,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func setupContext(b *testing.B) *eval.Context {
+func setupContext() *eval.Context {
 	ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
 	ctx.SetNamespace("global", map[string]cty.Value{
 		"true":   cty.True,
@@ -54,7 +54,7 @@ func setupContext(b *testing.B) *eval.Context {
 
 func BenchmarkPartialEvalComplex(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext(b)
+	ctx := setupContext()
 
 	exprBytes := []byte(`[
 		{
@@ -119,7 +119,7 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 
 func BenchmarkPartialEvalSmallString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext(b)
+	ctx := setupContext()
 
 	exprBytes := []byte(`"terramate is fun"`)
 
@@ -138,7 +138,7 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 
 func BenchmarkPartialEvalHugeString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext(b)
+	ctx := setupContext()
 
 	exprBytes := []byte(`"` + strings.Repeat(`terramate is fun\n`, 1000) + `"`)
 
@@ -157,7 +157,7 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 
 func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext(b)
+	ctx := setupContext()
 
 	exprBytes := []byte(`"` + strings.Repeat(`${global.string} is fun\n`, 1000) + `"`)
 
@@ -176,7 +176,7 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 
 func BenchmarkPartialEvalObject(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext(b)
+	ctx := setupContext()
 
 	exprBytes := []byte(`{
 		a = 1
