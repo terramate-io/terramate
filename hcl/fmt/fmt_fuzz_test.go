@@ -81,7 +81,7 @@ func FuzzFormatMultiline(f *testing.F) {
 		// Since hashicorp's hcl.Format is the one doing this we filter
 		// out hcl.Format mistakes here to focus on our own mistakes
 		// on hcl.FormatMultiline.
-		defaultFmt, err := fmt.Format(cfg, "default-fmt.hcl")
+		defaultFmt, err := fmt.Format([]byte(cfg), "default-fmt.hcl")
 		if err != nil || !isValidHCL(defaultFmt) {
 			return
 		}
@@ -107,13 +107,13 @@ func assertIsHCL(t *testing.T, orig, code string) {
 	}
 }
 
-func isValidHCL(code string) bool {
+func isValidHCL(code []byte) bool {
 	parser := hclparse.NewParser()
-	_, diags := parser.ParseHCL([]byte(code), "fuzz")
+	_, diags := parser.ParseHCL(code, "fuzz")
 	return !diags.HasErrors()
 }
 
-func formatMultiline(t *testing.T, code string) string {
+func formatMultiline(t *testing.T, code []byte) string {
 	t.Helper()
 
 	got, err := fmt.FormatMultiline(code, "fuzz.hcl")
