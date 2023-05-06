@@ -265,7 +265,7 @@ func TestHCLWrite(t *testing.T) {
 
 			assertIsValidHCL(t, got)
 
-			if diff := cmp.Diff(got, want); diff != "" {
+			if diff := cmp.Diff(got, string(want)); diff != "" {
 				t.Errorf("got:\n%s", got)
 				t.Errorf("want:\n%s", want)
 				t.Error("diff:")
