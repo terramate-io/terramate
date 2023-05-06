@@ -1264,7 +1264,7 @@ var = [
 			FixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 
-			if diff := cmp.Diff(got, tcase.want); diff != "" {
+			if diff := cmp.Diff(string(got), tcase.want); diff != "" {
 				t.Errorf("got:\n%s", got)
 				t.Errorf("want:\n%s", tcase.want)
 				t.Error("diff:")
