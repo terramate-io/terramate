@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build go1.18 && linux
+//go:build go1.18
 
 package fmt_test
 
@@ -86,22 +86,20 @@ func FuzzFormatMultiline(f *testing.F) {
 			return
 		}
 
-		got := formatMultiline(t, cfg)
+		got := formatMultiline(t, []byte(cfg))
 		assertIsHCL(t, cfg, got)
-		reformatted := formatMultiline(t, got)
+		reformatted := formatMultiline(t, []byte(got))
 
-		if got != reformatted {
-			assert.EqualStrings(t, got, reformatted,
-				"re-formatting should produce same exact result")
-		}
+		assert.EqualStrings(t, string(got), string(reformatted),
+			"re-formatting should produce same exact result")
 	})
 }
 
-func assertIsHCL(t *testing.T, orig, code string) {
+func assertIsHCL(t *testing.T, orig string, code []byte) {
 	t.Helper()
 
 	parser := hclparse.NewParser()
-	_, diags := parser.ParseHCL([]byte(code), "fuzz")
+	_, diags := parser.ParseHCL(code, "fuzz")
 	if diags.HasErrors() {
 		t.Fatalf("original code:\n%s\nformatted version:\n%s\nis not valid HCL:%v", orig, code, diags)
 	}
@@ -113,7 +111,7 @@ func isValidHCL(code []byte) bool {
 	return !diags.HasErrors()
 }
 
-func formatMultiline(t *testing.T, code []byte) string {
+func formatMultiline(t *testing.T, code []byte) []byte {
 	t.Helper()
 
 	got, err := fmt.FormatMultiline(code, "fuzz.hcl")
