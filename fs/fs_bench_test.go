@@ -27,8 +27,16 @@ import (
 func BenchmarkListFiles(b *testing.B) {
 	const tmFiles = 50
 	const otherFiles = 50
+	const ndirs = 50
 	b.StopTimer()
 	dir := b.TempDir()
+
+	for i := 0; i < ndirs; i++ {
+		p := filepath.Join(dir, fmt.Sprintf("dir_%d", i))
+		err := os.MkdirAll(p, 0644)
+		assert.NoError(b, err)
+	}
+
 	for i := 0; i < tmFiles; i++ {
 		p := filepath.Join(dir, fmt.Sprintf("terramate_%d.tm", i))
 		f, err := os.Create(p)
