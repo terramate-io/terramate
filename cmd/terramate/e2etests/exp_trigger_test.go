@@ -17,6 +17,7 @@ package e2etest
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -47,6 +48,9 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 }
 
 func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink tests skipped on windows")
+	}
 	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
