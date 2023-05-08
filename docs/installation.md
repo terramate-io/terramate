@@ -47,30 +47,32 @@ asdf install terramate latest
 
 ## Using Release Binaries
 
-To install Terramate using a release binary, go to the
-[download page](https://terramate.io/download) or find the appropriate package in
-the [Terramate Releases page](https://github.com/mineiros-io/terramate/releases) for your system.
+To install Terramate using a release binary, follow these steps:
 
-After downloading Terramate, unzip the package. Terramate runs as a single
-binary named `terramate`. Any other files in the package can be safely removed
-and Terramate will still function.
+1. Visit the Terramate [download page](https://terramate.io/download) or locate the suitable 
+package for your system on the [Terramate Releases page](https://github.com/mineiros-io/terramate/releases).
 
-Finally, make sure that the `terramate` binary is available on your PATH.
-This process will differ depending on your operating system.
+2. Download the Terramate package.
+
+3. Unzip the downloaded package to extract the Terramate binary, which is named `terramate`. 
+You can safely remove any other files in the package without affecting Terramate's functionality.
+
+4. Ensure that the `terramate` binary is available on your PATH. The process for this will 
+vary based on your operating system.
 
 ## Using Docker
 
-If you don't want to install Terramate on your host you can use
-[Docker](https://www.docker.com/) or [Podman](https://podman.io/) to
-run Terramate inside a container:
+If you prefer not to install Terramate directly on your host system, 
+you can use either Docker or Podman to run Terramate within a container.
+
+To do so, execute the following command:
 
 ```sh
 docker run ghcr.io/mineiros-io/terramate
 ```
 
-Container images tagged with release versions are also provided.
-Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
-for a list of the available container image tags.
+We also provide container images tagged with specific release versions. 
+To view a list of available container image tags, visit this [link](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions).
 
 ## Auto Completion
 
