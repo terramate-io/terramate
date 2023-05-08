@@ -13,7 +13,7 @@ next:
 
 # Stack Configuration
 
-When working with Infrastructure as Code (IaC), adopting a modular approach is highly recommended. This approach breaks the entire IaC into smaller, isolated stacks, enabling code and infrastructure component reuse. 
+When working with Infrastructure as Code (IaC), adopting a modular approach is highly recommended. This approach breaks the entire IaC into smaller, isolated **stacks**, enabling code and infrastructure component reuse. 
 
 Additionally, it enhances infrastructure management across multiple stacks and facilitates testing and deploying changes in a controlled manner, minimizing unintended consequences.
 
@@ -30,7 +30,7 @@ Terramate CLI simplifies resource creation and management, allowing you to focus
 ## A Terramate stack is:
 
 - A directory inside your project
-- Contains one or more TerraMate configuration files
+- Contains one or more Terramate configuration files
 - Includes a configuration file with a stack{} block
 
 The `stack{}` block distinguishes a stack from other directories in Terramate. By default, it doesn't require any attributes but can be used to describe stacks and orchestrate their execution.
@@ -46,7 +46,7 @@ Stacks offer several benefits:
 
 1. Manage multiple resources as one unit, allowing you to build and deploy the entire infrastructure efficiently and quickly with a single command.
 
-2. Easily manage dependencies between resources. For example, you can specify a virtual machine that depends on a virtual network, and TerraMate CLI will automatically manage the resource's creation or deletion.
+2. Easily manage dependencies between resources. For example, you can specify a virtual machine that depends on a virtual network, and Terramate CLI will automatically manage the resource's creation or deletion.
 
 3. Simplify infrastructure management as code. Defining the entire infrastructure using Terraform configuration files makes version control and change management more accessible.
 
@@ -64,17 +64,21 @@ terramate stack create
 ```
 Running this command creates all defined resources.
 
-Managing Stacks
+## Managing Stacks
 
-After creating a stack, you can use Terramate CLI to manage it. To update the stack, use:
+After creating a stack, you can use Terramate CLI to manage it. 
+
+- To **update** the stack, use:
+```hcl
 terramate stack update
+```
 
-- To delete the entire stack you can use the command
+- To **delete** the entire stack you can use the command:
 ```hcl
 terramate stack delete
 ```
 
-- You can also view the status of your stacks by using the following command
+- You can also **view the status** of your stacks by using the following command
 ```hcl
 terramate stack status
 ```
@@ -82,7 +86,8 @@ Running this command displays the status of all resources, allowing you to quick
 
 
 # Properties
-Each stack has a set of properties that can be accessed and used while building your IaC. Some of these properties include:
+Each stack has a set of properties that can be accessed and used while building your IaC. 
+Some of these properties include:
 
 ## stack.id (string)(optional)
 
@@ -91,8 +96,6 @@ The ID can't be bigger than 64 bytes and **must** be unique on the
 whole project.
 
 There is no default value determined for the stack ID.
-
-Eg:
 
 ```hcl
 stack {
@@ -104,8 +107,6 @@ stack {
 
 The stack name can be any string and defaults to the stack directory base name.
 
-Eg:
-
 ```hcl
 stack {
   name = "My Awesome Stack Name"
@@ -115,8 +116,6 @@ stack {
 ## stack.description (string)(optional)
 
 The stack description can be any string and defaults to an empty string.
-
-Eg:
 
 ```hcl
 stack {
