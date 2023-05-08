@@ -14,6 +14,9 @@
 
 name: benchmarks
 on: pull_request
+  branches-ignore: main
+  paths:
+      - '**.go'
 jobs:
   benchmarks:
     runs-on: ubuntu-20.04
