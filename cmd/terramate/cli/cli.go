@@ -428,7 +428,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 	logger.Trace().Msg("Set defaults from parsed command line arguments.")
 
-	err = prj.setDefaults(&parsedArgs)
+	err = prj.setDefaults()
 	if err != nil {
 		fatal(err, "setting configuration")
 	}
