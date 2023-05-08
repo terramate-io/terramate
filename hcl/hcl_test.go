@@ -944,7 +944,7 @@ func testParser(t *testing.T, tc testcase) {
 		} else {
 			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
 		}
-		got, err := parse(t, tc)
+		got, err := parse(tc)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List
@@ -991,7 +991,7 @@ func testParser(t *testing.T, tc testcase) {
 	}
 }
 
-func parse(t *testing.T, tc testcase) (hcl.Config, error) {
+func parse(tc testcase) (hcl.Config, error) {
 	var (
 		parser *hcl.TerramateParser
 		err    error

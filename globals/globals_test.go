@@ -4144,8 +4144,8 @@ func testGlobals(t *testing.T, tcase testcase) {
 			// for wanted evaluated globals, but that would make
 			// globals building more annoying (two sets of functions).
 			if want.HasExpressions() {
-				t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
-				t.Errorf("wanted globals definition:\n%s\n", want)
+				t.Errorf("wanted globals definition contains expressions, they should be defined only by evaluated values")
+				t.Fatalf("wanted globals definition:\n%s\n", want)
 			}
 
 			got := gotReport.Globals

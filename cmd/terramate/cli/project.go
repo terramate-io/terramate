@@ -136,7 +136,7 @@ func (p project) defaultBranchRef() string {
 	return git.DefaultRemote + "/" + git.DefaultBranch
 }
 
-func (p *project) setDefaults(parsedArgs *cliSpec) error {
+func (p *project) setDefaults() error {
 	logger := log.With().
 		Str("action", "setDefaults()").
 		Str("workingDir", p.wd).
