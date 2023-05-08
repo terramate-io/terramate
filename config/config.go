@@ -378,7 +378,7 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
+func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
 		Str("dir", rootdir).
@@ -388,6 +388,10 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 	if err != nil {
 		return nil, errors.E(err, "failed to open cfg directory")
 	}
+
+	defer func() {
+		err = errors.L(err, f.Close()).AsError()
+	}()
 
 	logger.Trace().Msg("reading directory file names")
 
