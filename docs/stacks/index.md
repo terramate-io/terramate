@@ -60,29 +60,9 @@ To create a stack using Terramate, follow these steps:
 2. Use the following command to create the resources:
 
 ```hcl
-terramate stack create
+terramate create
 ```
 Running this command creates all defined resources.
-
-## Managing Stacks
-
-After creating a stack, you can use Terramate CLI to manage it. 
-
-- To **update** the stack, use:
-```hcl
-terramate stack update
-```
-
-- To **delete** the entire stack you can use the command:
-```hcl
-terramate stack delete
-```
-
-- You can also **view the status** of your stacks by using the following command
-```hcl
-terramate stack status
-```
-Running this command displays the status of all resources, allowing you to quickly configure resources that require urgent attention.
 
 
 # Properties
