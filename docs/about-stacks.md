@@ -38,12 +38,16 @@ than your entire infrastructure.
 
 ## Isolate code that changes frequently
 
-If you make a lot of updates to your system, like deploying new code or changing 
+If you make a lot of updates to your infrastructure, like deploying new code or changing 
 settings often, doing everything in one Terraform project could cause problems. 
-This might lead to some parts of your system needing to be rebuilt, which means 
+This might lead to some parts of your infrastructure needing to be rebuilt, which means 
 more downtime.
 
-Using "stacks" helps with this issue. Stacks let you only update the parts of 
+If you frequently update your infrastructure, such as deploying new code or modifying settings, 
+doing everything into one Terraform project could cause complications. This might lead to 
+some parts of your infrastructure needing to be rebuilt, which means increased downtime.
+
+Using stacks helps with this issue. Stacks let you only update the parts of 
 your system that need changes, without affecting everything else. Be careful to 
 make the stacks the right size to avoid unnecessary repetition.
 
@@ -52,7 +56,7 @@ don't create problems when making updates.
 
 ## Reduce the blast radius
 
-A small change can lead to catastrophic events if you're not careful. For instance, forgetting a "prevent_destroy" attribute in the production database lifecycle 
+A small change can lead to catastrophic events if you're not careful. For instance, forgetting a `prevent_destroy` attribute in the production database lifecycle 
 declaration. Also, someone within your organisation or team may commit mistakes 
 and it's better if you could reduce the impact of such errors.
 
