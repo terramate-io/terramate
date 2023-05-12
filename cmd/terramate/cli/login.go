@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	APIKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
+	apiKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
 
 	serverAddr = "localhost:8080"
 	serverURL  = "http://" + serverAddr + "/auth"
@@ -115,7 +115,7 @@ func createAuthURI() (createAuthURIResponse, error) {
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err)
 	}
-	req, err := http.NewRequest("POST", endpoint+"?key="+APIKey, bytes.NewBuffer(postBody))
+	req, err := http.NewRequest("POST", endpoint+"?key="+apiKey, bytes.NewBuffer(postBody))
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to create authentication url")
 	}
@@ -195,14 +195,14 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	type payload struct {
 		RequestURI          string `json:"requestUri"`
-		SessionId           string `json:"sessionId"`
+		SessionID           string `json:"sessionId"`
 		ReturnSecureToken   bool   `json:"returnSecureToken"`
 		ReturnIdpCredential bool   `json:"returnIdpCredential"`
 	}
 
 	postBody := payload{
 		RequestURI:          gotURL,
-		SessionId:           h.consentData.SessionID,
+		SessionID:           h.consentData.SessionID,
 		ReturnSecureToken:   true,
 		ReturnIdpCredential: true,
 	}
@@ -222,7 +222,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Str("post-body", string(data)).
 		Msg("prepared request body")
 
-	req, err := http.NewRequest("POST", signInEndpoint+"?key="+APIKey, bytes.NewBuffer(data))
+	req, err := http.NewRequest("POST", signInEndpoint+"?key="+apiKey, bytes.NewBuffer(data))
 	if err != nil {
 		h.handleErr(w, errors.E(err, "failed to create authentication url"))
 		return
@@ -280,7 +280,7 @@ func (h *tokenHandler) handleOK(w http.ResponseWriter, cred credentialInfo) {
 	</html>
 	`
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte(fmt.Sprintf(messageFormat, html.EscapeString(cred.DisplayName))))
+	_, _ = w.Write([]byte(fmt.Sprintf(messageFormat, html.EscapeString(cred.DisplayName))))
 	h.credentialChan <- cred
 }
 
@@ -297,6 +297,6 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
 	</html>
 	`
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte(errMessage))
+	_, _ = w.Write([]byte(errMessage))
 	h.errChan <- err
 }
