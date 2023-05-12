@@ -112,6 +112,9 @@ type cliSpec struct {
 	DisableCheckpoint          bool `optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
 	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
 
+	Login struct {
+	} `cmd:"" help:"Login into Terramate Cloud" hidden:"true"`
+
 	Create struct {
 		Path           string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
 		ID             string   `help:"ID of the stack, defaults to UUID"`
@@ -383,6 +386,14 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		if err != nil {
 			fatal(err, "installing shell completions")
 		}
+		return &cli{exit: true}
+	case "login":
+		err := login(output)
+		if err != nil {
+			fatal(err)
+		}
+		output.MsgStdOut("authenticated successfully")
+
 		return &cli{exit: true}
 	}
 
