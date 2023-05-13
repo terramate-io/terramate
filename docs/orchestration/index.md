@@ -19,12 +19,11 @@ execution.
 
 ## Stacks selection
 
-The **selection** defines which stacks from the whole set must be selected to
-execute and terramate provides three ways of configuring that:
+Choosing the right stacks for execution is a key part of Stacks Execution Orchestration. Terramate offers three ways to select stacks:
 
 1. Change detection
 
-The [change detection](../change-detection/index.md) filter out stacks not changed.
+The [change detection](../change-detection/index.md) selects only the stacks that have been modified since the last execution.
 
 2. Current directory
 
@@ -35,10 +34,7 @@ project structure will select only stacks that are children of the current direc
 
 3. Explicit `wants` relationship.
 
-The `wants` attribute of the stack block defines an explicit relationship
-between a stack and its list of wanted stacks, that when provided it says
-that when a stack is selected all the stacks listed on its `wants` list will also be
-selected, always, independent of any other selection criteria.
+ The `wants` attribute of the stack block defines an explicit relationship between a stack and its list of wanted stacks. When a stack is selected, all the stacks listed on its `wants` list will also be selected, independent of any other selection criteria.
 
 Example:
 
@@ -56,68 +52,37 @@ applied is: `change detection`, `current directory`, `wants`.
 
 ## Stacks ordering
 
-Sometimes stacks are completely independent of each other, but on
-certain occasions it may happen that infrastructure that is created
-by **stack-a** is required by **stack-b**, like using the outputs
-of **stack-a** as inputs for **stack-b**.
+Stacks in deployment can either be independent or dependent on one another. In certain scenarios, the output from one stack may be required as input for another. In these cases, the execution order is crucial to ensure that all dependencies are met and resources are available when needed.
+
+To illustrate, consider two stacks - **stack A** and **stack B**. If **stack A** creates a database and **stack B** sets up a web server dependent on that database, the execution order matters. If **stack B** is deployed before **stack A**, the web server won't connect to the non-existent database.
 
 This can be done through data sources or
 by [loading the state](https://www.terraform.io/docs/language/state/remote-state-data.html)
 of another stack, or even an implicit dependency like hard coding the name/ID.
 
-Independent on how you approach the problem, you need
-an explicit way to communicate that changes on **stack A** affects execution of
-**stack B**, so the order of execution of the stacks, if they are
-selected for execution, should always be:
-
-* 1 - **stack A**
-* 2 - **stack B**
-
-To help with that terramate provides two ways to define the desired order of
-execution between stacks.
+Two methods can help us manage this issue in Terramate - the Filesystem Hierarchical Order and the Explicit Order of Execution.
 
 ### Filesystem hierarchical order
 
-Creating an hierarchy of stacks in the filesystem will make Terramate execute
-parent stacks before their children.
+Within Terramate, we can arrange stacks in a filesystem hierarchy. Parent stacks are always executed before their child stacks in this arrangement. Thus, if **stack A** includes **stack B**, **stack A** will always be executed first. 
 
-This is a double-edged sword because it allows you to move stacks around to
-better resemble the cloud infrastructure and the order of which things must
-be executed with zero code change but in counterpart beware that moving stacks
-just for cosmetic purposes can potentially change the execution order and break things.
+Keep in mind, incorrect stack order might lead Terramate to attempt resource creation before its dependencies are ready, causing errors. So, a clear stack order is necessary to avoid such issues.
 
 ### Explicit Order Of Execution
 
-Order of execution can be explicitly declared inside the **stack** block using
-the fields **before** and **after**.
+Terramate's Explicit Order of Execution feature allows you to designate a specific order for stack execution. This is done by definin **before** and **after** fields within the **stack** block, referring to other directories containing stacks.
 
-Each field is a set of string (**set(string)**), where each string is a path that
-references another directory, which can be a stack or contain stacks inside.
+**Before** ensures that the specified stack is executed before all stacks in the mentioned directories. Conversely, **after** ensures the stack is executed after those in the directories. Both relative and project root paths can be used to reference directories. 
 
-The explicit order can be used in conjunction with the implicit filesystem order
-but have in mind that a parent stack in the filesystem can never execute after a
-child one, and trying to make this using explicit **before** and **after** clauses
-will lead to a cycle error.
+Note, a parent stack can never be executed after a child stack, as this would cause a cycle error.
 
-References to directories can be relative to the stack being configured in the form:
+Here's how to use this feature:
 
-```
-../../dir
-```
-
-Or they can be relative to the project root, starting with "/":
-
-```
-/path/relative/to/project/root/dir
-```
-
-**before** ensures that the configured stack is executed before the
-stacks contained in the directory paths. As the stack you are saying:
-"I execute before all stacks inside these directories".
-
-**after** ensures the opposite, that the stacks contained in the provided
-directories are executed before the current stack. As the stack, you are saying:
-"I execute after all stacks inside these directories".
+1. Open your Terramate configuration file `terramate.tm.hcl` in a text editor.
+2. Select the stack block you want to allocate a specific order.
+3. Depending on your needs, add either the **before** or **after** field inside the stack block.
+4. Add **string** values representing the directory paths you want to order execution for in the **before** or **after** field.
+5. Save and close the file.
 
 For example, let's assume we have a project organized like this:
 
@@ -128,14 +93,11 @@ For example, let's assume we have a project organized like this:
 └── stack-b
     └── terramate.tm.hcl
 ```
-
-And **stack-a/terramate.tm.hcl** looks like:
-
+In this case, **stack-a/terramate.tm.hcl** would look like this:
 
 ```hcl
 stack {}
 ```
-
 
 And then we have **stack-b/terramate.tm.hcl**:
 
@@ -148,7 +110,7 @@ stack {
 }
 ```
 
-That can also be defined by using a project root relative path:
+Alternatively, you can define the same using a project root relative path:
 
 
 ```hcl
@@ -159,14 +121,11 @@ stack {
 }
 ```
 
-For both equivalent configurations, the order of execution will be:
+In both configurations, the execution sequence will be **stack-a** -> **stack-b**
 
-* stack-a
-* stack-b
+You can also use the **before** field to define the execution order. For instance:
 
-The same order of execution can be defined using **before**:
-
-**stack-a/terramate.tm.hcl**:
+In `stack-a/terramate.tm.hcl`:
 
 ```hcl
 stack {
@@ -176,37 +135,15 @@ stack {
 }
 ```
 
-**stack-b/terramate.tm.hcl**:
+And `stack-b/terramate.tm.hcl`:
 
 ```hcl
 stack {}
 ```
 
-This would also be a valid way to express the same order (although redundant):
+The above configuration also results in the execution sequence **stack-a** -> **stack-b**.
 
-**stack-a/terramate.tm.hcl**:
-
-```hcl
-stack {
-    before = [
-        "../stack-b"
-    ]
-}
-```
-
-**stack-b/terramate.tm.hcl**:
-
-```hcl
-stack {
-    after = [
-        "../stack-a"
-    ]
-}
-```
-
-You can also use **before** and **after** simultaneously on the same
-stack for more complex scenarios. Lets add a third **stack-c** to our example.
-The three stacks are defined as follows:
+For more complex scenarios, you can use both **before** and **after** fields in the same stack block. For example, let's add a third **stack-c** to our project:
 
 **stack-a/terramate.tm.hcl**:
 
@@ -233,103 +170,26 @@ stack {
 }
 ```
 
-The order of execution will be:
+With these settings, the execution sequence will be **stack-a** -> **stack-c** -> **stack-b**.
 
-* stack-a
-* stack-c
-* stack-b
-
-One example of terramate command that leverages order of
-execution is **terramate run**.
-
-This will run **terraform** plan on all stacks, but respecting ordering:
+One command that considers this execution order is `terramate run`, which runs `terraform plan` on all stacks in the defined sequence:
 
 ```sh
 terramate run terraform plan
 ```
 
-### Change Detection And Ordering
-
-When using any terramate command with support to change detection,
-execution order is only imposed on stacks detected as changed. If a stack
-is mentioned on **before**/**after** but the mentioned stack has no changes
-on it, it will be ignored when calculating order.
-
-An example of such a command would be using terramate to run **terraform apply**,
-but only on changes stacks, like this:
-
-```bash
-terramate run --changed terraform apply
-```
-
-The overall algorithm for this case:
-
-* Check which stacks have changed, lets call the result a **changeset**
-* Ordering is established on top of the previously calculated **changeset**
-
-Given that we have 3 stacks, **stack-a**, **stack-b**, **stack-c**.
-**stack-a** has no ordering requisites.
-**stack-b** defines this order:
-
-```hcl
-stack {
-    after = [
-        "../stack-a",
-    ]
-}
-```
-
-**stack-c** defines this order:
-
-```hcl
-stack {
-    after = [
-        "../stack-a",
-        "../stack-b",
-    ]
-}
-```
-
-The **static** order is defined as:
-
-* stack-a
-* stack-b
-* stack-c
-
-If the **changeset=('stack-a', 'stack-c')**, this will be the **runtime** order:
-
-* stack-a
-* stack-c
-
-Even though **stack-c** defined that it needs to be run after **stack-b**, since
-**stack-b** has no changes on it, it will be ignored when defining the
-**runtime** order.
-
-
-## Stack Execution Environment
-
-It is possible to control the environment variables of commands when they are
-executed on a stack. That is done through the `terramate.config.run.env` block.
-More details on how to use can be find [Project Configuration](../configuration/project-config.md#terramateconfigrunenv)
-documentation.
-
-
 ## Failure Modes
 
-Currently the behavior when a stack execution fails given a total order of
-execution is undefined. Whatever observed behavior should not be relied upon
-since it may change on the future.
+The current behavior during complete failure in stack order execution remains undefined. 
+As this behavior is subject to change, it is advisable not to rely on it.
 
+### Handling Cycles Conflicts
 
-### What About Cycles/Conflicts ?
+Cyclic dependency occurs when circular dependencies exist between the stacks. For instance, if stack A is dependent on stack B, and vice versa, a cycle is created. 
 
-If any cycles are detected on the ordering definitions this will be
-considered a failure and **terramate** will abort with an
-error message pointing out the detected cycle.
+This cycle can lead to execution failure if not properly configured. When such an event occurs, Terramate will terminate the process, providing an error message indicating the detected cycle.
 
-Also in the case of a conflict, like a stack defined like this:
-
-**stack-a/terramate.tm.hcl**:
+Consider a stack defined as follows in **stack-a/terramate.tm.hcl**:
 
 ```hcl
 stack {
@@ -342,4 +202,4 @@ stack {
 }
 ```
 
-An error will be reported.
+In this situation, a conflict arises causing the execution to enter failure mode. An error message will be reported in such an instance.
