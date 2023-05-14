@@ -18,7 +18,7 @@ next:
 This tutorial will demonstrate the basic concepts behind [Terramate](https://github.com/mineiros-io/terramate) and give you some ideas for how a filesystem-oriented code generator can help you to manage your Terraform code at scale more efficiently .
 So that anyone can try Terramate without needing a cloud account, we will use only the `local_file` resource to create a static site demonstrating the basic principles behind Terramate. The only prerequisites are local installations of Terramate, Terraform and Git.
 
-> We launched a [Terramate Discord Server](https://terramate.io/discord) in case you have any additional questions or issues running the eaples in this guide.
+> We launched a [Terramate Discord Server](https://terramate.io/discord) in case you have any additional questions or issues running the examples in this guide.
 >
 > 👉 [https://terramate.io/discord](https://terramate.io/discord)
 
@@ -36,7 +36,7 @@ terramate {
 }
 ```
 
-Terramate uses the filesystem as its hierarchy and needs to know the project’s root. This also means that all absolute paths that are used to reference stacks are based on the project’s root and not the root of the filesytem.
+Terramate uses the filesystem as its hierarchy and needs to know the project’s root, since all paths are relative to the project root, not the filesystem root.
 
 In most circumstances, this would be the git root, but we’re explicitly marking the root with a blank config for now.
 
@@ -60,7 +60,7 @@ stack {
 
 Any file with the extension `.tm` or `.tm.hcl` is recognized by Terramate and any Terramate file that contains a `stack {}` block is recognized as a stack.
 
-A Terramate Stack is a directory that can already contain Terraform configuration files and where Terramate can be used to generate Terraform configuration files. A stack has a 1:1 relaion ship the the state Terraform states.
+A Terramate Stack is a directory that contains Terramate configuration files. This is where Terramate will generate Terraform. A stack has a 1:1 relationship with the Terraform state - i.e. each stack is a directory where you can run `terraform init`
 
 Moreover, there is nothing special about this `stack.tm.hcl` file and it can be generated manually without the ID or the `terramate create` command.
 
