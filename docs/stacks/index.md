@@ -66,6 +66,7 @@ Running this command creates all defined resources.
 
 
 # Properties
+
 Each stack has a set of properties that can be accessed and used while building your IaC. 
 Some of these properties include:
 
