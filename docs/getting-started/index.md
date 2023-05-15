@@ -15,7 +15,7 @@ next:
 
 [Terramate](https://github.com/mineiros-io/terramate) is a [code generator and orchestrator for Terraform](https://blog.mineiros.io/product-introduction-github-as-code-af466550a4a9?source=friends_link&sk=ae60be77dcb484724b3b821898e7813d) that adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
-This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/mineiros-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code at efficiently.
+This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/mineiros-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
 
 To follow this tutorial, you will need local installations of [Terramate](../installation.md), [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli), and [Git](https://git-scm.com/downloads). 
 
@@ -39,7 +39,7 @@ terramate {
 }
 ```
 
-Terramate uses the filesystem for its hierarchy and requires knowledge of the project's root, which is typically the git root. In this case, we're marking the root with an empty config.
+Terramate uses the filesystem for its hierarchy and requires knowledge of the project's root, which is typically the git root. In this case, we're marking the root with an empty config as shown above.
 
 Next, navigate `"cd"` to the new directory and run:
 

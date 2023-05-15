@@ -13,8 +13,7 @@ next:
 
 # Stacks Execution Orchestration
 
-The orchestration of stack's execution is driven by the `terramate run` command
-and it supports different ways of selecting stacks and configuring the order of
+The orchestration of stack's execution is driven by the `terramate run` command, and it supports different ways of selecting stacks and configuring the order of
 execution.
 
 ## Stacks selection
