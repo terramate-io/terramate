@@ -240,7 +240,7 @@ After approval, the rendered HTML files should be located at `/tmp/tfmysite/<env
 
 ### Terramate Orchestration with Change Detection
 
-To conclude this introduction, let's explore globals precedence and one of Terramate's most powerful features: change detection. Change detection is designed for CI-CD pipelines and requires a working Git repository with a remote. In your project's root, run:
+To conclude this introduction, let's explore globals precedence and one of Terramate's most powerful features: change detection. [Change detection](../change-detection/index.md) is designed for CI-CD pipelines and requires a working Git repository with a remote. In your project's root, run:
 
 ```bash
 git init -b main
