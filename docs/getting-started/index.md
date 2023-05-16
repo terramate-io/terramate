@@ -18,7 +18,7 @@ next:
 This tutorial will demonstrate the basic concepts behind [Terramate](https://github.com/mineiros-io/terramate) and give you some ideas for how a filesystem-oriented code generator can help you to manage your Terraform code at scale more efficiently .
 So that anyone can try Terramate without needing a cloud account, we will use only the `local_file` resource to create a static site demonstrating the basic principles behind Terramate. The only prerequisites are local installations of Terramate, Terraform and Git.
 
-> We launched a [Terramate Discord Server](https://terramate.io/discord)
+> We launched a [Terramate Discord Server](https://terramate.io/discord) in case you have any additional questions or issues running the examples in this guide.
 >
 > 👉 [https://terramate.io/discord](https://terramate.io/discord)
 
@@ -36,7 +36,9 @@ terramate {
 }
 ```
 
-Terramate uses the filesystem as its hierarchy and needs to know the project’s root. In most circumstances, this would be the git root, but we’re explicitly marking the root with a blank config for now.
+Terramate uses the filesystem as its hierarchy and needs to know the project’s root, since all paths are relative to the project root, not the filesystem root.
+
+In most circumstances, this would be the git root, but we’re explicitly marking the root with a blank config for now.
 
 Next, `cd` into the new directory and run:
 
@@ -44,7 +46,7 @@ Next, `cd` into the new directory and run:
 $ terramate create mysite
 ```
 
-This creates a directory called `mysite` and a file inside called `stack.tm.hcl` containing a `stack {}` block:
+This creates a Terramate Stack, which is represented as a directory called `mysite` containing a file named `stack.tm.hcl` containing a `stack {}` block:
 
 ```hcl
 # file: stack.tm.hcl
@@ -58,9 +60,15 @@ stack {
 
 Any file with the extension `.tm` or `.tm.hcl` is recognized by Terramate and any Terramate file that contains a `stack {}` block is recognized as a stack.
 
-A stack is just a directory where Terramate will generate terraform files, nothing more. Moreover, there is nothing special about this `stack.tm.hcl` file and it can be generated manually without the ID or the `terramate create` command. However, it’s preferable to generate unique IDs for our stacks because, as we build more complex infrastructures, they allow us to reference stacks directly rather than using relative paths, which makes refactoring painful.
+A Terramate Stack is a directory that contains Terramate configuration files. This is where Terramate will generate Terraform. A stack has a 1:1 relationship with the Terraform state - i.e. each stack is a directory where you can run `terraform init`
 
-If we now run `terramate list` we should see our `mysite/` directory as a listed stack. (If you don't see it, you are probably running in the wrong directory; Terramate always uses the current working directory as the context for the command.) So, we have created a stack, but currently, it does nothing. We can run the command to generate our Terraform code and run cleanly, but it will do nothing.
+Moreover, there is nothing special about this `stack.tm.hcl` file and it can be generated manually without the ID or the `terramate create` command.
+
+However, it’s preferable to generate unique IDs for our stacks because, as we build more complex infrastructures, they allow us to reference stacks directly rather than using relative paths, which makes refactoring painful.
+
+If we now run `terramate list` we should see our `mysite` directory as a listed stack. If you don't see it, you are probably running in the wrong directory; Terramate always uses the current working directory as the context for the command.
+
+So, we have created a stack, but currently, it does nothing. We can run the command to generate our Terraform code, but it will do nothing, as no Terramate configuration is set up to generate code.
 
 ```bash
 terramate generate
@@ -215,7 +223,16 @@ $ terramate run terraform init
 
 Whoops. We should have run `terramate generate` before `terramate run`, but luckily Terramate knew that the generated code needed to be updated and it prevented us from running Terraform and performing actions we didn't want on outdated code.
 
-So run `terramate generate`, then `terramate run terraform init` again. You should now see Terraform initializing sequentially in `dev` and then `prod`. `terramate run` executes in filesystem order by default, but [Terramate can control the order of execution](../orchestration/index.md#stacks-ordering) if needed.
+So run
+
+```bash
+$ terramate generate
+$ terramate run terraform init
+```
+
+again. You should now see Terraform initializing sequentially in `dev` and then `prod`.
+
+`terramate run` executes in filesystem order by default, but [Terramate can control the order of execution](../orchestration/index.md#stacks-ordering) if needed.
 
 Now run:
 
@@ -303,11 +320,16 @@ $ terramate list --changed
 dev/mysite
 ```
 
-If you now run `terramate run --changed terraform apply`, it will run the `apply` Only against the changed stacks. At Mineiros, this change detection (via a GitHub Action) is a key part of our workflow, allowing us to quickly and reliably build out large-scale infrastructures for our clients, and we hope it can help you do the same.
+If you now run `terramate run --changed terraform apply`, it will run the `apply` only against the changed stacks.
+
+At Terramate.io, this change detection (via a GitHub Action) is a key part of our infrastructure workflows, allowing us to quickly and reliably build out large-scale infrastructure and we hope it can help you do the same.
 
 ### Conclusion
 
 Hopefully, this tutorial helped you understand the fundamentals of Terramate and see where its simple code generation model using the filesystem hierarchy can help you organize your codebase and make it DRY without getting in your way.
+
 Terramate is flexible, and there’s a lot more to [explore](https://terramate.io/docs/cli/), but we believe its power lies in its simplicity which allows you to integrate it easily, however you work, without having to invest in learning yet another API or complex tooling that further abstracts you from the native terraform code you’ve already built.
+
 And if Terramate turns out not to work for you, no problem: just `rm` all the `*.tm{,.hcl}` files, and you're left with plain Terraform!
+
 If you have questions or feature requests regarding Terramate, please join our [Discord Community](https://terramate.io/discord) or create an issue in the [Github repository.](https://github.com/mineiros-io/terramate)
