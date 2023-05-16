@@ -111,7 +111,7 @@ globals {
 }
 ```
 
-The name `globals.tm.hcl` is not special, and the content could be included in an existing `terramate.tm.hcl` file. All Terramate files are merged during runtime, similar to how Terraform merges `.tf` files. This simplicity provides great flexibility.
+The name `globals.tm.hcl` is not required, and the content could be included in an existing `terramate.tm.hcl` file. All Terramate files are merged during runtime, similar to how Terraform merges `.tf` files. This simplicity provides great flexibility.
 
 Next, update the `mysite/stack.tm.hcl` file by replacing the `<title>` with `<title>${global.title}</title>`. Running `terramate generate` will not change anything, but the title now references a global variable.
 
