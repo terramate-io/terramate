@@ -21,18 +21,30 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
 	"sync"
+	"time"
 
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
 )
 
 const (
+	// that's a public key.
 	apiKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
 
+	// do not use localhost here.
+	// see recommendation here: https://datatracker.ietf.org/doc/html/rfc8252#section-7.3
 	serverAddr = "localhost:8080"
 	serverURL  = "http://" + serverAddr + "/auth"
+
+	credfile = "credentials.tmrc.json"
 )
 
 type (
@@ -57,15 +69,31 @@ type (
 		OauthIDToken     string `json:"oauthIdToken"`
 		RawUserInfo      string `json:"rawUserInfo"`
 	}
+
+	cachedCredential struct {
+		DisplayName             string    `json:"display_name"`
+		CachedAt                time.Time `json:"cached_at"`
+		IDToken                 string    `json:"id_token"`
+		IDTokenExpiresInSeconds int       `json:"id_token_expires_in_seconds"`
+		RefreshToken            string    `json:"refresh_token"`
+	}
 )
 
-func login(output out.O) error {
+func login(output out.O, clicfg cliconfig.Config) error {
 	consentData, err := createAuthURI()
 	if err != nil {
 		return err
 	}
 
-	output.MsgStdOut("Please visit the url: %s", consentData.AuthURI)
+	output.MsgStdOutV("trying to open URL in the browser: %s", consentData.AuthURI)
+
+	err = browser.OpenURL(consentData.AuthURI)
+	if err != nil {
+		output.MsgStdErr("failed to open URL in the browser")
+		output.MsgStdOut("Please visit the url: %s", consentData.AuthURI)
+	} else {
+		output.MsgStdOut("Please continue the authentication process in the browser.")
+	}
 
 	h := newHandler(consentData)
 
@@ -87,8 +115,11 @@ func login(output out.O) error {
 
 	select {
 	case cred := <-h.credentialChan:
-		output.MsgStdOut("Logged in as: ; %s", cred.DisplayName)
-		return nil
+		output.MsgStdOut("Logged in as %s", cred.DisplayName)
+		output.MsgStdOutV("Token: %s", cred.IDToken)
+		expire, _ := strconv.Atoi(cred.ExpiresIn)
+		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
+		return cacheToken(output, cred, clicfg)
 	case err := <-h.errChan:
 		return err
 	}
@@ -96,6 +127,7 @@ func login(output out.O) error {
 
 func createAuthURI() (createAuthURIResponse, error) {
 	const endpoint = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/createAuthUri"
+	const authScope = `{"google.com": "profile"}`
 
 	type payload struct {
 		ProviderID      string                 `json:"providerId"`
@@ -108,14 +140,16 @@ func createAuthURI() (createAuthURIResponse, error) {
 		ProviderID:      "google.com",
 		ContinueURI:     serverURL,
 		CustomParameter: map[string]interface{}{},
-		OauthScope:      `{"google.com": "profile"}`,
+		OauthScope:      authScope,
 	}
 
 	postBody, err := json.Marshal(&payloadData)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err)
 	}
-	req, err := http.NewRequest("POST", endpoint+"?key="+apiKey, bytes.NewBuffer(postBody))
+
+	url := endpointURL(endpoint)
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(postBody))
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to create authentication url")
 	}
@@ -222,7 +256,8 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Str("post-body", string(data)).
 		Msg("prepared request body")
 
-	req, err := http.NewRequest("POST", signInEndpoint+"?key="+apiKey, bytes.NewBuffer(data))
+	url := endpointURL(signInEndpoint)
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
 	if err != nil {
 		h.handleErr(w, errors.E(err, "failed to create authentication url"))
 		return
@@ -279,7 +314,7 @@ func (h *tokenHandler) handleOK(w http.ResponseWriter, cred credentialInfo) {
 		</body>
 	</html>
 	`
-	w.WriteHeader(http.StatusInternalServerError)
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(fmt.Sprintf(messageFormat, html.EscapeString(cred.DisplayName))))
 	h.credentialChan <- cred
 }
@@ -299,4 +334,47 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	_, _ = w.Write([]byte(errMessage))
 	h.errChan <- err
+}
+
+func cacheToken(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
+	cachedAt := time.Now()
+	cacheFile := filepath.Join(clicfg.HomeTerramateDir, credfile)
+
+	expiresIn, err := strconv.Atoi(cred.ExpiresIn)
+	if err != nil {
+		return errors.E("authentication returned an invalid expiration time: %v", err)
+	}
+
+	cachePayload := cachedCredential{
+		DisplayName:             cred.DisplayName,
+		IDToken:                 cred.IDToken,
+		IDTokenExpiresInSeconds: expiresIn,
+		RefreshToken:            cred.RefreshToken,
+		CachedAt:                cachedAt,
+	}
+
+	data, err := json.Marshal(&cachePayload)
+	if err != nil {
+		return errors.E(err, "failed to JSON marshal the credentials")
+	}
+
+	err = os.WriteFile(cacheFile, data, 0600)
+	if err != nil {
+		return errors.E(err, "failed to cache credentials")
+	}
+
+	output.MsgStdOutV("credentials cached at %s", cacheFile)
+	return nil
+}
+
+func endpointURL(endpoint string) *url.URL {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		fatal(err, "failed to parse endpoint URL for createAuthURI")
+	}
+
+	q := u.Query()
+	q.Add("key", apiKey)
+	u.RawQuery = q.Encode()
+	return u
 }

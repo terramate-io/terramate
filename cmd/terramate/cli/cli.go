@@ -92,6 +92,8 @@ const (
 
 const defaultVendorDir = "/modules"
 
+const terramateHomeConfigDir = ".terramate.d"
+
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag    bool     `name:"version" help:"Terramate version"`
@@ -238,6 +240,7 @@ type cli struct {
 	version    string
 	ctx        *kong.Context
 	parsedArgs *cliSpec
+	clicfg     cliconfig.Config
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
@@ -328,6 +331,14 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
 	}
 
+	if clicfg.HomeTerramateDir == "" {
+		homeTmDir, err := localTerramateDir()
+		if err != nil {
+			fatal(err, "please set the homeTerramateDir option in the %s configuration file", cliconfig.Filename)
+		}
+		clicfg.HomeTerramateDir = homeTmDir
+	}
+
 	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
 	go runCheckpoint(
 		version,
@@ -388,9 +399,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		}
 		return &cli{exit: true}
 	case "login":
-		err := login(output)
+		err := login(output, clicfg)
 		if err != nil {
-			fatal(err)
+			fatal(err, "authentication failed")
 		}
 		output.MsgStdOut("authenticated successfully")
 
@@ -455,6 +466,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		stderr:            stderr,
 		output:            output,
 		parsedArgs:        &parsedArgs,
+		clicfg:            clicfg,
 		ctx:               ctx,
 		prj:               prj,
 		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
@@ -1789,6 +1801,18 @@ func (c cli) checkVersion() {
 	}
 }
 
+func localTerramateDir() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", errors.E(err, "failed to discover .terramate.d directory")
+	}
+	if usr.HomeDir == "" {
+		return "", errors.E("no user home directory found")
+	}
+
+	return filepath.Join(usr.HomeDir, terramateHomeConfigDir), nil
+}
+
 func runCheckpoint(
 	version string,
 	disableCheckpoint bool,
@@ -1809,16 +1833,12 @@ func runCheckpoint(
 		Str("action", "runCheckpoint()").
 		Logger()
 
-	const terramateHomeConfigDir = ".terramate.d"
-
-	usr, err := user.Current()
-	if err == nil && usr.HomeDir != "" {
-		tmDir := filepath.Join(usr.HomeDir, terramateHomeConfigDir)
-
-		cacheFile = filepath.Join(tmDir, "checkpoint_cache")
+	localTmDir, err := localTerramateDir()
+	if err == nil {
+		cacheFile = filepath.Join(localTmDir, "checkpoint_cache")
 
 		if !disableCheckpointSignature {
-			signatureFile = filepath.Join(tmDir, "checkpoint_signature")
+			signatureFile = filepath.Join(localTmDir, "checkpoint_signature")
 		}
 	} else {
 		logger.Debug().Msg("signature and cache are disabled because user HOME was not detected")
