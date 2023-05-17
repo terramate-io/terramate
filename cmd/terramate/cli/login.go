@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,12 +41,10 @@ const (
 	// that's a public key.
 	apiKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
 
-	// do not use localhost here.
-	// see recommendation here: https://datatracker.ietf.org/doc/html/rfc8252#section-7.3
-	serverAddr = "localhost:8080"
-	serverURL  = "http://" + serverAddr + "/auth"
-
 	credfile = "credentials.tmrc.json"
+
+	minPort = 40000
+	maxPort = 52023
 )
 
 type (
@@ -80,10 +80,29 @@ type (
 )
 
 func login(output out.O, clicfg cliconfig.Config) error {
-	consentData, err := createAuthURI()
+	h := &tokenHandler{
+		credentialChan: make(chan credentialInfo),
+		errChan:        make(chan error),
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/auth", h)
+
+	s := &http.Server{
+		Handler: mux,
+	}
+
+	redirectURLChan := make(chan string)
+	consentDataChan := make(chan createAuthURIResponse)
+
+	go startServer(s, h, redirectURLChan, consentDataChan)
+
+	consentData, err := createAuthURI(<-redirectURLChan)
 	if err != nil {
 		return err
 	}
+
+	consentDataChan <- consentData
 
 	output.MsgStdOutV("trying to open URL in the browser: %s", consentData.AuthURI)
 
@@ -94,24 +113,6 @@ func login(output out.O, clicfg cliconfig.Config) error {
 	} else {
 		output.MsgStdOut("Please continue the authentication process in the browser.")
 	}
-
-	h := newHandler(consentData)
-
-	mux := http.NewServeMux()
-	mux.Handle("/auth", h)
-
-	s := http.Server{
-		Addr:    serverAddr,
-		Handler: mux,
-	}
-
-	go func() {
-		err := s.ListenAndServe()
-		if err != nil {
-			h.errChan <- err
-			return
-		}
-	}()
 
 	select {
 	case cred := <-h.credentialChan:
@@ -125,7 +126,51 @@ func login(output out.O, clicfg cliconfig.Config) error {
 	}
 }
 
-func createAuthURI() (createAuthURIResponse, error) {
+func startServer(
+	s *http.Server,
+	h *tokenHandler,
+	redirectURLChan chan<- string,
+	consentDataChan <-chan createAuthURIResponse,
+) {
+	var err error
+	defer func() {
+		if err != nil {
+			h.errChan <- err
+		}
+	}()
+
+	rand.Seed(time.Now().UnixNano())
+
+	var ln net.Listener
+	const maxretry = 5
+	var retry int
+	for retry = 0; retry < maxretry; retry++ {
+		addr := "127.0.0.1:" + strconv.Itoa(minPort+rand.Intn(maxPort-minPort))
+		s.Addr = addr
+
+		ln, err = net.Listen("tcp", addr)
+		if err == nil {
+			break
+		}
+	}
+
+	if retry == maxretry {
+		err = errors.E(err, "failed to find an available open port")
+		return
+	}
+
+	redirectURL := "http://" + s.Addr + "/auth"
+
+	redirectURLChan <- redirectURL
+	h.consentData = <-consentDataChan
+	h.continueURL = redirectURL
+	err = s.Serve(ln)
+	if errors.Is(err, http.ErrServerClosed) {
+		err = nil
+	}
+}
+
+func createAuthURI(continueURI string) (createAuthURIResponse, error) {
 	const endpoint = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/createAuthUri"
 	const authScope = `{"google.com": "profile"}`
 
@@ -138,7 +183,7 @@ func createAuthURI() (createAuthURIResponse, error) {
 
 	payloadData := payload{
 		ProviderID:      "google.com",
-		ContinueURI:     serverURL,
+		ContinueURI:     continueURI,
 		CustomParameter: map[string]interface{}{},
 		OauthScope:      authScope,
 	}
@@ -198,16 +243,9 @@ type tokenHandler struct {
 
 	complete       bool
 	consentData    createAuthURIResponse
+	continueURL    string
 	errChan        chan error
 	credentialChan chan credentialInfo
-}
-
-func newHandler(consent createAuthURIResponse) *tokenHandler {
-	return &tokenHandler{
-		consentData:    consent,
-		credentialChan: make(chan credentialInfo),
-		errChan:        make(chan error),
-	}
 }
 
 func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +261,8 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gotURL := "http://" + serverAddr + r.URL.String()
+	gotURL, _ := url.Parse(h.continueURL)
+	gotURL.RawQuery = r.URL.Query().Encode()
 
 	const signInEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp"
 
@@ -235,7 +274,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postBody := payload{
-		RequestURI:          gotURL,
+		RequestURI:          gotURL.String(),
 		SessionID:           h.consentData.SessionID,
 		ReturnSecureToken:   true,
 		ReturnIdpCredential: true,

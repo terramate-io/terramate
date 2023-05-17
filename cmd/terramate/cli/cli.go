@@ -1802,16 +1802,26 @@ func (c cli) checkVersion() {
 	}
 }
 
-func localTerramateDir() (string, error) {
-	usr, err := user.Current()
+func userHomeDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", errors.E(err, "failed to discover .terramate.d directory")
+		errs := errors.L(err)
+		usr, err := user.Current()
+		if err != nil {
+			errs.Append(err)
+			return "", errors.E(errs.AsError(), "failed to discover the local .terramate.d directory")
+		}
+		homeDir = usr.HomeDir
 	}
-	if usr.HomeDir == "" {
-		return "", errors.E("no user home directory found")
-	}
+	return homeDir, nil
+}
 
-	return filepath.Join(usr.HomeDir, terramateHomeConfigDir), nil
+func localTerramateDir() (string, error) {
+	homeDir, err := userHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(homeDir, terramateHomeConfigDir), nil
 }
 
 func runCheckpoint(
