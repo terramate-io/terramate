@@ -1822,11 +1822,6 @@ func localTerramateDir() (string, error) {
 }
 
 func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
-	var (
-		signatureFile string
-		cacheFile     string
-	)
-
 	if clicfg.DisableCheckpoint {
 		result <- nil
 		return
@@ -1836,7 +1831,9 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 		Str("action", "runCheckpoint()").
 		Logger()
 
-	cacheFile = filepath.Join(clicfg.HomeTerramateDir, "checkpoint_cache")
+	cacheFile := filepath.Join(clicfg.HomeTerramateDir, "checkpoint_cache")
+
+	var signatureFile string
 	if !clicfg.DisableCheckpointSignature {
 		signatureFile = filepath.Join(clicfg.HomeTerramateDir, "checkpoint_signature")
 	}
