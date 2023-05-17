@@ -126,6 +126,29 @@ func TestLoad(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "set homeTerramateDir to an invalid value",
+			cfg:  `homeTerramateDir = true`,
+			want: want{
+				err: errors.E(cliconfig.ErrInvalidAttributeType),
+			},
+		},
+		{
+			name: "set homeTerramateDir from funcall -- not supported",
+			cfg:  `homeTerramateDir = tm_upper("/")`,
+			want: want{
+				err: errors.E(eval.ErrEval),
+			},
+		},
+		{
+			name: "set homeTerramateDir -- any string works",
+			cfg:  `homeTerramateDir = "/tmp"`,
+			want: want{
+				cfg: cliconfig.Config{
+					HomeTerramateDir: "/tmp",
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
