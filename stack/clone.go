@@ -92,7 +92,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 	return root.LoadSubTree(project.PrjAbsPath(rootdir, destdir))
 }
 
-func filterDotFiles(path string, entry os.DirEntry) bool {
+func filterDotFiles(_ string, entry os.DirEntry) bool {
 	return !strings.HasPrefix(entry.Name(), ".")
 }
 

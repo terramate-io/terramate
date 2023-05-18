@@ -1731,7 +1731,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	return config, nil
 }
 
-func (p *TerramateParser) checkConfigSanity(cfg Config) error {
+func (p *TerramateParser) checkConfigSanity(_ Config) error {
 	logger := log.With().
 		Str("action", "TerramateParser.checkConfigSanity()").
 		Logger()

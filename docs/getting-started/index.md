@@ -21,7 +21,7 @@ To follow this tutorial, you will need local installations of [Terramate](../ins
 
 Note that you won't need a cloud account, as we'll be using the `local_file` resource to create a static site that demonstrates Terramate's fundamental principles.
 
-> We launched a [Terramate Discord Server](https://terramate.io/discord)
+> We launched a [Terramate Discord Server](https://terramate.io/discord) in case you have any additional questions or issues running the examples in this guide.
 >
 > 👉 [https://terramate.io/discord](https://terramate.io/discord)
 
@@ -47,7 +47,7 @@ Next, navigate `"cd"` to the new directory and run:
 $ terramate create mysite
 ```
 
-This creates a directory called `mysite` and a file inside called `stack.tm.hcl` containing a `stack {}` block:
+This creates a Terramate Stack, which is represented as a directory called `mysite` containing a file named `stack.tm.hcl` containing a `stack {}` block:
 
 ```hcl
 # file: stack.tm.hcl
@@ -313,7 +313,6 @@ Commit the changed files with `git commit -am 'changed dev title'`, then run `te
 $ terramate list --changed
 dev/mysite
 ```
-
 Now, if you execute `terramate run --changed terraform apply`, it will apply the changes only to the affected stacks.
 
 ### Conclusion

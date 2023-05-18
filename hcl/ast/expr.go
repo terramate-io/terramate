@@ -413,7 +413,7 @@ func (builder *tokenBuilder) relTraversalTokens(traversal *hclsyntax.RelativeTra
 	builder.traversalTokens(traversal.Traversal)
 }
 
-func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
+func (builder *tokenBuilder) anonSplatTokens(_ *hclsyntax.AnonSymbolExpr) {
 	// this node is solely used during the splat evaluation.
 	// and should generate nothing?
 }
