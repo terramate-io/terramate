@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
@@ -2343,7 +2344,7 @@ func listStacks(stacks ...string) string {
 func testEnviron(t *testing.T) []string {
 	tempHomeDir := t.TempDir()
 	env := []string{
-		"HOME=" + tempHomeDir,
+		fmt.Sprintf("%s="+tempHomeDir, cliconfig.DirEnv),
 		"PATH=" + os.Getenv("PATH"),
 	}
 	if runtime.GOOS == "windows" {
