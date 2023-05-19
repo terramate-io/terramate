@@ -16,6 +16,12 @@
 
 package cli
 
+import (
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
+	"os"
+	"path/filepath"
+)
+
 func localTerramateDir() (string, error) {
 	appdata := os.Getenv(cliconfig.DirEnv)
 	if appdata == "" {
