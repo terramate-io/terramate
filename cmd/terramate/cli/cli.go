@@ -1813,14 +1813,6 @@ func userHomeDir() (string, error) {
 	return homeDir, nil
 }
 
-func localTerramateDir() (string, error) {
-	homeDir, err := userHomeDir()
-	if err != nil {
-		return "", errors.E(err, "failed to discover the location of the local %s directory", terramateHomeConfigDir)
-	}
-	return filepath.Join(homeDir, terramateHomeConfigDir), nil
-}
-
 func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
 	if clicfg.DisableCheckpoint {
 		result <- nil
