@@ -73,7 +73,7 @@ Terramate's Explicit Order of Execution feature allows you to designate a specif
 
 **Before** ensures that the specified stack is executed before all stacks in the mentioned directories. Conversely, **after** ensures the stack is executed after those in the directories. Both relative and project root paths can be used to reference directories. 
 
-Note, a parent stack can never be executed after a child stack, as this would cause a cycle error.
+> **Note:** A parent stack can never be executed after a child stack, as this would cause a cycle error.
 
 Here's how to use this feature:
 
