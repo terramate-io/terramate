@@ -27,7 +27,7 @@ A stack is a collection of related resources managed as a single unit. When defi
 Terramate CLI simplifies resource creation and management, allowing you to focus on building and deploying the application.
 
 
-## A Terramate stack is:
+## A Terramate Stack is:
 
 - A directory inside your project
 - Contains one or more Terramate configuration files
