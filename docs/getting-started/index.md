@@ -61,7 +61,8 @@ stack {
 
 Terramate recognizes files with the `.tm` or `.tm.hcl` extension, and any file containing a `stack {}` block is considered a stack. A stack is simply a directory where Terramate generates Terraform files. 
 
-You can create the `stack.tm.hcl` file manually without an ID or by running the `terramate create` command, but generating unique IDs for stacks is recommended. Unique IDs enable direct stack referencing instead of using relative paths, which can make refactoring difficult.
+> **Note:** You can manually create the `stack.tm.hcl` file without an ID or by running the `terramate create` command.
+> However, generating unique IDs for stacks is recommended since they enable direct stack referencing instead of relative paths, making refactoring difficult.
 
 Run `terramate list` to see the `mysite/` directory listed as a stack. If it doesn't appear, ensure you're in the correct directory, as Terramate uses the current working directory as the command context. 
 
