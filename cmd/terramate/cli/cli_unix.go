@@ -22,10 +22,10 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 )
 
-func localTerramateDir() (string, error) {
+func userTerramateDir() (string, error) {
 	homeDir, err := userHomeDir()
 	if err != nil {
-		return "", errors.E(err, "failed to discover the location of the local %s directory", terramateHomeConfigDir)
+		return "", errors.E(err, "failed to discover the location of the local %s directory", terramateUserConfigDir)
 	}
-	return filepath.Join(homeDir, terramateHomeConfigDir), nil
+	return filepath.Join(homeDir, terramateUserConfigDir), nil
 }

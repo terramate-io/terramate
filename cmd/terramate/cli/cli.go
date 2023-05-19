@@ -91,7 +91,7 @@ const (
 
 const defaultVendorDir = "/modules"
 
-const terramateHomeConfigDir = ".terramate.d"
+const terramateUserConfigDir = ".terramate.d"
 
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
@@ -340,8 +340,8 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
 	}
 
-	if clicfg.HomeTerramateDir == "" {
-		homeTmDir, err := localTerramateDir()
+	if clicfg.UserTerramateDir == "" {
+		homeTmDir, err := userTerramateDir()
 		if err != nil {
 			output.MsgStdErr("Please either export the %s environment variable or "+
 				"set the homeTerramateDir option in the %s configuration file",
@@ -350,7 +350,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 			fatal(err)
 		}
-		clicfg.HomeTerramateDir = homeTmDir
+		clicfg.UserTerramateDir = homeTmDir
 	}
 
 	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
@@ -1823,11 +1823,11 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 		Str("action", "runCheckpoint()").
 		Logger()
 
-	cacheFile := filepath.Join(clicfg.HomeTerramateDir, "checkpoint_cache")
+	cacheFile := filepath.Join(clicfg.UserTerramateDir, "checkpoint_cache")
 
 	var signatureFile string
 	if !clicfg.DisableCheckpointSignature {
-		signatureFile = filepath.Join(clicfg.HomeTerramateDir, "checkpoint_signature")
+		signatureFile = filepath.Join(clicfg.UserTerramateDir, "checkpoint_signature")
 	}
 
 	resp, err := checkpoint.CheckAt(defaultTelemetryEndpoint(),

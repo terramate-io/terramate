@@ -40,7 +40,7 @@ const (
 type Config struct {
 	DisableCheckpoint          bool
 	DisableCheckpointSignature bool
-	HomeTerramateDir           string
+	UserTerramateDir           string
 }
 
 // Load loads (parses and evaluates) all CLI configuration files.
@@ -87,11 +87,11 @@ func LoadFrom(fname string) (Config, error) {
 				return Config{}, err
 			}
 			cfg.DisableCheckpointSignature = val.True()
-		case "homeTerramateDir":
+		case "user_terramate_dir":
 			if err := checkStrType(val, name); err != nil {
 				return Config{}, err
 			}
-			cfg.HomeTerramateDir = val.AsString()
+			cfg.UserTerramateDir = val.AsString()
 		default:
 			return cfg, errors.E(ErrUnrecognizedAttribute, name)
 		}
