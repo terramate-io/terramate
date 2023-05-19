@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 )
 
-func localTerramateDir() (string, error) {
+func userTerramateDir() (string, error) {
 	appdata := os.Getenv(cliconfig.DirEnv)
 	if appdata == "" {
 		return "", errors.E("APPDATA not set")

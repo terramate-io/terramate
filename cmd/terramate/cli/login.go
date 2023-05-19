@@ -377,7 +377,7 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
 
 func cacheToken(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
 	cachedAt := time.Now()
-	cacheFile := filepath.Join(clicfg.HomeTerramateDir, credfile)
+	cacheFile := filepath.Join(clicfg.UserTerramateDir, credfile)
 
 	expiresIn, err := strconv.Atoi(cred.ExpiresIn)
 	if err != nil {

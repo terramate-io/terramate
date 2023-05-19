@@ -145,7 +145,7 @@ func TestLoad(t *testing.T) {
 			cfg:  `homeTerramateDir = "/tmp"`,
 			want: want{
 				cfg: cliconfig.Config{
-					HomeTerramateDir: "/tmp",
+					UserTerramateDir: "/tmp",
 				},
 			},
 		},
