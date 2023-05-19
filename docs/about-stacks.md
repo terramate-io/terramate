@@ -65,7 +65,7 @@ change.
 
 ## Reduce execution time
 
-Using stacks helps speed up infrastructure changes. This is especially beneficial when applying Terraform changes through cloud-based CI builders, as quicker integration and builds can lower cloud costs.
+Using stacks allows you to reduce the runtime of Terraform drastically. This is especially beneficial when running Terraform in CI/CD environments like GitHub Actions since build time is usually billed per minute, which means faster execution time translates directly to lowered costs.
 
 ## Ownership
 
