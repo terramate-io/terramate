@@ -64,7 +64,7 @@ Terramate recognizes files with the `.tm` or `.tm.hcl` extension, and any file c
 > **Note:** You can manually create the `stack.tm.hcl` file without an ID or by running the `terramate create` command.
 > However, generating unique IDs for stacks is recommended since they enable direct stack referencing instead of relative paths, making refactoring difficult.
 
-Run `terramate list` to see the `mysite/` directory listed as a stack. If it doesn't appear, ensure you're in the correct directory, as Terramate uses the current working directory as the command context. 
+Run `terramate list` to see the `mysite/` directory listed as a stack. If it doesn't appear, ensure you're in the correct directory, as Terramate uses the current working directory as the context for executing all commands. 
 
 At this point, you have created a stack, but it does not perform any actions. Although you can generate Terraform code and run it without errors, it will not produce any results.
 
