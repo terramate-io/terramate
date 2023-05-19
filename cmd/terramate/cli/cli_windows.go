@@ -28,5 +28,5 @@ func userTerramateDir() (string, error) {
 	if appdata == "" {
 		return "", errors.E("APPDATA not set")
 	}
-	return filepath.Join(appdata, terramateHomeConfigDir), nil
+	return filepath.Join(appdata, terramateUserConfigDir), nil
 }
