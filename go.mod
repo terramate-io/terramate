@@ -13,10 +13,10 @@ require (
 	github.com/hashicorp/hcl/v2 v2.14.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
-	github.com/i4ki/go-checkpoint v0.0.0-20230323112005-d8ee97cebfa8
 	github.com/madlambda/spells v0.4.2
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/posener/complete v1.2.3
+	github.com/terramate-io/go-checkpoint v1.0.0
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.3
 	github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b
