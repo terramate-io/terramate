@@ -1,7 +1,3 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 // Package errors implements the Terramate standard error type.
 // It's heavily influenced by Rob Pike `errors` package in the Upspin project:
 //
