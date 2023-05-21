@@ -17,7 +17,7 @@ package e2etest
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestLoggingChangeChannel(t *testing.T) {

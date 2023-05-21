@@ -21,12 +21,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/config/filter"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/config/filter"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 

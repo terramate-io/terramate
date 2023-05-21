@@ -26,7 +26,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/hcl/info"
 )
 
 const (
@@ -470,6 +470,6 @@ func deprecatedUsageFor(typeName string) string {
 	return fmt.Sprintf(
 		`BUG: Deprecated use of argument type %s in the errors.E() function.
 If this panic was triggered in the Terramate project, then please open an issue
-at https://github.com/mineiros-io/terramate/issues.`,
+at https://github.com/terramate-io/terramate/issues.`,
 		typeName)
 }

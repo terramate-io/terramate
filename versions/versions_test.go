@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/versions"
+	"github.com/terramate-io/terramate/errors"
+	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/versions"
 )
 
 func TestTerramateVersionConstraints(t *testing.T) {

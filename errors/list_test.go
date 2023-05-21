@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 )
 
 func TestEmptyErrorListReturnsEmptyErrors(t *testing.T) {

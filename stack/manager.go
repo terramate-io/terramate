@@ -23,15 +23,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/run"
-	"github.com/mineiros-io/terramate/run/dag"
-	"github.com/mineiros-io/terramate/stack/trigger"
-	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/run"
+	"github.com/terramate-io/terramate/run/dag"
+	"github.com/terramate-io/terramate/stack/trigger"
+	"github.com/terramate-io/terramate/tf"
 )
 
 type (

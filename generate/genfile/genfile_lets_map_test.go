@@ -17,11 +17,11 @@ package genfile_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/lets"
-	maptest "github.com/mineiros-io/terramate/mapexpr/test"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/lets"
+	maptest "github.com/terramate-io/terramate/mapexpr/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenFileLetsMapSchemaErrors(t *testing.T) {

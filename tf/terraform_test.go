@@ -20,11 +20,11 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/test"
-	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/test"
+	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/tf"
 )
 
 type (

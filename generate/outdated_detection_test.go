@@ -19,14 +19,14 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
+	"github.com/terramate-io/terramate/test/sandbox"
 
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestOutdatedDetection(t *testing.T) {
@@ -589,7 +589,7 @@ func TestOutdatedDetection(t *testing.T) {
 							body: Doc(
 								GenerateFile(
 									Labels("vendor.txt"),
-									Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+									Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v1")`),
 								),
 								GenerateFile(
 									Labels("file.txt"),
@@ -598,7 +598,7 @@ func TestOutdatedDetection(t *testing.T) {
 								GenerateHCL(
 									Labels("vendor.hcl"),
 									Content(
-										Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+										Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v1")`),
 									),
 								),
 								GenerateHCL(

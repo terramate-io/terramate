@@ -17,12 +17,12 @@ package globals_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/hcl"
-	maptest "github.com/mineiros-io/terramate/mapexpr/test"
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/globals"
+	"github.com/terramate-io/terramate/hcl"
+	maptest "github.com/terramate-io/terramate/mapexpr/test"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGlobalsWithMapSchemaErrors(t *testing.T) {

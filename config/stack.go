@@ -21,11 +21,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 

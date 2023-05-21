@@ -20,9 +20,9 @@ import (
 	"path/filepath"
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
 )
 
 // LoadFileMatcher will load a gitignore.Matcher

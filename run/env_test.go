@@ -21,17 +21,17 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/run"
-	"github.com/mineiros-io/terramate/test"
-	errorstest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/run"
+	"github.com/terramate-io/terramate/test"
+	errorstest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestLoadRunEnv(t *testing.T) {

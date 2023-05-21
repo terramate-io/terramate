@@ -21,11 +21,11 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/project"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/project"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestGenerateFile(t *testing.T) {

@@ -22,10 +22,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/run/dag"
 )
 
 // Sort computes the final execution order for the given list of stacks.

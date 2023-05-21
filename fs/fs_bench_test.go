@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/fs"
+	"github.com/terramate-io/terramate/fs"
 )
 
 func BenchmarkListFiles(b *testing.B) {

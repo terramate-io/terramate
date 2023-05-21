@@ -17,11 +17,11 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/hcl"
 )
 
 type project struct {

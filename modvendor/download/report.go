@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/modvendor"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/modvendor"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/tf"
 )
 
 // Vendored describes a vendored dependency.

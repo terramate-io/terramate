@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestGenerateDebug(t *testing.T) {

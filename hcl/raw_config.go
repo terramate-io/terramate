@@ -17,8 +17,8 @@ package hcl
 import (
 	"path/filepath"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
 )
 
 // RawConfig is the configuration (attributes and blocks) without schema

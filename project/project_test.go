@@ -17,8 +17,8 @@ package project_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
 )
 
 func TestPrjAbsPathOnRoot(t *testing.T) {

@@ -16,8 +16,8 @@
 package test
 
 import (
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	"github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	"github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 // Testcase is a mapexpr test case.

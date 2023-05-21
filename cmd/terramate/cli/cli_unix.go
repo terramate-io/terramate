@@ -19,7 +19,7 @@ package cli
 import (
 	"path/filepath"
 
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 )
 
 func userTerramateDir() (string, error) {

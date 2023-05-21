@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/fs"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/fs"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {

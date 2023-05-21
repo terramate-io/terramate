@@ -21,14 +21,14 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/test"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/test"
 
-	. "github.com/mineiros-io/terramate/test/hclutils"
+	. "github.com/terramate-io/terramate/test/hclutils"
 
-	errtest "github.com/mineiros-io/terramate/test/errors"
+	errtest "github.com/terramate-io/terramate/test/errors"
 )
 
 func TestFormatMultiline(t *testing.T) {

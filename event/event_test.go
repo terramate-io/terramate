@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/event"
+	"github.com/terramate-io/terramate/event"
 )
 
 func TestEventStream(t *testing.T) {

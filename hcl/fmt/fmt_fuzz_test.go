@@ -23,8 +23,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/hcl/fmt"
 )
 
 func FuzzFormatMultiline(f *testing.F) {

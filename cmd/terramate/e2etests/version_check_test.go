@@ -21,10 +21,10 @@ import (
 
 	tfversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/assert"
-	tm "github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/stack"
-	"github.com/mineiros-io/terramate/test/sandbox"
-	"github.com/mineiros-io/terramate/versions"
+	tm "github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/stack"
+	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/versions"
 )
 
 func TestVersionCheck(t *testing.T) {

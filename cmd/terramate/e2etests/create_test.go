@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestCreateStack(t *testing.T) {

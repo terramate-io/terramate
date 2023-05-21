@@ -19,8 +19,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // CopyFilterFunc filters which files/dirs will be copied by CopyDir.

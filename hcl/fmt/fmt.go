@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/fs"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/fs"
 
 	"github.com/rs/zerolog/log"
 )

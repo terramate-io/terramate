@@ -19,8 +19,8 @@ package modvendor
 import (
 	"path/filepath"
 
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/tf"
 )
 
 // TargetDir returns the directory for the vendored module source, relative to project

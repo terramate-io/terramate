@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestFormatRecursively(t *testing.T) {

@@ -18,13 +18,13 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
+	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestLoad(t *testing.T) {

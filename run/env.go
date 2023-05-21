@@ -17,11 +17,11 @@ package run
 import (
 	"os"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/globals"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/stdlib"
 
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"

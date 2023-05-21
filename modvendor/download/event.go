@@ -15,7 +15,7 @@
 package download
 
 import (
-	"github.com/mineiros-io/terramate/event"
+	"github.com/terramate-io/terramate/event"
 )
 
 // ProgressEventStream is a stream of vendor related events.

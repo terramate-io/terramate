@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {

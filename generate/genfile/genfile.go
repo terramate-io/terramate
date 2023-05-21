@@ -20,17 +20,17 @@ import (
 	"path"
 	"sort"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/event"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/stdlib"
 
-	"github.com/mineiros-io/terramate/lets"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/terramate-io/terramate/lets"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 

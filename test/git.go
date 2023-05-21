@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/git"
+	"github.com/terramate-io/terramate/git"
 )
 
 const (

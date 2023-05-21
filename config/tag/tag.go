@@ -15,7 +15,7 @@
 // Package tag provides helpers for dealing with Terramate tags.
 package tag
 
-import "github.com/mineiros-io/terramate/errors"
+import "github.com/terramate-io/terramate/errors"
 
 // ErrInvalidTag indicates the tag is invalid.
 const ErrInvalidTag errors.Kind = "invalid tag"

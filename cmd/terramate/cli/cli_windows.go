@@ -17,8 +17,8 @@
 package cli
 
 import (
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/errors"
 	"os"
 	"path/filepath"
 )

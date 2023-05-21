@@ -20,13 +20,13 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/test"
-	errtest "github.com/mineiros-io/terramate/test/errors"
-	. "github.com/mineiros-io/terramate/test/hclutils"
-	"github.com/mineiros-io/terramate/test/hclutils/info"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/test"
+	errtest "github.com/terramate-io/terramate/test/errors"
+	. "github.com/terramate-io/terramate/test/hclutils"
+	"github.com/terramate-io/terramate/test/hclutils/info"
 )
 
 type (

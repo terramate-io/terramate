@@ -17,9 +17,9 @@ package genhcl_test
 import (
 	"testing"
 
-	. "github.com/mineiros-io/terramate/test/hclutils"
-	. "github.com/mineiros-io/terramate/test/hclutils/info"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	. "github.com/terramate-io/terramate/test/hclutils"
+	. "github.com/terramate-io/terramate/test/hclutils/info"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateHCLRange(t *testing.T) {

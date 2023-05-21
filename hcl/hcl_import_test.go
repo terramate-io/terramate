@@ -17,9 +17,9 @@ package hcl_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	. "github.com/mineiros-io/terramate/test/hclutils"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	. "github.com/terramate-io/terramate/test/hclutils"
 )
 
 func TestHCLImport(t *testing.T) {

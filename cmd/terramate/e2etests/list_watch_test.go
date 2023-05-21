@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/project"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/project"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestListWatchChangedFile(t *testing.T) {

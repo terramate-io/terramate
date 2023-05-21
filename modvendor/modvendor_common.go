@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/tf"
 )
 
 func targetPathDir(vendorDir project.Path, modsrc tf.Source) project.Path {

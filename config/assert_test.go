@@ -20,12 +20,12 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/stdlib"
-	"github.com/mineiros-io/terramate/test"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
 )
 

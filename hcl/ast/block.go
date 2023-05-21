@@ -17,7 +17,7 @@ package ast
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/hcl/info"
 )
 
 // Block is a wrapper to the hclsyntax.Block but with the file origin.

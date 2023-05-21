@@ -25,20 +25,20 @@ import (
 	"text/template"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/modvendor"
-	"github.com/mineiros-io/terramate/modvendor/download"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
-	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/test/sandbox"
-	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/event"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/modvendor"
+	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
+	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/tf"
 	"go.lsp.dev/uri"
 
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 // vendorPathSpec describes paths inside a vendor directory when its
@@ -995,7 +995,7 @@ func computeRelativePaths(
 
 func TestModVendorWithCommitIDRef(t *testing.T) {
 	const (
-		path     = "github.com/mineiros-io/example"
+		path     = "github.com/terramate-io/example"
 		filename = "test.txt"
 		content  = "test"
 	)
@@ -1037,7 +1037,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 
 func TestModVendorWithRef(t *testing.T) {
 	const (
-		path     = "github.com/mineiros-io/example"
+		path     = "github.com/terramate-io/example"
 		ref      = "main"
 		filename = "test.txt"
 		content  = "test"

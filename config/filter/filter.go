@@ -18,8 +18,8 @@ package filter
 import (
 	"strings"
 
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // Operation is the binary logic operation (OR, AND).
@@ -166,7 +166,7 @@ func parseInternalTagClauses(filters ...string) (TagClause, bool, error) {
 //
 // This syntax is only used internally by Terramate.
 // For the public syntax, see the spec at the link below:
-// https://github.com/mineiros-io/terramate/blob/main/docs/tag-filter.md#filter-grammar
+// https://github.com/terramate-io/terramate/blob/main/docs/tag-filter.md#filter-grammar
 func parseTagClause(filter string) (TagClause, error) {
 	rootNode := TagClause{
 		Op: OR,
