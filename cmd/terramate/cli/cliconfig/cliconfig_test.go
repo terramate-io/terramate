@@ -126,6 +126,29 @@ func TestLoad(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "set user_terramate_dir to an invalid value",
+			cfg:  `user_terramate_dir = true`,
+			want: want{
+				err: errors.E(cliconfig.ErrInvalidAttributeType),
+			},
+		},
+		{
+			name: "set user_terramate_dir from funcall -- not supported",
+			cfg:  `user_terramate_dir = tm_upper("/")`,
+			want: want{
+				err: errors.E(eval.ErrEval),
+			},
+		},
+		{
+			name: "set user_terramate_dir -- any string works",
+			cfg:  `user_terramate_dir = "/tmp"`,
+			want: want{
+				cfg: cliconfig.Config{
+					UserTerramateDir: "/tmp",
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

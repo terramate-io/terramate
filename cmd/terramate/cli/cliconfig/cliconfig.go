@@ -40,6 +40,7 @@ const (
 type Config struct {
 	DisableCheckpoint          bool
 	DisableCheckpointSignature bool
+	UserTerramateDir           string
 }
 
 // Load loads (parses and evaluates) all CLI configuration files.
@@ -86,6 +87,11 @@ func LoadFrom(fname string) (Config, error) {
 				return Config{}, err
 			}
 			cfg.DisableCheckpointSignature = val.True()
+		case "user_terramate_dir":
+			if err := checkStrType(val, name); err != nil {
+				return Config{}, err
+			}
+			cfg.UserTerramateDir = val.AsString()
 		default:
 			return cfg, errors.E(ErrUnrecognizedAttribute, name)
 		}
@@ -99,6 +105,17 @@ func checkBoolType(val cty.Value, name string) error {
 		return errors.E(
 			ErrInvalidAttributeType,
 			`%q attribute expects a boolean value but a value of type %s was given (value %s)`,
+			name, val.Type().FriendlyName(), hclwrite.TokensForValue(val),
+		)
+	}
+	return nil
+}
+
+func checkStrType(val cty.Value, name string) error {
+	if !val.Type().Equals(cty.String) {
+		return errors.E(
+			ErrInvalidAttributeType,
+			`%q attribute expects an string value but a value of type %s was given (value %s)`,
 			name, val.Type().FriendlyName(), hclwrite.TokensForValue(val),
 		)
 	}

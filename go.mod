@@ -15,6 +15,7 @@ require (
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/i4ki/go-checkpoint v0.0.0-20230323112005-d8ee97cebfa8
 	github.com/madlambda/spells v0.4.2
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/posener/complete v1.2.3
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.3
