@@ -126,7 +126,7 @@ export default defineConfig({
       { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/mineiros.io/' },
       {
         text: 'Releases',
-        link: 'https://github.com/mineiros-io/terramate/releases',
+        link: 'https://github.com/terramate-io/terramate/releases',
       },
       { text: '💻 Playground', link: 'https://play.terramate.io/' },
     ],
@@ -265,7 +265,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/mineiros-io/terramate' },
+      { icon: 'github', link: 'https://github.com/terramate-io/terramate' },
       { icon: 'discord', link: 'https://terramate.io/discord' },
       { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
       { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
