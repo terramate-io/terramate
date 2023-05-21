@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // test is a test command that implements behaviors that are
 // useful when testing terramate run features in a way that reduces
 // dependencies on the environment to run the tests.

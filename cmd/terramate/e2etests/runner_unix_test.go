@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // build flags for unix below were taken from:
 // https://github.com/golang/go/blob/master/src/cmd/dist/build.go#L943
 // We can replace them by "unix" if we support only go >= 1.19 later.
