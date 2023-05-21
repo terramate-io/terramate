@@ -11,12 +11,12 @@
 <br/>
 
 <p align="center">
-  <a href="https://github.com/mineiros-io/terramate/releases"><img src="https://img.shields.io/github/v/release/mineiros-io/terramate?color=%239F50DA&display_name=tag&label=Version" alt="Latest Release" /></a>
-  <a href="https://pkg.go.dev/github.com/mineiros-io/terramate"><img src="https://pkg.go.dev/badge/github.com/mineiros-io/terramate" alt="Go Docs" /></a>
-  <a href="https://goreportcard.com/report/github.com/mineiros-io/terramate"><img src="https://goreportcard.com/badge/github.com/mineiros-io/terramate" alt="Go Report Card" /></a>
-  <a href="https://codecov.io/gh/mineiros-io/terramate"><img src="https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4" alt="Code Coverage" /></a>
-  <a href="https://github.com/mineiros-io/terramate/actions?query=branch%3Amain"><img src="https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg" alt="Terramate CI Status" /></a>
-  <a href="https://github.com/mineiros-io/terramate/stargazers" rel="nofollow"><img src="https://img.shields.io/github/stars/mineiros-io/terramate" alt="Stars"></a>
+  <a href="https://github.com/terramate-io/terramate/releases"><img src="https://img.shields.io/github/v/release/terramate-io/terramate?color=%239F50DA&display_name=tag&label=Version" alt="Latest Release" /></a>
+  <a href="https://pkg.go.dev/github.com/terramate-io/terramate"><img src="https://pkg.go.dev/badge/github.com/terramate-io/terramate" alt="Go Docs" /></a>
+  <a href="https://goreportcard.com/report/github.com/terramate-io/terramate"><img src="https://goreportcard.com/badge/github.com/terramate-io/terramate" alt="Go Report Card" /></a>
+  <a href="https://codecov.io/gh/terramate-io/terramate"><img src="https://codecov.io/gh/terramate-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4" alt="Code Coverage" /></a>
+  <a href="https://github.com/terramate-io/terramate/actions?query=branch%3Amain"><img src="https://github.com/terramate-io/terramate/actions/workflows/ci.yml/badge.svg" alt="Terramate CI Status" /></a>
+  <a href="https://github.com/terramate-io/terramate/stargazers" rel="nofollow"><img src="https://img.shields.io/github/stars/terramate-io/terramate" alt="Stars"></a>
   <a href="https://terramate.io/discord" rel="nofollow"><img src="https://img.shields.io/discord/1088753599951151154?label=Discord&logo=discord&logoColor=white" alt="Discord Server"></a>
 </p>
 
@@ -87,11 +87,11 @@ The fastest way to get started with Terramate is our [getting started guide](htt
 - [Terramate Blog](https://blog.mineiros.io/)
 - [Why we invented Terramate](https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055?source=friends_link&sk=5272c487ef709c80a34d0b451590f263)
 - [How Terramate compares with Terragrunt](https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f?source=friends_link&sk=8834b3de00d4af4744aac63051ff3b53)
-- [Terramate VSCode Extension](https://github.com/mineiros-io/vscode-terramate)
-- [Terramate Language Server](https://github.com/mineiros-io/terramate-ls)
+- [Terramate VSCode Extension](https://github.com/terramate-io/vscode-terramate)
+- [Terramate Language Server](https://github.com/terramate-io/terramate-ls)
 
 ## Reporting bugs and contributing code
 
-- Want to report a bug or request a feature? Open an [issue](https://github.com/mineiros-io/terramate/issues/new)
+- Want to report a bug or request a feature? Open an [issue](https://github.com/terramate-io/terramate/issues/new)
   <!-- - Want to help us build Terramate? Check out the [Contributing Guide]() -->
   <!-- ## Code of Conduct -->
