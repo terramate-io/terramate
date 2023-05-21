@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package errors implements the Terramate standard error type.
 // It's heavily influenced by Rob Pike `errors` package in the Upspin project:
 //

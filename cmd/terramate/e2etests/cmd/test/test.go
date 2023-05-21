@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // test is a test command that implements behaviors that are
 // useful when testing terramate run features in a way that reduces
 // dependencies on the environment to run the tests.

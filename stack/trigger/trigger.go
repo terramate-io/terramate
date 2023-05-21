@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package trigger provides functionality that help manipulate stacks triggers.
 package trigger
 

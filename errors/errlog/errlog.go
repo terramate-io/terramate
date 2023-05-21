@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package errlog provides functions to log Terramate errors nicely and
 // in a consistent manner.
 package errlog

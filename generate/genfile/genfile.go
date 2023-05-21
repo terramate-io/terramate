@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package genfile implements generate_file code generation.
 package genfile
 

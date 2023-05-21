@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package hclwrite aims to provide some facilities making it easier/safer
 // to generate HCL code for testing purposes. It aims at:
 //

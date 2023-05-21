@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package git provides a wrapper for the git command line program.
 // The helper methods avoids porcelain commands as much as possible and
 // return a parsed output whenever possible.

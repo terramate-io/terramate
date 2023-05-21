@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package dag provides the Directed-Acyclic-Graph (DAG) primitives required by
 // Terramate.
 // The nodes can be added by providing both the descendants and ancestors of

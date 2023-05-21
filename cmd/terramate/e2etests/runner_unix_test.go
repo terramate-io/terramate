@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // build flags for unix below were taken from:
 // https://github.com/golang/go/blob/master/src/cmd/dist/build.go#L943
 // We can replace them by "unix" if we support only go >= 1.19 later.

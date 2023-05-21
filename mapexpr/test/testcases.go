@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package test implements testcases and test helpers for dealing with map blocks.
 package test
 
