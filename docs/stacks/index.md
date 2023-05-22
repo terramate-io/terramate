@@ -33,7 +33,7 @@ Terramate CLI simplifies resource creation and management, allowing you to focus
 - Contains one or more Terramate configuration files
 - Includes a configuration file with a stack{} block
 
-The `stack{}` block distinguishes a stack from other directories in Terramate. By default, it doesn't require any attributes but can be used to describe stacks and orchestrate their execution.
+The `stack{}` block distinguishes a stack from other directories in Terramate. By default, it doesn't require any attributes but can be used to describe the stack and orchestrate its execution.
 
 Stack configurations related to orchestration can be found [here](../orchestration/index.md).
 
