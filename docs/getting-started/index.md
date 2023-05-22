@@ -27,7 +27,7 @@ Note that you won't need a cloud account, as we'll be using the `local_file` res
 
 ## Set up Terramate
 
-> If you haven’t installed Terramate yet, please refer to the [installation](../installation.md) section for various  options. 
+> If you haven’t installed Terramate yet, please refer to the [installation](../installation.md) section for various options. 
 
 To begin, create a new directory that contains a file named `terramate.tm.hcl` with the following content:
 
