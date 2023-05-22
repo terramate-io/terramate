@@ -203,7 +203,7 @@ import {
 }
 ```
 
-Update the output filename of the local_file resource in `/modules/mysite/stack.tm.hcl` to avoid overwriting between dev and prod. Use the Terramate metadata  `${terramate.stack.path.relative}` in the path name:
+Update the output filename of the local_file resource in `/modules/mysite/stack.tm.hcl` to avoid overwriting between dev and prod. Use the Terramate metadata `${terramate.stack.path.relative}` in the path name:
 
 ```hcl
 # in: modules/mysite/mysite.tm.hcl
