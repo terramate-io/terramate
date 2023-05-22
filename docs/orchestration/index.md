@@ -69,7 +69,7 @@ Keep in mind, incorrect stack order might lead Terramate to attempt resource cre
 
 ### Explicit Order Of Execution
 
-Terramate's Explicit Order of Execution feature allows you to designate a specific order for stack execution. This is done by definin **before** and **after** fields within the **stack** block, referring to other directories containing stacks.
+Terramate's Explicit Order of Execution feature allows you to designate a specific order for stack execution. This is done by defining **before** and **after** fields within the **stack** block, referring to other directories containing stacks.
 
 **Before** ensures that the specified stack is executed before all stacks in the mentioned directories. Conversely, **after** ensures the stack is executed after those in the directories. Both relative and project root paths can be used to reference directories. 
 
