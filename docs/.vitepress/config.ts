@@ -122,7 +122,7 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Docs', link: '/about-stacks' },
-      { text: 'Blog', link: 'https://blog.mineiros.io/' },
+      { text: 'Blog', link: 'https://blog.terramate.io/' },
       { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/mineiros.io/' },
       {
         text: 'Releases',
@@ -234,23 +234,23 @@ export default defineConfig({
         items: [
           {
             text: 'Introducing Terramate — An Orchestrator and Code Generator for Terraform',
-            link: 'https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055',
+            link: 'https://blog.terramate.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055',
           },
           {
             text: 'Understanding the basics of Terramate',
-            link: 'https://blog.mineiros.io/understanding-the-basics-of-terramate-e0d8778f5c53',
+            link: 'https://blog.terramate.io/understanding-the-basics-of-terramate-e0d8778f5c53',
           },
           {
             text: 'Terramate and Terragrunt',
-            link: 'https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f',
+            link: 'https://blog.terramate.io/terramate-and-terragrunt-f27f2ec4032f',
           },
           {
             text: 'How to keep your Terraform code DRY by using Terramate',
-            link: 'https://blog.mineiros.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6',
+            link: 'https://blog.terramate.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6',
           },
           {
             text: 'Introducing the Terramate VSCode Extension and Language Server',
-            link: 'https://blog.mineiros.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c',
+            link: 'https://blog.terramate.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c',
           },
         ],
       },
