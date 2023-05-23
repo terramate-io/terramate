@@ -13,7 +13,7 @@ next:
 
 # Getting Started
 
-[Terramate](https://github.com/mineiros-io/terramate) is a [code generator and orchestrator for Terraform](https://blog.mineiros.io/product-introduction-github-as-code-af466550a4a9?source=friends_link&sk=ae60be77dcb484724b3b821898e7813d) that adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+[Terramate](https://github.com/mineiros-io/terramate) is a [code generator and orchestrator for Terraform](https://blog.terramate.io/product-introduction-github-as-code-af466550a4a9?source=friends_link&sk=ae60be77dcb484724b3b821898e7813d) that adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 This tutorial will demonstrate the basic concepts behind [Terramate](https://github.com/mineiros-io/terramate) and give you some ideas for how a filesystem-oriented code generator can help you to manage your Terraform code at scale more efficiently .
 So that anyone can try Terramate without needing a cloud account, we will use only the `local_file` resource to create a static site demonstrating the basic principles behind Terramate. The only prerequisites are local installations of Terramate, Terraform and Git.
