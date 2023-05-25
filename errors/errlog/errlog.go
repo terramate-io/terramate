@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // Fatal logs the error as a Fatal if the error is not nil.

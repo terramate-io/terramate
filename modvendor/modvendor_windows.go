@@ -22,8 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/tf"
 )
 
 // targetPathDir returns the target path of the module for Windows systems.

@@ -19,8 +19,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
 )
 
 // Result represents code generation result

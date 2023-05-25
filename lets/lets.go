@@ -17,13 +17,13 @@ package lets
 
 import (
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/mapexpr"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/mapexpr"
 	"github.com/zclconf/go-cty/cty"
 )
 

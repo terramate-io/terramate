@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/project"
 )
 
 // Pos represents a single position in a source file, by addressing the

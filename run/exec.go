@@ -21,10 +21,10 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
 )
 
 // Exec will execute the given command on the given stack list

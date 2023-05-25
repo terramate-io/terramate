@@ -17,7 +17,7 @@ package test
 import (
 	"path/filepath"
 
-	"github.com/mineiros-io/terramate/config"
+	"github.com/terramate-io/terramate/config"
 )
 
 // FixupRangeOnAsserts fixes the range on all the given asserts.

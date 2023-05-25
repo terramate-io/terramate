@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/test"
+	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/test"
 )
 
 // GitConfig configures the sandbox's git repository.

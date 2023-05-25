@@ -22,8 +22,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/info"
 )
 
 var E = errors.E

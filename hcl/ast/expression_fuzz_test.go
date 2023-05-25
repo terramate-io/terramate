@@ -23,8 +23,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/hcl/ast"
 )
 
 func FuzzTokensForExpression(f *testing.F) {

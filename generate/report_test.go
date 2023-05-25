@@ -19,10 +19,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/project"
-	errtest "github.com/mineiros-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/project"
+	errtest "github.com/terramate-io/terramate/test/errors"
 )
 
 func TestReportFull(t *testing.T) {

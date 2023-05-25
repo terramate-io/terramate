@@ -17,7 +17,7 @@ package hclutils
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/terramate-io/terramate/test/hclwrite"
 )
 
 // useful function aliases to build HCL documents

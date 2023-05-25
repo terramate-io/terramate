@@ -19,14 +19,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/modvendor"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/modvendor"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 // Most of the code generation behavior is tested
@@ -211,12 +211,12 @@ Vendor report:
 						GenerateHCL(
 							Labels("file.hcl"),
 							Content(
-								Expr("vendor", `tm_vendor("github.com/mineiros-io/unknown/will/fail?ref=fail")`),
+								Expr("vendor", `tm_vendor("github.com/terramate-io/unknown/will/fail?ref=fail")`),
 							),
 						),
 						GenerateFile(
 							Labels("file.txt"),
-							Expr("content", `tm_vendor("github.com/mineiros-io/unknown/will/fail?ref=fail")`),
+							Expr("content", `tm_vendor("github.com/terramate-io/unknown/will/fail?ref=fail")`),
 						),
 					),
 				},

@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/project"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/project"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateAssert(t *testing.T) {

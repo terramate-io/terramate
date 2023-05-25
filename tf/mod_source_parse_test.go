@@ -18,9 +18,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/tf"
 )
 
 func TestParseGitSources(t *testing.T) {
@@ -38,22 +38,22 @@ func TestParseGitSources(t *testing.T) {
 	tcases := []testcase{
 		{
 			name:   "github source",
-			source: "github.com/mineiros-io/example",
+			source: "github.com/terramate-io/example",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 				},
 			},
 		},
 		{
 			name:   "github source with subdir",
-			source: "github.com/mineiros-io/example//subdir",
+			source: "github.com/terramate-io/example//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 					Subdir:     "/subdir",
 				},
@@ -61,33 +61,33 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "github source with empty subdir",
-			source: "github.com/mineiros-io/example//",
+			source: "github.com/terramate-io/example//",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 				},
 			},
 		},
 		{
 			name:   "github source with .git suffix",
-			source: "github.com/mineiros-io/example.git",
+			source: "github.com/terramate-io/example.git",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 				},
 			},
 		},
 		{
 			name:   "github source with .git suffix and subdir",
-			source: "github.com/mineiros-io/example.git//subdir/dir",
+			source: "github.com/terramate-io/example.git//subdir/dir",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 					Subdir:     "/subdir/dir",
 				},
@@ -95,11 +95,11 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "github source with ref",
-			source: "github.com/mineiros-io/example?ref=v1",
+			source: "github.com/terramate-io/example?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 					Ref:        "v1",
 				},
@@ -107,11 +107,11 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "github source with ref and subdir",
-			source: "github.com/mineiros-io/example//sub/ref?ref=v1",
+			source: "github.com/terramate-io/example//sub/ref?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 					Subdir:     "/sub/ref",
 					Ref:        "v1",
@@ -120,11 +120,11 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "github source with ref and .git suffix",
-			source: "github.com/mineiros-io/example.git?ref=v1",
+			source: "github.com/terramate-io/example.git?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 					Ref:        "v1",
 				},
@@ -132,11 +132,11 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "github source with ref .git suffix and subdir",
-			source: "github.com/mineiros-io/example.git//dir?ref=v1",
+			source: "github.com/terramate-io/example.git//dir?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 					Subdir:     "/dir",
 					Ref:        "v1",
@@ -145,33 +145,33 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "github source with unknown query param ignored",
-			source: "github.com/mineiros-io/example?key=v1",
+			source: "github.com/terramate-io/example?key=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:        "https://github.com/mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "https://github.com/terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "https",
 				},
 			},
 		},
 		{
 			name:   "git@ source",
-			source: "git@github.com:mineiros-io/example.git",
+			source: "git@github.com:terramate-io/example.git",
 			want: want{
 				parsed: tf.Source{
-					URL:        "git@github.com:mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "git@github.com:terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "git",
 				},
 			},
 		},
 		{
 			name:   "git@ source with subdir",
-			source: "git@github.com:mineiros-io/example.git//subdir",
+			source: "git@github.com:terramate-io/example.git//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:        "git@github.com:mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "git@github.com:terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "git",
 					Subdir:     "/subdir",
 				},
@@ -179,22 +179,22 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "git@ source with empty subdir",
-			source: "git@github.com:mineiros-io/example.git//",
+			source: "git@github.com:terramate-io/example.git//",
 			want: want{
 				parsed: tf.Source{
-					URL:        "git@github.com:mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "git@github.com:terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "git",
 				},
 			},
 		},
 		{
 			name:   "git@ source with ref",
-			source: "git@github.com:mineiros-io/example.git?ref=v2",
+			source: "git@github.com:terramate-io/example.git?ref=v2",
 			want: want{
 				parsed: tf.Source{
-					URL:        "git@github.com:mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "git@github.com:terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "git",
 					Ref:        "v2",
 				},
@@ -202,11 +202,11 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "git@ source with ref and subdir",
-			source: "git@github.com:mineiros-io/example.git//sub/dir?ref=v2",
+			source: "git@github.com:terramate-io/example.git//sub/dir?ref=v2",
 			want: want{
 				parsed: tf.Source{
-					URL:        "git@github.com:mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "git@github.com:terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "git",
 					Subdir:     "/sub/dir",
 					Ref:        "v2",
@@ -215,11 +215,11 @@ func TestParseGitSources(t *testing.T) {
 		},
 		{
 			name:   "git@ source with unknown query param ignored",
-			source: "git@github.com:mineiros-io/example.git?key=v2",
+			source: "git@github.com:terramate-io/example.git?key=v2",
 			want: want{
 				parsed: tf.Source{
-					URL:        "git@github.com:mineiros-io/example.git",
-					Path:       "github.com/mineiros-io/example",
+					URL:        "git@github.com:terramate-io/example.git",
+					Path:       "github.com/terramate-io/example",
 					PathScheme: "git",
 				},
 			},

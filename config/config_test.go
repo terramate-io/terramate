@@ -20,11 +20,11 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestIsStack(t *testing.T) {

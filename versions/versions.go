@@ -18,7 +18,7 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
 	hclversion "github.com/hashicorp/go-version"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // ErrCheck indicates the version doesn't match the constraint for any reason.

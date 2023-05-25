@@ -17,10 +17,10 @@ package hcl_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	. "github.com/mineiros-io/terramate/test/hclutils"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
+	. "github.com/terramate-io/terramate/test/hclutils"
 )
 
 func TestHCLParserStack(t *testing.T) {
@@ -94,7 +94,7 @@ func TestHCLParserStack(t *testing.T) {
 					filename: "stack.tm",
 					body: `
 						stack{
-						  name = tm_vendor("github.com/mineiros-io/terramate?ref=v2")
+						  name = tm_vendor("github.com/terramate-io/terramate?ref=v2")
 						}
 					`,
 				},

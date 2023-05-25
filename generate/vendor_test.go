@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/event"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/tf"
 )
 
 func TestGenerateVendor(t *testing.T) {
@@ -45,22 +45,22 @@ func TestGenerateVendor(t *testing.T) {
 						GenerateHCL(
 							Labels("file.hcl"),
 							Content(
-								Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+								Expr("vendor", `tm_vendor("github.com/terramate-io/terramate?ref=v1")`),
 							),
 						),
 						GenerateFile(
 							Labels("file.txt"),
-							Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+							Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v2")`),
 						),
 						GenerateHCL(
 							Labels("dir/file.hcl"),
 							Content(
-								Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v3")`),
+								Expr("vendor", `tm_vendor("github.com/terramate-io/terramate?ref=v3")`),
 							),
 						),
 						GenerateFile(
 							Labels("dir/file.txt"),
-							Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v4")`),
+							Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v4")`),
 						),
 					),
 				},
@@ -70,26 +70,26 @@ func TestGenerateVendor(t *testing.T) {
 					dir: "/stacks/stack",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
-							Str("vendor", "../../../vendor/github.com/mineiros-io/terramate/v3"),
+							Str("vendor", "../../../vendor/github.com/terramate-io/terramate/v3"),
 						),
-						"dir/file.txt": stringer("../../../vendor/github.com/mineiros-io/terramate/v4"),
+						"dir/file.txt": stringer("../../../vendor/github.com/terramate-io/terramate/v4"),
 						"file.hcl": Doc(
-							Str("vendor", "../../vendor/github.com/mineiros-io/terramate/v1"),
+							Str("vendor", "../../vendor/github.com/terramate-io/terramate/v1"),
 						),
-						"file.txt": stringer("../../vendor/github.com/mineiros-io/terramate/v2"),
+						"file.txt": stringer("../../vendor/github.com/terramate-io/terramate/v2"),
 					},
 				},
 				{
 					dir: "/stacks/stack/substack",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
-							Str("vendor", "../../../../vendor/github.com/mineiros-io/terramate/v3"),
+							Str("vendor", "../../../../vendor/github.com/terramate-io/terramate/v3"),
 						),
-						"dir/file.txt": stringer("../../../../vendor/github.com/mineiros-io/terramate/v4"),
+						"dir/file.txt": stringer("../../../../vendor/github.com/terramate-io/terramate/v4"),
 						"file.hcl": Doc(
-							Str("vendor", "../../../vendor/github.com/mineiros-io/terramate/v1"),
+							Str("vendor", "../../../vendor/github.com/terramate-io/terramate/v1"),
 						),
-						"file.txt": stringer("../../../vendor/github.com/mineiros-io/terramate/v2"),
+						"file.txt": stringer("../../../vendor/github.com/terramate-io/terramate/v2"),
 					},
 				},
 			},
@@ -130,22 +130,22 @@ func TestGenerateVendor(t *testing.T) {
 						GenerateHCL(
 							Labels("file.hcl"),
 							Content(
-								Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+								Expr("vendor", `tm_vendor("github.com/terramate-io/terramate?ref=v1")`),
 							),
 						),
 						GenerateFile(
 							Labels("file.txt"),
-							Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+							Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v2")`),
 						),
 						GenerateHCL(
 							Labels("dir/file.hcl"),
 							Content(
-								Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v3")`),
+								Expr("vendor", `tm_vendor("github.com/terramate-io/terramate?ref=v3")`),
 							),
 						),
 						GenerateFile(
 							Labels("dir/file.txt"),
-							Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v4")`),
+							Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v4")`),
 						),
 					),
 				},
@@ -155,26 +155,26 @@ func TestGenerateVendor(t *testing.T) {
 					dir: "/",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
-							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v3"),
+							Str("vendor", "../vendor/github.com/terramate-io/terramate/v3"),
 						),
-						"dir/file.txt": stringer("../vendor/github.com/mineiros-io/terramate/v4"),
+						"dir/file.txt": stringer("../vendor/github.com/terramate-io/terramate/v4"),
 						"file.hcl": Doc(
-							Str("vendor", "vendor/github.com/mineiros-io/terramate/v1"),
+							Str("vendor", "vendor/github.com/terramate-io/terramate/v1"),
 						),
-						"file.txt": stringer("vendor/github.com/mineiros-io/terramate/v2"),
+						"file.txt": stringer("vendor/github.com/terramate-io/terramate/v2"),
 					},
 				},
 				{
 					dir: "/substack",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
-							Str("vendor", "../../vendor/github.com/mineiros-io/terramate/v3"),
+							Str("vendor", "../../vendor/github.com/terramate-io/terramate/v3"),
 						),
-						"dir/file.txt": stringer("../../vendor/github.com/mineiros-io/terramate/v4"),
+						"dir/file.txt": stringer("../../vendor/github.com/terramate-io/terramate/v4"),
 						"file.hcl": Doc(
-							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v1"),
+							Str("vendor", "../vendor/github.com/terramate-io/terramate/v1"),
 						),
-						"file.txt": stringer("../vendor/github.com/mineiros-io/terramate/v2"),
+						"file.txt": stringer("../vendor/github.com/terramate-io/terramate/v2"),
 					},
 				},
 			},
@@ -214,7 +214,7 @@ func TestGenerateVendor(t *testing.T) {
 						GenerateHCL(
 							Labels("file.hcl"),
 							Lets(
-								Expr("source", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+								Expr("source", `tm_vendor("github.com/terramate-io/terramate?ref=v1")`),
 							),
 							Content(
 								Expr("vendor", `let.source`),
@@ -223,7 +223,7 @@ func TestGenerateVendor(t *testing.T) {
 						GenerateFile(
 							Labels("file.txt"),
 							Lets(
-								Expr("source", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+								Expr("source", `tm_vendor("github.com/terramate-io/terramate?ref=v2")`),
 							),
 							Expr("content", `let.source`),
 						),
@@ -235,9 +235,9 @@ func TestGenerateVendor(t *testing.T) {
 					dir: "/stack",
 					files: map[string]fmt.Stringer{
 						"file.hcl": Doc(
-							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v1"),
+							Str("vendor", "../vendor/github.com/terramate-io/terramate/v1"),
 						),
-						"file.txt": stringer("../vendor/github.com/mineiros-io/terramate/v2"),
+						"file.txt": stringer("../vendor/github.com/terramate-io/terramate/v2"),
 					},
 				},
 			},
@@ -267,22 +267,22 @@ func TestGenerateVendorRequestEvents(t *testing.T) {
 		GenerateHCL(
 			Labels("file.hcl"),
 			Content(
-				Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+				Expr("vendor", `tm_vendor("github.com/terramate-io/terramate?ref=v1")`),
 			),
 		),
 		GenerateFile(
 			Labels("file.txt"),
-			Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+			Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v2")`),
 		),
 		GenerateHCL(
 			Labels("dir/file.hcl"),
 			Content(
-				Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v3")`),
+				Expr("vendor", `tm_vendor("github.com/terramate-io/terramate?ref=v3")`),
 			),
 		),
 		GenerateFile(
 			Labels("dir/file.txt"),
-			Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v4")`),
+			Expr("content", `tm_vendor("github.com/terramate-io/terramate?ref=v4")`),
 		),
 	).String())
 
@@ -318,19 +318,19 @@ func TestGenerateVendorRequestEvents(t *testing.T) {
 
 	wantEvents := []event.VendorRequest{
 		{
-			Source:    src("github.com/mineiros-io/terramate?ref=v1"),
+			Source:    src("github.com/terramate-io/terramate?ref=v1"),
 			VendorDir: vendorDir,
 		},
 		{
-			Source:    src("github.com/mineiros-io/terramate?ref=v2"),
+			Source:    src("github.com/terramate-io/terramate?ref=v2"),
 			VendorDir: vendorDir,
 		},
 		{
-			Source:    src("github.com/mineiros-io/terramate?ref=v3"),
+			Source:    src("github.com/terramate-io/terramate?ref=v3"),
 			VendorDir: vendorDir,
 		},
 		{
-			Source:    src("github.com/mineiros-io/terramate?ref=v4"),
+			Source:    src("github.com/terramate-io/terramate?ref=v4"),
 			VendorDir: vendorDir,
 		},
 	}

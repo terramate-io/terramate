@@ -18,11 +18,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestStacksGlobals(t *testing.T) {

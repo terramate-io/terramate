@@ -15,9 +15,9 @@
 package globals
 
 import (
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/stdlib"
 )
 
 // ForStack loads from the config tree all globals defined for a given stack.

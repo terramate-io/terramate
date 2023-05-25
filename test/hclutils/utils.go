@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // FixupFiledirOnErrorsFileRanges fix the filename in the ranges of the error list.

@@ -19,11 +19,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/project"
 
-	errtest "github.com/mineiros-io/terramate/test/errors"
+	errtest "github.com/terramate-io/terramate/test/errors"
 )
 
 type strValue string

@@ -19,20 +19,20 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/globals"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/stack"
 
-	"github.com/mineiros-io/terramate/test"
-	errtest "github.com/mineiros-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/test"
+	errtest "github.com/terramate-io/terramate/test/errors"
 
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
@@ -2090,7 +2090,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stack",
 					add: Globals(
-						Expr("data", `tm_vendor("github.com/mineiros-io/terramate?ref=test")`),
+						Expr("data", `tm_vendor("github.com/terramate-io/terramate?ref=test")`),
 					),
 				},
 			},

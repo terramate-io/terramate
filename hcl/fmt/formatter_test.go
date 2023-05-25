@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/zclconf/go-cty/cty"
 )
 

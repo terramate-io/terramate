@@ -17,7 +17,7 @@ package sandbox_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestSandboxWithArbitraryRepoConfig(t *testing.T) {

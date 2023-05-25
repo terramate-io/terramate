@@ -23,14 +23,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/run/dag"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/run/dag"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 type selectionTestcase struct {

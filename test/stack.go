@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl"
 )
 
 // AssertStackImports checks that the given stack has all the wanted import

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // AssertKind asserts that got is of same error kind as want.

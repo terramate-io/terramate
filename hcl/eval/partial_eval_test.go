@@ -22,11 +22,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/stdlib"
-	errtest "github.com/mineiros-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/stdlib"
+	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/zclconf/go-cty/cty"
 )
 

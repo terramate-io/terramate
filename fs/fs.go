@@ -18,8 +18,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // ListTerramateFiles returns a list of terramate related files from the

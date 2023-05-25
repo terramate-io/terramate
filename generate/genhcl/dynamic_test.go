@@ -17,10 +17,10 @@ package genhcl_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/hcl/eval"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateHCLDynamic(t *testing.T) {

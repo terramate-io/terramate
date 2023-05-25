@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/stack/trigger"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/stack/trigger"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestTriggerWorksWithRelativeStackPath(t *testing.T) {

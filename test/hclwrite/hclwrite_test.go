@@ -22,9 +22,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 )

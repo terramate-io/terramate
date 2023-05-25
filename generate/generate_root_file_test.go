@@ -20,12 +20,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 
-	"github.com/mineiros-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate"
 )
 
 func TestGenerateRootContext(t *testing.T) {

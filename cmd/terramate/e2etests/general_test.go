@@ -19,15 +19,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestBug25(t *testing.T) {
 	t.Parallel()
 
-	// bug: https://github.com/mineiros-io/terramate/issues/25
+	// bug: https://github.com/terramate-io/terramate/issues/25
 
 	const (
 		modname1 = "1"
@@ -446,7 +446,7 @@ func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 func TestBug515(t *testing.T) {
 	t.Parallel()
 
-	// bug: https://github.com/mineiros-io/terramate/issues/515
+	// bug: https://github.com/terramate-io/terramate/issues/515
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{

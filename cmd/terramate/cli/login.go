@@ -30,11 +30,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
+	"github.com/terramate-io/terramate/errors"
 )
 
 const (

@@ -19,7 +19,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // Source represents a module source
@@ -28,7 +28,7 @@ type Source struct {
 	URL string
 
 	// Path is the path of the source URL. It includes the domain of the URL on it.
-	// Eg. github.com/mineiros-io/example
+	// Eg. github.com/terramate-io/example
 	Path string
 
 	// PathScheme is the scheme of the path part.

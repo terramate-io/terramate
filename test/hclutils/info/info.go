@@ -20,9 +20,9 @@ import (
 	"path/filepath"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/test/hclutils"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/test/hclutils"
 )
 
 // Range builds a [info.Range] for testing purposes.

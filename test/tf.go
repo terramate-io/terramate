@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/tf"
+	"github.com/terramate-io/terramate/tf"
 )
 
 // ParseSource calls [tf.ParseSource] failing the test if it fails.

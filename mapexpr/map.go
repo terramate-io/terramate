@@ -19,10 +19,10 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/zclconf/go-cty/cty"
 )
 

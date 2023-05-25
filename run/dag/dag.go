@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/errors"
 )
 
 type (

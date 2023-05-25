@@ -21,8 +21,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
 )
 

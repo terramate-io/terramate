@@ -15,9 +15,9 @@
 package eval
 
 import (
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 

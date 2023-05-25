@@ -19,9 +19,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/errors"
-	errtest "github.com/mineiros-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/errors"
+	errtest "github.com/terramate-io/terramate/test/errors"
 
 	"github.com/google/go-cmp/cmp"
 )

@@ -20,13 +20,13 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestStackCreation(t *testing.T) {

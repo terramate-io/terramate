@@ -23,11 +23,11 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/project"
 )
 
 // ParseTerramateConfig parses the Terramate configuration found

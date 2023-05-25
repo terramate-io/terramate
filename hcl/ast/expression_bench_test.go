@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/ast"
 )
 
 var printTokens = false

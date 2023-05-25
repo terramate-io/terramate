@@ -23,8 +23,8 @@ package main
 import (
 	"os"
 
-	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/cmd/terramate/cli"
 )
 
 func main() {

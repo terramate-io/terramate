@@ -14,7 +14,7 @@
 
 package stack
 
-import "github.com/mineiros-io/terramate/config"
+import "github.com/terramate-io/terramate/config"
 
 // List loads from the config all terramate stacks.
 // It returns a lexicographic sorted list of stack directories.

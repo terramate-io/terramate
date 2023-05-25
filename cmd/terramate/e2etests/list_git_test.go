@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestE2EListWithGit(t *testing.T) {

@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
 )
 
 // MergedBlock represents a block that spans multiple files.

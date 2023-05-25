@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 )
 
 func TestOutput(t *testing.T) {

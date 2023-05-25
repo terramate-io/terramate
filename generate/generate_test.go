@@ -23,16 +23,16 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/project"
-	stackpkg "github.com/mineiros-io/terramate/stack"
-	"github.com/mineiros-io/terramate/test"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/project"
+	stackpkg "github.com/terramate-io/terramate/stack"
+	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 type (

@@ -15,9 +15,9 @@
 package config
 
 import (
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 
 	hhcl "github.com/hashicorp/hcl/v2"

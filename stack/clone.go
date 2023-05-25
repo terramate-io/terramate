@@ -21,12 +21,12 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/fs"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/fs"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 

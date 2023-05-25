@@ -18,10 +18,10 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/modvendor/download"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
 )
 
 func TestMergeVendorReportsNoReports(t *testing.T) {
@@ -56,7 +56,7 @@ func TestMergeVendorReportsNReports(t *testing.T) {
 	rep1 := download.NewReport(vendorDir)
 	vendored1key := project.NewPath("/test")
 	vendored1val := download.Vendored{
-		Source: test.ParseSource(t, "github.com/mineiros-io/terramate?ref=v1"),
+		Source: test.ParseSource(t, "github.com/terramate-io/terramate?ref=v1"),
 		Dir:    project.NewPath("/dir"),
 	}
 	rep1.Vendored[vendored1key] = vendored1val
@@ -71,7 +71,7 @@ func TestMergeVendorReportsNReports(t *testing.T) {
 	rep2 := download.NewReport(vendorDir)
 	vendored2key := project.NewPath("/test2")
 	vendored2val := download.Vendored{
-		Source: test.ParseSource(t, "github.com/mineiros-io/terramate?ref=v2"),
+		Source: test.ParseSource(t, "github.com/terramate-io/terramate?ref=v2"),
 		Dir:    project.NewPath("/dir2"),
 	}
 	rep2.Vendored[vendored2key] = vendored2val

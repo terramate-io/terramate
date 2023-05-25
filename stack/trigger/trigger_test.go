@@ -21,16 +21,16 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack/trigger"
-	"github.com/mineiros-io/terramate/test"
-	errtest "github.com/mineiros-io/terramate/test/errors"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack/trigger"
+	"github.com/terramate-io/terramate/test"
+	errtest "github.com/terramate-io/terramate/test/errors"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 type testcase struct {

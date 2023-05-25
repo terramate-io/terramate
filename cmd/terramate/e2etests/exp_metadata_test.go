@@ -17,8 +17,8 @@ package e2etest
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestCliMetadata(t *testing.T) {

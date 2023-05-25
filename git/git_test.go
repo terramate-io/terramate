@@ -22,10 +22,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 const CookedCommitID = "4e991b55e3d58b9c3137a791a9986ed9c5069697"

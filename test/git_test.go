@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/test"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/test"
 )
 
 func TestRepoIsSetupWithSyncRemoteOriginMain(t *testing.T) {

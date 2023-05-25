@@ -15,10 +15,10 @@
 package globals
 
 import (
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
 
-	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/eval"
 )
 
 type (
