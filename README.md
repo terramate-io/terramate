@@ -84,9 +84,9 @@ The fastest way to get started with Terramate is our [getting started guide](htt
 - [Playground](https://play.terramate.io/)
 - [Getting started guide](https://terramate.io/docs/cli/getting-started/)
 - [About Stacks](https://terramate.io/docs/cli/about-stacks)
-- [Terramate Blog](https://blog.mineiros.io/)
-- [Why we invented Terramate](https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055?source=friends_link&sk=5272c487ef709c80a34d0b451590f263)
-- [How Terramate compares with Terragrunt](https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f?source=friends_link&sk=8834b3de00d4af4744aac63051ff3b53)
+- [Terramate Blog](https://blog.terramate.io/)
+- [Why we invented Terramate](https://blog.terramate.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055?source=friends_link&sk=5272c487ef709c80a34d0b451590f263)
+- [How Terramate compares with Terragrunt](https://blog.terramate.io/terramate-and-terragrunt-f27f2ec4032f?source=friends_link&sk=8834b3de00d4af4744aac63051ff3b53)
 - [Terramate VSCode Extension](https://github.com/mineiros-io/vscode-terramate)
 - [Terramate Language Server](https://github.com/mineiros-io/terramate-ls)
 
