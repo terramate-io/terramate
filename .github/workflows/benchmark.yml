@@ -6,6 +6,10 @@ on:
   pull_request:
     paths:
       - '**.go'
+
+permissions:
+  pull-requests: write
+
 jobs:
   benchmarks:
     runs-on: ubuntu-20.04
