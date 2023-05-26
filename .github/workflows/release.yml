@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write
+  packages: write
+  issues: write
 
 jobs:
   goreleaser:
