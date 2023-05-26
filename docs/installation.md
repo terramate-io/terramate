@@ -15,10 +15,16 @@ next:
 
 ## Using Go
 
-To install using Go just run:
+For installing versions greater than `v0.2.18`, please run:
 
 ```sh
 go install github.com/terramate-io/terramate/cmd/terramate@<version>
+```
+
+but for older versions, the command below is needed:
+
+```sh
+go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
 Where `<version>` is any terramate [version tag](https://github.com/terramate-io/terramate/tags),
