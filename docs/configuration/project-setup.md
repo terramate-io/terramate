@@ -63,4 +63,4 @@ EOM
 
 In a setup with no VCS change detection features will not be available.
 
-You can also check our [live example](https://github.com/mineiros-io/terramate-example-code-generation).
+You can also check our [live example](https://github.com/terramate-io/terramate-example-code-generation).
