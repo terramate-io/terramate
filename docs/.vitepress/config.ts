@@ -1,19 +1,3 @@
-/**
- * Copyright 2023 Mineiros GmbH
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import type { HeadConfig } from 'vitepress'
 import { defineConfig } from 'vitepress'
 
@@ -122,11 +106,11 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Docs', link: '/about-stacks' },
-      { text: 'Blog', link: 'https://blog.mineiros.io/' },
+      { text: 'Blog', link: 'https://blog.terramate.io/' },
       { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/mineiros.io/' },
       {
         text: 'Releases',
-        link: 'https://github.com/mineiros-io/terramate/releases',
+        link: 'https://github.com/terramate-io/terramate/releases',
       },
       { text: '💻 Playground', link: 'https://play.terramate.io/' },
     ],
@@ -234,23 +218,23 @@ export default defineConfig({
         items: [
           {
             text: 'Introducing Terramate — An Orchestrator and Code Generator for Terraform',
-            link: 'https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055',
+            link: 'https://blog.terramate.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055',
           },
           {
             text: 'Understanding the basics of Terramate',
-            link: 'https://blog.mineiros.io/understanding-the-basics-of-terramate-e0d8778f5c53',
+            link: 'https://blog.terramate.io/understanding-the-basics-of-terramate-e0d8778f5c53',
           },
           {
             text: 'Terramate and Terragrunt',
-            link: 'https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f',
+            link: 'https://blog.terramate.io/terramate-and-terragrunt-f27f2ec4032f',
           },
           {
             text: 'How to keep your Terraform code DRY by using Terramate',
-            link: 'https://blog.mineiros.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6',
+            link: 'https://blog.terramate.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6',
           },
           {
             text: 'Introducing the Terramate VSCode Extension and Language Server',
-            link: 'https://blog.mineiros.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c',
+            link: 'https://blog.terramate.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c',
           },
         ],
       },
@@ -265,7 +249,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/mineiros-io/terramate' },
+      { icon: 'github', link: 'https://github.com/terramate-io/terramate' },
       { icon: 'discord', link: 'https://terramate.io/discord' },
       { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
       { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },

@@ -1,16 +1,5 @@
-// Copyright 2021 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 package e2etest
 
@@ -19,15 +8,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestBug25(t *testing.T) {
 	t.Parallel()
 
-	// bug: https://github.com/mineiros-io/terramate/issues/25
+	// bug: https://github.com/terramate-io/terramate/issues/25
 
 	const (
 		modname1 = "1"
@@ -446,7 +435,7 @@ func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 func TestBug515(t *testing.T) {
 	t.Parallel()
 
-	// bug: https://github.com/mineiros-io/terramate/issues/515
+	// bug: https://github.com/terramate-io/terramate/issues/515
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{

@@ -1,4 +1,4 @@
-module github.com/mineiros-io/terramate
+module github.com/terramate-io/terramate
 
 go 1.18
 

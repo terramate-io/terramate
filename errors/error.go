@@ -1,16 +1,5 @@
-// Copyright 2022 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 // Package errors implements the Terramate standard error type.
 // It's heavily influenced by Rob Pike `errors` package in the Upspin project:
@@ -26,7 +15,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/hcl/info"
 )
 
 const (
@@ -470,6 +459,6 @@ func deprecatedUsageFor(typeName string) string {
 	return fmt.Sprintf(
 		`BUG: Deprecated use of argument type %s in the errors.E() function.
 If this panic was triggered in the Terramate project, then please open an issue
-at https://github.com/mineiros-io/terramate/issues.`,
+at https://github.com/terramate-io/terramate/issues.`,
 		typeName)
 }

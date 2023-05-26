@@ -1,16 +1,5 @@
-// Copyright 2022 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 package download_test
 
@@ -18,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/modvendor/download"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/test"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
 )
 
 func TestMergeVendorReportsNoReports(t *testing.T) {
@@ -56,7 +45,7 @@ func TestMergeVendorReportsNReports(t *testing.T) {
 	rep1 := download.NewReport(vendorDir)
 	vendored1key := project.NewPath("/test")
 	vendored1val := download.Vendored{
-		Source: test.ParseSource(t, "github.com/mineiros-io/terramate?ref=v1"),
+		Source: test.ParseSource(t, "github.com/terramate-io/terramate?ref=v1"),
 		Dir:    project.NewPath("/dir"),
 	}
 	rep1.Vendored[vendored1key] = vendored1val
@@ -71,7 +60,7 @@ func TestMergeVendorReportsNReports(t *testing.T) {
 	rep2 := download.NewReport(vendorDir)
 	vendored2key := project.NewPath("/test2")
 	vendored2val := download.Vendored{
-		Source: test.ParseSource(t, "github.com/mineiros-io/terramate?ref=v2"),
+		Source: test.ParseSource(t, "github.com/terramate-io/terramate?ref=v2"),
 		Dir:    project.NewPath("/dir2"),
 	}
 	rep2.Vendored[vendored2key] = vendored2val
