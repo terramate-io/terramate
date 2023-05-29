@@ -27,5 +27,5 @@ optional and can be disabled.
 Checkpoint itself can be entirely disabled by setting the environment variable
 `CHECKPOINT_DISABLE` to any non-empty value.
 
-The [Checkpoint client code](https://github.com/mineiros-io/go-checkpoint) used
+The [Checkpoint client code](https://github.com/terramate-io/go-checkpoint) used
 by Terramate is available for review by any interested party.
