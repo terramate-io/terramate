@@ -21,7 +21,7 @@ For installing versions greater than `v0.2.18`, please run:
 go install github.com/terramate-io/terramate/cmd/terramate@<version>
 ```
 
-but for older versions, the command below is needed (see [this](https://github.com/golang/go/issues/60452) issue for the reason):
+For older versions, the command below is required (see [this](https://github.com/golang/go/issues/60452) issue for the reason):
 
 ```sh
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
