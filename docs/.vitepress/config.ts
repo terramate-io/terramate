@@ -107,7 +107,7 @@ export default defineConfig({
     nav: [
       { text: 'Docs', link: '/about-stacks' },
       { text: 'Blog', link: 'https://blog.terramate.io/' },
-      { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/mineiros.io/' },
+      { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/terramate' },
       {
         text: 'Releases',
         link: 'https://github.com/terramate-io/terramate/releases',
