@@ -33,7 +33,6 @@ jobs:
         run: make release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_APP_TERRAMATE_RELEASE_WEBHOOK }}
           DISCORD_WEBHOOK_ID: ${{ secrets.DISCORD_WEBHOOK_ID }}
           DISCORD_WEBHOOK_TOKEN: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
           TWITTER_CONSUMER_KEY: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY }}
