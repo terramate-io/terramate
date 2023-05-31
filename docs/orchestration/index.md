@@ -22,7 +22,7 @@ Choosing the right stacks for execution is a key part of Stacks Execution Orches
 
 1. Change detection
 
-The [change detection](../change-detection/index.md) selects only the stacks that have been modified since the last execution.
+The [Change Detection](../change-detection/index.md) feature allows for efficient comparison between different versions of your stack. This tool remains functional even in instances where there is no prior execution history within your stack. By utilizing the command `terramate list --changed`, you can readily identify any stacks that have undergone changes in comparison to the main branch or any other designated base. This is a practical and reliable method to track and manage changes within your stack.
 
 2. Current directory
 
@@ -65,6 +65,8 @@ Two methods can help us manage this issue in Terramate - the Filesystem Hierarch
 
 Within Terramate, we can arrange stacks in a filesystem hierarchy. Parent stacks are always executed before their child stacks in this arrangement. Thus, if **stack A** includes **stack B**, **stack A** will always be executed first. 
 
+This is a double-edged sword because it allows you to move stacks around to better resemble the cloud infrastructure and the order of which things must be executed with zero code change but in counterpart beware that moving stacks just for cosmetic purposes can potentially change the execution order and break things.
+
 Keep in mind, incorrect stack order might lead Terramate to attempt resource creation before its dependencies are ready, causing errors. So, a clear stack order is necessary to avoid such issues.
 
 ### Explicit Order Of Execution
@@ -77,11 +79,12 @@ Terramate's Explicit Order of Execution feature allows you to designate a specif
 
 Here's how to use this feature:
 
-1. Open your Terramate configuration file `terramate.tm.hcl` in a text editor.
-2. Select the stack block you want to allocate a specific order.
-3. Depending on your needs, add either the **before** or **after** field inside the stack block.
-4. Add **string** values representing the directory paths you want to order execution for in the **before** or **after** field.
-5. Save and close the file.
+1. Choose a Stack of choice.
+2. Open the configuration file `stack.tm.hcl` in a text editor.
+3. Select the stack block you want to allocate a specific order.
+4. Depending on your needs, add either the **before** or **after** field inside the stack block.
+5. Add **string** values representing the directory paths you want to order execution for in the **before** or **after** field.
+6. Save and close the file.
 
 For example, let's assume we have a project organized like this:
 
@@ -120,7 +123,10 @@ stack {
 }
 ```
 
-In both configurations, the execution sequence will be **stack-a** -> **stack-b**
+In both configurations, the execution sequence will be:
+
+- **stack-a** 
+- **stack-b**
 
 You can also use the **before** field to define the execution order. For instance:
 
@@ -169,13 +175,80 @@ stack {
 }
 ```
 
-With these settings, the execution sequence will be **stack-a** -> **stack-c** -> **stack-b**.
+With these settings, the execution sequence will be: 
 
-One command that considers this execution order is `terramate run`, which runs `terraform plan` on all stacks in the defined sequence:
+- **stack-a** 
+- **stack-c** 
+- **stack-b**
+
+One command that considers this execution order is `terramate run terraform plan` on all stacks in the defined sequence:
 
 ```sh
 terramate run terraform plan
 ```
+### Change Detection And Ordering
+
+When using any terramate command with support to change detection,
+execution order is only imposed on stacks detected as changed. If a stack
+is mentioned on **before**/**after** but the mentioned stack has no changes
+on it, it will be ignored when calculating order.
+
+An example of such a command would be using terramate to run **terraform apply**,
+but only on changes stacks, like this:
+
+```bash
+terramate run --changed terraform apply
+```
+
+The overall algorithm for this case:
+
+* Check which stacks have changed, lets call the result a **changeset**
+* Ordering is established on top of the previously calculated **changeset**
+
+Given that we have 3 stacks, **stack-a**, **stack-b**, **stack-c**.
+**stack-a** has no ordering requisites.
+**stack-b** defines this order:
+
+```hcl
+stack {
+    after = [
+        "../stack-a",
+    ]
+}
+```
+
+**stack-c** defines this order:
+
+```hcl
+stack {
+    after = [
+        "../stack-a",
+        "../stack-b",
+    ]
+}
+```
+
+The **static** order is defined as:
+
+* stack-a
+* stack-b
+* stack-c
+
+If the **changeset=('stack-a', 'stack-c')**, this will be the **runtime** order:
+
+* stack-a
+* stack-c
+
+Even though **stack-c** defined that it needs to be run after **stack-b**, since
+**stack-b** has no changes on it, it will be ignored when defining the
+**runtime** order.
+
+## Stack Execution Environment
+
+It is possible to control the environment variables of commands when they are
+executed on a stack. That is done through the `terramate.config.run.env` block.
+More details on how to use can be find [Project Configuration](../configuration/project-config.md#terramateconfigrunenv)
+documentation.
 
 ## Failure Modes
 
@@ -184,9 +257,9 @@ As this behavior is subject to change, it is advisable not to rely on it.
 
 ### Handling Cycles Conflicts
 
-Cyclic dependency occurs when circular dependencies exist between the stacks. For instance, if stack A is dependent on stack B, and vice versa, a cycle is created. 
+When two or more stacks have mutual dependencies, it creates a circular or cyclic dependency. For example, if Stack A relies on Stack B, while Stack B in turn relies on Stack A, a cyclic dependency arises.
 
-This cycle can lead to execution failure if not properly configured. When such an event occurs, Terramate will terminate the process, providing an error message indicating the detected cycle.
+Such a circular relationship can disrupt proper execution, potentially leading to process failure if not addressed. When Terramate encounters such scenarios, it halts the operation, supplying an informative error message that indicates the presence of the cyclic dependency.
 
 Consider a stack defined as follows in **stack-a/terramate.tm.hcl**:
 
@@ -201,4 +274,4 @@ stack {
 }
 ```
 
-In this situation, a conflict arises causing the execution to enter failure mode. An error message will be reported in such an instance.
+In this situation, a conflict arises causing the execution to enter failure mode. An fatal error message will be reported in such an instance.

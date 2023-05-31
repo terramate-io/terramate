@@ -17,14 +17,14 @@ When working with Infrastructure as Code (IaC), adopting a modular approach is h
 
 Additionally, it enhances infrastructure management across multiple stacks and facilitates testing and deploying changes in a controlled manner, minimizing unintended consequences.
 
-The Terramate CLI stack is a powerful feature of the Terramate CLI tool, allowing you to manage complex deployments with ease.
+Terramate's stack feature is a powerful tool that simplifies the management of complex IaC creation and deployments.
 
 
 ## What is a Stack?
 
 A stack is a collection of related resources managed as a single unit. When defining a stack, you specify all included resources, such as networks, virtual machines, and storage. 
 
-Terramate CLI simplifies resource creation and management, allowing you to focus on building and deploying the application.
+Terramate simplifies resource creation and management, allowing you to focus on building and deploying the application.
 
 
 ## A Terramate Stack is:
@@ -37,8 +37,7 @@ The `stack{}` block distinguishes a stack from other directories in Terramate. B
 
 Stack configurations related to orchestration can be found [here](../orchestration/index.md).
 
-The `stack{}` block also defines attributes used to describe the stack. Only [Terramate Functions](../functions/index.md) are available when defining
-the `stack` block.
+By default, it doesn't require any attributes but can be used to describe stacks and orchestrate their execution. Only [Terramate Functions](../functions/index.md) are available when defining the `stack` block.
 
 ## Why use Stacks?
 
@@ -46,7 +45,7 @@ Stacks offer several benefits:
 
 1. Manage multiple resources as one unit, allowing you to build and deploy the entire infrastructure efficiently and quickly with a single command.
 
-2. Easily manage dependencies between resources. For example, you can specify a virtual machine that depends on a virtual network, and Terramate CLI will automatically manage the resource's creation or deletion.
+2. Easily manage dependencies between resources. For example, you can specify a virtual machine that depends on a virtual network, and use Terramate CLI to manage the resource's creation or deletion.
 
 3. Simplify infrastructure management as code. Defining the entire infrastructure using Terraform configuration files makes version control and change management more accessible.
 
@@ -62,7 +61,7 @@ To create a stack using Terramate, follow these steps:
 ```hcl
 terramate create
 ```
-Running this command creates all defined resources.
+Running this command creates `stack.tm.hcl` file which contains the stack block.
 
 
 # Properties

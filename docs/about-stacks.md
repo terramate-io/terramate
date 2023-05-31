@@ -38,17 +38,10 @@ than your entire infrastructure.
 
 ## Isolate code that changes frequently
 
-If you make a lot of updates to your infrastructure, like deploying new code or changing 
-settings often, doing everything in one Terraform project could cause problems. 
-This might lead to some parts of your infrastructure needing to be rebuilt, which means 
-more downtime.
-
-If you frequently update your infrastructure, such as deploying new code or modifying settings, 
-doing everything into one Terraform project could cause complications. This might lead to 
-some parts of your infrastructure needing to be rebuilt, which means increased downtime.
+If you frequently update your infrastructure, doing everything into one Terraform project could cause complications. This might lead to some parts of your infrastructure needing to be rebuilt, which means increased downtime.
 
 Using stacks helps with this issue. Stacks let you only update the parts of 
-your system that need changes, without affecting everything else. Be careful to 
+your nfrastructure that need changes, without affecting everything else. Be careful to
 make the stacks the right size to avoid unnecessary repetition.
 
 In short, try to keep code that changes for different reasons separate, so you 

@@ -15,5 +15,8 @@
     "extends": [
       "@antfu"
     ]
+  },
+  "dependencies": {
+    "pnpm": "^8.6.0"
   }
 }
