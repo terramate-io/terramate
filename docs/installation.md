@@ -15,17 +15,23 @@ next:
 
 ## Using Go
 
-To install using Go just run:
+For installing versions greater than `v0.2.18`, please run:
+
+```sh
+go install github.com/terramate-io/terramate/cmd/terramate@<version>
+```
+
+For older versions, the command below is required (see [this](https://github.com/golang/go/issues/60452) issue for the reason):
 
 ```sh
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
-Where `<version>` is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
+Where `<version>` is any terramate [version tag](https://github.com/terramate-io/terramate/tags),
 or you can just install the **latest** release:
 
 ```sh
-go install github.com/mineiros-io/terramate/cmd/terramate@latest
+go install github.com/terramate-io/terramate/cmd/terramate@latest
 ```
 
 ## Using a package manager
@@ -49,7 +55,7 @@ asdf install terramate latest
 
 To install Terramate using a release binary, go to the
 [download page](https://terramate.io/download) or find the appropriate package in
-the [Terramate Releases page](https://github.com/mineiros-io/terramate/releases) for your system.
+the [Terramate Releases page](https://github.com/terramate-io/terramate/releases) for your system.
 
 After downloading Terramate, unzip the package. Terramate runs as a single
 binary named `terramate`. Any other files in the package can be safely removed
@@ -65,11 +71,11 @@ If you don't want to install Terramate on your host you can use
 run Terramate inside a container:
 
 ```sh
-docker run ghcr.io/mineiros-io/terramate
+docker run ghcr.io/terramate-io/terramate
 ```
 
 Container images tagged with release versions are also provided.
-Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
+Click [here](https://github.com/terramate-io/terramate/pkgs/container/terramate/versions)
 for a list of the available container image tags.
 
 ## Auto Completion

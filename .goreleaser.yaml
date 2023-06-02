@@ -56,7 +56,7 @@ announce:
       {{ .ReleaseURL }}
 
   slack:
-    enabled: true
+    enabled: false
     message_template: |
       🥳 We just released #Terramate {{.Tag}} 🚀🚀🚀
       {{ .ReleaseURL }}
