@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -1641,6 +1642,17 @@ func (c *cli) getGHACreds() (cloudCreds, bool, error) {
 	err = stdjson.Unmarshal(data, &tokresp)
 	if err != nil {
 		return cloudCreds{}, false, err
+	}
+
+	token, _, err := new(jwt.Parser).ParseUnverified(tokresp.Value, jwt.MapClaims{})
+	if err != nil {
+		return cloudCreds{}, false, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		for k, v := range claims {
+			stdfmt.Printf("key=%s, val=%+v\n", k, v)
+		}
 	}
 
 	return cloudCreds{

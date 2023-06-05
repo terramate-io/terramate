@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/alecthomas/kong v0.7.1
 	github.com/apparentlymart/go-versions v1.0.1
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emicklei/dot v0.16.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-test/deep v1.1.0
