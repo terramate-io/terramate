@@ -4,8 +4,11 @@
 package cli
 
 import (
+	"context"
 	stdfmt "fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -81,6 +84,8 @@ const (
 const defaultVendorDir = "/modules"
 
 const terramateUserConfigDir = ".terramate.d"
+
+const cloudHost = "api.terramate.io"
 
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
@@ -196,7 +201,9 @@ type cliSpec struct {
 
 		Cloud struct {
 			Login struct {
-			} `cmd:"login for cloud.terramate.io"`
+			} `cmd:"" help:"login for cloud.terramate.io"`
+			Info struct {
+			} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -241,6 +248,10 @@ type cli struct {
 	checkpointResults chan *checkpoint.CheckResponse
 
 	tags filter.TagClause
+}
+
+type cloudCreds struct {
+	token string
 }
 
 func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
@@ -534,6 +545,8 @@ func (c *cli) run() {
 		log.Fatal().Msg("no variable specified")
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
+	case "experimental cloud info":
+		c.cloudInfo()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -1545,6 +1558,94 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 
 	_ = exprs.Eval(ctx)
 	return ctx
+}
+
+func (c *cli) cloudInfo() {
+	creds, err := c.getCloudCreds()
+	if err != nil {
+		fatal(err)
+	}
+
+	c.output.MsgStdOut("token: %s", creds.token)
+}
+
+func (c *cli) getCloudCreds() (cloudCreds, error) {
+	creds, found, err := c.getGHACreds()
+	if err != nil {
+		return cloudCreds{}, err
+	}
+
+	if found {
+		return creds, nil
+	}
+
+	fatal(errors.E("no creds found"))
+	return cloudCreds{}, nil
+}
+
+func (c *cli) getGHACreds() (cloudCreds, bool, error) {
+	const envReqURL = "ACTIONS_ID_TOKEN_REQUEST_URL"
+	const envReqTok = "ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+	const oidcTimeout = 3 // seconds
+
+	reqURL := os.Getenv(envReqURL)
+	if reqURL == "" {
+		return cloudCreds{}, false, nil
+	}
+
+	reqToken := os.Getenv(envReqTok)
+	audience := oidcAudience()
+
+	if audience != "" {
+		u, err := url.Parse(reqURL)
+		if err != nil {
+			return cloudCreds{}, false, errors.E(err, "invalid ACTIONS_ID_TOKEN_REQUEST_URL env var")
+		}
+
+		qr := u.Query()
+		qr.Set("audience", audience)
+		u.RawQuery = qr.Encode()
+		reqURL = u.String()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), oidcTimeout*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return cloudCreds{}, false, err
+	}
+
+	stdfmt.Printf("OIDC REQUEST: %s\n", reqURL)
+
+	req.Header.Set("Authorization", "Bearer "+reqToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return cloudCreds{}, false, err
+	}
+
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return cloudCreds{}, false, err
+	}
+
+	type response struct {
+		Value string `json:"value"`
+	}
+
+	var tokresp response
+
+	err = stdjson.Unmarshal(data, &tokresp)
+	if err != nil {
+		return cloudCreds{}, false, err
+	}
+
+	return cloudCreds{
+		token: tokresp.Value,
+	}, true, nil
 }
 
 func envVarIsSet(val string) bool {
