@@ -4,18 +4,14 @@
 package cli
 
 import (
-	"context"
 	stdfmt "fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -249,10 +245,6 @@ type cli struct {
 	checkpointResults chan *checkpoint.CheckResponse
 
 	tags filter.TagClause
-}
-
-type cloudCreds struct {
-	token string
 }
 
 func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
@@ -1559,105 +1551,6 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 
 	_ = exprs.Eval(ctx)
 	return ctx
-}
-
-func (c *cli) cloudInfo() {
-	creds, err := c.getCloudCreds()
-	if err != nil {
-		fatal(err)
-	}
-
-	c.output.MsgStdOut("token: %s", creds.token)
-}
-
-func (c *cli) getCloudCreds() (cloudCreds, error) {
-	creds, found, err := c.getGHACreds()
-	if err != nil {
-		return cloudCreds{}, err
-	}
-
-	if found {
-		return creds, nil
-	}
-
-	fatal(errors.E("no creds found"))
-	return cloudCreds{}, nil
-}
-
-func (c *cli) getGHACreds() (cloudCreds, bool, error) {
-	const envReqURL = "ACTIONS_ID_TOKEN_REQUEST_URL"
-	const envReqTok = "ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-	const oidcTimeout = 3 // seconds
-
-	reqURL := os.Getenv(envReqURL)
-	if reqURL == "" {
-		return cloudCreds{}, false, nil
-	}
-
-	reqToken := os.Getenv(envReqTok)
-	audience := oidcAudience()
-
-	if audience != "" {
-		u, err := url.Parse(reqURL)
-		if err != nil {
-			return cloudCreds{}, false, errors.E(err, "invalid ACTIONS_ID_TOKEN_REQUEST_URL env var")
-		}
-
-		qr := u.Query()
-		qr.Set("audience", audience)
-		u.RawQuery = qr.Encode()
-		reqURL = u.String()
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), oidcTimeout*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
-	if err != nil {
-		return cloudCreds{}, false, err
-	}
-
-	stdfmt.Printf("OIDC REQUEST: %s\n", reqURL)
-
-	req.Header.Set("Authorization", "Bearer "+reqToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return cloudCreds{}, false, err
-	}
-
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return cloudCreds{}, false, err
-	}
-
-	type response struct {
-		Value string `json:"value"`
-	}
-
-	var tokresp response
-
-	err = stdjson.Unmarshal(data, &tokresp)
-	if err != nil {
-		return cloudCreds{}, false, err
-	}
-
-	token, _, err := new(jwt.Parser).ParseUnverified(tokresp.Value, jwt.MapClaims{})
-	if err != nil {
-		return cloudCreds{}, false, err
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		for k, v := range claims {
-			stdfmt.Printf("key=%s, val=%+v\n", k, v)
-		}
-	}
-
-	return cloudCreds{
-		token: tokresp.Value,
-	}, true, nil
 }
 
 func envVarIsSet(val string) bool {

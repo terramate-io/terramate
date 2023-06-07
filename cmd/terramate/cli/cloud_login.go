@@ -60,11 +60,9 @@ type (
 	}
 
 	cachedCredential struct {
-		DisplayName             string    `json:"display_name"`
-		CachedAt                time.Time `json:"cached_at"`
-		IDToken                 string    `json:"id_token"`
-		IDTokenExpiresInSeconds int       `json:"id_token_expires_in_seconds"`
-		RefreshToken            string    `json:"refresh_token"`
+		DisplayName  string `json:"display_name"`
+		IDToken      string `json:"id_token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 )
 
@@ -365,20 +363,12 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
 }
 
 func cacheToken(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
-	cachedAt := time.Now()
 	cacheFile := filepath.Join(clicfg.UserTerramateDir, credfile)
 
-	expiresIn, err := strconv.Atoi(cred.ExpiresIn)
-	if err != nil {
-		return errors.E("authentication returned an invalid expiration time: %v", err)
-	}
-
 	cachePayload := cachedCredential{
-		DisplayName:             cred.DisplayName,
-		IDToken:                 cred.IDToken,
-		IDTokenExpiresInSeconds: expiresIn,
-		RefreshToken:            cred.RefreshToken,
-		CachedAt:                cachedAt,
+		DisplayName:  cred.DisplayName,
+		IDToken:      cred.IDToken,
+		RefreshToken: cred.RefreshToken,
 	}
 
 	data, err := json.Marshal(&cachePayload)
@@ -393,6 +383,20 @@ func cacheToken(output out.O, cred credentialInfo, clicfg cliconfig.Config) erro
 
 	output.MsgStdOutV("credentials cached at %s", cacheFile)
 	return nil
+}
+
+func loadCredentialFromFile(clicfg cliconfig.Config) (credentialInfo, error) {
+	credFile := filepath.Join(clicfg.UserTerramateDir, credfile)
+	contents, err := os.ReadFile(credFile)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+	var cred credentialInfo
+	err = json.Unmarshal(contents, &cred)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+	return cred, nil
 }
 
 func endpointURL(endpoint string) *url.URL {
