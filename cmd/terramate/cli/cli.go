@@ -397,7 +397,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		}
 		return &cli{exit: true}
 	case "experimental cloud login":
-		err := login(output, clicfg)
+		err := googleLogin(output, clicfg)
 		if err != nil {
 			fatal(err, "authentication failed")
 		}

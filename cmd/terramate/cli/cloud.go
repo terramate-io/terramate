@@ -4,15 +4,23 @@
 package cli
 
 import (
+	"context"
 	"net/http"
+	"time"
 
+	"github.com/golang-jwt/jwt"
+	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 )
 
-type cloud struct {
+type cloudConfig struct {
 	baseAPI    string
 	client     *http.Client
 	credential credential
+
+	output out.O
 }
 
 type credential interface {
@@ -20,13 +28,21 @@ type credential interface {
 	Load() (bool, error)
 	Token() (string, error)
 	Refresh() error
+	Claims() jwt.MapClaims
+	DisplayClaims() []keyValue
 	IsExpired() bool
 	String() string
 }
 
-func credentialPrecedence() []credential {
+type keyValue struct {
+	key   string
+	value string
+}
+
+func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 	return []credential{
-		newGithubOIDC(),
+		newGithubOIDC(output),
+		newGoogleCredential(output, clicfg),
 	}
 }
 
@@ -36,12 +52,21 @@ func (c *cli) cloudInfo() {
 		fatal(err)
 	}
 
-	_, token := cred.Token()
-	c.output.MsgStdOut("token: %s", token)
+	cloud := cloudConfig{
+		baseAPI:    cloudBaseURL,
+		credential: cred,
+		client:     &http.Client{},
+		output:     c.output,
+	}
+
+	err = cloud.Info()
+	if err != nil {
+		c.output.MsgStdErr("error: %v", err)
+	}
 }
 
 func (c *cli) loadCredential() (credential, error) {
-	probes := credentialPrecedence()
+	probes := credentialPrecedence(c.output, c.clicfg)
 	var cred credential
 	var found bool
 	for _, probe := range probes {
@@ -60,4 +85,40 @@ func (c *cli) loadCredential() (credential, error) {
 	}
 
 	return cred, nil
+}
+
+func tokenClaims(token string) (jwt.MapClaims, error) {
+	jwtParser := &jwt.Parser{}
+	tokParsed, _, err := jwtParser.ParseUnverified(token, jwt.MapClaims{})
+	if err != nil {
+		return nil, errors.E(err, "parsing jwt token")
+	}
+
+	if claims, ok := tokParsed.Claims.(jwt.MapClaims); ok {
+		return claims, nil
+	}
+	return nil, errors.E("invalid jwt token claims")
+}
+
+func (cloudcfg *cloudConfig) Info() error {
+	client := cloud.Client{
+		BaseURL:    cloudBaseURL,
+		Credential: cloudcfg.credential,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	orgs, err := client.MemberOrganizations(ctx)
+	if err != nil {
+		return err
+	}
+
+	cloudcfg.output.MsgStdOut("status: signed in")
+
+	for _, kv := range cloudcfg.credential.DisplayClaims() {
+		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+	}
+
+	cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -22,14 +23,20 @@ type githubOIDC struct {
 	token     string
 	jwtClaims jwt.MapClaims
 
-	expireAt time.Time
+	expireAt  time.Time
+	repoOwner string
+	repoName  string
 
 	reqURL   string
 	reqToken string
+
+	output out.O
 }
 
-func newGithubOIDC() *githubOIDC {
-	return &githubOIDC{}
+func newGithubOIDC(output out.O) *githubOIDC {
+	return &githubOIDC{
+		output: output,
+	}
 }
 
 func (g *githubOIDC) Load() (bool, error) {
@@ -90,7 +97,10 @@ func (g *githubOIDC) Refresh() error {
 	}
 
 	defer func() {
-		_ = resp.Body.Close()
+		err := resp.Body.Close()
+		if err != nil {
+			g.output.MsgStdErrV("failed to close response body: %v", err)
+		}
 	}()
 
 	data, err := io.ReadAll(resp.Body)
@@ -110,22 +120,47 @@ func (g *githubOIDC) Refresh() error {
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
 	g.token = tokresp.Value
-	jwtParser := &jwt.Parser{}
-	token, _, err := jwtParser.ParseUnverified(g.token, jwt.MapClaims{})
+	g.jwtClaims, err = tokenClaims(g.token)
 	if err != nil {
 		return err
 	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		g.jwtClaims = claims
-
-		if exp, ok := claims["exp"]; ok {
-			g.expireAt = time.Unix(exp.(int64), 0)
-		}
+	exp, ok := g.jwtClaims["exp"].(int64)
+	if !ok {
+		return errors.E("GitHub OIDC JWT token has no expiration field")
 	}
-
+	g.expireAt = time.Unix(exp, 0)
+	repoOwner, ok := g.jwtClaims["repository_owner"].(string)
+	if !ok {
+		return errors.E(`GitHub OIDC JWT with no "repository_owner" payload field.`)
+	}
+	repoName, ok := g.jwtClaims["repository"].(string)
+	if !ok {
+		return errors.E(`GitHub OIDC JWT with no "repository" payload field.`)
+	}
+	g.repoOwner = repoOwner
+	g.repoName = repoName
 	return nil
+}
+
+func (g *githubOIDC) Claims() jwt.MapClaims {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.jwtClaims
+}
+
+func (g *githubOIDC) DisplayClaims() []keyValue {
+	return []keyValue{
+		{
+			key:   "owner",
+			value: g.repoOwner,
+		},
+		{
+			key:   "repository",
+			value: g.repoName,
+		},
+	}
 }
 
 func (g *githubOIDC) Token() (string, error) {
