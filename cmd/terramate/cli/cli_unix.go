@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/terramate-io/terramate/errors"
