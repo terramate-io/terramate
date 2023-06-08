@@ -1800,14 +1800,6 @@ func (c cli) checkVersion() {
 	}
 }
 
-func userHomeDir() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", errors.E(err, "failed to retrieve the user's home directory")
-	}
-	return homeDir, nil
-}
-
 func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
 	if clicfg.DisableCheckpoint {
 		result <- nil

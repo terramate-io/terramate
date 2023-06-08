@@ -18,3 +18,11 @@ func userTerramateDir() (string, error) {
 	}
 	return filepath.Join(homeDir, terramateUserConfigDir), nil
 }
+
+func userHomeDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", errors.E(err, "failed to retrieve the user's home directory")
+	}
+	return homeDir, nil
+}
