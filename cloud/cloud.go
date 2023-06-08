@@ -13,9 +13,11 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+// BaseURL is the default cloud.terramate.io base API URL.
 const BaseURL = "https://api.terramate.io/v1"
 
 type (
+	// Client is the cloud SDK client.
 	Client struct {
 		// BaseURL is the cloud base endpoint URL.
 		// If not set, it defaults to [BaseURL].
@@ -27,6 +29,7 @@ type (
 		HTTPClient *http.Client
 	}
 
+	// Credential is the interface for the credential providers.
 	Credential interface {
 		// Token retrieves a new token ready be used (the credential provider must refresh the token if needed)
 		Token() (string, error)
