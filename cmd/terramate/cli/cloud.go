@@ -31,6 +31,7 @@ type credential interface {
 	Claims() jwt.MapClaims
 	DisplayClaims() []keyValue
 	IsExpired() bool
+	ExpireAt() time.Time
 	String() string
 }
 
@@ -121,5 +122,8 @@ func (cloudcfg *cloudConfig) Info() error {
 	}
 
 	cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+
+	// verbose info
+	cloudcfg.output.MsgStdOutV("next token refresh in: %s", time.Until(cloudcfg.credential.ExpireAt()))
 	return nil
 }

@@ -461,12 +461,18 @@ func (g *googleCredential) IsExpired() bool {
 	return time.Now().After(g.expireAt)
 }
 
+func (g *googleCredential) ExpireAt() time.Time {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.expireAt
+}
+
 func (g *googleCredential) Refresh() (err error) {
-	g.output.MsgStdOutV1("refreshing token...")
+	g.output.MsgStdOutV("refreshing token...")
 
 	defer func() {
 		if err == nil {
-			g.output.MsgStdOutV1("token successfully refreshed.")
+			g.output.MsgStdOutV("token successfully refreshed.")
 		}
 	}()
 

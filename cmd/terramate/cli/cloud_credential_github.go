@@ -73,7 +73,15 @@ func (g *githubOIDC) Name() string {
 }
 
 func (g *githubOIDC) IsExpired() bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	return time.Now().After(g.expireAt)
+}
+
+func (g *githubOIDC) ExpireAt() time.Time {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.expireAt
 }
 
 func (g *githubOIDC) Refresh() error {
