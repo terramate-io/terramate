@@ -94,5 +94,5 @@ func (c *Client) endpoint(url string) string {
 	if c.BaseURL == "" {
 		c.BaseURL = BaseURL
 	}
-	return fmt.Sprintf("%s/%s", c.BaseURL, url)
+	return fmt.Sprintf("%s%s", c.BaseURL, url)
 }
