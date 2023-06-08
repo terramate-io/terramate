@@ -114,6 +114,7 @@ func (cloudcfg *cloudConfig) Info() error {
 	}
 
 	cloudcfg.output.MsgStdOut("status: signed in")
+	cloudcfg.output.MsgStdOut("provider: %s", cloudcfg.credential.Name())
 
 	for _, kv := range cloudcfg.credential.DisplayClaims() {
 		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)

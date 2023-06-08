@@ -452,7 +452,7 @@ func (g *googleCredential) Load() (bool, error) {
 }
 
 func (g *googleCredential) Name() string {
-	return "Google Social"
+	return "Google Social Provider"
 }
 
 func (g *googleCredential) IsExpired() bool {
