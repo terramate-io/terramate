@@ -7,6 +7,7 @@ import (
 	"context"
 	stdjson "encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -72,10 +73,6 @@ func (g *githubOIDC) Name() string {
 }
 
 func (g *githubOIDC) IsExpired() bool {
-	var empty time.Time
-	if g.expireAt == empty {
-		return false
-	}
 	return time.Now().After(g.expireAt)
 }
 
@@ -126,11 +123,13 @@ func (g *githubOIDC) Refresh() error {
 	if err != nil {
 		return err
 	}
-	exp, ok := g.jwtClaims["exp"].(int64)
+	exp, ok := g.jwtClaims["exp"].(float64)
 	if !ok {
-		return errors.E("GitHub OIDC JWT token has no expiration field")
+		return errors.E(`cached JWT token has no "exp" field`)
 	}
-	g.expireAt = time.Unix(exp, 0)
+	sec, dec := math.Modf(exp)
+	g.expireAt = time.Unix(int64(sec), int64(dec*(1e9)))
+
 	repoOwner, ok := g.jwtClaims["repository_owner"].(string)
 	if !ok {
 		return errors.E(`GitHub OIDC JWT with no "repository_owner" payload field.`)
