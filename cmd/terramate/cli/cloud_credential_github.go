@@ -19,6 +19,8 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+const githubOIDCProviderName = "GitHub Actions OIDC"
+
 type githubOIDC struct {
 	mu        sync.RWMutex
 	token     string
@@ -69,7 +71,7 @@ func (g *githubOIDC) Load() (bool, error) {
 }
 
 func (g *githubOIDC) Name() string {
-	return "GitHub Actions OIDC"
+	return githubOIDCProviderName
 }
 
 func (g *githubOIDC) IsExpired() bool {

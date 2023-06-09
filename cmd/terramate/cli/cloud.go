@@ -102,28 +102,71 @@ func tokenClaims(token string) (jwt.MapClaims, error) {
 }
 
 func (cloudcfg *cloudConfig) Info() error {
+	cred := cloudcfg.credential
 	client := cloud.Client{
 		BaseURL:    cloudBaseURL,
-		Credential: cloudcfg.credential,
+		Credential: cred,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	orgs, err := client.MemberOrganizations(ctx)
+	const apiTimeout = 5 * time.Second
+
+	var (
+		err  error
+		user cloud.User
+		orgs cloud.MemberOrganizations
+	)
+
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		defer cancel()
+		orgs, err = client.MemberOrganizations(ctx)
+	}()
+
 	if err != nil {
 		return err
 	}
 
-	cloudcfg.output.MsgStdOut("status: signed in")
-	cloudcfg.output.MsgStdOut("provider: %s", cloudcfg.credential.Name())
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		defer cancel()
+		user, err = client.Users(ctx)
+	}()
 
-	for _, kv := range cloudcfg.credential.DisplayClaims() {
+	if err != nil && !errors.IsKind(err, cloud.ErrNotFound) {
+		return err
+	}
+
+	userErr := err
+
+	if len(orgs) == 0 && cred.Name() == githubOIDCProviderName {
+		cloudcfg.output.MsgStdOut("status: untrusted")
+	} else {
+		cloudcfg.output.MsgStdOut("status: signed in")
+	}
+
+	cloudcfg.output.MsgStdOut("provider: %s", cred.Name())
+
+	if userErr == nil && user.DisplayName != "" {
+		cloudcfg.output.MsgStdOut("user: %s", user.DisplayName)
+	}
+
+	for _, kv := range cred.DisplayClaims() {
 		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
 	}
 
-	cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	if len(orgs) > 0 {
+		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	}
+
+	if user.DisplayName == "" {
+		cloudcfg.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramte.io to complete on-boarding.")
+	}
+
+	if len(orgs) == 0 {
+		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	}
 
 	// verbose info
-	cloudcfg.output.MsgStdOutV("next token refresh in: %s", time.Until(cloudcfg.credential.ExpireAt()))
+	cloudcfg.output.MsgStdOutV("next token refresh in: %s", time.Until(cred.ExpireAt()))
 	return nil
 }

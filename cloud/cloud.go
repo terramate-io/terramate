@@ -23,6 +23,9 @@ const BaseURL = "https://" + Host + "/v1"
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
 const ErrUnexpectedStatus errors.Kind = "unexpected status code"
 
+// ErrNotFound indicates the requested resource does not exist in the server.
+const ErrNotFound errors.Kind = "resource not found"
+
 // ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
 const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
 
@@ -45,6 +48,20 @@ type (
 		Token() (string, error)
 	}
 )
+
+func (c *Client) Users(ctx context.Context) (user User, err error) {
+	const resourceURL = "/users"
+	data, err := c.request(ctx, resourceURL, nil)
+	if err != nil {
+		return User{}, err
+	}
+	var u User
+	err = json.Unmarshal(data, &u)
+	if err != nil {
+		return User{}, errors.E(ErrUnexpectedResponseBody, err)
+	}
+	return u, nil
+}
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
@@ -86,6 +103,10 @@ func (c *Client) request(ctx context.Context, resourceURL string, postBody io.Re
 	defer func() {
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errors.E(ErrNotFound)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.E(ErrUnexpectedStatus, "status: %s", resp.Status)

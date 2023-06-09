@@ -13,6 +13,13 @@ type (
 	// MemberOrganizations is a list of organizations associated with the member.
 	MemberOrganizations []MemberOrganization
 
+	User struct {
+		Email       string `json:"email"`
+		DisplayName string `json:"display_name"`
+		JobTitle    string `json:"job_title"`
+		IDPUserID   string `json:"idp_user_id"`
+	}
+
 	// MemberOrganization represents the organization associated with the member.
 	MemberOrganization struct {
 		MemberID    int    `json:"member_id,omitempty"`
