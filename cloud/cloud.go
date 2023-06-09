@@ -50,11 +50,29 @@ type (
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
 	const resourceURL = "/organizations"
 
+	data, err := c.request(ctx, resourceURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &orgs)
+	if err != nil {
+		return nil, errors.E(err, ErrUnexpectedResponseBody)
+	}
+
+	err = orgs.Validate()
+	if err != nil {
+		return nil, errors.E(ErrUnexpectedResponseBody, err)
+	}
+	return orgs, nil
+}
+
+func (c *Client) request(ctx context.Context, resourceURL string, postBody io.Reader) (data []byte, err error) {
 	if c.Credential == nil {
 		return nil, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
 	}
 
-	req, err := c.newRequest(ctx, "GET", resourceURL, nil)
+	req, err := c.newRequest(ctx, "GET", resourceURL, postBody)
 	if err != nil {
 		return nil, err
 	}
@@ -77,20 +95,11 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 		return nil, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(data, &orgs)
-	if err != nil {
-		return nil, errors.E(err, ErrUnexpectedResponseBody)
-	}
-
-	err = orgs.Validate()
-	if err != nil {
-		return nil, errors.E(ErrUnexpectedResponseBody, err)
-	}
-	return orgs, nil
+	return data, nil
 }
 
 func (c *Client) newRequest(ctx context.Context, method string, relativeURL string, body io.Reader) (*http.Request, error) {
