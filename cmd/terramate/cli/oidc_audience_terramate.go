@@ -5,6 +5,8 @@
 
 package cli
 
+import "github.com/terramate-io/terramate/cloud"
+
 func oidcAudience() string {
-	return cloudHost
+	return cloud.Host
 }

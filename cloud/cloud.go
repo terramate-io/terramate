@@ -14,8 +14,17 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+// Host of the official Terramate Cloud API.
+const Host = "api.terramate.io"
+
 // BaseURL is the default cloud.terramate.io base API URL.
-const BaseURL = "https://api.terramate.io/v1"
+const BaseURL = "https://" + Host + "/v1"
+
+// ErrUnexpectedStatus indicates the server responded with an unexpected status code.
+const ErrUnexpectedStatus errors.Kind = "unexpected status code"
+
+// ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
+const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
 
 type (
 	// Client is the cloud SDK client.
@@ -39,7 +48,13 @@ type (
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
-	req, err := c.newRequest(ctx, "GET", "/organizations", nil)
+	const resourceURL = "/organizations"
+
+	if c.Credential == nil {
+		return nil, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
+	}
+
+	req, err := c.newRequest(ctx, "GET", resourceURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -55,17 +70,25 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.E("response status: %s", resp.Status)
+		return nil, errors.E(ErrUnexpectedStatus, "status: %s", resp.Status)
+	}
+
+	if ctype := resp.Header.Get("Content-Type"); ctype != contentType {
+		return nil, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
 	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	orgs = MemberOrganizations{}
 	err = json.Unmarshal(data, &orgs)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(err, ErrUnexpectedResponseBody)
+	}
+
+	err = orgs.Validate()
+	if err != nil {
+		return nil, errors.E(ErrUnexpectedResponseBody, err)
 	}
 	return orgs, nil
 }
@@ -80,6 +103,7 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 		return nil, err
 	}
 	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Context-Type", contentType)
 	return req, nil
 }
 
@@ -96,3 +120,5 @@ func (c *Client) endpoint(url string) string {
 	}
 	return fmt.Sprintf("%s%s", c.BaseURL, url)
 }
+
+const contentType = "application/json"

@@ -82,8 +82,6 @@ const defaultVendorDir = "/modules"
 
 const terramateUserConfigDir = ".terramate.d"
 
-const cloudHost = "api.terramate.io"
-
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag    bool     `name:"version" help:"Terramate version"`

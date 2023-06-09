@@ -3,7 +3,11 @@
 
 package cloud
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/terramate-io/terramate/errors"
+)
 
 type (
 	// MemberOrganizations is a list of organizations associated with the member.
@@ -41,4 +45,26 @@ func (orgs MemberOrganizations) String() string {
 		}
 	}
 	return out.String()
+}
+
+// Validate if the organization list is valid.
+func (orgs MemberOrganizations) Validate() error {
+	for _, org := range orgs {
+		err := org.Validate()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Validate checks if at least the fields required by Terramate CLI are set.
+func (org MemberOrganization) Validate() error {
+	if org.Name == "" {
+		return errors.E(`missing "name" field`)
+	}
+	if org.UUID == "" {
+		return errors.E(`missing "org_uuid" field`)
+	}
+	return nil
 }
