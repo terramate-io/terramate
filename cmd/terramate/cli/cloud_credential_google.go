@@ -25,6 +25,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
@@ -574,8 +575,67 @@ func (g *googleCredential) Token() (string, error) {
 	return g.token, nil
 }
 
-func (g *googleCredential) String() string {
-	return ""
+// Info display the credential details.
+func (g *googleCredential) Info(cloudcfg cloudConfig) error {
+	client := cloud.Client{
+		BaseURL:    cloudcfg.baseAPI,
+		Credential: g,
+	}
+
+	const apiTimeout = 5 * time.Second
+
+	var (
+		err  error
+		user cloud.User
+		orgs cloud.MemberOrganizations
+	)
+
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		defer cancel()
+		orgs, err = client.MemberOrganizations(ctx)
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		defer cancel()
+		user, err = client.Users(ctx)
+	}()
+
+	if err != nil && !errors.IsKind(err, cloud.ErrNotFound) {
+		return err
+	}
+
+	userErr := err
+
+	cloudcfg.output.MsgStdOut("status: signed in")
+
+	cloudcfg.output.MsgStdOut("provider: %s", g.Name())
+
+	if userErr == nil && user.DisplayName != "" {
+		cloudcfg.output.MsgStdOut("user: %s", user.DisplayName)
+	}
+
+	for _, kv := range g.DisplayClaims() {
+		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+	}
+
+	if len(orgs) > 0 {
+		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	}
+
+	if user.DisplayName == "" {
+		cloudcfg.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramte.io to complete on-boarding.")
+	}
+
+	if len(orgs) == 0 {
+		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	}
+	return nil
 }
 
 func (g *googleCredential) update(idToken, refreshToken string) (err error) {

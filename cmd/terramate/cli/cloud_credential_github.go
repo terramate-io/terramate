@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -184,6 +185,39 @@ func (g *githubOIDC) Token() (string, error) {
 	return g.token, nil
 }
 
-func (g *githubOIDC) String() string {
-	return ""
+func (g *githubOIDC) Info(cloudcfg cloudConfig) error {
+	client := cloud.Client{
+		BaseURL:    cloudcfg.baseAPI,
+		Credential: g,
+	}
+
+	const apiTimeout = 5 * time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+	orgs, err := client.MemberOrganizations(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(orgs) > 0 {
+		cloudcfg.output.MsgStdOut("status: signed in")
+	} else {
+		cloudcfg.output.MsgStdOut("status: untrusted")
+	}
+
+	cloudcfg.output.MsgStdOut("provider: %s", g.Name())
+
+	for _, kv := range g.DisplayClaims() {
+		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+	}
+
+	if len(orgs) > 0 {
+		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	}
+
+	if len(orgs) == 0 {
+		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	}
+	return nil
 }
