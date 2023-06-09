@@ -13,6 +13,7 @@ type (
 	// MemberOrganizations is a list of organizations associated with the member.
 	MemberOrganizations []MemberOrganization
 
+	// User represents the signed in user information.
 	User struct {
 		Email       string `json:"email"`
 		DisplayName string `json:"display_name"`
@@ -52,6 +53,14 @@ func (orgs MemberOrganizations) String() string {
 		}
 	}
 	return out.String()
+}
+
+// Validate if the user has the Terramate CLI required fields.
+func (u User) Validate() error {
+	if u.DisplayName == "" {
+		return errors.E(`missing "display_name" field.`)
+	}
+	return nil
 }
 
 // Validate if the organization list is valid.

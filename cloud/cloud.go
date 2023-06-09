@@ -49,6 +49,7 @@ type (
 	}
 )
 
+// Users retrieves the user details for the signed in user.
 func (c *Client) Users(ctx context.Context) (user User, err error) {
 	const resourceURL = "/users"
 	data, err := c.request(ctx, resourceURL, nil)
@@ -59,6 +60,10 @@ func (c *Client) Users(ctx context.Context) (user User, err error) {
 	err = json.Unmarshal(data, &u)
 	if err != nil {
 		return User{}, errors.E(ErrUnexpectedResponseBody, err)
+	}
+	err = u.Validate()
+	if err != nil {
+		return User{}, err
 	}
 	return u, nil
 }
@@ -109,7 +114,7 @@ func (c *Client) request(ctx context.Context, resourceURL string, postBody io.Re
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.E(ErrUnexpectedStatus, "status: %s", resp.Status)
+		return nil, errors.E(ErrUnexpectedStatus, "%s: status: %s", resourceURL, resp.Status)
 	}
 
 	if ctype := resp.Header.Get("Content-Type"); ctype != contentType {
