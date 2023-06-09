@@ -73,6 +73,81 @@ func TestCloudCustomHTTPClient(t *testing.T) {
 	})
 }
 
+func TestCommonAPIFailCases(t *testing.T) {
+	type testcase struct {
+		name       string
+		statusCode int
+		body       string
+		headers    http.Header
+		err        error
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:       "unauthorized request",
+			statusCode: http.StatusUnauthorized,
+			err:        errors.E(cloud.ErrUnexpectedStatus),
+		},
+		{
+			name:       "unexpected status code",
+			statusCode: http.StatusCreated,
+			err:        errors.E(cloud.ErrUnexpectedStatus),
+		},
+		{
+			name:       "unsupported content-type",
+			statusCode: http.StatusOK,
+			body:       `[]`,
+			headers: http.Header{
+				"Content-Type": []string{"application/xml"},
+			},
+
+			err: errors.E(cloud.ErrUnexpectedResponseBody),
+		},
+		{
+			name:       "invalid response payload",
+			statusCode: http.StatusOK,
+			body: `{
+					"invalid": 2
+			}`,
+
+			err: errors.E(cloud.ErrUnexpectedResponseBody),
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			s := newTestServer(tc.statusCode, tc.body, tc.headers)
+			defer s.Close()
+
+			sdk := cloud.Client{
+				BaseURL:    s.URL,
+				HTTPClient: s.Client(),
+				Credential: credential(),
+			}
+
+			// /v1/users
+			func() {
+				const timeout = 3 * time.Second
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+
+				_, err := sdk.Users(ctx)
+				errtest.Assert(t, err, tc.err)
+			}()
+
+			// /v1/organizations
+			func() {
+				const timeout = 3 * time.Second
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+
+				_, err := sdk.MemberOrganizations(ctx)
+				errtest.Assert(t, err, tc.err)
+			}()
+
+		})
+	}
+}
+
 func TestCloudMemberOrganizations(t *testing.T) {
 	type want struct {
 		orgs cloud.MemberOrganizations
@@ -87,41 +162,6 @@ func TestCloudMemberOrganizations(t *testing.T) {
 	}
 
 	for _, tc := range []testcase{
-		{
-			name:       "unauthorized request",
-			statusCode: http.StatusUnauthorized,
-			want: want{
-				err: errors.E(cloud.ErrUnexpectedStatus),
-			},
-		},
-		{
-			name:       "unexpected status code",
-			statusCode: http.StatusCreated,
-			want: want{
-				err: errors.E(cloud.ErrUnexpectedStatus),
-			},
-		},
-		{
-			name:       "unsupported content-type",
-			statusCode: http.StatusOK,
-			body:       `[]`,
-			headers: http.Header{
-				"Content-Type": []string{"application/xml"},
-			},
-			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
-			},
-		},
-		{
-			name:       "invalid response payload",
-			statusCode: http.StatusOK,
-			body: `{
-					"invalid": 2
-			}`,
-			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
-			},
-		},
 		{
 			name:       "invalid organization object",
 			statusCode: http.StatusOK,
@@ -165,17 +205,7 @@ func TestCloudMemberOrganizations(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if len(tc.headers) > 0 {
-					for k, v := range tc.headers {
-						w.Header().Set(k, v[0])
-					}
-				} else {
-					w.Header().Set("Content-Type", "application/json")
-				}
-				w.WriteHeader(tc.statusCode)
-				_, _ = io.WriteString(w, tc.body)
-			}))
+			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 
 			sdk := cloud.Client{
@@ -198,6 +228,20 @@ func TestCloudMemberOrganizations(t *testing.T) {
 			assert.Partial(orgs, tc.want.orgs)
 		})
 	}
+}
+
+func newTestServer(statusCode int, body string, headers http.Header) *httptest.Server {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(headers) > 0 {
+			for k, v := range headers {
+				w.Header().Set(k, v[0])
+			}
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+		}
+		w.WriteHeader(statusCode)
+		_, _ = io.WriteString(w, body)
+	}))
 }
 
 func credential() cloud.Credential {

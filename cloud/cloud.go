@@ -63,7 +63,7 @@ func (c *Client) Users(ctx context.Context) (user User, err error) {
 	}
 	err = u.Validate()
 	if err != nil {
-		return User{}, err
+		return User{}, errors.E(ErrUnexpectedResponseBody, err)
 	}
 	return u, nil
 }

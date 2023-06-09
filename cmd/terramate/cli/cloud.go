@@ -14,11 +14,9 @@ import (
 )
 
 type cloudConfig struct {
-	baseAPI    string
-	client     *http.Client
-	credential credential
-
-	output out.O
+	baseAPI string
+	client  *http.Client
+	output  out.O
 }
 
 type credential interface {
