@@ -1,16 +1,5 @@
-// Copyright 2023 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 // Package filter provides helpers for filtering objects.
 package filter
@@ -18,8 +7,8 @@ package filter
 import (
 	"strings"
 
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // Operation is the binary logic operation (OR, AND).
@@ -166,7 +155,7 @@ func parseInternalTagClauses(filters ...string) (TagClause, bool, error) {
 //
 // This syntax is only used internally by Terramate.
 // For the public syntax, see the spec at the link below:
-// https://github.com/mineiros-io/terramate/blob/main/docs/tag-filter.md#filter-grammar
+// https://github.com/terramate-io/terramate/blob/main/docs/tag-filter.md#filter-grammar
 func parseTagClause(filter string) (TagClause, error) {
 	rootNode := TagClause{
 		Op: OR,

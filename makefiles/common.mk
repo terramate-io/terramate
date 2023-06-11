@@ -1,7 +1,7 @@
 GO_RELEASER_VERSION=v1.14.0
-GOLANGCI_LINT_VERSION ?= v1.49.0
+GOLANGCI_LINT_VERSION ?= v1.52.2
 COVERAGE_REPORT ?= coverage.txt
-RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore '**/*.yml' -ignore 'docs/**'
+RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**'
 BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
 
 ## Format go code
@@ -22,7 +22,7 @@ mod:
 ## add license to code
 .PHONY: license
 license:
-	$(RUN_ADD_LICENSE) -c "Mineiros GmbH" .
+	$(RUN_ADD_LICENSE) -c "Terramate GmbH" .
 
 ## check if code is licensed properly
 .PHONY: license/check

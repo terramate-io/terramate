@@ -22,9 +22,9 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/project"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/project"
 )
 
 func TestStmtSelectBy(t *testing.T) {

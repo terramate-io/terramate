@@ -1,16 +1,5 @@
-// Copyright 2021 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 package e2etest
 
@@ -23,13 +12,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/run/dag"
-	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/hclwrite"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
-	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/run/dag"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/hclwrite"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 type selectionTestcase struct {
@@ -1753,7 +1743,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		cli := newCLI(t, s.RootDir())
 		cli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_UNTRACKED=true",
-		}, testEnviron()...)
+		}, testEnviron(t)...)
 		assertRun(t, cli.run(
 			"run",
 			"--changed",
@@ -1924,7 +1914,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		tmcli := newCLI(t, s.RootDir())
 		tmcli.env = append([]string{
 			"TM_DISABLE_CHECK_GEN_CODE=true",
-		}, testEnviron()...)
+		}, testEnviron(t)...)
 
 		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
@@ -2052,7 +2042,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		cli := newCLI(t, s.RootDir())
 		cli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_UNCOMMITTED=true",
-		}, testEnviron()...)
+		}, testEnviron(t)...)
 
 		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
@@ -2290,7 +2280,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	hostenv := testEnviron()
+	hostenv := testEnviron(t)
 	clienv := append(hostenv,
 		"TERRAMATE_OVERRIDDEN=oldValue",
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
@@ -2340,8 +2330,10 @@ func listStacks(stacks ...string) string {
 	return strings.Join(stacks, "\n") + "\n"
 }
 
-func testEnviron() []string {
+func testEnviron(t *testing.T) []string {
+	tempHomeDir := t.TempDir()
 	env := []string{
+		fmt.Sprintf("%s="+tempHomeDir, cliconfig.DirEnv),
 		"PATH=" + os.Getenv("PATH"),
 	}
 	if runtime.GOOS == "windows" {

@@ -19,7 +19,7 @@ import (
 	"strconv"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
 )
 

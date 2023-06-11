@@ -4,7 +4,7 @@
 
 First and foremost, we'd like to express our gratitude to you for taking the time to contribute. We don't accept feature contributions by the community as we are currently sticking to an internal roadmap. This may change in the future.
 
-We welcome and appreciate all bug fix contributions via [Pull Requests](https://github.com/mineiros-io/terramate/pulls) along the [GitHub Flow](https://guides.github.com/introduction/flow/).
+We welcome and appreciate all bug fix contributions via [Pull Requests](https://github.com/terramate-io/terramate/pulls) along the [GitHub Flow](https://guides.github.com/introduction/flow/).
 
 Thanks!
 
@@ -17,7 +17,7 @@ We advise that you open an issue and ask the [CODEOWNERS](https://help.github.co
 For contributing to Terramate, please follow these steps:
 
 1. Within your fork of
-   [Terramate](https://github.com/mineiros-io/terramate), create a
+   [Terramate](https://github.com/terramate-io/terramate), create a
    branch for your contribution. Use a meaningful name.
 2. Create your contribution, meeting all
    [contribution quality standards](#contribution-quality-standards)

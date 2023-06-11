@@ -83,11 +83,16 @@ Not all CLI flags can be configured by the configuration file.
 
 Below is a list of options:
 
-- `disable_checkpoint`
+- `user_terramate_dir` (`string`)
+
+Configures an alternative location for the local `~/.terramate.d` (or `%APPDATA%/.terramate.d`
+on Windows).
+
+- `disable_checkpoint` (`boolean`)
 
 When set to `true`, disables [upgrade and security bulletin checks](./configuration/upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
 
-- `disable_checkpoint_signature`
+- `disable_checkpoint_signature` (`boolean`)
 
  when set to `true`, still allows the [upgrade and security bulletin checks](./configuration/upgrade-check.md)
  described above but disables the use of an anonymous id used to de-duplicate warning messages.

@@ -1,16 +1,5 @@
-// Copyright 2021 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 package cli
 
@@ -18,7 +7,6 @@ import (
 	stdfmt "fmt"
 	"io"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -27,46 +15,46 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/i4ki/go-checkpoint"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
-	"github.com/mineiros-io/terramate/config/filter"
-	"github.com/mineiros-io/terramate/config/tag"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/errors/errlog"
-	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/modvendor/download"
-	"github.com/mineiros-io/terramate/runtime"
-	"github.com/mineiros-io/terramate/versions"
+	"github.com/terramate-io/go-checkpoint"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
+	"github.com/terramate-io/terramate/config/filter"
+	"github.com/terramate-io/terramate/config/tag"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors/errlog"
+	"github.com/terramate-io/terramate/event"
+	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/globals"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/runtime"
+	"github.com/terramate-io/terramate/versions"
 
-	"github.com/mineiros-io/terramate/stack/trigger"
-	"github.com/mineiros-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/stack/trigger"
+	"github.com/terramate-io/terramate/stdlib"
 
 	stdjson "encoding/json"
 
-	prj "github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/run"
-	"github.com/mineiros-io/terramate/run/dag"
-	"github.com/mineiros-io/terramate/tf"
+	prj "github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/run"
+	"github.com/terramate-io/terramate/run/dag"
+	"github.com/terramate-io/terramate/tf"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/json"
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/posener/complete"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/willabides/kongplete"
 )
 
@@ -92,6 +80,8 @@ const (
 )
 
 const defaultVendorDir = "/modules"
+
+const terramateUserConfigDir = ".terramate.d"
 
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
@@ -204,6 +194,11 @@ type cliSpec struct {
 			AsJSON bool              `help:"Outputs the result as a JSON value"`
 			Vars   []string          `arg:"" help:"variable to be retrieved" name:"var" passthrough:""`
 		} `cmd:"" help:"Get configuration value"`
+
+		Cloud struct {
+			Login struct {
+			} `cmd:"login for cloud.terramate.io"`
+		} `cmd:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -236,6 +231,7 @@ type cli struct {
 	version    string
 	ctx        *kong.Context
 	parsedArgs *cliSpec
+	clicfg     cliconfig.Config
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
@@ -311,6 +307,14 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		Str("action", "newCli()").
 		Logger()
 
+	verbose := parsedArgs.Verbose
+
+	if parsedArgs.Quiet {
+		verbose = -1
+	}
+
+	output := out.New(verbose, stdout, stderr)
+
 	clicfg, err := cliconfig.Load()
 	if err != nil {
 		fatal(err, "failed to load cli configuration file")
@@ -326,21 +330,25 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
 	}
 
+	if clicfg.UserTerramateDir == "" {
+		homeTmDir, err := userTerramateDir()
+		if err != nil {
+			output.MsgStdErr("Please either export the %s environment variable or "+
+				"set the homeTerramateDir option in the %s configuration file",
+				cliconfig.DirEnv,
+				cliconfig.Filename)
+
+			fatal(err)
+		}
+		clicfg.UserTerramateDir = homeTmDir
+	}
+
 	checkpointResults := make(chan *checkpoint.CheckResponse, 1)
 	go runCheckpoint(
 		version,
-		clicfg.DisableCheckpoint,
-		clicfg.DisableCheckpointSignature,
+		clicfg,
 		checkpointResults,
 	)
-
-	verbose := parsedArgs.Verbose
-
-	if parsedArgs.Quiet {
-		verbose = -1
-	}
-
-	output := out.New(verbose, stdout, stderr)
 
 	switch ctx.Command() {
 	case "version":
@@ -384,6 +392,13 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		if err != nil {
 			fatal(err, "installing shell completions")
 		}
+		return &cli{exit: true}
+	case "experimental cloud login":
+		err := login(output, clicfg)
+		if err != nil {
+			fatal(err, "authentication failed")
+		}
+		output.MsgStdOut("authenticated successfully")
 		return &cli{exit: true}
 	}
 
@@ -429,7 +444,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 	logger.Trace().Msg("Set defaults from parsed command line arguments.")
 
-	err = prj.setDefaults(&parsedArgs)
+	err = prj.setDefaults()
 	if err != nil {
 		fatal(err, "setting configuration")
 	}
@@ -448,6 +463,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		stderr:            stderr,
 		output:            output,
 		parsedArgs:        &parsedArgs,
+		clicfg:            clicfg,
 		ctx:               ctx,
 		prj:               prj,
 		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
@@ -1788,18 +1804,16 @@ func (c cli) checkVersion() {
 	}
 }
 
-func runCheckpoint(
-	version string,
-	disableCheckpoint bool,
-	disableCheckpointSignature bool,
-	result chan *checkpoint.CheckResponse,
-) {
-	var (
-		signatureFile string
-		cacheFile     string
-	)
+func userHomeDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", errors.E(err, "failed to retrieve the user's home directory")
+	}
+	return homeDir, nil
+}
 
-	if disableCheckpoint {
+func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
+	if clicfg.DisableCheckpoint {
 		result <- nil
 		return
 	}
@@ -1808,19 +1822,11 @@ func runCheckpoint(
 		Str("action", "runCheckpoint()").
 		Logger()
 
-	const terramateHomeConfigDir = ".terramate.d"
+	cacheFile := filepath.Join(clicfg.UserTerramateDir, "checkpoint_cache")
 
-	usr, err := user.Current()
-	if err == nil && usr.HomeDir != "" {
-		tmDir := filepath.Join(usr.HomeDir, terramateHomeConfigDir)
-
-		cacheFile = filepath.Join(tmDir, "checkpoint_cache")
-
-		if !disableCheckpointSignature {
-			signatureFile = filepath.Join(tmDir, "checkpoint_signature")
-		}
-	} else {
-		logger.Debug().Msg("signature and cache are disabled because user HOME was not detected")
+	var signatureFile string
+	if !clicfg.DisableCheckpointSignature {
+		signatureFile = filepath.Join(clicfg.UserTerramateDir, "checkpoint_signature")
 	}
 
 	resp, err := checkpoint.CheckAt(defaultTelemetryEndpoint(),

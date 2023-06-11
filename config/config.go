@@ -1,16 +1,5 @@
-// Copyright 2021 Mineiros GmbH
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
 
 package config
 
@@ -21,12 +10,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/config/filter"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/config/filter"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -387,7 +376,7 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
+func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
 		Str("dir", rootdir).
@@ -397,6 +386,10 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 	if err != nil {
 		return nil, errors.E(err, "failed to open cfg directory")
 	}
+
+	defer func() {
+		err = errors.L(err, f.Close()).AsError()
+	}()
 
 	logger.Trace().Msg("reading directory file names")
 
