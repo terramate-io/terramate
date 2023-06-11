@@ -1,7 +1,7 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build go1.18 && !windows
+//go:build go1.18
 
 package eval_test
 
@@ -13,9 +13,12 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/ast"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/runtime"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func FuzzPartialEval(f *testing.F) {
