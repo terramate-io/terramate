@@ -156,7 +156,7 @@ func Load(
 }
 
 // Eval the generate_file block.
-func Eval(block hcl.GenFileBlock, evalctx *eval.Context, scope project.Path) (File, error) {
+func Eval(block hcl.GenFileBlock, evalctx *eval.Context, _ project.Path) (File, error) {
 	name := block.Label
 	letsResolver := lets.NewResolver(block.Lets)
 	evalctx.SetResolver(letsResolver)

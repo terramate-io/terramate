@@ -723,6 +723,6 @@ func (r *tmDynamicIteratorResolver) Name() string { return r.name }
 
 func (r *tmDynamicIteratorResolver) Prevalue() cty.Value { return r.iterator }
 
-func (r *tmDynamicIteratorResolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+func (r *tmDynamicIteratorResolver) LookupRef(_ project.Path, _ eval.Ref) ([]eval.Stmts, error) {
 	return []eval.Stmts{}, nil
 }

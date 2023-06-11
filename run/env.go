@@ -137,7 +137,7 @@ func (r *resolver) loadStmts() (eval.Stmts, error) {
 	return stmts, nil
 }
 
-func (r *resolver) LookupRef(scope project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+func (r *resolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
 	stmts, err := r.loadStmts()
 	if err != nil {
 		return nil, err
