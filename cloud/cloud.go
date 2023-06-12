@@ -86,6 +86,7 @@ func Post[T Resource](ctx context.Context, client *Client, payload interface{}, 
 }
 
 // Request makes a request to the Terramate Cloud using client.
+// The instantiated type gets decoded and return as the entity T,
 func Request[T Resource](ctx context.Context, c *Client, method string, resourceURL string, postBody io.Reader) (entity T, err error) {
 	if c.Credential == nil {
 		return entity, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
