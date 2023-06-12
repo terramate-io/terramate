@@ -10,6 +10,11 @@ import (
 )
 
 type (
+	// Resource is the interface used to represent resource entities.
+	Resource interface {
+		Validate() error
+	}
+
 	// MemberOrganizations is a list of organizations associated with the member.
 	MemberOrganizations []MemberOrganization
 
@@ -31,6 +36,45 @@ type (
 		Role        string `json:"role,omitempty"`
 		Status      string `json:"status"`
 	}
+
+	// Stack represents a stack in the Terramate Cloud.
+	Stack struct {
+		ID              int         `json:"stack_id"`
+		Repository      string      `json:"repository"`
+		Path            string      `json:"path"`
+		MetaID          string      `json:"meta_id"`
+		MetaName        string      `json:"meta_name"`
+		MetaDescription string      `json:"meta_description"`
+		MetaTags        []string    `json:"meta_tags"`
+		Status          StackStatus `json:"status"`
+
+		// readonly fields
+		CreatedAt int `json:"created_at"`
+		UpdatedAt int `json:"updated_at"`
+		SeenAt    int `json:"seen_at"`
+	}
+
+	// StackStatus represents the status of the stack.
+	StackStatus string
+)
+
+const (
+	// StackPending indicates the stack is pending to be executed.
+	StackPending StackStatus = "pending"
+	// StackRunning indicates the stack is running.
+	StackRunning StackStatus = "running"
+	// StackCanceled indicates the stack execution was canceled.
+	StackCanceled StackStatus = "canceled"
+	// StackFailed indicates the stack execution failed.
+	StackFailed StackStatus = "failed"
+)
+
+var (
+	// compile-time checks to ensure resource entities implement the Resource iface.
+	_ = Resource(User{})
+	_ = Resource(MemberOrganization{})
+	_ = Resource(MemberOrganizations{})
+	_ = Resource(Stack{})
 )
 
 // String representation of the list of organization associated with the user.
@@ -82,5 +126,10 @@ func (org MemberOrganization) Validate() error {
 	if org.UUID == "" {
 		return errors.E(`missing "org_uuid" field`)
 	}
+	return nil
+}
+
+// Validate the stack entity.
+func (stack Stack) Validate() error {
 	return nil
 }

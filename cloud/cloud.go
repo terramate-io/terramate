@@ -5,11 +5,13 @@
 package cloud
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 
 	"github.com/terramate-io/terramate/errors"
 )
@@ -51,58 +53,53 @@ type (
 
 // Users retrieves the user details for the signed in user.
 func (c *Client) Users(ctx context.Context) (user User, err error) {
-	const resourceURL = "/users"
-	data, err := c.request(ctx, resourceURL, nil)
-	if err != nil {
-		return User{}, err
-	}
-	var u User
-	err = json.Unmarshal(data, &u)
-	if err != nil {
-		return User{}, errors.E(ErrUnexpectedResponseBody, err)
-	}
-	err = u.Validate()
-	if err != nil {
-		return User{}, errors.E(ErrUnexpectedResponseBody, err)
-	}
-	return u, nil
+	return Get[User](ctx, c, "/users")
 }
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
-	const resourceURL = "/organizations"
-
-	data, err := c.request(ctx, resourceURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(data, &orgs)
-	if err != nil {
-		return nil, errors.E(err, ErrUnexpectedResponseBody)
-	}
-
-	err = orgs.Validate()
-	if err != nil {
-		return nil, errors.E(ErrUnexpectedResponseBody, err)
-	}
-	return orgs, nil
+	return Get[MemberOrganizations](ctx, c, "/organizations")
 }
 
-func (c *Client) request(ctx context.Context, resourceURL string, postBody io.Reader) (data []byte, err error) {
+// Get requests the endpoint components list making a GET request and decode the response into the
+// entity T if validates successfully.
+func Get[T Resource](ctx context.Context, client *Client, endpoint ...string) (entity T, err error) {
+	resource, err := Request[T](ctx, client, "GET", path.Join(endpoint...), nil)
+	if err != nil {
+		return entity, err
+	}
+	return resource, nil
+}
+
+// Post requests the endpoint components list making a POST request and decode the response into the
+// entity T if validates successfully.
+func Post[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
+	dataPayload, err := json.Marshal(payload)
+	if err != nil {
+		return entity, errors.E("marshaling request payload")
+	}
+	resource, err := Request[T](ctx, client, "POST", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
+	if err != nil {
+		return entity, err
+	}
+	return resource, nil
+}
+
+// Request makes a request to the Terramate Cloud using client.
+func Request[T Resource](ctx context.Context, c *Client, method string, resourceURL string, postBody io.Reader) (entity T, err error) {
 	if c.Credential == nil {
-		return nil, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
+		return entity, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
 	}
 
-	req, err := c.newRequest(ctx, "GET", resourceURL, postBody)
+	req, err := c.newRequest(ctx, method, resourceURL, postBody)
 	if err != nil {
-		return nil, err
+		return entity, err
 	}
 
 	client := c.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return entity, err
 	}
 
 	defer func() {
@@ -110,22 +107,32 @@ func (c *Client) request(ctx context.Context, resourceURL string, postBody io.Re
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.E(ErrNotFound)
+		return entity, errors.E(ErrNotFound)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.E(ErrUnexpectedStatus, "%s: status: %s", resourceURL, resp.Status)
+		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s", resourceURL, resp.Status)
 	}
 
 	if ctype := resp.Header.Get("Content-Type"); ctype != contentType {
-		return nil, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
+		return entity, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
 	}
 
-	data, err = io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return entity, err
 	}
-	return data, nil
+
+	var resource T
+	err = json.Unmarshal(data, &resource)
+	if err != nil {
+		return entity, errors.E(ErrUnexpectedResponseBody, err)
+	}
+	err = resource.Validate()
+	if err != nil {
+		return entity, errors.E(ErrUnexpectedResponseBody, err)
+	}
+	return resource, nil
 }
 
 func (c *Client) newRequest(ctx context.Context, method string, relativeURL string, body io.Reader) (*http.Request, error) {
