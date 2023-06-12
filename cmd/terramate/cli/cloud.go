@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/hashicorp/go-uuid"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
@@ -22,6 +24,10 @@ type cloudConfig struct {
 	output  out.O
 
 	credential credential
+
+	run struct {
+		uuid string
+	}
 }
 
 type credential interface {
@@ -29,10 +35,10 @@ type credential interface {
 	Load() (bool, error)
 	Token() (string, error)
 	Refresh() error
-	Claims() jwt.MapClaims
 	IsExpired() bool
 	ExpireAt() time.Time
 	Validate(cloudcfg cloudConfig) error
+	organizations() cloud.MemberOrganizations
 	Info()
 }
 
@@ -49,12 +55,28 @@ func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 }
 
 func (c *cli) checkSyncDeployment() {
+	if !c.parsedArgs.Run.CloudSyncDeployment {
+		return
+	}
 	err := c.setupSyncDeployment()
 	if err != nil {
 		if errors.IsKind(err, ErrOnboardingIncomplete) {
 			c.cred().Info()
 		}
 		fatal(err)
+	}
+
+	if orgs := c.cred().organizations(); len(orgs) != 1 {
+		fatal(
+			errors.E("requires 1 organization associated with the credential but %d found: %s",
+				len(orgs),
+				orgs),
+		)
+	}
+
+	c.cloud.run.uuid, err = uuid.GenerateUUID()
+	if err != nil {
+		fatal(err, "generating run uuid")
 	}
 }
 

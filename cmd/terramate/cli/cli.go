@@ -1645,6 +1645,16 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
+	if c.parsedArgs.Run.CloudSyncDeployment {
+		logger.Trace().Msg("Checking if selected stacks have id")
+
+		for _, st := range stacks {
+			if st.ID == "" {
+				fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+			}
+		}
+	}
+
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
 	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)

@@ -653,6 +653,11 @@ func (g *googleCredential) Info() {
 	}
 }
 
+// organizations returns the list of organizations associated with the credential.
+func (g *googleCredential) organizations() cloud.MemberOrganizations {
+	return g.orgs
+}
+
 func (g *googleCredential) update(idToken, refreshToken string) (err error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()

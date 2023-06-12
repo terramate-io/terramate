@@ -232,3 +232,8 @@ func (g *githubOIDC) Info() {
 		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
 }
+
+// organizations returns the list of organizations associated with the credential.
+func (g *githubOIDC) organizations() cloud.MemberOrganizations {
+	return g.orgs
+}
