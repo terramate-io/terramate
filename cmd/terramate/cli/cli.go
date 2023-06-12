@@ -123,6 +123,7 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
+		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
 		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
 		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
@@ -239,6 +240,7 @@ type cli struct {
 	output     out.O
 	exit       bool
 	prj        project
+	cloud      cloudConfig
 
 	checkpointResults chan *checkpoint.CheckResponse
 
@@ -1620,6 +1622,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	c.checkOutdatedGeneratedCode()
+	c.checkSyncDeployment()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
@@ -1694,6 +1697,7 @@ func (c *cli) wd() string           { return c.prj.wd }
 func (c *cli) rootdir() string      { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root    { return &c.prj.root }
 func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
+func (c *cli) cred() credential     { return c.cloud.credential }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)

@@ -50,6 +50,9 @@ type (
 		jwtClaims    jwt.MapClaims
 		expireAt     time.Time
 		email        string
+		isValidated  bool
+		orgs         cloud.MemberOrganizations
+		user         cloud.User
 
 		output out.O
 		clicfg cliconfig.Config
@@ -575,8 +578,8 @@ func (g *googleCredential) Token() (string, error) {
 	return g.token, nil
 }
 
-// Info display the credential details.
-func (g *googleCredential) Info(cloudcfg cloudConfig) error {
+// Validate if the credential is ready to be used.
+func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	client := cloud.Client{
 		BaseURL:    cloudcfg.baseAPI,
 		Credential: g,
@@ -610,32 +613,44 @@ func (g *googleCredential) Info(cloudcfg cloudConfig) error {
 		return err
 	}
 
-	userErr := err
+	g.isValidated = true
+	g.orgs = orgs
+	g.user = user
 
-	cloudcfg.output.MsgStdOut("status: signed in")
+	if len(g.orgs) == 0 || g.user.DisplayName == "" {
+		return errors.E(ErrOnboardingIncomplete)
+	}
+	return nil
+}
 
-	cloudcfg.output.MsgStdOut("provider: %s", g.Name())
+// Info display the credential details.
+func (g *googleCredential) Info() {
+	if !g.isValidated {
+		panic(errors.E(errors.ErrInternal, "cred.Info() called for unvalidated credential"))
+	}
 
-	if userErr == nil && user.DisplayName != "" {
-		cloudcfg.output.MsgStdOut("user: %s", user.DisplayName)
+	g.output.MsgStdOut("status: signed in")
+	g.output.MsgStdOut("provider: %s", g.Name())
+
+	if g.user.DisplayName != "" {
+		g.output.MsgStdOut("user: %s", g.user.DisplayName)
 	}
 
 	for _, kv := range g.DisplayClaims() {
-		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+		g.output.MsgStdOut("%s: %s", kv.key, kv.value)
 	}
 
-	if len(orgs) > 0 {
-		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	if len(g.orgs) > 0 {
+		g.output.MsgStdOut("organizations: %s", g.orgs)
 	}
 
-	if user.DisplayName == "" {
-		cloudcfg.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramte.io to complete on-boarding.")
+	if g.user.DisplayName == "" {
+		g.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramate.io to complete on-boarding.")
 	}
 
-	if len(orgs) == 0 {
-		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	if len(g.orgs) == 0 {
+		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
-	return nil
 }
 
 func (g *googleCredential) update(idToken, refreshToken string) (err error) {

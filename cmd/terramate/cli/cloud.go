@@ -13,10 +13,15 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+// ErrOnboardingIncomplete indicates the onboarding process is incomplete.
+const ErrOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
+
 type cloudConfig struct {
 	baseAPI string
 	client  *http.Client
 	output  out.O
+
+	credential credential
 }
 
 type credential interface {
@@ -27,7 +32,8 @@ type credential interface {
 	Claims() jwt.MapClaims
 	IsExpired() bool
 	ExpireAt() time.Time
-	Info(cloudcfg cloudConfig) error
+	Validate(cloudcfg cloudConfig) error
+	Info()
 }
 
 type keyValue struct {
@@ -42,25 +48,40 @@ func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 	}
 }
 
-func (c *cli) cloudInfo() {
+func (c *cli) checkSyncDeployment() {
+	err := c.setupSyncDeployment()
+	if err != nil {
+		if errors.IsKind(err, ErrOnboardingIncomplete) {
+			c.cred().Info()
+		}
+		fatal(err)
+	}
+}
+
+func (c *cli) setupSyncDeployment() error {
 	cred, err := c.loadCredential()
 	if err != nil {
-		fatal(err)
+		return err
 	}
 
-	cloud := cloudConfig{
-		baseAPI: cloudBaseURL,
-		client:  &http.Client{},
-		output:  c.output,
+	c.cloud = cloudConfig{
+		baseAPI:    cloudBaseURL,
+		client:     &http.Client{},
+		output:     c.output,
+		credential: cred,
 	}
 
-	err = cred.Info(cloud)
+	return cred.Validate(c.cloud)
+}
+
+func (c *cli) cloudInfo() {
+	err := c.setupSyncDeployment()
 	if err != nil {
 		fatal(err)
 	}
-
+	c.cred().Info()
 	// verbose info
-	cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(cred.ExpireAt()))
+	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
 func (c *cli) loadCredential() (credential, error) {
