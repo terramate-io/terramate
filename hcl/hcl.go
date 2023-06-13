@@ -533,44 +533,54 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	src = filepath.Join(srcDir, srcBase)
-
-	if _, ok := p.parsedFiles[src]; ok {
-		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			"file %q already parsed", src)
-	}
-
-	importParser, err := NewTerramateParser(p.rootdir, srcDir)
+	matches, err := filepath.Glob(src)
 	if err != nil {
+		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
+			"failed to evaluate import.source")
+	}
+	if matches == nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			err, "failed to create sub parser")
+			"import path %q returned no matches", src)
 	}
-
-	err = importParser.AddFile(src)
-	if err != nil {
-		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			err)
-	}
-	importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
-	err = importParser.Parse()
-	if err != nil {
-		return err
-	}
-	errs := errors.L()
-	for _, block := range importParser.Config.UnmergedBlocks {
-		if block.Type == "stack" {
-			errs.Append(
-				errors.E(ErrImport, srcAttr.Expr.Range(),
-					"import of stack block is not permitted"))
+	for _, file := range matches {
+		if _, ok := p.parsedFiles[file]; ok {
+			return errors.E(ErrImport, srcAttr.Expr.Range(),
+				"file %q already parsed", file)
 		}
-	}
 
-	errs.Append(p.Imported.Merge(importParser.Imported))
-	errs.Append(p.Imported.Merge(importParser.Config))
-	if err := errs.AsError(); err != nil {
-		return errors.E(ErrImport, err, "failed to merge imported configuration")
-	}
+		importParser, err := NewTerramateParser(p.rootdir, srcDir)
+		if err != nil {
+			return errors.E(ErrImport, srcAttr.Expr.Range(),
+				err, "failed to create sub parser")
+		}
 
-	p.addParsedFile(p.dir, external, src)
+		err = importParser.AddFile(file)
+		if err != nil {
+			return errors.E(ErrImport, srcAttr.Expr.Range(),
+				err)
+		}
+		importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
+		err = importParser.Parse()
+		if err != nil {
+			return err
+		}
+		errs := errors.L()
+		for _, block := range importParser.Config.UnmergedBlocks {
+			if block.Type == "stack" {
+				errs.Append(
+					errors.E(ErrImport, srcAttr.Expr.Range(),
+						"import of stack block is not permitted"))
+			}
+		}
+
+		errs.Append(p.Imported.Merge(importParser.Imported))
+		errs.Append(p.Imported.Merge(importParser.Config))
+		if err := errs.AsError(); err != nil {
+			return errors.E(ErrImport, err, "failed to merge imported configuration")
+		}
+
+		p.addParsedFile(p.dir, external, file)
+	}
 	return nil
 }
 
