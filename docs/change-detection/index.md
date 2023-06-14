@@ -13,63 +13,64 @@ next:
 
 # Change Detection
 
-When changing your infrastructure (made up of a set of stacks) it's common to
-make several changes to several stacks. But now that you have multiple terraform
-states (per stack), how to apply the changes only to the affected resources?
-Keep in mind that we don't want to just blindly execute _plan/apply_ to the
-unchanged stacks to reduce the blast radius.
+## Introduction 
+Managing changes in infrastructure is a pivotal aspect of upholding a robust, secure, and scalable environment. This becomes particularly relevant while utilizing Terraform, a tool typically employed to implement modifications across various stacks.
 
-We solve that by leveraging the power of the VCS (Version Control System)
-already in place. At the moment, Terramate only supports `git` but other VCSs
-can be added in the future.
+Although it's a common practice, applying changes indiscriminately to all stacks can lead to unintended consequences and demand considerable time and computational resources. This is where Terramate comes into play.
 
-The approach is as simple as computing the changed stacks from the changed files
-discovered by the `git diff` between the revision of the last `terraform applied`
-change (ie. the released revision) and the current change.
+Designed to enhance Terraform's efficiency, Terramate facilitates efficient change detection by capitalizing on the strengths of Version Control System (VCS), notably Git. This comprehensive guide aims to help you understand how to use Terramate for detecting and applying changes specifically to the impacted resources in your Terraform project.
 
-Let's call the released revision `baseref`, which means `base reference` which
-commonly is the default branch (`origin/main` or `origin/default`).
+By adhering to this guide, you will acquire the skills to smartly manage your infrastructure processes and minimize the potential collateral damage that unplanned changes may bring.
 
-By default the `baseref` can have two values, depending on if you're in the
-default branch or in a feature branch, and they are:
+## Prerequisites
 
-* `origin/main` : if you're in a feature branch.
-* `HEAD^` : if you're in the default branch.
+Before you embark on change detection with Terramate, ensure you have the following prerequisites in place
 
-The [HEAD^](https://git-scm.com/docs/gitrevisions) syntax means the first
-parent of the `HEAD` commit and the reasoning for using it for the default
-branch is that once you merged your PR you need to apply the changes in the CI
-or locally. So if the project uses
-[non-fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge)
-all commits (except first) in the default branch are merge commits, then by
-using `HEAD^` as baseref we can detect changes of the last merged code.
+**Terraform Project**: An understanding of Terraform's basics will prove instrumental in utilizing Terramate to its full potential and comprehending its efficiency.
 
-Having explained that, hopefully it becomes clear that change detection in
-Terramate works best if the project follows a git flow defined below (by the
-way, this is probably the most common git flow used by the git community):
+**Git**: As Terramate extensively depends on [Git](https://git-scm.com/downloads) for change detection, it's crucial to have Git installed and configured on your device. An understanding of Git commands, such as `git diff` and basic branch management, will be beneficial.
 
-1. The default branch (commonly `main`) is considered to be the stable branch
-   that represents the deployed state of your IaC.
-2. Changes that should be planned and applied should be added through a feature
-   or bugfix branch.
-3. The IaC project uses [non
-  fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge) merge
-  commits. (the default in GitHub and Bitbucket).
+Once these prerequisites are met, you're all set to use Terramate. Let's proceed to the next section for installing Terramate on your operating system.
 
-These are standard on most companies but the option 3 is controversial as it
-means flows depending on git `rebase` would not work. If that's the case for
-your company, it will require a bit of manual work to apply the changes after
-merged but alternatively the terraform plan/apply can be run in the PR's branch
-just before merge using the default branch base ref (`origin/main`).
 
-The `baseref` can be manually changed by the terramate command line at any given
-point in time using the `--git-change-base` option or through the [project configuration](../configuration/project-config.md),
-so different strategies for computing the changes are supported.
+## Install Terramate
 
-Then, if you use rebase as the merge strategy and need to apply the changes to
-the stacks modified by the last rebase, you first need to identify the base
-commit (the commit before the merge) and then provide this commit hash in the
-`--git-change-base` flag.
+Our indepth [installation guide](https://terramate.io/docs/cli/installation) provides a seamless installation process for Terramate. It includes step-by-step instructions that cater to diverse operating system, along with any necessary dependencies or setup requirements. Kindly refer to the guide relevant to your operating system for a successful installation.
+
+
+## Configuring Terramate
+
+We have compiled a comprehensive document detailing all necessary [configuration settings](https://terramate.io/docs/cli/stacks/) and options for Terramate. This guide offers step-by-step instructions along with code examples for a correct Terramate setup.
+
+Make sure to review the Terramate Configuration Guide to ensure your configuration aligns with the guide before advancing to change detection. Once configured correctly, you're prepared to harness Terramate's capability for efficient change detection in your infrastructure.
+
+
+# Performing Change Detection
+
+
+This section provides a walkthrough on using Terramate to detect and apply changes solely to the affected resources in your Terraform project. Follow these instructions to enhance your infrastructure management process and limit the impact of modifications.
+
+
+## Step 1: Compute Changed Stacks
+
+Leveraging the power of Version Control System (VCS), notably Git, Terramate computes the changed stacks in your project. By comparing the last Terraform applied change revision **baseref** with the current change, Terramate pinpoints the stacks needing modifications.
+
+To compute the changed stacks, follow these instructions:
+
+1. Identify the `baseref` value according to your project's branch:
+
+- If you're on the default branch, the baseref is `HEAD^`.
+- If you're on a feature branch, the baseref is `origin/main`.
+
+Run the following command, replacing `baseref` with the appropriate baseref value:
+
+```bash
+terramate run --changed --git-change-base "baseref" -- terraform plan
+```
+
+This command instructs Terramate to compute the changed stacks by comparing the differences between the baseref revision and the current change. Terramate will then create a plan for implementing the necessary changes to the impacted resources.
+
+For instance;
 
 ```console
 $ git branch
@@ -82,31 +83,33 @@ $ terramate run --changed --git-change-base 80e581a8ce8cc1394da48402cc68a1f47b3c
     -- terraform plan
 ```
 
-`--git-change-base` supports all [git
-revision](https://git-scm.com/docs/gitrevisions) syntaxes, so if you know the
-number of parent commits you can use `HEAD^n` or `HEAD@{<query>}`, etc.
+## Step 2: Module Change Detection
 
-# Module change detection
+Terraform stacks often comprise multiple local modules. In such scenarios, Terramate has a built-in capability to detect modifications in the modules referenced by the stack. Whenever a referenced module undergoes a change, Terramate flags the corresponding stack as changed, signalling a requirement for re-deployment.
 
-A Terraform stack can be composed of multiple local modules and if that's the
-case then any changes on a module that a stack references will mark the stack as changed.
-The rationale is that if any module referenced by a stack changed then the stack itself changed and needs to be re-deployed.
+Ensure that your Terraform stack accurately declares its dependencies on local modules. This step facilitates Terramate in tracking changes in the modules effectively and accurately.
 
-For more details see the example below:
+The configuration of module change detection in Terramate is demonstrated in the example provided in the main documentation. 
 
 ![Module Change Detection](../assets/module-change-detection.gif)
 
-In order to do that, Terramate will parse all `.tf` files inside the stack and
-check if the local modules it depends on have changed.
+Terramate performs this by parsing all `.tf` files within the stack and examining if the local modules it depends on have been modified.
 
-# Arbitrary files change detection
 
-The stack can specify a list of files which will mark the stack as changed if
-they change.
+## Arbitrary Files Change Detection:
+
+Terramate offers a unique feature that enables you to designate watched files. These are the files that, upon being modified, trigger changes in the stack. 
+
+This feature is especially useful when detecting changes in specific files or external dependencies that could influence your Terraform stacks. Let's delve into how you can configure Terramate for this purpose.
+
+To activate arbitrary files change detection in Terramate, follow these steps:
+
+- **Specify Watched Files**: 
+Define the files you want Terramate to monitor for changes in your stack configuration. If any of these files undergo modification, Terramate marks the stack as changed, regardless of whether the stack's own code remains the same.
 
 Example:
 
-```hcl
+```bash
 stack {
    watch = [
       "/external/file1.txt",
@@ -114,10 +117,26 @@ stack {
    ]
 }
 ```
+In this example, Terramate marks the stack as changed if either `file1.txt` or `file2.txt` within the `/external` directory is modified.
 
-Then even if the stack code didn't change but any of the watched files changed,
-then the stack will be marked as changed.
+- **External Dependencies**: 
+In addition to specifying files, you can also list external dependencies that are crucial to your stack's configuration. Terramate will track changes in these dependencies and mark the stack as changed accordingly.
 
-This feature is useful if you need to integrate Terramate with other tools
-(eg.: Terragrunt) so you can detect when dependent code outside the scope of
-Terramate changed.
+Configuring Terramate to monitor specific files and external dependencies offers you more precise control over change detection, thereby enabling you to respond swiftly to modifications affecting your Terraform stacks.
+
+
+## Conclusion
+
+In this guide, we explored the powerful capabilities of Terramate for change detection in your Terraform infrastructure. By following the key steps and concepts outlined, you can streamline your change management process and ensure efficient infrastructure deployment. Let's recap the key points covered:
+
+- **Performing Change Detection**: Terramate utilizes the power of your Version Control System (VCS) to compute changed stacks. By comparing the revision of the last Terraform applied change (baseref) with the current change, Terramate identifies the stacks that require modifications.
+
+- **Module Change Detection**: Terramate detects changes in the modules referenced by your Terraform stacks. When a referenced module undergoes modifications, Terramate marks the corresponding stack as changed, indicating the need for redeployment.
+
+- **Arbitrary Files Change Detection**: Terramate allows you to specify watched files and external dependencies that trigger stack changes when modified. This feature enables you to monitor specific files or dependencies critical to your stack's configuration.
+
+> By leveraging Terramate's change detection capabilities, you can ensure that modifications are applied only to the affected resources, reducing risks and improving the efficiency of your infrastructure management.
+>
+
+We encourage you to incorporate Terramate into your Terraform workflow and explore its full potential for streamlined change detection. By utilizing the features discussed in this guide, you can enhance the reliability and maintainability of your infrastructure deployments.
+
