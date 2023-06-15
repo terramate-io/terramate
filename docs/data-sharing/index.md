@@ -106,7 +106,7 @@ globals {
 ```
 
 
-### Referencing [metadata](#metadata) and Other Globals
+### Referencing [Metadata](#metadata) and other Globals
 
 ```hcl
 globals {
