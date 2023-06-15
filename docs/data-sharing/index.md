@@ -32,7 +32,7 @@ project.
 
 ### Defining Globals
 
-Globals are added to your Terramate configuration file within a `globals` block. 
+Globals are added to your [Terramate configuration file](../configuration/index.md) within a `globals` block. 
 Here's an example:
 
 ```hcl
