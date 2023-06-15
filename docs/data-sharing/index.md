@@ -123,7 +123,7 @@ globals {
 }
 ```
 
-### Usage of Globals Across Multiple Terramate Files
+### Usage of Globals across multiple Terramate Files
 
 Globals can be defined across multiple Terramate files, with the set of files in a 
 specific directory referred to as a **configuration**. Following this terminology:
