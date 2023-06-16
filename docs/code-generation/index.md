@@ -21,17 +21,26 @@ each integration scenario in the best way possible.
 
 Currently, we support:
 
-* [HCL generation](./generate-hcl.md) with stack [context](#generation-context).
-* [File generation](./generate-file.md) with `root` and `stack` [context](#generation-context).
+* [HCL generation](./generate-hcl.md) with `stack` context.
+> This strategy generates code that is closely tied to and relative to the stack where it is defined.
+It provides access to a rich set of code generation features, including globals, metadata, functions, lets,
+and assertions. By using these features you can easily manipulate and transform data within stack context.
+>
+
+* [File generation](./generate-file.md) with `root` and `stack` context.
+ > With this strategy, you can generate code at the project root level, outside of specific stacks. It offers 
+ access to project metadata, functions, lets, and assertions. BY using this relatively broader context you 
+ can generate code that spans multiple stacks or interacts with data at the project level.
+ >
 
 # Generation Context
 
 Code generation supports two execution contexts:
 
-- stack: generates code relative to the stack where it's defined.
-- root: generates code outside of stacks.
+- **stack**: generates code relative to the stack where it's defined.
+- **root**: generates code outside of stacks.
 
-The `stack` context gives access to all code generation features, like:
+The `stack` context gives access to all code generation features, such as:
 
 * [Globals](../data-sharing/index.md#globals)
 * [All Metadata](../data-sharing/index.md#metadata)
@@ -45,9 +54,8 @@ But the `root` context gives access to:
 * [Functions](../functions/index.md)
 * [Lets](#lets)
 
-If not specified the default generation context is `stack`.
-The `generate_hcl` block doesn't support changing the `context`, it will always be
-of type `stack`. The `generate_file` block supports the `context` attribute which you can explicit change to `root`.
+By default, the generation `context` is set to stack. However, in the case of the `generate_file` block, you have the flexibility to explicitly change the `context` by specifying `context = root` within the block. This empowers you to generate code that goes beyond the limitations of individual `stacks`.
+
 Example:
 
 ```hcl
@@ -61,26 +69,27 @@ generate_file "/file.txt" {
 
 All code generation blocks use labels to identify the block and define where
 the generated code will be saved but they have different constraints depending
-on the [generation context](#generation-context).
+on the generation context.
 
-For `stack` context, the labels must follow the constraints below:
+### 1. `Stack` Context Labels Constraints:
 
-* It is a relative path in the form `<dir>/<filename>` or just `<filename>`
-* It is always defined with `/` independent on the OS you are working on
-* It does not contain `../` (code can only be generated inside the stack)
-* It does not start with `./`
-* It is not a symbolic link
-* It is not a stack
-* It is unique on the whole hierarchy of a stack for all blocks with condition=true.
+* The labels are in relative path and they must adhere to the format `<dir>/<filename>` or simply `<filename>`, that represents a relative path.
+* Regardless of the operating system, labels should be defined using the forward slash `/`.
+* Labels should not contain `../`, as code generation is confined to the stack and cannot navigate outside.
+* Labels should not start with `./`.
+* Labels should not represent symbolic links.
+* Each label must be unique within the stack hierarchy for blocks with `condition=true`.
+* It can’t be the stack.
 
-For `root` context, the constraints are:
+### 2. `Root` Context Labels Constraints:
 
-* It is an absolute path in the form `/<dir>/<filename>` or just `/<filename>`.
-* It is always defined with `/` independent on the OS you are working on
-* It does not contain `../` (code can only be generated inside the project root)
-* It is not a symbolic link
-* It is not a stack
-* It is unique on the whole hierarchy for all blocks with condition=true.
+* Labels should follow the format `/<dir>/<filename>` or `/<filename>`, representing an absolute path.
+* Similar to stack context, labels should be defined using the forward slash `/`, independent of the operating system.
+* Labels should not contain `../`, as code generation is limited to the project root and cannot traverse beyond.
+* Labels should not represent symbolic links.
+* Each label must be unique within the hierarchy for blocks with `condition=true`.
+* It can’t be the stack.
+
 
 # Lets
 
@@ -110,12 +119,7 @@ generate_file "sum.txt" {
 Assertions can be used in order to fail code generation for one or more stacks
 if some pre-condition is not met, helping to catch mistakes in your configuration.
 
-Assertions can be only used when the [generation context](#generation-context)
-is of type `stack` and it has the following fields:
-
-* **assertion** : Obligatory, must evaluate to boolean
-* **message** : Obligatory, must evaluate to string
-* **warning** : Optional (default=false), must evaluate to boolean
+Assertions can be only used when the generation context is of type `stack`.
 
 All fields can contain expressions accessing **globals**, **lets** and **metadata**.
 
@@ -126,18 +130,15 @@ assert {
 }
 ```
 
-When the **assertion** is false on the context of a stack, code generation for
-that stack will fail and the reported error will be the one provided on the
-**message** field. The stack won't be touched, no files will be changed/created/deleted.
+### Assertions consist of the following fields:
 
-Optionally the **warning** field can be defined and if it is evaluated to true
-then an false **assertion** will **not** generate an error. Code will be generated,
-but a warning output will be shown during code generation.
+* **assertion**: This obligatory field evaluates a boolean expression that determines the validity of the assertion.
 
-The **assert** block has hierarchical behavior, any assert blocks defined in a
-directory will be applied to all stacks inside this directory. For example, an
-**assert** block defined on the root of a project will be applied to all stacks
-in the project.
+* **message**: Another obligatory field, this evaluates to a string and serves as a descriptive error message that aids in understanding the cause of the assertion failure.
+
+* **warning (optional)**: By default, this field is set to false. However, when evaluated to true, it allows code generation to proceed even in the presence of a false assertion. While code will be generated, a warning highlighting the failed assertion will be displayed during the code generation process.
+
+These fields can contain expressions accessing **globals, lets, and metadata**. When the assertion is false on the context of a stack, code generation for that stack will fail and the reported error will be the one provided on the message field. The stack won't be modified, and no files will be created, modified, or deleted. Assertions offer hierarchical behavior, enabling you to define assert blocks at different levels of the project hierarchy.
 
 Assert blocks can also be defined inside `generate_hcl` and `generate_file` blocks.
 When inside one of those blocks it has the same semantics as describe above, with
