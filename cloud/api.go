@@ -19,6 +19,7 @@ type (
 		DisplayName string `json:"display_name"`
 		JobTitle    string `json:"job_title"`
 		IDPUserID   string `json:"idp_user_id"`
+		UserUUID    string `json:"user_uuid,omitempty"`
 	}
 
 	// MemberOrganization represents the organization associated with the member.
