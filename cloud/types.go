@@ -175,6 +175,7 @@ func (d DeploymentStackRequests) Validate() error { return validateResourceList(
 // Validate the deployment stack payload.
 func (d DeploymentStacksPayloadRequest) Validate() error { return validateResourceList(d.Stacks) }
 
+// Validate the deployment stack response.
 func (d DeploymentStackResponse) Validate() error {
 	if d.StackID == "" {
 		return errors.E(`missing "stack_id" field`)

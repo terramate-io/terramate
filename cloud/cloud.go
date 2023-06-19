@@ -61,7 +61,7 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 	return Get[MemberOrganizations](ctx, c, "/organizations")
 }
 
-// CreateDeploymentStack creates a new deployment for provided stacks payload.
+// CreateDeploymentStacks creates a new deployment for provided stacks payload.
 func (c *Client) CreateDeploymentStacks(
 	ctx context.Context,
 	orgUUID string,

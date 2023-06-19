@@ -189,16 +189,11 @@ func (g *githubOIDC) Token() (string, error) {
 
 // Validate if the credential is ready to be used.
 func (g *githubOIDC) Validate(cloudcfg cloudConfig) error {
-	client := cloud.Client{
-		BaseURL:    cloudcfg.baseAPI,
-		Credential: g,
-	}
-
 	const apiTimeout = 5 * time.Second
 
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
-	orgs, err := client.MemberOrganizations(ctx)
+	orgs, err := cloudcfg.client.MemberOrganizations(ctx)
 	if err != nil {
 		return err
 	}

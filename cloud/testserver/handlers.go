@@ -1,10 +1,13 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/terramate-io/terramate/cloud"
 )
@@ -15,12 +18,12 @@ func (orgHandler *organizationHandler) ServeHTTP(w http.ResponseWriter, r *http.
 	}
 	w.Header().Add("Content-Type", "application/json")
 	if r.Method == "GET" {
-		w.Write([]byte(
+		_, _ = w.Write([]byte(
 			`[
 		{
 			"org_name": "terramate-io",
 			"org_display_name": "Terramate",
-			"org_uuid": "0000-0000-0000-0000"
+			"org_uuid": "0000-1111-2222-3333"
 		}
 	]`,
 		))
@@ -36,7 +39,7 @@ func (userHandler *userHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 	w.Header().Add("Content-Type", "application/json")
 	if r.Method == "GET" {
-		w.Write([]byte(
+		_, _ = w.Write([]byte(
 			`{
 			    "email": "batman@example.com",
 			    "display_name": "batman",
@@ -50,18 +53,17 @@ func (userHandler *userHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 }
 
 func (deploymentHandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, "/v1/deployments") {
-		panic("unsupported")
-	}
+	fmt.Printf("request: %+v\n", r.URL)
 	w.Header().Add("Content-Type", "application/json")
 	if r.Method == "POST" {
-		defer r.Body.Close()
+		defer func() { _ = r.Body.Close() }()
 		data, _ := io.ReadAll(r.Body)
+		fmt.Printf("request payload: %s\n", data)
 		var p cloud.DeploymentStacksPayloadRequest
 		err := json.Unmarshal(data, &p)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 
@@ -73,7 +75,7 @@ func (deploymentHandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *
 			})
 		}
 		data, _ = json.Marshal(res)
-		w.Write(data)
+		_, _ = w.Write(data)
 		return
 	}
 

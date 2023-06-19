@@ -6,7 +6,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	stdjson "encoding/json"
 	"fmt"
 	"html"
@@ -195,7 +194,7 @@ func createAuthURI(continueURI string) (createAuthURIResponse, error) {
 		OauthScope:      authScope,
 	}
 
-	postBody, err := json.Marshal(&payloadData)
+	postBody, err := stdjson.Marshal(&payloadData)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err)
 	}
@@ -237,7 +236,7 @@ func createAuthURI(continueURI string) (createAuthURIResponse, error) {
 	}
 
 	var respURL createAuthURIResponse
-	err = json.Unmarshal(data, &respURL)
+	err = stdjson.Unmarshal(data, &respURL)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to unmarshal response")
 	}
@@ -287,7 +286,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ReturnIdpCredential: true,
 	}
 
-	data, err := json.Marshal(&postBody)
+	data, err := stdjson.Marshal(&postBody)
 	if err != nil {
 		h.handleErr(w, errors.E(err))
 		return
@@ -339,7 +338,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var creds credentialInfo
-	err = json.Unmarshal(data, &creds)
+	err = stdjson.Unmarshal(data, &creds)
 	if err != nil {
 		h.handleErr(w, errors.E(err))
 		return
@@ -388,7 +387,7 @@ func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) 
 		RefreshToken: cred.RefreshToken,
 	}
 
-	data, err := json.Marshal(&cachePayload)
+	data, err := stdjson.Marshal(&cachePayload)
 	if err != nil {
 		return errors.E(err, "failed to JSON marshal the credentials")
 	}
@@ -414,7 +413,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 		return cachedCredential{}, true, err
 	}
 	var cred cachedCredential
-	err = json.Unmarshal(contents, &cred)
+	err = stdjson.Unmarshal(contents, &cred)
 	if err != nil {
 		return cachedCredential{}, true, err
 	}
@@ -497,7 +496,7 @@ func (g *googleCredential) Refresh() (err error) {
 		RefreshToken: g.refreshToken,
 	}
 
-	payloadData, err := json.Marshal(reqPayload)
+	payloadData, err := stdjson.Marshal(reqPayload)
 	if err != nil {
 		return err
 	}
@@ -580,11 +579,6 @@ func (g *googleCredential) Token() (string, error) {
 
 // Validate if the credential is ready to be used.
 func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
-	client := cloud.Client{
-		BaseURL:    cloudcfg.baseAPI,
-		Credential: g,
-	}
-
 	const apiTimeout = 5 * time.Second
 
 	var (
@@ -596,7 +590,7 @@ func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 		defer cancel()
-		orgs, err = client.MemberOrganizations(ctx)
+		orgs, err = cloudcfg.client.MemberOrganizations(ctx)
 	}()
 
 	if err != nil {
@@ -606,7 +600,7 @@ func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 		defer cancel()
-		user, err = client.Users(ctx)
+		user, err = cloudcfg.client.Users(ctx)
 	}()
 
 	if err != nil && !errors.IsKind(err, cloud.ErrNotFound) {

@@ -4,14 +4,20 @@
 package cli
 
 import (
+	"context"
+	stdfmt "fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/hashicorp/go-uuid"
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -19,9 +25,8 @@ import (
 const ErrOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 
 type cloudConfig struct {
-	baseAPI string
-	client  *http.Client
-	output  out.O
+	client *cloud.Client
+	output out.O
 
 	credential credential
 
@@ -74,12 +79,53 @@ func (c *cli) checkSyncDeployment() {
 		)
 	}
 
-	c.cloud.run.uuid, err = uuid.GenerateUUID()
-	if err != nil {
-		fatal(err, "generating run uuid")
+	if runid := os.Getenv("GITHUB_RUN_ID"); runid != "" {
+		c.cloud.run.uuid = runid
+	} else {
+		c.cloud.run.uuid, err = uuid.GenerateUUID()
+		if err != nil {
+			fatal(err, "generating run uuid")
+		}
 	}
 }
 
+func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
+	logger := log.With().Logger()
+
+	if c.parsedArgs.Run.CloudSyncDeployment {
+		logger.Trace().Msg("Checking if selected stacks have id")
+
+		for _, st := range stacks {
+			if st.ID == "" {
+				fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		var payload cloud.DeploymentStacksPayloadRequest
+		for _, s := range stacks {
+			payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
+				MetaID:          s.ID,
+				MetaName:        s.Name,
+				MetaDescription: s.Description,
+				MetaTags:        s.Tags,
+				Repository:      "github.com/terramate-io/terramate",
+				Path:            c.wd(),
+				Command:         strings.Join(command, " "),
+			})
+		}
+		res, err := c.cloud.client.CreateDeploymentStacks(ctx, "0000-1111-2222-3333", c.cloud.run.uuid, payload)
+		if err != nil {
+			fatal(err)
+		}
+
+		for _, r := range res {
+			stdfmt.Printf("response: %+v\n", r)
+		}
+	}
+}
 func (c *cli) setupSyncDeployment() error {
 	cred, err := c.loadCredential()
 	if err != nil {
@@ -87,8 +133,11 @@ func (c *cli) setupSyncDeployment() error {
 	}
 
 	c.cloud = cloudConfig{
-		baseAPI:    cloudBaseURL,
-		client:     &http.Client{},
+		client: &cloud.Client{
+			BaseURL:    cloudBaseURL,
+			HTTPClient: &http.Client{},
+			Credential: cred,
+		},
 		output:     c.output,
 		credential: cred,
 	}
