@@ -61,6 +61,16 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 	return Get[MemberOrganizations](ctx, c, "/organizations")
 }
 
+// CreateDeploymentStack creates a new deployment for provided stacks payload.
+func (c *Client) CreateDeploymentStacks(
+	ctx context.Context,
+	orgUUID string,
+	deploymentUUID string,
+	deploymentStacksPayload DeploymentStacksPayloadRequest,
+) (DeploymentStacksResponse, error) {
+	return Post[DeploymentStacksResponse](ctx, c, deploymentStacksPayload, "/deployments", orgUUID, deploymentUUID, "stacks")
+}
+
 // Get requests the endpoint components list making a GET request and decode the response into the
 // entity T if validates successfully.
 func Get[T Resource](ctx context.Context, client *Client, endpoint ...string) (entity T, err error) {
@@ -147,6 +157,8 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	}
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Context-Type", contentType)
+
+	fmt.Printf("REQUEST: %s\n", req.URL)
 	return req, nil
 }
 
