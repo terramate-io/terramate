@@ -14,7 +14,6 @@ next:
 
 # HCL Code Generation
 
-## Configuration files and `generate_hcl` blocks
 Terramate supports the generation of arbitrary HCL code referencing Terramate defined data.
 
 The generated code can then be composed/referenced by any Terraform code inside a stack (or any other
@@ -254,7 +253,7 @@ block "some" "labels" "c" {
 }
 ```
 
-### Using attributes:
+### Using attributes
 
 ```hcl
 globals {
@@ -568,6 +567,7 @@ generate_hcl "main.tf" {
 Here, the Terramate reference `global.terramate_data` is replaced with its corresponding value, 
 resulting in `upper("terramate_data")`.
 
-Please note that currently, there is no partial evaluation of `for` expressions. Referencing Terramate data 
+> Please note that currently, there is no partial evaluation of `for` expressions. Referencing Terramate data 
 inside a `for` expression will result in an error, and `for` expressions with unknown references are copied as 
 it is.
+>
