@@ -58,7 +58,7 @@ func (deploymentHandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *
 	if r.Method == "POST" {
 		defer func() { _ = r.Body.Close() }()
 		data, _ := io.ReadAll(r.Body)
-		fmt.Printf("request payload: %s\n", data)
+		fmt.Printf("POST request payload: %s\n", data)
 		var p cloud.DeploymentStacksPayloadRequest
 		err := json.Unmarshal(data, &p)
 		if err != nil {
@@ -76,6 +76,12 @@ func (deploymentHandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *
 		}
 		data, _ = json.Marshal(res)
 		_, _ = w.Write(data)
+		return
+	} else if r.Method == "PATCH" {
+		defer func() { _ = r.Body.Close() }()
+		data, _ := io.ReadAll(r.Body)
+		fmt.Printf("PATCH request payload: %s\n", data)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 

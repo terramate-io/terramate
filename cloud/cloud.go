@@ -71,6 +71,12 @@ func (c *Client) CreateDeploymentStacks(
 	return Post[DeploymentStacksResponse](ctx, c, deploymentStacksPayload, "/deployments", orgUUID, deploymentUUID, "stacks")
 }
 
+// UpdateDeploymentStacks updates the deployment status of each stack in the payload set.
+func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID string, deploymentUUID string, payload UpdateDeploymentStacks) error {
+	_, err := Patch[empty](ctx, c, payload, "/deployments", orgUUID, deploymentUUID, "stacks")
+	return err
+}
+
 // Get requests the endpoint components list making a GET request and decode the response into the
 // entity T if validates successfully.
 func Get[T Resource](ctx context.Context, client *Client, endpoint ...string) (entity T, err error) {
@@ -86,9 +92,23 @@ func Get[T Resource](ctx context.Context, client *Client, endpoint ...string) (e
 func Post[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
 	dataPayload, err := json.Marshal(payload)
 	if err != nil {
-		return entity, errors.E("marshaling request payload")
+		return entity, errors.E(err, "marshaling request payload")
 	}
 	resource, err := Request[T](ctx, client, "POST", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
+	if err != nil {
+		return entity, err
+	}
+	return resource, nil
+}
+
+// Post requests the endpoint components list making a POST request and decode the response into the
+// entity T if validates successfully.
+func Patch[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
+	dataPayload, err := json.Marshal(payload)
+	if err != nil {
+		return entity, errors.E(err, "marshaling request payload")
+	}
+	resource, err := Request[T](ctx, client, "PATCH", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
 	if err != nil {
 		return entity, err
 	}
@@ -117,21 +137,25 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
 
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return entity, err
+	}
+
 	if resp.StatusCode == http.StatusNotFound {
 		return entity, errors.E(ErrNotFound)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s", resourceURL, resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", resourceURL, resp.Status, data)
+	}
+
+	if resp.StatusCode == http.StatusNoContent {
+		return entity, nil
 	}
 
 	if ctype := resp.Header.Get("Content-Type"); ctype != contentType {
 		return entity, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return entity, err
 	}
 
 	var resource T
@@ -157,8 +181,6 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	}
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Context-Type", contentType)
-
-	fmt.Printf("REQUEST: %s\n", req.URL)
 	return req, nil
 }
 

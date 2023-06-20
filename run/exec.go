@@ -16,6 +16,11 @@ import (
 	"github.com/terramate-io/terramate/project"
 )
 
+const (
+	ErrFailed   errors.Kind = "execution failed"
+	ErrCanceled errors.Kind = "execution canceled"
+)
+
 // Exec will execute the given command on the given stack list
 // During the execution of this function the default behavior
 // for signal handling will be changed so we can wait for the child
@@ -33,6 +38,8 @@ func Exec(
 	stdout io.Writer,
 	stderr io.Writer,
 	continueOnError bool,
+	before func(s *config.Stack, cmd string),
+	after func(s *config.Stack, err error),
 ) error {
 	logger := log.With().
 		Str("action", "run.Exec()").
@@ -66,7 +73,7 @@ func Exec(
 
 	results := startCmdRunner(cmds)
 
-	for _, stack := range stacks {
+	for i, stack := range stacks {
 		logger := log.With().
 			Str("cmd", strings.Join(cmd, " ")).
 			Stringer("stack", stack).
@@ -81,7 +88,10 @@ func Exec(
 
 		logger.Info().Msg("running")
 
+		before(stack.Stack, cmd.String())
+
 		if err := cmd.Start(); err != nil {
+			after(stack.Stack, errors.E(err, ErrFailed))
 			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if continueOnError {
 				continue
@@ -109,6 +119,8 @@ func Exec(
 					if err := cmd.Process.Kill(); err != nil {
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
+
+					after(stack.Stack, errors.E(ErrCanceled))
 				}
 			case err := <-results:
 				logger.Trace().Msg("got command result")
@@ -117,6 +129,7 @@ func Exec(
 					if !continueOnError {
 						return errs.AsError()
 					}
+					after(stack.Stack, errors.E(ErrFailed, err))
 				}
 				cmdIsRunning = false
 			}
@@ -124,8 +137,15 @@ func Exec(
 
 		if interruptions > 0 {
 			logger.Info().Msg("interrupting execution of further stacks")
+
+			index := i + 1
+			for ; index < len(stacks); index++ {
+				after(stacks[index].Stack, errors.E(ErrCanceled))
+			}
 			return errs.AsError()
 		}
+
+		after(stack.Stack, nil)
 	}
 
 	return errs.AsError()

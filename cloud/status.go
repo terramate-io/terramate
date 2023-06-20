@@ -4,7 +4,9 @@
 package cloud
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/terramate-io/terramate/errors"
 )
@@ -31,15 +33,50 @@ func (s Status) Validate() error {
 	return nil
 }
 
+func (s Status) MarshalJSON() ([]byte, error) {
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
+	return []byte(strconv.Quote(s.String())), nil
+}
+
+func (s *Status) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+	switch str {
+	case "unknown":
+		*s = Unknown
+	case "ok":
+		*s = OK
+	case "pending":
+		*s = Pending
+	case "running":
+		*s = Running
+	case "drifted":
+		*s = Drifted
+	case "failed":
+		*s = Failed
+	case "canceled":
+		*s = Canceled
+	default:
+		return errors.E("invalid status: %s", str)
+	}
+	return nil
+}
+
 // String representation of the status.
 func (s Status) String() string {
 	switch s {
 	case Unknown:
 		return "unknown"
+	case OK:
+		return "ok"
 	case Pending:
 		return "pending"
 	case Running:
-		return "ok"
+		return "running"
 	case Drifted:
 		return "drifted"
 	case Failed:

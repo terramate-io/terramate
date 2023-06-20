@@ -86,6 +86,12 @@ type (
 	DeploymentStacksPayloadRequest struct {
 		Stacks DeploymentStackRequests `json:"stacks"`
 	}
+
+	UpdateDeploymentStack struct {
+		StackID string `json:"stack_id"`
+		Status  Status `json:"status"`
+	}
+	UpdateDeploymentStacks []UpdateDeploymentStack
 )
 
 var (
@@ -99,6 +105,7 @@ var (
 	_ = Resource(DeploymentStacksPayloadRequest{})
 	_ = Resource(DeploymentStackResponse{})
 	_ = Resource(DeploymentStacksResponse{})
+	_ = Resource(empty(""))
 )
 
 // String representation of the list of organization associated with the user.
@@ -194,4 +201,13 @@ func validateResourceList[T Resource](resources ...T) error {
 		}
 	}
 	return nil
+}
+
+type empty string
+
+func (s empty) Validate() error {
+	if s == "" {
+		return nil
+	}
+	return errors.E("unexpected non-empty string")
 }

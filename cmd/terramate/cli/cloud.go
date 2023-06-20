@@ -5,11 +5,8 @@ package cli
 
 import (
 	"context"
-	stdfmt "fmt"
 	"net/http"
-	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -21,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	prj "github.com/terramate-io/terramate/project"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -33,7 +31,8 @@ type cloudConfig struct {
 	credential credential
 
 	run struct {
-		uuid string
+		runUUID string
+		orgUUID string
 	}
 }
 
@@ -82,17 +81,44 @@ func (c *cli) checkSyncDeployment() {
 	}
 
 	if runid := os.Getenv("GITHUB_RUN_ID"); runid != "" {
-		c.cloud.run.uuid = runid
+		c.cloud.run.runUUID = runid
 	} else {
-		c.cloud.run.uuid, err = uuid.GenerateUUID()
+		c.cloud.run.runUUID, err = uuid.GenerateUUID()
 		if err != nil {
 			fatal(err, "generating run uuid")
 		}
 	}
+
+	if orgs := c.cloud.credential.organizations(); len(orgs) == 1 {
+		c.cloud.run.orgUUID = orgs[0].UUID
+	} else {
+		fatal(errors.E("expects user associated with a single organization but %d found", len(orgs)))
+	}
+}
+
+func (c *cli) setupSyncDeployment() error {
+	cred, err := c.loadCredential()
+	if err != nil {
+		return err
+	}
+
+	c.cloud = cloudConfig{
+		client: &cloud.Client{
+			BaseURL:    cloudBaseURL,
+			HTTPClient: &http.Client{},
+			Credential: cred,
+		},
+		output:     c.output,
+		credential: cred,
+	}
+
+	return cred.Validate(c.cloud)
 }
 
 func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
-	logger := log.With().Logger()
+	logger := log.With().
+		Str("organization", c.cloud.run.orgUUID).
+		Logger()
 
 	if !c.parsedArgs.Run.CloudSyncDeployment {
 		return
@@ -111,12 +137,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 	repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 	if err == nil {
-		u, err := url.Parse(repoURL)
-		if err == nil {
-			repoURL = path.Join(u.Host, u.Path)
-		} else {
-			logger.Warn().Err(err).Msgf("failed to parse repository URL: %s", repoURL)
-		}
+		// TODO(i4k): convert to Go-style module name (eg.: github.com/org/reponame)
 	} else {
 		logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 	}
@@ -129,36 +150,42 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaDescription: s.Description,
 			MetaTags:        s.Tags,
 			Repository:      repoURL,
-			Path:            c.wd(),
+			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
 			Command:         strings.Join(command, " "),
 		})
 	}
-	res, err := c.cloud.client.CreateDeploymentStacks(ctx, "0000-1111-2222-3333", c.cloud.run.uuid, payload)
+	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
 		fatal(err)
 	}
 
 	for _, r := range res {
-		stdfmt.Printf("response: %+v\n", r)
+		logger.Debug().Msgf("deployment created: %+v\n", r)
 	}
 }
-func (c *cli) setupSyncDeployment() error {
-	cred, err := c.loadCredential()
-	if err != nil {
-		return err
-	}
 
-	c.cloud = cloudConfig{
-		client: &cloud.Client{
-			BaseURL:    cloudBaseURL,
-			HTTPClient: &http.Client{},
-			Credential: cred,
+func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
+	logger := log.With().
+		Str("organization", c.cloud.run.orgUUID).
+		Str("stack", s.RelPath()).
+		Stringer("status", status).
+		Logger()
+
+	payload := cloud.UpdateDeploymentStacks{
+		cloud.UpdateDeploymentStack{
+			StackID: s.ID,
+			Status:  status,
 		},
-		output:     c.output,
-		credential: cred,
 	}
 
-	return cred.Validate(c.cloud)
+	logger.Debug().Msg("updating deployment status")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
+	if err != nil {
+		logger.Err(err).Str("stack-id", s.ID).Msg("failed to update deployment status for each")
+	}
 }
 
 func (c *cli) cloudInfo() {

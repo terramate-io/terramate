@@ -16,6 +16,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config/filter"
@@ -1680,6 +1681,26 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
+	beforeHook := func(s *config.Stack, cmd string) {
+		c.syncCloudDeployment(s, cloud.Running)
+	}
+
+	afterHook := func(s *config.Stack, err error) {
+		var status cloud.Status
+		switch {
+		case err == nil:
+			status = cloud.OK
+		case errors.IsKind(err, run.ErrFailed):
+			status = cloud.Canceled
+		case errors.IsKind(err, run.ErrFailed):
+			status = cloud.Failed
+		default:
+			panic(errors.E(errors.ErrInternal, "unexpected run status"))
+		}
+
+		c.syncCloudDeployment(s, status)
+	}
+
 	err = run.Exec(
 		c.cfg(),
 		orderedStacks,
@@ -1688,6 +1709,8 @@ func (c *cli) runOnStacks() {
 		c.stdout,
 		c.stderr,
 		c.parsedArgs.Run.ContinueOnError,
+		beforeHook,
+		afterHook,
 	)
 
 	if err != nil {
