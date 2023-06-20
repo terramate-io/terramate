@@ -87,10 +87,13 @@ type (
 		Stacks DeploymentStackRequests `json:"stacks"`
 	}
 
+	// UpdateDeploymentStack is the request payload item for updating the deployment status.
 	UpdateDeploymentStack struct {
 		StackID string `json:"stack_id"`
 		Status  Status `json:"status"`
 	}
+
+	// UpdateDeploymentStacks is the request payload for updating the deployment status.
 	UpdateDeploymentStacks []UpdateDeploymentStack
 )
 

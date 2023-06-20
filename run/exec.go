@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	ErrFailed   errors.Kind = "execution failed"
+	// ErrFailed represents the error when the execution fails, whatever the reason.
+	ErrFailed errors.Kind = "execution failed"
+	// ErrCanceled represents the error when the execution was canceled.
 	ErrCanceled errors.Kind = "execution canceled"
 )
 

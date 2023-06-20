@@ -101,7 +101,7 @@ func Post[T Resource](ctx context.Context, client *Client, payload interface{}, 
 	return resource, nil
 }
 
-// Post requests the endpoint components list making a POST request and decode the response into the
+// Patch requests the endpoint components list making a PATCH request and decode the response into the
 // entity T if validates successfully.
 func Patch[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
 	dataPayload, err := json.Marshal(payload)

@@ -33,6 +33,7 @@ func (s Status) Validate() error {
 	return nil
 }
 
+// MarshalJSON implements the Marshaller interface.
 func (s Status) MarshalJSON() ([]byte, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
@@ -40,6 +41,7 @@ func (s Status) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.Quote(s.String())), nil
 }
 
+// UnmarshalJSON implements the Unmarshaller interface.
 func (s *Status) UnmarshalJSON(b []byte) error {
 	var str string
 	if err := json.Unmarshal(b, &str); err != nil {

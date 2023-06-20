@@ -136,11 +136,11 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	defer cancel()
 
 	repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
-	if err == nil {
-		// TODO(i4k): convert to Go-style module name (eg.: github.com/org/reponame)
-	} else {
+	if err != nil {
 		logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 	}
+
+	// TODO(i4k): convert repoURL to Go-style module name (eg.: github.com/org/reponame)
 
 	var payload cloud.DeploymentStacksPayloadRequest
 	for _, s := range stacks {
