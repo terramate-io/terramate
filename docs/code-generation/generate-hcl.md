@@ -14,13 +14,13 @@ next:
 
 # HCL Code Generation
 
-## Configuration Files and `generate_hcl` Blocks
-To begin generating HCL code, developers need to define configuration files that 
-specify the desired code components and their corresponding values. Multiple `generate_hcl` 
-blocks can be defined within a [configuration file](../configuration/index.md), 
-each responsible for generating a specific code component.
+## Configuration files and `generate_hcl` blocks
+Terramate supports the generation of arbitrary HCL code referencing Terramate defined data.
 
-HCL code generation is done using `generate_hcl` blocks in Terramate configuration files.
+The generated code can then be composed/referenced by any Terraform code inside a stack (or any other
+tool that uses HCL, like [Packer](https://www.packer.io/)).
+
+HCL code generation is done using `generate_hcl` blocks in Terramate [configuration file](../configuration/index.md).
 
 The code may include:
 
@@ -31,22 +31,21 @@ The code may include:
 - Expressions using interpolation, functions, etc
 - Dynamic blocks using the tm_dynamic block type
 
-## Content Block for Code Generation
-The content block is where the actual HCL code is defined. It uses the content key within the `generate_hcl` 
-block. The content can include HCL code snippets, expressions, interpolations, functions, and references to 
-Terramate-defined data.
+## Content block for code generation
+The content block is where the actual HCL code is defined. The content can include HCL code snippets,
+expressions, interpolations, functions, and references to Terramate-defined data.
 
 Developers can leverage the full power of HCL to define the desired code component within the content block. 
 This includes using variables, loops, conditionals, and other HCL constructs to dynamically generate code based 
 on specific conditions or requirements.
 
-## Generating Backend Configurations for Stacks
+## Generating backend configurations for stacks
 Terramate enables the generation of backend configurations for stacks within a project. 
 
 Backend configurations define where Terraform stores its state file and provide access to remote state storage, 
 such as AWS S3, Azure Blob Storage, or HashiCorp Consul.
 
-## Example: Generating a Backend Configuration
+## Example: generating a backend configuration
 Lets generate backend and provider configurations for all stacks inside a project. We can use the following 
 code snippet within a `generate_hcl` block, given these globals defined on the root of the project:
 
@@ -80,7 +79,7 @@ backend "local" {
 }
 ```
 
-## Generating Provider and Terraform Configurations for Stacks
+## Generating provider and terraform configurations for stacks
 Terramate also facilitates the generation of provider configurations and the main Terraform configuration for 
 stacks within a project. Provider configurations specify the providers to be used and their corresponding 
 configuration settings. 
@@ -88,7 +87,7 @@ configuration settings.
 The main Terraform configuration contains the resource and module definitions required to provision the 
 infrastructure.
 
-## Example: Generating Provider and Terraform Configurations
+## Example: generating provider and Terraform configurations
 To generate provider/terraform configuration for all stacks we can add in the root configuration:
 
 ```hcl
@@ -142,31 +141,31 @@ In the next section, we will dive deeper into the process of working with `tm_dy
 practical examples.
 
 
-# Working with `tm_dynamic` Blocks
+# Working with `tm_dynamic` blocks
 The `tm_dynamic` block is a specialized block type that is utilized within the content block of the 
 `generate_hcl` block. 
 
 It shares similarities with Terraform dynamic blocks but it also incorporates partial evaluation of the 
 expanded code. This allows for more flexible and dynamic code generation.
 
-## Partial Evaluation of Expanded Code
+## Partial evaluation of expanded code
 One of the key features of the `tm_dynamic` block is its ability to perform partial evaluation of the expanded 
 code. 
 
 This means that Terramate variables and functions within the block are evaluated, while other code elements are 
 directly copied to the final generated code without evaluation.
 
-## Usage of Content and Attributes in `tm_dynamic` Blocks
+## Usage of content and attributes in `tm_dynamic` blocks
 The `tm_dynamic` block can be defined using either a content block, an attributes attribute, or a combination 
 of both. 
 
 The content block allows for the generation of additional sub-blocks and nesting of `tm_dynamic` blocks.
 
-## Examples: Generating Dynamic Blocks with `tm_dynamic`
+## Examples: generating dynamic blocks with `tm_dynamic`
 To get the more clear understanding of the concepts that we have explained above, let’s take some examples and 
 understand those examples by looking at the generated outcome.
 
-### Using the Content Block
+### Using the content block
 
 ```hcl
 globals {
@@ -210,7 +209,7 @@ block {
 }
 ```
 
-### Using Labels Attribute
+### Using labels attribute
 
 ```hcl
 globals {
@@ -255,7 +254,7 @@ block "some" "labels" "c" {
 }
 ```
 
-### Using Attributes:
+### Using attributes:
 
 ```hcl
 globals {
@@ -299,11 +298,11 @@ block {
 }
 ```
 
-### Optional `for_each` Attribute 
+### Optional `for_each` attribute 
 The `for_each` attribute within the `tm_dynamic` block is optional. If not defined, only a single 
 block will be generated, and no iterator will be available during block generation.
 
-### Optional `condition` Attribute
+### Optional `condition` attribute
 The `tm_dynamic` block also supports an optional condition attribute that must evaluate to a boolean. 
 If the `condition` is false, the `tm_dynamic` block and its nested `tm_dynamic` blocks are ignored. Other 
 attributes of the `tm_dynamic` block are not evaluated if the `condition` is false.
@@ -327,14 +326,14 @@ generate_hcl "file.tf" {
 
 In this example, if the `global.values` is undefined, the `tm_dynamic` block is ignored during code generation.
 
-# Hierarchical Code Generation
+# Hierarchical code generation
 Hierarchical code generation in Terramate allows defining code generation at different levels in a project. 
 It provides flexibility and control over the generated code. 
 
 By specifying code generation rules at various levels, you can achieve granular control over different stacks 
 and the resources that are associated to them.
 
-## Defining Code Generation at Different Levels in a Project
+## Defining code generation at different levels in a project
 Terramate supports defining code generation rules at different levels within a project structure. This allows
 you to specify code generation configurations at the root level, module level, or even for individual 
 resources within a module. 
@@ -349,7 +348,7 @@ context, such as a module or resource.
 By organizing code generation configurations hierarchically, you can ensure that each component generates the 
 desired code in the correct context.
 
-## Potential Impact of Code Generation on Multiple or all Stacks
+## Potential impact of code generation on multiple or all stacks
 One of the key advantages of hierarchical code generation is the ability to apply code generation rules to 
 multiple stacks simultaneously. By defining code generation configurations at a higher level, such as the 
 root level, you can propagate those configurations to all child modules and resources within the project. 
@@ -361,25 +360,25 @@ When code generation is applied to multiple stacks, any changes or updates made 
 configurations at the root level will automatically reflect in all associated stacks during the next 
 generation process. This simplifies maintenance and ensures consistent code generation across the project.
 
-## Restrictions and Conflicts with `generate_hcl` Blocks
+## Restrictions and conflicts with `generate_hcl` blocks
 While hierarchical code generation provides flexibility, it's important to consider potential restrictions 
 and conflicts that may arise when working with `generate_hcl` blocks. 
 
-### Overriding Code Generation Configurations 
+### Overriding code generation configurations 
 When defining code generation configurations at different levels, it's essential to understand the order 
 of precedence. Code generation rules at lower levels, such as module or resource-specific configurations, 
 can override or augment the configurations defined at higher levels. 
 
 It's crucial to carefully manage and review these configurations to avoid conflicts or unintended consequences.
 
-### Conflicting `generate_hcl` Blocks 
+### Conflicting `generate_hcl` blocks 
 If multiple `generate_hcl` blocks are defined for the same context, such as multiple generate blocks within the 
 same module, conflicts may occur. It's important to ensure that the code generation rules within the 
 conflicting blocks do not contradict each other or generate conflicting code. 
 
 Resolving such conflicts requires careful evaluation and adjustment of the code generation configurations.
 
-### Dependency Management 
+### Dependency management 
 Hierarchical code generation relies on the dependencies between different components within the project. It's 
 crucial to consider the dependencies and order of code generation to avoid circular dependencies or incomplete 
 code generation. 
@@ -394,12 +393,12 @@ infrastructure deployments. Understanding the hierarchy and managing potential c
 take full advantage of this feature and streamline your infrastructure provisioning process.
 
 
-# Conditional Code Generation
+# Conditional code generation
 Conditional code generation allows you to dynamically generate code based on specified conditions. 
 This feature enables you to control the inclusion or exclusion of certain code blocks depending on the 
 evaluated conditions.
 
-## Using the `condition` Attribute for Conditional Code Generation
+## Using the `condition` attribute for conditional code generation
 To implement conditional code generation, you can utilize the `condition` attribute within the `generate_hcl` 
 block. This attribute accepts a boolean expression that determines whether the code block should be generated 
 or not. 
@@ -407,7 +406,7 @@ or not.
 If the `condition` evaluates to true, the code block will be included in the generated code. If it evaluates to 
 false, the code block will be skipped.
 
-## Evaluating Conditions and Generating Code Accordingly
+## Evaluating conditions and generating code accordingly
 During the code generation process, the conditions specified in the `condition` attribute are evaluated. The 
 evaluation can be based on various factors such as input variables, environment settings, or the state of the 
 project.
@@ -415,7 +414,7 @@ project.
 By leveraging the `condition` attribute, you can dynamically control the generation of code based on different 
 scenarios, making your code more flexible and adaptable to varying conditions.
 
-## Example: Generating Code Based on Conditions
+## Example: generating code based on conditions
 Let’s take an example to understand the concept better. 
 
 ```hcl
@@ -454,14 +453,14 @@ This concludes the subsection on conditional code generation, demonstrating how 
 attribute to generate code selectively based on specified conditions.
 
 
-# Partial Evaluation in Code Generation
+# Partial evaluation in code generation
 
-## Understanding Partial Evaluation Strategy
+## Understanding partial evaluation strategy
 In HCL code generation, a partial evaluation strategy is employed. This approach allows the generation of code 
 with unknown references or function calls, which are then copied verbatim to the generated code. It enables a 
 flexible and dynamic code generation process.
 
-## Handling Unknown References and Function Calls
+## Handling unknown references and function calls
 When generating HCL code, both unknown references and function calls are handled. Unknown references, such as 
 Terramate references, are retained as is in the generated code. On the other hand, function calls are partially 
 evaluated. 
@@ -470,10 +469,10 @@ If a function call starts with the prefix `tm_`, it is considered a Terramate fu
 Function calls can have Terramate references or literals as parameters.
 
 
-# Examples of Partial Evaluation in HCL Code Generation
+# Examples of partial evaluation in HCL code generation
 To understand the above concepts in a better way, lets take some examples.
 
-## Example 1: Mixing Terramate and Terraform References
+## Example 1: mixing Terramate and Terraform references
 Assuming we have a single global as Terramate data:
 
 ```hcl
@@ -511,7 +510,7 @@ resource "myresource" "name" {
 The Terramate references `global.terramate_data and terramate.path` are evaluated, while the references to 
 `var.enabled` and `local.name` are retained as is, demonstrating partial evaluation.
 
-## Example 2: Partial Evaluation of Function Calls
+## Example 2: partial evaluation of function calls
 Function calls in HCL code generation are partially evaluated. Consider the following code snippet:
 
 ```hcl
@@ -538,7 +537,7 @@ The function call `tm_upper(global.terramate_data)` is evaluated, transforming t
 terramate_data` to uppercase. However, the function call upper `(local.name)` is retained as is since it does 
 not match the Terramate function pattern.
 
-## Example 3: Function Call with Terramate Reference as Parameter
+## Example 3: function call with Terramate reference as parameter
 If a parameter of an unknown function call is a Terramate reference, the value of the Terramate reference will 
 be replaced in the function call. For instance:
 
