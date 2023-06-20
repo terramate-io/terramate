@@ -7,7 +7,9 @@ import (
 	"context"
 	stdfmt "fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -92,38 +94,52 @@ func (c *cli) checkSyncDeployment() {
 func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
 	logger := log.With().Logger()
 
-	if c.parsedArgs.Run.CloudSyncDeployment {
-		logger.Trace().Msg("Checking if selected stacks have id")
+	if !c.parsedArgs.Run.CloudSyncDeployment {
+		return
+	}
 
-		for _, st := range stacks {
-			if st.ID == "" {
-				fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
-			}
-		}
+	logger.Trace().Msg("Checking if selected stacks have id")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+	for _, st := range stacks {
+		if st.ID == "" {
+			fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+		}
+	}
 
-		var payload cloud.DeploymentStacksPayloadRequest
-		for _, s := range stacks {
-			payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-				MetaID:          s.ID,
-				MetaName:        s.Name,
-				MetaDescription: s.Description,
-				MetaTags:        s.Tags,
-				Repository:      "github.com/terramate-io/terramate",
-				Path:            c.wd(),
-				Command:         strings.Join(command, " "),
-			})
-		}
-		res, err := c.cloud.client.CreateDeploymentStacks(ctx, "0000-1111-2222-3333", c.cloud.run.uuid, payload)
-		if err != nil {
-			fatal(err)
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-		for _, r := range res {
-			stdfmt.Printf("response: %+v\n", r)
+	repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
+	if err == nil {
+		u, err := url.Parse(repoURL)
+		if err == nil {
+			repoURL = path.Join(u.Host, u.Path)
+		} else {
+			logger.Warn().Err(err).Msgf("failed to parse repository URL: %s", repoURL)
 		}
+	} else {
+		logger.Warn().Err(err).Msg("failed to retrieve repository URL")
+	}
+
+	var payload cloud.DeploymentStacksPayloadRequest
+	for _, s := range stacks {
+		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
+			MetaID:          s.ID,
+			MetaName:        s.Name,
+			MetaDescription: s.Description,
+			MetaTags:        s.Tags,
+			Repository:      repoURL,
+			Path:            c.wd(),
+			Command:         strings.Join(command, " "),
+		})
+	}
+	res, err := c.cloud.client.CreateDeploymentStacks(ctx, "0000-1111-2222-3333", c.cloud.run.uuid, payload)
+	if err != nil {
+		fatal(err)
+	}
+
+	for _, r := range res {
+		stdfmt.Printf("response: %+v\n", r)
 	}
 }
 func (c *cli) setupSyncDeployment() error {
