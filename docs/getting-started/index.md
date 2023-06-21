@@ -15,7 +15,7 @@ next:
 
 [Terramate](https://github.com/mineiros-io/terramate) is a [code generator and orchestrator for Terraform](https://blog.terramate.io/product-introduction-github-as-code-af466550a4a9?source=friends_link&sk=ae60be77dcb484724b3b821898e7813d) that adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
-This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/mineiros-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
+This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/terramate-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
 
 To follow this tutorial, you will need local installations of [Terramate](../installation.md), [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli), and [Git](https://git-scm.com/downloads). 
 
@@ -75,7 +75,6 @@ terramate generate
 Nothing to do, generated code is up to date
 ```
 ## Terramate Code Generation
-
 Let’s make it do something. Append the following to the `mysite/stack.tm.hcl`:
 
 ```hcl
