@@ -1696,7 +1696,7 @@ func (c *cli) runOnStacks() {
 		switch {
 		case err == nil:
 			status = cloud.OK
-		case errors.IsKind(err, run.ErrFailed):
+		case errors.IsKind(err, run.ErrCanceled):
 			status = cloud.Canceled
 		case errors.IsKind(err, run.ErrFailed):
 			status = cloud.Failed

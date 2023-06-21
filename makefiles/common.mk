@@ -39,16 +39,6 @@ coverage:
 coverage/show: coverage
 	go tool cover -html=$(COVERAGE_REPORT)
 
-## build a test binary -- not static, telemetry sent to localhost, etc
-.PHONY: test/build
-test/build: test/cloudmock
-	go build -tags localhostEndpoints -o bin/test-terramate.exe ./cmd/terramate
-
-## build bin/cloudmock
-.PHONY: test/cloudmock
-test/cloudmock:
-	go build -o bin/cloudmock.exe ./cloud/testserver
-
 ## start fuzzying to generate some new corpus/find errors on partial eval
 .PHONY: test/fuzz/eval
 test/fuzz/eval:

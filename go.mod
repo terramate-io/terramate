@@ -14,6 +14,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.14.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/madlambda/spells v0.4.2
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/posener/complete v1.2.3
