@@ -151,6 +151,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaTags:        s.Tags,
 			Repository:      repoURL,
 			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
+			CommitSHA:       c.prj.git.headCommit,
 			Command:         strings.Join(command, " "),
 		})
 	}
