@@ -12,6 +12,7 @@ next:
 ---
 
 # Terramate functions
+
 One of its key features is the availability of Terramate functions, which
 enhance the capabilities of Terraform's built-in functions. In this section,
 we will provide an overview of Terramate functions as [Terraform v0.15.13](https://www.terraform.io/language/functions), and discuss their usage
@@ -19,6 +20,7 @@ with the `tm_` prefix. Additionally, we will introduce the concept of custom
 Terramate functions.
 
 ## Overview of Terramate functions
+
 Functions are similar to Terraform's built-in functions but come with the
 added benefit of extended functionality and also provide flexibility. They
 allow you to manipulate the data, perform calculations, and make decisions
@@ -26,12 +28,14 @@ within your Terramate configurations. Thus, they give you the leverage to
 streamline your infrastructure code and make it more efficient.
 
 ## Usage of Terramate functions with the `tm_` prefix
+
 As Terramate functions are similar to Terraform's built-in functions, to
 differentiate Terramate functions from Terraform's native functions,
 Terramate functions are prefixed with `tm_`. This prefix helps in easily
 identifying and distinguishing Terramate functions within the codebase.
 
 ## Introduction to custom Terramate functions
+
 In addition to the built-in Terramate functions inherited from Terraform,
 Terramate also offers the ability to define custom functions tailored to your
 specific needs. This empowers you to create reusable functions and abstract
@@ -42,6 +46,7 @@ In the following sections, we will explore some of the essential built-in
 functions and experimental functions offered by Terramate.
 
 ## Built-in Terramate functions
+
 Terramate provides several built-in functions that can be used in your
 Terramate configurations. These functions offer extended capabilities and
 flexibility when working with infrastructure. Let's explore some of the key
@@ -49,6 +54,7 @@ built-in Terramate functions.
 
 
 ### `tm_try(global.b, null)`
+
 The `tm_try` function is similar to Terraform's `try` function and allows you
 to handle situations where a value may or may not be available. It takes two
 arguments.
@@ -76,6 +82,7 @@ partially evaluated expressions as parameters and may return expressions
 themselves.
 
 ### `tm_ternary(bool,expr,expr) -> expr`
+
 The `tm_ternary` function provides a replacement for the ternary operator `a ? b : c`
 commonly used in programming languages. It takes three arguments: a boolean condition,
 an expression to evaluate if the condition is `true`, and an expression to evaluate if
@@ -103,6 +110,7 @@ tm_ternary(true, access.data1, access.data2)
 It will return `access.data1` because the condition is `true`.
 
 ### `tm_hcl_expression(string) -> expr`
+
 The `tm_hcl_expression` function is particularly useful to circumvent some limitations
 on HCL and for constructing complex expressions dynamically. It takes a string as input
 and returns the string contents as an expression. This function can be used when
@@ -142,6 +150,7 @@ expr = data.google_active_folder._parent_id.id.data
 ```
 
 ### `tm_version_match(version:string, constraint:string, ...optional_arg:object)`
+
 This function returns `true` if `version` satisfies the `constraint` string.
 By default **prereleases** are never matched if they're not explicitly provided
 in the constraint.
