@@ -22,12 +22,16 @@ To do so, Terramate works with configuration files that have the suffixes:
 * `tm`
 * `tm.hcl`
 
+## Configuration files
+
 Terramate files can be found in any non-hidden directory of a Terramate project
 and all non-hidden files in a single directory will be handled as the
 concatenation of all of them in a single file, forming a single **configuration**.
 
 The configuration blocks can be defined multiple times and their values are merged
 whenever possible. See [Config Merging](#config-merging) for details.
+
+## Importing configurations
 
 Each configuration can import other configurations using the `import` block.
 See the example below:
@@ -56,6 +60,8 @@ once into a single configuration set.
 
 An imported file can import other files but cycles are not allowed.
 
+## Terramate Projects
+
 A Terramate project is essentially a collection of Terraform code organized into
 stacks.
 
@@ -73,11 +79,12 @@ In general, a Terramate project looks like this:
 
 # Config merging
 
-The configuration defined in a directory is merged into a single configuration
-where multiple blocks of same type can be defined if their contents do not
-conflict. In other words, the definition of a block can be split into multiple
-blocks where each defines a part of the whole definition. The only exceptions are
-the [generate](../code-generation/index.md) blocks and the `import` blocks.
+Multiple configuration blocks of the same type defined in a directory are merged into
+a single configuration, provided their contents do not conflict. For instance, the
+block definitions can be split into several blocks, with each one defining a part of
+the whole. The exceptions to this are the [generate](../code-generation/index.md) and
+`import` blocks.
+
 The [globals](../data-sharing/index.md) block extends the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
@@ -112,14 +119,11 @@ terramate {
 
 # Skipping Directories
 
-If you want to have a directory that is not hidden but want Terramate to ignore the
-directory contents all you have to do is create an empty file called `.tmskip` inside
-the directory. After the file is created the directory will be ignored by
-all Terramate features, its contents will not be parsed even if it contains
-Terramate files.
+Terramate provides an option to ignore a non-hidden directory by creating an empty
+file named `.tmskip` inside the directory. Terramate features will ignore this
+directory and its contents, even if it contains Terramate files.
 
-You can still import code that is located inside such a directory.
-
+However, code located inside such a directory can still be imported.
 
 # Terramate Configuration Schema
 
