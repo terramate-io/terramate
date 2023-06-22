@@ -43,7 +43,7 @@ branch is that once you merged your PR you need to apply the changes in the CI
 or locally. If the project adopts a
 [non-fast-forward](https://git-scm.com/docs/git-merge#_fast_forward_merge)
 merge strategy, every commit—aside from the first one—on the default branch becomes a merge
-commit. Utilizing `HEAD^` as the `baseref`enables detection of modifications in the most
+commit. Utilizing `HEAD^` as the `baseref` enables detection of modifications in the most
 recently merged code.
 
 Having explained that, hopefully it becomes clear that change detection in
