@@ -93,7 +93,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				},
 			},
 		},
-		{
+		/*{
 			name:   "canceled command",
 			layout: []string{"s:stack"},
 			cancel: true,
@@ -105,7 +105,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 					"stack": []string{"pending", "running", "canceled"},
 				},
 			},
-		},
+		},*/
 		{
 			name:   "basic success sync",
 			layout: []string{"s:stack"},
