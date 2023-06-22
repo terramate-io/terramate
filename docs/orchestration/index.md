@@ -19,7 +19,7 @@ execution.
 
 ## Stacks selection
 
-Choosing the right stacks for execution is a key part of Stacks Execution Orchestration. Terramate offers three ways to select stacks:
+The **selection** defines which stacks from the whole set must be selected to execute and terramate provides three ways of configuring that:
 
 1. Change detection
 
@@ -34,7 +34,8 @@ project structure will select only stacks that are children of the current direc
 
 3. Explicit `wants` relationship.
 
-The `wants` attribute of the stack block defines an explicit relationship between a stack and its list of wanted stacks. When a stack is selected, all the stacks listed on its `wants` list will also be selected, independent of any other selection criteria.
+The `wants` attribute of the stack block defines an explicit relationship between a stack and its list of wanted stacks. 
+When a stack is selected, all the stacks listed on its `wants` list will also be selected, independent of any other selection criteria.
 
 Example:
 
@@ -60,7 +61,7 @@ This can be done through data sources or
 by [loading the state](https://www.terraform.io/docs/language/state/remote-state-data.html)
 of another stack, or even an implicit dependency like hard coding the name/ID.
 
-Two methods can help us manage this issue in Terramate - the Filesystem Hierarchical Order and the Explicit Order of Execution.
+Two methods can help us manage this issue in Terramate - the [Filesystem Hierarchical Order](https://terramate.io/docs/cli/orchestration/#filesystem-hierarchical-order) and the [Explicit Order of Execution](https://terramate.io/docs/cli/orchestration/#explicit-order-of-execution).
 
 ### Filesystem hierarchical order
 
@@ -71,20 +72,21 @@ This process carries both benefits and risks. On the positive side, it offers yo
 
 ### Explicit Order Of Execution
 
-Terramate's Explicit Order of Execution feature allows you to designate a specific order for stack execution. This is done by defining **before** and **after** fields within the **stack** block, referring to other directories containing stacks.
+This feature allows you to designate a specific order for stack execution. This is done by defining **before** and **after** fields within the **stack** block, referring to other directories containing stacks.
 
 **Before** ensures that the specified stack is executed before all stacks in the mentioned directories. Conversely, **after** ensures the stack is executed after those in the directories. Both relative and project root paths can be used to reference directories.
 
 > **Note:** A parent stack can never be executed after a child stack, as this would cause a cycle error.
 
-Here's how to use this feature:
+This can be configured by adding `before` and `after` fields to the stack block.
 
-1. Choose the stack directory you want to change it's order of execution
-2. Open your Terramate configuration file `stack.tm.hcl` in a text editor.
-2. Select the stack block you want to allocate a specific order.
-3. Depending on your needs, add either the **before** or **after** field inside the stack block.
-4. Add **string** values representing the directory paths you want to order execution for in the **before** or **after** field.
-5. Save and close the file.
+```hcl
+stack {
+    before = [
+        "/other/stack"
+    ]
+}
+```
 
 For example, let's assume we have a project organized like this:
 
@@ -131,7 +133,7 @@ In both configurations, the execution sequence will be:
 * stack-a
 * stack-b
 
-You can also use the **before** field to define the execution order. For instance:
+The same order of execution can be defined using **before**. For instance:
 
 In `stack-a/terramate.tm.hcl`:
 
