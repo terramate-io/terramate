@@ -6,3 +6,9 @@ globals "terraform" "providers" "aws" {
     region = "us-east-1"
   }
 }
+
+globals "terraform" "providers" "aws.west" {
+  config = {
+    region = "us-west-1"
+  }
+}
