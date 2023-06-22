@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -31,6 +32,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 		name       string
 		layout     []string
 		skipIDGen  bool
+		cancel     bool
 		workingDir string
 		cmd        []string
 		want       want
@@ -78,7 +80,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "failed sync",
+			name:   "failed command",
 			layout: []string{"s:stack"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
@@ -88,6 +90,19 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				},
 				events: eventsResponse{
 					"stack": []string{"pending", "running", "failed"},
+				},
+			},
+		},
+		{
+			name:   "canceled command",
+			layout: []string{"s:stack"},
+			cancel: true,
+			want: want{
+				run: runExpected{
+					Status: 3221225794,
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "canceled"},
 				},
 			},
 		},
@@ -152,16 +167,35 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			cli.appendEnv = []string{"GITHUB_RUN_ID=" + runid}
 
 			cmd := []string{"run", "--cloud-sync-deployment"}
-			if len(tc.cmd) > 0 {
-				cmd = append(cmd, tc.cmd...)
+			if tc.cancel {
+				cmd = append(cmd, testHelperBin, "hang")
 			} else {
-				cmd = append(cmd, testHelperBin, "stack-abs-path", s.RootDir())
+				if len(tc.cmd) > 0 {
+					cmd = append(cmd, tc.cmd...)
+				} else {
+					cmd = append(cmd, testHelperBin, "stack-abs-path", s.RootDir())
+				}
 			}
 
-			result := cli.run(cmd...)
+			exec := cli.newCmd(cmd...)
+			exec.start()
+			if tc.cancel {
+				time.Sleep(100 * time.Millisecond)
+				exec.signalGroup(os.Interrupt)
+				exec.signalGroup(os.Interrupt)
+				exec.signalGroup(os.Interrupt)
+			}
+
+			_ = exec.wait()
+
+			result := runResult{
+				Cmd:    strings.Join(cmd, " "),
+				Stdout: exec.stdout.String(),
+				Stderr: exec.stderr.String(),
+				Status: exec.exitCode(),
+			}
 			assertRunResult(t, result, tc.want.run)
 			assertRunEvents(t, runid, ids, tc.want.events)
-
 		})
 	}
 }
@@ -196,6 +230,8 @@ func assertRunEvents(t *testing.T, runid string, ids []string, events map[string
 	assert.NoError(t, err)
 
 	if diff := cmp.Diff(res, expectedEvents); diff != "" {
+		t.Logf("want: %+v", expectedEvents)
+		t.Logf("got: %+v", res)
 		t.Fatal(diff)
 	}
 }

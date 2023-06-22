@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
@@ -48,12 +49,12 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	deployuuid := params.ByName("deployuuid")
 
 	if dhandler.deployments[orguuid] == nil {
-		dhandler.deployments[orguuid] = make(map[string]map[string]cloud.DeploymentStackRequest)
-		dhandler.events[orguuid] = make(map[string]map[string][]string)
+		dhandler.deployments[orguuid] = make(map[string]map[int64]cloud.DeploymentStackRequest)
+		dhandler.events[orguuid] = make(map[string]map[int64][]string)
 	}
 	if dhandler.deployments[orguuid][deployuuid] == nil {
-		dhandler.deployments[orguuid][deployuuid] = make(map[string]cloud.DeploymentStackRequest)
-		dhandler.events[orguuid][deployuuid] = make(map[string][]string)
+		dhandler.deployments[orguuid][deployuuid] = make(map[int64]cloud.DeploymentStackRequest)
+		dhandler.events[orguuid][deployuuid] = make(map[int64][]string)
 	}
 
 	w.Header().Add("Content-Type", "application/json")
@@ -103,14 +104,18 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 		res := cloud.DeploymentStacksResponse{}
 		for _, s := range p.Stacks {
+			next := atomic.LoadInt64(&dhandler.nextStackID)
 			res = append(res, cloud.DeploymentStackResponse{
-				StackID: s.MetaID,
-				Status:  cloud.Pending,
+				StackID:     int(next),
+				StackMetaID: s.MetaID,
+				Status:      cloud.Pending,
 			})
 
+			atomic.AddInt64(&dhandler.nextStackID, 1)
+
 			s.Status = cloud.Pending
-			dhandler.deployments[orguuid][deployuuid][s.MetaID] = s
-			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.Status.String())
+			dhandler.deployments[orguuid][deployuuid][next] = s
+			dhandler.events[orguuid][deployuuid][next] = append(dhandler.events[orguuid][deployuuid][next], s.Status.String())
 		}
 		data, _ = json.Marshal(res)
 		_, _ = w.Write(data)
@@ -128,11 +133,11 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		for _, s := range updateStacks {
-			if gotStack := dhandler.deployments[orguuid][deployuuid][s.StackID]; gotStack.MetaID != "" {
+		for _, s := range updateStacks.Stacks {
+			if gotStack := dhandler.deployments[orguuid][deployuuid][int64(s.StackID)]; gotStack.MetaID != "" {
 				gotStack.Status = s.Status
-				dhandler.deployments[orguuid][deployuuid][s.StackID] = gotStack
-				dhandler.events[orguuid][deployuuid][s.StackID] = append(dhandler.events[orguuid][deployuuid][s.StackID], s.Status.String())
+				dhandler.deployments[orguuid][deployuuid][int64(s.StackID)] = gotStack
+				dhandler.events[orguuid][deployuuid][int64(s.StackID)] = append(dhandler.events[orguuid][deployuuid][int64(s.StackID)], s.Status.String())
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(`{"error": "stack not found"}`))
@@ -148,8 +153,8 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 // newDeploymentEndpoint returns a new fake deployment endpoint.
 func newDeploymentEndpoint() *deploymentHandler {
 	return &deploymentHandler{
-		deployments: make(map[string]map[string]map[string]cloud.DeploymentStackRequest),
-		events:      make(map[string]map[string]map[string][]string),
+		deployments: make(map[string]map[string]map[int64]cloud.DeploymentStackRequest),
+		events:      make(map[string]map[string]map[int64][]string),
 	}
 }
 
@@ -171,10 +176,11 @@ type (
 	userHandler         struct{}
 	organizationHandler struct{}
 	deploymentHandler   struct {
+		nextStackID int64
 		// as hacky as it can get:
 		// map of organization -> (map of deployment_id -> (map of stack_id -> deployment))
-		deployments map[string]map[string]map[string]cloud.DeploymentStackRequest
+		deployments map[string]map[string]map[int64]cloud.DeploymentStackRequest
 
-		events map[string]map[string]map[string][]string
+		events map[string]map[string]map[int64][]string
 	}
 )

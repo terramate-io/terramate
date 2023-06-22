@@ -72,8 +72,9 @@ type (
 
 	// DeploymentStackResponse represents the deployment creation response item.
 	DeploymentStackResponse struct {
-		StackID string `json:"stack_id"`
-		Status  Status `json:"status"`
+		StackID     int    `json:"stack_id"`
+		StackMetaID string `json:"meta_id"`
+		Status      Status `json:"status"`
 	}
 
 	// DeploymentStacksResponse represents the list of DeploymentStackResponse.
@@ -89,12 +90,14 @@ type (
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
 	UpdateDeploymentStack struct {
-		StackID string `json:"stack_id"`
+		StackID int    `json:"stack_id"`
 		Status  Status `json:"status"`
 	}
 
 	// UpdateDeploymentStacks is the request payload for updating the deployment status.
-	UpdateDeploymentStacks []UpdateDeploymentStack
+	UpdateDeploymentStacks struct {
+		Stacks []UpdateDeploymentStack `json:"stacks"`
+	}
 )
 
 var (
@@ -108,6 +111,8 @@ var (
 	_ = Resource(DeploymentStacksPayloadRequest{})
 	_ = Resource(DeploymentStackResponse{})
 	_ = Resource(DeploymentStacksResponse{})
+	_ = Resource(UpdateDeploymentStack{})
+	_ = Resource(UpdateDeploymentStacks{})
 	_ = Resource(empty(""))
 )
 
@@ -187,11 +192,19 @@ func (d DeploymentStacksPayloadRequest) Validate() error { return validateResour
 
 // Validate the deployment stack response.
 func (d DeploymentStackResponse) Validate() error {
-	if d.StackID == "" {
-		return errors.E(`missing "stack_id" field`)
+	return d.Status.Validate()
+}
+
+// Validate the UpdateDeploymentStack object.
+func (d UpdateDeploymentStack) Validate() error {
+	if d.StackID == 0 {
+		return errors.E(`invalid "stack_id" of value %d`, d.StackID)
 	}
 	return d.Status.Validate()
 }
+
+// Validate the list of UpdateDeploymentStack.
+func (ds UpdateDeploymentStacks) Validate() error { return validateResourceList(ds.Stacks...) }
 
 // Validate the list of deployment stacks response.
 func (ds DeploymentStacksResponse) Validate() error { return validateResourceList(ds...) }

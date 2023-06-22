@@ -161,7 +161,7 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 	var resource T
 	err = json.Unmarshal(data, &resource)
 	if err != nil {
-		return entity, errors.E(ErrUnexpectedResponseBody, err)
+		return entity, errors.E(ErrUnexpectedResponseBody, err, "status: %d, data: %s", resp.StatusCode, data)
 	}
 	err = resource.Validate()
 	if err != nil {

@@ -33,6 +33,8 @@ type cloudConfig struct {
 	run struct {
 		runUUID string
 		orgUUID string
+
+		meta2id map[string]int
 	}
 }
 
@@ -79,6 +81,8 @@ func (c *cli) checkSyncDeployment() {
 				orgs),
 		)
 	}
+
+	c.cloud.run.meta2id = make(map[string]int)
 
 	if runid := os.Getenv("GITHUB_RUN_ID"); runid != "" {
 		c.cloud.run.runUUID = runid
@@ -144,11 +148,15 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 	var payload cloud.DeploymentStacksPayloadRequest
 	for _, s := range stacks {
+		tags := s.Tags
+		if tags == nil {
+			tags = []string{}
+		}
 		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
 			MetaID:          s.ID,
 			MetaName:        s.Name,
 			MetaDescription: s.Description,
-			MetaTags:        s.Tags,
+			MetaTags:        tags,
 			Repository:      repoURL,
 			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
 			CommitSHA:       c.prj.git.headCommit,
@@ -160,8 +168,19 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		fatal(err)
 	}
 
+	if len(res) != len(stacks) {
+		err := errors.E("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
+			len(res), len(stacks))
+
+		fatal(err, "unable to continue")
+	}
+
 	for _, r := range res {
 		logger.Debug().Msgf("deployment created: %+v\n", r)
+		if r.StackMetaID == "" {
+			fatal(errors.E("backend returned empty meta_id"))
+		}
+		c.cloud.run.meta2id[r.StackMetaID] = r.StackID
 	}
 }
 
@@ -172,10 +191,18 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
 		Stringer("status", status).
 		Logger()
 
+	stackID, ok := c.cloud.run.meta2id[s.ID]
+	if !ok || stackID == 0 {
+		logger.Error().Msg("unable to update deployment status due to invalid API response")
+		return
+	}
+
 	payload := cloud.UpdateDeploymentStacks{
-		cloud.UpdateDeploymentStack{
-			StackID: s.ID,
-			Status:  status,
+		Stacks: []cloud.UpdateDeploymentStack{
+			{
+				StackID: stackID,
+				Status:  status,
+			},
 		},
 	}
 
