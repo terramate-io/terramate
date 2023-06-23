@@ -85,6 +85,8 @@ export default defineConfig({
 
     return head
   },
+  // https://vitepress.dev/reference/site-config#appearance
+  appearance: 'dark',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config#sitetitle
     // siteTitle: '🦄 Terramate',
@@ -95,9 +97,6 @@ export default defineConfig({
       dark: '/assets/logo-dark.svg',
       alt: 'Terramate',
     },
-
-    // https://vitepress.dev/reference/site-config#appearance
-    appearance: 'dark',
 
     // https://vitepress.dev/reference/default-theme-search#local-search
     search: {
