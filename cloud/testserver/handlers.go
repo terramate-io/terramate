@@ -50,11 +50,11 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 	if dhandler.deployments[orguuid] == nil {
 		dhandler.deployments[orguuid] = make(map[string]map[int64]cloud.DeploymentStackRequest)
-		dhandler.events[orguuid] = make(map[string]map[int64][]string)
+		dhandler.events[orguuid] = make(map[string]map[string][]string)
 	}
 	if dhandler.deployments[orguuid][deployuuid] == nil {
 		dhandler.deployments[orguuid][deployuuid] = make(map[int64]cloud.DeploymentStackRequest)
-		dhandler.events[orguuid][deployuuid] = make(map[int64][]string)
+		dhandler.events[orguuid][deployuuid] = make(map[string][]string)
 	}
 
 	w.Header().Add("Content-Type", "application/json")
@@ -115,7 +115,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 			s.Status = cloud.Pending
 			dhandler.deployments[orguuid][deployuuid][next] = s
-			dhandler.events[orguuid][deployuuid][next] = append(dhandler.events[orguuid][deployuuid][next], s.Status.String())
+			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.Status.String())
 		}
 		data, _ = json.Marshal(res)
 		_, _ = w.Write(data)
@@ -137,7 +137,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			if gotStack := dhandler.deployments[orguuid][deployuuid][int64(s.StackID)]; gotStack.MetaID != "" {
 				gotStack.Status = s.Status
 				dhandler.deployments[orguuid][deployuuid][int64(s.StackID)] = gotStack
-				dhandler.events[orguuid][deployuuid][int64(s.StackID)] = append(dhandler.events[orguuid][deployuuid][int64(s.StackID)], s.Status.String())
+				dhandler.events[orguuid][deployuuid][gotStack.MetaID] = append(dhandler.events[orguuid][deployuuid][gotStack.MetaID], s.Status.String())
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(`{"error": "stack not found"}`))
@@ -154,7 +154,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 func newDeploymentEndpoint() *deploymentHandler {
 	return &deploymentHandler{
 		deployments: make(map[string]map[string]map[int64]cloud.DeploymentStackRequest),
-		events:      make(map[string]map[string]map[int64][]string),
+		events:      make(map[string]map[string]map[string][]string),
 	}
 }
 
@@ -181,6 +181,6 @@ type (
 		// map of organization -> (map of deployment_id -> (map of stack_id -> deployment))
 		deployments map[string]map[string]map[int64]cloud.DeploymentStackRequest
 
-		events map[string]map[string]map[int64][]string
+		events map[string]map[string]map[string][]string
 	}
 )

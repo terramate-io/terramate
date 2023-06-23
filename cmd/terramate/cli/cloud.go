@@ -192,7 +192,7 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
 		Logger()
 
 	stackID, ok := c.cloud.run.meta2id[s.ID]
-	if !ok || stackID == 0 {
+	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return
 	}
