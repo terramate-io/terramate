@@ -89,13 +89,14 @@ export default defineConfig({
   appearance: 'dark',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config#sitetitle
-    siteTitle: '🦄 Terramate',
+    // siteTitle: '🦄 Terramate',
+    siteTitle: false,
     // https://vitepress.dev/reference/default-theme-config#logo
-    // logo: {
-    //   light: '/logo-white.svg',
-    //   dark: '/logo-dark.svg',
-    //   alt: 'Terramate',
-    // },
+    logo: {
+      light: '/assets/logo-white.svg',
+      dark: '/assets/logo-dark.svg',
+      alt: 'Terramate',
+    },
 
     // https://vitepress.dev/reference/default-theme-search#local-search
     search: {
