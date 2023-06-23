@@ -832,6 +832,11 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		}
 	}
 
+	if content == nil {
+		errs.Append(
+			errors.E(ErrTerramateSchema, `"generate_hcl" block requires a content block`, block.Range))
+	}
+
 	mergedLets := ast.MergedLabelBlocks{}
 	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
 		if labelType.Type == "lets" {
