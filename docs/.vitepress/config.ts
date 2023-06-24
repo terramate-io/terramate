@@ -251,7 +251,7 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/terramate-io/terramate' },
       { icon: 'discord', link: 'https://terramate.io/discord' },
-      { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
+      { icon: 'twitter', link: 'https://twitter.com/terramateio' },
       { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
     ],
   },
