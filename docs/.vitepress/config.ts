@@ -93,8 +93,8 @@ export default defineConfig({
     siteTitle: false,
     // https://vitepress.dev/reference/default-theme-config#logo
     logo: {
-      light: '/assets/logo-white.svg',
-      dark: '/assets/logo-dark.svg',
+      light: '/logo-white.svg',
+      dark: '/logo-dark.svg',
       alt: 'Terramate',
     },
 
