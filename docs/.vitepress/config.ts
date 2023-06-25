@@ -85,18 +85,18 @@ export default defineConfig({
 
     return head
   },
+  // https://vitepress.dev/reference/site-config#appearance
+  appearance: 'dark',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config#sitetitle
-    siteTitle: '🦄 Terramate',
+    // siteTitle: '🦄 Terramate',
+    siteTitle: false,
     // https://vitepress.dev/reference/default-theme-config#logo
-    // logo: {
-    //   light: '/logo-white.svg',
-    //   dark: '/logo-dark.svg',
-    //   alt: 'Terramate',
-    // },
-
-    // https://vitepress.dev/reference/site-config#appearance
-    appearance: 'dark',
+    logo: {
+      light: '/logo-white.svg',
+      dark: '/logo-dark.svg',
+      alt: 'Terramate',
+    },
 
     // https://vitepress.dev/reference/default-theme-search#local-search
     search: {
@@ -251,7 +251,7 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/terramate-io/terramate' },
       { icon: 'discord', link: 'https://terramate.io/discord' },
-      { icon: 'twitter', link: 'https://twitter.com/mineirosio' },
+      { icon: 'twitter', link: 'https://twitter.com/terramateio' },
       { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
     ],
   },
