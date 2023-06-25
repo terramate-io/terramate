@@ -24,7 +24,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	if flag.NArg() < 2 {
+	if flag.NArg() < 1 {
 		log.Fatal("test requires at least one argument: <cmd>")
 	}
 
@@ -42,17 +42,17 @@ func main() {
 		}
 	}
 
-	switch os.Args[1] {
+	switch flag.Arg(0) {
 	case "hang":
 		hang()
 	case "env":
 		env()
 	case "cat":
-		cat(os.Args[2])
+		cat(flag.Arg(1))
 	case "stack-abs-path":
-		stackAbsPath(os.Args[2])
+		stackAbsPath(flag.Arg(1))
 	default:
-		log.Fatalf("unknown command %s", os.Args[1])
+		log.Fatalf("unknown command %s", flag.Arg(0))
 	}
 }
 
