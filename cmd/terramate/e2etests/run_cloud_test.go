@@ -175,7 +175,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				if len(tc.cmd) > 0 {
 					cmd = append(cmd, tc.cmd...)
 				} else {
-					cmd = append(cmd, testHelperBin, pidfile, "stack-abs-path", s.RootDir())
+					cmd = append(cmd, testHelperBin, "stack-abs-path", s.RootDir())
 				}
 			}
 

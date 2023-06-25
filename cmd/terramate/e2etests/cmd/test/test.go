@@ -24,7 +24,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	if len(os.Args) < 2 {
+	if flag.NArg() < 2 {
 		log.Fatal("test requires at least one argument: <cmd>")
 	}
 
