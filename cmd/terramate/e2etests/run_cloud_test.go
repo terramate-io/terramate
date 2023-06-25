@@ -166,21 +166,33 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			runid := uuid.String()
 			cli.appendEnv = []string{"GITHUB_RUN_ID=" + runid}
 
+			pidfile := filepath.Join(s.RootDir(), "test.pid")
+
 			cmd := []string{"run", "--cloud-sync-deployment"}
 			if tc.cancel {
-				cmd = append(cmd, testHelperBin, "hang")
+				cmd = append(cmd, testHelperBin, "-pid", pidfile, "hang")
 			} else {
 				if len(tc.cmd) > 0 {
 					cmd = append(cmd, tc.cmd...)
 				} else {
-					cmd = append(cmd, testHelperBin, "stack-abs-path", s.RootDir())
+					cmd = append(cmd, testHelperBin, pidfile, "stack-abs-path", s.RootDir())
 				}
 			}
 
 			exec := cli.newCmd(cmd...)
 			exec.start()
 			if tc.cancel {
-				time.Sleep(1 * time.Second)
+				var totalSpent time.Duration
+				const waitTime = 100 * time.Millisecond
+				for totalSpent < 1*time.Second {
+					_, err := os.ReadFile(pidfile)
+					if err == nil {
+						break
+					}
+
+					time.Sleep(waitTime)
+					totalSpent += waitTime
+				}
 				exec.signalGroup(os.Interrupt)
 				exec.signalGroup(os.Interrupt)
 				exec.signalGroup(os.Interrupt)

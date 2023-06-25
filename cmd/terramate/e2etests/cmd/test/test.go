@@ -7,16 +7,39 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 )
 
+var pidfile string
+
+func init() {
+	flag.StringVar(&pidfile, "pid", "", "pid file to be created at program startup")
+}
+
 func main() {
+	flag.Parse()
 	if len(os.Args) < 2 {
-		log.Fatal("test requires at least one subcommand argument")
+		log.Fatal("test requires at least one argument: <cmd>")
+	}
+
+	if pidfile != "" {
+		err := os.WriteFile(pidfile, []byte(strconv.Itoa(os.Getpid())), 0644)
+		if err == nil {
+			defer func() {
+				err := os.Remove(pidfile)
+				if err != nil {
+					log.Fatalf("removing pid file: %v", err)
+				}
+			}()
+		} else {
+			log.Fatalf("failed to save pid file: %v", err)
+		}
 	}
 
 	switch os.Args[1] {
