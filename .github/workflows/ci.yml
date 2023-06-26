@@ -28,6 +28,9 @@ jobs:
   build_test:
     name: Build and Test
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read  # This is required for actions/checkout
 
     strategy:
       fail-fast: false
@@ -49,6 +52,9 @@ jobs:
 
       - name: make build
         run: make build
+      
+      - name: check cloud info
+        run: ./bin/terramate experimental cloud info
 
   gh_integration_test:
     name: GHA Integration Test
