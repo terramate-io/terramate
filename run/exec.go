@@ -73,6 +73,12 @@ func Exec(
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
 
+	cancelStacks := func(stacks config.List[*config.SortableStack]) {
+		for _, stack := range stacks {
+			after(stack.Stack, errors.E(ErrCanceled))
+		}
+	}
+
 	results := startCmdRunner(cmds)
 
 	for i, stack := range stacks {
@@ -98,6 +104,7 @@ func Exec(
 			if continueOnError {
 				continue
 			}
+			cancelStacks(stacks[i+1:])
 			return errs.AsError()
 		}
 
@@ -132,6 +139,7 @@ func Exec(
 					}
 					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, stack.Dir()))
 					if !continueOnError {
+						cancelStacks(stacks[i+1:])
 						return errs.AsError()
 					}
 				}
@@ -142,10 +150,7 @@ func Exec(
 		if interruptions > 0 {
 			logger.Info().Msg("interrupting execution of further stacks")
 
-			index := i + 1
-			for ; index < len(stacks); index++ {
-				after(stacks[index].Stack, errors.E(ErrCanceled))
-			}
+			cancelStacks(stacks[i+1:])
 			return errs.AsError()
 		}
 

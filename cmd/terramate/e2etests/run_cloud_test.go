@@ -28,15 +28,22 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 		run    runExpected
 		events eventsResponse
 	}
+	type cancelKind int
 	type testcase struct {
 		name       string
 		layout     []string
 		skipIDGen  bool
-		cancel     bool
 		workingDir string
 		cmd        []string
 		want       want
+		cancel     cancelKind
 	}
+
+	const (
+		noCancel = iota
+		hangCancel
+		sleepCancel
+	)
 
 	fakeserver := &http.Server{
 		Handler: testserver.Router(),
@@ -94,9 +101,25 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "canceled command",
+			name:   "failed cmd cancels execution of others",
+			layout: []string{"s:s1", "s:s2"},
+			cmd:    []string{"non-existent-command"},
+			want: want{
+				run: runExpected{
+					Status:      1,
+					StderrRegex: "executable file not found",
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "failed"},
+					"s2": []string{"pending", "canceled"},
+				},
+			},
+		},
+		{
+			name:   "canceled hang command",
 			layout: []string{"s:stack"},
-			cancel: true,
+			cancel: hangCancel,
+			cmd:    []string{testHelperBin, "hang"},
 			want: want{
 				run: runExpected{
 					Status:       1,
@@ -105,6 +128,22 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				},
 				events: eventsResponse{
 					"stack": []string{"pending", "running", "canceled"},
+				},
+			},
+		},
+		{
+			name:   "canceled subsequent stacks",
+			layout: []string{"s:s1", "s:s2"},
+			cancel: sleepCancel,
+			want: want{
+				run: runExpected{
+					Status:       1,
+					IgnoreStdout: true,
+					IgnoreStderr: true,
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "failed"},
+					"s2": []string{"pending", "canceled"},
 				},
 			},
 		},
@@ -151,6 +190,9 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
 						}
 						id := strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1)
+						if len(id) > 64 {
+							id = id[:64]
+						}
 						ids = append(ids, id)
 						layout += ":id=" + id
 					}
@@ -168,63 +210,36 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			runid := uuid.String()
 			cli.appendEnv = []string{"GITHUB_RUN_ID=" + runid}
 
+			var exec *testCmd
 			cmd := []string{"run", "--cloud-sync-deployment"}
-			if tc.cancel {
-				cmd = append(cmd, testHelperBin, "hang")
-			} else {
+			switch tc.cancel {
+			case noCancel:
 				if len(tc.cmd) > 0 {
 					cmd = append(cmd, tc.cmd...)
 				} else {
 					cmd = append(cmd, testHelperBin, "stack-abs-path", s.RootDir())
 				}
-			}
-
-			exec := cli.newCmd(cmd...)
-
-			if tc.cancel {
-				exec.setpgid()
-				exec.start()
-				assert.NoError(t, pollBufferForMsgs(exec.stdout, "ready"))
-				sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt")
-				sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt", "interrupt")
-
-				// We can't check the last interrupt message since the child process
-				// may be killed by Terramate with SIGKILL before it gets the signal
-				// or it is able to send messages to stdout.
-				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-				defer cancel()
-
-				errs := make(chan error)
-				go func() {
-					errs <- exec.wait()
-					close(errs)
-				}()
-
-			outer:
-				for ctx.Err() == nil {
-					t.Log("sending last interrupt signal to terramate")
-					exec.signalGroup(os.Interrupt)
-
-					sendctx, cancel := context.WithTimeout(context.Background(), time.Second)
-					defer cancel()
-
-					select {
-					case err := <-errs:
-						t.Logf("terramate err: %v", err)
-						t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
-						t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
-						assert.Error(t, err)
-						break outer
-					case <-sendctx.Done():
-						t.Log("terramate still running, re-sending interrupt")
-					}
-				}
-
-				t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
-				t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
-			} else {
+				exec = cli.newCmd(cmd...)
 				exec.start()
 				_ = exec.wait()
+			case hangCancel:
+				cmd = append(cmd, testHelperBin, "hang")
+				exec = cli.newCmd(cmd...)
+				doCancelHang(t, exec)
+			case sleepCancel:
+				cmd = append(cmd, testHelperBin, "sleep", "1m")
+				exec = cli.newCmd(cmd...)
+				exec.setpgid()
+				exec.start()
+				done := make(chan error)
+				go func() {
+					done <- exec.wait()
+				}()
+				assert.NoError(t, pollBufferForMsgs(exec.stdout, "ready"))
+				exec.signalGroup(os.Interrupt)
+				<-done
+			default:
+				t.Fatalf("unexpected cancel kind: %d", tc.cancel)
 			}
 
 			result := runResult{
@@ -237,6 +252,49 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			assertRunEvents(t, runid, ids, tc.want.events)
 		})
 	}
+}
+
+func doCancelHang(t *testing.T, exec *testCmd) {
+	exec.setpgid()
+	exec.start()
+	assert.NoError(t, pollBufferForMsgs(exec.stdout, "ready"))
+	sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt")
+	sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt", "interrupt")
+
+	// We can't check the last interrupt message since the child process
+	// may be killed by Terramate with SIGKILL before it gets the signal
+	// or it is able to send messages to stdout.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	errs := make(chan error)
+	go func() {
+		errs <- exec.wait()
+		close(errs)
+	}()
+
+outer:
+	for ctx.Err() == nil {
+		t.Log("sending last interrupt signal to terramate")
+		exec.signalGroup(os.Interrupt)
+
+		sendctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		select {
+		case err := <-errs:
+			t.Logf("terramate err: %v", err)
+			t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
+			t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
+			assert.Error(t, err)
+			break outer
+		case <-sendctx.Done():
+			t.Log("terramate still running, re-sending interrupt")
+		}
+	}
+
+	t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
+	t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
 }
 
 func assertRunEvents(t *testing.T, runid string, ids []string, events map[string][]string) {
