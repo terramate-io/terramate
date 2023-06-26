@@ -101,7 +101,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "failed cmd cancels execution of others",
+			name:   "failed cmd cancels execution of subsequent stacks",
 			layout: []string{"s:s1", "s:s2"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
@@ -112,6 +112,21 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				events: eventsResponse{
 					"s1": []string{"pending", "running", "failed"},
 					"s2": []string{"pending", "canceled"},
+				},
+			},
+		},
+		{
+			name:   "failed cmd and continueOnError",
+			layout: []string{"s:s1", "s:s2"},
+			cmd:    []string{"--continue-on-error", "non-existent-command"},
+			want: want{
+				run: runExpected{
+					Status:      1,
+					StderrRegex: "executable file not found",
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "failed"},
+					"s2": []string{"pending", "running", "failed"},
 				},
 			},
 		},
