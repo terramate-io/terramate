@@ -142,7 +142,10 @@ func Exec(
 						cancelStacks(stacks[i+1:])
 						return errs.AsError()
 					}
+				} else {
+					after(stack.Stack, nil)
 				}
+
 				cmdIsRunning = false
 			}
 		}
@@ -153,8 +156,6 @@ func Exec(
 			cancelStacks(stacks[i+1:])
 			return errs.AsError()
 		}
-
-		after(stack.Stack, nil)
 	}
 
 	return errs.AsError()

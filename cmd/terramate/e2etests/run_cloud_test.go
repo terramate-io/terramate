@@ -116,7 +116,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "failed cmd and continueOnError",
+			name:   "both failed stacks and continueOnError",
 			layout: []string{"s:s1", "s:s2"},
 			cmd:    []string{"--continue-on-error", "non-existent-command"},
 			want: want{
@@ -127,6 +127,26 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				events: eventsResponse{
 					"s1": []string{"pending", "running", "failed"},
 					"s2": []string{"pending", "running", "failed"},
+				},
+			},
+		},
+		{
+			name: "failed cmd and continueOnError",
+			layout: []string{
+				"s:s1",
+				"s:s2",
+				"f:s2/test.txt:test",
+			},
+			cmd: []string{"--continue-on-error", testHelperBin, "cat", "test.txt"},
+			want: want{
+				run: runExpected{
+					Status:       1,
+					Stdout:       "test",
+					IgnoreStderr: true,
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "failed"},
+					"s2": []string{"pending", "running", "ok"},
 				},
 			},
 		},
