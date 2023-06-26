@@ -5,10 +5,13 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	stdjson "encoding/json"
 	"fmt"
 	"html"
 	"io"
+	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -19,8 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
@@ -37,6 +42,19 @@ const (
 )
 
 type (
+	googleCredential struct {
+		mu sync.RWMutex
+
+		token        string
+		refreshToken string
+		jwtClaims    jwt.MapClaims
+		expireAt     time.Time
+		email        string
+
+		output out.O
+		clicfg cliconfig.Config
+	}
+
 	createAuthURIResponse struct {
 		Kind       string `json:"kind"`
 		AuthURI    string `json:"authUri"`
@@ -60,15 +78,12 @@ type (
 	}
 
 	cachedCredential struct {
-		DisplayName             string    `json:"display_name"`
-		CachedAt                time.Time `json:"cached_at"`
-		IDToken                 string    `json:"id_token"`
-		IDTokenExpiresInSeconds int       `json:"id_token_expires_in_seconds"`
-		RefreshToken            string    `json:"refresh_token"`
+		IDToken      string `json:"id_token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 )
 
-func login(output out.O, clicfg cliconfig.Config) error {
+func googleLogin(output out.O, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
 		errChan:        make(chan error),
@@ -109,7 +124,7 @@ func login(output out.O, clicfg cliconfig.Config) error {
 		output.MsgStdOutV("Token: %s", cred.IDToken)
 		expire, _ := strconv.Atoi(cred.ExpiresIn)
 		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-		return cacheToken(output, cred, clicfg)
+		return saveCredential(output, cred, clicfg)
 	case err := <-h.errChan:
 		return err
 	}
@@ -144,7 +159,7 @@ func startServer(
 	}
 
 	if retry == maxretry {
-		err = errors.E(err, "failed to find an available open port")
+		err = errors.E(err, "failed to find an available port, please try again")
 		return
 	}
 
@@ -364,21 +379,10 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
 	h.errChan <- err
 }
 
-func cacheToken(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
-	cachedAt := time.Now()
-	cacheFile := filepath.Join(clicfg.UserTerramateDir, credfile)
-
-	expiresIn, err := strconv.Atoi(cred.ExpiresIn)
-	if err != nil {
-		return errors.E("authentication returned an invalid expiration time: %v", err)
-	}
-
+func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
 	cachePayload := cachedCredential{
-		DisplayName:             cred.DisplayName,
-		IDToken:                 cred.IDToken,
-		IDTokenExpiresInSeconds: expiresIn,
-		RefreshToken:            cred.RefreshToken,
-		CachedAt:                cachedAt,
+		IDToken:      cred.IDToken,
+		RefreshToken: cred.RefreshToken,
 	}
 
 	data, err := json.Marshal(&cachePayload)
@@ -386,13 +390,33 @@ func cacheToken(output out.O, cred credentialInfo, clicfg cliconfig.Config) erro
 		return errors.E(err, "failed to JSON marshal the credentials")
 	}
 
-	err = os.WriteFile(cacheFile, data, 0600)
+	credfile := filepath.Join(clicfg.UserTerramateDir, credfile)
+	err = os.WriteFile(credfile, data, 0600)
 	if err != nil {
 		return errors.E(err, "failed to cache credentials")
 	}
 
-	output.MsgStdOutV("credentials cached at %s", cacheFile)
+	output.MsgStdOutV("credentials cached at %s", credfile)
 	return nil
+}
+
+func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bool, error) {
+	credFile := filepath.Join(clicfg.UserTerramateDir, credfile)
+	_, err := os.Lstat(credFile)
+	if err != nil {
+		return cachedCredential{}, false, nil
+	}
+	contents, err := os.ReadFile(credFile)
+	if err != nil {
+		return cachedCredential{}, true, err
+	}
+	var cred cachedCredential
+	err = json.Unmarshal(contents, &cred)
+	if err != nil {
+		return cachedCredential{}, true, err
+	}
+	output.MsgStdOutV("credentials loaded from %s", credFile)
+	return cred, true, nil
 }
 
 func endpointURL(endpoint string) *url.URL {
@@ -405,4 +429,236 @@ func endpointURL(endpoint string) *url.URL {
 	q.Add("key", apiKey)
 	u.RawQuery = q.Encode()
 	return u
+}
+
+func newGoogleCredential(output out.O, clicfg cliconfig.Config) *googleCredential {
+	return &googleCredential{
+		output: output,
+		clicfg: clicfg,
+	}
+}
+
+func (g *googleCredential) Load() (bool, error) {
+	credinfo, found, err := loadCredential(g.output, g.clicfg)
+	if err != nil {
+		return false, err
+	}
+
+	if !found {
+		return false, nil
+	}
+
+	err = g.update(credinfo.IDToken, credinfo.RefreshToken)
+	return true, err
+}
+
+func (g *googleCredential) Name() string {
+	return "Google Social Provider"
+}
+
+func (g *googleCredential) IsExpired() bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return time.Now().After(g.expireAt)
+}
+
+func (g *googleCredential) ExpireAt() time.Time {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.expireAt
+}
+
+func (g *googleCredential) Refresh() (err error) {
+	g.output.MsgStdOutV("refreshing token...")
+
+	defer func() {
+		if err == nil {
+			g.output.MsgStdOutV("token successfully refreshed.")
+		}
+	}()
+
+	const oidcTimeout = 3 // seconds
+	const refreshTokenURL = "https://securetoken.googleapis.com/v1/token"
+
+	type RequestBody struct {
+		GrantType    string `json:"grant_type"`
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), oidcTimeout*time.Second)
+	defer cancel()
+
+	endpoint := endpointURL(refreshTokenURL)
+	reqPayload := RequestBody{
+		GrantType:    "refresh_token",
+		RefreshToken: g.refreshToken,
+	}
+
+	payloadData, err := json.Marshal(reqPayload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint.String(), bytes.NewBuffer(payloadData))
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			g.output.MsgStdErrV("failed to close response body: %v", err)
+		}
+	}()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	type response struct {
+		IDToken      string `json:"id_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    string `json:"expires_in"`
+		TokenType    string `json:"token_type"`
+		UserID       string `json:"user_id"`
+		ProjectID    string `json:"project_id"`
+	}
+
+	var tokresp response
+	err = stdjson.Unmarshal(data, &tokresp)
+	if err != nil {
+		return err
+	}
+
+	err = g.update(tokresp.IDToken, g.refreshToken)
+	if err != nil {
+		return err
+	}
+
+	return saveCredential(g.output, credentialInfo{
+		IDToken:      g.token,
+		RefreshToken: g.refreshToken,
+	}, g.clicfg)
+}
+
+func (g *googleCredential) Claims() jwt.MapClaims {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.jwtClaims
+}
+
+func (g *googleCredential) DisplayClaims() []keyValue {
+	return []keyValue{
+		{
+			key:   "email",
+			value: g.email,
+		},
+	}
+}
+
+func (g *googleCredential) Token() (string, error) {
+	if g.IsExpired() {
+		err := g.Refresh()
+		if err != nil {
+			return "", err
+		}
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.token, nil
+}
+
+// Info display the credential details.
+func (g *googleCredential) Info(cloudcfg cloudConfig) error {
+	client := cloud.Client{
+		BaseURL:    cloudcfg.baseAPI,
+		Credential: g,
+	}
+
+	const apiTimeout = 5 * time.Second
+
+	var (
+		err  error
+		user cloud.User
+		orgs cloud.MemberOrganizations
+	)
+
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		defer cancel()
+		orgs, err = client.MemberOrganizations(ctx)
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		defer cancel()
+		user, err = client.Users(ctx)
+	}()
+
+	if err != nil && !errors.IsKind(err, cloud.ErrNotFound) {
+		return err
+	}
+
+	userErr := err
+
+	cloudcfg.output.MsgStdOut("status: signed in")
+
+	cloudcfg.output.MsgStdOut("provider: %s", g.Name())
+
+	if userErr == nil && user.DisplayName != "" {
+		cloudcfg.output.MsgStdOut("user: %s", user.DisplayName)
+	}
+
+	for _, kv := range g.DisplayClaims() {
+		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+	}
+
+	if len(orgs) > 0 {
+		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	}
+
+	if user.DisplayName == "" {
+		cloudcfg.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramte.io to complete on-boarding.")
+	}
+
+	if len(orgs) == 0 {
+		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	}
+	return nil
+}
+
+func (g *googleCredential) update(idToken, refreshToken string) (err error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.token = idToken
+	g.refreshToken = refreshToken // the server can return a new refresh_token
+	g.jwtClaims, err = tokenClaims(g.token)
+	if err != nil {
+		return err
+	}
+	exp, ok := g.jwtClaims["exp"].(float64)
+	if !ok {
+		return errors.E("cached JWT token has no expiration field")
+	}
+	sec, dec := math.Modf(exp)
+	g.expireAt = time.Unix(int64(sec), int64(dec*(1e9)))
+
+	email, ok := g.jwtClaims["email"].(string)
+	if !ok {
+		return errors.E(`Google JWT token has no "email" field`)
+	}
+	g.email = email
+	return nil
 }

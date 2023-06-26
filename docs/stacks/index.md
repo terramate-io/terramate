@@ -13,29 +13,61 @@ next:
 
 # Stack Configuration
 
-When working with Infrastructure as Code it's considered to be a best practice
-to split up and organize your IaC into several smaller and isolated stacks.
+When working with Infrastructure as Code (IaC), adopting a modular approach is highly recommended. This approach breaks the entire IaC into smaller, isolated **stacks**, enabling code and infrastructure component reuse. 
 
-Typically, each stack comes with its own Terraform state which allows us
-to plan and apply each stack on its own.
+Additionally, it enhances infrastructure management across multiple stacks and facilitates testing and deploying changes in a controlled manner, minimizing unintended consequences.
 
-A Terramate stack is:
+The Terramate stack is a powerful feature that allows you to manage complex deployments.
 
-* A directory inside your project.
-* Has at least one or more Terramate configuration files.
-* One of the configuration files has a `stack {}` block on it.
 
-What separates a stack from any other directory is the `stack{}` block.
-It doesn't require any attributes by default, but it can be used
-to describe stacks and orchestrate their execution.
-
-Stack configurations related to orchestration can be found [here](../orchestration/index.md).
+## What is a Stack?
 
-Besides orchestration the `stack` block also define attributes that are
-used to describe the `stack`.
+A stack is a collection of related resources managed as a single unit. When defining a stack, you specify all included resources, such as networks, virtual machines, and storage. 
 
-Only [Terramate Functions](../functions/index.md) are available when defining
-the `stack` block.
+Terramate Stack simplifies resource creation and management, allowing you to focus on building and deploying the application.
+
+
+## A Terramate stack is:
+
+- A directory inside your project
+- Contains one or more Terramate configuration files
+- Includes a configuration file with a stack{} block
+
+The `stack{}` block distinguishes a stack from other directories in Terramate. By default, it doesn't require any attributes but can be used to describe the stack and orchestrate its execution.
+
+Stack configurations related to orchestration can be found [here](../orchestration/index.md). 
+
+
+## Why use Stacks?
+
+Stacks offer several benefits:
+
+1. Manage multiple resources as one unit, allowing you to build and deploy the entire infrastructure efficiently and quickly with a single command.
+
+2. Easily manage dependencies between resources. For example, you can specify a virtual machine that depends on a virtual network, and Terramate CLI will be used to manage the resource's creation or deletion.
+
+3. Simplify infrastructure management as code. Defining the entire infrastructure using Terraform configuration files makes version control and change management more accessible.
+
+
+## Creating a Stack:
+
+To create a stack using Terramate, follow these steps:
+
+1. Define the included resources in a Terraform configuration file. This file should contain all resources you want to manage as part of the stack.
+
+2. Use the following command to create the resources:
+
+```hcl
+terramate create
+```
+Running this command creates creates the `stack.tm.hcl` file containing the stack block.
+
+
+# Properties
+
+Each stack has a set of properties that can be accessed and used while building your IaC. 
+
+Some of these properties include:
 
 ## stack.id (string)(optional)
 
@@ -45,8 +77,6 @@ whole project.
 
 There is no default value determined for the stack ID.
 
-Eg:
-
 ```hcl
 stack {
   id = "some_id_that_must_be_unique"
@@ -55,10 +85,7 @@ stack {
 
 ## stack.name (string)(optional)
 
-The stack name can be any string and it defaults to the stack directory
-base name.
-
-Eg:
+The stack name can be any string and defaults to the stack directory base name.
 
 ```hcl
 stack {
@@ -68,9 +95,7 @@ stack {
 
 ## stack.description (string)(optional)
 
-The stack description can be any string and it defaults to an empty string.
-
-Eg:
+The stack description can be any string and defaults to an empty string.
 
 ```hcl
 stack {
@@ -100,7 +125,4 @@ See [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
 
 ## stack.before (set(string))(optional)
 
-The `before` defines the list of stacks which this stack must run before.
-It accepts project absolute paths (like `/other/stack`), paths relative to
-the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md).
-See [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
+Defines the list of stacks that this stack must run `before`. It accepts project absolute paths (like `/other/stack`), paths relative to the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md). See  [orchestration docs](../orchestration/index.md#stacks-ordering) for details.

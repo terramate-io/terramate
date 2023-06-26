@@ -42,7 +42,7 @@ coverage/show: coverage
 ## build a test binary -- not static, telemetry sent to localhost, etc
 .PHONY: test/build
 test/build:
-	go build -tags localhostTelemetry -o bin/test-terramate ./cmd/terramate
+	go build -tags localhostEndpoints -o bin/test-terramate ./cmd/terramate
 
 ## start fuzzying to generate some new corpus/find errors on partial eval
 .PHONY: test/fuzz/eval

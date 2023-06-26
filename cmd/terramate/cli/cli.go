@@ -196,7 +196,9 @@ type cliSpec struct {
 
 		Cloud struct {
 			Login struct {
-			} `cmd:"login for cloud.terramate.io"`
+			} `cmd:"" help:"login for cloud.terramate.io"`
+			Info struct {
+			} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -393,7 +395,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		}
 		return &cli{exit: true}
 	case "experimental cloud login":
-		err := login(output, clicfg)
+		err := googleLogin(output, clicfg)
 		if err != nil {
 			fatal(err, "authentication failed")
 		}
@@ -534,6 +536,8 @@ func (c *cli) run() {
 		log.Fatal().Msg("no variable specified")
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
+	case "experimental cloud info":
+		c.cloudInfo()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -1792,14 +1796,6 @@ func (c cli) checkVersion() {
 	); err != nil {
 		fatal(err)
 	}
-}
-
-func userHomeDir() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", errors.E(err, "failed to retrieve the user's home directory")
-	}
-	return homeDir, nil
 }
 
 func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
