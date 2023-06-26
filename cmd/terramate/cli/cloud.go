@@ -24,6 +24,8 @@ import (
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
 const ErrOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 
+const defaultCloudTimeout = 5 * time.Second
+
 type cloudConfig struct {
 	client *cloud.Client
 	output out.O
@@ -136,7 +138,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
 	repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
@@ -208,7 +210,7 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
 
 	logger.Debug().Msg("updating deployment status")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
