@@ -99,7 +99,9 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			cancel: true,
 			want: want{
 				run: runExpected{
-					Status: 3221225794,
+					Status:       1,
+					Stdout:       "ready\ninterrupt\ninterrupt\ninterrupt\n",
+					IgnoreStderr: true,
 				},
 				events: eventsResponse{
 					"stack": []string{"pending", "running", "canceled"},
@@ -166,11 +168,9 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			runid := uuid.String()
 			cli.appendEnv = []string{"GITHUB_RUN_ID=" + runid}
 
-			pidfile := filepath.Join(s.RootDir(), "test.pid")
-
 			cmd := []string{"run", "--cloud-sync-deployment"}
 			if tc.cancel {
-				cmd = append(cmd, testHelperBin, "-pid", pidfile, "hang")
+				cmd = append(cmd, testHelperBin, "hang")
 			} else {
 				if len(tc.cmd) > 0 {
 					cmd = append(cmd, tc.cmd...)
@@ -180,25 +180,52 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			}
 
 			exec := cli.newCmd(cmd...)
-			exec.start()
+
 			if tc.cancel {
-				var totalSpent time.Duration
-				const waitTime = 100 * time.Millisecond
-				for totalSpent < 1*time.Second {
-					_, err := os.ReadFile(pidfile)
-					if err == nil {
-						break
+				exec.setpgid()
+				exec.start()
+				assert.NoError(t, pollBufferForMsgs(exec.stdout, "ready"))
+				sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt")
+				sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt", "interrupt")
+
+				// We can't check the last interrupt message since the child process
+				// may be killed by Terramate with SIGKILL before it gets the signal
+				// or it is able to send messages to stdout.
+				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+				defer cancel()
+
+				errs := make(chan error)
+				go func() {
+					errs <- exec.wait()
+					close(errs)
+				}()
+
+			outer:
+				for ctx.Err() == nil {
+					t.Log("sending last interrupt signal to terramate")
+					exec.signalGroup(os.Interrupt)
+
+					sendctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					defer cancel()
+
+					select {
+					case err := <-errs:
+						t.Logf("terramate err: %v", err)
+						t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
+						t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
+						assert.Error(t, err)
+						break outer
+					case <-sendctx.Done():
+						t.Log("terramate still running, re-sending interrupt")
 					}
-
-					time.Sleep(waitTime)
-					totalSpent += waitTime
 				}
-				exec.signalGroup(os.Interrupt)
-				exec.signalGroup(os.Interrupt)
-				exec.signalGroup(os.Interrupt)
-			}
 
-			_ = exec.wait()
+				t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
+				t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
+			} else {
+				exec.start()
+				_ = exec.wait()
+			}
 
 			result := runResult{
 				Cmd:    strings.Join(cmd, " "),

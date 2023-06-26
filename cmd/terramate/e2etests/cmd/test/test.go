@@ -7,52 +7,29 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 )
 
-var pidfile string
-
-func init() {
-	flag.StringVar(&pidfile, "pid", "", "pid file to be created at program startup")
-}
-
 func main() {
-	flag.Parse()
-	if flag.NArg() < 1 {
-		log.Fatal("test requires at least one argument: <cmd>")
+	if len(os.Args) < 2 {
+		log.Fatal("test requires at least one subcommand argument")
 	}
 
-	if pidfile != "" {
-		err := os.WriteFile(pidfile, []byte(strconv.Itoa(os.Getpid())), 0644)
-		if err == nil {
-			defer func() {
-				err := os.Remove(pidfile)
-				if err != nil {
-					log.Fatalf("removing pid file: %v", err)
-				}
-			}()
-		} else {
-			log.Fatalf("failed to save pid file: %v", err)
-		}
-	}
-
-	switch flag.Arg(0) {
+	switch os.Args[1] {
 	case "hang":
 		hang()
 	case "env":
 		env()
 	case "cat":
-		cat(flag.Arg(1))
+		cat(os.Args[2])
 	case "stack-abs-path":
-		stackAbsPath(flag.Arg(1))
+		stackAbsPath(os.Args[2])
 	default:
-		log.Fatalf("unknown command %s", flag.Arg(0))
+		log.Fatalf("unknown command %s", os.Args[1])
 	}
 }
 

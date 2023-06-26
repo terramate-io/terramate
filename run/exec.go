@@ -121,17 +121,19 @@ func Exec(
 					if err := cmd.Process.Kill(); err != nil {
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
-
-					after(stack.Stack, errors.E(ErrCanceled))
 				}
 			case err := <-results:
 				logger.Trace().Msg("got command result")
 				if err != nil {
+					if interruptions >= 3 {
+						after(stack.Stack, errors.E(ErrCanceled, err))
+					} else {
+						after(stack.Stack, errors.E(ErrFailed, err))
+					}
 					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, stack.Dir()))
 					if !continueOnError {
 						return errs.AsError()
 					}
-					after(stack.Stack, errors.E(ErrFailed, err))
 				}
 				cmdIsRunning = false
 			}
