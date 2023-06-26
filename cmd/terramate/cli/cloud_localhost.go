@@ -5,4 +5,16 @@
 
 package cli
 
+import (
+	"github.com/hashicorp/go-uuid"
+	"os"
+)
+
 const cloudBaseURL = "http://localhost:3001/v1"
+
+func generateRunID() (string, error) {
+	if runid := os.Getenv("TM_TEST_RUN_ID"); runid != "" {
+		return runid, nil
+	}
+	return uuid.GenerateUUID()
+}

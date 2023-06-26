@@ -57,7 +57,7 @@ jobs:
         run: ./bin/terramate experimental cloud info
 
       - name: check cloud sync
-        run: ./bin/terramate run --cloud-sync-deployment -- echo "Hello from Terramate CI"
+        run: ./bin/terramate run --disable-check-git-remote --cloud-sync-deployment -- echo "Hello from Terramate CI"
 
   gh_integration_test:
     name: GHA Integration Test

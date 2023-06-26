@@ -243,7 +243,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			uuid, err := uuid.NewRandom()
 			assert.NoError(t, err)
 			runid := uuid.String()
-			cli.appendEnv = []string{"GITHUB_RUN_ID=" + runid}
+			cli.appendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
 			var exec *testCmd
 			cmd := []string{"run", "--cloud-sync-deployment"}

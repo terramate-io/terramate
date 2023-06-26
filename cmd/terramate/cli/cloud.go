@@ -6,12 +6,10 @@ package cli
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
@@ -86,13 +84,9 @@ func (c *cli) checkSyncDeployment() {
 
 	c.cloud.run.meta2id = make(map[string]int)
 
-	if runid := os.Getenv("GITHUB_RUN_ID"); runid != "" {
-		c.cloud.run.runUUID = runid
-	} else {
-		c.cloud.run.runUUID, err = uuid.GenerateUUID()
-		if err != nil {
-			fatal(err, "generating run uuid")
-		}
+	c.cloud.run.runUUID, err = generateRunID()
+	if err != nil {
+		fatal(err, "generating run uuid")
 	}
 
 	if orgs := c.cloud.credential.organizations(); len(orgs) == 1 {
