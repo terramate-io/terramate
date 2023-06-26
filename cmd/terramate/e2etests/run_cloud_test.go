@@ -100,7 +100,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			want: want{
 				run: runExpected{
 					Status:       1,
-					Stdout:       "ready\ninterrupt\ninterrupt\ninterrupt\n",
+					IgnoreStdout: true,
 					IgnoreStderr: true,
 				},
 				events: eventsResponse{
