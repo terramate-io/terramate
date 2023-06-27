@@ -42,6 +42,9 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v2
 
+      - name: check env
+        run: env
+
       - name: setup go
         uses: actions/setup-go@v3
         with:
