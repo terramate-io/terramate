@@ -142,6 +142,14 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 	// TODO(i4k): convert repoURL to Go-style module name (eg.: github.com/org/reponame)
 
+	commitSHA := c.prj.git.headCommit
+	if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
+		len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
+		commitSHA = ""
+
+		logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
+	}
+
 	var payload cloud.DeploymentStacksPayloadRequest
 	for _, s := range stacks {
 		tags := s.Tags
@@ -155,7 +163,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaTags:        tags,
 			Repository:      repoURL,
 			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
-			CommitSHA:       c.prj.git.headCommit,
+			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
 		})
 	}
