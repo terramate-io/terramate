@@ -16,6 +16,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config/filter"
@@ -123,6 +124,7 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
+		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
 		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
 		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
@@ -239,6 +241,7 @@ type cli struct {
 	output     out.O
 	exit       bool
 	prj        project
+	cloud      cloudConfig
 
 	checkpointResults chan *checkpoint.CheckResponse
 
@@ -1620,6 +1623,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	c.checkOutdatedGeneratedCode()
+	c.checkSyncDeployment()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
@@ -1641,6 +1645,8 @@ func (c *cli) runOnStacks() {
 			fatal(err, "computing selected stacks")
 		}
 	}
+
+	c.createCloudDeployment(stacks, c.parsedArgs.Run.Command)
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
@@ -1675,6 +1681,32 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
+	beforeHook := func(s *config.Stack, cmd string) {
+		if !c.parsedArgs.Run.CloudSyncDeployment {
+			return
+		}
+		c.syncCloudDeployment(s, cloud.Running)
+	}
+
+	afterHook := func(s *config.Stack, err error) {
+		if !c.parsedArgs.Run.CloudSyncDeployment {
+			return
+		}
+		var status cloud.Status
+		switch {
+		case err == nil:
+			status = cloud.OK
+		case errors.IsKind(err, run.ErrCanceled):
+			status = cloud.Canceled
+		case errors.IsKind(err, run.ErrFailed):
+			status = cloud.Failed
+		default:
+			panic(errors.E(errors.ErrInternal, "unexpected run status"))
+		}
+
+		c.syncCloudDeployment(s, status)
+	}
+
 	err = run.Exec(
 		c.cfg(),
 		orderedStacks,
@@ -1683,6 +1715,8 @@ func (c *cli) runOnStacks() {
 		c.stdout,
 		c.stderr,
 		c.parsedArgs.Run.ContinueOnError,
+		beforeHook,
+		afterHook,
 	)
 
 	if err != nil {
@@ -1694,6 +1728,7 @@ func (c *cli) wd() string           { return c.prj.wd }
 func (c *cli) rootdir() string      { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root    { return &c.prj.root }
 func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
+func (c *cli) cred() credential     { return c.cloud.credential }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)

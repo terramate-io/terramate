@@ -5,6 +5,13 @@
 
 package cli
 
-import "github.com/terramate-io/terramate/cloud"
+import (
+	"github.com/hashicorp/go-uuid"
+	"github.com/terramate-io/terramate/cloud"
+)
 
 const cloudBaseURL = cloud.BaseURL
+
+func generateRunID() (string, error) {
+	return uuid.GenerateUUID()
+}

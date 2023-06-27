@@ -16,6 +16,13 @@ import (
 	"github.com/terramate-io/terramate/project"
 )
 
+const (
+	// ErrFailed represents the error when the execution fails, whatever the reason.
+	ErrFailed errors.Kind = "execution failed"
+	// ErrCanceled represents the error when the execution was canceled.
+	ErrCanceled errors.Kind = "execution canceled"
+)
+
 // Exec will execute the given command on the given stack list
 // During the execution of this function the default behavior
 // for signal handling will be changed so we can wait for the child
@@ -33,6 +40,8 @@ func Exec(
 	stdout io.Writer,
 	stderr io.Writer,
 	continueOnError bool,
+	before func(s *config.Stack, cmd string),
+	after func(s *config.Stack, err error),
 ) error {
 	logger := log.With().
 		Str("action", "run.Exec()").
@@ -64,9 +73,15 @@ func Exec(
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
 
+	cancelStacks := func(stacks config.List[*config.SortableStack]) {
+		for _, stack := range stacks {
+			after(stack.Stack, errors.E(ErrCanceled))
+		}
+	}
+
 	results := startCmdRunner(cmds)
 
-	for _, stack := range stacks {
+	for i, stack := range stacks {
 		logger := log.With().
 			Str("cmd", strings.Join(cmd, " ")).
 			Stringer("stack", stack).
@@ -81,11 +96,15 @@ func Exec(
 
 		logger.Info().Msg("running")
 
+		before(stack.Stack, cmd.String())
+
 		if err := cmd.Start(); err != nil {
+			after(stack.Stack, errors.E(err, ErrFailed))
 			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if continueOnError {
 				continue
 			}
+			cancelStacks(stacks[i+1:])
 			return errs.AsError()
 		}
 
@@ -113,17 +132,28 @@ func Exec(
 			case err := <-results:
 				logger.Trace().Msg("got command result")
 				if err != nil {
+					if interruptions >= 3 {
+						after(stack.Stack, errors.E(ErrCanceled, err))
+					} else {
+						after(stack.Stack, errors.E(ErrFailed, err))
+					}
 					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, stack.Dir()))
 					if !continueOnError {
+						cancelStacks(stacks[i+1:])
 						return errs.AsError()
 					}
+				} else {
+					after(stack.Stack, nil)
 				}
+
 				cmdIsRunning = false
 			}
 		}
 
 		if interruptions > 0 {
 			logger.Info().Msg("interrupting execution of further stacks")
+
+			cancelStacks(stacks[i+1:])
 			return errs.AsError()
 		}
 	}

@@ -2307,6 +2307,13 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	)
 	gotenv := strings.Split(strings.Trim(res.Stdout, "\n"), "\n")
 
+	// remove the custom cli config file.
+	for i, e := range gotenv {
+		if strings.HasPrefix(e, "TM_CLI_CONFIG_FILE=") {
+			gotenv = append(gotenv[:i], gotenv[i+1:]...)
+		}
+	}
+
 	sort.Strings(gotenv)
 	sort.Strings(wantenv)
 
