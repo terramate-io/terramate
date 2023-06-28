@@ -48,7 +48,7 @@ func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) 
 		return nil, errors.E("expects a valid Github repository of format <owner>/<name>")
 	}
 
-	url := fmt.Sprintf("/repos/%s/commits/%s/pulls", repository, commit)
+	url := fmt.Sprintf("%s/repos/%s/commits/%s/pulls", c.baseURL(), repository, commit)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, errors.E(err, "creating pulls request")
@@ -113,6 +113,13 @@ func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err
 	}
 
 	return tokresp.Value, nil
+}
+
+func (c *Client) baseURL() string {
+	if c.BaseURL == "" {
+		c.BaseURL = "api.github.com"
+	}
+	return c.BaseURL
 }
 
 func (c *Client) httpClient() *http.Client {
