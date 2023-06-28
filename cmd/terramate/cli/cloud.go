@@ -23,7 +23,10 @@ import (
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
 const ErrOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 
-const defaultCloudTimeout = 5 * time.Second
+const (
+	defaultCloudTimeout  = 5 * time.Second
+	defaultGithubTimeout = defaultCloudTimeout
+)
 
 type cloudConfig struct {
 	client *cloud.Client
