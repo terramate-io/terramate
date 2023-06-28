@@ -5,7 +5,6 @@ package cli
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -109,7 +109,7 @@ func (c *cli) setupSyncDeployment() error {
 	c.cloud = cloudConfig{
 		client: &cloud.Client{
 			BaseURL:    cloudBaseURL,
-			HTTPClient: &http.Client{},
+			HTTPClient: &c.httpClient,
 			Credential: cred,
 		},
 		output:     c.output,
@@ -140,9 +140,10 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	defer cancel()
 
 	var (
-		err       error
-		repoURL   string
-		commitSHA string
+		err            error
+		repoURL        string
+		commitSHA      string
+		pullRequestURL string
 	)
 
 	if c.prj.isRepo {
@@ -167,6 +168,35 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
 		}
+
+		repository := os.Getenv("GITHUB_REPOSITORY")
+		ghToken := os.Getenv("GITHUB_TOKEN")
+
+		if repository != "" && ghToken != "" {
+			ghClient := github.Client{
+				BaseURL:    os.Getenv("GITHUB_API_URL"),
+				HTTPClient: &c.httpClient,
+				Token:      ghToken,
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+			defer cancel()
+			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.git.headCommit)
+			if err == nil {
+				if len(pulls) > 0 {
+					pullRequestURL = pulls[0].URL
+				} else {
+					logger.Debug().
+						Str("head-commit", c.prj.git.headCommit).
+						Msg("no pull request associated with HEAD commit")
+				}
+			} else {
+				logger.Error().
+					Str("head-commit", c.prj.git.headCommit).
+					Err(err).
+					Msg("failed to retrieve pull requests associated with HEAD")
+			}
+		}
 	}
 
 	// TODO(i4k): convert repoURL to Go-style module name (eg.: github.com/org/reponame)
@@ -186,6 +216,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
 			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
+			RequestURL:      pullRequestURL,
 		})
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)

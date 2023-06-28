@@ -6,6 +6,7 @@ package cli
 import (
 	stdfmt "fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -241,6 +242,7 @@ type cli struct {
 	output     out.O
 	exit       bool
 	prj        project
+	httpClient http.Client
 	cloud      cloudConfig
 
 	checkpointResults chan *checkpoint.CheckResponse
@@ -458,15 +460,20 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	return &cli{
-		version:           version,
-		stdin:             stdin,
-		stdout:            stdout,
-		stderr:            stderr,
-		output:            output,
-		parsedArgs:        &parsedArgs,
-		clicfg:            clicfg,
-		ctx:               ctx,
-		prj:               prj,
+		version:    version,
+		stdin:      stdin,
+		stdout:     stdout,
+		stderr:     stderr,
+		output:     output,
+		parsedArgs: &parsedArgs,
+		clicfg:     clicfg,
+		ctx:        ctx,
+		prj:        prj,
+
+		// in order to reduce the number of TCP/SSL handshakes we reuse the same
+		// http.Client in all requests, for most hosts.
+		// The transport can be tuned here, if needed.
+		httpClient:        http.Client{},
 		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
 	}
 }
