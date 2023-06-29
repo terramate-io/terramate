@@ -18,7 +18,6 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	prj "github.com/terramate-io/terramate/project"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -240,7 +239,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaDescription: s.Description,
 			MetaTags:        tags,
 			Repository:      repoURL,
-			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
+			Path:            s.Dir().String(),
 			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
 			RequestURL:      pullRequestURL,
