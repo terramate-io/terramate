@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -145,6 +146,15 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		repoURL, err = c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err != nil {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
+		}
+
+		// in the case the remote is a local bare repo, it can be an absolute or
+		// a relative path, but relative paths can be ambiguous with remote URLs,
+		// then an fs stat is needed here.
+		_, err := os.Lstat(repoURL)
+		if err == nil {
+			// path exists, then likely a local path.
+			repoURL = "local"
 		}
 
 		commitSHA = c.prj.git.headCommit
