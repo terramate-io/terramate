@@ -183,8 +183,19 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			defer cancel()
 			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.git.headCommit)
 			if err == nil {
+				for _, pull := range pulls {
+					logger.Debug().
+						Str("associated-pull-url", pull.URL).
+						Msg("found pull request")
+				}
+
 				if len(pulls) > 0 {
 					pullRequestURL = pulls[0].URL
+
+					logger.Debug().
+						Str("pull-url", pullRequestURL).
+						Msg("using pull request url")
+
 				} else {
 					logger.Debug().
 						Str("head-commit", c.prj.git.headCommit).

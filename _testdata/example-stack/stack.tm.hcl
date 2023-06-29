@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: MPL-2.0
 
 stack {
-    id = "test"
+    id = "terramate-example-stack"
 }
