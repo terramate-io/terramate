@@ -30,7 +30,7 @@ type (
 
 // OIDCToken requests a new OIDC token.
 func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", cfg.ReqToken, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", cfg.ReqURL, nil)
 	if err != nil {
 		return "", errors.E(err, "creating Github OIDC request")
 	}
