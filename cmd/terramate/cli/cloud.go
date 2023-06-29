@@ -135,9 +135,25 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
-	if err != nil {
-		logger.Warn().Err(err).Msg("failed to retrieve repository URL")
+	var (
+		err       error
+		repoURL   string
+		commitSHA string
+	)
+
+	if c.prj.isRepo {
+		repoURL, err = c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
+		}
+
+		commitSHA = c.prj.git.headCommit
+		if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
+			len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
+			commitSHA = ""
+
+			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
+		}
 	}
 
 	// TODO(i4k): convert repoURL to Go-style module name (eg.: github.com/org/reponame)
@@ -155,7 +171,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaTags:        tags,
 			Repository:      repoURL,
 			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
-			CommitSHA:       c.prj.git.headCommit,
+			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
 		})
 	}

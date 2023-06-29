@@ -859,15 +859,15 @@ func debugFiles(files []string, msg string) {
 	}
 }
 
-func (c *cli) gitFileSafeguards(checks stack.RepoChecks, shouldAbort bool) {
+func (c *cli) gitFileSafeguards(shouldAbort bool) {
 	if c.parsedArgs.Run.DryRun {
 		return
 	}
 
-	debugFiles(checks.UntrackedFiles, "untracked file")
-	debugFiles(checks.UncommittedFiles, "uncommitted file")
+	debugFiles(c.prj.git.repoChecks.UntrackedFiles, "untracked file")
+	debugFiles(c.prj.git.repoChecks.UncommittedFiles, "uncommitted file")
 
-	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
+	if c.checkGitUntracked() && len(c.prj.git.repoChecks.UntrackedFiles) > 0 {
 		const msg = "repository has untracked files"
 		if shouldAbort {
 			log.Fatal().Msg(msg)
@@ -876,7 +876,7 @@ func (c *cli) gitFileSafeguards(checks stack.RepoChecks, shouldAbort bool) {
 		}
 	}
 
-	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
+	if c.checkGitUncommited() && len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
 		const msg = "repository has uncommitted files"
 		if shouldAbort {
 			log.Fatal().Msg(msg)
@@ -1066,7 +1066,8 @@ func (c *cli) printStacks() {
 		fatal(err, "listing stacks")
 	}
 
-	c.gitFileSafeguards(report.Checks, false)
+	c.prj.git.repoChecks = report.Checks
+	c.gitFileSafeguards(false)
 
 	for _, entry := range c.filterStacks(report.Stacks) {
 		stack := entry.Stack
@@ -1751,7 +1752,8 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 		return nil, err
 	}
 
-	c.gitFileSafeguards(report.Checks, ensureCleanRepo)
+	c.prj.git.repoChecks = report.Checks
+	c.gitFileSafeguards(ensureCleanRepo)
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 
