@@ -161,7 +161,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			repoURL = "local"
 		}
 
-		commitSHA = c.prj.git.headCommit
+		commitSHA = c.prj.headCommit()
 		if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
 			len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
 			commitSHA = ""
@@ -181,7 +181,8 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 			defer cancel()
-			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.git.headCommit)
+
+			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.headCommit())
 			if err == nil {
 				for _, pull := range pulls {
 					logger.Debug().
@@ -198,12 +199,12 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 				} else {
 					logger.Debug().
-						Str("head-commit", c.prj.git.headCommit).
+						Str("head-commit", c.prj.headCommit()).
 						Msg("no pull request associated with HEAD commit")
 				}
 			} else {
 				logger.Error().
-					Str("head-commit", c.prj.git.headCommit).
+					Str("head-commit", c.prj.headCommit()).
 					Err(err).
 					Msg("failed to retrieve pull requests associated with HEAD")
 			}
