@@ -58,6 +58,8 @@ jobs:
 
       - name: check cloud sync
         run: ./bin/terramate run --log-level=debug --disable-check-git-remote --cloud-sync-deployment -- echo "Hello from Terramate CI"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   gh_integration_test:
     name: GHA Integration Test
