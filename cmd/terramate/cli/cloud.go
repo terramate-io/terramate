@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -143,6 +144,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		err            error
 		repoURL        string
 		commitSHA      string
+		deploymentURL  string
 		pullRequestURL string
 	)
 
@@ -209,6 +211,21 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 					Msg("failed to retrieve pull requests associated with HEAD")
 			}
 		}
+
+		ghRunID := os.Getenv("GITHUB_RUN_ID")
+		ghRunAttempt := os.Getenv("GITHUB_RUN_ATTEMPT")
+		if ghRunID != "" && ghRunAttempt != "" && repository != "" {
+			deploymentURL = fmt.Sprintf(
+				"https://github.com/%s/actions/runs/%s/jobs/%s",
+				repository,
+				ghRunID,
+				ghRunAttempt,
+			)
+
+			logger.Debug().
+				Str("deployment_url", deploymentURL).
+				Msg("detected deployment url")
+		}
 	}
 
 	// TODO(i4k): convert repoURL to Go-style module name (eg.: github.com/org/reponame)
@@ -229,6 +246,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
 			RequestURL:      pullRequestURL,
+			DeploymentURL:   deploymentURL,
 		})
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
