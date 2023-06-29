@@ -71,6 +71,10 @@ func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) 
 		return nil, errors.E(err, "reading response body")
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.E("unexpected status code: %s", resp.Status)
+	}
+
 	err = json.Unmarshal(data, &pulls)
 	if err != nil {
 		return nil, errors.E(err, "unmarshaling pull list")
