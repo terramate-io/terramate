@@ -18,7 +18,6 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	prj "github.com/terramate-io/terramate/project"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -150,17 +149,10 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 	if c.prj.isRepo {
 		repoURL, err = c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
-		if err != nil {
-			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
-		}
-
-		// in the case the remote is a local bare repo, it can be an absolute or
-		// a relative path, but relative paths can be ambiguous with remote URLs,
-		// then an fs stat is needed here.
-		_, err := os.Lstat(repoURL)
 		if err == nil {
-			// path exists, then likely a local path.
-			repoURL = "local"
+			repoURL = cloud.NormalizeGitURI(repoURL)
+		} else {
+			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
 
 		commitSHA = c.prj.headCommit()
@@ -240,7 +232,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaDescription: s.Description,
 			MetaTags:        tags,
 			Repository:      repoURL,
-			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
+			Path:            s.Dir().String(),
 			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
 			RequestURL:      pullRequestURL,
