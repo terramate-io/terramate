@@ -87,7 +87,7 @@ func (c *cli) checkSyncDeployment() {
 		for _, org := range orgs {
 			if org.Name == useOrgName {
 				if org.Status != "active" {
-					fatal(errors.E("selected organization %s is not active", useOrgName))
+					fatal(errors.E("You are not yet an active member of organization %s. Please accept the invitation first.", useOrgName))
 				}
 
 				useOrgUUID = org.UUID
