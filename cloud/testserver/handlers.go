@@ -26,7 +26,8 @@ func (orgHandler *organizationHandler) ServeHTTP(w http.ResponseWriter, _ *http.
 		{
 			"org_name": "terramate-io",
 			"org_display_name": "Terramate",
-			"org_uuid": "%s"
+			"org_uuid": "%s",
+			"status": "active"
 		}
 	]`, DefaultOrgUUID),
 	))
