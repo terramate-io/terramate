@@ -86,6 +86,10 @@ func (c *cli) checkSyncDeployment() {
 		var useOrgUUID string
 		for _, org := range orgs {
 			if org.Name == useOrgName {
+				if org.Status != "active" {
+					fatal(errors.E("selected organization %s is not active", useOrgName))
+				}
+
 				useOrgUUID = org.UUID
 				break
 			}
@@ -106,7 +110,11 @@ func (c *cli) checkSyncDeployment() {
 				"but %d found: %s", len(orgs), orgs),
 		)
 	} else {
-		c.cloud.run.orgUUID = orgs[0].UUID
+		org := orgs[0]
+		if org.Status != "active" {
+			fatal(errors.E("selected organization %s is not active", org.Name))
+		}
+		c.cloud.run.orgUUID = org.UUID
 	}
 
 	c.cloud.run.meta2id = make(map[string]int)
