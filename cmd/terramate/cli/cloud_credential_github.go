@@ -5,10 +5,7 @@ package cli
 
 import (
 	"context"
-	stdjson "encoding/json"
-	"io"
 	"math"
-	"net/http"
 	"net/url"
 	"os"
 	"sync"
@@ -16,6 +13,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -90,48 +88,23 @@ func (g *githubOIDC) ExpireAt() time.Time {
 }
 
 func (g *githubOIDC) Refresh() error {
-	const oidcTimeout = 3 // seconds
-	ctx, cancel := context.WithTimeout(context.Background(), oidcTimeout*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", g.reqURL, nil)
+
+	client := github.Client{}
+	token, err := client.OIDCToken(ctx, github.OIDCVars{
+		ReqURL:   g.reqURL,
+		ReqToken: g.reqToken,
+	})
+
 	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+g.reqToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		err := resp.Body.Close()
-		if err != nil {
-			g.output.MsgStdErrV("failed to close response body: %v", err)
-		}
-	}()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	type response struct {
-		Value string `json:"value"`
-	}
-
-	var tokresp response
-	err = stdjson.Unmarshal(data, &tokresp)
-	if err != nil {
-		return err
+		return errors.E(err, "requesting new Github OIDC token")
 	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	g.token = tokresp.Value
+	g.token = token
 	g.jwtClaims, err = tokenClaims(g.token)
 	if err != nil {
 		return err
