@@ -78,12 +78,35 @@ func (c *cli) checkSyncDeployment() {
 		fatal(err)
 	}
 
-	if orgs := c.cred().organizations(); len(orgs) != 1 {
+	// at this point we know user is onboarded, ie has at least 1 organization.
+	orgs := c.cred().organizations()
+
+	useOrgName := os.Getenv("TM_CLOUD_ORGANIZATION")
+	if useOrgName != "" {
+		var useOrgUUID string
+		for _, org := range orgs {
+			if org.Name == useOrgName {
+				useOrgUUID = org.UUID
+				break
+			}
+		}
+
+		if useOrgUUID == "" {
+			fatal(errors.E("organization %q is not in the set of user's organizations: %s",
+				useOrgName,
+				orgs,
+			))
+		}
+
+		c.cloud.run.orgUUID = useOrgUUID
+	} else if len(orgs) != 1 {
 		fatal(
 			errors.E("requires 1 organization associated with the credential but %d found: %s",
 				len(orgs),
 				orgs),
 		)
+	} else {
+		c.cloud.run.orgUUID = orgs[0].UUID
 	}
 
 	c.cloud.run.meta2id = make(map[string]int)
@@ -91,12 +114,6 @@ func (c *cli) checkSyncDeployment() {
 	c.cloud.run.runUUID, err = generateRunID()
 	if err != nil {
 		fatal(err, "generating run uuid")
-	}
-
-	if orgs := c.cloud.credential.organizations(); len(orgs) == 1 {
-		c.cloud.run.orgUUID = orgs[0].UUID
-	} else {
-		fatal(errors.E("expects user associated with a single organization but %d found", len(orgs)))
 	}
 }
 
