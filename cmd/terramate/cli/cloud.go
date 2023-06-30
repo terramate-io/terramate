@@ -188,7 +188,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			if err == nil {
 				for _, pull := range pulls {
 					logger.Debug().
-						Str("associated-pull-url", pull.URL).
+						Str("associated-pull-url", pull.HTMLURL).
 						Msg("found pull request")
 				}
 
