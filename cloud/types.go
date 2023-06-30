@@ -85,7 +85,7 @@ type (
 
 	// DeploymentStacksPayloadRequest is the request payload for the creation of stack deployments.
 	DeploymentStacksPayloadRequest struct {
-		ReviewRequest DeploymentReviewRequest
+		ReviewRequest DeploymentReviewRequest `json:"review_request"`
 		Stacks        DeploymentStackRequests `json:"stacks"`
 	}
 
