@@ -1,3 +1,6 @@
+// Copyright 2023 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 package cloud
 
 import (
@@ -6,6 +9,8 @@ import (
 	"strings"
 )
 
+// NormalizeGitURI normalizes the raw uri in a Terramate Cloud
+// compatible form.
 func NormalizeGitURI(raw string) string {
 	// in the case the remote is a local bare repo, it can be an absolute or
 	// a relative path, but relative paths can be ambiguous with remote URLs,
