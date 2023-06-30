@@ -85,7 +85,17 @@ type (
 
 	// DeploymentStacksPayloadRequest is the request payload for the creation of stack deployments.
 	DeploymentStacksPayloadRequest struct {
-		Stacks DeploymentStackRequests `json:"stacks"`
+		ReviewRequest DeploymentReviewRequest
+		Stacks        DeploymentStackRequests `json:"stacks"`
+	}
+
+	DeploymentReviewRequest struct {
+		Repository               string `json:"repository"`
+		CommitSHA                string `json:"commit_sha"`
+		ReviewRequestNumber      int    `json:"review_request_number"`
+		ReviewRequestTitle       string `json:"review_request_title"`
+		ReviewRequestDescription string `json:"review_request_description"`
+		ReviewRequestURL         string `json:"review_request_url"`
 	}
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
@@ -113,6 +123,7 @@ var (
 	_ = Resource(DeploymentStacksResponse{})
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
+	_ = Resource(DeploymentReviewRequest{})
 	_ = Resource(empty(""))
 )
 
@@ -188,11 +199,25 @@ func (d DeploymentStackRequest) Validate() error {
 func (d DeploymentStackRequests) Validate() error { return validateResourceList(d...) }
 
 // Validate the deployment stack payload.
-func (d DeploymentStacksPayloadRequest) Validate() error { return validateResourceList(d.Stacks) }
+func (d DeploymentStacksPayloadRequest) Validate() error {
+	if err := d.ReviewRequest.Validate(); err != nil {
+		return err
+	}
+
+	return validateResourceList(d.Stacks)
+}
 
 // Validate the deployment stack response.
 func (d DeploymentStackResponse) Validate() error {
 	return d.Status.Validate()
+}
+
+// Validate the DeploymentReviewRequest object.
+func (rr DeploymentReviewRequest) Validate() error {
+	if rr.Repository == "" {
+		return errors.E(`missing "repository" field`)
+	}
+	return nil
 }
 
 // Validate the UpdateDeploymentStack object.

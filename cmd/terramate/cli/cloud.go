@@ -165,17 +165,16 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	defer cancel()
 
 	var (
-		err            error
-		repoURL        string
-		commitSHA      string
-		deploymentURL  string
-		pullRequestURL string
+		err           error
+		commitSHA     string
+		deploymentURL string
+		reviewRequest cloud.DeploymentReviewRequest
 	)
 
 	if c.prj.isRepo {
-		repoURL, err = c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
+		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err == nil {
-			repoURL = cloud.NormalizeGitURI(repoURL)
+			reviewRequest.Repository = cloud.NormalizeGitURI(repoURL)
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
@@ -210,10 +209,15 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 				}
 
 				if len(pulls) > 0 {
-					pullRequestURL = pulls[0].HTMLURL
+					pull := pulls[0]
+					reviewRequest.ReviewRequestURL = pull.HTMLURL
+					reviewRequest.ReviewRequestNumber = pull.Number
+					reviewRequest.ReviewRequestTitle = pull.Title
+					reviewRequest.ReviewRequestDescription = pull.Body
+					reviewRequest.CommitSHA = commitSHA
 
 					logger.Debug().
-						Str("pull-url", pullRequestURL).
+						Str("pull-url", reviewRequest.ReviewRequestURL).
 						Msg("using pull request url")
 
 				} else {
@@ -243,9 +247,10 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		}
 	}
 
-	// TODO(i4k): convert repoURL to Go-style module name (eg.: github.com/org/reponame)
+	payload := cloud.DeploymentStacksPayloadRequest{
+		ReviewRequest: reviewRequest,
+	}
 
-	var payload cloud.DeploymentStacksPayloadRequest
 	for _, s := range stacks {
 		tags := s.Tags
 		if tags == nil {
@@ -256,11 +261,11 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaName:        s.Name,
 			MetaDescription: s.Description,
 			MetaTags:        tags,
-			Repository:      repoURL,
+			Repository:      reviewRequest.Repository,
 			Path:            s.Dir().String(),
 			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
-			RequestURL:      pullRequestURL,
+			RequestURL:      reviewRequest.ReviewRequestURL,
 			DeploymentURL:   deploymentURL,
 		})
 	}
