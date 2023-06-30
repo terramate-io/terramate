@@ -5,7 +5,7 @@ package cli
 
 import (
 	"context"
-	"net/http"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -14,10 +14,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	prj "github.com/terramate-io/terramate/project"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -109,7 +109,7 @@ func (c *cli) setupSyncDeployment() error {
 	c.cloud = cloudConfig{
 		client: &cloud.Client{
 			BaseURL:    cloudBaseURL,
-			HTTPClient: &http.Client{},
+			HTTPClient: &c.httpClient,
 			Credential: cred,
 		},
 		output:     c.output,
@@ -140,32 +140,81 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	defer cancel()
 
 	var (
-		err       error
-		repoURL   string
-		commitSHA string
+		err            error
+		repoURL        string
+		commitSHA      string
+		deploymentURL  string
+		pullRequestURL string
 	)
 
 	if c.prj.isRepo {
 		repoURL, err = c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
-		if err != nil {
+		if err == nil {
+			repoURL = cloud.NormalizeGitURI(repoURL)
+		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
 
-		// in the case the remote is a local bare repo, it can be an absolute or
-		// a relative path, but relative paths can be ambiguous with remote URLs,
-		// then an fs stat is needed here.
-		_, err := os.Lstat(repoURL)
-		if err == nil {
-			// path exists, then likely a local path.
-			repoURL = "local"
-		}
-
-		commitSHA = c.prj.git.headCommit
+		commitSHA = c.prj.headCommit()
 		if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
 			len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
 			commitSHA = ""
 
 			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
+		}
+
+		repository := os.Getenv("GITHUB_REPOSITORY")
+		ghToken := os.Getenv("GITHUB_TOKEN")
+
+		if repository != "" && ghToken != "" {
+			ghClient := github.Client{
+				BaseURL:    os.Getenv("GITHUB_API_URL"),
+				HTTPClient: &c.httpClient,
+				Token:      ghToken,
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+			defer cancel()
+
+			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.headCommit())
+			if err == nil {
+				for _, pull := range pulls {
+					logger.Debug().
+						Str("associated-pull-url", pull.URL).
+						Msg("found pull request")
+				}
+
+				if len(pulls) > 0 {
+					pullRequestURL = pulls[0].URL
+
+					logger.Debug().
+						Str("pull-url", pullRequestURL).
+						Msg("using pull request url")
+
+				} else {
+					logger.Debug().
+						Str("head-commit", c.prj.headCommit()).
+						Msg("no pull request associated with HEAD commit")
+				}
+			} else {
+				logger.Error().
+					Str("head-commit", c.prj.headCommit()).
+					Err(err).
+					Msg("failed to retrieve pull requests associated with HEAD")
+			}
+		}
+
+		ghRunID := os.Getenv("GITHUB_RUN_ID")
+		if ghRunID != "" && repository != "" {
+			deploymentURL = fmt.Sprintf(
+				"https://github.com/%s/actions/runs/%s",
+				repository,
+				ghRunID,
+			)
+
+			logger.Debug().
+				Str("deployment_url", deploymentURL).
+				Msg("detected deployment url")
 		}
 	}
 
@@ -183,9 +232,11 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaDescription: s.Description,
 			MetaTags:        tags,
 			Repository:      repoURL,
-			Path:            prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
+			Path:            s.Dir().String(),
 			CommitSHA:       commitSHA,
 			Command:         strings.Join(command, " "),
+			RequestURL:      pullRequestURL,
+			DeploymentURL:   deploymentURL,
 		})
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
