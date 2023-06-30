@@ -193,7 +193,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 				}
 
 				if len(pulls) > 0 {
-					pullRequestURL = pulls[0].URL
+					pullRequestURL = pulls[0].HTMLURL
 
 					logger.Debug().
 						Str("pull-url", pullRequestURL).
