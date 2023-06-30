@@ -96,7 +96,7 @@ func (c *cli) checkSyncDeployment() {
 		}
 
 		if useOrgUUID == "" {
-			fatal(errors.E("organization %q is not in the set of user's organizations: %s",
+			fatal(errors.E("You are not a member of organization %q or the organization does not exist. Available organizations: %s",
 				useOrgName,
 				orgs,
 			))
