@@ -9,6 +9,7 @@ type (
 	// Pull represents a pull request object.
 	Pull struct {
 		URL       string    `json:"url"`
+		HTMLURL   string    `json:"html_url"`
 		Number    int       `json:"number"`
 		State     string    `json:"state"`
 		CreatedAt time.Time `json:"created_at"`
