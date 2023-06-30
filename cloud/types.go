@@ -89,6 +89,7 @@ type (
 		Stacks        DeploymentStackRequests `json:"stacks"`
 	}
 
+	// DeploymentReviewRequest is the review_request object.
 	DeploymentReviewRequest struct {
 		Repository               string `json:"repository"`
 		CommitSHA                string `json:"commit_sha"`
