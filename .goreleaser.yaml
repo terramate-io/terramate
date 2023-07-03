@@ -48,6 +48,9 @@ changelog:
       - '^refactor:'
       - '^chore:'
 
+release:
+  prerelease: auto
+
 announce:
   twitter:
     enabled: false
