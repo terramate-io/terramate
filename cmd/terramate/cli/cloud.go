@@ -105,7 +105,7 @@ func (c *cli) checkSyncDeployment() {
 		c.cloud.run.orgUUID = useOrgUUID
 	} else if len(orgs) != 1 {
 		fatal(
-			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization %s", orgs),
+			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization: %s", orgs),
 		)
 	} else {
 		org := orgs[0]
