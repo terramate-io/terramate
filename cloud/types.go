@@ -129,7 +129,7 @@ func (orgs MemberOrganizations) String() string {
 		write("none")
 	} else {
 		for i, org := range orgs {
-			write(org.DisplayName)
+			write(org.Name)
 			if i+1 < len(orgs) {
 				write(", ")
 			}
