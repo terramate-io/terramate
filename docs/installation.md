@@ -3,12 +3,12 @@ title: Installation | Terramate
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
-  text: 'About Stacks'
-  link: '/about-stacks'
+  text: "About Stacks"
+  link: "/about-stacks"
 
 next:
-  text: 'Getting Started'
-  link: '/getting-started'
+  text: "Getting Started"
+  link: "/getting-started"
 ---
 
 # Installation
@@ -66,7 +66,7 @@ To install Terramate using a release binary, follow these steps:
 ## Using Docker
 
 If you prefer not to install Terramate directly on your host system,
-you can use either [Docker](<https://www.docker.com/>) or [Podman](https://podman.io/) to run Terramate within a container.
+you can use either [Docker](https://www.docker.com/) or [Podman](https://podman.io/) to run Terramate within a container.
 
 To do so, execute the following command:
 
@@ -76,6 +76,18 @@ docker run ghcr.io/terramate-io/terramate
 
 We also provide container images tagged with specific release versions.
 To view a list of available container image tags, visit this [link](https://github.com/terramate-io/terramate/pkgs/container/terramate/versions).
+
+**Note:** Our image doesn't come with additional dependencies such as Terraform. We recommend building
+your own image by using our image as the base image to install additional dependencies required.
+
+We recommend mounting your Terramate project as a Docker mount volume to use it inside the container.
+Depending on your setup, you should set the correct permissions when running the container.
+
+```sh
+docker run -it -u $(id -u ${USER}):$(id -g ${USER}) \
+  -v /some/repo:/some/repo \
+  ghcr.io/terramate-io/terramate:latest -C /some/repo --changed run -- cmd
+```
 
 ## Auto Completion
 
