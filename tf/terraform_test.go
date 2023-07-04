@@ -249,6 +249,70 @@ func TestTerraformHasBackend(t *testing.T) {
 				hasBackend: false,
 			},
 		},
+		{
+			name: "terraform block with no backend",
+			layout: []string{
+				tfFileLayout(`terraform {}`),
+			},
+			want: want{
+				hasBackend: false,
+			},
+		},
+		{
+			name: "terraform block with unrecognized blocks",
+			layout: []string{
+				tfFileLayout(`terraform {
+					abc {}
+					xyz {
+						a = 1
+					}
+				}`),
+			},
+			want: want{
+				hasBackend: false,
+			},
+		},
+		{
+			name: "terraform block with a single backend",
+			layout: []string{
+				tfFileLayout(`terraform {
+					abc "label" {}
+					xyz {
+						a = 1
+					}
+
+					backend {
+						a = 1
+					}
+
+					xpto {
+						c = 1
+					}
+				}`),
+			},
+			want: want{
+				hasBackend: true,
+			},
+		},
+		{
+			name: "terraform block with multiple backends",
+			layout: []string{
+				tfFileLayout(`terraform {
+					backend "a" {
+						a = 1
+					}
+					backend "b" {
+						a = 1
+					}
+					backend "c" {
+						a = 1
+					}
+				}`),
+			},
+			want: want{
+				hasBackend: true,
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
