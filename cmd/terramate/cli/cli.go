@@ -445,7 +445,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	if !foundRoot {
-		log.Fatal().Msg("project root not found")
+		log.Fatal().Msg("Project root not found. Please run Terramate in a git repository or specify the project root by creating terramate.tm.hcl. For details please see https://terramate.io/docs/cli/configuration/project-config#project-configuration.")
 	}
 
 	logger.Trace().Msg("Set defaults from parsed command line arguments.")
