@@ -140,6 +140,10 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
+		Init struct {
+			AllTerraform bool `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+		} `cmd:"" help:"Init existing directories with stacks"`
+
 		Clone struct {
 			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
 			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
@@ -498,6 +502,8 @@ func (c *cli) run() {
 	switch c.ctx.Command() {
 	case "fmt":
 		c.format()
+	case "init":
+		c.initStacks()
 	case "create <path>":
 		c.createStack()
 	case "list":
@@ -922,6 +928,19 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, err
 		return mgr.ListChanged()
 	}
 	return mgr.List()
+}
+
+func (c *cli) initStacks() {
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("action", "cli.initStacks()").
+		Logger()
+
+	if !c.parsedArgs.Experimental.Init.AllTerraform {
+		fatal(errors.E("The --all-terraform is required"))
+	}
+
+	logger.Debug().Msg("scanning TF files")
 }
 
 func (c *cli) createStack() {

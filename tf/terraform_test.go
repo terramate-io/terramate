@@ -4,6 +4,7 @@
 package tf_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -13,28 +14,29 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/test/sandbox"
 	"github.com/terramate-io/terramate/tf"
 )
 
-type (
-	want struct {
-		modules []tf.Module
-		errs    []error
-	}
-
-	cfgfile struct {
-		filename string
-		body     string
-	}
-
-	testcase struct {
-		name  string
-		input cfgfile
-		want  want
-	}
-)
-
 func TestHCLParserModules(t *testing.T) {
+	type (
+		want struct {
+			modules []tf.Module
+			errs    []error
+		}
+
+		cfgfile struct {
+			filename string
+			body     string
+		}
+
+		testcase struct {
+			name  string
+			input cfgfile
+			want  want
+		}
+	)
+
 	for _, tc := range []testcase{
 		{
 			name: "module without label is ignored",
@@ -208,6 +210,64 @@ module "test" {
 			for i := 0; i < len(tc.want.modules); i++ {
 				assert.EqualStrings(t, tc.want.modules[i].Source, modules[i].Source,
 					"module source mismatch")
+			}
+		})
+	}
+}
+
+func TestTerraformHasBackend(t *testing.T) {
+	t.Parallel()
+
+	type (
+		want struct {
+			hasBackend bool
+			err        error
+		}
+
+		testcase struct {
+			name   string
+			layout []string
+			want   want
+		}
+	)
+
+	const filename = "main.tf"
+
+	tfFileLayout := func(content string) string {
+		// construct sandbox file builder syntax for creating a
+		// single file.
+		return fmt.Sprintf(`f:%s:%s`, filename, content)
+	}
+
+	for _, tc := range []testcase{
+		{
+			name: "no blocks defined",
+			layout: []string{
+				tfFileLayout("# empty content\n"),
+			},
+			want: want{
+				hasBackend: false,
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := sandbox.New(t)
+			s.BuildTree(tc.layout)
+
+			path := filepath.Join(s.RootDir(), filename)
+			hasBackend, err := tf.HasBackend(path)
+			errtest.Assert(t, err, tc.want.err)
+
+			if err != nil {
+				return
+			}
+
+			if hasBackend != tc.want.hasBackend {
+				t.Fatalf("unexpected hasBackend. Expected %t but got %t",
+					tc.want.hasBackend, hasBackend)
 			}
 		})
 	}

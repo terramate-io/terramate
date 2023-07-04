@@ -59,7 +59,6 @@ func ParseModules(path string) ([]Module, error) {
 
 	logger.Trace().Msg("Parse modules")
 
-	errs := errors.L()
 	var modules []Module
 	for _, block := range body.Blocks {
 		if block.Type != "module" {
@@ -96,11 +95,53 @@ func ParseModules(path string) ([]Module, error) {
 		modules = append(modules, Module{Source: source})
 	}
 
-	if err := errs.AsError(); err != nil {
-		return nil, err
+	return modules, nil
+}
+
+func HasBackend(path string) (bool, error) {
+	logger := log.With().
+		Str("action", "HasBackend").
+		Logger()
+
+	p := hclparse.NewParser()
+
+	logger.Debug().Msg("Parsing TF file")
+
+	f, diags := p.ParseHCLFile(path)
+	if diags.HasErrors() {
+		return false, errors.E(ErrHCLSyntax, diags)
 	}
 
-	return modules, nil
+	body := f.Body.(*hclsyntax.Body)
+
+	logger.Trace().Msg("Parse terraform.backend blocks")
+
+	var terraformBlock *hclsyntax.Block
+	for _, block := range body.Blocks {
+		if block.Type != "terraform" {
+			continue
+		}
+
+		logger.Trace().Msg("terraform block found")
+
+		terraformBlock = block
+		break
+	}
+
+	if terraformBlock == nil {
+		return false, nil
+	}
+
+	for _, block := range terraformBlock.Body.Blocks {
+		if block.Type != "backend" {
+			continue
+		}
+
+		logger.Trace().Msg("found a backend block")
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, error) {
