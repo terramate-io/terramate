@@ -220,8 +220,8 @@ func TestTerraformHasBackend(t *testing.T) {
 
 	type (
 		want struct {
-			hasBackend bool
-			err        error
+			isStack bool
+			err     error
 		}
 
 		testcase struct {
@@ -246,7 +246,7 @@ func TestTerraformHasBackend(t *testing.T) {
 				tfFileLayout("# empty content\n"),
 			},
 			want: want{
-				hasBackend: false,
+				isStack: false,
 			},
 		},
 		{
@@ -255,7 +255,7 @@ func TestTerraformHasBackend(t *testing.T) {
 				tfFileLayout(`terraform {}`),
 			},
 			want: want{
-				hasBackend: false,
+				isStack: false,
 			},
 		},
 		{
@@ -269,7 +269,7 @@ func TestTerraformHasBackend(t *testing.T) {
 				}`),
 			},
 			want: want{
-				hasBackend: false,
+				isStack: false,
 			},
 		},
 		{
@@ -291,7 +291,7 @@ func TestTerraformHasBackend(t *testing.T) {
 				}`),
 			},
 			want: want{
-				hasBackend: true,
+				isStack: true,
 			},
 		},
 		{
@@ -310,7 +310,39 @@ func TestTerraformHasBackend(t *testing.T) {
 				}`),
 			},
 			want: want{
-				hasBackend: true,
+				isStack: true,
+			},
+		},
+		{
+			name: "provider block defined",
+			layout: []string{
+				tfFileLayout(`terraform {
+					
+				}
+				
+				provider "aws" {
+					attr = 1	
+				}`),
+			},
+			want: want{
+				isStack: true,
+			},
+		},
+		{
+			name: "multiple provider blocks defined",
+			layout: []string{
+				tfFileLayout(`				
+				provider "aws" {
+					attr = 1	
+				}
+				
+				provider "google" {
+					attr = 1	
+				}
+				`),
+			},
+			want: want{
+				isStack: true,
 			},
 		},
 	} {
@@ -322,16 +354,16 @@ func TestTerraformHasBackend(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			path := filepath.Join(s.RootDir(), filename)
-			hasBackend, err := tf.FileHasBackend(path)
+			hasBackend, err := tf.IsStack(path)
 			errtest.Assert(t, err, tc.want.err)
 
 			if err != nil {
 				return
 			}
 
-			if hasBackend != tc.want.hasBackend {
+			if hasBackend != tc.want.isStack {
 				t.Fatalf("unexpected hasBackend. Expected %t but got %t",
-					tc.want.hasBackend, hasBackend)
+					tc.want.isStack, hasBackend)
 			}
 		})
 	}

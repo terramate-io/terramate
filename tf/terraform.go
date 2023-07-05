@@ -98,11 +98,11 @@ func ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
-// FileHasBackend tells if the file defined by path has a terraform.backend
-// block definition.
-func FileHasBackend(path string) (bool, error) {
+// IsStack tells if the file defined by path is a potential stack.
+// Eg.: has a backend block or a provider block.
+func IsStack(path string) (bool, error) {
 	logger := log.With().
-		Str("action", "HasBackend").
+		Str("action", "IsStack").
 		Logger()
 
 	p := hclparse.NewParser()
@@ -118,29 +118,20 @@ func FileHasBackend(path string) (bool, error) {
 
 	logger.Trace().Msg("Parse terraform.backend blocks")
 
-	var terraformBlock *hclsyntax.Block
 	for _, block := range body.Blocks {
-		if block.Type != "terraform" {
-			continue
+		switch block.Type {
+		case "terraform":
+			for _, block := range block.Body.Blocks {
+				if block.Type != "backend" {
+					continue
+				}
+
+				logger.Trace().Msg("found a backend block")
+				return true, nil
+			}
+		case "provider":
+			return true, nil
 		}
-
-		logger.Trace().Msg("terraform block found")
-
-		terraformBlock = block
-		break
-	}
-
-	if terraformBlock == nil {
-		return false, nil
-	}
-
-	for _, block := range terraformBlock.Body.Blocks {
-		if block.Type != "backend" {
-			continue
-		}
-
-		logger.Trace().Msg("found a backend block")
-		return true, nil
 	}
 
 	return false, nil

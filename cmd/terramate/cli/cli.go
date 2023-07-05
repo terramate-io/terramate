@@ -1017,7 +1017,7 @@ func (c *cli) initDir(baseDir string) error {
 			continue
 		}
 
-		found, err := tf.FileHasBackend(path)
+		found, err := tf.IsStack(path)
 		if err != nil {
 			fatal(errors.E(err, "parsing terraform"))
 		}
