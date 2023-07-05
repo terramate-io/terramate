@@ -156,7 +156,11 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	// custom cliconfig file
 	userTmpDir := t.TempDir()
 	cliConfigPath := test.WriteFile(t, userTmpDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(userTmpDir, "\\", "\\\\", -1)))
-	env = append(env, "TM_CLI_CONFIG_FILE="+cliConfigPath)
+	env = append(env,
+		"TM_CLI_CONFIG_FILE="+cliConfigPath,
+		"ACTIONS_ID_TOKEN_REQUEST_URL=",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
+	)
 
 	env = append(env, tm.appendEnv...)
 
