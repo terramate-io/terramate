@@ -43,13 +43,23 @@ func TestExperimentalInitModuleDeepDownInTheTree(t *testing.T) {
 			attr = "value"
 		}
 	}
+
 	`
+
+		const providerContent = `
+		provider "aws" {
+			attr = 1
+		}
+	`
+
+		const mixedBackendProvider = backendContent + providerContent
+
 		s.BuildTree([]string{
 			`f:prod/stacks/k8s-stack/deployment.yml:# empty file`,
 			`f:prod/stacks/A/anyfile.tf:` + backendContent,
 			`f:prod/stacks/A/README.md:# empty`,
-			`f:prod/stacks/B/main.tf:` + backendContent,
-			`f:prod/stacks/A/other-stack/main.tf:` + backendContent,
+			`f:prod/stacks/B/main.tf:` + providerContent,
+			`f:prod/stacks/A/other-stack/main.tf:` + mixedBackendProvider,
 			`f:README.md:# My module`,
 			`f:generate.tm:generate_hcl "_generated.tf" {
 			content {
