@@ -960,7 +960,7 @@ func (c *cli) initStacks() {
 		os.Exit(1)
 	}
 
-	c.output.MsgStdOutV(report.Minimal())
+	c.output.MsgStdOutV(report.Full())
 	c.output.MsgStdOutV(vendorReport.String())
 }
 
