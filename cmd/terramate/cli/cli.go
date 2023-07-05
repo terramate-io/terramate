@@ -142,6 +142,7 @@ type cliSpec struct {
 	Experimental struct {
 		Init struct {
 			AllTerraform bool `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+			NoGenerate   bool `help:"skip the generation phase"`
 		} `cmd:"" help:"Init existing directories with stacks"`
 
 		Clone struct {
@@ -502,8 +503,6 @@ func (c *cli) run() {
 	switch c.ctx.Command() {
 	case "fmt":
 		c.format()
-	case "init":
-		c.initStacks()
 	case "create <path>":
 		c.createStack()
 	case "list":
@@ -516,6 +515,8 @@ func (c *cli) run() {
 		c.runOnStacks()
 	case "generate":
 		c.generate()
+	case "experimental init":
+		c.initStacks()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger <stack>":
@@ -939,34 +940,63 @@ func (c *cli) initStacks() {
 	if err != nil {
 		fatal(err, "failed to initialize some directories")
 	}
+
+	if c.parsedArgs.Experimental.Init.NoGenerate {
+		log.Debug().Msg("code generation on stack creation disabled")
+		return
+	}
+
+	report, vendorReport := c.gencodeWithVendor()
+	if report.HasFailures() {
+		c.output.MsgStdOut("Code generation failed")
+		c.output.MsgStdOut(report.Minimal())
+	}
+
+	if vendorReport.HasFailures() {
+		c.output.MsgStdOut(vendorReport.String())
+	}
+
+	if report.HasFailures() || vendorReport.HasFailures() {
+		os.Exit(1)
+	}
+
+	c.output.MsgStdOutV(report.Minimal())
+	c.output.MsgStdOutV(vendorReport.String())
 }
 
-func (c *cli) initDirs(dir string) error {
+func (c *cli) initDirs(baseDir string) error {
 	logger := log.With().
 		Str("workingDir", c.wd()).
+		Str("dir", baseDir).
 		Str("action", "cli.initStacks()").
 		Logger()
 
 	logger.Debug().Msg("scanning TF files")
 
-	f, err := os.Open(c.wd())
-	if err != nil {
-		fatal(errors.E(err, "scanning directory: %s", c.wd()))
-	}
-
-	defer f.Close()
-
-	dirs, err := f.ReadDir(-1)
+	dirs, err := os.ReadDir(baseDir)
 	if err != nil {
 		fatal(errors.E(err, "listing directory entries"))
 	}
 
 	errs := errors.L()
-
 	for _, f := range dirs {
-		path := filepath.Join(dir, f.Name())
+		if f.Name() == "." || f.Name() == ".." {
+			continue
+		}
+
+		path := filepath.Join(baseDir, f.Name())
+		if strings.HasPrefix(f.Name(), ".") {
+			logger.Debug().Msgf("ignoring file %s", path)
+			continue
+		}
+
 		if f.IsDir() {
-			c.initDirs(path)
+			errs.Append(c.initDirs(path))
+			continue
+		}
+
+		if filepath.Ext(f.Name()) != ".tf" {
+			logger.Debug().Msgf("ignoring file %s", path)
 			continue
 		}
 
@@ -979,8 +1009,9 @@ func (c *cli) initDirs(dir string) error {
 			continue
 		}
 
+		stackDir := baseDir
 		stackSpec := config.Stack{
-			Dir: prj.PrjAbsPath(c.rootdir(), path),
+			Dir: prj.PrjAbsPath(c.rootdir(), stackDir),
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)
@@ -988,6 +1019,9 @@ func (c *cli) initDirs(dir string) error {
 			errs.Append(err)
 			continue
 		}
+
+		log.Info().Msgf("created stack %s", stackSpec.Dir)
+		c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
 	}
 
 	return errs.AsError()
