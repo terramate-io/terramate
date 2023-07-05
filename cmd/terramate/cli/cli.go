@@ -946,6 +946,13 @@ func (c *cli) initStacks() {
 		return
 	}
 
+	root, err := config.LoadRoot(c.rootdir())
+	if err != nil {
+		fatal(err, "reloading the configuration")
+	}
+
+	c.prj.root = *root
+
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
 		c.output.MsgStdOut("Code generation failed")
@@ -1115,6 +1122,11 @@ func (c *cli) createStack() {
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
 		return
+	}
+
+	err = c.prj.root.LoadSubTree(stackSpec.Dir)
+	if err != nil {
+		fatal(err, "loading newly created stack")
 	}
 
 	report, vendorReport := c.gencodeWithVendor()
