@@ -28,10 +28,10 @@ Currently, we support:
 
 Code generation supports two execution contexts:
 
-- stack: generates code relative to the stack where it's defined.
-- root: generates code outside of stacks.
+- **stack**: generates code relative to the stack where it's defined.
+- **root**: generates code outside of stacks.
 
-The `stack` context gives access to all code generation features, like:
+The `stack` context gives access to all code generation features, such as:
 
 * [Globals](../data-sharing/index.md#globals)
 * [All Metadata](../data-sharing/index.md#metadata)
