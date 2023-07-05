@@ -1045,6 +1045,9 @@ func (c *cli) initDir(baseDir string) error {
 
 		log.Info().Msgf("created stack %s", stackSpec.Dir)
 		c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
+
+		// so other files in the same directory do not trigger stack creation.
+		isStack = true
 	}
 
 	return errs.AsError()
