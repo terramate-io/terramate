@@ -38,7 +38,7 @@ func TestExperimentalInitModuleAtRoot(t *testing.T) {
 func TestExperimentalInitModuleDeepDownInTheTree(t *testing.T) {
 	testCase := func(t *testing.T, generate bool) {
 		s := sandbox.New(t)
-		backendContent := `terraform {
+		const backendContent = `terraform {
 		backend "remote" {
 			attr = "value"
 		}
@@ -97,4 +97,41 @@ Created stack /prod/stacks/B
 	t.Run("without generation", func(t *testing.T) {
 		testCase(t, false)
 	})
+}
+
+func TestExperimentalInitSkipActualStacks(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		`s:stack`,
+		`f:stack/main.tf:terraform {
+			backend "remote" {
+				attr = "value"
+			}
+		}`,
+		`f:README.md:# My module`,
+	})
+	tm := newCLI(t, s.RootDir())
+	assertRun(t, tm.run("experimental", "init", "--all-terraform"))
+}
+
+func TestExperimentalInitDetectModulesInsideStacks(t *testing.T) {
+	s := sandbox.New(t)
+	const backendContent = `terraform {
+		backend "remote" {
+			attr = "value"
+		}
+	}`
+	s.BuildTree([]string{
+		`s:stack`,
+		`f:stack/main.tf:` + backendContent,
+		`f:stack/hidden/module/inside/stack/main.tf:` + backendContent,
+		`f:README.md:# My module`,
+	})
+	tm := newCLI(t, s.RootDir())
+	assertRunResult(t,
+		tm.run("experimental", "init", "--all-terraform"),
+		runExpected{
+			Stdout: "Created stack /stack/hidden/module/inside/stack\n",
+		},
+	)
 }

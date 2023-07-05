@@ -936,7 +936,7 @@ func (c *cli) initStacks() {
 		fatal(errors.E("The --all-terraform is required"))
 	}
 
-	err := c.initDirs(c.wd())
+	err := c.initDir(c.wd())
 	if err != nil {
 		fatal(err, "failed to initialize some directories")
 	}
@@ -964,12 +964,19 @@ func (c *cli) initStacks() {
 	c.output.MsgStdOutV(vendorReport.String())
 }
 
-func (c *cli) initDirs(baseDir string) error {
+func (c *cli) initDir(baseDir string) error {
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("dir", baseDir).
 		Str("action", "cli.initStacks()").
 		Logger()
+
+	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
+	var isStack bool
+	tree, found := c.prj.root.Lookup(pdir)
+	if found {
+		isStack = tree.IsStack()
+	}
 
 	logger.Debug().Msg("scanning TF files")
 
@@ -991,7 +998,11 @@ func (c *cli) initDirs(baseDir string) error {
 		}
 
 		if f.IsDir() {
-			errs.Append(c.initDirs(path))
+			errs.Append(c.initDir(path))
+			continue
+		}
+
+		if isStack {
 			continue
 		}
 
