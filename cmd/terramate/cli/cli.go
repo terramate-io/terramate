@@ -966,9 +966,8 @@ func (c *cli) initStacks() {
 
 func (c *cli) initDir(baseDir string) error {
 	logger := log.With().
-		Str("workingDir", c.wd()).
 		Str("dir", baseDir).
-		Str("action", "cli.initStacks()").
+		Str("action", "cli.initDir()").
 		Logger()
 
 	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
@@ -978,7 +977,7 @@ func (c *cli) initDir(baseDir string) error {
 		isStack = tree.IsStack()
 	}
 
-	logger.Debug().Msg("scanning TF files")
+	logger.Trace().Msg("scanning TF files")
 
 	dirs, err := os.ReadDir(baseDir)
 	if err != nil {
@@ -993,7 +992,7 @@ func (c *cli) initDir(baseDir string) error {
 
 		path := filepath.Join(baseDir, f.Name())
 		if strings.HasPrefix(f.Name(), ".") {
-			logger.Debug().Msgf("ignoring file %s", path)
+			logger.Trace().Msgf("ignoring file %s", path)
 			continue
 		}
 
@@ -1007,7 +1006,7 @@ func (c *cli) initDir(baseDir string) error {
 		}
 
 		if filepath.Ext(f.Name()) != ".tf" {
-			logger.Debug().Msgf("ignoring file %s", path)
+			logger.Trace().Msgf("ignoring file %s", path)
 			continue
 		}
 
@@ -1017,6 +1016,7 @@ func (c *cli) initDir(baseDir string) error {
 		}
 
 		if !found {
+			logger.Trace().Msgf("ignoring file %s", path)
 			continue
 		}
 
