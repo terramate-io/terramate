@@ -103,6 +103,13 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
+		err = p.Validate()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+
 		res := cloud.DeploymentStacksResponse{}
 		for _, s := range p.Stacks {
 			next := atomic.LoadInt64(&dhandler.nextStackID)
