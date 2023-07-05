@@ -98,6 +98,8 @@ func ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
+// FileHasBackend tells if the file defined by path has a terraform.backend
+// block definition.
 func FileHasBackend(path string) (bool, error) {
 	logger := log.With().
 		Str("action", "HasBackend").
