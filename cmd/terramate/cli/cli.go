@@ -946,11 +946,6 @@ func (c *cli) initStacks() {
 		return
 	}
 
-	err = c.prj.root.LoadSubTree(prj.NewPath("/"))
-	if err != nil {
-		fatal(err, "failed to reload the configuration tree")
-	}
-
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
 		c.output.MsgStdOut("Code generation failed")
