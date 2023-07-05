@@ -6,7 +6,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	stdjson "encoding/json"
 	"fmt"
 	"html"
@@ -50,6 +49,9 @@ type (
 		jwtClaims    jwt.MapClaims
 		expireAt     time.Time
 		email        string
+		isValidated  bool
+		orgs         cloud.MemberOrganizations
+		user         cloud.User
 
 		output out.O
 		clicfg cliconfig.Config
@@ -192,7 +194,7 @@ func createAuthURI(continueURI string) (createAuthURIResponse, error) {
 		OauthScope:      authScope,
 	}
 
-	postBody, err := json.Marshal(&payloadData)
+	postBody, err := stdjson.Marshal(&payloadData)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err)
 	}
@@ -234,7 +236,7 @@ func createAuthURI(continueURI string) (createAuthURIResponse, error) {
 	}
 
 	var respURL createAuthURIResponse
-	err = json.Unmarshal(data, &respURL)
+	err = stdjson.Unmarshal(data, &respURL)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to unmarshal response")
 	}
@@ -284,7 +286,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ReturnIdpCredential: true,
 	}
 
-	data, err := json.Marshal(&postBody)
+	data, err := stdjson.Marshal(&postBody)
 	if err != nil {
 		h.handleErr(w, errors.E(err))
 		return
@@ -336,7 +338,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var creds credentialInfo
-	err = json.Unmarshal(data, &creds)
+	err = stdjson.Unmarshal(data, &creds)
 	if err != nil {
 		h.handleErr(w, errors.E(err))
 		return
@@ -385,7 +387,7 @@ func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) 
 		RefreshToken: cred.RefreshToken,
 	}
 
-	data, err := json.Marshal(&cachePayload)
+	data, err := stdjson.Marshal(&cachePayload)
 	if err != nil {
 		return errors.E(err, "failed to JSON marshal the credentials")
 	}
@@ -411,7 +413,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 		return cachedCredential{}, true, err
 	}
 	var cred cachedCredential
-	err = json.Unmarshal(contents, &cred)
+	err = stdjson.Unmarshal(contents, &cred)
 	if err != nil {
 		return cachedCredential{}, true, err
 	}
@@ -494,7 +496,7 @@ func (g *googleCredential) Refresh() (err error) {
 		RefreshToken: g.refreshToken,
 	}
 
-	payloadData, err := json.Marshal(reqPayload)
+	payloadData, err := stdjson.Marshal(reqPayload)
 	if err != nil {
 		return err
 	}
@@ -575,13 +577,8 @@ func (g *googleCredential) Token() (string, error) {
 	return g.token, nil
 }
 
-// Info display the credential details.
-func (g *googleCredential) Info(cloudcfg cloudConfig) error {
-	client := cloud.Client{
-		BaseURL:    cloudcfg.baseAPI,
-		Credential: g,
-	}
-
+// Validate if the credential is ready to be used.
+func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	const apiTimeout = 5 * time.Second
 
 	var (
@@ -593,7 +590,7 @@ func (g *googleCredential) Info(cloudcfg cloudConfig) error {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 		defer cancel()
-		orgs, err = client.MemberOrganizations(ctx)
+		orgs, err = cloudcfg.client.MemberOrganizations(ctx)
 	}()
 
 	if err != nil {
@@ -603,39 +600,56 @@ func (g *googleCredential) Info(cloudcfg cloudConfig) error {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 		defer cancel()
-		user, err = client.Users(ctx)
+		user, err = cloudcfg.client.Users(ctx)
 	}()
 
 	if err != nil && !errors.IsKind(err, cloud.ErrNotFound) {
 		return err
 	}
 
-	userErr := err
+	g.isValidated = true
+	g.orgs = orgs
+	g.user = user
 
-	cloudcfg.output.MsgStdOut("status: signed in")
+	if len(g.orgs) == 0 || g.user.DisplayName == "" {
+		return errors.E(ErrOnboardingIncomplete)
+	}
+	return nil
+}
 
-	cloudcfg.output.MsgStdOut("provider: %s", g.Name())
+// Info display the credential details.
+func (g *googleCredential) Info() {
+	if !g.isValidated {
+		panic(errors.E(errors.ErrInternal, "cred.Info() called for unvalidated credential"))
+	}
 
-	if userErr == nil && user.DisplayName != "" {
-		cloudcfg.output.MsgStdOut("user: %s", user.DisplayName)
+	g.output.MsgStdOut("status: signed in")
+	g.output.MsgStdOut("provider: %s", g.Name())
+
+	if g.user.DisplayName != "" {
+		g.output.MsgStdOut("user: %s", g.user.DisplayName)
 	}
 
 	for _, kv := range g.DisplayClaims() {
-		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+		g.output.MsgStdOut("%s: %s", kv.key, kv.value)
 	}
 
-	if len(orgs) > 0 {
-		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	if len(g.orgs) > 0 {
+		g.output.MsgStdOut("organizations: %s", g.orgs)
 	}
 
-	if user.DisplayName == "" {
-		cloudcfg.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramte.io to complete on-boarding.")
+	if g.user.DisplayName == "" {
+		g.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramate.io to complete on-boarding.")
 	}
 
-	if len(orgs) == 0 {
-		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	if len(g.orgs) == 0 {
+		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
-	return nil
+}
+
+// organizations returns the list of organizations associated with the credential.
+func (g *googleCredential) organizations() cloud.MemberOrganizations {
+	return g.orgs
 }
 
 func (g *googleCredential) update(idToken, refreshToken string) (err error) {

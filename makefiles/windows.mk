@@ -15,6 +15,16 @@ $(foreach dep,$(DEPS),\
 build:
 	go build -o .\bin\terramate.exe ./cmd/terramate
 
+## build a test binary -- not static, telemetry sent to localhost, etc
+.PHONY: test/build
+test/build: test/fakecloud
+	go build -tags localhostEndpoints -o bin/test-terramate.exe ./cmd/terramate
+
+## build bin/fakecloud
+.PHONY: test/fakecloud
+test/fakecloud:
+	go build -o bin/fakecloud.exe ./cloud/testserver/cmd/fakecloud
+
 ## Install terramate on the host
 .PHONY: install
 install:
@@ -23,7 +33,7 @@ install:
 ## test code
 .PHONY: test
 test:
-	go test ./... -timeout=20m
+	go test -tags localhostEndpoints ./... -timeout=20m
 
  ## remove build artifacts
 .PHONY: clean

@@ -93,6 +93,8 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 	cmd := exec.Command(
 		goBin,
 		"build",
+		"-tags",
+		"localhostEndpoints",
 		"-race",
 		"-o",
 		outBinPath,

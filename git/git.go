@@ -771,6 +771,11 @@ func (git *Git) SetRemoteURL(remote, url string) error {
 	return err
 }
 
+// URL returns the remote URL.
+func (git *Git) URL(remote string) (string, error) {
+	return git.exec("remote", "get-url", remote)
+}
+
 func (git *Git) exec(command string, args ...string) (string, error) {
 	logger := log.With().
 		Str("action", "Git.exec()").

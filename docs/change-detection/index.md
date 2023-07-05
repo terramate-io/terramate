@@ -27,8 +27,9 @@ The approach is as simple as computing the changed stacks from the changed files
 discovered by the `git diff` between the revision of the last `terraform applied`
 change (ie. the released revision) and the current change.
 
-Let's call the released revision `baseref`, which means `base reference` which
-commonly is the default branch (`origin/main` or `origin/default`).
+For the sake of clarity, we'll refer to the released revision as `baseref`, which is an
+abbreviation for `base reference`. Usually, this term corresponds to the default branch
+(`origin/main` or `origin/default`).
 
 By default the `baseref` can have two values, depending on if you're in the
 default branch or in a feature branch, and they are:
@@ -39,10 +40,11 @@ default branch or in a feature branch, and they are:
 The [HEAD^](https://git-scm.com/docs/gitrevisions) syntax means the first
 parent of the `HEAD` commit and the reasoning for using it for the default
 branch is that once you merged your PR you need to apply the changes in the CI
-or locally. So if the project uses
-[non-fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge)
-all commits (except first) in the default branch are merge commits, then by
-using `HEAD^` as baseref we can detect changes of the last merged code.
+or locally. If the project adopts a
+[non-fast-forward](https://git-scm.com/docs/git-merge#_fast_forward_merge)
+merge strategy, every commit—aside from the first one—on the default branch becomes a merge
+commit. Utilizing `HEAD^` as the `baseref` enables detection of modifications in the most
+recently merged code.
 
 Having explained that, hopefully it becomes clear that change detection in
 Terramate works best if the project follows a git flow defined below (by the
@@ -63,13 +65,14 @@ merged but alternatively the terraform plan/apply can be run in the PR's branch
 just before merge using the default branch base ref (`origin/main`).
 
 The `baseref` can be manually changed by the terramate command line at any given
-point in time using the `--git-change-base` option or through the [project configuration](../configuration/project-config.md),
-so different strategies for computing the changes are supported.
+point in time using the `--git-change-base` option or through the [project configuration]
+(../configuration/project-config.md), so different strategies for computing the changes are
+supported.
 
-Then, if you use rebase as the merge strategy and need to apply the changes to
-the stacks modified by the last rebase, you first need to identify the base
-commit (the commit before the merge) and then provide this commit hash in the
-`--git-change-base` flag.
+If you you adopt the rebase merge strategy and need to apply modifications to stacks
+affected by the last rebase, it's crucial to first identify the base commit (the commit
+before the merge). You can then provide this commit hash in the `--git-change-base` flag to
+accomplish the required changes.
 
 ```console
 $ git branch
@@ -114,7 +117,6 @@ stack {
    ]
 }
 ```
-
 Then even if the stack code didn't change but any of the watched files changed,
 then the stack will be marked as changed.
 
