@@ -98,7 +98,7 @@ func ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
-func HasBackend(path string) (bool, error) {
+func FileHasBackend(path string) (bool, error) {
 	logger := log.With().
 		Str("action", "HasBackend").
 		Logger()

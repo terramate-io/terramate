@@ -931,16 +931,66 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, err
 }
 
 func (c *cli) initStacks() {
+	if !c.parsedArgs.Experimental.Init.AllTerraform {
+		fatal(errors.E("The --all-terraform is required"))
+	}
+
+	err := c.initDirs(c.wd())
+	if err != nil {
+		fatal(err, "failed to initialize some directories")
+	}
+}
+
+func (c *cli) initDirs(dir string) error {
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("action", "cli.initStacks()").
 		Logger()
 
-	if !c.parsedArgs.Experimental.Init.AllTerraform {
-		fatal(errors.E("The --all-terraform is required"))
+	logger.Debug().Msg("scanning TF files")
+
+	f, err := os.Open(c.wd())
+	if err != nil {
+		fatal(errors.E(err, "scanning directory: %s", c.wd()))
 	}
 
-	logger.Debug().Msg("scanning TF files")
+	defer f.Close()
+
+	dirs, err := f.ReadDir(-1)
+	if err != nil {
+		fatal(errors.E(err, "listing directory entries"))
+	}
+
+	errs := errors.L()
+
+	for _, f := range dirs {
+		path := filepath.Join(dir, f.Name())
+		if f.IsDir() {
+			c.initDirs(path)
+			continue
+		}
+
+		found, err := tf.FileHasBackend(path)
+		if err != nil {
+			fatal(errors.E(err, "parsing terraform"))
+		}
+
+		if !found {
+			continue
+		}
+
+		stackSpec := config.Stack{
+			Dir: prj.PrjAbsPath(c.rootdir(), path),
+		}
+
+		err = stack.Create(c.cfg(), stackSpec)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+	}
+
+	return errs.AsError()
 }
 
 func (c *cli) createStack() {

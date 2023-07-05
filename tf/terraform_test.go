@@ -322,7 +322,7 @@ func TestTerraformHasBackend(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			path := filepath.Join(s.RootDir(), filename)
-			hasBackend, err := tf.HasBackend(path)
+			hasBackend, err := tf.FileHasBackend(path)
 			errtest.Assert(t, err, tc.want.err)
 
 			if err != nil {
