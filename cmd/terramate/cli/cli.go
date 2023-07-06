@@ -6,6 +6,7 @@ package cli
 import (
 	stdfmt "fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config/filter"
@@ -123,6 +125,7 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
+		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
 		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
 		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
@@ -239,6 +242,8 @@ type cli struct {
 	output     out.O
 	exit       bool
 	prj        project
+	httpClient http.Client
+	cloud      cloudConfig
 
 	checkpointResults chan *checkpoint.CheckResponse
 
@@ -440,7 +445,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	if !foundRoot {
-		log.Fatal().Msg("project root not found")
+		log.Fatal().Msg("Project root not found. If you invoke Terramate inside a Git repository, Terramate will automatically assume the top level of your repository as the project root. If you use Terramate in a directory that isn't a Git repository, you must configure the project root by creating a terramate.tm.hcl configuration in the directory you wish to be the top-level of your Terramate project. For details please see https://terramate.io/docs/cli/configuration/project-config#project-configuration.")
 	}
 
 	logger.Trace().Msg("Set defaults from parsed command line arguments.")
@@ -455,15 +460,20 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	return &cli{
-		version:           version,
-		stdin:             stdin,
-		stdout:            stdout,
-		stderr:            stderr,
-		output:            output,
-		parsedArgs:        &parsedArgs,
-		clicfg:            clicfg,
-		ctx:               ctx,
-		prj:               prj,
+		version:    version,
+		stdin:      stdin,
+		stdout:     stdout,
+		stderr:     stderr,
+		output:     output,
+		parsedArgs: &parsedArgs,
+		clicfg:     clicfg,
+		ctx:        ctx,
+		prj:        prj,
+
+		// in order to reduce the number of TCP/SSL handshakes we reuse the same
+		// http.Client in all requests, for most hosts.
+		// The transport can be tuned here, if needed.
+		httpClient:        http.Client{},
 		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
 	}
 }
@@ -856,15 +866,15 @@ func debugFiles(files []string, msg string) {
 	}
 }
 
-func (c *cli) gitFileSafeguards(checks stack.RepoChecks, shouldAbort bool) {
+func (c *cli) gitFileSafeguards(shouldAbort bool) {
 	if c.parsedArgs.Run.DryRun {
 		return
 	}
 
-	debugFiles(checks.UntrackedFiles, "untracked file")
-	debugFiles(checks.UncommittedFiles, "uncommitted file")
+	debugFiles(c.prj.git.repoChecks.UntrackedFiles, "untracked file")
+	debugFiles(c.prj.git.repoChecks.UncommittedFiles, "uncommitted file")
 
-	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
+	if c.checkGitUntracked() && len(c.prj.git.repoChecks.UntrackedFiles) > 0 {
 		const msg = "repository has untracked files"
 		if shouldAbort {
 			log.Fatal().Msg(msg)
@@ -873,7 +883,7 @@ func (c *cli) gitFileSafeguards(checks stack.RepoChecks, shouldAbort bool) {
 		}
 	}
 
-	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
+	if c.checkGitUncommited() && len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
 		const msg = "repository has uncommitted files"
 		if shouldAbort {
 			log.Fatal().Msg(msg)
@@ -1063,7 +1073,8 @@ func (c *cli) printStacks() {
 		fatal(err, "listing stacks")
 	}
 
-	c.gitFileSafeguards(report.Checks, false)
+	c.prj.git.repoChecks = report.Checks
+	c.gitFileSafeguards(false)
 
 	for _, entry := range c.filterStacks(report.Stacks) {
 		stack := entry.Stack
@@ -1620,6 +1631,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	c.checkOutdatedGeneratedCode()
+	c.checkSyncDeployment()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
@@ -1641,6 +1653,8 @@ func (c *cli) runOnStacks() {
 			fatal(err, "computing selected stacks")
 		}
 	}
+
+	c.createCloudDeployment(stacks, c.parsedArgs.Run.Command)
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
@@ -1675,6 +1689,32 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
+	beforeHook := func(s *config.Stack, cmd string) {
+		if !c.parsedArgs.Run.CloudSyncDeployment {
+			return
+		}
+		c.syncCloudDeployment(s, cloud.Running)
+	}
+
+	afterHook := func(s *config.Stack, err error) {
+		if !c.parsedArgs.Run.CloudSyncDeployment {
+			return
+		}
+		var status cloud.Status
+		switch {
+		case err == nil:
+			status = cloud.OK
+		case errors.IsKind(err, run.ErrCanceled):
+			status = cloud.Canceled
+		case errors.IsKind(err, run.ErrFailed):
+			status = cloud.Failed
+		default:
+			panic(errors.E(errors.ErrInternal, "unexpected run status"))
+		}
+
+		c.syncCloudDeployment(s, status)
+	}
+
 	err = run.Exec(
 		c.cfg(),
 		orderedStacks,
@@ -1683,6 +1723,8 @@ func (c *cli) runOnStacks() {
 		c.stdout,
 		c.stderr,
 		c.parsedArgs.Run.ContinueOnError,
+		beforeHook,
+		afterHook,
 	)
 
 	if err != nil {
@@ -1694,6 +1736,7 @@ func (c *cli) wd() string           { return c.prj.wd }
 func (c *cli) rootdir() string      { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root    { return &c.prj.root }
 func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
+func (c *cli) cred() credential     { return c.cloud.credential }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
@@ -1716,7 +1759,8 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 		return nil, err
 	}
 
-	c.gitFileSafeguards(report.Checks, ensureCleanRepo)
+	c.prj.git.repoChecks = report.Checks
+	c.gitFileSafeguards(ensureCleanRepo)
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 

@@ -5,24 +5,33 @@ package e2etest
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/test"
 )
 
 const defaultErrExitStatus = 1
 
+const testCliConfigFormat = `
+user_terramate_dir = "%s"
+`
+
 type tmcli struct {
-	t        *testing.T
-	chdir    string
-	loglevel string
-	env      []string
+	t         *testing.T
+	chdir     string
+	loglevel  string
+	env       []string
+	appendEnv []string
 }
 
 type runResult struct {
@@ -143,6 +152,36 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 		env = os.Environ()
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
+
+	// custom cliconfig file
+	userTmpDir := t.TempDir()
+	cliConfigPath := test.WriteFile(t, userTmpDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(userTmpDir, "\\", "\\\\", -1)))
+	env = append(env,
+		"TM_CLI_CONFIG_FILE="+cliConfigPath,
+		"ACTIONS_ID_TOKEN_REQUEST_URL=",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
+	)
+
+	env = append(env, tm.appendEnv...)
+
+	// fake credentials
+	type MyCustomClaims struct {
+		Email string `json:"email"`
+		jwt.StandardClaims
+	}
+
+	claims := MyCustomClaims{
+		"batman@example.com",
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
+			Issuer:    "terramate-tests",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	fakeJwt, err := token.SignedString([]byte("test"))
+	assert.NoError(t, err)
+	test.WriteFile(t, userTmpDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd"}`, fakeJwt))
 
 	cmd := exec.Command(terramateTestBin, allargs...)
 	cmd.Stdout = stdout

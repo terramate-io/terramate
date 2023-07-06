@@ -2298,6 +2298,8 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	}
 
 	wantenv := append(hostenv,
+		"ACTIONS_ID_TOKEN_REQUEST_URL=",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
 		"CHECKPOINT_DISABLE=1", // e2e tests have telemetry disabled
 		fmt.Sprintf("FROM_META=%s", stackName),
 		fmt.Sprintf("FROM_GLOBAL=%s", stackGlobal),
@@ -2306,6 +2308,13 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 		fmt.Sprintf("TERRAMATE_OVERRIDDEN=%s", newTerramateOverriden),
 	)
 	gotenv := strings.Split(strings.Trim(res.Stdout, "\n"), "\n")
+
+	// remove the custom cli config file.
+	for i, e := range gotenv {
+		if strings.HasPrefix(e, "TM_CLI_CONFIG_FILE=") {
+			gotenv = append(gotenv[:i], gotenv[i+1:]...)
+		}
+	}
 
 	sort.Strings(gotenv)
 	sort.Strings(wantenv)

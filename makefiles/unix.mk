@@ -8,6 +8,17 @@ GO_BUILD_FLAGS=--ldflags '-extldflags "-static"'
 build:
 	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o bin/terramate ./cmd/terramate
 
+
+## build a test binary -- not static, telemetry sent to localhost, etc
+.PHONY: test/build
+test/build: test/fakecloud
+	go build -tags localhostEndpoints -o bin/test-terramate ./cmd/terramate
+
+## build bin/fakecloud
+.PHONY: test/fakecloud
+test/fakecloud:
+	go build -o bin/fakecloud ./cloud/testserver/cmd/fakecloud
+
 ## Install terramate on the host
 .PHONY: install
 install:

@@ -672,6 +672,26 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_hcl with no content block",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+					generate_hcl "test.tf" {
+						lets {
+							a = 1
+						}
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "generate_hcl with lets with unexpected child blocks - fails",
 			input: []cfgfile{
 				{

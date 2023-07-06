@@ -90,7 +90,7 @@ func TestCommonAPIFailCases(t *testing.T) {
 		},
 		{
 			name:       "unexpected status code",
-			statusCode: http.StatusCreated,
+			statusCode: http.StatusInternalServerError,
 			err:        errors.E(cloud.ErrUnexpectedStatus),
 		},
 		{

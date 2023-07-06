@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 )
 
 func main() {
@@ -22,6 +23,8 @@ func main() {
 	switch os.Args[1] {
 	case "hang":
 		hang()
+	case "sleep":
+		sleep(os.Args[2])
 	case "env":
 		env()
 	case "cat":
@@ -46,6 +49,16 @@ func hang() {
 	for s := range signals {
 		fmt.Println(s)
 	}
+}
+
+// sleep put the test process to sleep.
+func sleep(durationStr string) {
+	d, err := time.ParseDuration(durationStr)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("ready")
+	time.Sleep(d)
 }
 
 // env sends os.Environ() on stdout and exits.

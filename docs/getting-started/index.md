@@ -17,7 +17,7 @@ next:
 
 This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/terramate-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
 
-To follow this tutorial, you will need local installations of [Terramate](../installation.md), [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli), and [Git](https://git-scm.com/downloads). 
+To follow this tutorial, you will need local installations of [Terramate](../installation.md), [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli), and [Git](https://git-scm.com/downloads).
 
 Note that you won't need a cloud account, as we'll be using the `local_file` resource to create a static site that demonstrates Terramate's fundamental principles.
 
@@ -29,7 +29,13 @@ Note that you won't need a cloud account, as we'll be using the `local_file` res
 
 > If you haven’t installed Terramate yet, please refer to the [installation](../installation.md) section for various options.
 
-To begin, create a new directory, and within it, create a file named `terramate.tm.hcl` with the following content:
+To start using Terramate, there are two possible ways of configuring a Terramate project. If you invoke Terramate inside
+a Git repository, Terramate will automatically assume the top-level of your repository as the project root.
+If you want to use Terramate in a directory that isn't a Git repository, you must configure the project root by creating
+a `terramate.tm.hcl` configuration at the top level or any sub-directory in your Terramate project.
+
+We will start working on a plain Terramate project without Git integration and add Git later to the project only.
+To begin, create a new directory that contains a file named `terramate.tm.hcl` with the following content:
 
 ```hcl
 # file: terramate.tm.hcl
@@ -38,8 +44,6 @@ terramate {
   }
 }
 ```
-
-Terramate uses the filesystem for its hierarchy and requires knowledge of the project's root, which is typically the git root. In this case, we're marking the root with an empty config as shown above.
 
 Next, navigate `"cd"` to the new directory and run:
 
@@ -67,14 +71,15 @@ Terramate recognizes files with the `.tm` or `.tm.hcl` extension, and any file c
 
 Run `terramate list` to see the `mysite/` directory listed as a stack. If it doesn't appear, ensure you're in the correct directory, as Terramate uses the current working directory as the context for executing all commands.
 
-
 At this point, you have created a stack, but it does not perform any actions. Although you can generate Terraform code and run it without errors, it will not produce any results.
 
 ```bash
 terramate generate
 Nothing to do, generated code is up to date
 ```
+
 ## Terramate Code Generation
+
 Let’s make it do something. Append the following to the `mysite/stack.tm.hcl`:
 
 ```hcl
@@ -94,7 +99,7 @@ generate_hcl "mysite.tf" {
 }
 ```
 
-The code provided demonstrates how to generate an HCL file named `mysite.tf` that contains Terraform code for a `local_file` resource. To create the `mysite.tf` file, run the `terramate generate` command. One of the key advantages of the Terramate is that it doesn't require any wrappers; **it seamlessly creates native Terraform code**. 
+The code provided demonstrates how to generate an HCL file named `mysite.tf` that contains Terraform code for a `local_file` resource. To create the `mysite.tf` file, run the `terramate generate` command. One of the key advantages of the Terramate is that it doesn't require any wrappers; **it seamlessly creates native Terraform code**.
 
 Simply navigate to the directory, and execute `terraform init` and `terraform apply` to generate a local file in `/tmp/tfmysite/index.html` with the HTML code.
 
@@ -134,7 +139,7 @@ rm -r mysite
 
 2. In `modules/mysite/mysite.tm.hcl`, remove the `stack {}` block since code generation should no longer occur directly in the modules directory. This file should now only contain the `generate_hcl` block.
 
-When running  `terramate list`, no stacks should appear, as there are no Terramate files with a `stack{}` block within the file tree.
+When running `terramate list`, no stacks should appear, as there are no Terramate files with a `stack{}` block within the file tree.
 
 ```bash
 $ cat modules/mysite/mysite.tm.hcl
@@ -158,6 +163,7 @@ Next, create production (prod) and development (dev) stacks in the root director
 terramate create dev/mysite
 terramate create prod/mysite
 ```
+
 Your file structure should now look like this:
 
 ```bash
@@ -213,7 +219,7 @@ generate_hcl "mysite.tf" {
 ...
 ```
 
-To execute Terraform, navigate `"cd"` to `prod/mysite` and `dev/mysite` and run the necessary Terraform commands. 
+To execute Terraform, navigate `"cd"` to `prod/mysite` and `dev/mysite` and run the necessary Terraform commands.
 
 However, to avoid manual execution and potential errors, run `terramate run terraform init` in the project root directory.
 
@@ -247,6 +253,7 @@ git init -b main
 git add *
 git commit -m 'initial commit'
 ```
+
 Next, set up a temporary local git remote to push to:
 
 ```bash
@@ -315,10 +322,9 @@ dev/mysite
 
 Now, if you execute `terramate run --changed terraform apply`, it will apply the changes only to the affected stacks.
 
-
 ### Conclusion
 
-We hope this tutorial has helped you grasp the basics of Terramate, and demonstrated how its simple code generation model works based on the filesystem hierarchy, and how it can assist you in organizing your codebase and maintaining its DRYness without any complications. 
+We hope this tutorial has helped you grasp the basics of Terramate, and demonstrated how its simple code generation model works based on the filesystem hierarchy, and how it can assist you in organizing your codebase and maintaining its DRYness without any complications.
 
 Terramate is designed to be flexible, and there is a wealth of features to explore. Its power lies in its simplicity, enabling seamless integration with your workflow without requiring you to invest time in learning another API, or complex tooling that further distances you from the native Terraform code you've already built.
 

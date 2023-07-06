@@ -112,6 +112,7 @@ func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
 }
 
 func sendUntilMsgIsReceived(t *testing.T, cmd *testCmd, signal os.Signal, msgs ...string) {
+	t.Helper()
 	// For some reason in some environments, specially CI ones,
 	// signals are not being delivered, so we retry sending the signal.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

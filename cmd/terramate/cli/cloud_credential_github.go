@@ -5,10 +5,7 @@ package cli
 
 import (
 	"context"
-	stdjson "encoding/json"
-	"io"
 	"math"
-	"net/http"
 	"net/url"
 	"os"
 	"sync"
@@ -16,6 +13,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -31,8 +29,10 @@ type githubOIDC struct {
 	repoOwner string
 	repoName  string
 
-	reqURL   string
-	reqToken string
+	reqURL      string
+	reqToken    string
+	isValidated bool
+	orgs        cloud.MemberOrganizations
 
 	output out.O
 }
@@ -88,48 +88,23 @@ func (g *githubOIDC) ExpireAt() time.Time {
 }
 
 func (g *githubOIDC) Refresh() error {
-	const oidcTimeout = 3 // seconds
-	ctx, cancel := context.WithTimeout(context.Background(), oidcTimeout*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", g.reqURL, nil)
+
+	client := github.Client{}
+	token, err := client.OIDCToken(ctx, github.OIDCVars{
+		ReqURL:   g.reqURL,
+		ReqToken: g.reqToken,
+	})
+
 	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+g.reqToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		err := resp.Body.Close()
-		if err != nil {
-			g.output.MsgStdErrV("failed to close response body: %v", err)
-		}
-	}()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	type response struct {
-		Value string `json:"value"`
-	}
-
-	var tokresp response
-	err = stdjson.Unmarshal(data, &tokresp)
-	if err != nil {
-		return err
+		return errors.E(err, "requesting new Github OIDC token")
 	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	g.token = tokresp.Value
+	g.token = token
 	g.jwtClaims, err = tokenClaims(g.token)
 	if err != nil {
 		return err
@@ -185,39 +160,48 @@ func (g *githubOIDC) Token() (string, error) {
 	return g.token, nil
 }
 
-func (g *githubOIDC) Info(cloudcfg cloudConfig) error {
-	client := cloud.Client{
-		BaseURL:    cloudcfg.baseAPI,
-		Credential: g,
-	}
-
+// Validate if the credential is ready to be used.
+func (g *githubOIDC) Validate(cloudcfg cloudConfig) error {
 	const apiTimeout = 5 * time.Second
 
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
-	orgs, err := client.MemberOrganizations(ctx)
+	orgs, err := cloudcfg.client.MemberOrganizations(ctx)
 	if err != nil {
 		return err
 	}
 
-	if len(orgs) > 0 {
-		cloudcfg.output.MsgStdOut("status: signed in")
-	} else {
-		cloudcfg.output.MsgStdOut("status: untrusted")
+	g.isValidated = true
+	g.orgs = orgs
+	return nil
+}
+
+func (g *githubOIDC) Info() {
+	if !g.isValidated {
+		panic(errors.E(errors.ErrInternal, "cred.Info() called for unvalidated credential"))
 	}
 
-	cloudcfg.output.MsgStdOut("provider: %s", g.Name())
+	if len(g.orgs) > 0 {
+		g.output.MsgStdOut("status: signed in")
+	} else {
+		g.output.MsgStdOut("status: untrusted")
+	}
+
+	g.output.MsgStdOut("provider: %s", g.Name())
 
 	for _, kv := range g.DisplayClaims() {
-		cloudcfg.output.MsgStdOut("%s: %s", kv.key, kv.value)
+		g.output.MsgStdOut("%s: %s", kv.key, kv.value)
 	}
 
-	if len(orgs) > 0 {
-		cloudcfg.output.MsgStdOut("organizations: %s", orgs)
+	if len(g.orgs) > 0 {
+		g.output.MsgStdOut("organizations: %s", g.orgs)
 	}
+	if len(g.orgs) == 0 {
+		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+	}
+}
 
-	if len(orgs) == 0 {
-		cloudcfg.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
-	}
-	return nil
+// organizations returns the list of organizations associated with the credential.
+func (g *githubOIDC) organizations() cloud.MemberOrganizations {
+	return g.orgs
 }
