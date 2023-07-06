@@ -200,7 +200,7 @@ stack {
 ```
 
 When using the configuration above, whenever `/other/stack-1` or
-`/other/stack-2` are selected to be executed, then Terramate will
+`/other/stack-2` is selected to be executed, then Terramate will
 also select the current stack.
 This option works in the same way as if both `/other/stack-1` and 
 `/other/stack-2` had a `stack.wants` attribute targeting this stack.
