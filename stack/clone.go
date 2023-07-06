@@ -116,6 +116,13 @@ func UpdateStackID(stackdir string) (string, error) {
 		return "", errors.E("stack does not have a stack block")
 	}
 
+	st, err := os.Lstat(stackFilePath)
+	if err != nil {
+		return "", errors.E(err, "stating the stack file")
+	}
+
+	originalFileMode := st.Mode()
+
 	// Parsing HCL always delivers an AST that
 	// has no comments on it, so building a new HCL file from the parsed
 	// AST will lose all comments from the original code.
@@ -155,10 +162,7 @@ func UpdateStackID(stackdir string) (string, error) {
 
 		logger.Trace().Msg("saving updated file")
 
-		// TODO(i4k): improve this.
-		// Since we just created the stack files they have the default
-		// permissions given by Go on os.Create, 0666.
-		err = os.WriteFile(stackFilePath, parsed.Bytes(), 0666)
+		err = os.WriteFile(stackFilePath, parsed.Bytes(), originalFileMode)
 		if err != nil {
 			return "", err
 		}
