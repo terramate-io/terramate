@@ -186,7 +186,7 @@ final execution set.
 
 ## stack.wanted_by (set(string))(optional)
 
-This attribute defines the list of stacks which are wanted by
+This attribute defines the list of stacks that are wanted by
 this stack, which means the stacks in the list will select this
 stack whenever they are selected for execution.
 
