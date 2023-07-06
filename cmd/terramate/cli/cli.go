@@ -993,10 +993,6 @@ func (c *cli) initDir(baseDir string) error {
 
 	errs := errors.L()
 	for _, f := range dirs {
-		if f.Name() == "." || f.Name() == ".." {
-			continue
-		}
-
 		path := filepath.Join(baseDir, f.Name())
 		if strings.HasPrefix(f.Name(), ".") {
 			logger.Trace().Msgf("ignoring file %s", path)
@@ -1049,7 +1045,6 @@ func (c *cli) initDir(baseDir string) error {
 		// so other files in the same directory do not trigger stack creation.
 		isStack = true
 	}
-
 	return errs.AsError()
 }
 
