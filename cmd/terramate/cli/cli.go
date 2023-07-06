@@ -140,6 +140,11 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
+		Init struct {
+			AllTerraform bool `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+			NoGenerate   bool `help:"skip the generation phase"`
+		} `cmd:"" help:"Init existing directories with stacks"`
+
 		Clone struct {
 			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
 			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
@@ -513,6 +518,8 @@ func (c *cli) run() {
 		c.runOnStacks()
 	case "generate":
 		c.generate()
+	case "experimental init":
+		c.initStacks()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger <stack>":
@@ -948,6 +955,123 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, err
 	return report, nil
 }
 
+func (c *cli) initStacks() {
+	if !c.parsedArgs.Experimental.Init.AllTerraform {
+		fatal(errors.E("The --all-terraform is required"))
+	}
+
+	err := c.initDir(c.wd())
+	if err != nil {
+		fatal(err, "failed to initialize some directories")
+	}
+
+	if c.parsedArgs.Experimental.Init.NoGenerate {
+		log.Debug().Msg("code generation on stack creation disabled")
+		return
+	}
+
+	root, err := config.LoadRoot(c.rootdir())
+	if err != nil {
+		fatal(err, "reloading the configuration")
+	}
+
+	c.prj.root = *root
+
+	report, vendorReport := c.gencodeWithVendor()
+	if report.HasFailures() {
+		c.output.MsgStdOut("Code generation failed")
+		c.output.MsgStdOut(report.Minimal())
+	}
+
+	if vendorReport.HasFailures() {
+		c.output.MsgStdOut(vendorReport.String())
+	}
+
+	if report.HasFailures() || vendorReport.HasFailures() {
+		os.Exit(1)
+	}
+
+	c.output.MsgStdOutV(report.Full())
+	c.output.MsgStdOutV(vendorReport.String())
+}
+
+func (c *cli) initDir(baseDir string) error {
+	logger := log.With().
+		Str("dir", baseDir).
+		Str("action", "cli.initDir()").
+		Logger()
+
+	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
+	var isStack bool
+	tree, found := c.prj.root.Lookup(pdir)
+	if found {
+		isStack = tree.IsStack()
+	}
+
+	logger.Trace().Msg("scanning TF files")
+
+	dirs, err := os.ReadDir(baseDir)
+	if err != nil {
+		fatal(errors.E(err, "listing directory entries"))
+	}
+
+	errs := errors.L()
+	for _, f := range dirs {
+		path := filepath.Join(baseDir, f.Name())
+		if strings.HasPrefix(f.Name(), ".") {
+			logger.Trace().Msgf("ignoring file %s", path)
+			continue
+		}
+
+		if f.IsDir() {
+			errs.Append(c.initDir(path))
+			continue
+		}
+
+		if isStack {
+			continue
+		}
+
+		if filepath.Ext(f.Name()) != ".tf" {
+			logger.Trace().Msgf("ignoring file %s", path)
+			continue
+		}
+
+		found, err := tf.IsStack(path)
+		if err != nil {
+			fatal(errors.E(err, "parsing terraform"))
+		}
+
+		if !found {
+			logger.Trace().Msgf("ignoring file %s", path)
+			continue
+		}
+
+		stackDir := baseDir
+		stackID, err := uuid.NewRandom()
+		if err != nil {
+			fatal(err, "creating stack UUID")
+		}
+		stackSpec := config.Stack{
+			Dir: prj.PrjAbsPath(c.rootdir(), stackDir),
+			ID:  stackID.String(),
+		}
+
+		err = stack.Create(c.cfg(), stackSpec)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+
+		log.Info().Msgf("created stack %s", stackSpec.Dir)
+		c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
+
+		// so other files in the same directory do not trigger stack creation.
+		isStack = true
+	}
+	return errs.AsError()
+}
+
 func (c *cli) createStack() {
 	logger := log.With().
 		Str("workingDir", c.wd()).
@@ -1020,6 +1144,11 @@ func (c *cli) createStack() {
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
 		return
+	}
+
+	err = c.prj.root.LoadSubTree(stackSpec.Dir)
+	if err != nil {
+		fatal(err, "loading newly created stack")
 	}
 
 	report, vendorReport := c.gencodeWithVendor()
