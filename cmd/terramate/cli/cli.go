@@ -205,7 +205,7 @@ type cliSpec struct {
 		} `cmd:"" help:"Terramate Cloud commands"`
 
 		EnsureStackID struct {
-		} `cmd:"" help:"generate stack.id for all stacks which does not define it"`
+		} `cmd:"" help:"generate an UUID for the stack.id of all stacks which does not define it"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
