@@ -203,6 +203,9 @@ type cliSpec struct {
 			Info struct {
 			} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
+
+		EnsureStackID struct {
+		} `cmd:"" help:"generate stack.id for all stacks which does not define it"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -548,6 +551,8 @@ func (c *cli) run() {
 		c.getConfigValue()
 	case "experimental cloud info":
 		c.cloudInfo()
+	case "experimental ensure-stack-id":
+		c.ensureStackID()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -914,14 +919,33 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 }
 
 func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, error) {
+	var (
+		err    error
+		report *stack.Report
+	)
+
 	if isChanged {
 		log.Trace().
 			Str("action", "listStacks()").
 			Str("workingDir", c.wd()).
-			Msg("`Changed` flag was set. List changed stacks.")
-		return mgr.ListChanged()
+			Msg("Listing changed stacks")
+
+		report, err = mgr.ListChanged()
+	} else {
+		log.Trace().
+			Str("action", "listStacks()").
+			Str("workingDir", c.wd()).
+			Msg("Listing all stacks")
+
+		report, err = mgr.List()
 	}
-	return mgr.List()
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.prj.git.repoChecks = report.Checks
+	return report, nil
 }
 
 func (c *cli) createStack() {
@@ -1073,7 +1097,6 @@ func (c *cli) printStacks() {
 		fatal(err, "listing stacks")
 	}
 
-	c.prj.git.repoChecks = report.Checks
 	c.gitFileSafeguards(false)
 
 	for _, entry := range c.filterStacks(report.Stacks) {
@@ -1434,6 +1457,27 @@ func (c *cli) checkGenCode() bool {
 	return true
 }
 
+func (c *cli) ensureStackID() {
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
+	report, err := c.listStacks(mgr, false)
+	if err != nil {
+		fatal(err, "listing stacks")
+	}
+
+	for _, entry := range report.Stacks {
+		if entry.Stack.ID != "" {
+			continue
+		}
+
+		id, err := stack.UpdateStackID(entry.Stack.HostDir(c.cfg()))
+		if err != nil {
+			fatal(err, "failed to update stack.id of stack %s", entry.Stack.Dir)
+		}
+
+		c.output.MsgStdOut("Generated ID %s for stack %s", id, entry.Stack.Dir)
+	}
+}
+
 func (c *cli) eval() {
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.Eval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
@@ -1759,7 +1803,6 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 		return nil, err
 	}
 
-	c.prj.git.repoChecks = report.Checks
 	c.gitFileSafeguards(ensureCleanRepo)
 
 	logger.Trace().Msg("Filter stacks by working directory.")
