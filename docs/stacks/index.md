@@ -162,7 +162,7 @@ Defines the list of stacks that this stack must run `before`. It accepts project
 
 ## stack.wants (set(string))(optional)
 
-This attribute defines the list of stacks which must be selected 
+This attribute defines the list of stacks that must be selected 
 whenever this stack is selected to be executed.
 
 ```hcl
