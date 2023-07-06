@@ -85,6 +85,9 @@ func filterDotFiles(_ string, entry os.DirEntry) bool {
 	return !strings.HasPrefix(entry.Name(), ".")
 }
 
+// UpdateStackID updates the stack.id of the given stack directory.
+// The functions updates just the file which defines the stack block.
+// The updated file will lose all comments.
 func UpdateStackID(stackdir string) (string, error) {
 	logger := log.With().
 		Str("action", "stack.updateStackID()").
