@@ -58,7 +58,7 @@ func (c *Client) Users(ctx context.Context) (user User, err error) {
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
-	return Get[MemberOrganizations](ctx, c, "/organizations")
+	return Get[MemberOrganizations](ctx, c, "/memberships")
 }
 
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.
