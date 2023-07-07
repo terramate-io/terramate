@@ -285,7 +285,8 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	if err != nil {
 		log.Warn().
 			Msg("failed to create cloud deployment. Skipping")
-		c.parsedArgs.Run.CloudSyncDeployment = false
+
+		c.cloud.disabled = true
 		return
 	}
 
@@ -293,7 +294,10 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		err := errors.E("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
 			len(res), len(stacks))
 
-		fatal(err, "unable to continue")
+		logger.Err(err).Msg("unable to continue")
+
+		c.cloud.disabled = true
+		return
 	}
 
 	for _, r := range res {
