@@ -269,7 +269,10 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		fatal(err)
+		log.Warn().
+			Msg("failed to create cloud deployment. Skipping")
+		c.parsedArgs.Run.CloudSyncDeployment = false
+		return
 	}
 
 	if len(res) != len(stacks) {
