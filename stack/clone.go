@@ -73,7 +73,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 	}
 
 	logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
-	err = updateStackID(destdir)
+	_, err = UpdateStackID(destdir)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,10 @@ func filterDotFiles(_ string, entry os.DirEntry) bool {
 	return !strings.HasPrefix(entry.Name(), ".")
 }
 
-func updateStackID(stackdir string) error {
+// UpdateStackID updates the stack.id of the given stack directory.
+// The functions updates just the file which defines the stack block.
+// The updated file will lose all comments.
+func UpdateStackID(stackdir string) (string, error) {
 	logger := log.With().
 		Str("action", "stack.updateStackID()").
 		Str("stack", stackdir).
@@ -95,78 +98,78 @@ func updateStackID(stackdir string) error {
 
 	parser, err := hcl.NewTerramateParser(stackdir, stackdir)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if err := parser.AddDir(stackdir); err != nil {
-		return err
+		return "", err
 	}
 
 	if err := parser.Parse(); err != nil {
-		return err
+		return "", err
 	}
 
 	logger.Trace().Msg("finding file containing stack definition")
 
 	stackFilePath := getStackFilepath(parser)
 	if stackFilePath == "" {
-		return errors.E("cloned stack does not have a stack block")
+		return "", errors.E("stack does not have a stack block")
 	}
+
+	st, err := os.Lstat(stackFilePath)
+	if err != nil {
+		return "", errors.E(err, "stating the stack file")
+	}
+
+	originalFileMode := st.Mode()
 
 	// Parsing HCL always delivers an AST that
 	// has no comments on it, so building a new HCL file from the parsed
 	// AST will lose all comments from the original code.
 
-	logger.Trace().Msg("reading cloned stack file")
+	logger.Trace().Msg("reading stack file")
 
 	stackContents, err := os.ReadFile(stackFilePath)
 	if err != nil {
-		return errors.E(err, "reading cloned stack definition file")
+		return "", errors.E(err, "reading stack definition file")
 	}
 
-	logger.Trace().Msg("parsing cloned stack file")
+	logger.Trace().Msg("parsing stack file")
 
 	parsed, diags := hclwrite.ParseConfig([]byte(stackContents), stackFilePath, hhcl.InitialPos)
 	if diags.HasErrors() {
-		return errors.E(diags, "parsing cloned stack configuration")
+		return "", errors.E(diags, "parsing stack configuration")
 	}
 
 	blocks := parsed.Body().Blocks()
 
 	logger.Trace().Msg("searching for stack ID attribute")
 
-updateStackID:
 	for _, block := range blocks {
 		if block.Type() != hcl.StackBlockType {
 			continue
 		}
 
-		body := block.Body()
-		attrs := body.Attributes()
-		for name := range attrs {
-			if name != "id" {
-				continue
-			}
-
-			id, err := uuid.NewRandom()
-			if err != nil {
-				return errors.E(err, "creating new ID for cloned stack")
-			}
-
-			logger.Trace().
-				Str("newID", id.String()).
-				Msg("found stack ID attribute, updating")
-
-			body.SetAttributeValue(name, cty.StringVal(id.String()))
-			break updateStackID
+		uuid, err := uuid.NewRandom()
+		if err != nil {
+			return "", errors.E(err, "creating new ID for stack")
 		}
+
+		id := uuid.String()
+
+		body := block.Body()
+		body.SetAttributeValue("id", cty.StringVal(id))
+
+		logger.Trace().Msg("saving updated file")
+
+		err = os.WriteFile(stackFilePath, parsed.Bytes(), originalFileMode)
+		if err != nil {
+			return "", err
+		}
+		return id, nil
 	}
 
-	logger.Trace().Msg("saving updated file")
-
-	// Since we just created the clones stack files they have the default
-	// permissions given by Go on os.Create, 0666.
-	return os.WriteFile(stackFilePath, parsed.Bytes(), 0666)
+	return "", errors.E("stack block not found")
 }
 
 func getStackFilepath(parser *hcl.TerramateParser) string {
