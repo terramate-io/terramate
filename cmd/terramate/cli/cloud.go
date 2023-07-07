@@ -29,8 +29,9 @@ const (
 )
 
 type cloudConfig struct {
-	client *cloud.Client
-	output out.O
+	disabled bool
+	client   *cloud.Client
+	output   out.O
 
 	credential credential
 
@@ -66,6 +67,10 @@ func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 	}
 }
 
+func (c *cli) cloudEnabled() bool {
+	return !c.parsedArgs.Run.CloudSyncDeployment || !c.cloud.disabled
+}
+
 func (c *cli) checkSyncDeployment() {
 	if !c.parsedArgs.Run.CloudSyncDeployment {
 		return
@@ -76,6 +81,10 @@ func (c *cli) checkSyncDeployment() {
 			c.cred().Info()
 		}
 		fatal(err)
+	}
+
+	if c.cloud.disabled {
+		return
 	}
 
 	// at this point we know user is onboarded, ie has at least 1 organization.
@@ -139,7 +148,12 @@ func (c *cli) setupSyncDeployment() error {
 		credential: cred,
 	}
 
-	return cred.Validate(c.cloud)
+	err = cred.Validate(c.cloud)
+	if err != nil {
+		log.Warn().Msg("failed to check if credentials work. Disablig the cloud features.")
+		c.cloud.disabled = true
+	}
+	return nil
 }
 
 func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
@@ -147,7 +161,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		Str("organization", c.cloud.run.orgUUID).
 		Logger()
 
-	if !c.parsedArgs.Run.CloudSyncDeployment {
+	if !c.cloudEnabled() {
 		return
 	}
 
