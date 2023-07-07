@@ -181,7 +181,7 @@ func (g *githubOIDC) Info() {
 		panic(errors.E(errors.ErrInternal, "cred.Info() called for unvalidated credential"))
 	}
 
-	if len(g.orgs) > 0 {
+	if len(g.orgs) > 0 && g.orgs[0].Status == "trusted" {
 		g.output.MsgStdOut("status: signed in")
 	} else {
 		g.output.MsgStdOut("status: untrusted")
