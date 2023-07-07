@@ -143,11 +143,11 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return entity, errors.E(ErrNotFound)
+		return entity, errors.E(ErrNotFound, "%s %s", method, c.endpoint(resourceURL))
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", resourceURL, resp.Status, data)
+		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", c.endpoint(resourceURL), resp.Status, data)
 	}
 
 	if resp.StatusCode == http.StatusNoContent {
