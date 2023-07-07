@@ -68,7 +68,7 @@ func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 }
 
 func (c *cli) cloudEnabled() bool {
-	return !c.parsedArgs.Run.CloudSyncDeployment || !c.cloud.disabled
+	return !c.cloud.disabled
 }
 
 func (c *cli) checkSyncDeployment() {
@@ -161,7 +161,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		Str("organization", c.cloud.run.orgUUID).
 		Logger()
 
-	if !c.cloudEnabled() {
+	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
 
