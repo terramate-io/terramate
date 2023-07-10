@@ -134,7 +134,7 @@ func TestCommonAPIFailCases(t *testing.T) {
 				errtest.Assert(t, err, tc.err)
 			}()
 
-			// /v1/organizations
+			// /v1/memberships
 			func() {
 				const timeout = 3 * time.Second
 				ctx, cancel := context.WithTimeout(context.Background(), timeout)

@@ -19,7 +19,7 @@ import (
 // DefaultOrgUUID is the test organization UUID.
 const DefaultOrgUUID = "0000-1111-2222-3333"
 
-func (orgHandler *organizationHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+func (orgHandler *membershipHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	_, _ = w.Write([]byte(
 		fmt.Sprintf(`[
@@ -170,7 +170,7 @@ func newDeploymentEndpoint() *deploymentHandler {
 func Router() *httprouter.Router {
 	router := httprouter.New()
 	router.Handler("GET", "/v1/users", &userHandler{})
-	router.Handler("GET", "/v1/organizations", &organizationHandler{})
+	router.Handler("GET", "/v1/memberships", &membershipHandler{})
 
 	deploymentEndpoint := newDeploymentEndpoint()
 	router.Handler("GET", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
@@ -181,9 +181,9 @@ func Router() *httprouter.Router {
 }
 
 type (
-	userHandler         struct{}
-	organizationHandler struct{}
-	deploymentHandler   struct {
+	userHandler       struct{}
+	membershipHandler struct{}
+	deploymentHandler struct {
 		nextStackID int64
 		// as hacky as it can get:
 		// map of organization -> (map of deployment_id -> (map of stack_id -> deployment))
