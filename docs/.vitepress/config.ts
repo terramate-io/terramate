@@ -25,6 +25,17 @@ export default defineConfig({
         },
       ],
       [
+        'script',
+        {
+          'type': 'text/javascript',
+          'data-cmp-ab': '1',
+          'src': 'https://cdn.consentmanager.net/delivery/autoblocking/549c07dafc3a.js',
+          'data-cmp-host': 'd.delivery.consentmanager.net',
+          'data-cmp-cdn': 'cdn.consentmanager.net',
+          'data-cmp-codesrc': '1',
+        },
+      ],
+      [
         'link',
         {
           rel: 'apple-touch-icon',
