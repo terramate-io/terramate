@@ -1,5 +1,5 @@
 ---
-title: Project Setup | Terramate
+title: Project Setup
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:

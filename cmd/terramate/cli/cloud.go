@@ -86,7 +86,7 @@ func (c *cli) checkSyncDeployment() {
 		var useOrgUUID string
 		for _, org := range orgs {
 			if org.Name == useOrgName {
-				if org.Status != "active" {
+				if org.Status != "active" && org.Status != "trusted" {
 					fatal(errors.E("You are not yet an active member of organization %s. Please accept the invitation first.", useOrgName))
 				}
 
@@ -109,7 +109,7 @@ func (c *cli) checkSyncDeployment() {
 		)
 	} else {
 		org := orgs[0]
-		if org.Status != "active" {
+		if org.Status != "active" && org.Status != "trusted" {
 			fatal(errors.E("You are not yet an active member of organization %s. Please accept the invitation first.", org.Name))
 		}
 		c.cloud.run.orgUUID = org.UUID
