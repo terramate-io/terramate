@@ -1,5 +1,5 @@
 ---
-title: Stacks Execution Orchestration | Terramate
+title: Stacks Execution Orchestration
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
@@ -34,7 +34,7 @@ project structure will select only stacks that are children of the current direc
 
 3. Explicit `wants` relationship.
 
-The `wants` attribute of the stack block defines an explicit relationship between a stack and its list of wanted stacks. 
+The `wants` attribute of the stack block defines an explicit relationship between a stack and its list of wanted stacks.
 When a stack is selected, all the stacks listed on its `wants` list will also be selected, independent of any other selection criteria.
 
 Example:
@@ -151,7 +151,7 @@ And `stack-b/terramate.tm.hcl`:
 stack {}
 ```
 
-The above configuration also results in the execution sequence: 
+The above configuration also results in the execution sequence:
 
 * stack-a
 * stack-b
@@ -183,9 +183,9 @@ stack {
 }
 ```
 
-With these settings, the execution sequence will be: 
+With these settings, the execution sequence will be:
 
-* stack-a 
+* stack-a
 * stack-c
 * stack-b
 
