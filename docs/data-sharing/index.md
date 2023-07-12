@@ -1,5 +1,5 @@
 ---
-title: Sharing Data - Globals | Terramate
+title: Sharing Data - Globals
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
@@ -13,14 +13,14 @@ next:
 
 # Sharing Data in Terramate
 
-Maintaining [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 
-(Don't Repeat Yourself) principles in your code is crucial to keep your 
+Maintaining [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
+(Don't Repeat Yourself) principles in your code is crucial to keep your
 project neat and manageable. Terramate facilitates this practice by enabling you to define
-data once and distribute it throughout your project. This can be accomplished using two 
+data once and distribute it throughout your project. This can be accomplished using two
 main constructs: Globals and Metadata.
 
 **Globals** are user-defined entities, similar to locals in Terraform, whereas **Metadata** is
-information supplied by Terramate itself. These are integrated with Terraform through a code 
+information supplied by Terramate itself. These are integrated with Terraform through a code
 generation process. To delve deeper into code generation process, refer to [here](../code-generation/index.md).
 
 
@@ -32,7 +32,7 @@ project.
 
 ### Defining Globals
 
-Globals are added to your [Terramate configuration file](../configuration/index.md) within a `globals` block. 
+Globals are added to your [Terramate configuration file](../configuration/index.md) within a `globals` block.
 Here's an example:
 
 ```hcl
@@ -63,7 +63,7 @@ After this, `global.obj` would appear as:
 }
 ```
 
-Multiple labels can be provided, and Terramate will automatically establish the object keys as 
+Multiple labels can be provided, and Terramate will automatically establish the object keys as
 necessary. Here's an example:
 
 ```hcl
@@ -125,7 +125,7 @@ globals {
 
 ### Usage of Globals across multiple Terramate Files
 
-Globals can be defined across multiple Terramate files, with the set of files in a 
+Globals can be defined across multiple Terramate files, with the set of files in a
 specific directory referred to as a **configuration**. Following this terminology:
 
 * A project has multiple configurations, one for each of its directories.
@@ -139,7 +139,7 @@ Each stack will have its globals defined by loading them from
 the stack directory and up until the project root
 is reached. This is called the stack globals set.
 
-When globals are redefined across different configurations, a simple merge strategy is 
+When globals are redefined across different configurations, a simple merge strategy is
 adopted:
 
 * Globals with different names are merged.
@@ -178,7 +178,7 @@ globals {
 Now any stack on the project can reference these globals on their
 [Terramate configuration](../configuration/index.md).
 
-Suppose one of the stacks, stack-1, wants to introduce more globals. This can be done by 
+Suppose one of the stacks, stack-1, wants to introduce more globals. This can be done by
 adding globals to the stack configuration in the file 'stacks/stack-1/globals.tm.hcl':
 
 ```hcl
@@ -227,7 +227,7 @@ project_name = "awesome-project"
 useful       = "useful"
 ```
 
-Overriding is conducted at the global name level, meaning objects, maps, lists, and sets 
+Overriding is conducted at the global name level, meaning objects, maps, lists, and sets
 are not merged but entirely replaced by the most specific configuration with the same global name.
 
 For instance, suppose we add this to our project root configuration:
@@ -274,10 +274,10 @@ globals {
 }
 ```
 
-Upon unsetting, any access to the global will fail, as if the global was never defined. 
+Upon unsetting, any access to the global will fail, as if the global was never defined.
 This behavior affects the global throughout the entire hierarchy, leaving it undefined for all child configurations.
 
-It's essential to note that `unset` can only be used in direct assignments to a global. 
+It's essential to note that `unset` can only be used in direct assignments to a global.
 It is not allowed in any other context.
 
 
@@ -355,7 +355,7 @@ Given this project layout:
 
 ### terramate.stack.path.relative (string)
 
-Specifies the stack's absolute path relative to the project root directory (not the host root directory). 
+Specifies the stack's absolute path relative to the project root directory (not the host root directory).
 The path is absolute within the context of the entire project.
 
 Consider this project layout:
@@ -367,7 +367,7 @@ Consider this project layout:
     └── stack-b
 ```
 
-In this case, 
+In this case,
 * **stack-a** = stacks/stack-a
 * **stack-b** = stacks/stack-b
 
@@ -382,7 +382,7 @@ Gives the stack path relative to the project root directory. Following the same 
     └── stack-b
 ```
 
-Using the prolayout above: 
+Using the prolayout above:
 * **stack-a** = stack-a
 * **stack-b** = stack-b
 
@@ -403,15 +403,15 @@ With the given project layout, both **stack-a** and **stack-b** have the relativ
 
 ### terramate.stack.id (string)
 
-Defines the ID of the stack as stated in the stack configuration. If an ID is not defined in 
-the stack configuration, this metadata will be undefined (no default value provided). 
+Defines the ID of the stack as stated in the stack configuration. If an ID is not defined in
+the stack configuration, this metadata will be undefined (no default value provided).
 
 Refer to [stack configuration](../stacks/index.md) for details on defining stack IDs.
 
 ### terramate.stack.name (string)
 
-Specifies the stack's name as defined in the stack configuration. If a name is not defined, 
-it defaults to `terramate.stack.path.basename`. To change the default stack name, refer to 
+Specifies the stack's name as defined in the stack configuration. If a name is not defined,
+it defaults to `terramate.stack.path.basename`. To change the default stack name, refer to
 [stack configuration](../stacks/index.md).
 
 Given the project layout from the root:
@@ -428,12 +428,12 @@ Given the project layout from the root:
 
 ### terramate.stack.description (string)
 
-Describes the stack, if a description is provided. If not, the default value is an empty string. 
+Describes the stack, if a description is provided. If not, the default value is an empty string.
 You can modify the default stack description via the [stack configuration](../stacks/index.md).
 
 ### terramate.stack.tags (list)
 
-Represents a list of stack tags. If no tags are defined, the default value is an empty list. 
+Represents a list of stack tags. If no tags are defined, the default value is an empty list.
 
 You can update stack tags using the [stack configuration](../stacks/index.md).
 
@@ -444,6 +444,6 @@ process of deprecation.
 
 | S/N  |  Deprecated                    |   Superseded                   |
 |------|--------------------------------| -------------------------------|
-|  1   | terramate.path (string)        |  terramate.stack.path.absolute |   
-|  2   | terramate.name (string)        |  terramate.stack.name          |  
-|  3   | terramate.description (string) |  terramate.stack.description   |   
+|  1   | terramate.path (string)        |  terramate.stack.path.absolute |
+|  2   | terramate.name (string)        |  terramate.stack.name          |
+|  3   | terramate.description (string) |  terramate.stack.description   |
