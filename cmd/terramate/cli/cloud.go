@@ -28,6 +28,10 @@ const (
 	defaultGithubTimeout = defaultCloudTimeout
 )
 
+// DisablingCloudMessage is the message displayed in the warning when disabling
+// the cloud features. It's exported because it's checked in tests.
+const DisablingCloudMessage = "disabling the cloud features"
+
 type cloudConfig struct {
 	disabled bool
 	client   *cloud.Client
@@ -150,7 +154,9 @@ func (c *cli) setupSyncDeployment() error {
 
 	err = cred.Validate(c.cloud)
 	if err != nil {
-		log.Warn().Msg("failed to check if credentials work. Disablig the cloud features.")
+		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
+			Msg(DisablingCloudMessage)
+
 		c.cloud.disabled = true
 	}
 	return nil
@@ -284,7 +290,8 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
 		log.Warn().
-			Msg("failed to create cloud deployment. Skipping")
+			Err(errors.E(err, "failed to create cloud deployment")).
+			Msg(DisablingCloudMessage)
 
 		c.cloud.disabled = true
 		return
