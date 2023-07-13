@@ -10,6 +10,7 @@ function getPath(path: string) {
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'Terramate',
+  // titleTemplate: ':title - Terramate',
   description:
     'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
   cleanUrls: true,
@@ -112,7 +113,7 @@ export default defineConfig({
 
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Docs', link: '/about-stacks' },
+      { text: 'Docs', link: '/introduction' },
       { text: 'Blog', link: 'https://blog.terramate.io/' },
       { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/terramate' },
       {
@@ -124,25 +125,19 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: '👋 What is Terramate',
+        text: '👋 Get Started',
         collapsed: false,
         items: [
-          { text: 'Overview', link: '/' },
-          { text: 'About Stacks', link: 'about-stacks' },
-        ],
-      },
-      {
-        text: '🛠️ Getting Started',
-        collapsed: false,
-        items: [
+          { text: 'Introduction', link: 'introduction' },
           { text: 'Installation', link: 'installation' },
-          { text: 'Quick Start', link: 'getting-started/' },
+          { text: 'Quickstart', link: 'getting-started/' },
         ],
       },
       {
         text: '📚 Stacks',
         collapsed: false,
         items: [
+          { text: 'About Stacks', link: 'about-stacks' },
           { text: 'Stack Configuration', link: 'stacks/' },
           { text: 'Orchestration', link: 'orchestration/' },
           { text: 'Tag Filter', link: 'tag-filter' },
