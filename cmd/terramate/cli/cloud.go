@@ -28,9 +28,14 @@ const (
 	defaultGithubTimeout = defaultCloudTimeout
 )
 
+// DisablingCloudMessage is the message displayed in the warning when disabling
+// the cloud features. It's exported because it's checked in tests.
+const DisablingCloudMessage = "disabling the cloud features"
+
 type cloudConfig struct {
-	client *cloud.Client
-	output out.O
+	disabled bool
+	client   *cloud.Client
+	output   out.O
 
 	credential credential
 
@@ -66,6 +71,10 @@ func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 	}
 }
 
+func (c *cli) cloudEnabled() bool {
+	return !c.cloud.disabled
+}
+
 func (c *cli) checkSyncDeployment() {
 	if !c.parsedArgs.Run.CloudSyncDeployment {
 		return
@@ -76,6 +85,10 @@ func (c *cli) checkSyncDeployment() {
 			c.cred().Info()
 		}
 		fatal(err)
+	}
+
+	if c.cloud.disabled {
+		return
 	}
 
 	// at this point we know user is onboarded, ie has at least 1 organization.
@@ -139,7 +152,14 @@ func (c *cli) setupSyncDeployment() error {
 		credential: cred,
 	}
 
-	return cred.Validate(c.cloud)
+	err = cred.Validate(c.cloud)
+	if err != nil {
+		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
+			Msg(DisablingCloudMessage)
+
+		c.cloud.disabled = true
+	}
+	return nil
 }
 
 func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
@@ -147,7 +167,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		Str("organization", c.cloud.run.orgUUID).
 		Logger()
 
-	if !c.parsedArgs.Run.CloudSyncDeployment {
+	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
 
@@ -269,14 +289,22 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		fatal(err)
+		log.Warn().
+			Err(errors.E(err, "failed to create cloud deployment")).
+			Msg(DisablingCloudMessage)
+
+		c.cloud.disabled = true
+		return
 	}
 
 	if len(res) != len(stacks) {
-		err := errors.E("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-			len(res), len(stacks))
+		logger.Warn().Err(errors.E(
+			"the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
+			len(res), len(stacks)),
+		).Msg(DisablingCloudMessage)
 
-		fatal(err, "unable to continue")
+		c.cloud.disabled = true
+		return
 	}
 
 	for _, r := range res {

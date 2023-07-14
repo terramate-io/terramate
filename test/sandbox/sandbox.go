@@ -607,7 +607,6 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 		assert.NoError(t, err)
 
 		cfg.Stack = &hcl.Stack{}
-		cfg.Terramate = &hcl.Terramate{}
 
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")

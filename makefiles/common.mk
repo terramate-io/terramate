@@ -100,6 +100,24 @@ release/dry-run:
 release:
 	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
 
+## sync the Terramate example stack with a success status.
+.PHONY: cloud/sync/ok
+cloud/sync/ok: build test/helper
+	./bin/terramate --log-level=info		\
+			--disable-check-git-untracked   \
+			--disable-check-git-uncommitted \
+			run --cloud-sync-deployment --  \
+			$(PWD)/bin/helper true
+
+## sync the Terramate example stack with a failed status.
+.PHONY: cloud/sync/failed
+cloud/sync/failed: build test/helper
+	./bin/terramate --log-level=info		\
+			--disable-check-git-untracked   \
+			--disable-check-git-uncommitted \
+			run --cloud-sync-deployment --  \
+			$(PWD)/bin/helper false
+
 ## Display help for all targets
 .PHONY: help
 help:

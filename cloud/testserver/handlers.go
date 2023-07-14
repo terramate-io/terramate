@@ -166,17 +166,33 @@ func newDeploymentEndpoint() *deploymentHandler {
 	}
 }
 
-// Router returns the testserver router configuration.
+// Router returns the default fake cloud router.
 func Router() *httprouter.Router {
+	return RouterWith(EnableAllConfig())
+}
+
+// RouterWith returns the testserver router configuration only for the
+// enabled endpoints.
+func RouterWith(enabled map[string]bool) *httprouter.Router {
 	router := httprouter.New()
-	router.Handler("GET", "/v1/users", &userHandler{})
-	router.Handler("GET", "/v1/memberships", &membershipHandler{})
+
+	if enabled[cloud.UsersPath] {
+		router.Handler("GET", cloud.UsersPath, &userHandler{})
+	}
+
+	if enabled[cloud.MembershipsPath] {
+		router.Handler("GET", cloud.MembershipsPath, &membershipHandler{})
+	}
 
 	deploymentEndpoint := newDeploymentEndpoint()
-	router.Handler("GET", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
-	router.Handler("POST", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
-	router.Handler("PATCH", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
-	router.Handler("GET", "/v1/deployments/:orguuid/:deployuuid/events", deploymentEndpoint)
+	if enabled[cloud.DeploymentsPath] {
+		router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+		router.Handler("POST", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+		router.Handler("PATCH", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+	}
+
+	// test endpoint always enabled
+	router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/events", cloud.DeploymentsPath), deploymentEndpoint)
 	return router
 }
 
@@ -192,3 +208,12 @@ type (
 		events map[string]map[string]map[string][]string
 	}
 )
+
+// EnableAllConfig returns a map that enables all cloud endpoints.
+func EnableAllConfig() map[string]bool {
+	return map[string]bool{
+		cloud.UsersPath:       true,
+		cloud.MembershipsPath: true,
+		cloud.DeploymentsPath: true,
+	}
+}

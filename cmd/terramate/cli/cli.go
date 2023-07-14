@@ -1863,14 +1863,14 @@ func (c *cli) runOnStacks() {
 	}
 
 	beforeHook := func(s *config.Stack, cmd string) {
-		if !c.parsedArgs.Run.CloudSyncDeployment {
+		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
 		c.syncCloudDeployment(s, cloud.Running)
 	}
 
 	afterHook := func(s *config.Stack, err error) {
-		if !c.parsedArgs.Run.CloudSyncDeployment {
+		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
 		var status cloud.Status

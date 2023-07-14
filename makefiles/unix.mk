@@ -19,6 +19,11 @@ test/build: test/fakecloud
 test/fakecloud:
 	go build -o bin/fakecloud ./cloud/testserver/cmd/fakecloud
 
+## build the helper binary
+.PHONY: test/helper
+test/helper:
+	go build -o bin/helper ./cmd/terramate/e2etests/cmd/test
+
 ## Install terramate on the host
 .PHONY: install
 install:

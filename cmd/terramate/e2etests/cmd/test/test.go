@@ -21,6 +21,10 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "true":
+		os.Exit(0)
+	case "false":
+		os.Exit(1)
 	case "hang":
 		hang()
 	case "sleep":

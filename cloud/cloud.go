@@ -20,7 +20,16 @@ import (
 const Host = "api.terramate.io"
 
 // BaseURL is the default cloud.terramate.io base API URL.
-const BaseURL = "https://" + Host + "/v1"
+const BaseURL = "https://" + Host
+
+const (
+	// UsersPath is the users endpoint base path.
+	UsersPath = "/v1/users"
+	// MembershipsPath is the memberships endpoint base path.
+	MembershipsPath = "/v1/memberships"
+	// DeploymentsPath is the deployments endpoint base path.
+	DeploymentsPath = "/v1/deployments"
+)
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
 const ErrUnexpectedStatus errors.Kind = "unexpected status code"
@@ -53,12 +62,12 @@ type (
 
 // Users retrieves the user details for the signed in user.
 func (c *Client) Users(ctx context.Context) (user User, err error) {
-	return Get[User](ctx, c, "/users")
+	return Get[User](ctx, c, UsersPath)
 }
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
-	return Get[MemberOrganizations](ctx, c, "/memberships")
+	return Get[MemberOrganizations](ctx, c, MembershipsPath)
 }
 
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.
@@ -68,12 +77,20 @@ func (c *Client) CreateDeploymentStacks(
 	deploymentUUID string,
 	deploymentStacksPayload DeploymentStacksPayloadRequest,
 ) (DeploymentStacksResponse, error) {
-	return Post[DeploymentStacksResponse](ctx, c, deploymentStacksPayload, "/deployments", orgUUID, deploymentUUID, "stacks")
+	return Post[DeploymentStacksResponse](
+		ctx,
+		c,
+		deploymentStacksPayload,
+		DeploymentsPath,
+		orgUUID,
+		deploymentUUID,
+		"stacks",
+	)
 }
 
 // UpdateDeploymentStacks updates the deployment status of each stack in the payload set.
 func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID string, deploymentUUID string, payload UpdateDeploymentStacks) error {
-	_, err := Patch[empty](ctx, c, payload, "/deployments", orgUUID, deploymentUUID, "stacks")
+	_, err := Patch[empty](ctx, c, payload, DeploymentsPath, orgUUID, deploymentUUID, "stacks")
 	return err
 }
 
