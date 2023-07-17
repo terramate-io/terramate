@@ -3,12 +3,12 @@ title: An introduction to Stacks
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:
-  text: 'Overview'
-  link: '/'
+  text: 'Quickstart'
+  link: '/getting-started/'
 
 next:
-  text: 'Installation'
-  link: '/installation'
+  text: 'Stacks Configuration'
+  link: '/stacks/'
 ---
 
 # About Stacks

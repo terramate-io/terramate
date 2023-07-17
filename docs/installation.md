@@ -1,14 +1,14 @@
 ---
-title: Installation
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: How to Install
+description: You can easily install Terramate with Go or package managers such as brew. You can also run Terramate with Docker by building on top of our pre-configured image.
 
 prev:
-  text: "About Stacks"
-  link: "/about-stacks"
+  text: "Introduction"
+  link: "/introduction"
 
 next:
-  text: "Getting Started"
-  link: "/getting-started"
+  text: "Quickstart"
+  link: "/getting-started/"
 ---
 
 # Installation
