@@ -36,7 +36,7 @@ const (
 const ErrUnexpectedStatus errors.Kind = "unexpected status code"
 
 // ErrNotFound indicates the requested resource does not exist in the server.
-const ErrNotFound errors.Kind = "resource not found"
+const ErrNotFound errors.Kind = "resource not found (HTTP Status 404)"
 
 // ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
 const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
