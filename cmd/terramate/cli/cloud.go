@@ -79,7 +79,7 @@ func (c *cli) checkSyncDeployment() {
 	if !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
-	err := c.setupSyncDeployment()
+	err := c.setupCloudConfig()
 	if err != nil {
 		if errors.IsKind(err, ErrOnboardingIncomplete) {
 			c.cred().Info()
@@ -136,7 +136,7 @@ func (c *cli) checkSyncDeployment() {
 	}
 }
 
-func (c *cli) setupSyncDeployment() error {
+func (c *cli) setupCloudConfig() error {
 	cred, err := c.loadCredential()
 	if err != nil {
 		return err
@@ -368,7 +368,7 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
 }
 
 func (c *cli) cloudInfo() {
-	err := c.setupSyncDeployment()
+	err := c.setupCloudConfig()
 	if err != nil {
 		fatal(err)
 	}
