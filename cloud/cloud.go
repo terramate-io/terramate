@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -35,7 +36,7 @@ const (
 const ErrUnexpectedStatus errors.Kind = "unexpected status code"
 
 // ErrNotFound indicates the requested resource does not exist in the server.
-const ErrNotFound errors.Kind = "resource not found"
+const ErrNotFound errors.Kind = "resource not found (HTTP Status 404)"
 
 // ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
 const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
@@ -196,6 +197,7 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("User-Agent", "terramate/v"+terramate.Version())
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Context-Type", contentType)
 	return req, nil
