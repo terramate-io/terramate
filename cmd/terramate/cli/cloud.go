@@ -164,7 +164,6 @@ func (c *cli) setupSyncDeployment() error {
 
 func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
 	logger := log.With().
-		Str("organization", c.cloud.run.orgUUID).
 		Logger()
 
 	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
@@ -173,11 +172,24 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 	logger.Trace().Msg("Checking if selected stacks have id")
 
+	var stacksMissingIDs []string
 	for _, st := range stacks {
 		if st.ID == "" {
-			fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
 		}
 	}
+
+	if len(stacksMissingIDs) > 0 {
+		for _, stackPath := range stacksMissingIDs {
+			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
+		}
+		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
+		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+	}
+
+	logger = logger.With().
+		Str("organization", c.cloud.run.orgUUID).
+		Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
