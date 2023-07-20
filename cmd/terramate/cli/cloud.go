@@ -195,32 +195,35 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	defer cancel()
 
 	var (
-		err           error
-		commitSHA     string
-		deploymentURL string
-		reviewRequest cloud.DeploymentReviewRequest
+		err                 error
+		deploymentCommitSHA string
+		deploymentURL       string
+		repository          string
+		reviewRequest       *cloud.DeploymentReviewRequest
 	)
 
 	if c.prj.isRepo {
+		var rr cloud.DeploymentReviewRequest
 		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err == nil {
-			reviewRequest.Repository = cloud.NormalizeGitURI(repoURL)
+			repository = cloud.NormalizeGitURI(repoURL)
+			rr.Repository = repository
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
 
-		commitSHA = c.prj.headCommit()
+		deploymentCommitSHA = c.prj.headCommit()
 		if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
 			len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
-			commitSHA = ""
+			deploymentCommitSHA = ""
 
 			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
 		}
 
-		repository := os.Getenv("GITHUB_REPOSITORY")
+		ghRepo := os.Getenv("GITHUB_REPOSITORY")
 		ghToken := os.Getenv("GITHUB_TOKEN")
 
-		if repository != "" && ghToken != "" {
+		if ghRepo != "" && ghToken != "" {
 			ghClient := github.Client{
 				BaseURL:    os.Getenv("GITHUB_API_URL"),
 				HTTPClient: &c.httpClient,
@@ -230,7 +233,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 			defer cancel()
 
-			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.headCommit())
+			pulls, err := ghClient.PullsForCommit(ctx, ghRepo, c.prj.headCommit())
 			if err == nil {
 				for _, pull := range pulls {
 					logger.Debug().
@@ -240,14 +243,15 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 				if len(pulls) > 0 {
 					pull := pulls[0]
-					reviewRequest.ReviewRequestURL = pull.HTMLURL
-					reviewRequest.ReviewRequestNumber = pull.Number
-					reviewRequest.ReviewRequestTitle = pull.Title
-					reviewRequest.ReviewRequestDescription = pull.Body
-					reviewRequest.CommitSHA = commitSHA
+					rr.Platform = "github"
+					rr.URL = pull.HTMLURL
+					rr.Number = pull.Number
+					rr.Title = pull.Title
+					rr.Description = pull.Body
+					rr.CommitSHA = c.prj.headCommit()
 
 					logger.Debug().
-						Str("pull-url", reviewRequest.ReviewRequestURL).
+						Str("pull-url", reviewRequest.URL).
 						Msg("using pull request url")
 
 				} else {
@@ -264,16 +268,20 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		}
 
 		ghRunID := os.Getenv("GITHUB_RUN_ID")
-		if ghRunID != "" && repository != "" {
+		if ghRunID != "" && ghRepo != "" {
 			deploymentURL = fmt.Sprintf(
 				"https://github.com/%s/actions/runs/%s",
-				repository,
+				ghRepo,
 				ghRunID,
 			)
 
 			logger.Debug().
 				Str("deployment_url", deploymentURL).
 				Msg("detected deployment url")
+		}
+
+		if rr.URL != "" {
+			reviewRequest = &rr
 		}
 	}
 
@@ -287,16 +295,15 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			tags = []string{}
 		}
 		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			MetaID:          s.ID,
-			MetaName:        s.Name,
-			MetaDescription: s.Description,
-			MetaTags:        tags,
-			Repository:      reviewRequest.Repository,
-			Path:            s.Dir().String(),
-			CommitSHA:       commitSHA,
-			Command:         strings.Join(command, " "),
-			RequestURL:      reviewRequest.ReviewRequestURL,
-			DeploymentURL:   deploymentURL,
+			MetaID:            s.ID,
+			MetaName:          s.Name,
+			MetaDescription:   s.Description,
+			MetaTags:          tags,
+			Repository:        repository,
+			Path:              s.Dir().String(),
+			CommitSHA:         deploymentCommitSHA,
+			DeploymentCommand: strings.Join(command, " "),
+			DeploymentURL:     deploymentURL,
 		})
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)

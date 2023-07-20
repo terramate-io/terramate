@@ -121,9 +121,9 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 			atomic.AddInt64(&dhandler.nextStackID, 1)
 
-			s.Status = cloud.Pending
+			s.DeploymentStatus = cloud.Pending
 			dhandler.deployments[orguuid][deployuuid][next] = s
-			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.Status.String())
+			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.DeploymentStatus.String())
 		}
 		data, _ = json.Marshal(res)
 		_, _ = w.Write(data)
@@ -143,7 +143,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 		for _, s := range updateStacks.Stacks {
 			if gotStack := dhandler.deployments[orguuid][deployuuid][int64(s.StackID)]; gotStack.MetaID != "" {
-				gotStack.Status = s.Status
+				gotStack.DeploymentStatus = s.Status
 				dhandler.deployments[orguuid][deployuuid][int64(s.StackID)] = gotStack
 				dhandler.events[orguuid][deployuuid][gotStack.MetaID] = append(dhandler.events[orguuid][deployuuid][gotStack.MetaID], s.Status.String())
 			} else {
