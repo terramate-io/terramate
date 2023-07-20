@@ -372,6 +372,9 @@ func (c *cli) cloudInfo() {
 	if err != nil {
 		fatal(err)
 	}
+	if c.cloud.disabled {
+		fatal(errors.E("unable to provide credential info"))
+	}
 	c.cred().Info()
 	// verbose info
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
