@@ -57,17 +57,16 @@ type (
 	// DeploymentStackRequest represents the stack object of the request payload
 	// type for the creation of stack deployments.
 	DeploymentStackRequest struct {
-		CommitSHA       string   `json:"commit_sha,omitempty"`
-		Repository      string   `json:"repository"`
-		Path            string   `json:"path"`
-		MetaID          string   `json:"meta_id"`
-		MetaName        string   `json:"meta_name"`
-		MetaDescription string   `json:"meta_description"`
-		MetaTags        []string `json:"meta_tags"`
-		DeploymentURL   string   `json:"deployment_url,omitempty"`
-		RequestURL      string   `json:"request_url,omitempty"`
-		Status          Status   `json:"status"`
-		Command         string   `json:"cmd"`
+		CommitSHA         string   `json:"commit_sha,omitempty"`
+		Repository        string   `json:"repository"`
+		Path              string   `json:"path"`
+		MetaID            string   `json:"meta_id"`
+		MetaName          string   `json:"meta_name,omitempty"`
+		MetaDescription   string   `json:"meta_description,omitempty"`
+		MetaTags          []string `json:"meta_tags,omitempty"`
+		DeploymentURL     string   `json:"deployment_url,omitempty"`
+		DeploymentStatus  Status   `json:"deployment_status,omitempty"`
+		DeploymentCommand string   `json:"deployment_cmd"`
 	}
 
 	// DeploymentStackResponse represents the deployment creation response item.
@@ -85,18 +84,19 @@ type (
 
 	// DeploymentStacksPayloadRequest is the request payload for the creation of stack deployments.
 	DeploymentStacksPayloadRequest struct {
-		ReviewRequest DeploymentReviewRequest `json:"review_request"`
-		Stacks        DeploymentStackRequests `json:"stacks"`
+		ReviewRequest *DeploymentReviewRequest `json:"review_request,omitempty"`
+		Stacks        DeploymentStackRequests  `json:"stacks"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
 	DeploymentReviewRequest struct {
-		Repository               string `json:"repository"`
-		CommitSHA                string `json:"commit_sha"`
-		ReviewRequestNumber      int    `json:"review_request_number"`
-		ReviewRequestTitle       string `json:"review_request_title"`
-		ReviewRequestDescription string `json:"review_request_description"`
-		ReviewRequestURL         string `json:"review_request_url"`
+		Platform    string `json:"platform"`
+		Repository  string `json:"repository"`
+		CommitSHA   string `json:"commit_sha"`
+		Number      int    `json:"number"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		URL         string `json:"url"`
 	}
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
@@ -190,8 +190,8 @@ func (d DeploymentStackRequest) Validate() error {
 	if d.MetaID == "" {
 		return errors.E(`missing "meta_id" field`)
 	}
-	if d.Command == "" {
-		return errors.E(`missing "cmd" field`)
+	if d.DeploymentCommand == "" {
+		return errors.E(`missing "deployment_cmd" field`)
 	}
 	return nil
 }
@@ -201,8 +201,11 @@ func (d DeploymentStackRequests) Validate() error { return validateResourceList(
 
 // Validate the deployment stack payload.
 func (d DeploymentStacksPayloadRequest) Validate() error {
-	if err := d.ReviewRequest.Validate(); err != nil {
-		return err
+	if d.ReviewRequest != nil {
+		err := d.ReviewRequest.Validate()
+		if err != nil {
+			return err
+		}
 	}
 
 	return validateResourceList(d.Stacks)
