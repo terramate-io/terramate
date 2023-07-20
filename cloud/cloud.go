@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -196,6 +197,7 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("User-Agent", "terramate/v"+terramate.Version())
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Context-Type", contentType)
 	return req, nil

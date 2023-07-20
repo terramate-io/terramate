@@ -49,6 +49,11 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	orguuid := params.ByName("orguuid")
 	deployuuid := params.ByName("deployuuid")
 
+	if !strings.HasPrefix(r.Header.Get("User-Agent"), "terramate/") {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	if dhandler.deployments[orguuid] == nil {
 		dhandler.deployments[orguuid] = make(map[string]map[int64]cloud.DeploymentStackRequest)
 		dhandler.events[orguuid] = make(map[string]map[string][]string)
