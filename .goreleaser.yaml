@@ -2,7 +2,20 @@
 # SPDX-License-Identifier: MPL-2.0
 
 builds:
-  - main: ./cmd/terramate
+  - id: terramate
+    binary: terramate
+    main: ./cmd/terramate
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -extldflags "-static"
+    goos:
+      - linux
+      - darwin
+      - windows
+  - id: terramate-ls
+    binary: terramate-ls
+    main: ./cmd/terramate-ls
     env:
       - CGO_ENABLED=0
     ldflags:
