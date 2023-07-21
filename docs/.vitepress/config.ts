@@ -215,6 +215,10 @@ export default defineConfig({
         ],
       },
       {
+        text: '💻 Commands (CLI)',
+        link: 'cmdline',
+      },
+      {
         text: '🤓 Guides',
         collapsed: false,
         items: [

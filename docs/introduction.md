@@ -9,13 +9,14 @@ next:
 
 # Introduction
 
-Terramate supercharges Terraform with Stacks, Orchestration, Git Integration, Code Generation, Data Sharing and more.🦄
+Terramate supercharges Terraform with Stacks, Orchestration, Git Integration, Code Generation, Data Sharing and more.
+
 It focuses on improving the Developer Experience (DX), providing workflows, and lowering the time spent writing and maintaining infrastructure code for projects at any scale.
 
 Compared to other prominent tooling in the market, **Terramate always generates native Terraform code**
 that integrates with existing tooling such as Terraform Cloud, Env0, Spacelift, Terragrunt, and others.
 
-The main benefits of Terramate CLI are:
+The main benefits of Terramate are:
 
 1. **Stacks**: are isolated and independent units that contain infrastructure code such as Terraform,
 Kubernetes Manifests and others. Stacks help you to split your monolithic IaC projects into smaller units
