@@ -1696,10 +1696,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	if err := errs.AsError(); err != nil {
-		return Config{}, err
-	}
-
 	config.Globals = globals
 
 	if foundstack {
