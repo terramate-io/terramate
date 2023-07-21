@@ -540,7 +540,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 	if matches == nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			"import path %q returned no matches", src)
+			"import path %q returned no matches", srcVal.AsString())
 	}
 	for _, file := range matches {
 		if _, ok := p.parsedFiles[file]; ok {
@@ -548,10 +548,30 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 				"file %q already parsed", file)
 		}
 
-		importParser, err := NewTerramateParser(p.rootdir, srcDir)
+		st, err := os.Lstat(file)
+		if err != nil {
+			return errors.E(
+				ErrImport,
+				srcAttr.Expr.Range(),
+				"failed to stat file %q",
+				file,
+			)
+		}
+
+		if st.IsDir() {
+			return errors.E(
+				ErrImport,
+				srcAttr.Expr.Range(),
+				"import directory is not allowed: %s",
+				file,
+			)
+		}
+
+		fileDir := filepath.Dir(file)
+		importParser, err := NewTerramateParser(p.rootdir, fileDir)
 		if err != nil {
 			return errors.E(ErrImport, srcAttr.Expr.Range(),
-				err, "failed to create sub parser")
+				err, "failed to create sub parser: %s", fileDir)
 		}
 
 		err = importParser.AddFile(file)
