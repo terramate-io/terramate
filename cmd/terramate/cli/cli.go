@@ -114,6 +114,7 @@ type cliSpec struct {
 		Before         []string `help:"Add a stack as before"`
 		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
 		AllTerraform   bool     `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+		EnsureStackIds bool     `help:"generate an UUID for the stack.id of all stacks which does not define it"`
 		NoGenerate     bool     `help:"Disable code generation for the newly created stacks"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
@@ -204,9 +205,6 @@ type cliSpec struct {
 			Info struct {
 			} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
-
-		EnsureStackID struct {
-		} `cmd:"" help:"generate an UUID for the stack.id of all stacks which does not define it"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -505,7 +503,7 @@ func (c *cli) run() {
 	case "create <path>":
 		c.createStack()
 	case "create":
-		c.initStacks()
+		c.scanCreate()
 	case "list":
 		c.setupGit()
 		c.printStacks()
@@ -554,8 +552,6 @@ func (c *cli) run() {
 		c.getConfigValue()
 	case "experimental cloud info":
 		c.cloudInfo()
-	case "experimental ensure-stack-id":
-		c.ensureStackID()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -951,7 +947,22 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, err
 	return report, nil
 }
 
-func (c *cli) initStacks() {
+func (c *cli) scanCreate() {
+	if c.parsedArgs.Create.EnsureStackIds && c.parsedArgs.Create.AllTerraform {
+		fatal(errors.E("--all-terraform conflicts with --ensure-stack-ids"))
+	}
+
+	if !c.parsedArgs.Create.AllTerraform && !c.parsedArgs.Create.EnsureStackIds {
+		fatal(errors.E("terramate create requires a path or --all-terraform or --ensure-stack-ids"))
+	}
+
+	var flagname string
+	if c.parsedArgs.Create.EnsureStackIds {
+		flagname = "--ensure-stack-ids"
+	} else {
+		flagname = "--all-terraform"
+	}
+
 	if c.parsedArgs.Create.ID != "" ||
 		c.parsedArgs.Create.Name != "" ||
 		c.parsedArgs.Create.Path != "" ||
@@ -960,9 +971,22 @@ func (c *cli) initStacks() {
 		len(c.parsedArgs.Create.After) != 0 ||
 		len(c.parsedArgs.Create.Before) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
-		fatal(errors.E("The --all-terraform flag is incompatible with path and the flags: --id, --name, --description, --after, --before, --import and --ignore-existing"))
+
+		fatal(errors.E(
+			"The %s flag is incompatible with path and the flags: --id, --name, --description, --after, --before, --import and --ignore-existing",
+			flagname,
+		))
 	}
 
+	if c.parsedArgs.Create.AllTerraform {
+		c.initTerraform()
+		return
+	}
+
+	c.ensureStackID()
+}
+
+func (c *cli) initTerraform() {
 	err := c.initDir(c.wd())
 	if err != nil {
 		fatal(err, "failed to initialize some directories")
@@ -1076,8 +1100,8 @@ func (c *cli) initDir(baseDir string) error {
 }
 
 func (c *cli) createStack() {
-	if c.parsedArgs.Create.AllTerraform {
-		c.initStacks()
+	if c.parsedArgs.Create.AllTerraform || c.parsedArgs.Create.EnsureStackIds {
+		c.scanCreate()
 		return
 	}
 	logger := log.With().
