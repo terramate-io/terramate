@@ -295,7 +295,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			tags = []string{}
 		}
 		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			MetaID:            s.ID,
+			MetaID:            strings.ToLower(s.ID),
 			MetaName:          s.Name,
 			MetaDescription:   s.Description,
 			MetaTags:          tags,

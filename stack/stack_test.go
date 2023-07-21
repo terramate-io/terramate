@@ -16,8 +16,8 @@ import (
 func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stacks/stack-1:id=id",
-		"s:stacks/stack-2:id=id",
+		"s:stacks/stack-1:id=terramate",
+		"s:stacks/stack-2:id=TerraMate",
 	})
 	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 	assert.NoError(t, err)

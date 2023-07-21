@@ -326,7 +326,7 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 
 		if stack.ID != "" {
 			logger.Trace().Msg("stack has ID, checking for duplicate")
-			if otherStack, ok := stacksIDs[stack.ID]; ok {
+			if otherStack, ok := stacksIDs[strings.ToLower(stack.ID)]; ok {
 				return List[*SortableStack]{}, errors.E(ErrStackDuplicatedID,
 					"stack %q and %q have same ID %q",
 					stack.Dir,
@@ -334,7 +334,7 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 					stack.ID,
 				)
 			}
-			stacksIDs[stack.ID] = stack
+			stacksIDs[strings.ToLower(stack.ID)] = stack
 		}
 	}
 

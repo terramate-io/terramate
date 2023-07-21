@@ -72,8 +72,8 @@ Some of these properties include:
 ## stack.id (string)(optional)
 
 The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
-The ID can't be bigger than 64 bytes and **must** be unique on the
-whole project.
+The ID can't be bigger than 64 bytes, **it's case insensitive** and
+**must** be unique on the whole project.
 
 There is no default value determined for the stack ID.
 
