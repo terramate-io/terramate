@@ -49,6 +49,11 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	orguuid := params.ByName("orguuid")
 	deployuuid := params.ByName("deployuuid")
 
+	if !strings.HasPrefix(r.Header.Get("User-Agent"), "terramate/") {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	if dhandler.deployments[orguuid] == nil {
 		dhandler.deployments[orguuid] = make(map[string]map[int64]cloud.DeploymentStackRequest)
 		dhandler.events[orguuid] = make(map[string]map[string][]string)
@@ -121,9 +126,9 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 			atomic.AddInt64(&dhandler.nextStackID, 1)
 
-			s.Status = cloud.Pending
+			s.DeploymentStatus = cloud.Pending
 			dhandler.deployments[orguuid][deployuuid][next] = s
-			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.Status.String())
+			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.DeploymentStatus.String())
 		}
 		data, _ = json.Marshal(res)
 		_, _ = w.Write(data)
@@ -143,7 +148,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 		for _, s := range updateStacks.Stacks {
 			if gotStack := dhandler.deployments[orguuid][deployuuid][int64(s.StackID)]; gotStack.MetaID != "" {
-				gotStack.Status = s.Status
+				gotStack.DeploymentStatus = s.Status
 				dhandler.deployments[orguuid][deployuuid][int64(s.StackID)] = gotStack
 				dhandler.events[orguuid][deployuuid][gotStack.MetaID] = append(dhandler.events[orguuid][deployuuid][gotStack.MetaID], s.Status.String())
 			} else {
@@ -166,17 +171,33 @@ func newDeploymentEndpoint() *deploymentHandler {
 	}
 }
 
-// Router returns the testserver router configuration.
+// Router returns the default fake cloud router.
 func Router() *httprouter.Router {
+	return RouterWith(EnableAllConfig())
+}
+
+// RouterWith returns the testserver router configuration only for the
+// enabled endpoints.
+func RouterWith(enabled map[string]bool) *httprouter.Router {
 	router := httprouter.New()
-	router.Handler("GET", "/v1/users", &userHandler{})
-	router.Handler("GET", "/v1/memberships", &membershipHandler{})
+
+	if enabled[cloud.UsersPath] {
+		router.Handler("GET", cloud.UsersPath, &userHandler{})
+	}
+
+	if enabled[cloud.MembershipsPath] {
+		router.Handler("GET", cloud.MembershipsPath, &membershipHandler{})
+	}
 
 	deploymentEndpoint := newDeploymentEndpoint()
-	router.Handler("GET", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
-	router.Handler("POST", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
-	router.Handler("PATCH", "/v1/deployments/:orguuid/:deployuuid/stacks", deploymentEndpoint)
-	router.Handler("GET", "/v1/deployments/:orguuid/:deployuuid/events", deploymentEndpoint)
+	if enabled[cloud.DeploymentsPath] {
+		router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+		router.Handler("POST", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+		router.Handler("PATCH", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+	}
+
+	// test endpoint always enabled
+	router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/events", cloud.DeploymentsPath), deploymentEndpoint)
 	return router
 }
 
@@ -192,3 +213,12 @@ type (
 		events map[string]map[string]map[string][]string
 	}
 )
+
+// EnableAllConfig returns a map that enables all cloud endpoints.
+func EnableAllConfig() map[string]bool {
+	return map[string]bool{
+		cloud.UsersPath:       true,
+		cloud.MembershipsPath: true,
+		cloud.DeploymentsPath: true,
+	}
+}

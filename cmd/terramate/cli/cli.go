@@ -105,7 +105,7 @@ type cliSpec struct {
 	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
 
 	Create struct {
-		Path           string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
+		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
 		ID             string   `help:"ID of the stack, defaults to UUID"`
 		Name           string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description    string   `help:"Description of the stack, defaults to the stack name"`
@@ -113,7 +113,8 @@ type cliSpec struct {
 		After          []string `help:"Add a stack as after"`
 		Before         []string `help:"Add a stack as before"`
 		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
-		NoGenerate     bool     `help:"Disable code generation for the newly created stack"`
+		AllTerraform   bool     `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+		NoGenerate     bool     `help:"Disable code generation for the newly created stacks"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
@@ -140,11 +141,6 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
-		Init struct {
-			AllTerraform bool `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
-			NoGenerate   bool `help:"skip the generation phase"`
-		} `cmd:"" help:"Init existing directories with stacks"`
-
 		Clone struct {
 			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
 			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
@@ -508,6 +504,8 @@ func (c *cli) run() {
 		c.format()
 	case "create <path>":
 		c.createStack()
+	case "create":
+		c.initStacks()
 	case "list":
 		c.setupGit()
 		c.printStacks()
@@ -518,8 +516,6 @@ func (c *cli) run() {
 		c.runOnStacks()
 	case "generate":
 		c.generate()
-	case "experimental init":
-		c.initStacks()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger <stack>":
@@ -956,8 +952,15 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, err
 }
 
 func (c *cli) initStacks() {
-	if !c.parsedArgs.Experimental.Init.AllTerraform {
-		fatal(errors.E("The --all-terraform is required"))
+	if c.parsedArgs.Create.ID != "" ||
+		c.parsedArgs.Create.Name != "" ||
+		c.parsedArgs.Create.Path != "" ||
+		c.parsedArgs.Create.Description != "" ||
+		c.parsedArgs.Create.IgnoreExisting ||
+		len(c.parsedArgs.Create.After) != 0 ||
+		len(c.parsedArgs.Create.Before) != 0 ||
+		len(c.parsedArgs.Create.Import) != 0 {
+		fatal(errors.E("The --all-terraform flag is incompatible with path and the flags: --id, --name, --description, --after, --before, --import and --ignore-existing"))
 	}
 
 	err := c.initDir(c.wd())
@@ -965,7 +968,7 @@ func (c *cli) initStacks() {
 		fatal(err, "failed to initialize some directories")
 	}
 
-	if c.parsedArgs.Experimental.Init.NoGenerate {
+	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
 		return
 	}
@@ -1073,6 +1076,10 @@ func (c *cli) initDir(baseDir string) error {
 }
 
 func (c *cli) createStack() {
+	if c.parsedArgs.Create.AllTerraform {
+		c.initStacks()
+		return
+	}
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("action", "cli.createStack()").
@@ -1863,14 +1870,14 @@ func (c *cli) runOnStacks() {
 	}
 
 	beforeHook := func(s *config.Stack, cmd string) {
-		if !c.parsedArgs.Run.CloudSyncDeployment {
+		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
 		c.syncCloudDeployment(s, cloud.Running)
 	}
 
 	afterHook := func(s *config.Stack, err error) {
-		if !c.parsedArgs.Run.CloudSyncDeployment {
+		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
 		var status cloud.Status

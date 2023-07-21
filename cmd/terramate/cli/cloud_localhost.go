@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-const cloudBaseURL = "http://localhost:3001/v1"
+const cloudBaseURL = "http://localhost:3001"
 
 func generateRunID() (string, error) {
 	if runid := os.Getenv("TM_TEST_RUN_ID"); runid != "" {

@@ -28,9 +28,14 @@ const (
 	defaultGithubTimeout = defaultCloudTimeout
 )
 
+// DisablingCloudMessage is the message displayed in the warning when disabling
+// the cloud features. It's exported because it's checked in tests.
+const DisablingCloudMessage = "disabling the cloud features"
+
 type cloudConfig struct {
-	client *cloud.Client
-	output out.O
+	disabled bool
+	client   *cloud.Client
+	output   out.O
 
 	credential credential
 
@@ -66,16 +71,24 @@ func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
 	}
 }
 
+func (c *cli) cloudEnabled() bool {
+	return !c.cloud.disabled
+}
+
 func (c *cli) checkSyncDeployment() {
 	if !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
-	err := c.setupSyncDeployment()
+	err := c.setupCloudConfig()
 	if err != nil {
 		if errors.IsKind(err, ErrOnboardingIncomplete) {
 			c.cred().Info()
 		}
 		fatal(err)
+	}
+
+	if c.cloud.disabled {
+		return
 	}
 
 	// at this point we know user is onboarded, ie has at least 1 organization.
@@ -123,7 +136,7 @@ func (c *cli) checkSyncDeployment() {
 	}
 }
 
-func (c *cli) setupSyncDeployment() error {
+func (c *cli) setupCloudConfig() error {
 	cred, err := c.loadCredential()
 	if err != nil {
 		return err
@@ -139,56 +152,78 @@ func (c *cli) setupSyncDeployment() error {
 		credential: cred,
 	}
 
-	return cred.Validate(c.cloud)
+	err = cred.Validate(c.cloud)
+	if err != nil {
+		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
+			Msg(DisablingCloudMessage)
+
+		c.cloud.disabled = true
+	}
+	return nil
 }
 
 func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
 	logger := log.With().
-		Str("organization", c.cloud.run.orgUUID).
 		Logger()
 
-	if !c.parsedArgs.Run.CloudSyncDeployment {
+	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
 
 	logger.Trace().Msg("Checking if selected stacks have id")
 
+	var stacksMissingIDs []string
 	for _, st := range stacks {
 		if st.ID == "" {
-			fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
 		}
 	}
+
+	if len(stacksMissingIDs) > 0 {
+		for _, stackPath := range stacksMissingIDs {
+			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
+		}
+		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
+		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+	}
+
+	logger = logger.With().
+		Str("organization", c.cloud.run.orgUUID).
+		Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
 	var (
-		err           error
-		commitSHA     string
-		deploymentURL string
-		reviewRequest cloud.DeploymentReviewRequest
+		err                 error
+		deploymentCommitSHA string
+		deploymentURL       string
+		repository          string
+		reviewRequest       *cloud.DeploymentReviewRequest
 	)
 
 	if c.prj.isRepo {
+		var rr cloud.DeploymentReviewRequest
 		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err == nil {
-			reviewRequest.Repository = cloud.NormalizeGitURI(repoURL)
+			repository = cloud.NormalizeGitURI(repoURL)
+			rr.Repository = repository
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
 
-		commitSHA = c.prj.headCommit()
+		deploymentCommitSHA = c.prj.headCommit()
 		if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
 			len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
-			commitSHA = ""
+			deploymentCommitSHA = ""
 
 			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
 		}
 
-		repository := os.Getenv("GITHUB_REPOSITORY")
+		ghRepo := os.Getenv("GITHUB_REPOSITORY")
 		ghToken := os.Getenv("GITHUB_TOKEN")
 
-		if repository != "" && ghToken != "" {
+		if ghRepo != "" && ghToken != "" {
 			ghClient := github.Client{
 				BaseURL:    os.Getenv("GITHUB_API_URL"),
 				HTTPClient: &c.httpClient,
@@ -198,7 +233,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 			defer cancel()
 
-			pulls, err := ghClient.PullsForCommit(ctx, repository, c.prj.headCommit())
+			pulls, err := ghClient.PullsForCommit(ctx, ghRepo, c.prj.headCommit())
 			if err == nil {
 				for _, pull := range pulls {
 					logger.Debug().
@@ -208,14 +243,15 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 
 				if len(pulls) > 0 {
 					pull := pulls[0]
-					reviewRequest.ReviewRequestURL = pull.HTMLURL
-					reviewRequest.ReviewRequestNumber = pull.Number
-					reviewRequest.ReviewRequestTitle = pull.Title
-					reviewRequest.ReviewRequestDescription = pull.Body
-					reviewRequest.CommitSHA = commitSHA
+					rr.Platform = "github"
+					rr.URL = pull.HTMLURL
+					rr.Number = pull.Number
+					rr.Title = pull.Title
+					rr.Description = pull.Body
+					rr.CommitSHA = c.prj.headCommit()
 
 					logger.Debug().
-						Str("pull-url", reviewRequest.ReviewRequestURL).
+						Str("pull-url", rr.URL).
 						Msg("using pull request url")
 
 				} else {
@@ -232,16 +268,20 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		}
 
 		ghRunID := os.Getenv("GITHUB_RUN_ID")
-		if ghRunID != "" && repository != "" {
+		if ghRunID != "" && ghRepo != "" {
 			deploymentURL = fmt.Sprintf(
 				"https://github.com/%s/actions/runs/%s",
-				repository,
+				ghRepo,
 				ghRunID,
 			)
 
 			logger.Debug().
 				Str("deployment_url", deploymentURL).
 				Msg("detected deployment url")
+		}
+
+		if rr.URL != "" {
+			reviewRequest = &rr
 		}
 	}
 
@@ -255,28 +295,35 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			tags = []string{}
 		}
 		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			MetaID:          s.ID,
-			MetaName:        s.Name,
-			MetaDescription: s.Description,
-			MetaTags:        tags,
-			Repository:      reviewRequest.Repository,
-			Path:            s.Dir().String(),
-			CommitSHA:       commitSHA,
-			Command:         strings.Join(command, " "),
-			RequestURL:      reviewRequest.ReviewRequestURL,
-			DeploymentURL:   deploymentURL,
+			MetaID:            strings.ToLower(s.ID),
+			MetaName:          s.Name,
+			MetaDescription:   s.Description,
+			MetaTags:          tags,
+			Repository:        repository,
+			Path:              s.Dir().String(),
+			CommitSHA:         deploymentCommitSHA,
+			DeploymentCommand: strings.Join(command, " "),
+			DeploymentURL:     deploymentURL,
 		})
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		fatal(err)
+		log.Warn().
+			Err(errors.E(err, "failed to create cloud deployment")).
+			Msg(DisablingCloudMessage)
+
+		c.cloud.disabled = true
+		return
 	}
 
 	if len(res) != len(stacks) {
-		err := errors.E("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-			len(res), len(stacks))
+		logger.Warn().Err(errors.E(
+			"the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
+			len(res), len(stacks)),
+		).Msg(DisablingCloudMessage)
 
-		fatal(err, "unable to continue")
+		c.cloud.disabled = true
+		return
 	}
 
 	for _, r := range res {
@@ -321,9 +368,12 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
 }
 
 func (c *cli) cloudInfo() {
-	err := c.setupSyncDeployment()
+	err := c.setupCloudConfig()
 	if err != nil {
 		fatal(err)
+	}
+	if c.cloud.disabled {
+		fatal(errors.E("unable to provide credential info"))
 	}
 	c.cred().Info()
 	// verbose info
