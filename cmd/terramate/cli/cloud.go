@@ -251,7 +251,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 					rr.CommitSHA = c.prj.headCommit()
 
 					logger.Debug().
-						Str("pull-url", reviewRequest.URL).
+						Str("pull-url", rr.URL).
 						Msg("using pull request url")
 
 				} else {
