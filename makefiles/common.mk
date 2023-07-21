@@ -4,6 +4,36 @@ COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**'
 BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
 
+## Build terramate tools into bin directory
+.PHONY: build
+build: build/terramate build/terramate-ls
+	@echo "all built successfully"
+
+## Build the terramate binary
+.PHONY: build/terramate
+build/terramate:
+	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/terramate$(EXEC_SUFFIX) ./cmd/terramate
+
+## Build the terramate-ls binary
+.PHONY: build/terramate-ls
+build/terramate-ls:
+	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/terramate-ls$(EXEC_SUFFIX) ./cmd/terramate-ls
+
+## Install terramate tools on the host
+.PHONY: install
+install: install/terramate install/terramate-ls
+	@echo "all tools installed successfully"
+
+## Install the terramate binary
+.PHONY: install/terramate
+install/terramate:
+	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate
+
+## Install the terramate-ls binary
+.PHONY: install/terramate-ls
+install/terramate-ls:
+	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate-ls
+
 ## Format go code
 .PHONY: fmt
 fmt:
@@ -99,6 +129,24 @@ release/dry-run:
 .PHONY: release
 release:
 	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
+
+## sync the Terramate example stack with a success status.
+.PHONY: cloud/sync/ok
+cloud/sync/ok: build test/helper
+	./bin/terramate --log-level=info		\
+			--disable-check-git-untracked   \
+			--disable-check-git-uncommitted \
+			run --cloud-sync-deployment --  \
+			$(PWD)/bin/helper true
+
+## sync the Terramate example stack with a failed status.
+.PHONY: cloud/sync/failed
+cloud/sync/failed: build test/helper
+	./bin/terramate --log-level=info		\
+			--disable-check-git-untracked   \
+			--disable-check-git-uncommitted \
+			run --cloud-sync-deployment --  \
+			$(PWD)/bin/helper false
 
 ## Display help for all targets
 .PHONY: help

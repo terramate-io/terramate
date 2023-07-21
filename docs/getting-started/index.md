@@ -1,19 +1,17 @@
 ---
-title: Getting Started | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Quickstart
+description: Learn about the basic concepts such as stacks in Terramate and how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
 
 prev:
   text: "Installation"
   link: "/installation"
 
 next:
-  text: "Stack Configuration"
-  link: "/stacks/"
+  text: "About Stacks"
+  link: "/about-stacks"
 ---
 
-# Getting Started
-
-[Terramate](https://github.com/mineiros-io/terramate) is a [code generator and orchestrator for Terraform](https://blog.terramate.io/product-introduction-github-as-code-af466550a4a9?source=friends_link&sk=ae60be77dcb484724b3b821898e7813d) that adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+# Quickstart
 
 This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/terramate-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
 

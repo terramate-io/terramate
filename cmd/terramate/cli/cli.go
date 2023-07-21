@@ -105,7 +105,7 @@ type cliSpec struct {
 	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
 
 	Create struct {
-		Path           string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
+		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
 		ID             string   `help:"ID of the stack, defaults to UUID"`
 		Name           string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description    string   `help:"Description of the stack, defaults to the stack name"`
@@ -113,7 +113,8 @@ type cliSpec struct {
 		After          []string `help:"Add a stack as after"`
 		Before         []string `help:"Add a stack as before"`
 		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
-		NoGenerate     bool     `help:"Disable code generation for the newly created stack"`
+		AllTerraform   bool     `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+		NoGenerate     bool     `help:"Disable code generation for the newly created stacks"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
@@ -203,6 +204,9 @@ type cliSpec struct {
 			Info struct {
 			} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
+
+		EnsureStackID struct {
+		} `cmd:"" help:"generate an UUID for the stack.id of all stacks which does not define it"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -500,6 +504,8 @@ func (c *cli) run() {
 		c.format()
 	case "create <path>":
 		c.createStack()
+	case "create":
+		c.initStacks()
 	case "list":
 		c.setupGit()
 		c.printStacks()
@@ -548,6 +554,8 @@ func (c *cli) run() {
 		c.getConfigValue()
 	case "experimental cloud info":
 		c.cloudInfo()
+	case "experimental ensure-stack-id":
+		c.ensureStackID()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -914,17 +922,164 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 }
 
 func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, error) {
+	var (
+		err    error
+		report *stack.Report
+	)
+
 	if isChanged {
 		log.Trace().
 			Str("action", "listStacks()").
 			Str("workingDir", c.wd()).
-			Msg("`Changed` flag was set. List changed stacks.")
-		return mgr.ListChanged()
+			Msg("Listing changed stacks")
+
+		report, err = mgr.ListChanged()
+	} else {
+		log.Trace().
+			Str("action", "listStacks()").
+			Str("workingDir", c.wd()).
+			Msg("Listing all stacks")
+
+		report, err = mgr.List()
 	}
-	return mgr.List()
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.prj.git.repoChecks = report.Checks
+	return report, nil
+}
+
+func (c *cli) initStacks() {
+	if c.parsedArgs.Create.ID != "" ||
+		c.parsedArgs.Create.Name != "" ||
+		c.parsedArgs.Create.Path != "" ||
+		c.parsedArgs.Create.Description != "" ||
+		c.parsedArgs.Create.IgnoreExisting ||
+		len(c.parsedArgs.Create.After) != 0 ||
+		len(c.parsedArgs.Create.Before) != 0 ||
+		len(c.parsedArgs.Create.Import) != 0 {
+		fatal(errors.E("The --all-terraform flag is incompatible with path and the flags: --id, --name, --description, --after, --before, --import and --ignore-existing"))
+	}
+
+	err := c.initDir(c.wd())
+	if err != nil {
+		fatal(err, "failed to initialize some directories")
+	}
+
+	if c.parsedArgs.Create.NoGenerate {
+		log.Debug().Msg("code generation on stack creation disabled")
+		return
+	}
+
+	root, err := config.LoadRoot(c.rootdir())
+	if err != nil {
+		fatal(err, "reloading the configuration")
+	}
+
+	c.prj.root = *root
+
+	report, vendorReport := c.gencodeWithVendor()
+	if report.HasFailures() {
+		c.output.MsgStdOut("Code generation failed")
+		c.output.MsgStdOut(report.Minimal())
+	}
+
+	if vendorReport.HasFailures() {
+		c.output.MsgStdOut(vendorReport.String())
+	}
+
+	if report.HasFailures() || vendorReport.HasFailures() {
+		os.Exit(1)
+	}
+
+	c.output.MsgStdOutV(report.Full())
+	c.output.MsgStdOutV(vendorReport.String())
+}
+
+func (c *cli) initDir(baseDir string) error {
+	logger := log.With().
+		Str("dir", baseDir).
+		Str("action", "cli.initDir()").
+		Logger()
+
+	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
+	var isStack bool
+	tree, found := c.prj.root.Lookup(pdir)
+	if found {
+		isStack = tree.IsStack()
+	}
+
+	logger.Trace().Msg("scanning TF files")
+
+	dirs, err := os.ReadDir(baseDir)
+	if err != nil {
+		fatal(errors.E(err, "listing directory entries"))
+	}
+
+	errs := errors.L()
+	for _, f := range dirs {
+		path := filepath.Join(baseDir, f.Name())
+		if strings.HasPrefix(f.Name(), ".") {
+			logger.Trace().Msgf("ignoring file %s", path)
+			continue
+		}
+
+		if f.IsDir() {
+			errs.Append(c.initDir(path))
+			continue
+		}
+
+		if isStack {
+			continue
+		}
+
+		if filepath.Ext(f.Name()) != ".tf" {
+			logger.Trace().Msgf("ignoring file %s", path)
+			continue
+		}
+
+		found, err := tf.IsStack(path)
+		if err != nil {
+			fatal(errors.E(err, "parsing terraform"))
+		}
+
+		if !found {
+			logger.Trace().Msgf("ignoring file %s", path)
+			continue
+		}
+
+		stackDir := baseDir
+		stackID, err := uuid.NewRandom()
+		if err != nil {
+			fatal(err, "creating stack UUID")
+		}
+		stackSpec := config.Stack{
+			Dir: prj.PrjAbsPath(c.rootdir(), stackDir),
+			ID:  stackID.String(),
+		}
+
+		err = stack.Create(c.cfg(), stackSpec)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+
+		log.Info().Msgf("created stack %s", stackSpec.Dir)
+		c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
+
+		// so other files in the same directory do not trigger stack creation.
+		isStack = true
+	}
+	return errs.AsError()
 }
 
 func (c *cli) createStack() {
+	if c.parsedArgs.Create.AllTerraform {
+		c.initStacks()
+		return
+	}
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("action", "cli.createStack()").
@@ -996,6 +1151,11 @@ func (c *cli) createStack() {
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
 		return
+	}
+
+	err = c.prj.root.LoadSubTree(stackSpec.Dir)
+	if err != nil {
+		fatal(err, "loading newly created stack")
 	}
 
 	report, vendorReport := c.gencodeWithVendor()
@@ -1073,7 +1233,6 @@ func (c *cli) printStacks() {
 		fatal(err, "listing stacks")
 	}
 
-	c.prj.git.repoChecks = report.Checks
 	c.gitFileSafeguards(false)
 
 	for _, entry := range c.filterStacks(report.Stacks) {
@@ -1434,6 +1593,27 @@ func (c *cli) checkGenCode() bool {
 	return true
 }
 
+func (c *cli) ensureStackID() {
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
+	report, err := c.listStacks(mgr, false)
+	if err != nil {
+		fatal(err, "listing stacks")
+	}
+
+	for _, entry := range report.Stacks {
+		if entry.Stack.ID != "" {
+			continue
+		}
+
+		id, err := stack.UpdateStackID(entry.Stack.HostDir(c.cfg()))
+		if err != nil {
+			fatal(err, "failed to update stack.id of stack %s", entry.Stack.Dir)
+		}
+
+		c.output.MsgStdOut("Generated ID %s for stack %s", id, entry.Stack.Dir)
+	}
+}
+
 func (c *cli) eval() {
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.Eval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
@@ -1690,14 +1870,14 @@ func (c *cli) runOnStacks() {
 	}
 
 	beforeHook := func(s *config.Stack, cmd string) {
-		if !c.parsedArgs.Run.CloudSyncDeployment {
+		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
 		c.syncCloudDeployment(s, cloud.Running)
 	}
 
 	afterHook := func(s *config.Stack, err error) {
-		if !c.parsedArgs.Run.CloudSyncDeployment {
+		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
 		var status cloud.Status
@@ -1759,7 +1939,6 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 		return nil, err
 	}
 
-	c.prj.git.repoChecks = report.Checks
 	c.gitFileSafeguards(ensureCleanRepo)
 
 	logger.Trace().Msg("Filter stacks by working directory.")

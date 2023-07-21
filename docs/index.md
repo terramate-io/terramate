@@ -1,7 +1,10 @@
 ---
 layout: home
 
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: 'Terramate: Supercharge Terraform with Stacks and Code Generation'
+titleTemplate: false
+description: Terramate adds powerful capabilities such as stacks, code generation, orchestration, change detection, data sharing and more to Terraform.
+
 hero:
   name: Terramate
   text: Code Generator and Orchestrator for Terraform

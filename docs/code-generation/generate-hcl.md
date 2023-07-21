@@ -1,5 +1,5 @@
 ---
-title: HCL Code Generation | Terramate
+title: HCL Code Generation
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:

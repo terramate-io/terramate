@@ -7,8 +7,6 @@ import (
 	"bytes"
 	"context"
 	stdjson "encoding/json"
-	"fmt"
-	"html"
 	"io"
 	"math"
 	"math/rand"
@@ -348,20 +346,10 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *tokenHandler) handleOK(w http.ResponseWriter, cred credentialInfo) {
-	const messageFormat = `
-	<html>
-		<head>
-			<title>Terramate Cloud Login Succeed</title>
-		</head>
-		<body>
-			<h2>Successfully authenticated as %s</h2>
-			<p>You can close this page now.</p>
-		</body>
-	</html>
-	`
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(fmt.Sprintf(messageFormat, html.EscapeString(cred.DisplayName))))
 	h.credentialChan <- cred
+
+	w.Header().Add("Location", "https://cloud.terramate.io/cli/signed-in")
+	w.WriteHeader(http.StatusSeeOther)
 }
 
 func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {

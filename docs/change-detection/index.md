@@ -1,5 +1,5 @@
 ---
-title: Change Detection | Terramate
+title: Change Detection
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:

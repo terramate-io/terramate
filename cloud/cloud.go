@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -20,13 +21,22 @@ import (
 const Host = "api.terramate.io"
 
 // BaseURL is the default cloud.terramate.io base API URL.
-const BaseURL = "https://" + Host + "/v1"
+const BaseURL = "https://" + Host
+
+const (
+	// UsersPath is the users endpoint base path.
+	UsersPath = "/v1/users"
+	// MembershipsPath is the memberships endpoint base path.
+	MembershipsPath = "/v1/memberships"
+	// DeploymentsPath is the deployments endpoint base path.
+	DeploymentsPath = "/v1/deployments"
+)
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
 const ErrUnexpectedStatus errors.Kind = "unexpected status code"
 
 // ErrNotFound indicates the requested resource does not exist in the server.
-const ErrNotFound errors.Kind = "resource not found"
+const ErrNotFound errors.Kind = "resource not found (HTTP Status 404)"
 
 // ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
 const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
@@ -53,12 +63,12 @@ type (
 
 // Users retrieves the user details for the signed in user.
 func (c *Client) Users(ctx context.Context) (user User, err error) {
-	return Get[User](ctx, c, "/users")
+	return Get[User](ctx, c, UsersPath)
 }
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
-	return Get[MemberOrganizations](ctx, c, "/organizations")
+	return Get[MemberOrganizations](ctx, c, MembershipsPath)
 }
 
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.
@@ -68,12 +78,20 @@ func (c *Client) CreateDeploymentStacks(
 	deploymentUUID string,
 	deploymentStacksPayload DeploymentStacksPayloadRequest,
 ) (DeploymentStacksResponse, error) {
-	return Post[DeploymentStacksResponse](ctx, c, deploymentStacksPayload, "/deployments", orgUUID, deploymentUUID, "stacks")
+	return Post[DeploymentStacksResponse](
+		ctx,
+		c,
+		deploymentStacksPayload,
+		DeploymentsPath,
+		orgUUID,
+		deploymentUUID,
+		"stacks",
+	)
 }
 
 // UpdateDeploymentStacks updates the deployment status of each stack in the payload set.
 func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID string, deploymentUUID string, payload UpdateDeploymentStacks) error {
-	_, err := Patch[empty](ctx, c, payload, "/deployments", orgUUID, deploymentUUID, "stacks")
+	_, err := Patch[empty](ctx, c, payload, DeploymentsPath, orgUUID, deploymentUUID, "stacks")
 	return err
 }
 
@@ -143,11 +161,11 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return entity, errors.E(ErrNotFound)
+		return entity, errors.E(ErrNotFound, "%s %s", method, c.endpoint(resourceURL))
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", resourceURL, resp.Status, data)
+		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", c.endpoint(resourceURL), resp.Status, data)
 	}
 
 	if resp.StatusCode == http.StatusNoContent {
@@ -179,6 +197,7 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("User-Agent", "terramate/v"+terramate.Version())
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Context-Type", contentType)
 	return req, nil

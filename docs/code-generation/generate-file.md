@@ -1,5 +1,5 @@
 ---
-title: Generate Files | Terramate
+title: Generate Files
 description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
 
 prev:

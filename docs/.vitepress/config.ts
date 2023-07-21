@@ -10,6 +10,7 @@ function getPath(path: string) {
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'Terramate',
+  // titleTemplate: ':title - Terramate',
   description:
     'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
   cleanUrls: true,
@@ -23,6 +24,13 @@ export default defineConfig({
             pageData.relativePath,
           )}`,
         },
+      ],
+      // Google Tag Manager
+      [
+        'script',
+        { id: 'register-gtm' },
+        // eslint-disable-next-line @typescript-eslint/quotes
+        `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-5KZT64L');`,
       ],
       [
         'link',
@@ -105,7 +113,7 @@ export default defineConfig({
 
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Docs', link: '/about-stacks' },
+      { text: 'Docs', link: '/introduction' },
       { text: 'Blog', link: 'https://blog.terramate.io/' },
       { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/terramate' },
       {
@@ -117,25 +125,19 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: '👋 What is Terramate',
+        text: '👋 Get Started',
         collapsed: false,
         items: [
-          { text: 'Overview', link: '/' },
-          { text: 'About Stacks', link: 'about-stacks' },
-        ],
-      },
-      {
-        text: '🛠️ Getting Started',
-        collapsed: false,
-        items: [
+          { text: 'Introduction', link: 'introduction' },
           { text: 'Installation', link: 'installation' },
-          { text: 'Quick Start', link: 'getting-started/' },
+          { text: 'Quickstart', link: 'getting-started/' },
         ],
       },
       {
         text: '📚 Stacks',
         collapsed: false,
         items: [
+          { text: 'About Stacks', link: 'about-stacks' },
           { text: 'Stack Configuration', link: 'stacks/' },
           { text: 'Orchestration', link: 'orchestration/' },
           { text: 'Tag Filter', link: 'tag-filter' },
@@ -213,6 +215,10 @@ export default defineConfig({
         ],
       },
       {
+        text: '💻 Commands (CLI)',
+        link: 'cmdline',
+      },
+      {
         text: '🤓 Guides',
         collapsed: false,
         items: [
@@ -252,7 +258,7 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/terramate-io/terramate' },
       { icon: 'discord', link: 'https://terramate.io/discord' },
       { icon: 'twitter', link: 'https://twitter.com/terramateio' },
-      { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate' },
+      { icon: 'linkedin', link: 'https://www.linkedin.com/company/terramate-io/' },
     ],
   },
 })
