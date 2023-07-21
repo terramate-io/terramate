@@ -5,6 +5,7 @@ package cloud
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/terramate-io/terramate/errors"
 )
@@ -189,6 +190,9 @@ func (d DeploymentStackRequest) Validate() error {
 	}
 	if d.MetaID == "" {
 		return errors.E(`missing "meta_id" field`)
+	}
+	if strings.ToLower(d.MetaID) != d.MetaID {
+		return errors.E(`"meta_id" requires a lowercase string but %s provided`, d.MetaID)
 	}
 	if d.DeploymentCommand == "" {
 		return errors.E(`missing "deployment_cmd" field`)

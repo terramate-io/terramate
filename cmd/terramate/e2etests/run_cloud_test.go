@@ -226,7 +226,7 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 						if strings.Contains(layout, "id=") {
 							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
 						}
-						id := strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1)
+						id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
 						if len(id) > 64 {
 							id = id[:64]
 						}
@@ -438,7 +438,7 @@ func assertRunEvents(t *testing.T, runid string, ids []string, events map[string
 	for stackpath, ev := range events {
 		found := false
 		for _, id := range ids {
-			if strings.HasPrefix(id, strings.ReplaceAll(stackpath+"-id-", "/", "-")) {
+			if strings.HasPrefix(id, strings.ToLower(strings.ReplaceAll(stackpath+"-id-", "/", "-"))) {
 				expectedEvents[id] = ev
 				found = true
 				break
