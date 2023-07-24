@@ -136,6 +136,7 @@ cloud/sync/ok: build test/helper
 	./bin/terramate --log-level=info		\
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
+			--tags test \
 			run --cloud-sync-deployment --  \
 			$(PWD)/bin/helper true
 
@@ -145,6 +146,7 @@ cloud/sync/failed: build test/helper
 	./bin/terramate --log-level=info		\
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
+			--tags test \
 			run --cloud-sync-deployment --  \
 			$(PWD)/bin/helper false
 
