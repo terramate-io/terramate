@@ -28,12 +28,12 @@ func NewEvalCtx(root *config.Root, stack *config.Stack, globals *eval.Object) *E
 	return evalwrapper
 }
 
-// SetGlobals sets the given globals on the stack evaluation context.
+// SetGlobals sets the given globals in the stack evaluation context.
 func (e *EvalCtx) SetGlobals(g *eval.Object) {
 	e.SetNamespace("global", g.AsValueMap())
 }
 
-// SetMetadata sets the given metadata on the stack evaluation context.
+// SetMetadata sets the given metadata in the stack evaluation context.
 func (e *EvalCtx) SetMetadata(st *config.Stack) {
 	runtime := e.root.Runtime()
 	runtime.Merge(st.RuntimeValues(e.root))
