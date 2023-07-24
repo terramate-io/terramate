@@ -2,7 +2,13 @@
 # SPDX-License-Identifier: MPL-2.0
 
 name: ci
-on: [push]
+on:
+  push:
+    paths_ignore:
+      - 'docs/**'
+  merge_group:
+    paths_ignore:
+      - 'docs/**'
 jobs:
   checks:
     runs-on: ubuntu-20.04
@@ -52,7 +58,7 @@ jobs:
 
       - name: make build
         run: make build
-      
+
       - name: check cloud info
         run: ./bin/terramate experimental cloud info
 
