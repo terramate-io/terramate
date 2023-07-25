@@ -6,6 +6,10 @@ on:
   push:
     paths-ignore:
       - 'docs/**'
+      - 'makefiles/**'
+      - '.github/**'
+      - '**/*.tm.hcl'
+      - '.tool-versions'
 
 jobs:
   build_test:
