@@ -165,7 +165,7 @@ For stack-1, the available configurations, listed from most specific to most gen
 * . (the project root dir)
 
 To create globals that will be available for all stacks in the entire project
-just add a [Terramate configuration file](../configuration/index.md) on the project
+just add a [Terramate configuration file](../configuration/index.md) in the project
 root with some useful globals:
 
 ```hcl
@@ -175,7 +175,7 @@ globals {
 }
 ```
 
-Now any stack on the project can reference these globals on their
+Now any stack in the project can reference these globals in their
 [Terramate configuration](../configuration/index.md).
 
 Suppose one of the stacks, stack-1, wants to introduce more globals. This can be done by

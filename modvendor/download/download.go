@@ -404,7 +404,7 @@ func downloadVendor(
 
 	// We want a temporary dir inside the project to where we are going to copy
 	// the cloned module first. The idea is that if the copying fails we won't
-	// leave any changes on the project vendor dir. The final step then will
+	// leave any changes in the project vendor dir. The final step then will
 	// be an atomic op using rename, which probably wont fail since the temp dir is
 	// inside the project and the whole project is most likely on the same fs/device.
 	tmTempDir, err := os.MkdirTemp(rootdir, ".tmvendor")

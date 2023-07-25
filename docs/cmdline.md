@@ -38,7 +38,7 @@ Flags:
 
 Commands:
   version                          Terramate version
-  create                           Creates a stack on the project
+  create                           Creates a stack in the project
   fmt                              Format all files inside dir recursively
   list                             List stacks
   run                              Run command in the stacks
@@ -46,13 +46,13 @@ Commands:
   install-completions              Install shell completions
   experimental clone               Clones a stack
   experimental trigger             Triggers a stack
-  experimental metadata            Shows metadata available on the project
+  experimental metadata            Shows metadata available in the project
   experimental globals             List globals for all stacks
   experimental generate debug      Shows generate debug information
   experimental run-graph           Generate a graph of the execution order
   experimental run-order           Show the topological ordering of the stacks
   experimental run-env             List run environment variables for all stacks
-  experimental vendor download     Downloads a Terraform module and stores it on the project vendor dir
+  experimental vendor download     Downloads a Terraform module and stores it in the project vendor dir
   experimental eval                Eval expression
   experimental partial-eval        Partial evaluate the expressions
   experimental get-config-value    Get configuration value
