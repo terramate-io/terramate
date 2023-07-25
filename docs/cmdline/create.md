@@ -65,4 +65,3 @@ file in every Terraform directory that contain a `terraform.backend` block or `p
 - `--all-terraform` Initialize Terramate in all directories containing `terraform.backend` blocks.
 - `--ensure-stack-ids` Ensures that every stack has an UUID.
 - `--no-generate` Disable code generation for the newly created stack.
-

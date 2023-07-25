@@ -1,6 +1,6 @@
 ---
 title: Tag Filter
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: The filter returns a list of stacks containing tags which satisfies the filter query.
 
 prev:
   text: 'Orchestration'

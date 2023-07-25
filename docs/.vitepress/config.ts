@@ -145,7 +145,7 @@ export default defineConfig({
       },
       {
         text: '🕵️ Change Detection',
-        collapses: false,
+        collapsed: false,
         items: [
           { text: 'Stacks', link: 'change-detection/#change-detection' },
           {
@@ -182,6 +182,7 @@ export default defineConfig({
       {
         text: '🔧 Functions',
         link: 'functions',
+        collapsed: false,
         items: [
           {
             text: 'tm_ternary',
@@ -216,8 +217,38 @@ export default defineConfig({
       },
       {
         text: '💻 Commands (CLI)',
-        link: 'cmdline',
+        link: 'cmdline/',
+        collapsed: false,
+        items: [
+          { text: 'clone', link: 'cmdline/clone' },
+          { text: 'cloud login', link: 'cmdline/cloud-login' },
+          { text: 'cloud info', link: 'cmdline/cloud-info' },
+          { text: 'create', link: 'cmdline/create' },
+          { text: 'eval', link: 'cmdline/eval' },
+          { text: 'fmt', link: 'cmdline/fmt' },
+          { text: 'generate', link: 'cmdline/generate' },
+          { text: 'get-config-value', link: 'cmdline/get-config-value' },
+          { text: 'globals', link: 'cmdline/globals' },
+          { text: 'install-completions', link: 'cmdline/install-completions' },
+          { text: 'list', link: 'cmdline/list' },
+          { text: 'partial-eval', link: 'cmdline/partial-eval' },
+          { text: 'run-env', link: 'cmdline/run-env' },
+          { text: 'run-graph', link: 'cmdline/run-graph' },
+          { text: 'run-order', link: 'cmdline/run-order' },
+          { text: 'run', link: 'cmdline/run' },
+          { text: 'trigger', link: 'cmdline/trigger' },
+          { text: 'vendor download', link: 'cmdline/vendor-download' },
+          { text: 'version', link: 'cmdline/version' },
+        ],
       },
+      // {
+      //   text: 'Misc',
+      //   collapsed: false,
+      //   items: [
+      //     { text: 'Language Server', link: '' },
+      //     { text: 'VSCode Extension', link: '' },
+      //   ],
+      // },
       {
         text: '🤓 Guides',
         collapsed: false,
@@ -244,14 +275,6 @@ export default defineConfig({
           },
         ],
       },
-      {
-        items: [{ text: '💬 Discord', link: 'https://terramate.io/discord' }],
-      },
-      // {
-      //   text: '🤝🙇 Contributions',
-      //   items: [
-      //   ]
-      // }
     ],
 
     socialLinks: [

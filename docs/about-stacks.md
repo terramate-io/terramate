@@ -1,6 +1,6 @@
 ---
 title: An introduction to Stacks
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: Learn about stacks in Terramate and why it's advised to use stacks in your infrastructure as code projects.
 
 prev:
   text: 'Quickstart'

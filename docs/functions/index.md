@@ -1,6 +1,6 @@
 ---
 title: Functions
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: Terramate provides the same built-in functions as Terraform  but prefixed with tm_.
 
 prev:
   text: 'Generate File'

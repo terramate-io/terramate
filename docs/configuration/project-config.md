@@ -1,6 +1,6 @@
 ---
 title: Project Configuration
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: Learn how to configure a Terramate project. Terramate does not depend on user configuration and comes with a set of sensible defaults.
 
 prev:
   text: 'Projet Setup'

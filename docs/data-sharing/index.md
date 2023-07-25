@@ -1,6 +1,6 @@
 ---
 title: Sharing Data - Globals
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: Terramate enables you to define data once and distribute it throughout your project. This can be accomplished using globals and metadata.
 
 prev:
   text: 'Change Detection'

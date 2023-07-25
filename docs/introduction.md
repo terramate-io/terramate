@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: Terramate supercharges Terraform with Stacks, Orchestration, Git Integration, Code Generation, Data Sharing and more 🦄
+description: Terramate supercharges Terraform with Stacks, Orchestration, Git Integration, Code Generation, Data Sharing and more.
 
 next:
   text: 'Installation'

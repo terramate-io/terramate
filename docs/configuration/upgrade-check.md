@@ -1,7 +1,6 @@
 ---
 title: Upgrade and Security Bulletin Checks
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
-
+description: The Terramate CLI commands interacts with the Terramate Checkpoint service to check for the availability of new versions and for critical security bulletins about the current version.
 prev:
   text: 'Projet Configuration'
   link: '/configuration/project-configuration'
@@ -9,7 +8,7 @@ prev:
 
 # Upgrade and Security Bulletin Checks
 
-The Terramate CLI commands interacts with the [Mineiros Checkpoint](https://checkpoint-api.mineiros.io/)
+The Terramate CLI commands interacts with the [Terramate Checkpoint](https://checkpoint-api.terramate.io/)
 service to check for the availability of new versions and for critical security
 bulletins about the current version.
 

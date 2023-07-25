@@ -11,7 +11,7 @@ description: With the terramate eval command you can fully evaluate a Terramate 
 #   link: '/data-sharing/'
 ---
 
-# Trigger
+# Eval
 
 **Note:** This is an experimental command that is likely subject to change in the future.
 
