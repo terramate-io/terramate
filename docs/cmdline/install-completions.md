@@ -13,7 +13,7 @@ next:
 
 # Install Completions
 
-The `install-completions` installs handy shell completions in your environment to improve the developer experience (DX) when working with Terramate.
+The `install-completions` installs autocompletion of commands for _bash_, _zsh_ and _fish_.
 
 ## Usage
 
