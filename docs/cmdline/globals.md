@@ -2,13 +2,13 @@
 title: terramate globals - Command
 description: With the terramate globals command you print all globals used in stacks recursively.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Get Config Value'
+  link: '/cmdline/get-config-value'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Install Completions'
+  link: '/cmdline/install-completions'
 ---
 
 # Globals

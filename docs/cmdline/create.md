@@ -3,12 +3,12 @@ title: terramate create - Command
 description: With the terramate create command you can create a new stack in the current project.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Cloud Info'
+  link: '/cmdline/cloud-info'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'Eval'
+  link: '/cmdline/eval'
 ---
 
 # Create

@@ -3,12 +3,12 @@ title: terramate generate - Command
 description: With the terramate generate command Terramate will generate all files.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Fmt'
+  link: '/cmdline/fmt'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'Get Config Value'
+  link: '/cmdline/get-config-value'
 ---
 
 # Generate

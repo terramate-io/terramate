@@ -43,7 +43,7 @@ import {
     # import a specific file
     source = "/more/globals.tm.hcl"
     # import all .tm.hcl files in a directory
-    source = "/imports/**.tm.hcl"
+    source = "/imports/*.tm.hcl"
 }
 ```
 

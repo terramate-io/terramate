@@ -3,12 +3,12 @@ title: terramate install-completions - Command
 description: With the terramate install-completions command you can install some handy shell completions for the Terramate CLI.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Globals'
+  link: '/cmdline/globals'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'List'
+  link: '/cmdline/list'
 ---
 
 # Install Completions

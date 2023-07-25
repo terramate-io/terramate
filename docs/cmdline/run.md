@@ -3,12 +3,12 @@ title: terramate run - Command
 description: With the terramate run command you can execute any command in a single or a list of stacks.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Run Order'
+  link: '/cmdline/run-order'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'Trigger'
+  link: '/cmdline/trigger'
 ---
 
 # Run

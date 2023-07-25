@@ -231,6 +231,7 @@ export default defineConfig({
           { text: 'globals', link: 'cmdline/globals' },
           { text: 'install-completions', link: 'cmdline/install-completions' },
           { text: 'list', link: 'cmdline/list' },
+          { text: 'metadata', link: 'cmdline/metadata' },
           { text: 'partial-eval', link: 'cmdline/partial-eval' },
           { text: 'run-env', link: 'cmdline/run-env' },
           { text: 'run-graph', link: 'cmdline/run-graph' },

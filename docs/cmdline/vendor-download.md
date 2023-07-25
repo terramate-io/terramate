@@ -2,13 +2,13 @@
 title: terramate vendor download - Command
 description: With the terramate vendor download command you can vendor a dependency.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Trigger'
+  link: '/cmdline/trigger'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Version'
+  link: '/cmdline/version'
 ---
 
 # Vendor Download

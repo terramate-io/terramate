@@ -2,13 +2,13 @@
 title: terramate cloud login - Command
 description: With the terramate cloud login command you can log in to your Terramate Cloud account.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Clone'
+  link: '/cmdline/clone'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Cloud Info'
+  link: '/cmdline/cloud-info'
 ---
 
 # Cloud Login

@@ -2,13 +2,13 @@
 title: terramate metadata - Command
 description: With the terramate metadata command you can see a list of stacks and their metadata.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'List'
+  link: '/cmdline/list'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Partial Eval'
+  link: '/cmdline/partial-eval'
 ---
 
 # Metadata

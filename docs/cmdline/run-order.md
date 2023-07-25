@@ -2,13 +2,13 @@
 title: terramate run-order - Command
 description: With the terramate run-order command you can view the order of execution of all stacks.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Run Graph'
+  link: '/cmdline/run-graph'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Run'
+  link: '/cmdline/run'
 ---
 
 # Run Order

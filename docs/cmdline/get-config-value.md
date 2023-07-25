@@ -2,13 +2,13 @@
 title: terramate get-config-value - Command
 description: With the terramate get-config-value command you can print the value of a specific configuration parameter.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Generate'
+  link: '/cmdline/generate'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Globals'
+  link: '/cmdline/globals'
 ---
 
 # Get Config Value

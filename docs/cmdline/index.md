@@ -1,6 +1,14 @@
 ---
 title: Command Line Interface (CLI)
 description: Terramate has a rich command-line interface, supporting verbosity levels, logging levels, multiple sub-commands, autocompletion and more.
+
+prev:
+  text: 'Upgrade Check'
+  link: '/configuration/upgrade-check'
+
+next:
+  text: 'Clone'
+  link: '/cmdline/clone'
 ---
 
 # Command Line Interface (CLI)
@@ -62,11 +70,11 @@ on Windows).
 
 - `disable_checkpoint` (`boolean`)
 
-When set to `true`, disables [upgrade and security bulletin checks](./configuration/upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
+When set to `true`, disables [upgrade and security bulletin checks](../configuration/upgrade-check.md). This is similar to exporting the `DISABLE_CHECKPOINT=1` environment variable.
 
 - `disable_checkpoint_signature` (`boolean`)
 
- when set to `true`, still allows the [upgrade and security bulletin checks](./configuration/upgrade-check.md)
+ when set to `true`, still allows the [upgrade and security bulletin checks](../configuration/upgrade-check.md)
  described above but disables the use of an anonymous id used to de-duplicate warning messages.
 
 ## Location
