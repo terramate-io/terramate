@@ -2,13 +2,13 @@
 title: terramate trigger - Command
 description: With the terramate trigger command you can mark a stack to be considered by the change detection.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Run'
+  link: '/cmdline/run'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Vendor Download'
+  link: '/cmdline/vendor-download'
 ---
 
 # Trigger

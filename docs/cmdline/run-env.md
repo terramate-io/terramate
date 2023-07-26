@@ -2,13 +2,13 @@
 title: terramate run-env - Command
 description: With the terramate run-env command see all environment variables configured for stacks.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Partial Eval'
+  link: '/cmdline/partial-eval'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Run Graph'
+  link: '/cmdline/run-graph'
 ---
 
 # Run Env

@@ -1,6 +1,6 @@
 ---
-title: Stacks | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Stacks
+description: Terramate stacks allow you to adopt a modular approach by breaking your IaC into smaller and isolated units to simplify resource creation and management, allowing you to focus on building and deploying the application.
 
 prev:
   text: 'Getting Started'
@@ -23,8 +23,7 @@ The Terramate stack is a powerful feature that allows you to manage complex depl
 ## What is a Stack?
 
 A stack is a collection of related resources managed as a single unit. When defining a stack, you specify all included resources, such as networks, virtual machines, and storage. 
-
-Terramate Stack simplifies resource creation and management, allowing you to focus on building and deploying the application.
+Stacks simplify resource creation and management, allowing you to focus on building and deploying the application.
 
 
 ## A Terramate stack is:

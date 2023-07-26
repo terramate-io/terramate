@@ -3,12 +3,13 @@ title: terramate version - Command
 description: With the terramate version command you can see your current and the latest Terramate version.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Vendor Download'
+  link: '/cmdline/vendor-download'
 
-next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+# TODO: add for new commands
+# next:
+#   text: 'Version'
+#   link: '/cmdline/version'
 ---
 
 # Version

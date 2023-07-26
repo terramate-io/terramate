@@ -3,12 +3,12 @@ title: terramate fmt - Command
 description: With the terramate fmt command you can rewrite Terramate configuration files to a canonical format.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Eval'
+  link: '/cmdline/eval'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'Generate'
+  link: '/cmdline/generate'
 ---
 
 # Fmt

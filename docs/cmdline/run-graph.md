@@ -2,13 +2,13 @@
 title: terramate run-graph - Command
 description: With the terramate run-graph command you can print a graph describing the order of execution of your stacks.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Run Env'
+  link: '/cmdline/run-env'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Run Order'
+  link: '/cmdline/run-order'
 ---
 
 # Run Graph

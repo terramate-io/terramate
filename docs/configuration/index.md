@@ -1,6 +1,6 @@
 ---
 title: Configure Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: Learn about the different configuration options in Terramate ranging from avoiding duplication by leveraging powerful code generation to flexible orchestration.
 
 prev:
   text: 'Functions'
@@ -19,8 +19,8 @@ allowing control of stacks order of execution.
 
 To do so, Terramate works with configuration files that have the suffixes:
 
-* `tm`
 * `tm.hcl`
+* `tm`
 
 ## Configuration files
 
@@ -37,10 +37,13 @@ Each configuration can import other configurations using the `import` block.
 See the example below:
 
 ```hcl
-# globals.tm
+# globals.tm.hcl
 
 import {
-    source = "/more/globals.tm"
+    # import a specific file
+    source = "/more/globals.tm.hcl"
+    # import all .tm.hcl files in a directory
+    source = "/imports/*.tm.hcl"
 }
 ```
 

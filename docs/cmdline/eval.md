@@ -2,16 +2,16 @@
 title: terramate eval - Command
 description: With the terramate eval command you can fully evaluate a Terramate expression.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Create'
+  link: '/cmdline/create'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Fmt'
+  link: '/cmdline/fmt'
 ---
 
-# Trigger
+# Eval
 
 **Note:** This is an experimental command that is likely subject to change in the future.
 

@@ -2,13 +2,13 @@
 title: terramate cloud info - Command
 description: With the terramate cloud info command you can see information about your current session in Terramate Cloud.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Cloud Login'
+  link: '/cmdline/cloud-login'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Create'
+  link: '/cmdline/create'
 ---
 
 # Cloud Info

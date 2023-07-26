@@ -1,6 +1,6 @@
 ---
 title: Change Detection
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+description: Lean how the Change Detection in Terramate helps you to only execute commands in stacks that contain changes by leveraging the power of Git.
 
 prev:
   text: 'Stacks'

@@ -2,16 +2,16 @@
 title: terramate clone - Command
 description: With the terramate command you can easily clone stacks.
 
-# prev:
-#   text: 'Stacks'
-#   link: '/stacks/'
+prev:
+  text: 'Command Line Interface (CLI)'
+  link: '/cmdline/'
 
-# next:
-#   text: 'Sharing Data'
-#   link: '/data-sharing/'
+next:
+  text: 'Cloud Login'
+  link: '/cmdline/cloud-login'
 ---
 
-# Create
+# Clone
 
 **Note:** This is an experimental command and is likely subject to change in the future.
 

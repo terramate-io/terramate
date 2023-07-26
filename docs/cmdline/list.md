@@ -3,12 +3,12 @@ title: terramate list - Command
 description: With the terramate list command you can list all stacks in the current directory recursively.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Install Completions'
+  link: '/cmdline/install-completions'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'Metadata'
+  link: '/cmdline/metadata'
 ---
 
 # List

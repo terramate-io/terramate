@@ -3,12 +3,12 @@ title: terramate create - Command
 description: With the terramate create command you can create a new stack in the current project.
 
 prev:
-  text: 'Stacks'
-  link: '/stacks/'
+  text: 'Cloud Info'
+  link: '/cmdline/cloud-info'
 
 next:
-  text: 'Sharing Data'
-  link: '/data-sharing/'
+  text: 'Eval'
+  link: '/cmdline/eval'
 ---
 
 # Create
@@ -65,4 +65,3 @@ file in every Terraform directory that contain a `terraform.backend` block or `p
 - `--all-terraform` Initialize Terramate in all directories containing `terraform.backend` blocks.
 - `--ensure-stack-ids` Ensures that every stack has an UUID.
 - `--no-generate` Disable code generation for the newly created stack.
-
