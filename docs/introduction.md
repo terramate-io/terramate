@@ -42,6 +42,8 @@ To install Terramate please see the [Installation](https://terramate.io/docs/cli
 We recommend following our [Getting Started](https://terramate.io/docs/cli/getting-started/) guide to familiarize yourself
 with the fundamentals by building your first Terramate project.
 
+For a list of guides and examples available, please see the [guides](./guides/index.md) documentation page.
+
 ## Community
 
 Join us on [GitHub](https://github.com/terramate-io/terramate) or [Discord](https://terramate.io/discord) to ask

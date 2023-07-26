@@ -6,10 +6,9 @@ prev:
   text: 'Vendor Download'
   link: '/cmdline/vendor-download'
 
-# TODO: add for new commands
-# next:
-#   text: 'Version'
-#   link: '/cmdline/version'
+next:
+  text: 'Guides & Examples'
+  link: '/guides/'
 ---
 
 # Version
