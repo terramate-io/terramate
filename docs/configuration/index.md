@@ -42,7 +42,16 @@ See the example below:
 import {
     # import a specific file
     source = "/more/globals.tm.hcl"
-    # import all .tm.hcl files in a directory
+}
+```
+
+The import block supports globs as well:
+
+```hcl
+# globals.tm.hcl
+
+import {
+    # import all files in a directory
     source = "/imports/*.tm.hcl"
 }
 ```
