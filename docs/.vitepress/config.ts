@@ -251,30 +251,8 @@ export default defineConfig({
       //   ],
       // },
       {
-        text: '🤓 Guides',
-        collapsed: false,
-        items: [
-          {
-            text: 'Introducing Terramate — An Orchestrator and Code Generator for Terraform',
-            link: 'https://blog.terramate.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055',
-          },
-          {
-            text: 'Understanding the basics of Terramate',
-            link: 'https://blog.terramate.io/understanding-the-basics-of-terramate-e0d8778f5c53',
-          },
-          {
-            text: 'Terramate and Terragrunt',
-            link: 'https://blog.terramate.io/terramate-and-terragrunt-f27f2ec4032f',
-          },
-          {
-            text: 'How to keep your Terraform code DRY by using Terramate',
-            link: 'https://blog.terramate.io/how-to-keep-your-terraform-code-dry-by-using-terramate-be5807fef8f6',
-          },
-          {
-            text: 'Introducing the Terramate VSCode Extension and Language Server',
-            link: 'https://blog.terramate.io/introducing-the-terramate-vscode-extension-and-language-server-d77bd392011c',
-          },
-        ],
+        text: '🤓 Guides & Examples',
+        link: 'guides/',
       },
     ],
 
