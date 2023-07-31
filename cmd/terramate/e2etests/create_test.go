@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -21,9 +22,6 @@ import (
 func TestCreateStack(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
-	cli := newCLI(t, s.RootDir())
-
 	const (
 		stackName        = "stack name"
 		stackDescription = "stack description"
@@ -33,75 +31,96 @@ func TestCreateStack(t *testing.T) {
 		stackAfter2      = "stack-after-2"
 		stackBefore1     = "stack-before-1"
 		stackBefore2     = "stack-before-2"
+		stackTag1        = "a"
+		stackTag2        = "b"
 		genFilename      = "file.txt"
 		genFileContent   = "testing is fun"
 	)
 
-	createFile := func(path string) {
+	createFile := func(s sandbox.S, path string) {
 		abspath := filepath.Join(s.RootDir(), path)
 		test.WriteFile(t, filepath.Dir(abspath), filepath.Base(abspath), "")
 	}
 
-	createFile(stackImport1)
-	createFile(stackImport2)
+	testCreate := func(t *testing.T, flags ...string) {
+		s := sandbox.New(t)
+		cli := newCLI(t, s.RootDir())
+		createFile(s, stackImport1)
+		createFile(s, stackImport2)
 
-	s.RootEntry().CreateFile("generate.tm.hcl", `
+		s.RootEntry().CreateFile("generate.tm.hcl", `
 		generate_file "%s" {
 		  content = "%s"
 		}
 	`, genFilename, genFileContent)
 
-	stackPaths := []string{
-		"stack-1",
-		"/stack-2",
-		"/stacks/stack-a",
-		"stacks/stack-b",
-	}
-
-	for _, stackPath := range stackPaths {
-		stackID := newStackID(t)
-		res := cli.run("create", stackPath,
-			"--id", stackID,
-			"--name", stackName,
-			"--description", stackDescription,
-			"--import", stackImport1,
-			"--import", stackImport2,
-			"--after", stackAfter1,
-			"--after", stackAfter2,
-			"--before", stackBefore1,
-			"--before", stackBefore2,
-		)
-
-		t.Logf("run create stack %s", stackPath)
-		t.Logf("stdout: %s", res.Stdout)
-		t.Logf("stderr: %s", res.Stderr)
-
-		want := fmt.Sprintf("Created stack %s\n", stackPath)
-		if stackPath[0] != '/' {
-			want = fmt.Sprintf("Created stack /%s\n", stackPath)
+		stackPaths := []string{
+			"stack-1",
+			"/stack-2",
+			"/stacks/stack-a",
+			"stacks/stack-b",
 		}
 
-		assertRunResult(t, res, runExpected{
-			Stdout: want,
-		})
+		for _, stackPath := range stackPaths {
+			stackID := newStackID(t)
+			args := []string{"create", stackPath, "--id", stackID}
+			args = append(args, flags...)
+			res := cli.run(args...)
 
-		s.ReloadConfig()
-		absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
-		got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
+			t.Logf("run create stack %s", stackPath)
+			t.Logf("stdout: %s", res.Stdout)
+			t.Logf("stderr: %s", res.Stderr)
 
-		assert.EqualStrings(t, stackID, got.ID)
-		assert.EqualStrings(t, stackName, got.Name, "checking stack name")
-		assert.EqualStrings(t, stackDescription, got.Description, "checking stack description")
-		test.AssertDiff(t, got.After, []string{stackAfter1, stackAfter2}, "created stack has invalid after")
-		test.AssertDiff(t, got.Before, []string{stackBefore1, stackBefore2}, "created stack has invalid before")
+			want := fmt.Sprintf("Created stack %s\n", stackPath)
+			if stackPath[0] != '/' {
+				want = fmt.Sprintf("Created stack /%s\n", stackPath)
+			}
 
-		test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{stackImport1, stackImport2})
+			assertRunResult(t, res, runExpected{
+				Stdout: want,
+			})
 
-		stackEntry := s.StackEntry(stackPath)
-		gotGenCode := stackEntry.ReadFile(genFilename)
+			s.ReloadConfig()
+			absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
+			got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
-		assert.EqualStrings(t, genFileContent, gotGenCode, "checking stack generated code")
+			assert.EqualStrings(t, stackID, got.ID)
+			assert.EqualStrings(t, stackName, got.Name, "checking stack name")
+			assert.EqualStrings(t, stackDescription, got.Description, "checking stack description")
+			test.AssertDiff(t, got.After, []string{stackAfter1, stackAfter2}, "created stack has invalid after")
+			test.AssertDiff(t, got.Before, []string{stackBefore1, stackBefore2}, "created stack has invalid before")
+			test.AssertDiff(t, got.Tags, []string{stackTag1, stackTag2})
+
+			test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{stackImport1, stackImport2})
+
+			stackEntry := s.StackEntry(stackPath)
+			gotGenCode := stackEntry.ReadFile(genFilename)
+
+			assert.EqualStrings(t, genFileContent, gotGenCode, "checking stack generated code")
+		}
 	}
+
+	testCreate(t,
+		"--name", stackName,
+		"--description", stackDescription,
+		"--import", stackImport1,
+		"--import", stackImport2,
+		"--after", stackAfter1,
+		"--after", stackAfter2,
+		"--before", stackBefore1,
+		"--before", stackBefore2,
+		"--tags", stackTag1,
+		"--tags", stackTag2,
+	)
+
+	testCreate(t,
+		"--name", stackName,
+		"--description", stackDescription,
+		"--import", strings.Join([]string{stackImport1, stackImport2}, ","),
+		"--after", strings.Join([]string{stackAfter1, stackAfter2}, ","),
+		"--before", strings.Join([]string{stackBefore1, stackBefore2}, ","),
+		"--tags", strings.Join([]string{stackTag1, stackTag2}, ","),
+	)
 }
 
 func TestCreateStackDefaults(t *testing.T) {
