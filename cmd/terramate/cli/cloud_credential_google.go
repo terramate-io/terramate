@@ -30,7 +30,7 @@ import (
 
 const (
 	// that's a public key.
-	apiKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
+	apiKey = "AIzaSyBqVWzQcGGaQrhwBYPrZfQoKjPxoc1NnO0"
 
 	credfile = "credentials.tmrc.json"
 

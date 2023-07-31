@@ -18,7 +18,7 @@ import (
 )
 
 // Host of the official Terramate Cloud API.
-const Host = "api.terramate.io"
+const Host = "api.stg.terramate.io"
 
 // BaseURL is the default cloud.terramate.io base API URL.
 const BaseURL = "https://" + Host
