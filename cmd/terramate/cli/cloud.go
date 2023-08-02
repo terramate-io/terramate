@@ -279,6 +279,8 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 				}
 			} else {
 				logger.Error().
+					Str("normalized-repo", normalizedRepo).
+					Str("gh-repo", ghRepo).
 					Str("head-commit", c.prj.headCommit()).
 					Err(err).
 					Msg("failed to retrieve pull requests associated with HEAD")
