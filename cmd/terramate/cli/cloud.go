@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
@@ -198,7 +199,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		err                 error
 		deploymentCommitSHA string
 		deploymentURL       string
-		repository          string
+		normalizedRepo      string
 		reviewRequest       *cloud.DeploymentReviewRequest
 	)
 
@@ -206,8 +207,8 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		var rr cloud.DeploymentReviewRequest
 		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err == nil {
-			repository = cloud.NormalizeGitURI(repoURL)
-			rr.Repository = repository
+			normalizedRepo = cloud.NormalizeGitURI(repoURL)
+			rr.Repository = normalizedRepo
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
@@ -221,9 +222,26 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		}
 
 		ghRepo := os.Getenv("GITHUB_REPOSITORY")
+		if ghRepo == "" && normalizedRepo != "" && normalizedRepo != "local" {
+			r, err := repository.Parse(normalizedRepo)
+			if err != nil {
+				logger.Warn().
+					Str("repository", normalizedRepo).
+					Err(err).
+					Msg("failed to normalize the repository")
+			} else {
+				ghRepo = r.Owner + "/" + r.Name
+			}
+		}
+
 		ghToken := os.Getenv("GITHUB_TOKEN")
 
-		if ghRepo != "" && ghToken != "" {
+		if ghRepo == "" {
+			logger.Debug().
+				Str("repository", normalizedRepo).
+				Msg("repository cannot be normalized: skipping pull request retrievals for commit")
+
+		} else {
 			ghClient := github.Client{
 				BaseURL:    os.Getenv("GITHUB_API_URL"),
 				HTTPClient: &c.httpClient,
@@ -299,7 +317,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			MetaName:          s.Name,
 			MetaDescription:   s.Description,
 			MetaTags:          tags,
-			Repository:        repository,
+			Repository:        normalizedRepo,
 			Path:              s.Dir().String(),
 			CommitSHA:         deploymentCommitSHA,
 			DeploymentCommand: strings.Join(command, " "),

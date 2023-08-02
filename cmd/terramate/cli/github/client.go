@@ -41,9 +41,6 @@ type (
 // PullsForCommit returns a list of pull request objects associated with the
 // given commit SHA.
 func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) (pulls []Pull, err error) {
-	if c.Token == "" {
-		return nil, errors.E("the Github Token is required in the client")
-	}
 	if !strings.Contains(repository, "/") {
 		return nil, errors.E("expects a valid Github repository of format <owner>/<name>")
 	}
@@ -54,7 +51,9 @@ func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) 
 		return nil, errors.E(err, "creating pulls request")
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
 
 	client := c.httpClient()
 	resp, err := client.Do(req)
