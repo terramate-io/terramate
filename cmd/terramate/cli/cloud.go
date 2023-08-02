@@ -221,8 +221,8 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
 		}
 
-		ghRepo := os.Getenv("GITHUB_REPOSITORY")
-		if ghRepo == "" && normalizedRepo != "" && normalizedRepo != "local" {
+		var ghRepo string
+		if normalizedRepo != "" && normalizedRepo != "local" {
 			r, err := repository.Parse(normalizedRepo)
 			if err != nil {
 				logger.Warn().
@@ -234,8 +234,6 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			}
 		}
 
-		ghToken := os.Getenv("GITHUB_TOKEN")
-
 		if ghRepo == "" {
 			logger.Debug().
 				Str("repository", normalizedRepo).
@@ -245,7 +243,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 			ghClient := github.Client{
 				BaseURL:    os.Getenv("GITHUB_API_URL"),
 				HTTPClient: &c.httpClient,
-				Token:      ghToken,
+				Token:      os.Getenv("GITHUB_TOKEN"),
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
