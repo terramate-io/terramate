@@ -36,9 +36,19 @@ func TestNormalizeGitURL(t *testing.T) {
 			normalized: "github.com/terramate-io/terramate",
 		},
 		{
+			name:       "basic gitlab ssh url",
+			raw:        "git@gitlab.com:terramate-io/terramate.git",
+			normalized: "gitlab.com/terramate-io/terramate",
+		},
+		{
 			name:       "github ssh url without .git suffix",
 			raw:        "git@github.com:terramate-io/terramate.git",
 			normalized: "github.com/terramate-io/terramate",
+		},
+		{
+			name:       "gitlab ssh url without .git suffix",
+			raw:        "git@gitlab.com:terramate-io/terramate.git",
+			normalized: "gitlab.com/terramate-io/terramate",
 		},
 		{
 			name:       "malformed owner/repo returns raw (domain)",
@@ -71,9 +81,14 @@ func TestNormalizeGitURL(t *testing.T) {
 			normalized: "github.com/8888:terramate-io/terramate",
 		},
 		{
-			name:       "unrecognized git url with ssh:// prefix",
+			name:       "github url with ssh:// prefix",
 			raw:        "ssh://git@github.com/terramate-io/terramate.git",
 			normalized: "github.com/terramate-io/terramate",
+		},
+		{
+			name:       "gitlab url with ssh:// prefix",
+			raw:        "ssh://git@gitlab.com/terramate-io/terramate.git",
+			normalized: "gitlab.com/terramate-io/terramate",
 		},
 	} {
 		tc := tc
