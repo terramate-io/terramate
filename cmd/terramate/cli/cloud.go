@@ -136,14 +136,9 @@ func (c *cli) checkSyncDeployment() {
 }
 
 func (c *cli) setupCloudConfig() error {
-	cloudHost := os.Getenv("TMC_API_HOST")
-	if cloudHost == "" {
-		cloudHost = cloudDefaultBaseURL
-	}
-
 	c.cloud = cloudConfig{
 		client: &cloud.Client{
-			BaseURL:    cloudHost,
+			BaseURL:    cloudBaseURL(),
 			IDPKey:     idpkey(),
 			HTTPClient: &c.httpClient,
 		},
@@ -418,6 +413,17 @@ func tokenClaims(token string) (jwt.MapClaims, error) {
 		return claims, nil
 	}
 	return nil, errors.E("invalid jwt token claims")
+}
+
+func cloudBaseURL() string {
+	var baseURL string
+	cloudHost := os.Getenv("TMC_API_HOST")
+	if cloudHost != "" {
+		baseURL = "https://" + cloudHost
+	} else {
+		baseURL = cloudDefaultBaseURL
+	}
+	return baseURL
 }
 
 func idpkey() string {
