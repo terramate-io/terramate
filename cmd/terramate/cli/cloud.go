@@ -13,7 +13,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
@@ -64,10 +63,10 @@ type keyValue struct {
 	value string
 }
 
-func credentialPrecedence(output out.O, clicfg cliconfig.Config) []credential {
+func (c *cli) credentialPrecedence(output out.O) []credential {
 	return []credential{
 		newGithubOIDC(output),
-		newGoogleCredential(output, clicfg),
+		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg),
 	}
 }
 
@@ -137,20 +136,26 @@ func (c *cli) checkSyncDeployment() {
 }
 
 func (c *cli) setupCloudConfig() error {
+	cloudHost := os.Getenv("TMC_API_HOST")
+	if cloudHost == "" {
+		cloudHost = cloudDefaultBaseURL
+	}
+
+	c.cloud = cloudConfig{
+		client: &cloud.Client{
+			BaseURL:    cloudHost,
+			IDPKey:     idpkey(),
+			HTTPClient: &c.httpClient,
+		},
+		output: c.output,
+	}
 	cred, err := c.loadCredential()
 	if err != nil {
 		return err
 	}
 
-	c.cloud = cloudConfig{
-		client: &cloud.Client{
-			BaseURL:    cloudBaseURL,
-			HTTPClient: &c.httpClient,
-			Credential: cred,
-		},
-		output:     c.output,
-		credential: cred,
-	}
+	c.cloud.credential = cred
+	c.cloud.client.Credential = cred
 
 	err = cred.Validate(c.cloud)
 	if err != nil {
@@ -381,7 +386,7 @@ func (c *cli) cloudInfo() {
 }
 
 func (c *cli) loadCredential() (credential, error) {
-	probes := credentialPrecedence(c.output, c.clicfg)
+	probes := c.credentialPrecedence(c.output)
 	var cred credential
 	var found bool
 	for _, probe := range probes {
@@ -413,4 +418,12 @@ func tokenClaims(token string) (jwt.MapClaims, error) {
 		return claims, nil
 	}
 	return nil, errors.E("invalid jwt token claims")
+}
+
+func idpkey() string {
+	idpKey := os.Getenv("TMC_API_IDP_KEY")
+	if idpKey == "" {
+		idpKey = defaultAPIKey
+	}
+	return idpKey
 }

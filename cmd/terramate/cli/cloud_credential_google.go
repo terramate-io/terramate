@@ -30,7 +30,7 @@ import (
 
 const (
 	// that's a public key.
-	apiKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
+	defaultAPIKey = "AIzaSyDeCYIgqEhufsnBGtlNu4fv1alvpcs1Nos"
 
 	credfile = "credentials.tmrc.json"
 
@@ -42,6 +42,7 @@ type (
 	googleCredential struct {
 		mu sync.RWMutex
 
+		idpKey       string
 		token        string
 		refreshToken string
 		jwtClaims    jwt.MapClaims
@@ -83,10 +84,11 @@ type (
 	}
 )
 
-func googleLogin(output out.O, clicfg cliconfig.Config) error {
+func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
 		errChan:        make(chan error),
+		idpKey:         idpKey,
 	}
 
 	mux := http.NewServeMux()
@@ -101,7 +103,7 @@ func googleLogin(output out.O, clicfg cliconfig.Config) error {
 
 	go startServer(s, h, redirectURLChan, consentDataChan)
 
-	consentData, err := createAuthURI(<-redirectURLChan)
+	consentData, err := createAuthURI(idpKey, <-redirectURLChan)
 	if err != nil {
 		return err
 	}
@@ -174,7 +176,7 @@ func startServer(
 	}
 }
 
-func createAuthURI(continueURI string) (createAuthURIResponse, error) {
+func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, error) {
 	const endpoint = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/createAuthUri"
 	const authScope = `{"google.com": "profile"}`
 
@@ -197,7 +199,7 @@ func createAuthURI(continueURI string) (createAuthURIResponse, error) {
 		return createAuthURIResponse{}, errors.E(err)
 	}
 
-	url := endpointURL(endpoint)
+	url := endpointURL(endpoint, idpKey)
 	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(postBody))
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to create authentication url")
@@ -250,6 +252,7 @@ type tokenHandler struct {
 	continueURL    string
 	errChan        chan error
 	credentialChan chan credentialInfo
+	idpKey         string
 }
 
 func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -299,7 +302,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Str("post-body", string(data)).
 		Msg("prepared request body")
 
-	url := endpointURL(signInEndpoint)
+	url := endpointURL(signInEndpoint, h.idpKey)
 	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
 	if err != nil {
 		h.handleErr(w, errors.E(err, "failed to create authentication url"))
@@ -409,22 +412,23 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 	return cred, true, nil
 }
 
-func endpointURL(endpoint string) *url.URL {
+func endpointURL(endpoint string, idpKey string) *url.URL {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		fatal(err, "failed to parse endpoint URL for createAuthURI")
 	}
 
 	q := u.Query()
-	q.Add("key", apiKey)
+	q.Add("key", idpKey)
 	u.RawQuery = q.Encode()
 	return u
 }
 
-func newGoogleCredential(output out.O, clicfg cliconfig.Config) *googleCredential {
+func newGoogleCredential(output out.O, idpKey string, clicfg cliconfig.Config) *googleCredential {
 	return &googleCredential{
 		output: output,
 		clicfg: clicfg,
+		idpKey: idpKey,
 	}
 }
 
@@ -478,7 +482,7 @@ func (g *googleCredential) Refresh() (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), oidcTimeout*time.Second)
 	defer cancel()
 
-	endpoint := endpointURL(refreshTokenURL)
+	endpoint := endpointURL(refreshTokenURL, g.idpKey)
 	reqPayload := RequestBody{
 		GrantType:    "refresh_token",
 		RefreshToken: g.refreshToken,

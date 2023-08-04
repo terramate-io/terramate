@@ -10,7 +10,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 )
 
-const cloudBaseURL = cloud.BaseURL
+const cloudDefaultBaseURL = cloud.BaseURL
 
 func generateRunID() (string, error) {
 	return uuid.GenerateUUID()
