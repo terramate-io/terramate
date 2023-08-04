@@ -213,12 +213,6 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		}
 
 		deploymentCommitSHA = c.prj.headCommit()
-		if len(c.prj.git.repoChecks.UntrackedFiles) > 0 ||
-			len(c.prj.git.repoChecks.UncommittedFiles) > 0 {
-			deploymentCommitSHA = ""
-
-			logger.Debug().Msg("commit SHA is not being synced because the repository is dirty")
-		}
 
 		ghRepo := os.Getenv("GITHUB_REPOSITORY")
 		ghToken := os.Getenv("GITHUB_TOKEN")
@@ -248,7 +242,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 					rr.Number = pull.Number
 					rr.Title = pull.Title
 					rr.Description = pull.Body
-					rr.CommitSHA = c.prj.headCommit()
+					rr.CommitSHA = deploymentCommitSHA
 
 					logger.Debug().
 						Str("pull-url", rr.URL).
