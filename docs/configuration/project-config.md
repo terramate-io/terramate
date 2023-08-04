@@ -134,4 +134,4 @@ Any attributes defined
 on `terramate.config.run.env` blocks won't affect the `env` namespace.
 
 You can have multiple `terramate.config.run.env` blocks defined on different
-files, but variable names can **not** be defined twice.
+files, but variable names **cannot** be defined twice.

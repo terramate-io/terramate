@@ -463,6 +463,8 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 
 	body = fmt.Sprintf(body, args...)
 
+	test.MkdirAll(fe.t, filepath.Dir(fe.hostpath))
+
 	if err := os.WriteFile(fe.hostpath, []byte(body), 0700); err != nil {
 		fe.t.Fatalf("os.WriteFile(%q) = %v", fe.hostpath, err)
 	}
