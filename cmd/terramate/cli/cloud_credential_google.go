@@ -103,7 +103,7 @@ func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 
 	go startServer(s, h, redirectURLChan, consentDataChan)
 
-	consentData, err := createAuthURI(idpKey, <-redirectURLChan)
+	consentData, err := createAuthURI(<-redirectURLChan, idpKey)
 	if err != nil {
 		return err
 	}
