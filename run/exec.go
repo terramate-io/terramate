@@ -81,22 +81,37 @@ func Exec(
 
 	results := startCmdRunner(cmds)
 
+	cmdStr := strings.Join(cmd, " ")
+
 	for i, stack := range stacks {
 		logger := log.With().
-			Str("cmd", strings.Join(cmd, " ")).
+			Str("cmd", cmdStr).
 			Stringer("stack", stack).
 			Logger()
 
-		cmd := exec.Command(cmd[0], cmd[1:]...)
+		before(stack.Stack, cmdStr)
+
+		environ := make([]string, len(os.Environ()))
+		copy(environ, os.Environ())
+		environ = append(environ, stackEnvs[stack.Dir()]...)
+		cmdPath, err := lookPath(cmd[0], environ)
+		if err != nil {
+			after(stack.Stack, errors.E(err, ErrFailed))
+			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, stack.Dir()))
+			if continueOnError {
+				continue
+			}
+			cancelStacks(stacks[i+1:])
+			return errs.AsError()
+		}
+		cmd := exec.Command(cmdPath, cmd[1:]...)
 		cmd.Dir = stack.HostDir(root)
-		cmd.Env = append(os.Environ(), stackEnvs[stack.Dir()]...)
+		cmd.Env = environ
 		cmd.Stdin = stdin
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 
 		logger.Info().Msg("running")
-
-		before(stack.Stack, cmd.String())
 
 		if err := cmd.Start(); err != nil {
 			after(stack.Stack, errors.E(err, ErrFailed))

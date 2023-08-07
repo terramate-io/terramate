@@ -74,3 +74,37 @@ terramate run  --reverse --no-tags type:k8s -- terraform apply
 - `--no-recursive` Do not recurse into child stacks
 - `--dry-run` Plan the execution but do not execute it
 - `--reverse` Reverse the order of execution
+
+## Project wide `run` configuration.
+
+The `terramate` block at the project root can be used to customize
+the default exported environment variables in the 
+[terramate.config.run.env](../configuration/project-config.md#the-terramateconfigrunenv-block).
+
+It's also possible to set a different `PATH` environment variable and
+in this case, Terramate will honor it when looking up the program's
+absolute path.
+
+For example, let's say you have a `bin` directory at the root of the
+Terramate project where you define some scripts that should be ran in
+each stack. In this case, you can have declaration below in the root
+directory:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        # prepend the bin/ directory so it has preference.
+        PATH = "${terramate.root.path.fs.absolute}/bin:${env.PATH}"
+      }
+    }
+  }
+}
+```
+
+Then if you have the script `bin/create-stack.sh`, you can do:
+
+```bash
+$ terramate run create-stack.sh
+```

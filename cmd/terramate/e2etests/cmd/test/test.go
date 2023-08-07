@@ -21,6 +21,11 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "echo":
+		for _, arg := range os.Args[2:] {
+			fmt.Print(arg)
+		}
+		fmt.Print("\n")
 	case "true":
 		os.Exit(0)
 	case "false":
