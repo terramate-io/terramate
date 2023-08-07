@@ -350,13 +350,28 @@ Given this project layout:
     └── stack-b
 ```
 
-* **stack-a** = /stacks/stack-a
-* **stack-b** = /stacks/stack-b
+* For **stack-a** it returns `/stacks/stack-a`.
+* For **stack-b** it returns `/stacks/stack-b`.
 
 ### terramate.stack.path.relative (string)
 
-Specifies the stack's absolute path relative to the project root directory (not the host root directory).
-The path is absolute within the context of the entire project.
+Specifies the stack's path relative to the project root directory.
+
+Consider this project layout:
+
+```
+.
+└── stacks
+    ├── stack-a
+    └── stack-b
+```
+
+* For **stack-a** it returns `stacks/stack-a`.
+* For **stack-b** it returns `stacks/stack-b`.
+
+### terramate.stack.path.basename (string)
+
+Gives the stack path directory name (or the last component of the stack absolute path).
 
 Consider this project layout:
 
@@ -368,23 +383,9 @@ Consider this project layout:
 ```
 
 In this case,
-* **stack-a** = stacks/stack-a
-* **stack-b** = stacks/stack-b
 
-### terramate.stack.path.basename (string)
-
-Gives the stack path relative to the project root directory. Following the same project layout above:
-
-```
-.
-└── stacks
-    ├── stack-a
-    └── stack-b
-```
-
-Using the prolayout above:
-* **stack-a** = stack-a
-* **stack-b** = stack-b
+* For **stack-a** it returns `stack-a`.
+* For **stack-b** it returns `stack-b`.
 
 ### terramate.stack.path.to\_root (string)
 
@@ -393,13 +394,12 @@ Specifies the relative path from the stack to the project root. Given this proje
 ```
 .
 └── stacks
-    ├── stack-a
-    └── stack-b
+    └── stack-a
+        └── stack-b
 ```
-With the given project layout, both **stack-a** and **stack-b** have the relative path ../..
 
-* **stack-a** = ../..
-* **stack-b** = ../..
+* For **stack-a** it returns `../..`
+* For **stack-b** it returns `../../..`
 
 ### terramate.stack.id (string)
 
@@ -413,18 +413,6 @@ Refer to [stack configuration](../stacks/index.md) for details on defining stack
 Specifies the stack's name as defined in the stack configuration. If a name is not defined,
 it defaults to `terramate.stack.path.basename`. To change the default stack name, refer to
 [stack configuration](../stacks/index.md).
-
-Given the project layout from the root:
-
-```
-.
-└── stacks
-    ├── stack-a
-    └── stack-b
-```
-
-* **stack-a** = stack-a
-* **stack-b** = stack-b
 
 ### terramate.stack.description (string)
 
