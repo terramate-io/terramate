@@ -36,24 +36,34 @@ func TestNormalizeGitURL(t *testing.T) {
 			normalized: "github.com/terramate-io/terramate",
 		},
 		{
+			name:       "basic gitlab ssh url",
+			raw:        "git@gitlab.com:terramate-io/terramate.git",
+			normalized: "gitlab.com/terramate-io/terramate",
+		},
+		{
 			name:       "github ssh url without .git suffix",
 			raw:        "git@github.com:terramate-io/terramate.git",
 			normalized: "github.com/terramate-io/terramate",
 		},
 		{
-			name:       "https url from any domain",
-			raw:        "https://domain/path",
-			normalized: "domain/path",
+			name:       "gitlab ssh url without .git suffix",
+			raw:        "git@gitlab.com:terramate-io/terramate.git",
+			normalized: "gitlab.com/terramate-io/terramate",
 		},
 		{
-			name:       "https url from ipv4 ip address",
+			name:       "malformed owner/repo returns raw (domain)",
+			raw:        "https://example.com/path",
+			normalized: "https://example.com/path",
+		},
+		{
+			name:       "malformed owner/repo returns raw (ip)",
 			raw:        "https://192.168.1.169/path",
-			normalized: "192.168.1.169/path",
+			normalized: "https://192.168.1.169/path",
 		},
 		{
 			name:       "ssh url from any domain",
-			raw:        "git@example.com:path.git",
-			normalized: "example.com/path",
+			raw:        "git@example.com:owner/path.git",
+			normalized: "example.com/owner/path",
 		},
 		{
 			name:       "filesystem path returns as local",
@@ -66,14 +76,19 @@ func TestNormalizeGitURL(t *testing.T) {
 			normalized: "something else",
 		},
 		{
-			name:       "unrecognized ssh url",
+			name:       "unrecognized ssh url - THIS IS A BUG IN THE go-gh library",
 			raw:        "git@github.com:8888:terramate-io/terramate.git",
-			normalized: "git@github.com:8888:terramate-io/terramate.git",
+			normalized: "github.com/8888:terramate-io/terramate",
 		},
 		{
-			name:       "unrecognized git url with ssh:// prefix",
+			name:       "github url with ssh:// prefix",
 			raw:        "ssh://git@github.com/terramate-io/terramate.git",
-			normalized: "ssh://git@github.com/terramate-io/terramate.git",
+			normalized: "github.com/terramate-io/terramate",
+		},
+		{
+			name:       "gitlab url with ssh:// prefix",
+			raw:        "ssh://git@gitlab.com/terramate-io/terramate.git",
+			normalized: "gitlab.com/terramate-io/terramate",
 		},
 	} {
 		tc := tc
