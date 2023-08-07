@@ -6,7 +6,8 @@ package cloud
 import (
 	"fmt"
 	"os"
-	"strings"
+
+	"github.com/cli/go-gh/v2/pkg/repository"
 )
 
 // NormalizeGitURI normalizes the raw uri in a Terramate Cloud
@@ -21,24 +22,10 @@ func NormalizeGitURI(raw string) string {
 		return "local"
 	}
 
-	switch {
-	case strings.HasPrefix(raw, "git@"):
-		uri := raw[4:]
-		parts := strings.Split(uri, ":")
-		if len(parts) == 2 {
-			host := parts[0]
-			path := strings.TrimSuffix(parts[1], ".git")
-			return fmt.Sprintf("%s/%s", host, path)
-		}
-		// unrecognized, then return it raw
-	case strings.HasPrefix(raw, "https://"):
-		uri := raw[8:]
-		parts := strings.Split(uri, "/")
-		if len(parts) > 1 {
-			host := parts[0]
-			path := strings.TrimSuffix(strings.Join(parts[1:], "/"), ".git")
-			return fmt.Sprintf("%s/%s", host, path)
-		}
+	repo, err := repository.Parse(raw)
+	if err != nil {
+		return raw
 	}
-	return raw
+
+	return fmt.Sprintf("%s/%s/%s", repo.Host, repo.Owner, repo.Name)
 }
