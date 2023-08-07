@@ -258,11 +258,14 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 					rr.Number = pull.Number
 					rr.Title = pull.Title
 					rr.Description = pull.Body
-					rr.CommitSHA = deploymentCommitSHA
+					rr.CommitSHA = pull.HEAD.SHA
 
-					logger.Debug().
+					logger = logger.With().
 						Str("pull-url", rr.URL).
-						Msg("using pull request url")
+						Str("commit-sha", rr.CommitSHA).
+						Logger()
+
+					logger.Debug().Msg("using pull request url")
 
 				} else {
 					logger.Debug().
