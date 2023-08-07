@@ -17,6 +17,16 @@ type (
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 
+		HEAD PullRequestHEAD `json:"head"`
+
+		// rest of the fields aren't important for the cli.
+	}
+
+	// PullRequestHEAD contains metadata for the PR HEAD.
+	PullRequestHEAD struct {
+		Ref string `json:"ref"`
+		SHA string `json:"sha"`
+
 		// rest of the fields aren't important for the cli.
 	}
 
