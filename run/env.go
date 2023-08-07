@@ -5,6 +5,7 @@ package run
 
 import (
 	"os"
+	"strings"
 
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -97,4 +98,19 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	}
 
 	return envVars, nil
+}
+
+func getEnv(key string, environ []string) (string, bool) {
+	for i := len(environ) - 1; i >= 0; i-- {
+		env := environ[i]
+		for j := 0; j < len(env); j++ {
+			if env[j] == '=' {
+				k := env[0:j]
+				if strings.EqualFold(k, key) {
+					return env[j+1:], true
+				}
+			}
+		}
+	}
+	return "", false
 }

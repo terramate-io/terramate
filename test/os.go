@@ -4,6 +4,7 @@
 package test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -94,6 +95,13 @@ func MkdirAll(t testing.TB, path string) {
 	t.Helper()
 
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
+}
+
+// MkdirAll2 creates a temporary directory with provided permissions.
+func MkdirAll2(t testing.TB, path string, perm fs.FileMode) {
+	t.Helper()
+
+	assert.NoError(t, os.MkdirAll(path, perm), "failed to create temp directory")
 }
 
 // Symlink calls [os.Symlink] failing the test if there is an error.
