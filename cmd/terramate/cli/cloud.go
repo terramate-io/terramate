@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog/log"
@@ -346,7 +347,11 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 		Str("github_repository", ghRepo).
 		Logger()
 
-	ghToken := os.Getenv("GITHUB_TOKEN")
+	ghToken, tokenSource := auth.TokenForHost(r.Host)
+
+	if ghToken != "" {
+		logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
+	}
 
 	ghClient := github.Client{
 		BaseURL:    os.Getenv("GITHUB_API_URL"),

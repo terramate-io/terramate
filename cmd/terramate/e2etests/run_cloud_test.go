@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cli/safeexec"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
@@ -20,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -460,6 +462,98 @@ func assertRunEvents(t *testing.T, runid string, ids []string, events map[string
 		t.Logf("got: %+v", res)
 		t.Fatal(diff)
 	}
+}
+
+func TestRunGithubTokenDetection(t *testing.T) {
+	s := sandbox.New(t)
+	git := s.Git()
+	git.SetRemoteURL("origin", "https://github.com/any-org/any-repo")
+
+	s.BuildTree([]string{
+		"s:s1:id=s1",
+		"s:s2:id=s2",
+	})
+
+	git.CommitAll("all files")
+
+	fakeserver := &http.Server{
+		Handler: testserver.Router(),
+		Addr:    "localhost:3001",
+	}
+
+	const fakeserverShutdownTimeout = 3 * time.Second
+	errChan := make(chan error)
+	go func() {
+		errChan <- fakeserver.ListenAndServe()
+	}()
+
+	t.Cleanup(func() {
+		err := fakeserver.Close()
+		if err != nil {
+			t.Logf("fakeserver HTTP Close error: %v", err)
+		}
+		select {
+		case err := <-errChan:
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				t.Error(err)
+			}
+		case <-time.After(fakeserverShutdownTimeout):
+			t.Error("time excedeed waiting for fakeserver shutdown")
+		}
+	})
+
+	t.Run("GH_TOKEN detection", func(t *testing.T) {
+		tm := newCLI(t, s.RootDir())
+		tm.loglevel = "debug"
+		tm.env = append(os.Environ(), "GH_TOKEN=abcd")
+
+		result := tm.run("run",
+			"--disable-check-git-remote",
+			"--cloud-sync-deployment", "--", "true")
+		assertRunResult(t, result, runExpected{
+			Status:      0,
+			StderrRegex: "GitHub token obtained from GH_TOKEN",
+		})
+	})
+
+	t.Run("GITHUB_TOKEN detection", func(t *testing.T) {
+		tm := newCLI(t, s.RootDir())
+		tm.loglevel = "debug"
+		tm.env = append(os.Environ(), "GITHUB_TOKEN=abcd")
+
+		result := tm.run("run",
+			"--disable-check-git-remote",
+			"--cloud-sync-deployment", "--", "true")
+		assertRunResult(t, result, runExpected{
+			Status:      0,
+			StderrRegex: "GitHub token obtained from GITHUB_TOKEN",
+		})
+	})
+
+	t.Run("GH config file detection", func(t *testing.T) {
+		_, err := safeexec.LookPath("gh")
+		if err != nil {
+			t.Skip("gh tool not installed")
+		}
+
+		tm := newCLI(t, s.RootDir())
+		tm.loglevel = "debug"
+		ghConfigDir := t.TempDir()
+		test.WriteFile(t, ghConfigDir, "hosts.yml", `github.com:
+    user: test
+    oauth_token: abcd
+    git_protocol: ssh
+`)
+		tm.env = append(os.Environ(), "GH_CONFIG_DIR="+ghConfigDir)
+
+		result := tm.run("run",
+			"--disable-check-git-remote",
+			"--cloud-sync-deployment", "--", "true")
+		assertRunResult(t, result, runExpected{
+			Status:      0,
+			StderrRegex: "GitHub token obtained from oauth_token",
+		})
+	})
 }
 
 type credential struct{}
