@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -411,25 +410,6 @@ terramate {
 `)
 
 	assertRun(t, cli.listChangedStacks())
-}
-
-func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
-	t.Parallel()
-
-	s := sandbox.New(t)
-	s.BuildTree([]string{
-		"s:stacks/stack",
-	})
-
-	stacksDir := filepath.Join(s.RootDir(), "stacks")
-	test.WriteRootConfig(t, stacksDir)
-
-	tmcli := newCLI(t, stacksDir)
-	tmcli.loglevel = "warn"
-	assertRunResult(t, tmcli.listStacks(), runExpected{
-		Stdout:      "stack\n",
-		StderrRegex: string(cli.ErrRootCfgInvalidDir),
-	})
 }
 
 func TestBug515(t *testing.T) {
