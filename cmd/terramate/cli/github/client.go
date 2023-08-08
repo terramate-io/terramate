@@ -15,6 +15,13 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+const (
+	// ErrNotFound indicates the resource does not exists.
+	ErrNotFound errors.Kind = "resource not found (HTTP Status: 404)"
+	// ErrUnprocessableEntity indicates the entity cannot be processed for any reason.
+	ErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
+)
+
 type (
 	// Client is a Github HTTP client wrapper.
 	Client struct {
@@ -68,6 +75,14 @@ func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.E(err, "reading response body")
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errors.E(ErrNotFound, "retrieving %s", url)
+	}
+
+	if resp.StatusCode == http.StatusUnprocessableEntity {
+		return nil, errors.E(ErrUnprocessableEntity, "retrieving %s", url)
 	}
 
 	if resp.StatusCode != http.StatusOK {

@@ -199,105 +199,36 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		err                 error
 		deploymentCommitSHA string
 		deploymentURL       string
-		normalizedRepo      string
 		reviewRequest       *cloud.DeploymentReviewRequest
+		normalizedRepo      string
+		ghRepo              string
 	)
 
 	if c.prj.isRepo {
-		var rr cloud.DeploymentReviewRequest
 		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err == nil {
 			normalizedRepo = cloud.NormalizeGitURI(repoURL)
-			rr.Repository = normalizedRepo
+			if normalizedRepo != "local" {
+				reviewRequest, ghRepo = c.reviewRequest(normalizedRepo)
+			} else {
+				logger.Debug().Msg("skipping review_request for local repository")
+			}
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
+	}
 
-		deploymentCommitSHA = c.prj.headCommit()
+	ghRunID := os.Getenv("GITHUB_RUN_ID")
+	if ghRunID != "" && ghRepo != "" {
+		deploymentURL = fmt.Sprintf(
+			"https://github.com/%s/actions/runs/%s",
+			ghRepo,
+			ghRunID,
+		)
 
-		var ghRepo string
-		if normalizedRepo != "" && normalizedRepo != "local" {
-			r, err := repository.Parse(normalizedRepo)
-			if err != nil {
-				logger.Warn().
-					Str("repository", normalizedRepo).
-					Err(err).
-					Msg("failed to normalize the repository")
-			} else {
-				ghRepo = r.Owner + "/" + r.Name
-			}
-		}
-
-		if ghRepo == "" {
-			logger.Debug().
-				Str("repository", normalizedRepo).
-				Msg("repository cannot be normalized: skipping pull request retrievals for commit")
-
-		} else {
-			ghClient := github.Client{
-				BaseURL:    os.Getenv("GITHUB_API_URL"),
-				HTTPClient: &c.httpClient,
-				Token:      os.Getenv("GITHUB_TOKEN"),
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
-			defer cancel()
-
-			pulls, err := ghClient.PullsForCommit(ctx, ghRepo, c.prj.headCommit())
-			if err == nil {
-				for _, pull := range pulls {
-					logger.Debug().
-						Str("associated-pull-url", pull.HTMLURL).
-						Msg("found pull request")
-				}
-
-				if len(pulls) > 0 {
-					pull := pulls[0]
-					rr.Platform = "github"
-					rr.URL = pull.HTMLURL
-					rr.Number = pull.Number
-					rr.Title = pull.Title
-					rr.Description = pull.Body
-					rr.CommitSHA = pull.HEAD.SHA
-
-					logger = logger.With().
-						Str("pull-url", rr.URL).
-						Str("commit-sha", rr.CommitSHA).
-						Logger()
-
-					logger.Debug().Msg("using pull request url")
-
-				} else {
-					logger.Debug().
-						Str("head-commit", c.prj.headCommit()).
-						Msg("no pull request associated with HEAD commit")
-				}
-			} else {
-				logger.Error().
-					Str("normalized-repo", normalizedRepo).
-					Str("gh-repo", ghRepo).
-					Str("head-commit", c.prj.headCommit()).
-					Err(err).
-					Msg("failed to retrieve pull requests associated with HEAD")
-			}
-		}
-
-		ghRunID := os.Getenv("GITHUB_RUN_ID")
-		if ghRunID != "" && ghRepo != "" {
-			deploymentURL = fmt.Sprintf(
-				"https://github.com/%s/actions/runs/%s",
-				ghRepo,
-				ghRunID,
-			)
-
-			logger.Debug().
-				Str("deployment_url", deploymentURL).
-				Msg("detected deployment url")
-		}
-
-		if rr.URL != "" {
-			reviewRequest = &rr
-		}
+		logger.Debug().
+			Str("deployment_url", deploymentURL).
+			Msg("detected deployment url")
 	}
 
 	payload := cloud.DeploymentStacksPayloadRequest{
@@ -378,7 +309,7 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
 	defer cancel()
 	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		logger.Err(err).Str("stack-id", s.ID).Msg("failed to update deployment status for each")
+		logger.Err(err).Str("stack_id", s.ID).Msg("failed to update deployment status for each")
 	}
 }
 
@@ -393,6 +324,93 @@ func (c *cli) cloudInfo() {
 	c.cred().Info()
 	// verbose info
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
+}
+
+func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewRequest, string) {
+	logger := log.With().
+		Str("normalized_repository", normalizedRepo).
+		Str("head_commit", c.prj.headCommit()).
+		Logger()
+
+	r, err := repository.Parse(normalizedRepo)
+	if err != nil {
+		logger.Debug().
+			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
+
+		return nil, ""
+	}
+
+	ghRepo := r.Owner + "/" + r.Name
+
+	logger = logger.With().
+		Str("github_repository", ghRepo).
+		Logger()
+
+	ghToken := os.Getenv("GITHUB_TOKEN")
+
+	ghClient := github.Client{
+		BaseURL:    os.Getenv("GITHUB_API_URL"),
+		HTTPClient: &c.httpClient,
+		Token:      ghToken,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	pulls, err := ghClient.PullsForCommit(ctx, ghRepo, c.prj.headCommit())
+	if err != nil {
+		if errors.IsKind(err, github.ErrNotFound) {
+			if ghToken == "" {
+				logger.Warn().Msg("The GITHUB_TOKEN environment variable needs to be exported for private repositories.")
+			} else {
+				logger.Warn().Msg("The provided GitHub token does not have permission to read this repository or it does not exists.")
+			}
+			return nil, ghRepo
+		}
+
+		if errors.IsKind(err, github.ErrUnprocessableEntity) {
+			logger.Warn().
+				Msg("The HEAD commit cannot be found in the remote. Did you forget to push?")
+
+			return nil, ghRepo
+		}
+
+		logger.Warn().
+			Err(err).
+			Msg("failed to retrieve pull requests associated with HEAD")
+
+		return nil, ghRepo
+	}
+
+	for _, pull := range pulls {
+		logger.Debug().
+			Str("pull_request_url", pull.HTMLURL).
+			Msg("found pull request")
+	}
+
+	if len(pulls) == 0 {
+		logger.Warn().
+			Str("head_commit", c.prj.headCommit()).
+			Msg("no pull request associated with HEAD commit")
+
+		return nil, ghRepo
+	}
+
+	pull := pulls[0]
+
+	logger.Debug().
+		Str("pull_request_url", pull.HTMLURL).
+		Msg("using pull request url")
+
+	return &cloud.DeploymentReviewRequest{
+		Platform:    "github",
+		Repository:  normalizedRepo,
+		URL:         pull.HTMLURL,
+		Number:      pull.Number,
+		Title:       pull.Title,
+		Description: pull.Body,
+		CommitSHA:   pull.HEAD.SHA,
+	}, ghRepo
 }
 
 func (c *cli) loadCredential() (credential, error) {
