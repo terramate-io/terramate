@@ -220,11 +220,13 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	}
 
 	ghRunID := os.Getenv("GITHUB_RUN_ID")
-	if ghRunID != "" && ghRepo != "" {
+	ghAttempt := os.Getenv("GITHUB_RUN_ATTEMPT")
+	if ghRunID != "" && ghAttempt != "" && ghRepo != "" {
 		deploymentURL = fmt.Sprintf(
-			"https://github.com/%s/actions/runs/%s",
+			"https://github.com/%s/actions/runs/%s/attempts/%s",
 			ghRepo,
 			ghRunID,
+			ghAttempt,
 		)
 
 		logger.Debug().
