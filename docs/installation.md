@@ -13,26 +13,36 @@ next:
 
 # Installation
 
+The Terramate project distributes two binaries:
+
+- `terramate`: The CLI tool that we love.
+- `terramate-ls`: The Terramate Language Server.
+
+The _Language Server_ is only needed if you want to integrate some linting in your editor/IDE.
+
 ## Using Go
 
 For installing versions greater than `v0.2.18`, please run:
 
 ```sh
-go install github.com/terramate-io/terramate/cmd/terramate@<version>
+go install github.com/terramate-io/terramate/cmd/...@<version>
 ```
 
-For older versions, the command below is required (see [this](https://github.com/golang/go/issues/60452) issue for the reason):
+For older versions, the command below is required (see [this](https://github.com/golang/go/issues/50278#issuecomment-1567386638) issue for the reason):
 
 ```sh
-go install github.com/mineiros-io/terramate/cmd/terramate@<version>
+go install github.com/mineiros-io/terramate/cmd/...@<version>
 ```
 
 Where `<version>` is any terramate [version tag](https://github.com/terramate-io/terramate/tags),
 or you can just install the **latest** release:
 
 ```sh
-go install github.com/terramate-io/terramate/cmd/terramate@latest
+go install github.com/terramate-io/terramate/cmd/...@latest
 ```
+
+The commands above install both `terramate` and `terramate-ls` into
+your Go binary folder (usually `$HOME/go/bin`).
 
 ## Using a package manager
 
