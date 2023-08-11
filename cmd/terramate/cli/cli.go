@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"context"
 	stdfmt "fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/deployment"
+	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config/filter"
@@ -123,7 +126,8 @@ type cliSpec struct {
 	} `cmd:"" help:"Format all files inside dir recursively"`
 
 	List struct {
-		Why bool `help:"Shows the reason why the stack has changed"`
+		Why                bool   `help:"Shows the reason why the stack has changed"`
+		ExperimentalStatus string `help:"Filter by status"`
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
@@ -917,7 +921,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 		Msg("Safeguard default-branch-is-reachable passed.")
 }
 
-func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, error) {
+func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.FilterStatus) (*stack.Report, error) {
 	var (
 		err    error
 		report *stack.Report
@@ -937,6 +941,48 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, err
 			Msg("Listing all stacks")
 
 		report, err = mgr.List()
+	}
+
+	if status != cloudstack.NoFilter {
+		err := c.setupCloudConfig()
+		if err != nil {
+			fatal(err)
+		}
+
+		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
+		if err != nil {
+			fatal(err, "failed to retrieve repository URL but it's needed for checking unhealthy stacks")
+		}
+
+		repository := cloud.NormalizeGitURI(repoURL)
+		if repository == "local" {
+			fatal(err, "unhealthy status filter does not work with filesystem based remotes: %s", repoURL)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+		defer cancel()
+		cloudStacks, err := c.cloud.client.Stacks(ctx, c.cloud.run.orgUUID, status)
+		if err != nil {
+			fatal(err)
+		}
+
+		cloudStacksMap := map[string]bool{}
+		for _, stack := range cloudStacks.Stacks {
+			if stack.Repository == repository {
+				cloudStacksMap[stack.MetaID] = true
+			}
+		}
+
+		localStacks := report.Stacks
+		var stacks []stack.Entry
+
+		for _, stack := range localStacks {
+			if cloudStacksMap[stack.Stack.ID] {
+				stacks = append(stacks, stack)
+			}
+		}
+
+		report.Stacks = stacks
 	}
 
 	if err != nil {
@@ -1257,7 +1303,15 @@ func (c *cli) printStacks() {
 	}
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+
+	status := cloudstack.NoFilter
+	if strStatus := c.parsedArgs.List.ExperimentalStatus; strStatus != "" {
+		status = cloudstack.NewStatusFilter(strStatus)
+		if status != cloudstack.UnhealthyFilter {
+			fatal(errors.E("only %s filter allowed", cloudstack.UnhealthyFilter))
+		}
+	}
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed, status)
 	if err != nil {
 		fatal(err, "listing stacks")
 	}
@@ -1284,7 +1338,7 @@ func (c *cli) printStacks() {
 
 func (c *cli) printRunEnv() {
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "listing stacks")
 	}
@@ -1523,7 +1577,7 @@ func (c *cli) printStacksGlobals() {
 		Msg("Create new terramate manager.")
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "listing stacks globals: listing stacks")
 	}
@@ -1560,7 +1614,7 @@ func (c *cli) printMetadata() {
 		Msg("Create new terramate manager.")
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "loading metadata: listing stacks")
 	}
@@ -1624,7 +1678,7 @@ func (c *cli) checkGenCode() bool {
 
 func (c *cli) ensureStackID() {
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, false)
+	report, err := c.listStacks(mgr, false, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "listing stacks")
 	}
@@ -1902,21 +1956,21 @@ func (c *cli) runOnStacks() {
 		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
-		c.syncCloudDeployment(s, cloud.Running)
+		c.syncCloudDeployment(s, deployment.Running)
 	}
 
 	afterHook := func(s *config.Stack, err error) {
 		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
 		}
-		var status cloud.Status
+		var status deployment.Status
 		switch {
 		case err == nil:
-			status = cloud.OK
+			status = deployment.OK
 		case errors.IsKind(err, run.ErrCanceled):
-			status = cloud.Canceled
+			status = deployment.Canceled
 		case errors.IsKind(err, run.ErrFailed):
-			status = cloud.Failed
+			status = deployment.Failed
 		default:
 			panic(errors.E(errors.ErrInternal, "unexpected run status"))
 		}
@@ -1963,7 +2017,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 
 	logger.Trace().Msg("Get list of stacks.")
 
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		return nil, err
 	}

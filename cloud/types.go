@@ -6,7 +6,10 @@ package cloud
 import (
 	"bytes"
 	"strings"
+	"time"
 
+	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -40,41 +43,46 @@ type (
 
 	// Stack represents a stack in the Terramate Cloud.
 	Stack struct {
-		ID              int      `json:"stack_id"`
-		Repository      string   `json:"repository"`
-		Path            string   `json:"path"`
-		MetaID          string   `json:"meta_id"`
-		MetaName        string   `json:"meta_name"`
-		MetaDescription string   `json:"meta_description"`
-		MetaTags        []string `json:"meta_tags"`
-		Status          Status   `json:"status"`
+		ID              int          `json:"stack_id"`
+		Repository      string       `json:"repository"`
+		Path            string       `json:"path"`
+		MetaID          string       `json:"meta_id"`
+		MetaName        string       `json:"meta_name"`
+		MetaDescription string       `json:"meta_description"`
+		MetaTags        []string     `json:"meta_tags"`
+		Status          stack.Status `json:"status"`
 
 		// readonly fields
-		CreatedAt int `json:"created_at"`
-		UpdatedAt int `json:"updated_at"`
-		SeenAt    int `json:"seen_at"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		SeenAt    time.Time `json:"seen_at"`
+	}
+
+	// StacksResponse represents the stacks object response.
+	StacksResponse struct {
+		Stacks []Stack `json:"stacks"`
 	}
 
 	// DeploymentStackRequest represents the stack object of the request payload
 	// type for the creation of stack deployments.
 	DeploymentStackRequest struct {
-		CommitSHA         string   `json:"commit_sha,omitempty"`
-		Repository        string   `json:"repository"`
-		Path              string   `json:"path"`
-		MetaID            string   `json:"meta_id"`
-		MetaName          string   `json:"meta_name,omitempty"`
-		MetaDescription   string   `json:"meta_description,omitempty"`
-		MetaTags          []string `json:"meta_tags,omitempty"`
-		DeploymentURL     string   `json:"deployment_url,omitempty"`
-		DeploymentStatus  Status   `json:"deployment_status,omitempty"`
-		DeploymentCommand string   `json:"deployment_cmd"`
+		CommitSHA         string            `json:"commit_sha,omitempty"`
+		Repository        string            `json:"repository"`
+		Path              string            `json:"path"`
+		MetaID            string            `json:"meta_id"`
+		MetaName          string            `json:"meta_name,omitempty"`
+		MetaDescription   string            `json:"meta_description,omitempty"`
+		MetaTags          []string          `json:"meta_tags,omitempty"`
+		DeploymentURL     string            `json:"deployment_url,omitempty"`
+		DeploymentStatus  deployment.Status `json:"deployment_status,omitempty"`
+		DeploymentCommand string            `json:"deployment_cmd"`
 	}
 
 	// DeploymentStackResponse represents the deployment creation response item.
 	DeploymentStackResponse struct {
-		StackID     int    `json:"stack_id"`
-		StackMetaID string `json:"meta_id"`
-		Status      Status `json:"status"`
+		StackID     int               `json:"stack_id"`
+		StackMetaID string            `json:"meta_id"`
+		Status      deployment.Status `json:"status"`
 	}
 
 	// DeploymentStacksResponse represents the list of DeploymentStackResponse.
@@ -102,8 +110,8 @@ type (
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
 	UpdateDeploymentStack struct {
-		StackID int    `json:"stack_id"`
-		Status  Status `json:"status"`
+		StackID int               `json:"stack_id"`
+		Status  deployment.Status `json:"status"`
 	}
 
 	// UpdateDeploymentStacks is the request payload for updating the deployment status.
@@ -118,6 +126,7 @@ var (
 	_ = Resource(MemberOrganization{})
 	_ = Resource(MemberOrganizations{})
 	_ = Resource(Stack{})
+	_ = Resource(StacksResponse{})
 	_ = Resource(DeploymentStackRequest{})
 	_ = Resource(DeploymentStackRequests{})
 	_ = Resource(DeploymentStacksPayloadRequest{})
@@ -126,7 +135,7 @@ var (
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
 	_ = Resource(DeploymentReviewRequest{})
-	_ = Resource(empty(""))
+	_ = Resource(EmptyResponse(""))
 )
 
 // String representation of the list of organization associated with the user.
@@ -177,6 +186,23 @@ func (org MemberOrganization) Validate() error {
 
 // Validate the stack entity.
 func (stack Stack) Validate() error {
+	if stack.MetaID == "" {
+		return errors.E(`missing "meta_id" field`)
+	}
+	if stack.Repository == "" {
+		return errors.E(`missing "repository" field`)
+	}
+	return nil
+}
+
+// Validate the StacksResponse object.
+func (stacksResp StacksResponse) Validate() error {
+	for _, st := range stacksResp.Stacks {
+		err := st.Validate()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -252,9 +278,11 @@ func validateResourceList[T Resource](resources ...T) error {
 	return nil
 }
 
-type empty string
+// EmptyResponse is used to represent an empty string response.
+type EmptyResponse string
 
-func (s empty) Validate() error {
+// Validate that content is empty.
+func (s EmptyResponse) Validate() error {
 	if s == "" {
 		return nil
 	}

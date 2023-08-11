@@ -9,11 +9,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/stack"
 )
 
 // DefaultOrgUUID is the test organization UUID.
@@ -121,12 +125,12 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			res = append(res, cloud.DeploymentStackResponse{
 				StackID:     int(next),
 				StackMetaID: s.MetaID,
-				Status:      cloud.Pending,
+				Status:      deployment.Pending,
 			})
 
 			atomic.AddInt64(&dhandler.nextStackID, 1)
 
-			s.DeploymentStatus = cloud.Pending
+			s.DeploymentStatus = deployment.Pending
 			dhandler.deployments[orguuid][deployuuid][next] = s
 			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.DeploymentStatus.String())
 		}
@@ -163,7 +167,108 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
-// newDeploymentEndpoint returns a new fake deployment endpoint.
+func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	orguuid := params.ByName("orguuid")
+	filterStatusStr := r.FormValue("status")
+	filterStatus := stack.AllFilter
+
+	if filterStatusStr != "" && filterStatusStr != "unhealthy" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if filterStatusStr == "unhealthy" {
+		filterStatus = stack.UnhealthyFilter
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+
+	if r.Method == "GET" {
+		var resp cloud.StacksResponse
+		var stacks []cloud.Stack
+		stacksMap, ok := handler.stacks[orguuid]
+		if !ok {
+			w.WriteHeader(http.StatusOK)
+			data, _ := json.Marshal(resp)
+			_, _ = w.Write(data)
+			return
+		}
+		for _, st := range stacksMap {
+			if stack.FilterStatus(st.Status)&filterStatus != 0 {
+				stacks = append(stacks, st)
+			}
+		}
+
+		sort.Slice(stacks, func(i, j int) bool {
+			return stacks[i].ID < stacks[j].ID
+		})
+
+		resp.Stacks = stacks
+		data, err := json.Marshal(resp)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("marshaling error"))
+		}
+		_, _ = w.Write(data)
+		return
+	}
+
+	if r.Method == "PUT" {
+		stackIDStr := params.ByName("stackid")
+		if stackIDStr == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		stackid, err := strconv.Atoi(stackIDStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+		}
+		bodyData, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		_ = r.Body.Close()
+
+		var st cloud.Stack
+		err = json.Unmarshal(bodyData, &st)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+
+		if stackid != st.ID {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if _, ok := handler.stacks[orguuid]; !ok {
+			handler.stacks[orguuid] = make(map[int]cloud.Stack)
+		}
+		if _, ok := handler.statuses[orguuid]; !ok {
+			handler.statuses[orguuid] = make(map[int]stack.Status)
+		}
+
+		handler.stacks[orguuid][stackid] = st
+		handler.statuses[orguuid][stackid] = st.Status
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	w.WriteHeader(http.StatusMethodNotAllowed)
+}
+
+func newStackEndpoint() *stackHandler {
+	return &stackHandler{
+		stacks:   make(map[string]map[int]cloud.Stack),
+		statuses: make(map[string]map[int]stack.Status),
+	}
+}
+
 func newDeploymentEndpoint() *deploymentHandler {
 	return &deploymentHandler{
 		deployments: make(map[string]map[string]map[int64]cloud.DeploymentStackRequest),
@@ -185,6 +290,14 @@ func RouterWith(enabled map[string]bool) *httprouter.Router {
 		router.Handler("GET", cloud.UsersPath, &userHandler{})
 	}
 
+	if enabled[cloud.StacksPath] {
+		stackHandler := newStackEndpoint()
+		router.Handler("GET", cloud.StacksPath+"/:orguuid", stackHandler)
+
+		// not a real TMC handler, only used by tests to populate the stacks state.
+		router.Handler("PUT", cloud.StacksPath+"/:orguuid/:stackid", stackHandler)
+	}
+
 	if enabled[cloud.MembershipsPath] {
 		router.Handler("GET", cloud.MembershipsPath, &membershipHandler{})
 	}
@@ -204,6 +317,10 @@ func RouterWith(enabled map[string]bool) *httprouter.Router {
 type (
 	userHandler       struct{}
 	membershipHandler struct{}
+	stackHandler      struct {
+		stacks   map[string]map[int]cloud.Stack
+		statuses map[string]map[int]stack.Status
+	}
 	deploymentHandler struct {
 		nextStackID int64
 		// as hacky as it can get:
@@ -220,5 +337,6 @@ func EnableAllConfig() map[string]bool {
 		cloud.UsersPath:       true,
 		cloud.MembershipsPath: true,
 		cloud.DeploymentsPath: true,
+		cloud.StacksPath:      true,
 	}
 }

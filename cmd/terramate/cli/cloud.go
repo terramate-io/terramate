@@ -15,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
@@ -82,14 +83,43 @@ func (c *cli) checkSyncDeployment() {
 	}
 	err := c.setupCloudConfig()
 	if err != nil {
-		if errors.IsKind(err, ErrOnboardingIncomplete) {
-			c.cred().Info()
-		}
-		fatal(err)
+		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
+			Msg(DisablingCloudMessage)
+
+		c.cloud.disabled = true
 	}
 
 	if c.cloud.disabled {
 		return
+	}
+
+	c.cloud.run.meta2id = make(map[string]int)
+
+	c.cloud.run.runUUID, err = generateRunID()
+	if err != nil {
+		fatal(err, "generating run uuid")
+	}
+}
+
+func (c *cli) setupCloudConfig() error {
+	c.cloud = cloudConfig{
+		client: &cloud.Client{
+			BaseURL:    cloudBaseURL(),
+			IDPKey:     idpkey(),
+			HTTPClient: &c.httpClient,
+		},
+		output: c.output,
+	}
+	cred, err := c.loadCredential()
+	if err != nil {
+		return err
+	}
+
+	c.cloud.credential = cred
+	c.cloud.client.Credential = cred
+	err = cred.Validate(c.cloud)
+	if err != nil {
+		return err
 	}
 
 	// at this point we know user is onboarded, ie has at least 1 organization.
@@ -129,38 +159,6 @@ func (c *cli) checkSyncDeployment() {
 		c.cloud.run.orgUUID = org.UUID
 	}
 
-	c.cloud.run.meta2id = make(map[string]int)
-
-	c.cloud.run.runUUID, err = generateRunID()
-	if err != nil {
-		fatal(err, "generating run uuid")
-	}
-}
-
-func (c *cli) setupCloudConfig() error {
-	c.cloud = cloudConfig{
-		client: &cloud.Client{
-			BaseURL:    cloudBaseURL(),
-			IDPKey:     idpkey(),
-			HTTPClient: &c.httpClient,
-		},
-		output: c.output,
-	}
-	cred, err := c.loadCredential()
-	if err != nil {
-		return err
-	}
-
-	c.cloud.credential = cred
-	c.cloud.client.Credential = cred
-
-	err = cred.Validate(c.cloud)
-	if err != nil {
-		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
-			Msg(DisablingCloudMessage)
-
-		c.cloud.disabled = true
-	}
 	return nil
 }
 
@@ -284,7 +282,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	}
 }
 
-func (c *cli) syncCloudDeployment(s *config.Stack, status cloud.Status) {
+func (c *cli) syncCloudDeployment(s *config.Stack, status deployment.Status) {
 	logger := log.With().
 		Str("organization", c.cloud.run.orgUUID).
 		Str("stack", s.RelPath()).
@@ -320,9 +318,6 @@ func (c *cli) cloudInfo() {
 	err := c.setupCloudConfig()
 	if err != nil {
 		fatal(err)
-	}
-	if c.cloud.disabled {
-		fatal(errors.E("unable to provide credential info"))
 	}
 	c.cred().Info()
 	// verbose info
