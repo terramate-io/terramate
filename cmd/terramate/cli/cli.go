@@ -152,8 +152,9 @@ type cliSpec struct {
 		} `cmd:"" help:"Clones a stack"`
 
 		Trigger struct {
-			Stack  string `arg:"" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
-			Reason string `default:"" name:"reason" help:"Reason for the stack being triggered"`
+			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
+			Reason             string `default:"" name:"reason" help:"Reason for the stack being triggered"`
+			ExperimentalStatus string `help:"Filter by status"`
 		} `cmd:"" help:"Triggers a stack"`
 
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
@@ -520,8 +521,10 @@ func (c *cli) run() {
 		c.generate()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
+	case "experimental trigger":
+		c.triggerStackByFilter()
 	case "experimental trigger <stack>":
-		c.triggerStack()
+		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
 	case "experimental globals":
@@ -710,8 +713,24 @@ func hasVendorDirConfig(cfg hcl.Config) bool {
 	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
 }
 
-func (c *cli) triggerStack() {
-	stack := c.parsedArgs.Experimental.Trigger.Stack
+func (c *cli) triggerStackByFilter() {
+	if c.parsedArgs.Experimental.Trigger.ExperimentalStatus == "" {
+		fatal(errors.E("trigger command expects either a stack path or the --experimental-status flag"))
+	}
+
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
+	status := parseStatusFilter(c.parsedArgs.Experimental.Trigger.ExperimentalStatus)
+	stacksReport, err := c.listStacks(mgr, false, status)
+	if err != nil {
+		fatal(err)
+	}
+
+	for _, st := range stacksReport.Stacks {
+		c.triggerStack(st.Stack.Dir.String())
+	}
+}
+
+func (c *cli) triggerStack(stack string) {
 	reason := c.parsedArgs.Experimental.Trigger.Reason
 	if reason == "" {
 		reason = "Created using Terramate CLI without setting specific reason."
@@ -1304,13 +1323,7 @@ func (c *cli) printStacks() {
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 
-	status := cloudstack.NoFilter
-	if strStatus := c.parsedArgs.List.ExperimentalStatus; strStatus != "" {
-		status = cloudstack.NewStatusFilter(strStatus)
-		if status != cloudstack.UnhealthyFilter {
-			fatal(errors.E("only %s filter allowed", cloudstack.UnhealthyFilter))
-		}
-	}
+	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, status)
 	if err != nil {
 		fatal(err, "listing stacks")
@@ -1334,6 +1347,17 @@ func (c *cli) printStacks() {
 			c.output.MsgStdOut(stackRepr)
 		}
 	}
+}
+
+func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
+	status := cloudstack.NoFilter
+	if strStatus != "" {
+		status = cloudstack.NewStatusFilter(strStatus)
+		if status != cloudstack.UnhealthyFilter {
+			fatal(errors.E("only %s filter allowed", cloudstack.UnhealthyFilter))
+		}
+	}
+	return status
 }
 
 func (c *cli) printRunEnv() {
