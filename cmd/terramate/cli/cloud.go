@@ -25,7 +25,8 @@ import (
 const ErrOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 
 const (
-	defaultCloudTimeout  = 5 * time.Second
+	defaultCloudTimeout  = 60 * time.Second
+	defaultGoogleTimeout = defaultCloudTimeout
 	defaultGithubTimeout = defaultCloudTimeout
 )
 
