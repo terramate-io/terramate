@@ -12,8 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 	errtest "github.com/terramate-io/terramate/test/errors"
 )
@@ -107,9 +110,8 @@ func TestCommonAPIFailCases(t *testing.T) {
 			name:       "invalid response payload",
 			statusCode: http.StatusOK,
 			body: `{
-					"invalid": 2
+					"stacks": 2
 			}`,
-
 			err: errors.E(cloud.ErrUnexpectedResponseBody),
 		},
 	} {
@@ -144,6 +146,15 @@ func TestCommonAPIFailCases(t *testing.T) {
 				errtest.Assert(t, err, tc.err)
 			}()
 
+			// /v1/stacks
+			func() {
+				const timeout = 3 * time.Second
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+
+				_, err := sdk.Stacks(ctx, "e4c81294-dcf8-45e2-ba95-25f96514a61b", stack.NoFilter)
+				errtest.Assert(t, err, tc.err)
+			}()
 		})
 	}
 }
@@ -226,6 +237,271 @@ func TestCloudMemberOrganizations(t *testing.T) {
 
 			assert := assert.New(t, assert.Fatal, "asserting orgs")
 			assert.Partial(orgs, tc.want.orgs)
+		})
+	}
+}
+
+func TestCloudStacks(t *testing.T) {
+	type want struct {
+		stacks cloud.StacksResponse
+		err    error
+	}
+	type testcase struct {
+		name       string
+		org        string
+		filter     stack.FilterStatus
+		statusCode int
+		body       string
+		headers    http.Header
+		want       want
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:       "non-existent organization returns empty stacks list",
+			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
+			statusCode: http.StatusOK,
+			body: `{
+				"stacks": []
+			}`,
+			want: want{
+				stacks: cloud.StacksResponse{
+					Stacks: []cloud.Stack{},
+				},
+			},
+		},
+		{
+			name:       "stack missing MetaID",
+			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
+			statusCode: http.StatusOK,
+			body: `{
+				"stacks": [
+					{
+						"stack_id": 666,
+						"repository": "github.com/terramate-io/terramate",
+						"path": "/docs",
+						"meta_name": "documentation",
+						"meta_description": "terramate documentation",
+						"meta_tags": [
+						  "docs"
+						],
+						"status": "ok",
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					}
+				]
+			}`,
+			want: want{
+				err: errors.E(cloud.ErrUnexpectedResponseBody),
+			},
+		},
+		{
+			name:       "stack missing status",
+			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
+			statusCode: http.StatusOK,
+			body: `{
+				"stacks": [
+					{
+						"stack_id": 666,
+						"repository": "github.com/terramate-io/terramate",
+						"path": "/docs",
+						"meta_id": "docs"
+						"meta_name": "documentation",
+						"meta_description": "terramate documentation",
+						"meta_tags": [
+						  "docs"
+						],
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					}
+				]
+			}`,
+			want: want{
+				err: errors.E(cloud.ErrUnexpectedResponseBody),
+			},
+		},
+		{
+			name:       "stack with unrecognized status",
+			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
+			statusCode: http.StatusOK,
+			body: `{
+				"stacks": [
+					{
+						"stack_id": 666,
+						"repository": "github.com/terramate-io/terramate",
+						"path": "/docs",
+						"meta_id": "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+						"meta_name": "documentation",
+						"meta_description": "terramate documentation",
+						"meta_tags": [
+						  "docs"
+						],
+						"status": "unrecognized",
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					}
+				]
+			}`,
+			want: want{
+				stacks: cloud.StacksResponse{
+					Stacks: []cloud.Stack{
+						{
+							ID:              666,
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/docs",
+							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+							MetaName:        "documentation",
+							MetaDescription: "terramate documentation",
+							MetaTags:        []string{"docs"},
+							Status:          stack.Unrecognized,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:       "stack with no repository",
+			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
+			statusCode: http.StatusOK,
+			body: `{
+				"stacks": [
+					{
+						"stack_id": 666,
+						"path": "/docs",
+						"meta_id": "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+						"meta_name": "documentation",
+						"meta_description": "terramate documentation",
+						"meta_tags": [
+						  "docs"
+						],
+						"status": "ok",
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					}
+				]
+			}`,
+			want: want{
+				err: errors.E(cloud.ErrUnexpectedResponseBody),
+			},
+		},
+		{
+			name:       "valid object",
+			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
+			statusCode: http.StatusOK,
+			body: `{
+				"stacks": [
+					{
+						"stack_id": 666,
+						"repository": "github.com/terramate-io/terramate",
+						"path": "/docs",
+						"meta_id": "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+						"meta_name": "documentation",
+						"meta_description": "terramate documentation",
+						"meta_tags": [
+						  "docs"
+						],
+						"status": "ok",
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					},
+					{
+						"stack_id": 667,
+						"repository": "github.com/terramate-io/terramate",
+						"path": "/",
+						"meta_id": "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
+						"meta_name": "terramate",
+						"meta_description": "terramate source code",
+						"meta_tags": [
+						  "golang"
+						],
+						"status": "ok",
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					},
+					{
+						"stack_id": 668,
+						"repository": "github.com/terramate-io/terramate",
+						"path": "/_testdata/example-stack",
+						"meta_id": "terramate-example-stack",
+						"meta_name": "test-stacks",
+						"meta_description": "Used in terramate tests",
+						"meta_tags": [
+						  "test"
+						],
+						"status": "ok",
+						"created_at": "2023-08-02T08:26:39.03748Z",
+						"updated_at": "2023-08-02T08:26:39.03748Z",
+						"seen_at": "2023-08-11T09:54:50.70824Z"
+					}
+				]
+			}`,
+			want: want{
+				stacks: cloud.StacksResponse{
+					Stacks: []cloud.Stack{
+						{
+							ID:              666,
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/docs",
+							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+							MetaName:        "documentation",
+							MetaDescription: "terramate documentation",
+							MetaTags:        []string{"docs"},
+							Status:          stack.OK,
+						},
+						{
+							ID:              667,
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/",
+							MetaID:          "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
+							MetaName:        "terramate",
+							MetaDescription: "terramate source code",
+							MetaTags:        []string{"golang"},
+							Status:          stack.OK,
+						},
+						{
+							ID:              668,
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/_testdata/example-stack",
+							MetaID:          "terramate-example-stack",
+							MetaName:        "test-stacks",
+							MetaDescription: "Used in terramate tests",
+							MetaTags:        []string{"test"},
+							Status:          stack.OK},
+					},
+				},
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			s := newTestServer(tc.statusCode, tc.body, tc.headers)
+			defer s.Close()
+
+			sdk := cloud.Client{
+				BaseURL:    s.URL,
+				HTTPClient: s.Client(),
+				Credential: credential(),
+			}
+
+			const timeout = 3 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			stacksResp, err := sdk.Stacks(ctx, tc.org, tc.filter)
+			errtest.Assert(t, err, tc.want.err)
+			if err != nil {
+				return
+			}
+
+			if diff := cmp.Diff(stacksResp, tc.want.stacks, cmpopts.IgnoreTypes(time.Time{})); diff != "" {
+				t.Fatal(diff)
+			}
 		})
 	}
 }

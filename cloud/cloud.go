@@ -14,6 +14,7 @@ import (
 	"path"
 
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -30,6 +31,8 @@ const (
 	MembershipsPath = "/v1/memberships"
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
+	// StacksPath is the stacks endpoint base path.
+	StacksPath = "/v1/stacks"
 )
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
@@ -72,6 +75,15 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 	return Get[MemberOrganizations](ctx, c, MembershipsPath)
 }
 
+// Stacks returns all stacks for the given organization.
+func (c *Client) Stacks(ctx context.Context, orgUUID string, status stack.FilterStatus) (StacksResponse, error) {
+	path := path.Join(StacksPath, orgUUID)
+	if status == stack.UnhealthyFilter {
+		path += "?status=" + status.String()
+	}
+	return Get[StacksResponse](ctx, c, path)
+}
+
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.
 func (c *Client) CreateDeploymentStacks(
 	ctx context.Context,
@@ -92,7 +104,7 @@ func (c *Client) CreateDeploymentStacks(
 
 // UpdateDeploymentStacks updates the deployment status of each stack in the payload set.
 func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID string, deploymentUUID string, payload UpdateDeploymentStacks) error {
-	_, err := Patch[empty](ctx, c, payload, DeploymentsPath, orgUUID, deploymentUUID, "stacks")
+	_, err := Patch[EmptyResponse](ctx, c, payload, DeploymentsPath, orgUUID, deploymentUUID, "stacks")
 	return err
 }
 
@@ -128,6 +140,20 @@ func Patch[T Resource](ctx context.Context, client *Client, payload interface{},
 		return entity, errors.E(err, "marshaling request payload")
 	}
 	resource, err := Request[T](ctx, client, "PATCH", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
+	if err != nil {
+		return entity, err
+	}
+	return resource, nil
+}
+
+// Put requests the endpoint components list making a PUT request and decode the
+// response into the entity T if validated successfully.
+func Put[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
+	dataPayload, err := json.Marshal(payload)
+	if err != nil {
+		return entity, errors.E(err, "marshaling request payload")
+	}
+	resource, err := Request[T](ctx, client, "PUT", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
 	if err != nil {
 		return entity, err
 	}
