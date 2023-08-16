@@ -4,10 +4,12 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -71,6 +73,25 @@ func (p Path) Join(pathstr string) Path {
 
 // String returns the path as a string.
 func (p Path) String() string { return p.path }
+
+// MarshalJSON implements the json.Marshaler interface
+func (p Path) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote(p.String())), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (p *Path) UnmarshalJSON(data []byte) error {
+	str, err := strconv.Unquote(string(data))
+	if err != nil {
+		return err
+	}
+	if !path.IsAbs(str) {
+		return errors.New(`a project path must start with "/"`)
+	}
+	p2 := NewPath(str)
+	*p = p2
+	return nil
+}
 
 // Strings returns a []string from the []Path.
 func (paths Paths) Strings() []string {

@@ -91,6 +91,10 @@ func (c *Client) CreateDeploymentStacks(
 	deploymentUUID string,
 	deploymentStacksPayload DeploymentStacksPayloadRequest,
 ) (DeploymentStacksResponse, error) {
+	err := deploymentStacksPayload.Validate()
+	if err != nil {
+		return DeploymentStacksResponse{}, errors.E(err, "failed to prepare the request")
+	}
 	return Post[DeploymentStacksResponse](
 		ctx,
 		c,

@@ -11,6 +11,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/project"
 )
 
 type (
@@ -95,6 +96,7 @@ type (
 	DeploymentStacksPayloadRequest struct {
 		ReviewRequest *DeploymentReviewRequest `json:"review_request,omitempty"`
 		Stacks        DeploymentStackRequests  `json:"stacks"`
+		Workdir       project.Path             `json:"workdir"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
@@ -236,6 +238,10 @@ func (d DeploymentStacksPayloadRequest) Validate() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if d.Workdir.String() == "" {
+		return errors.E(`missing "workdir" field`)
 	}
 
 	return validateResourceList(d.Stacks)
