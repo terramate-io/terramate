@@ -571,8 +571,6 @@ func (g *googleCredential) Token() (string, error) {
 
 // Validate if the credential is ready to be used.
 func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
-	const apiTimeout = 5 * time.Second
-
 	var (
 		err  error
 		user cloud.User
@@ -580,7 +578,7 @@ func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	)
 
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
 		defer cancel()
 		orgs, err = cloudcfg.client.MemberOrganizations(ctx)
 	}()
@@ -590,7 +588,7 @@ func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	}
 
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
 		defer cancel()
 		user, err = cloudcfg.client.Users(ctx)
 	}()
