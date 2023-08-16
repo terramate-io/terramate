@@ -25,6 +25,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add support for globs in the `import.source` attribute to import multiple files at once.
+- Add support for listing *unhealthy* stacks with `terramate list --experimental-status=unhealthy`.
+- Add support for triggering *unhealthy* stacks with `terramate experimental trigger --experimental-status=unhealthy`.
 
 ### Fixed
 
