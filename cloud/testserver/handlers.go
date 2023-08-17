@@ -114,7 +114,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 		err = p.Validate()
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
