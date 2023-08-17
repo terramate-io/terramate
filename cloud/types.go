@@ -97,6 +97,39 @@ type (
 		ReviewRequest *DeploymentReviewRequest `json:"review_request,omitempty"`
 		Stacks        DeploymentStackRequests  `json:"stacks"`
 		Workdir       project.Path             `json:"workdir"`
+		Metadata      *DeploymentMetadata      `json:"metadata,omitempty"`
+	}
+
+	// DeploymentMetadata stores the metadata available in the target platform.
+	// For now, we only support GitHub Metadata.
+	// It's marshaled as a flat hashmap of values.
+	DeploymentMetadata GitHubMetadata
+
+	// GitHubMetadata stores the GitHub related metadata.
+	GitHubMetadata struct {
+		Platform                    string `json:"platform"`
+		PullRequestAuthorLogin      string `json:"pull_request_author_login,omitempty"`
+		PullRequestAuthorAvatarURL  string `json:"pull_request_author_avatar_url,omitempty"`
+		PullRequestAuthorGravatarID string `json:"pull_request_author_gravatar_id,omitempty"`
+
+		PullRequestHeadLabel            string `json:"pull_request_head_label,omitempty"`
+		PullRequestHeadRef              string `json:"pull_request_head_ref,omitempty"`
+		PullRequestHeadSHA              string `json:"pull_request_head_sha,omitempty"`
+		PullRequestHeadAuthorLogin      string `json:"pull_request_head_author_login,omitempty"`
+		PullRequestHeadAuthorAvatarURL  string `json:"pull_request_head_author_avatar_url,omitempty"`
+		PullRequestHeadAuthorGravatarID string `json:"pull_request_head_author_gravatar_id,omitempty"`
+
+		PullRequestBaseLabel            string `json:"pull_request_base_label,omitempty"`
+		PullRequestBaseRef              string `json:"pull_request_base_ref,omitempty"`
+		PullRequestBaseSHA              string `json:"pull_request_base_sha,omitempty"`
+		PullRequestBaseAuthorLogin      string `json:"pull_request_base_author_login,omitempty"`
+		PullRequestBaseAuthorAvatarURL  string `json:"pull_request_base_author_avatar_url,omitempty"`
+		PullRequestBaseAuthorGravatarID string `json:"pull_request_base_author_gravatar_id,omitempty"`
+
+		PullRequestCreatedAt time.Time `json:"pull_request_created_at,omitempty"`
+		PullRequestUpdatedAt time.Time `json:"pull_request_updated_at,omitempty"`
+		PullRequestClosedAt  time.Time `json:"pull_request_closed_at,omitempty"`
+		PullRequestMergedAt  time.Time `json:"pull_request_merged_at,omitempty"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
@@ -239,12 +272,24 @@ func (d DeploymentStacksPayloadRequest) Validate() error {
 			return err
 		}
 	}
-
+	if d.Metadata != nil {
+		err := d.Metadata.Validate()
+		if err != nil {
+			return err
+		}
+	}
 	if d.Workdir.String() == "" {
 		return errors.E(`missing "workdir" field`)
 	}
-
 	return validateResourceList(d.Stacks)
+}
+
+// Validate the metadata.
+func (m DeploymentMetadata) Validate() error {
+	if m.Platform == "" {
+		return errors.E(`missing "platform" field`)
+	}
+	return nil
 }
 
 // Validate the deployment stack response.
