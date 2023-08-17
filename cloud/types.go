@@ -147,6 +147,8 @@ type (
 		DeploymentCommitCommitterGitName    string    `json:"deployment_commit_committer_git_name,omitempty"`
 		DeploymentCommitCommitterGitEmail   string    `json:"deployment_commit_committer_git_email,omitempty"`
 		DeploymentCommitCommitterGitDate    time.Time `json:"deployment_commit_committer_git_date,omitempty"`
+
+		DeploymentTriggeredBy string `json:"deployment_triggered_by,omitempty"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
