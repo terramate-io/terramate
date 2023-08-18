@@ -134,6 +134,9 @@ type (
 		DeploymentCommitVerified       *bool  `json:"deployment_commit_verified,omitempty"`
 		DeploymentCommitVerifiedReason string `json:"deployment_commit_verified_reason,omitempty"`
 
+		DeploymentCommitTitle       string `json:"deployment_commit_title,omitempty"`
+		DeploymentCommitDescription string `json:"deployment_commit_description,omitempty"`
+
 		DeploymentCommitAuthorLogin      string    `json:"deployment_commit_author_login,omitempty"`
 		DeploymentCommitAuthorAvatarURL  string    `json:"deployment_commit_author_avatar_url,omitempty"`
 		DeploymentCommitAuthorGravatarID string    `json:"deployment_commit_author_gravatar_id,omitempty"`
