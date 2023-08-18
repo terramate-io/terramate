@@ -399,8 +399,6 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 		logger.Warn().
 			Err(err).
 			Msg("failed to retrieve pull requests associated with HEAD")
-
-		return nil, nil, ghRepo
 	}
 
 	for _, pull := range pulls {
