@@ -131,6 +131,8 @@ type (
 		PullRequestClosedAt  time.Time `json:"pull_request_closed_at,omitempty"`
 		PullRequestMergedAt  time.Time `json:"pull_request_merged_at,omitempty"`
 
+		DeploymentBranch string `json:"deployment_branch,omitempty"`
+
 		DeploymentCommitVerified       *bool  `json:"deployment_commit_verified,omitempty"`
 		DeploymentCommitVerifiedReason string `json:"deployment_commit_verified_reason,omitempty"`
 
