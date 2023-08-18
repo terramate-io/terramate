@@ -103,6 +103,7 @@ type (
 	// DeploymentMetadata stores the metadata available in the target platform.
 	// For now, we only support GitHub Metadata.
 	// It's marshaled as a flat hashmap of values.
+	// Note: no sensitive information must be stored here because it could be logged.
 	DeploymentMetadata GitHubMetadata
 
 	// GitHubMetadata stores the GitHub related metadata.
