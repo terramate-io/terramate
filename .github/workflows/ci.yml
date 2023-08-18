@@ -71,6 +71,9 @@ jobs:
       - name: check cloud info
         run: terramate run --tags golang --changed -- ./bin/terramate experimental cloud info
 
+      - name: sync-test
+        run: ./bin/terramate --log-level=debug run --cloud-sync-deployment -- echo "testing metadata"
+
   gh_integration_test:
     name: GHA Integration Test
 
