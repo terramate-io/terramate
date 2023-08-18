@@ -239,10 +239,12 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	if metadata != nil {
 		data, err := json.Marshal(metadata)
 		if err == nil {
-			logger.Debug().RawJSON("metadata", data)
+			logger.Debug().RawJSON("provider_metadata", data)
 		} else {
 			logger.Warn().Err(err).Msg("failed to encode deployment metadata")
 		}
+	} else {
+		log.Debug().Msg("no provider metadata")
 	}
 
 	payload := cloud.DeploymentStacksPayloadRequest{
