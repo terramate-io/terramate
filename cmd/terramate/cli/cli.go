@@ -1141,12 +1141,15 @@ func (c *cli) initDir(baseDir string) error {
 
 		stackDir := baseDir
 		stackID, err := uuid.NewRandom()
+		dirBasename := filepath.Base(stackDir)
 		if err != nil {
 			fatal(err, "creating stack UUID")
 		}
 		stackSpec := config.Stack{
 			Dir: prj.PrjAbsPath(c.rootdir(), stackDir),
 			ID:  stackID.String(),
+			Name: dirBasename,
+			Description: dirBasename,
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)
