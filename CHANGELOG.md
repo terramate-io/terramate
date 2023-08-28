@@ -26,11 +26,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add support for globs in the `import.source` attribute to import multiple files at once.
 - Add support for listing *unhealthy* stacks with `terramate list --experimental-status=unhealthy`.
-- Add support for triggering *unhealthy* stacks with `terramate experimental trigger --experimental-status=unhealthy`.
+- Add support for triggering *unhealthy* stacks with `terramate experimental  trigger --experimental-status=unhealthy`.
+
 
 ### Fixed
 
 - Allow to specify multiple tags separated by comma when using `terramate create --tags` command.
+- Fixed inconsistent behaviour in `terramate create` vs. `terramate create --all-terraform`, both now populate the name/description fields the same way.
 
 ## 0.4.0
 
