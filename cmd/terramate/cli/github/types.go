@@ -26,6 +26,33 @@ type (
 		// rest of the fields aren't important for the cli.
 	}
 
+	// Commit holds information of a specific commit.
+	Commit struct {
+		SHA    string `json:"sha"`
+		Commit struct {
+			Author    GitMetadata
+			Committer GitMetadata
+			Message   string
+		}
+		Author       User
+		Committer    User
+		Verification struct {
+			Verified bool   `json:"verified"`
+			Reason   string `json:"reason"`
+
+			// rest of the fields aren't important for the cli.
+		} `json:"verification"`
+
+		// rest of the fields aren't important for the cli.
+	}
+
+	// GitMetadata holds the commit metadata exported by Github.
+	GitMetadata struct {
+		Name  string    `json:"name"`
+		Email string    `json:"email"`
+		Date  time.Time `json:"date"`
+	}
+
 	// User represents the Github user.
 	User struct {
 		Login      string `json:"login"`

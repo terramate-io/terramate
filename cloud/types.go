@@ -130,6 +130,23 @@ type (
 		PullRequestUpdatedAt time.Time `json:"pull_request_updated_at,omitempty"`
 		PullRequestClosedAt  time.Time `json:"pull_request_closed_at,omitempty"`
 		PullRequestMergedAt  time.Time `json:"pull_request_merged_at,omitempty"`
+
+		DeploymentCommitVerified       *bool  `json:"deployment_commit_verified,omitempty"`
+		DeploymentCommitVerifiedReason string `json:"deployment_commit_verified_reason,omitempty"`
+
+		DeploymentCommitAuthorLogin      string    `json:"deployment_commit_author_login,omitempty"`
+		DeploymentCommitAuthorAvatarURL  string    `json:"deployment_commit_author_avatar_url,omitempty"`
+		DeploymentCommitAuthorGravatarID string    `json:"deployment_commit_author_gravatar_id,omitempty"`
+		DeploymentCommitAuthorGitName    string    `json:"deployment_commit_author_git_name,omitempty"`
+		DeploymentCommitAuthorGitEmail   string    `json:"deployment_commit_author_git_email,omitempty"`
+		DeploymentCommitAuthorGitDate    time.Time `json:"deployment_commit_author_git_date,omitempty"`
+
+		DeploymentCommitCommitterLogin      string    `json:"deployment_commit_committer_login,omitempty"`
+		DeploymentCommitCommitterAvatarURL  string    `json:"deployment_commit_committer_avatar_url,omitempty"`
+		DeploymentCommitCommitterGravatarID string    `json:"deployment_commit_committer_gravatar_id,omitempty"`
+		DeploymentCommitCommitterGitName    string    `json:"deployment_commit_committer_git_name,omitempty"`
+		DeploymentCommitCommitterGitEmail   string    `json:"deployment_commit_committer_git_email,omitempty"`
+		DeploymentCommitCommitterGitDate    time.Time `json:"deployment_commit_committer_git_date,omitempty"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.

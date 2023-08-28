@@ -211,7 +211,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		if err == nil {
 			normalizedRepo = cloud.NormalizeGitURI(repoURL)
 			if normalizedRepo != "local" {
-				reviewRequest, metadata, ghRepo = c.reviewRequest(normalizedRepo)
+				reviewRequest, metadata, ghRepo = c.tryGithubMetadata(normalizedRepo)
 			} else {
 				logger.Debug().Msg("skipping review_request for local repository")
 			}
@@ -329,7 +329,7 @@ func (c *cli) cloudInfo() {
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
-func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
+func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
 	logger := log.With().
 		Str("normalized_repository", normalizedRepo).
 		Str("head_commit", c.prj.headCommit()).
@@ -340,6 +340,10 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 		logger.Debug().
 			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
 
+		return nil, nil, ""
+	}
+
+	if r.Host != github.Domain {
 		return nil, nil, ""
 	}
 
@@ -395,11 +399,45 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 			Msg("found pull request")
 	}
 
+	metadata := &cloud.DeploymentMetadata{
+		Platform: "github",
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	commit, err := ghClient.Commit(ctx, ghRepo, c.prj.headCommit())
+	if err != nil {
+		logger.Warn().
+			Err(err).
+			Msg("failed to retrieve commit information from GitHub API")
+	} else {
+		isVerified := commit.Verification.Verified
+		metadata.DeploymentCommitVerified = &isVerified
+		metadata.DeploymentCommitVerifiedReason = commit.Verification.Reason
+
+		metadata.DeploymentCommitAuthorLogin = commit.Author.Login
+		metadata.DeploymentCommitAuthorAvatarURL = commit.Author.AvatarURL
+		metadata.DeploymentCommitAuthorGravatarID = commit.Author.GravatarID
+
+		metadata.DeploymentCommitAuthorGitName = commit.Commit.Author.Name
+		metadata.DeploymentCommitAuthorGitEmail = commit.Commit.Author.Email
+		metadata.DeploymentCommitAuthorGitDate = commit.Commit.Author.Date
+
+		metadata.DeploymentCommitCommitterLogin = commit.Committer.Login
+		metadata.DeploymentCommitCommitterAvatarURL = commit.Committer.AvatarURL
+		metadata.DeploymentCommitCommitterGravatarID = commit.Committer.GravatarID
+
+		metadata.DeploymentCommitCommitterGitName = commit.Commit.Committer.Name
+		metadata.DeploymentCommitCommitterGitEmail = commit.Commit.Committer.Email
+		metadata.DeploymentCommitCommitterGitDate = commit.Commit.Committer.Date
+	}
+
 	if len(pulls) == 0 {
 		logger.Warn().
 			Msg("no pull request associated with HEAD commit")
 
-		return nil, nil, ghRepo
+		return nil, metadata, ghRepo
 	}
 
 	pull := pulls[0]
@@ -418,31 +456,27 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 		CommitSHA:   pull.Head.SHA,
 	}
 
-	metadata := &cloud.DeploymentMetadata{
-		Platform:                    "github",
-		PullRequestAuthorLogin:      pull.User.Login,
-		PullRequestAuthorAvatarURL:  pull.User.AvatarURL,
-		PullRequestAuthorGravatarID: pull.User.GravatarID,
+	metadata.PullRequestAuthorLogin = pull.User.Login
+	metadata.PullRequestAuthorAvatarURL = pull.User.AvatarURL
+	metadata.PullRequestAuthorGravatarID = pull.User.GravatarID
+	metadata.PullRequestHeadLabel = pull.Head.Label
+	metadata.PullRequestHeadRef = pull.Head.Ref
+	metadata.PullRequestHeadSHA = pull.Head.SHA
+	metadata.PullRequestHeadAuthorLogin = pull.Head.User.Login
+	metadata.PullRequestHeadAuthorAvatarURL = pull.Head.User.AvatarURL
+	metadata.PullRequestHeadAuthorGravatarID = pull.Head.User.GravatarID
 
-		PullRequestHeadLabel:            pull.Head.Label,
-		PullRequestHeadRef:              pull.Head.Ref,
-		PullRequestHeadSHA:              pull.Head.SHA,
-		PullRequestHeadAuthorLogin:      pull.Head.User.Login,
-		PullRequestHeadAuthorAvatarURL:  pull.Head.User.AvatarURL,
-		PullRequestHeadAuthorGravatarID: pull.Head.User.GravatarID,
+	metadata.PullRequestBaseLabel = pull.Base.Label
+	metadata.PullRequestBaseRef = pull.Base.Ref
+	metadata.PullRequestBaseSHA = pull.Base.SHA
+	metadata.PullRequestBaseAuthorLogin = pull.Base.User.Login
+	metadata.PullRequestBaseAuthorAvatarURL = pull.Base.User.AvatarURL
+	metadata.PullRequestBaseAuthorGravatarID = pull.Base.User.GravatarID
 
-		PullRequestBaseLabel:            pull.Base.Label,
-		PullRequestBaseRef:              pull.Base.Ref,
-		PullRequestBaseSHA:              pull.Base.SHA,
-		PullRequestBaseAuthorLogin:      pull.Base.User.Login,
-		PullRequestBaseAuthorAvatarURL:  pull.Base.User.AvatarURL,
-		PullRequestBaseAuthorGravatarID: pull.Base.User.GravatarID,
-
-		PullRequestCreatedAt: pull.CreatedAt,
-		PullRequestUpdatedAt: pull.UpdatedAt,
-		PullRequestClosedAt:  pull.ClosedAt,
-		PullRequestMergedAt:  pull.MergedAt,
-	}
+	metadata.PullRequestCreatedAt = pull.CreatedAt
+	metadata.PullRequestUpdatedAt = pull.UpdatedAt
+	metadata.PullRequestClosedAt = pull.ClosedAt
+	metadata.PullRequestMergedAt = pull.MergedAt
 	return reviewRequest, metadata, ghToken
 }
 
