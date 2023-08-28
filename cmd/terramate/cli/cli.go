@@ -159,12 +159,10 @@ type cliSpec struct {
 
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
-		Globals struct {
-		} `cmd:"" help:"List globals for all stacks"`
+		Globals struct{} `cmd:"" help:"List globals for all stacks"`
 
 		Generate struct {
-			Debug struct {
-			} `cmd:"" help:"Shows generate debug information"`
+			Debug struct{} `cmd:"" help:"Shows generate debug information"`
 		} `cmd:"" help:"Experimental generate commands"`
 
 		RunGraph struct {
@@ -176,8 +174,7 @@ type cliSpec struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
 		} `cmd:"" help:"Show the topological ordering of the stacks"`
 
-		RunEnv struct {
-		} `cmd:"" help:"List run environment variables for all stacks"`
+		RunEnv struct{} `cmd:"" help:"List run environment variables for all stacks"`
 
 		Vendor struct {
 			Download struct {
@@ -205,10 +202,8 @@ type cliSpec struct {
 		} `cmd:"" help:"Get configuration value"`
 
 		Cloud struct {
-			Login struct {
-			} `cmd:"" help:"login for cloud.terramate.io"`
-			Info struct {
-			} `cmd:"" help:"cloud information status"`
+			Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
+			Info  struct{} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -285,7 +280,6 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		}),
 		kong.Writers(stdout, stderr),
 	)
-
 	if err != nil {
 		fatal(err, "creating cli parser")
 	}
@@ -1141,12 +1135,15 @@ func (c *cli) initDir(baseDir string) error {
 
 		stackDir := baseDir
 		stackID, err := uuid.NewRandom()
+		dirBasename := filepath.Base(stackDir)
 		if err != nil {
 			fatal(err, "creating stack UUID")
 		}
 		stackSpec := config.Stack{
-			Dir: prj.PrjAbsPath(c.rootdir(), stackDir),
-			ID:  stackID.String(),
+			Dir:         prj.PrjAbsPath(c.rootdir(), stackDir),
+			ID:          stackID.String(),
+			Name:        dirBasename,
+			Description: dirBasename,
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)
@@ -1866,7 +1863,6 @@ func (c *cli) checkOutdatedGeneratedCode() {
 	logger.Trace().Msg("checking if any stack has outdated code")
 
 	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
-
 	if err != nil {
 		fatal(err, "failed to check outdated code on project")
 	}
@@ -2153,7 +2149,6 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 			CacheFile:     cacheFile,
 		},
 	)
-
 	if err != nil {
 		logger.Debug().Msgf("checkpoint error: %v", err)
 		resp = nil
@@ -2224,7 +2219,6 @@ func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 		WorkingDir: basedir,
 		Env:        os.Environ(),
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -2304,7 +2298,6 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	prj.rootdir = rootCfgPath
 	prj.root = *rootcfg
 	return prj, true, nil
-
 }
 
 func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer) {
