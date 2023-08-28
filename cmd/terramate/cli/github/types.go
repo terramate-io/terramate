@@ -14,18 +14,35 @@ type (
 		Title     string    `json:"title"`
 		Body      string    `json:"body"`
 		State     string    `json:"state"`
+		User      User      `json:"user"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
+		ClosedAt  time.Time `json:"closed_at"`
+		MergedAt  time.Time `json:"merged_at"`
 
-		HEAD PullRequestHEAD `json:"head"`
+		Head RefInfo `json:"head"`
+		Base RefInfo `json:"base"`
 
 		// rest of the fields aren't important for the cli.
 	}
 
-	// PullRequestHEAD contains metadata for the PR HEAD.
-	PullRequestHEAD struct {
-		Ref string `json:"ref"`
-		SHA string `json:"sha"`
+	// User represents the Github user.
+	User struct {
+		Login      string `json:"login"`
+		AvatarURL  string `json:"avatar_url"`
+		GravatarID string `json:"gravatar_id"`
+		Type       string `json:"type"`
+		SiteAdmin  bool   `json:"site_admin"`
+
+		// rest of the fields aren't important for the cli.
+	}
+
+	// RefInfo contains metadata for the git ref (HEAD, branch, etc)
+	RefInfo struct {
+		Label string `json:"label"`
+		Ref   string `json:"ref"`
+		SHA   string `json:"sha"`
+		User  User   `json:"user"`
 
 		// rest of the fields aren't important for the cli.
 	}

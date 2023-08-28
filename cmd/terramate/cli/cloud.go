@@ -201,6 +201,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		deploymentCommitSHA string
 		deploymentURL       string
 		reviewRequest       *cloud.DeploymentReviewRequest
+		metadata            *cloud.DeploymentMetadata
 		normalizedRepo      string
 		ghRepo              string
 	)
@@ -210,7 +211,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		if err == nil {
 			normalizedRepo = cloud.NormalizeGitURI(repoURL)
 			if normalizedRepo != "local" {
-				reviewRequest, ghRepo = c.reviewRequest(normalizedRepo)
+				reviewRequest, metadata, ghRepo = c.reviewRequest(normalizedRepo)
 			} else {
 				logger.Debug().Msg("skipping review_request for local repository")
 			}
@@ -237,6 +238,7 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	payload := cloud.DeploymentStacksPayloadRequest{
 		ReviewRequest: reviewRequest,
 		Workdir:       prj.PrjAbsPath(c.rootdir(), c.wd()),
+		Metadata:      metadata,
 	}
 
 	for _, s := range stacks {
@@ -327,7 +329,7 @@ func (c *cli) cloudInfo() {
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
-func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewRequest, string) {
+func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
 	logger := log.With().
 		Str("normalized_repository", normalizedRepo).
 		Str("head_commit", c.prj.headCommit()).
@@ -338,7 +340,7 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 		logger.Debug().
 			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
 
-		return nil, ""
+		return nil, nil, ""
 	}
 
 	ghRepo := r.Owner + "/" + r.Name
@@ -370,21 +372,21 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 			} else {
 				logger.Warn().Msg("The provided GitHub token does not have permission to read this repository or it does not exists.")
 			}
-			return nil, ghRepo
+			return nil, nil, ghRepo
 		}
 
 		if errors.IsKind(err, github.ErrUnprocessableEntity) {
 			logger.Warn().
 				Msg("The HEAD commit cannot be found in the remote. Did you forget to push?")
 
-			return nil, ghRepo
+			return nil, nil, ghRepo
 		}
 
 		logger.Warn().
 			Err(err).
 			Msg("failed to retrieve pull requests associated with HEAD")
 
-		return nil, ghRepo
+		return nil, nil, ghRepo
 	}
 
 	for _, pull := range pulls {
@@ -395,10 +397,9 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 
 	if len(pulls) == 0 {
 		logger.Warn().
-			Str("head_commit", c.prj.headCommit()).
 			Msg("no pull request associated with HEAD commit")
 
-		return nil, ghRepo
+		return nil, nil, ghRepo
 	}
 
 	pull := pulls[0]
@@ -407,15 +408,42 @@ func (c *cli) reviewRequest(normalizedRepo string) (*cloud.DeploymentReviewReque
 		Str("pull_request_url", pull.HTMLURL).
 		Msg("using pull request url")
 
-	return &cloud.DeploymentReviewRequest{
+	reviewRequest := &cloud.DeploymentReviewRequest{
 		Platform:    "github",
 		Repository:  normalizedRepo,
 		URL:         pull.HTMLURL,
 		Number:      pull.Number,
 		Title:       pull.Title,
 		Description: pull.Body,
-		CommitSHA:   pull.HEAD.SHA,
-	}, ghRepo
+		CommitSHA:   pull.Head.SHA,
+	}
+
+	metadata := &cloud.DeploymentMetadata{
+		Platform:                    "github",
+		PullRequestAuthorLogin:      pull.User.Login,
+		PullRequestAuthorAvatarURL:  pull.User.AvatarURL,
+		PullRequestAuthorGravatarID: pull.User.GravatarID,
+
+		PullRequestHeadLabel:            pull.Head.Label,
+		PullRequestHeadRef:              pull.Head.Ref,
+		PullRequestHeadSHA:              pull.Head.SHA,
+		PullRequestHeadAuthorLogin:      pull.Head.User.Login,
+		PullRequestHeadAuthorAvatarURL:  pull.Head.User.AvatarURL,
+		PullRequestHeadAuthorGravatarID: pull.Head.User.GravatarID,
+
+		PullRequestBaseLabel:            pull.Base.Label,
+		PullRequestBaseRef:              pull.Base.Ref,
+		PullRequestBaseSHA:              pull.Base.SHA,
+		PullRequestBaseAuthorLogin:      pull.Base.User.Login,
+		PullRequestBaseAuthorAvatarURL:  pull.Base.User.AvatarURL,
+		PullRequestBaseAuthorGravatarID: pull.Base.User.GravatarID,
+
+		PullRequestCreatedAt: pull.CreatedAt,
+		PullRequestUpdatedAt: pull.UpdatedAt,
+		PullRequestClosedAt:  pull.ClosedAt,
+		PullRequestMergedAt:  pull.MergedAt,
+	}
+	return reviewRequest, metadata, ghToken
 }
 
 func (c *cli) loadCredential() (credential, error) {
