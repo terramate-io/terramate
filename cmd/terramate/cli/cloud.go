@@ -400,7 +400,8 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 	}
 
 	metadata := &cloud.DeploymentMetadata{
-		Platform: "github",
+		Platform:              "github",
+		DeploymentTriggeredBy: os.Getenv("GITHUB_ACTOR"),
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), defaultGithubTimeout)
