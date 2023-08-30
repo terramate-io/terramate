@@ -36,6 +36,9 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
 	"github.com/terramate-io/terramate/versions"
+	"github.com/terramate-io/tf/command/jsonplan"
+	"github.com/terramate-io/tf/configs"
+	"github.com/terramate-io/tf/plans/planfile"
 
 	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/stdlib"
@@ -146,6 +149,9 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
+		Plan struct {
+			File string `help:"plan file"`
+		} `cmd:"" help:"read plan file"`
 		Clone struct {
 			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
 			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
@@ -513,6 +519,23 @@ func (c *cli) run() {
 		c.runOnStacks()
 	case "generate":
 		c.generate()
+	case "experimental plan":
+		f, err := planfile.Open(c.parsedArgs.Experimental.Plan.File)
+		if err != nil {
+			fatal(err)
+		}
+
+		plan, err := f.ReadPlan()
+		if err != nil {
+			fatal(err)
+		}
+
+		data, err := jsonplan.Marshal(configs.NewEmptyConfig(), plan, nil, nil)
+		if err != nil {
+			fatal(err)
+		}
+
+		stdfmt.Printf("%s\n", data)
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger":
