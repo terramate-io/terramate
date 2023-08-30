@@ -62,6 +62,15 @@ Run a command in all stacks that don't contain specific tags, with reversed [ord
 terramate run  --reverse --no-tags type:k8s -- terraform apply
 ```
 
+Run a command that has its command name and arguments evaluated from an HCL string
+interpolation:
+
+```bash
+terramate run --eval -- '${global.my_default_command}' '--stack=${terramate.stack.path.absolute}'
+```
+
+When using `--eval` the arguments can reference `terramate`, `global` and `tm_` functions with the exception of filesystem related functions (`tm_file`, `tm_fileset`, etc are exposed).
+
 ## Options
 
 - `-B, --git-change-base=STRING` Git base ref for computing changes
@@ -74,6 +83,7 @@ terramate run  --reverse --no-tags type:k8s -- terraform apply
 - `--no-recursive` Do not recurse into child stacks
 - `--dry-run` Plan the execution but do not execute it
 - `--reverse` Reverse the order of execution
+- `--eval` Evaluate command line arguments as HCL strings
 
 ## Project wide `run` configuration.
 

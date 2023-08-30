@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -30,8 +31,10 @@ type tmcli struct {
 	t         *testing.T
 	chdir     string
 	loglevel  string
-	env       []string
+	environ   []string
 	appendEnv []string
+
+	userDir string
 }
 
 type runResult struct {
@@ -54,18 +57,55 @@ type runExpected struct {
 	Status        int
 }
 
-func newCLI(t *testing.T, chdir string) tmcli {
-	return tmcli{
+func newCLI(t *testing.T, chdir string, env ...string) tmcli {
+	tm := tmcli{
 		t:     t,
 		chdir: chdir,
 	}
+	if len(env) == 0 {
+		env = os.Environ()
+	}
+	env = append(env, "CHECKPOINT_DISABLE=1")
+	// custom cliconfig file
+	tm.userDir = t.TempDir()
+	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))
+	env = append(env,
+		"TM_CLI_CONFIG_FILE="+cliConfigPath,
+		"ACTIONS_ID_TOKEN_REQUEST_URL=",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
+	)
+	tm.environ = env
+	return tm
 }
 
 func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
-	return tmcli{
-		t:        t,
-		chdir:    chdir,
-		loglevel: loglevel,
+	tm := newCLI(t, chdir)
+	tm.loglevel = loglevel
+	return tm
+}
+
+func (tm *tmcli) prependToPath(dir string) {
+	envKeyEquality := func(s1, s2 string) bool { return s1 == s2 }
+	if runtime.GOOS == "windows" {
+		envKeyEquality = strings.EqualFold
+	}
+	addTo := func(env []string, dir string) bool {
+		for i, v := range env {
+			eqPos := strings.Index(v, "=")
+			key := v[:eqPos]
+			oldv := v[eqPos+1:]
+			if envKeyEquality(key, "PATH") {
+				v = key + "=" + dir + string(os.PathListSeparator) + oldv
+				env[i] = v
+				return true
+			}
+		}
+		return false
+	}
+
+	found := addTo(tm.appendEnv, dir)
+	if !found && !addTo(tm.environ, dir) {
+		tm.appendEnv = append(tm.appendEnv, fmt.Sprintf("PATH=%s", dir))
 	}
 }
 
@@ -146,23 +186,7 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	}
 
 	allargs = append(allargs, args...)
-
-	env := tm.env
-	if len(env) == 0 {
-		env = os.Environ()
-	}
-	env = append(env, "CHECKPOINT_DISABLE=1")
-
-	// custom cliconfig file
-	userTmpDir := t.TempDir()
-	cliConfigPath := test.WriteFile(t, userTmpDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(userTmpDir, "\\", "\\\\", -1)))
-	env = append(env,
-		"TM_CLI_CONFIG_FILE="+cliConfigPath,
-		"ACTIONS_ID_TOKEN_REQUEST_URL=",
-		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
-	)
-
-	env = append(env, tm.appendEnv...)
+	env := append(tm.environ, tm.appendEnv...)
 
 	// fake credentials
 	type MyCustomClaims struct {
@@ -181,7 +205,7 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	fakeJwt, err := token.SignedString([]byte("test"))
 	assert.NoError(t, err)
-	test.WriteFile(t, userTmpDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd"}`, fakeJwt))
+	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd"}`, fakeJwt))
 
 	cmd := exec.Command(terramateTestBin, allargs...)
 	cmd.Stdout = stdout

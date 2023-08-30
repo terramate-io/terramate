@@ -479,7 +479,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 	t.Run("GH_TOKEN detection", func(t *testing.T) {
 		tm := newCLI(t, s.RootDir())
 		tm.loglevel = "debug"
-		tm.env = append(os.Environ(), "GH_TOKEN=abcd")
+		tm.appendEnv = append(tm.appendEnv, "GH_TOKEN=abcd")
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
@@ -492,8 +492,8 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 	t.Run("GITHUB_TOKEN detection", func(t *testing.T) {
 		tm := newCLI(t, s.RootDir())
+		tm.appendEnv = append(tm.appendEnv, "GITHUB_TOKEN=abcd")
 		tm.loglevel = "debug"
-		tm.env = append(os.Environ(), "GITHUB_TOKEN=abcd")
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
@@ -518,7 +518,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
     oauth_token: abcd
     git_protocol: ssh
 `)
-		tm.env = append(os.Environ(), "GH_CONFIG_DIR="+ghConfigDir)
+		tm.appendEnv = append(tm.appendEnv, "GH_CONFIG_DIR="+ghConfigDir)
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
