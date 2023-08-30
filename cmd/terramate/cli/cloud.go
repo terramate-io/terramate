@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -233,6 +234,17 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		logger.Debug().
 			Str("deployment_url", deploymentURL).
 			Msg("detected deployment url")
+	}
+
+	if metadata != nil {
+		data, err := json.Marshal(metadata)
+		if err == nil {
+			logger.Debug().RawJSON("provider_metadata", data).Msg("detected provider metadata")
+		} else {
+			logger.Warn().Err(err).Msg("failed to encode deployment metadata")
+		}
+	} else {
+		logger.Debug().Msg("no provider metadata detected")
 	}
 
 	payload := cloud.DeploymentStacksPayloadRequest{
