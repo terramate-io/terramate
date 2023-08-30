@@ -39,6 +39,8 @@ import (
 	"github.com/terramate-io/tf/command/jsonplan"
 	"github.com/terramate-io/tf/configs"
 	"github.com/terramate-io/tf/plans/planfile"
+	"github.com/terramate-io/tf/terraform"
+	"github.com/terramate-io/tf/tfdiags"
 
 	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/stdlib"
@@ -522,17 +524,28 @@ func (c *cli) run() {
 	case "experimental plan":
 		f, err := planfile.Open(c.parsedArgs.Experimental.Plan.File)
 		if err != nil {
-			fatal(err)
+			fatal(err, "opening plan file")
 		}
 
 		plan, err := f.ReadPlan()
 		if err != nil {
-			fatal(err)
+			fatal(err, "reading plan")
 		}
 
-		data, err := jsonplan.Marshal(configs.NewEmptyConfig(), plan, nil, nil)
+		tfCtx, ctxDiags := terraform.NewContext(&terraform.ContextOpts{})
+		if ctxDiags.HasErrors() {
+			fatal(errors.E(ctxDiags.Err()))
+		}
+
+		cfg := configs.NewEmptyConfig()
+		var schemaDiags tfdiags.Diagnostics
+		schemas, schemaDiags := tfCtx.Schemas(cfg, plan.PriorState)
+		if schemaDiags.HasErrors() {
+			fatal(errors.E(schemaDiags.Err()))
+		}
+		data, err := jsonplan.Marshal(cfg, plan, nil, schemas)
 		if err != nil {
-			fatal(err)
+			fatal(err, "marshaling to json")
 		}
 
 		stdfmt.Printf("%s\n", data)

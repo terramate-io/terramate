@@ -28,7 +28,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	tflang "github.com/hashicorp/terraform/lang"
+	tflang "github.com/terramate-io/tf/lang"
 )
 
 // Block represents an HCL block.

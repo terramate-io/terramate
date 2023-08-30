@@ -12,7 +12,6 @@ import (
 	resyntax "regexp/syntax"
 
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -21,6 +20,7 @@ import (
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/tf"
 	"github.com/terramate-io/terramate/versions"
+	tflang "github.com/terramate-io/tf/lang"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
