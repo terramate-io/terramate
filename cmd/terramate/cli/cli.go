@@ -9,12 +9,17 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	tfplugin "github.com/terramate-io/tf/plugin"
+	tfplugin6 "github.com/terramate-io/tf/plugin6"
+
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-plugin"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
@@ -36,11 +41,15 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
 	"github.com/terramate-io/terramate/versions"
+	"github.com/terramate-io/tf/addrs"
+	"github.com/terramate-io/tf/backend"
 	"github.com/terramate-io/tf/command/jsonplan"
-	"github.com/terramate-io/tf/configs"
+	"github.com/terramate-io/tf/depsfile"
+	"github.com/terramate-io/tf/logging"
 	"github.com/terramate-io/tf/plans/planfile"
+	"github.com/terramate-io/tf/providercache"
+	"github.com/terramate-io/tf/providers"
 	"github.com/terramate-io/tf/terraform"
-	"github.com/terramate-io/tf/tfdiags"
 
 	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/stdlib"
@@ -522,28 +531,126 @@ func (c *cli) run() {
 	case "generate":
 		c.generate()
 	case "experimental plan":
-		f, err := planfile.Open(c.parsedArgs.Experimental.Plan.File)
+		planReader, err := planfile.Open(c.parsedArgs.Experimental.Plan.File)
 		if err != nil {
 			fatal(err, "opening plan file")
 		}
 
-		plan, err := f.ReadPlan()
+		// Get plan
+		plan, err := planReader.ReadPlan()
 		if err != nil {
-			fatal(err, "reading plan")
+			fatal(err, "read plan")
 		}
 
-		tfCtx, ctxDiags := terraform.NewContext(&terraform.ContextOpts{})
+		// Get statefile
+		stateFile, err := planReader.ReadStateFile()
+		if err != nil {
+			fatal(err, "read state file")
+		}
+
+		// Get config
+		config, diags := planReader.ReadConfig()
+		if diags.HasErrors() {
+			fatal(diags.Err(), "reading embeded config")
+		}
+
+		opts := &terraform.ContextOpts{}
+		opts.Meta = &terraform.ContextMeta{
+			Env:                backend.DefaultStateName,
+			OriginalWorkingDir: c.wd(),
+		}
+		const dependencyLockFilename = ".terraform.lock.hcl"
+
+		_, err = os.Stat(dependencyLockFilename)
+		if os.IsNotExist(err) {
+			fatal(err, "lock file not found")
+		}
+
+		locks, diags := depsfile.LoadLocksFromFile(dependencyLockFilename)
+		if diags.HasErrors() {
+			fatal(diags.Err(), "failed to load lock file")
+		}
+
+		// We'll always run through all of our providers, even if one of them
+		// encounters an error, so that we can potentially report multiple errors
+		// where appropriate and so that callers can potentially make use of the
+		// partial result we return if e.g. they want to enumerate which providers
+		// are available, or call into one of the providers that didn't fail.
+		errs := make(map[addrs.Provider]error)
+
+		// For the providers from the lock file, we expect them to be already
+		// available in the provider cache because "terraform init" should already
+		// have put them there.
+		providerLocks := locks.AllProviders()
+		cacheDir := providercache.NewDir(filepath.Join(c.wd(), ".terraform", "providers"))
+
+		factories := make(map[addrs.Provider]providers.Factory, len(providerLocks))
+
+		providerFactoryError := func(err error) providers.Factory {
+			return func() (providers.Interface, error) {
+				return nil, err
+			}
+		}
+
+		for provider, lock := range providerLocks {
+			reportError := func(thisErr error) {
+				errs[provider] = thisErr
+				// We'll populate a provider factory that just echoes our error
+				// again if called, which allows us to still report a helpful
+				// error even if it gets detected downstream somewhere from the
+				// caller using our partial result.
+				factories[provider] = providerFactoryError(thisErr)
+			}
+
+			if locks.ProviderIsOverridden(provider) {
+				// Overridden providers we'll handle with the other separate
+				// loops below, for dev overrides etc.
+				continue
+			}
+
+			version := lock.Version()
+			cached := cacheDir.ProviderVersion(provider, version)
+			if cached == nil {
+				reportError(stdfmt.Errorf(
+					"there is no package for %s %s cached in %s",
+					provider, version, cacheDir.BasePath(),
+				))
+				continue
+			}
+			// The cached package must match one of the checksums recorded in
+			// the lock file, if any.
+			if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
+				matched, err := cached.MatchesAnyHash(allowedHashes)
+				if err != nil {
+					reportError(stdfmt.Errorf(
+						"failed to verify checksum of %s %s package cached in in %s: %s",
+						provider, version, cacheDir.BasePath(), err,
+					))
+					continue
+				}
+				if !matched {
+					reportError(stdfmt.Errorf(
+						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
+						provider, version, cacheDir.BasePath(),
+					))
+					continue
+				}
+			}
+			factories[provider] = providerFactory(cached)
+		}
+
+		opts.Providers = factories
+		tfCtx, ctxDiags := terraform.NewContext(opts)
 		if ctxDiags.HasErrors() {
 			fatal(errors.E(ctxDiags.Err()))
 		}
 
-		cfg := configs.NewEmptyConfig()
-		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags := tfCtx.Schemas(cfg, plan.PriorState)
+		schemas, schemaDiags := tfCtx.Schemas(config, plan.PriorState)
 		if schemaDiags.HasErrors() {
-			fatal(errors.E(schemaDiags.Err()))
+			fatal(schemaDiags.Err(), "loading schemas")
 		}
-		data, err := jsonplan.Marshal(cfg, plan, nil, schemas)
+
+		data, err := jsonplan.Marshal(config, plan, stateFile, schemas)
 		if err != nil {
 			fatal(err, "marshaling to json")
 		}
@@ -591,6 +698,58 @@ func (c *cli) run() {
 		c.cloudInfo()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
+	}
+}
+
+// providerFactory produces a provider factory that runs up the executable
+// file in the given cache package and uses go-plugin to implement
+// providers.Interface against it.
+func providerFactory(meta *providercache.CachedProvider) providers.Factory {
+	return func() (providers.Interface, error) {
+		execFile, err := meta.ExecutableFile()
+		if err != nil {
+			return nil, err
+		}
+
+		config := &plugin.ClientConfig{
+			HandshakeConfig:  tfplugin.Handshake,
+			Logger:           logging.NewProviderLogger(""),
+			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+			Managed:          true,
+			Cmd:              exec.Command(execFile),
+			AutoMTLS:         false,
+			VersionedPlugins: tfplugin.VersionedPlugins,
+			SyncStdout:       logging.PluginOutputMonitor(stdfmt.Sprintf("%s:stdout", meta.Provider)),
+			SyncStderr:       logging.PluginOutputMonitor(stdfmt.Sprintf("%s:stderr", meta.Provider)),
+		}
+
+		client := plugin.NewClient(config)
+		rpcClient, err := client.Client()
+		if err != nil {
+			return nil, err
+		}
+
+		raw, err := rpcClient.Dispense(tfplugin.ProviderPluginName)
+		if err != nil {
+			return nil, err
+		}
+
+		// store the client so that the plugin can kill the child process
+		protoVer := client.NegotiatedVersion()
+		switch protoVer {
+		case 5:
+			p := raw.(*tfplugin.GRPCProvider)
+			p.PluginClient = client
+			p.Addr = meta.Provider
+			return p, nil
+		case 6:
+			p := raw.(*tfplugin6.GRPCProvider)
+			p.PluginClient = client
+			p.Addr = meta.Provider
+			return p, nil
+		default:
+			panic("unsupported protocol version")
+		}
 	}
 }
 
