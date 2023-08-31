@@ -22,6 +22,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/run"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -165,7 +166,7 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], command []string) {
+func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 	logger := log.With().
 		Logger()
 
@@ -176,9 +177,9 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 	logger.Trace().Msg("Checking if selected stacks have id")
 
 	var stacksMissingIDs []string
-	for _, st := range stacks {
-		if st.ID == "" {
-			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
+	for _, run := range runStacks {
+		if run.Stack.ID == "" {
+			stacksMissingIDs = append(stacksMissingIDs, run.Stack.Dir.String())
 		}
 	}
 
@@ -253,20 +254,20 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		Metadata:      metadata,
 	}
 
-	for _, s := range stacks {
-		tags := s.Tags
+	for _, run := range runStacks {
+		tags := run.Stack.Tags
 		if tags == nil {
 			tags = []string{}
 		}
 		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			MetaID:            strings.ToLower(s.ID),
-			MetaName:          s.Name,
-			MetaDescription:   s.Description,
+			MetaID:            strings.ToLower(run.Stack.ID),
+			MetaName:          run.Stack.Name,
+			MetaDescription:   run.Stack.Description,
 			MetaTags:          tags,
 			Repository:        normalizedRepo,
-			Path:              s.Dir().String(),
+			Path:              run.Stack.Dir.String(),
 			CommitSHA:         deploymentCommitSHA,
-			DeploymentCommand: strings.Join(command, " "),
+			DeploymentCommand: strings.Join(run.Cmd, " "),
 			DeploymentURL:     deploymentURL,
 		})
 	}
@@ -280,10 +281,10 @@ func (c *cli) createCloudDeployment(stacks config.List[*config.SortableStack], c
 		return
 	}
 
-	if len(res) != len(stacks) {
+	if len(res) != len(runStacks) {
 		logger.Warn().Err(errors.E(
 			"the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-			len(res), len(stacks)),
+			len(res), len(runStacks)),
 		).Msg(DisablingCloudMessage)
 
 		c.cloud.disabled = true

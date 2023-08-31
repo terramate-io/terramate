@@ -67,6 +67,30 @@ func Functions(basedir string) map[string]function.Function {
 	return tmfuncs
 }
 
+// NoFS returns all Terramate functions but excluding fs-related
+// functions.
+func NoFS(basedir string) map[string]function.Function {
+	funcs := Functions(basedir)
+	fsFuncNames := []string{
+		"tm_abspath",
+		"tm_file",
+		"tm_fileexists",
+		"tm_fileset",
+		"tm_filebase64",
+		"tm_filebase64sha256",
+		"tm_filebase64sha512",
+		"tm_filemd5",
+		"tm_filesha1",
+		"tm_filesha256",
+		"tm_filesha512",
+		"tm_templatefile",
+	}
+	for _, name := range fsFuncNames {
+		delete(funcs, name)
+	}
+	return funcs
+}
+
 // Regex is a copy of Terraform [stdlib.RegexFunc] but with cached compiled
 // patterns.
 func Regex() function.Function {

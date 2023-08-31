@@ -138,6 +138,7 @@ type cliSpec struct {
 		NoRecursive           bool     `default:"false" help:"Do not recurse into child stacks"`
 		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
 		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
+		Eval                  bool     `default:"false" help:"Evaluate command line arguments as HCL strings"`
 		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
@@ -1719,7 +1720,7 @@ func (c *cli) ensureStackID() {
 }
 
 func (c *cli) eval() {
-	ctx := c.setupEvalContext(c.parsedArgs.Experimental.Eval.Global)
+	ctx := c.detectEvalContext(c.parsedArgs.Experimental.Eval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
@@ -1734,7 +1735,7 @@ func (c *cli) eval() {
 }
 
 func (c *cli) partialEval() {
-	ctx := c.setupEvalContext(c.parsedArgs.Experimental.PartialEval.Global)
+	ctx := c.detectEvalContext(c.parsedArgs.Experimental.PartialEval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
@@ -1748,12 +1749,34 @@ func (c *cli) partialEval() {
 	}
 }
 
+func (c *cli) evalRunArgs(st *config.Stack, cmd []string) []string {
+	ctx := c.setupEvalContext(st, map[string]string{})
+	var newargs []string
+	for _, arg := range cmd {
+		exprStr := `"` + arg + `"`
+		expr, err := ast.ParseExpression(exprStr, "<cmd arg>")
+		if err != nil {
+			fatal(err, "parsing %s", exprStr)
+		}
+		val, err := ctx.Eval(expr)
+		if err != nil {
+			fatal(err, "eval %q", exprStr)
+		}
+		if !val.Type().Equals(cty.String) {
+			fatal(errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName()))
+		}
+
+		newargs = append(newargs, val.AsString())
+	}
+	return newargs
+}
+
 func (c *cli) getConfigValue() {
 	logger := log.With().
 		Str("action", "cli.getConfigValue()").
 		Logger()
 
-	ctx := c.setupEvalContext(c.parsedArgs.Experimental.GetConfigValue.Global)
+	ctx := c.detectEvalContext(c.parsedArgs.Experimental.GetConfigValue.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
@@ -1799,20 +1822,33 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 	c.output.MsgStdOut(string(data))
 }
 
-func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context {
-	ctx := eval.NewContext(stdlib.Functions(c.wd()))
-	runtime := c.cfg().Runtime()
+func (c *cli) detectEvalContext(overrideGlobals map[string]string) *eval.Context {
+	var st *config.Stack
 	if config.IsStack(c.cfg(), c.wd()) {
-		st, err := config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+		var err error
+		st, err = config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
+	}
+	return c.setupEvalContext(st, overrideGlobals)
+}
+
+func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]string) *eval.Context {
+	runtime := c.cfg().Runtime()
+
+	var tdir string
+	if st != nil {
+		tdir = st.HostDir(c.cfg())
 		runtime.Merge(st.RuntimeValues(c.cfg()))
+	} else {
+		tdir = c.wd()
 	}
 
+	ctx := eval.NewContext(stdlib.NoFS(tdir))
 	ctx.SetNamespace("terramate", runtime)
 
-	wdPath := prj.PrjAbsPath(c.rootdir(), c.wd())
+	wdPath := prj.PrjAbsPath(c.rootdir(), tdir)
 	tree, ok := c.cfg().Lookup(wdPath)
 	if !ok {
 		fatal(errors.E("configuration at %s not found", wdPath))
@@ -1841,7 +1877,6 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 			}),
 		)
 	}
-
 	_ = exprs.Eval(ctx)
 	return ctx
 }
@@ -1937,8 +1972,6 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
-	c.createCloudDeployment(stacks, c.parsedArgs.Run.Command)
-
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
 	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
@@ -1972,6 +2005,20 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
+	var runStacks []run.ExecContext
+	for _, st := range orderedStacks {
+		run := run.ExecContext{
+			Stack: st.Stack,
+			Cmd:   c.parsedArgs.Run.Command,
+		}
+		if c.parsedArgs.Run.Eval {
+			run.Cmd = c.evalRunArgs(run.Stack, run.Cmd)
+		}
+		runStacks = append(runStacks, run)
+	}
+
+	c.createCloudDeployment(runStacks)
+
 	beforeHook := func(s *config.Stack, cmd string) {
 		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 			return
@@ -1998,10 +2045,9 @@ func (c *cli) runOnStacks() {
 		c.syncCloudDeployment(s, status)
 	}
 
-	err = run.Exec(
+	err = run.ExecAll(
 		c.cfg(),
-		orderedStacks,
-		c.parsedArgs.Run.Command,
+		runStacks,
 		c.stdin,
 		c.stdout,
 		c.stderr,

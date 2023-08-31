@@ -1740,10 +1740,9 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		cli := newCLI(t, s.RootDir())
-		cli.env = append([]string{
-			"TM_DISABLE_CHECK_GIT_UNTRACKED=true",
-		}, testEnviron(t)...)
+		cli := newCLI(t, s.RootDir(), testEnviron(t)...)
+		cli.appendEnv = append(cli.appendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=true")
+
 		assertRun(t, cli.run(
 			"run",
 			"--changed",
@@ -1911,11 +1910,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		tmcli := newCLI(t, s.RootDir())
-		tmcli.env = append([]string{
-			"TM_DISABLE_CHECK_GEN_CODE=true",
-		}, testEnviron(t)...)
-
+		tmcli := newCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.appendEnv = append(tmcli.appendEnv, "TM_DISABLE_CHECK_GEN_CODE=true")
 		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
@@ -2039,10 +2035,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		cli := newCLI(t, s.RootDir())
-		cli.env = append([]string{
-			"TM_DISABLE_CHECK_GIT_UNCOMMITTED=true",
-		}, testEnviron(t)...)
+		cli := newCLI(t, s.RootDir(), testEnviron(t)...)
+		cli.appendEnv = append(cli.appendEnv, "TM_DISABLE_CHECK_GIT_UNCOMMITTED=true")
 
 		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
@@ -2286,8 +2280,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
 	)
 
-	tm := newCLI(t, s.RootDir())
-	tm.env = clienv
+	tm := newCLI(t, s.RootDir(), clienv...)
 
 	res := tm.run("run", testHelperBin, "env")
 	if res.Status != 0 {

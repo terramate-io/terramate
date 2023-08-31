@@ -22,8 +22,12 @@ func main() {
 
 	switch os.Args[1] {
 	case "echo":
-		for _, arg := range os.Args[2:] {
+		args := os.Args[2:]
+		for i, arg := range args {
 			fmt.Print(arg)
+			if i+1 < len(args) {
+				fmt.Print(" ")
+			}
 		}
 		fmt.Print("\n")
 	case "true":
