@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: MPL-2.0
 
 name: ci
-on: [push]
+on:
+  push:
+  merge_group:
+
 jobs:
   checks:
     runs-on: ubuntu-20.04
@@ -10,24 +13,33 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: setup go
         uses: actions/setup-go@v3
         with:
           go-version: "1.20"
 
+      - name: Configure asdf and plugins needed
+        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+
       - name: checking go mod tidyness
-        run: make mod/check
+        run: terramate run --tags golang --changed -- make mod/check
 
       - name: linting code
-        run: make lint
+        run: terramate run --tags golang --changed -- make lint
 
       - name: checking license on source code
-        run: make license/check
+        run: terramate run --tags golang --changed -- make license/check
 
   build_test:
     name: Build and Test
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read  # This is required for actions/checkout
 
     strategy:
       fail-fast: false
@@ -38,17 +50,26 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: setup go
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Configure asdf and plugins needed
+        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+
       - name: make test
-        run: make test
+        run: terramate run --tags golang --changed -- make test
 
       - name: make build
-        run: make build
+        run: terramate run --tags golang --changed -- make build
+
+      - name: check cloud info
+        run: terramate run --tags golang --changed -- ./bin/terramate experimental cloud info
 
   gh_integration_test:
     name: GHA Integration Test
@@ -59,6 +80,7 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: setup go
@@ -66,8 +88,11 @@ jobs:
         with:
           go-version: "1.20"
 
+      - name: Configure asdf and plugins needed
+        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+
       - name: make test/ci
-        run: make test/ci
+        run: terramate run --tags golang --changed -- make test/ci
 
   release_dry_run:
     name: Release Dry Run
@@ -77,17 +102,27 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: setup go
         uses: actions/setup-go@v3
         with:
           go-version: "1.20"
 
+      - name: Configure asdf and plugins needed
+        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+
       - name: release dry run
-        run: make release/dry-run
+        run: terramate run --tags golang --changed -- make release/dry-run
 
   ci:
-    needs: [checks, build_test, gh_integration_test, release_dry_run]
+    needs:
+      - checks
+      - build_test
+      - gh_integration_test
+      - release_dry_run
     runs-on: ubuntu-20.04
     steps:
       - name: Required Checks

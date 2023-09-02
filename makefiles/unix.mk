@@ -2,16 +2,23 @@
 SHELL := /bin/bash -o pipefail -o errexit -o nounset
 VERSION ?= v$(shell cat VERSION)
 GO_BUILD_FLAGS=--ldflags '-extldflags "-static"'
+BUILD_ENV=CGO_ENABLED=0
+EXEC_SUFFIX=
 
-## Build terramate into bin directory
-.PHONY: build
-build:
-	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o bin/terramate ./cmd/terramate
+## build a test binary -- not static, telemetry sent to localhost, etc
+.PHONY: test/build
+test/build: test/fakecloud
+	go build -tags localhostEndpoints -o bin/test-terramate ./cmd/terramate
 
-## Install terramate on the host
-.PHONY: install
-install:
-	CGO_ENABLED=0 go install $(GO_BUILD_FLAGS) ./cmd/terramate
+## build bin/fakecloud
+.PHONY: test/fakecloud
+test/fakecloud:
+	go build -o bin/fakecloud ./cloud/testserver/cmd/fakecloud
+
+## build the helper binary
+.PHONY: test/helper
+test/helper:
+	go build -o bin/helper ./cmd/terramate/e2etests/cmd/test
 
 ## test code
 .PHONY: test

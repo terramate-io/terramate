@@ -1,14 +1,14 @@
 ---
-title: An introduction to Stacks | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: An introduction to Stacks
+description: Learn about stacks in Terramate and why it's advised to use stacks in your infrastructure as code projects.
 
 prev:
-  text: 'Overview'
-  link: '/'
+  text: 'Quickstart'
+  link: '/getting-started/'
 
 next:
-  text: 'Installation'
-  link: '/installation'
+  text: 'Stacks Configuration'
+  link: '/stacks/'
 ---
 
 # About Stacks
@@ -29,42 +29,43 @@ By _runnable_ it means it has everything needed to call
 don't have the `provider` explicitly set, is not runnable hence it's
 **not a stack**.
 
-If your runnable Terraform module creates your whole infrastructure, *it's
-also not a stack*, since the idea of stacks is to be a unit of infrastructure
-decomposition.
+If a module is missing any required components, such as provider settings,
+it cannot be considered a stack.
 
-## Isolate code with higher change frequency
+It's also worth noting that if a module creates your entire infrastructure, it's not a stack.
+**Stacks are designed to break down your infrastructure into** **manageable pieces**,
+so they operate on a specific subset of resources rather than your entire infrastructure.
 
-If you have a high change frequency in your infrastructure, for example, several
-deploys per day/week or several configuration changes per day/week, then if you
-apply the change in your single Terraform project, some dependent resources can
-be recreated leading to increased downtime. There are several reasons why a
-dependent module can be recreated, eg.: attributes with variable interpolation
-from recreated resources; underspecified attributes refreshing during plan, etc.
 
-By using stacks you can modify only the stacks affected by the deploys or
-configuration changes needed, but you have to choose the size of the stack
-wisely to avoid duplication.
+## Isolate code that changes frequently
 
-The overall principle being, code that changes at different rate change for
-different reasons and code that changes for different reasons should be as
-isolated from each other as possible.
+If you make a lot of updates to your infrastructure, like deploying new code or changing
+settings often, doing everything in one Terraform project could cause problems.
+This might lead to some parts of your infrastructure needing to be rebuilt, which means
+more downtime.
+
+Using stacks helps with this issue. Stacks let you only update the parts of
+your system that need changes, without affecting everything else. Be careful to
+make the stacks the right size to avoid unnecessary repetition.
+
+In short, try to keep code that changes for different reasons separate, so you
+don't create problems when making updates.
 
 ## Reduce the blast radius
 
-A small change can lead to catastrophic events if you're not careful or makes a
-mistake like forgetting a "prevent_destroy" attribute in the production database
-lifecycle declaration. Someone may commit mistakes and it's better if
-you could reduce the impact of such errors.
+A small change can lead to catastrophic events if you're not careful. For instance,
+forgetting a `prevent_destroy` attribute in the production database lifecycle
+declaration. Also, someone within your organisation or team may commit mistakes
+and it's better if you could reduce the impact of such errors.
 An extreme example is: avoiding a database instance destroy because of a DNS TTL
 change.
 
 ## Reduce execution time
 
-By using stacks you can reduce the time an infrastructure change takes to finish.
-This is even more appealing if your Terraform changes are applied through CI
-builders running in the cloud because faster integration/builds leads to reduced
-cloud costs.
+Using stacks allows you to reduce the runtime of Terraform drastically. This is especially
+beneficial when running Terraform in CI/CD environments like GitHub Actions since build
+time is usually billed per minute, which means faster execution time translates directly
+to lowered costs.
 
 ## Ownership
 

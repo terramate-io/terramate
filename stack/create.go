@@ -117,5 +117,5 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 		return errors.E(err, "writing stack imports to stack file")
 	}
 
-	return root.LoadSubTree(stack.Dir)
+	return nil
 }

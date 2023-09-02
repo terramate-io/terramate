@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mineiros-io/brand/16aa786a3cd6d0ae2fb89ed756f96c695d0f88e1/terramate-logo.svg" width="160px" align="center" alt="Terramate Logo" />
+  <picture width="160px" align="center">
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/terramate-io/brand/5a799813d429116741243b9b06a9f034a3991bf3/darkmode/stamp.svg">
+      <img alt="Terramate" src="https://raw.githubusercontent.com/terramate-io/brand/5a799813d429116741243b9b06a9f034a3991bf3/whitemode/stamp.svg" width="160px" align="center">
+    </picture>
   <h1 align="center">Terramate</h1>
   <p align="center">
     ✨ <a href="https://terramate.io/docs/cli">https://terramate.io</a> ✨
@@ -21,7 +24,7 @@
 </p>
 
 <p align="center">
-  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://play.terramate.io">💻 Playground</a> | <a href="https://jobs.ashbyhq.com/mineiros.io" title="Terrmate Job Board">🙌 Join Us</a>
+  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://play.terramate.io">💻 Playground</a> | <a href="https://jobs.ashbyhq.com/terramate" title="Terrmate Job Board">🙌 Join Us</a>
 </p>
 
 <br>
@@ -84,11 +87,10 @@ The fastest way to get started with Terramate is our [getting started guide](htt
 - [Playground](https://play.terramate.io/)
 - [Getting started guide](https://terramate.io/docs/cli/getting-started/)
 - [About Stacks](https://terramate.io/docs/cli/about-stacks)
-- [Terramate Blog](https://blog.mineiros.io/)
-- [Why we invented Terramate](https://blog.mineiros.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055?source=friends_link&sk=5272c487ef709c80a34d0b451590f263)
-- [How Terramate compares with Terragrunt](https://blog.mineiros.io/terramate-and-terragrunt-f27f2ec4032f?source=friends_link&sk=8834b3de00d4af4744aac63051ff3b53)
+- [Terramate Blog](https://blog.terramate.io/)
+- [Why we invented Terramate](https://blog.terramate.io/introducing-terramate-an-orchestrator-and-code-generator-for-terraform-5e538c9ee055?source=friends_link&sk=5272c487ef709c80a34d0b451590f263)
+- [How Terramate compares with Terragrunt](https://blog.terramate.io/terramate-and-terragrunt-f27f2ec4032f?source=friends_link&sk=8834b3de00d4af4744aac63051ff3b53)
 - [Terramate VSCode Extension](https://github.com/mineiros-io/vscode-terramate)
-- [Terramate Language Server](https://github.com/mineiros-io/terramate-ls)
 
 ## Reporting bugs and contributing code
 

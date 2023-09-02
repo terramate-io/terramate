@@ -145,3 +145,18 @@ func (r *resolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error)
 	filtered, _ := stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
 	return []eval.Stmts{filtered}, nil
 }
+
+func getEnv(key string, environ []string) (string, bool) {
+	for i := len(environ) - 1; i >= 0; i-- {
+		env := environ[i]
+		for j := 0; j < len(env); j++ {
+			if env[j] == '=' {
+				k := env[0:j]
+				if strings.EqualFold(k, key) {
+					return env[j+1:], true
+				}
+			}
+		}
+	}
+	return "", false
+}

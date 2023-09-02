@@ -1,38 +1,48 @@
 ---
-title: Installation | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: How to Install
+description: You can easily install Terramate with Go or package managers such as brew. You can also run Terramate with Docker by building on top of our pre-configured image.
 
 prev:
-  text: 'About Stacks'
-  link: '/about-stacks'
+  text: "Introduction"
+  link: "/introduction"
 
 next:
-  text: 'Getting Started'
-  link: '/getting-started'
+  text: "Quickstart"
+  link: "/getting-started/"
 ---
 
 # Installation
+
+The Terramate project distributes two binaries:
+
+- `terramate`: The CLI tool that we love.
+- `terramate-ls`: The Terramate Language Server.
+
+The _Language Server_ is only needed if you want to integrate some linting in your editor/IDE.
 
 ## Using Go
 
 For installing versions greater than `v0.2.18`, please run:
 
 ```sh
-go install github.com/terramate-io/terramate/cmd/terramate@<version>
+go install github.com/terramate-io/terramate/cmd/...@<version>
 ```
 
-For older versions, the command below is required (see [this](https://github.com/golang/go/issues/60452) issue for the reason):
+For older versions, the command below is required (see [this](https://github.com/golang/go/issues/50278#issuecomment-1567386638) issue for the reason):
 
 ```sh
-go install github.com/mineiros-io/terramate/cmd/terramate@<version>
+go install github.com/mineiros-io/terramate/cmd/...@<version>
 ```
 
 Where `<version>` is any terramate [version tag](https://github.com/terramate-io/terramate/tags),
 or you can just install the **latest** release:
 
 ```sh
-go install github.com/terramate-io/terramate/cmd/terramate@latest
+go install github.com/terramate-io/terramate/cmd/...@latest
 ```
+
+The commands above install both `terramate` and `terramate-ls` into
+your Go binary folder (usually `$HOME/go/bin`).
 
 ## Using a package manager
 
@@ -66,7 +76,7 @@ To install Terramate using a release binary, follow these steps:
 ## Using Docker
 
 If you prefer not to install Terramate directly on your host system,
-you can use either [Docker](<https://www.docker.com/>) or [Podman](https://podman.io/) to run Terramate within a container.
+you can use either [Docker](https://www.docker.com/) or [Podman](https://podman.io/) to run Terramate within a container.
 
 To do so, execute the following command:
 
@@ -76,6 +86,18 @@ docker run ghcr.io/terramate-io/terramate
 
 We also provide container images tagged with specific release versions.
 To view a list of available container image tags, visit this [link](https://github.com/terramate-io/terramate/pkgs/container/terramate/versions).
+
+**Note:** Our image doesn't come with additional dependencies such as Terraform. We recommend building
+your own image by using our image as the base image to install additional dependencies required.
+
+We recommend mounting your Terramate project as a Docker mount volume to use it inside the container.
+Depending on your setup, you should set the correct permissions when running the container.
+
+```sh
+docker run -it -u $(id -u ${USER}):$(id -g ${USER}) \
+  -v /some/repo:/some/repo \
+  ghcr.io/terramate-io/terramate:latest -C /some/repo --changed run -- cmd
+```
 
 ## Auto Completion
 

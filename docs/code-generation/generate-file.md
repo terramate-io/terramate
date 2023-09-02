@@ -1,6 +1,6 @@
 ---
-title: Generate Files | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Generate Files
+description: Learn how to use the Code Generation in Terramate to generate arbitrary text files referencing Terramate defined data.
 
 prev:
   text: 'Generate HCL'

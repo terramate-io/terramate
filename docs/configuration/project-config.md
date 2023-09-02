@@ -1,6 +1,6 @@
 ---
-title: Project Configuration | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Project Configuration
+description: Learn how to configure a Terramate project. Terramate does not depend on user configuration and comes with a set of sensible defaults.
 
 prev:
   text: 'Projet Setup'
@@ -19,7 +19,7 @@ Configurations are valid project-wide and can be defined only once at the projec
 
 All project configurations are defined within the `terramate` block.
 
-## The `terramate.required_version` Attribute
+## The `terramate.required_version` attribute
 
 Required version is defined by the attribute `terramate.required_version` attribute
 where `required_version` accepts a version constraint string that specifies which
@@ -29,8 +29,9 @@ The `terramate.required_version_allow_prereleases` attribute controls if **prere
 [Semantic Versioning](https://semver.org/) precedence ordering. It's **false** by
 default and if set to `true`, then Terramate will also accept prereleases if they
 match the provided constraint.
-_It's not usually recommended to change it unless you know what you are doing._
-_When dealing with infrastructure code you must be extra cautious about experimental releases as they could lead to dangerous changes._
+
+>It is generally advised against modifying infrastructure code without possessing a comprehensive understanding of its function and impact. Ensure extreme caution when considering experimental releases, given that they can potentially lead to dangerous changes.
+>
 
 We recommend pinning the exact version to use and updating the config when updating Terramate.
 
@@ -53,13 +54,15 @@ terramate {
 }
 ```
 
-No versioning check will be performed if no `terramate.required_version` is defined on a project. If a version constraint is defined, running `terramate` with an incompatible version will result in a fatal error.
+If a `terramate.required_version` is not defined within a project, no versioning checks will be carried
+out. If a version constraint is specified and an incompatible version of Terramate is run, a fatal error
+will occur.
 
-## The `terramate.config` Block
+## The `terramate.config` block
 
 Project-wide configuration can be defined in this block. All possible settings are described in the following subsections.
 
-### The `terramate.config.git` Block
+### The `terramate.config.git` block
 
 Git related configurations are defined inside the `terramate.config.git` block, like this:
 
@@ -77,16 +80,13 @@ terramate {
 }
 ```
 
-For a list of all configurations and their full schema check the
-[configuration overview](index.md#terramateconfiggit-block-schema).
+For a comprehensive list of configurations and their corresponding schema, refer to the
+[configuration overview](index.md).
 
 ### The `terramate.config.run` Block
 
 Configuration for the `terramate run` command can be set in the
 `terramate.config.run` block.
-
-For a list of all configurations and their full schema check the
-[configuration overview](index.md#terramateconfigrun-block-schema).
 
 #### The `terramate.config.run.env` Block
 
@@ -134,4 +134,4 @@ Any attributes defined
 on `terramate.config.run.env` blocks won't affect the `env` namespace.
 
 You can have multiple `terramate.config.run.env` blocks defined on different
-files, but variable names can **not** be defined twice.
+files, but variable names **cannot** be defined twice.

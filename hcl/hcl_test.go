@@ -126,6 +126,36 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid import glob pattern",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body:     `import { source = "../imports/[*" }`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(1, 19, 18), End(1, 34, 33))),
+				},
+			},
+		},
+		{
+			name: "import glob with no matching files",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body:     `import { source = "../imports/*" }`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						Mkrange("cfg.tm", Start(1, 19, 18), End(1, 33, 32))),
+				},
+			},
+		},
+		{
 			name: "unrecognized attribute inside terramate block",
 			input: []cfgfile{
 				{
@@ -631,6 +661,26 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 							}
 						}
 						content = ""
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_hcl with no content block",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+					generate_hcl "test.tf" {
+						lets {
+							a = 1
+						}
 					}
 					`,
 				},

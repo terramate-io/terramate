@@ -7,8 +7,8 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^0.39.5",
-    "eslint": "^8.42.0",
+    "@antfu/eslint-config": "^0.39.7",
+    "eslint": "^8.44.0",
     "pnpm": "8.6.1",
     "vitepress": "1.0.0-beta.1"
   },

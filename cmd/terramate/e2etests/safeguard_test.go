@@ -112,7 +112,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 
 	fileContents := "# whatever"
 
-	setup := func(t *testing.T) (tmcli, sandbox.FileEntry, sandbox.S) {
+	setup := func(t *testing.T, env ...string) (tmcli, sandbox.FileEntry, sandbox.S) {
 		t.Helper()
 		s := sandbox.New(t)
 
@@ -126,7 +126,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			stack.CreateFile("some-new-file", "testing")
 		})
 
-		return newCLI(t, s.RootDir()), someFile, s
+		return newCLI(t, s.RootDir(), env...), someFile, s
 	}
 
 	cat := test.LookPath(t, "cat")
@@ -155,10 +155,8 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 	})
 
 	t.Run("disable check_remote safeguard using env vars", func(t *testing.T) {
-		tmcli, file, _ := setup(t)
-		tmcli.env = append([]string{
-			"TM_DISABLE_CHECK_GIT_REMOTE=true",
-		}, testEnviron(t)...)
+		tmcli, file, _ := setup(t, testEnviron(t)...)
+		tmcli.appendEnv = append(tmcli.appendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=true")
 
 		assertRunResult(t, tmcli.run("run", cat, file.HostPath()), runExpected{
 			Stdout: fileContents,

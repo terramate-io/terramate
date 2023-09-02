@@ -16,7 +16,21 @@ import (
 	"github.com/terramate-io/terramate/project"
 )
 
-// Exec will execute the given command on the given stack list
+const (
+	// ErrFailed represents the error when the execution fails, whatever the reason.
+	ErrFailed errors.Kind = "execution failed"
+	// ErrCanceled represents the error when the execution was canceled.
+	ErrCanceled errors.Kind = "execution canceled"
+)
+
+// ExecContext declares an stack execution context.
+type ExecContext struct {
+	Stack *config.Stack
+	Cmd   []string
+}
+
+// ExecAll will execute the list of RunStack definitions. A RunStack
+// defines the stack and its command to be executed.
 // During the execution of this function the default behavior
 // for signal handling will be changed so we can wait for the child
 // process to exit before exiting Terramate.
@@ -25,18 +39,18 @@ import (
 // commands on stacks even in face of failures, returning an error.L with all errors.
 // If continue on error is false it will return as soon as it finds an error,
 // returning a list with a single error inside.
-func Exec(
+func ExecAll(
 	root *config.Root,
-	stacks config.List[*config.SortableStack],
-	cmd []string,
+	runStacks []ExecContext,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
 	continueOnError bool,
+	before func(s *config.Stack, cmd string),
+	after func(s *config.Stack, err error),
 ) error {
 	logger := log.With().
-		Str("action", "run.Exec()").
-		Str("cmd", strings.Join(cmd, " ")).
+		Str("action", "run.ExecAll()").
 		Logger()
 
 	const signalsBuffer = 10
@@ -45,10 +59,10 @@ func Exec(
 	stackEnvs := map[project.Path]EnvVars{}
 
 	logger.Trace().Msg("loading stacks run environment variables")
-	for _, elem := range stacks {
+	for _, elem := range runStacks {
 		env, err := LoadEnv(root, elem.Stack)
 		errs.Append(err)
-		stackEnvs[elem.Dir()] = env
+		stackEnvs[elem.Stack.Dir] = env
 	}
 
 	if errs.AsError() != nil {
@@ -64,17 +78,39 @@ func Exec(
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
 
+	cancelStacks := func(stacks []ExecContext) {
+		for _, run := range stacks {
+			after(run.Stack, errors.E(ErrCanceled))
+		}
+	}
+
 	results := startCmdRunner(cmds)
 
-	for _, stack := range stacks {
+	for i, run := range runStacks {
+		cmdStr := strings.Join(run.Cmd, " ")
 		logger := log.With().
-			Str("cmd", strings.Join(cmd, " ")).
-			Stringer("stack", stack).
+			Str("cmd", cmdStr).
+			Stringer("stack", run.Stack).
 			Logger()
 
-		cmd := exec.Command(cmd[0], cmd[1:]...)
-		cmd.Dir = stack.HostDir(root)
-		cmd.Env = append(os.Environ(), stackEnvs[stack.Dir()]...)
+		before(run.Stack, cmdStr)
+
+		environ := make([]string, len(os.Environ()))
+		copy(environ, os.Environ())
+		environ = append(environ, stackEnvs[run.Stack.Dir]...)
+		cmdPath, err := lookPath(run.Cmd[0], environ)
+		if err != nil {
+			after(run.Stack, errors.E(err, ErrFailed))
+			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
+			if continueOnError {
+				continue
+			}
+			cancelStacks(runStacks[i+1:])
+			return errs.AsError()
+		}
+		cmd := exec.Command(cmdPath, run.Cmd[1:]...)
+		cmd.Dir = run.Stack.HostDir(root)
+		cmd.Env = environ
 		cmd.Stdin = stdin
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
@@ -82,10 +118,12 @@ func Exec(
 		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
-			errs.Append(errors.E(stack, err, "running %s", cmd))
+			after(run.Stack, errors.E(err, ErrFailed))
+			errs.Append(errors.E(run.Stack, err, "running %s", cmd))
 			if continueOnError {
 				continue
 			}
+			cancelStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
 
@@ -113,17 +151,28 @@ func Exec(
 			case err := <-results:
 				logger.Trace().Msg("got command result")
 				if err != nil {
-					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, stack.Dir()))
+					if interruptions >= 3 {
+						after(run.Stack, errors.E(ErrCanceled, err))
+					} else {
+						after(run.Stack, errors.E(ErrFailed, err))
+					}
+					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
 					if !continueOnError {
+						cancelStacks(runStacks[i+1:])
 						return errs.AsError()
 					}
+				} else {
+					after(run.Stack, nil)
 				}
+
 				cmdIsRunning = false
 			}
 		}
 
 		if interruptions > 0 {
 			logger.Info().Msg("interrupting execution of further stacks")
+
+			cancelStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
 	}

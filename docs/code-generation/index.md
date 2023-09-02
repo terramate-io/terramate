@@ -1,6 +1,6 @@
 ---
-title: Code Generation | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Code Generation
+description: Learn how to use the Code Generation in Terramate to generate files such as Terraform, Kubernetes Manifests and more.
 
 prev:
   text: 'Map Block'
@@ -28,10 +28,10 @@ Currently, we support:
 
 Code generation supports two execution contexts:
 
-- stack: generates code relative to the stack where it's defined.
-- root: generates code outside of stacks.
+- **stack**: generates code relative to the stack where it's defined.
+- **root**: generates code outside of stacks.
 
-The `stack` context gives access to all code generation features, like:
+The `stack` context gives access to all code generation features, such as:
 
 * [Globals](../data-sharing/index.md#globals)
 * [All Metadata](../data-sharing/index.md#metadata)

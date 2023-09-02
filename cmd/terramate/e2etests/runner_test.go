@@ -5,24 +5,36 @@ package e2etest
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/test"
 )
 
 const defaultErrExitStatus = 1
 
+const testCliConfigFormat = `
+user_terramate_dir = "%s"
+`
+
 type tmcli struct {
-	t        *testing.T
-	chdir    string
-	loglevel string
-	env      []string
+	t         *testing.T
+	chdir     string
+	loglevel  string
+	environ   []string
+	appendEnv []string
+
+	userDir string
 }
 
 type runResult struct {
@@ -45,18 +57,55 @@ type runExpected struct {
 	Status        int
 }
 
-func newCLI(t *testing.T, chdir string) tmcli {
-	return tmcli{
+func newCLI(t *testing.T, chdir string, env ...string) tmcli {
+	tm := tmcli{
 		t:     t,
 		chdir: chdir,
 	}
+	if len(env) == 0 {
+		env = os.Environ()
+	}
+	env = append(env, "CHECKPOINT_DISABLE=1")
+	// custom cliconfig file
+	tm.userDir = t.TempDir()
+	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))
+	env = append(env,
+		"TM_CLI_CONFIG_FILE="+cliConfigPath,
+		"ACTIONS_ID_TOKEN_REQUEST_URL=",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
+	)
+	tm.environ = env
+	return tm
 }
 
 func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
-	return tmcli{
-		t:        t,
-		chdir:    chdir,
-		loglevel: loglevel,
+	tm := newCLI(t, chdir)
+	tm.loglevel = loglevel
+	return tm
+}
+
+func (tm *tmcli) prependToPath(dir string) {
+	envKeyEquality := func(s1, s2 string) bool { return s1 == s2 }
+	if runtime.GOOS == "windows" {
+		envKeyEquality = strings.EqualFold
+	}
+	addTo := func(env []string, dir string) bool {
+		for i, v := range env {
+			eqPos := strings.Index(v, "=")
+			key := v[:eqPos]
+			oldv := v[eqPos+1:]
+			if envKeyEquality(key, "PATH") {
+				v = key + "=" + dir + string(os.PathListSeparator) + oldv
+				env[i] = v
+				return true
+			}
+		}
+		return false
+	}
+
+	found := addTo(tm.appendEnv, dir)
+	if !found && !addTo(tm.environ, dir) {
+		tm.appendEnv = append(tm.appendEnv, fmt.Sprintf("PATH=%s", dir))
 	}
 }
 
@@ -137,12 +186,26 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	}
 
 	allargs = append(allargs, args...)
+	env := append(tm.environ, tm.appendEnv...)
 
-	env := tm.env
-	if len(env) == 0 {
-		env = os.Environ()
+	// fake credentials
+	type MyCustomClaims struct {
+		Email string `json:"email"`
+		jwt.StandardClaims
 	}
-	env = append(env, "CHECKPOINT_DISABLE=1")
+
+	claims := MyCustomClaims{
+		"batman@example.com",
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
+			Issuer:    "terramate-tests",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	fakeJwt, err := token.SignedString([]byte("test"))
+	assert.NoError(t, err)
+	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd"}`, fakeJwt))
 
 	cmd := exec.Command(terramateTestBin, allargs...)
 	cmd.Stdout = stdout
@@ -229,7 +292,7 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 			}
 		} else {
 			if diff := cmp.Diff(wantStdout, stdout); diff != "" {
-				t.Errorf("stdout mismatch: %s", diff)
+				t.Errorf("stdout mismatch (-want +got): %s", diff)
 			}
 		}
 	}

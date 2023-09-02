@@ -1,6 +1,6 @@
 ---
-title: Map | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Map
+description: The map block can be used to create complex maps and objects inside globals and lets blocks.
 
 prev:
   text: 'Sharing Data'

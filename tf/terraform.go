@@ -59,7 +59,6 @@ func ParseModules(path string) ([]Module, error) {
 
 	logger.Trace().Msg("Parse modules")
 
-	errs := errors.L()
 	var modules []Module
 	for _, block := range body.Blocks {
 		if block.Type != "module" {
@@ -96,11 +95,46 @@ func ParseModules(path string) ([]Module, error) {
 		modules = append(modules, Module{Source: source})
 	}
 
-	if err := errs.AsError(); err != nil {
-		return nil, err
+	return modules, nil
+}
+
+// IsStack tells if the file defined by path is a potential stack.
+// Eg.: has a backend block or a provider block.
+func IsStack(path string) (bool, error) {
+	logger := log.With().
+		Str("action", "IsStack").
+		Logger()
+
+	p := hclparse.NewParser()
+
+	logger.Debug().Msg("Parsing TF file")
+
+	f, diags := p.ParseHCLFile(path)
+	if diags.HasErrors() {
+		return false, errors.E(ErrHCLSyntax, diags)
 	}
 
-	return modules, nil
+	body := f.Body.(*hclsyntax.Body)
+
+	logger.Trace().Msg("Parse terraform.backend blocks")
+
+	for _, block := range body.Blocks {
+		switch block.Type {
+		case "terraform":
+			for _, block := range block.Body.Blocks {
+				if block.Type != "backend" {
+					continue
+				}
+
+				logger.Trace().Msg("found a backend block")
+				return true, nil
+			}
+		case "provider":
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, error) {

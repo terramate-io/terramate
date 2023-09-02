@@ -1,6 +1,6 @@
 ---
-title: Project Setup | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Project Setup
+description: Learn how to set up a new Terramate project. Terramate comes with sensible defaults so just using it inside a pre existent Git repository should not require any configurations.
 
 prev:
   text: 'Terramate Configuration'
@@ -14,7 +14,7 @@ next:
 # Project Setup
 
 If you already have a project versioned on Git setting up
-Terramate is as easy as just [installing Terramate](#installing).
+Terramate is as easy as just [installing Terramate](./../installation.md).
 Terramate comes with sensible defaults so just using it inside a pre existent
 Git repository should not require any configurations.
 
@@ -61,6 +61,6 @@ EOM
 # Start using terramate
 ```
 
-In a setup with no VCS change detection features will not be available.
+In a setup with no VCS, [change detection](../change-detection/index.md) features will not be available.
 
 You can also check our [live example](https://github.com/terramate-io/terramate-example-code-generation).

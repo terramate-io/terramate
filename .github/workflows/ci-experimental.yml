@@ -2,7 +2,15 @@
 # SPDX-License-Identifier: MPL-2.0
 
 name: ci-experimental
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'makefiles/**'
+      - '.github/**'
+      - '**/*.tm.hcl'
+      - '.tool-versions'
+
 jobs:
   build_test:
     name: Build and Test

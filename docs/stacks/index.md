@@ -1,6 +1,6 @@
 ---
-title: Stacks | Terramate
-description: Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.
+title: Stacks
+description: Terramate stacks allow you to adopt a modular approach by breaking your IaC into smaller and isolated units to simplify resource creation and management, allowing you to focus on building and deploying the application.
 
 prev:
   text: 'Getting Started'
@@ -23,8 +23,7 @@ The Terramate stack is a powerful feature that allows you to manage complex depl
 ## What is a Stack?
 
 A stack is a collection of related resources managed as a single unit. When defining a stack, you specify all included resources, such as networks, virtual machines, and storage. 
-
-Terramate Stack simplifies resource creation and management, allowing you to focus on building and deploying the application.
+Stacks simplify resource creation and management, allowing you to focus on building and deploying the application.
 
 
 ## A Terramate stack is:
@@ -72,8 +71,8 @@ Some of these properties include:
 ## stack.id (string)(optional)
 
 The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
-The ID can't be bigger than 64 bytes and **must** be unique on the
-whole project.
+The ID can't be bigger than 64 bytes, **it's case insensitive** and
+**must** be unique on the whole project.
 
 There is no default value determined for the stack ID.
 
@@ -111,18 +110,96 @@ The tags must be a unique set of strings, where each tag must adhere to the foll
 - It must end with a lowercase ASCII alphanumeric character (`[0-9a-z]`).
 - It must have only lowercase ASCII alphanumeric, `_` and `-` characters (`[0-9a-z_-]`).
 
+```hcl
+stack {
+  tags = [
+    "aws",
+    "vpc",
+    "bastion",
+  ]
+}
+```
+
 ## stack.watch (list)(optional)
 
 The list of files that must be watched for changes in the
 [change detection](../change-detection/index.md).
+
+```hcl
+stack {
+  watch = [
+    "/policies/mypolicy.json"
+  ]
+}
+```
+
+The configuration above will mark the stack as changed whenever
+the file `/policies/mypolicy.json` changes.
 
 ## stack.after (set(string))(optional)
 
 The `after` defines the list of stacks which this stack must run after.
 It accepts project absolute paths (like `/other/stack`), paths relative to
 the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md).
+
+```hcl
+stack {
+  after = [
+    "tag:prod:networking",
+    "/prod/apps/auth"
+  ]
+}
+```
+
+The stack above will run after all stacks tagged with `prod` **and** `networking` and after `/prod/apps/auth` stack.
+
 See [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
 
 ## stack.before (set(string))(optional)
 
 Defines the list of stacks that this stack must run `before`. It accepts project absolute paths (like `/other/stack`), paths relative to the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md). See  [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
+
+## stack.wants (set(string))(optional)
+
+This attribute defines the list of stacks that must be selected 
+whenever this stack is selected to be executed.
+
+```hcl
+stack {
+  wants = [
+    "/other/stack"
+  ]
+}
+```
+
+When the stack defined above is selected to be executed, the list
+of stacks defined in its `wants` set are also selected.
+
+Suppose you need to run just a subset of the project's stacks, 
+you can do so by `cd` (change directory) into a child directory.
+In that case, when executing `terramate run` only the stacks visible
+from that directory are going to be executed, but if any of the
+selected stacks have a `wants` clause for selecting additional stacks,
+not present in the subset, then they will also be included in the
+final execution set.
+
+## stack.wanted_by (set(string))(optional)
+
+This attribute defines the list of stacks that are wanted by
+this stack, which means the stacks in the list will select this
+stack whenever they are selected for execution.
+
+```
+stack {
+  wanted_by = [
+    "/other/stack-1",
+    "/other/stack-2",
+  ]
+}
+```
+
+When using the configuration above, whenever `/other/stack-1` or
+`/other/stack-2` is selected to be executed, then Terramate will
+also select the current stack.
+This option works in the same way as if both `/other/stack-1` and 
+`/other/stack-2` had a `stack.wants` attribute targeting this stack.

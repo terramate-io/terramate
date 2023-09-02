@@ -7,9 +7,21 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - 'makefiles/**'
+      - '.github/**'
+      - '**/*.tm.hcl'
+      - '.tool-versions'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - 'makefiles/**'
+      - '.github/**'
+      - '**/*.tm.hcl'
+      - '.tool-versions'
 
 jobs:
   build:

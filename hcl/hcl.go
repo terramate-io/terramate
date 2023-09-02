@@ -519,44 +519,74 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	src = filepath.Join(srcDir, srcBase)
-
-	if _, ok := p.parsedFiles[src]; ok {
-		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			"file %q already parsed", src)
-	}
-
-	importParser, err := NewTerramateParser(p.rootdir, srcDir)
+	matches, err := filepath.Glob(src)
 	if err != nil {
+		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
+			"failed to evaluate import.source")
+	}
+	if matches == nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			err, "failed to create sub parser")
+			"import path %q returned no matches", srcVal.AsString())
 	}
-
-	err = importParser.AddFile(src)
-	if err != nil {
-		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			err)
-	}
-	importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
-	err = importParser.Parse()
-	if err != nil {
-		return err
-	}
-	errs := errors.L()
-	for _, block := range importParser.Config.UnmergedBlocks {
-		if block.Type == "stack" {
-			errs.Append(
-				errors.E(ErrImport, srcAttr.Expr.Range(),
-					"import of stack block is not permitted"))
+	for _, file := range matches {
+		if _, ok := p.parsedFiles[file]; ok {
+			return errors.E(ErrImport, srcAttr.Expr.Range(),
+				"file %q already parsed", file)
 		}
-	}
 
-	errs.Append(p.Imported.Merge(importParser.Imported))
-	errs.Append(p.Imported.Merge(importParser.Config))
-	if err := errs.AsError(); err != nil {
-		return errors.E(ErrImport, err, "failed to merge imported configuration")
-	}
+		st, err := os.Lstat(file)
+		if err != nil {
+			return errors.E(
+				ErrImport,
+				srcAttr.Expr.Range(),
+				"failed to stat file %q",
+				file,
+			)
+		}
 
-	p.addParsedFile(p.dir, external, src)
+		if st.IsDir() {
+			return errors.E(
+				ErrImport,
+				srcAttr.Expr.Range(),
+				"import directory is not allowed: %s",
+				file,
+			)
+		}
+
+		fileDir := filepath.Dir(file)
+		importParser, err := NewTerramateParser(p.rootdir, fileDir)
+		if err != nil {
+			return errors.E(ErrImport, srcAttr.Expr.Range(),
+				err, "failed to create sub parser: %s", fileDir)
+		}
+
+		err = importParser.AddFile(file)
+		if err != nil {
+			return errors.E(ErrImport, srcAttr.Expr.Range(),
+				err)
+		}
+		importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
+		err = importParser.Parse()
+		if err != nil {
+			return err
+		}
+		errs := errors.L()
+		for _, block := range importParser.Config.UnmergedBlocks {
+			if block.Type == "stack" {
+				errs.Append(
+					errors.E(ErrImport, srcAttr.Expr.Range(),
+						"import of stack block is not permitted"))
+			}
+		}
+
+		errs.Append(p.Imported.Merge(importParser.Imported))
+		errs.Append(p.Imported.Merge(importParser.Config))
+		if err := errs.AsError(); err != nil {
+			return errors.E(ErrImport, err, "failed to merge imported configuration")
+		}
+
+		p.addParsedFile(p.dir, external, file)
+	}
 	return nil
 }
 
@@ -816,6 +846,11 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 			// already validated but sanity checks...
 			panic(errors.E(errors.ErrInternal, "unexpected block type %s", subBlock.Type))
 		}
+	}
+
+	if content == nil {
+		errs.Append(
+			errors.E(ErrTerramateSchema, `"generate_hcl" block requires a content block`, block.Range))
 	}
 
 	mergedLets := ast.MergedLabelBlocks{}
@@ -1675,10 +1710,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			errs.AppendWrap(ErrTerramateSchema, validateGlobals(mergedBlock))
 		}
-	}
-
-	if err := errs.AsError(); err != nil {
-		return Config{}, err
 	}
 
 	config.Globals = globals

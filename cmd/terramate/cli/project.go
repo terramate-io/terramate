@@ -12,6 +12,7 @@ import (
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/stack"
 )
 
 type project struct {
@@ -27,6 +28,8 @@ type project struct {
 		headCommit                string
 		localDefaultBranchCommit  string
 		remoteDefaultBranchCommit string
+
+		repoChecks stack.RepoChecks
 	}
 }
 

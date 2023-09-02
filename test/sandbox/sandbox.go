@@ -462,6 +462,8 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 
 	body = fmt.Sprintf(body, args...)
 
+	test.MkdirAll(fe.t, filepath.Dir(fe.hostpath))
+
 	if err := os.WriteFile(fe.hostpath, []byte(body), 0700); err != nil {
 		fe.t.Fatalf("os.WriteFile(%q) = %v", fe.hostpath, err)
 	}
@@ -606,7 +608,6 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 		assert.NoError(t, err)
 
 		cfg.Stack = &hcl.Stack{}
-		cfg.Terramate = &hcl.Terramate{}
 
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
