@@ -1875,17 +1875,13 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 		})
 	}
 
-	evaluators := []eval.Resolver{}
-	if st != nil {
-		evaluators = append(evaluators, runtime.NewResolver(c.cfg(), st))
-	} else {
-		evaluators = append(evaluators, runtime.NewResolver(c.cfg(), nil))
-	}
-
-	evaluators = append(evaluators, globals.NewResolver(c.cfg(), overrideStmts...))
-
 	tree, _ := c.cfg().Lookup(pdir)
-	ctx := eval.New(tree.Dir(), evaluators...)
+	ctx := eval.New(
+		tree.Dir(),
+		runtime.NewResolver(c.cfg(), st),
+		globals.NewResolver(c.cfg(), overrideStmts...),
+	)
+
 	ctx.SetFunctions(stdlib.NoFS(ctx, c.wd()))
 	return ctx
 }
