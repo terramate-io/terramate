@@ -1,5 +1,5 @@
 ---
-title: Project Setup
+title: Create a new Terramate project
 description: Learn how to set up a new Terramate project. Terramate comes with sensible defaults so just using it inside a pre existent Git repository should not require any configurations.
 
 prev:
@@ -11,7 +11,7 @@ next:
   link: '/configuration/project-config'
 ---
 
-# Project Setup
+# Create a new Terramate project
 
 If you already have a project versioned on Git setting up
 Terramate is as easy as just [installing Terramate](./../installation.md).
@@ -64,3 +64,16 @@ EOM
 In a setup with no VCS, [change detection](../change-detection/index.md) features will not be available.
 
 You can also check our [live example](https://github.com/terramate-io/terramate-example-code-generation).
+
+# Initializing existing infrastructure
+
+If you already have a IaC repository containing multiple Terraform stacks then
+you can use the command below to easily detect and create Terramate stacks automatically:
+
+```bash
+terramate create --all-terraform
+```
+
+The command above will scan the repository looking for Terraform directories
+containing a `backend` or `provider` configuration, which commonly indicates that
+it's a Terraform stack.
