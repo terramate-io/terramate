@@ -230,7 +230,7 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	}
 	req.Header.Add("User-Agent", "terramate/v"+terramate.Version())
 	req.Header.Add("Authorization", "Bearer "+token)
-	req.Header.Add("Context-Type", contentType)
+	req.Header.Add("Content-Type", contentType)
 	return req, nil
 }
 
