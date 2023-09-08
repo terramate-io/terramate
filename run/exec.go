@@ -19,8 +19,17 @@ import (
 const (
 	// ErrFailed represents the error when the execution fails, whatever the reason.
 	ErrFailed errors.Kind = "execution failed"
-	// ErrCanceled represents the error when the execution was canceled.
-	ErrCanceled errors.Kind = "execution canceled"
+
+	// ErrCommandNotFound represents the error when the command cannot be found
+	// in the system.
+	ErrCommandNotFound errors.Kind = "command not found"
+
+	// ErrAborted represents the error when the execution was canceled.
+	ErrAborted errors.Kind = "execution aborted"
+
+	// ErrSkipped represents the error when a stack is skipped due to other
+	// failed stacks.
+	ErrSkipped errors.Kind = "execution skipped due to failed stacks"
 )
 
 // ExecContext declares an stack execution context.
@@ -28,6 +37,14 @@ type ExecContext struct {
 	Stack *config.Stack
 	Cmd   []string
 }
+
+// BeforeHook is the function signature for executing a function before each
+// stack is executed.
+type BeforeHook func(s *config.Stack, cmd string)
+
+// AfterHook is the function signature for executing a function after each
+// stack is executed.
+type AfterHook func(s *config.Stack, exitCode int, err error)
 
 // ExecAll will execute the list of RunStack definitions. A RunStack
 // defines the stack and its command to be executed.
@@ -46,8 +63,8 @@ func ExecAll(
 	stdout io.Writer,
 	stderr io.Writer,
 	continueOnError bool,
-	before func(s *config.Stack, cmd string),
-	after func(s *config.Stack, err error),
+	before BeforeHook,
+	after AfterHook,
 ) error {
 	logger := log.With().
 		Str("action", "run.ExecAll()").
@@ -78,13 +95,13 @@ func ExecAll(
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
 
-	cancelStacks := func(stacks []ExecContext) {
+	skipStacks := func(stacks []ExecContext) {
 		for _, run := range stacks {
-			after(run.Stack, errors.E(ErrCanceled))
+			after(run.Stack, -1, errors.E(ErrSkipped))
 		}
 	}
 
-	results := startCmdRunner(cmds)
+	results := startCmdConsumer(cmds)
 
 	for i, run := range runStacks {
 		cmdStr := strings.Join(run.Cmd, " ")
@@ -100,12 +117,12 @@ func ExecAll(
 		environ = append(environ, stackEnvs[run.Stack.Dir]...)
 		cmdPath, err := lookPath(run.Cmd[0], environ)
 		if err != nil {
-			after(run.Stack, errors.E(err, ErrFailed))
+			after(run.Stack, -1, errors.E(err, ErrCommandNotFound))
 			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 			if continueOnError {
 				continue
 			}
-			cancelStacks(runStacks[i+1:])
+			skipStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
 		cmd := exec.Command(cmdPath, run.Cmd[1:]...)
@@ -118,12 +135,12 @@ func ExecAll(
 		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
-			after(run.Stack, errors.E(err, ErrFailed))
+			after(run.Stack, cmd.ProcessState.ExitCode(), errors.E(err, ErrFailed))
 			errs.Append(errors.E(run.Stack, err, "running %s", cmd))
 			if continueOnError {
 				continue
 			}
-			cancelStacks(runStacks[i+1:])
+			skipStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
 
@@ -148,21 +165,22 @@ func ExecAll(
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
 				}
-			case err := <-results:
+			case result := <-results:
 				logger.Trace().Msg("got command result")
-				if err != nil {
+				if result.err != nil {
+					err := result.err
 					if interruptions >= 3 {
-						after(run.Stack, errors.E(ErrCanceled, err))
+						after(run.Stack, -1, errors.E(ErrAborted, err))
 					} else {
-						after(run.Stack, errors.E(ErrFailed, err))
+						after(run.Stack, result.cmd.ProcessState.ExitCode(), errors.E(ErrFailed, err))
 					}
-					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
+					errs.Append(errors.E(err, "running %s (at stack %s)", result.cmd, run.Stack.Dir))
 					if !continueOnError {
-						cancelStacks(runStacks[i+1:])
+						skipStacks(runStacks[i+1:])
 						return errs.AsError()
 					}
 				} else {
-					after(run.Stack, nil)
+					after(run.Stack, 0, nil)
 				}
 
 				cmdIsRunning = false
@@ -172,7 +190,7 @@ func ExecAll(
 		if interruptions > 0 {
 			logger.Info().Msg("interrupting execution of further stacks")
 
-			cancelStacks(runStacks[i+1:])
+			skipStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
 	}
@@ -180,13 +198,21 @@ func ExecAll(
 	return errs.AsError()
 }
 
-func startCmdRunner(cmds <-chan *exec.Cmd) <-chan error {
-	errs := make(chan error)
+type cmdResult struct {
+	cmd *exec.Cmd
+	err error
+}
+
+func startCmdConsumer(cmds <-chan *exec.Cmd) <-chan cmdResult {
+	results := make(chan cmdResult)
 	go func() {
 		for cmd := range cmds {
-			errs <- cmd.Wait()
+			results <- cmdResult{
+				cmd: cmd,
+				err: cmd.Wait(),
+			}
 		}
-		close(errs)
+		close(results)
 	}()
-	return errs
+	return results
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
@@ -81,8 +82,8 @@ func (c *cli) cloudEnabled() bool {
 	return !c.cloud.disabled
 }
 
-func (c *cli) checkSyncDeployment() {
-	if !c.parsedArgs.Run.CloudSyncDeployment {
+func (c *cli) checkCloudSync() {
+	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus {
 		return
 	}
 	err := c.setupCloudConfig()
@@ -166,29 +167,11 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
-	logger := log.With().
-		Logger()
+func (c *cli) createCloudDeployment(runStacks []run.ExecContext) (run.BeforeHook, run.AfterHook) {
+	logger := log.With().Logger()
 
-	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
-		return
-	}
-
-	logger.Trace().Msg("Checking if selected stacks have id")
-
-	var stacksMissingIDs []string
-	for _, run := range runStacks {
-		if run.Stack.ID == "" {
-			stacksMissingIDs = append(stacksMissingIDs, run.Stack.Dir.String())
-		}
-	}
-
-	if len(stacksMissingIDs) > 0 {
-		for _, stackPath := range stacksMissingIDs {
-			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
-		}
-		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
-		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+	if !c.cloudEnabled() {
+		return beforeExecDoNothing, afterExecDoNothing
 	}
 
 	logger = logger.With().
@@ -260,12 +243,14 @@ func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 			tags = []string{}
 		}
 		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			MetaID:            strings.ToLower(run.Stack.ID),
-			MetaName:          run.Stack.Name,
-			MetaDescription:   run.Stack.Description,
-			MetaTags:          tags,
-			Repository:        normalizedRepo,
-			Path:              run.Stack.Dir.String(),
+			Stack: cloud.Stack{
+				MetaID:          strings.ToLower(run.Stack.ID),
+				MetaName:        run.Stack.Name,
+				MetaDescription: run.Stack.Description,
+				MetaTags:        tags,
+				Repository:      normalizedRepo,
+				Path:            run.Stack.Dir.String(),
+			},
 			CommitSHA:         deploymentCommitSHA,
 			DeploymentCommand: strings.Join(run.Cmd, " "),
 			DeploymentURL:     deploymentURL,
@@ -278,7 +263,7 @@ func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 			Msg(DisablingCloudMessage)
 
 		c.cloud.disabled = true
-		return
+		return beforeExecDoNothing, afterExecDoNothing
 	}
 
 	if len(res) != len(runStacks) {
@@ -288,7 +273,7 @@ func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 		).Msg(DisablingCloudMessage)
 
 		c.cloud.disabled = true
-		return
+		return beforeExecDoNothing, afterExecDoNothing
 	}
 
 	for _, r := range res {
@@ -297,6 +282,38 @@ func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 			fatal(errors.E("backend returned empty meta_id"))
 		}
 		c.cloud.run.meta2id[r.StackMetaID] = r.StackID
+	}
+
+	return c.beforeDeploymentHook(), c.afterDeploymentHook()
+}
+
+func (c *cli) beforeDeploymentHook() run.BeforeHook {
+	return func(s *config.Stack, cmd string) {
+		if !c.cloudEnabled() {
+			return
+		}
+		c.syncCloudDeployment(s, deployment.Running)
+	}
+}
+
+func (c *cli) afterDeploymentHook() run.AfterHook {
+	return func(s *config.Stack, _ int, err error) {
+		if !c.cloudEnabled() {
+			return
+		}
+		var status deployment.Status
+		switch {
+		case err == nil:
+			status = deployment.OK
+		case errors.IsAnyKind(err, run.ErrAborted, run.ErrSkipped):
+			status = deployment.Canceled
+		case errors.IsAnyKind(err, run.ErrFailed, run.ErrCommandNotFound):
+			status = deployment.Failed
+		default:
+			panic(errors.E(errors.ErrInternal, err, "unexpected run status"))
+		}
+
+		c.syncCloudDeployment(s, status)
 	}
 }
 
@@ -329,6 +346,65 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status deployment.Status) {
 	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
 		logger.Err(err).Str("stack_id", s.ID).Msg("failed to update deployment status for each")
+	}
+}
+
+func (c *cli) cloudDriftAfterHook() run.AfterHook {
+	logger := log.With().
+		Str("action", "cloudDriftAfterHook").
+		Logger()
+
+	var normalizedRepo string
+	if c.prj.isRepo {
+		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
+		if err == nil {
+			normalizedRepo = cloud.NormalizeGitURI(repoURL)
+		} else {
+			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
+		}
+	}
+
+	return func(st *config.Stack, exitCode int, err error) {
+		var status stack.Status
+		switch {
+		case exitCode == 0:
+			status = stack.OK
+		case exitCode == 2:
+			status = stack.Drifted
+		case exitCode == 1 || exitCode > 2 || errors.IsAnyKind(err, run.ErrCommandNotFound, run.ErrAborted, run.ErrFailed):
+			status = stack.Failed
+		default:
+			// ignore -1 exit codes
+			return
+		}
+
+		c.cloudSyncDriftStatus(st, status, normalizedRepo)
+	}
+}
+
+func (c *cli) cloudSyncDriftStatus(st *config.Stack, status stack.Status, repo string) {
+	logger := log.With().
+		Str("action", "cloudSyncDriftStatus").
+		Stringer("stack", st.Dir).
+		Str("status", status.String()).
+		Logger()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	_, err := c.cloud.client.CreateStackDrift(ctx, c.cloud.run.orgUUID, cloud.DriftStackPayloadRequest{
+		Stack: cloud.Stack{
+			Repository:      repo,
+			Path:            st.Dir.String(),
+			MetaID:          st.ID,
+			MetaName:        st.Name,
+			MetaDescription: st.Description,
+			MetaTags:        st.Tags,
+		},
+		Status: status,
+	})
+
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to sync the drift status")
 	}
 }
 

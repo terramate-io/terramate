@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -19,6 +20,10 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("test requires at least one subcommand argument")
 	}
+
+	// note: unrecovered panic() aborts the program with exit code 2 and this
+	// could be confused with a *detected drift* (see: run --cloud-sync-drift-status)
+	// then avoid panics here and do proper os.Exit(1) in case of errors.
 
 	switch os.Args[1] {
 	case "echo":
@@ -34,6 +39,8 @@ func main() {
 		os.Exit(0)
 	case "false":
 		os.Exit(1)
+	case "exit":
+		exit(os.Args[2])
 	case "hang":
 		hang()
 	case "sleep":
@@ -67,11 +74,16 @@ func hang() {
 // sleep put the test process to sleep.
 func sleep(durationStr string) {
 	d, err := time.ParseDuration(durationStr)
-	if err != nil {
-		panic(err)
-	}
+	checkerr(err)
 	fmt.Println("ready")
 	time.Sleep(d)
+}
+
+// exit with the provided exitCode.
+func exit(exitCodeStr string) {
+	code, err := strconv.Atoi(exitCodeStr)
+	checkerr(err)
+	os.Exit(code)
 }
 
 // env sends os.Environ() on stdout and exits.
@@ -84,20 +96,21 @@ func env() {
 // cat the file contents to stdout.
 func cat(fname string) {
 	bytes, err := os.ReadFile(fname)
-	if err != nil {
-		panic(err)
-	}
+	checkerr(err)
 	fmt.Printf("%s", string(bytes))
 }
 
 func stackAbsPath(base string) {
 	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	checkerr(err)
 	rel, err := filepath.Rel(base, cwd)
-	if err != nil {
-		panic(err)
-	}
+	checkerr(err)
 	fmt.Println("/" + filepath.ToSlash(rel))
+}
+
+func checkerr(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
 }

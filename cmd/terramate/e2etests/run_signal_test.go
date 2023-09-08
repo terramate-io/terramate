@@ -34,7 +34,13 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 	cmd.start()
 
-	assert.NoError(t, pollBufferForMsgs(cmd.stdout, "ready"))
+	errs := make(chan error)
+	go func() {
+		errs <- cmd.wait()
+		close(errs)
+	}()
+
+	assert.NoError(t, pollBufferForMsgs(cmd.stdout, errs, "ready"))
 
 	// On rare occasions on macos we seen to lose some SIGINT's
 	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt")
@@ -45,12 +51,6 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 	// or it is able to send messages to stdout.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-
-	errs := make(chan error)
-	go func() {
-		errs <- cmd.wait()
-		close(errs)
-	}()
 
 	for ctx.Err() == nil {
 		t.Log("sending last interrupt signal to terramate")
@@ -81,7 +81,7 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 // like "urgent I/O condition". This function will ignore any unknown messages
 // in between but check that at least all msgs where received in the provided
 // order (but ignoring unknown messages in between).
-func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
+func pollBufferForMsgs(buf *buffer, done chan error, wantMsgs ...string) error {
 	const (
 		timeout      = 10 * time.Second
 		pollInterval = 30 * time.Millisecond
@@ -90,23 +90,28 @@ func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
 	var elapsed time.Duration
 
 	for {
-		gotMsgs := strings.Split(buf.String(), "\n")
-		wantIndex := 0
+		select {
+		case err := <-done:
+			return err
+		default:
+			gotMsgs := strings.Split(buf.String(), "\n")
+			wantIndex := 0
 
-		for _, got := range gotMsgs {
-			if got == wantMsgs[wantIndex] {
-				wantIndex++
+			for _, got := range gotMsgs {
+				if got == wantMsgs[wantIndex] {
+					wantIndex++
+				}
+
+				if wantIndex == len(wantMsgs) {
+					return nil
+				}
 			}
 
-			if wantIndex == len(wantMsgs) {
-				return nil
+			time.Sleep(pollInterval)
+			elapsed += pollInterval
+			if elapsed > timeout {
+				return fmt.Errorf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
 			}
-		}
-
-		time.Sleep(pollInterval)
-		elapsed += pollInterval
-		if elapsed > timeout {
-			return fmt.Errorf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
 		}
 	}
 }
@@ -120,7 +125,7 @@ func sendUntilMsgIsReceived(t *testing.T, cmd *testCmd, signal os.Signal, msgs .
 
 	for {
 		cmd.signalGroup(signal)
-		err := pollBufferForMsgs(cmd.stdout, msgs...)
+		err := pollBufferForMsgs(cmd.stdout, make(chan error), msgs...)
 		if err == nil {
 			return
 		}

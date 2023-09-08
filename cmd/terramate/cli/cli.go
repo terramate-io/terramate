@@ -19,7 +19,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
+
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
@@ -132,6 +132,7 @@ type cliSpec struct {
 
 	Run struct {
 		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
+		CloudSyncDriftStatus  bool     `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
 		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
 		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
@@ -1949,7 +1950,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	c.checkOutdatedGeneratedCode()
-	c.checkSyncDeployment()
+	c.checkCloudSync()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
@@ -2017,32 +2018,21 @@ func (c *cli) runOnStacks() {
 		runStacks = append(runStacks, run)
 	}
 
-	c.createCloudDeployment(runStacks)
-
-	beforeHook := func(s *config.Stack, cmd string) {
-		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
-			return
-		}
-		c.syncCloudDeployment(s, deployment.Running)
+	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
+		fatal(errors.E("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"))
 	}
 
-	afterHook := func(s *config.Stack, err error) {
-		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
-			return
-		}
-		var status deployment.Status
-		switch {
-		case err == nil:
-			status = deployment.OK
-		case errors.IsKind(err, run.ErrCanceled):
-			status = deployment.Canceled
-		case errors.IsKind(err, run.ErrFailed):
-			status = deployment.Failed
-		default:
-			panic(errors.E(errors.ErrInternal, "unexpected run status"))
-		}
+	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
+		ensureAllStackHaveIDs(orderedStacks)
+	}
 
-		c.syncCloudDeployment(s, status)
+	beforeHook := beforeExecDoNothing
+	afterHook := afterExecDoNothing
+
+	if c.parsedArgs.Run.CloudSyncDeployment {
+		beforeHook, afterHook = c.createCloudDeployment(runStacks)
+	} else if c.parsedArgs.Run.CloudSyncDriftStatus {
+		afterHook = c.cloudDriftAfterHook()
 	}
 
 	err = run.ExecAll(
@@ -2058,6 +2048,29 @@ func (c *cli) runOnStacks() {
 
 	if err != nil {
 		fatal(err, "one or more commands failed")
+	}
+}
+
+func ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
+	logger := log.With().
+		Str("action", "ensureAllStackHaveIDs").
+		Logger()
+
+	logger.Trace().Msg("Checking if selected stacks have id")
+
+	var stacksMissingIDs []string
+	for _, st := range stacks {
+		if st.ID == "" {
+			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
+		}
+	}
+
+	if len(stacksMissingIDs) > 0 {
+		for _, stackPath := range stacksMissingIDs {
+			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
+		}
+		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
+		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
 	}
 }
 
@@ -2256,6 +2269,9 @@ func (c *cli) setupFilterTags() {
 		}
 	}
 }
+
+func beforeExecDoNothing(_ *config.Stack, _ string)      {}
+func afterExecDoNothing(_ *config.Stack, _ int, _ error) {}
 
 func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	log.Debug().
