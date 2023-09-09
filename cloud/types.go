@@ -137,6 +137,7 @@ type (
 		DeploymentCommitVerified       *bool  `json:"deployment_commit_verified,omitempty"`
 		DeploymentCommitVerifiedReason string `json:"deployment_commit_verified_reason,omitempty"`
 
+		DeploymentCommitSHA         string `json:"deployment_commit_sha,omitempty"`
 		DeploymentCommitTitle       string `json:"deployment_commit_title,omitempty"`
 		DeploymentCommitDescription string `json:"deployment_commit_description,omitempty"`
 
