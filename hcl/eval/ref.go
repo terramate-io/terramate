@@ -149,9 +149,10 @@ func (refs Refs) equal(other Refs) bool {
 }
 
 // refsOf returns a distinct set of Refs contained in the expression.
-func refsOf(expr hhcl.Expression) Refs {
+func refsOf(expr hhcl.Expression) (Refs, map[string]Ref) {
 	ret := Refs{}
 	uniqueRefs := map[string]Ref{}
+	refsObjects := map[string]Ref{}
 	for _, trav := range expr.Variables() {
 		// they are all root traversals
 		ref := Ref{
@@ -178,8 +179,9 @@ func refsOf(expr hhcl.Expression) Refs {
 
 		if _, ok := uniqueRefs[ref.String()]; !ok {
 			uniqueRefs[ref.String()] = ref
+			refsObjects[ref.Object] = ref
 			ret = append(ret, ref)
 		}
 	}
-	return ret
+	return ret, refsObjects
 }

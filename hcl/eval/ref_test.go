@@ -109,7 +109,7 @@ func TestRefsOf(t *testing.T) {
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}
-			refs := refsOf(expr)
+			refs, _ := refsOf(expr)
 			if !refs.equal(tc.want) {
 				t.Fatalf(fmt.Sprintf("(%v != %v)", refs, tc.want))
 			}

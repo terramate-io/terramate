@@ -129,7 +129,7 @@ func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 }
 
 func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression) (cty.Value, error) {
-	refs := refsOf(expr)
+	refs, refsMap := refsOf(expr)
 	unsetRefs := map[RefStr]bool{}
 
 	for _, dep := range refs {
@@ -200,8 +200,10 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 
 	for nsname, ns := range c.ns {
 		if ns.persist {
-			c.SetNamespace(nsname, tocty(ns.bykey).AsValueMap())
-			ns.persist = false
+			if _, ok := refsMap[nsname]; ok {
+				c.SetNamespace(nsname, tocty(ns.bykey).AsValueMap())
+				ns.persist = false
+			}
 		}
 	}
 
