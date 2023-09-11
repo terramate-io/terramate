@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2023 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
 
 WORKSPACE_ROOT="$HOME/src"
 TM="$WORKSPACE_ROOT/terramate"
