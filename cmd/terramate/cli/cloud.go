@@ -220,6 +220,8 @@ func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
+
+		deploymentCommitSHA = c.prj.headCommit()
 	}
 
 	ghRunID := os.Getenv("GITHUB_RUN_ID")
