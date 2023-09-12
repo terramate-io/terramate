@@ -220,6 +220,8 @@ func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
 		} else {
 			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
 		}
+
+		deploymentCommitSHA = c.prj.headCommit()
 	}
 
 	ghRunID := os.Getenv("GITHUB_RUN_ID")
@@ -381,7 +383,8 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	pulls, err := ghClient.PullsForCommit(ctx, ghRepo, c.prj.headCommit())
+	headCommit := c.prj.headCommit()
+	pulls, err := ghClient.PullsForCommit(ctx, ghRepo, headCommit)
 	if err != nil {
 		if errors.IsKind(err, github.ErrNotFound) {
 			if ghToken == "" {
@@ -414,12 +417,13 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 		Platform:              "github",
 		DeploymentTriggeredBy: os.Getenv("GITHUB_ACTOR"),
 		DeploymentBranch:      os.Getenv("GITHUB_REF_NAME"),
+		DeploymentCommitSHA:   headCommit,
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	commit, err := ghClient.Commit(ctx, ghRepo, c.prj.headCommit())
+	commit, err := ghClient.Commit(ctx, ghRepo, headCommit)
 	if err != nil {
 		logger.Warn().
 			Err(err).

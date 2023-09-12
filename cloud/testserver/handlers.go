@@ -119,6 +119,15 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
+		// deployment commit_sha is not required but must be present in all test cases.
+		for _, st := range p.Stacks {
+			if st.CommitSHA == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`commit_sha is missing`))
+				return
+			}
+		}
+
 		res := cloud.DeploymentStacksResponse{}
 		for _, s := range p.Stacks {
 			next := atomic.LoadInt64(&dhandler.nextStackID)
