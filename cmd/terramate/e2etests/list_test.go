@@ -59,7 +59,7 @@ func listTestcases() []testcase {
 			name:   "single stack",
 			layout: []string{"s:stack"},
 			want: runExpected{
-				Stdout: listStacks("stack"),
+				Stdout: nljoin("stack"),
 			},
 		},
 		{
@@ -76,7 +76,7 @@ func listTestcases() []testcase {
 				"d:waste/directories",
 			},
 			want: runExpected{
-				Stdout: listStacks("there/is/a/very/deep/hidden/stack/here"),
+				Stdout: nljoin("there/is/a/very/deep/hidden/stack/here"),
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func listTestcases() []testcase {
 				"s:1", "s:2", "s:3",
 			},
 			want: runExpected{
-				Stdout: listStacks("1", "2", "3"),
+				Stdout: nljoin("1", "2", "3"),
 			},
 		},
 		{
@@ -95,7 +95,7 @@ func listTestcases() []testcase {
 				"s:stack/child-stack",
 			},
 			want: runExpected{
-				Stdout: listStacks("stack", "stack/child-stack"),
+				Stdout: nljoin("stack", "stack/child-stack"),
 			},
 		},
 		{
@@ -112,7 +112,7 @@ func listTestcases() []testcase {
 				"s:mineiros.io/departments/engineering/tests/e2e",
 			},
 			want: runExpected{
-				Stdout: listStacks(
+				Stdout: nljoin(
 					"mineiros.io",
 					"mineiros.io/departments",
 					"mineiros.io/departments/accounting",
@@ -135,7 +135,7 @@ func listTestcases() []testcase {
 				"s:3/x/y/z",
 			},
 			want: runExpected{
-				Stdout: listStacks("1", "2", "3/x/y/z", "x/b", "z/a"),
+				Stdout: nljoin("1", "2", "3/x/y/z", "x/b", "z/a"),
 			},
 		},
 		{
@@ -149,7 +149,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"abc"},
 			want: runExpected{
-				Stdout: listStacks("a", "b", "dir/c"),
+				Stdout: nljoin("a", "b", "dir/c"),
 			},
 		},
 		{
@@ -163,7 +163,7 @@ func listTestcases() []testcase {
 			},
 			filterNoTags: []string{"abc"},
 			want: runExpected{
-				Stdout: listStacks("dir/d", "dir/subdir/e"),
+				Stdout: nljoin("dir/d", "dir/subdir/e"),
 			},
 		},
 		{
@@ -229,7 +229,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"a1"},
 			want: runExpected{
-				Stdout: listStacks("stack"),
+				Stdout: nljoin("stack"),
 			},
 		},
 		{
@@ -243,7 +243,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"a"},
 			want: runExpected{
-				Stdout: listStacks("a", "b", "dir/c"),
+				Stdout: nljoin("a", "b", "dir/c"),
 			},
 		},
 		{
@@ -257,7 +257,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"a:b"},
 			want: runExpected{
-				Stdout: listStacks("a", "b"),
+				Stdout: nljoin("a", "b"),
 			},
 		},
 		{
@@ -271,7 +271,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"a:b:c"},
 			want: runExpected{
-				Stdout: listStacks("a"),
+				Stdout: nljoin("a"),
 			},
 		},
 		{
@@ -285,7 +285,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"a,b"},
 			want: runExpected{
-				Stdout: listStacks("a", "b", "dir/c"),
+				Stdout: nljoin("a", "b", "dir/c"),
 			},
 		},
 		{
@@ -299,7 +299,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"a:b,c:d"},
 			want: runExpected{
-				Stdout: listStacks("a", "b", "dir/d"),
+				Stdout: nljoin("a", "b", "dir/d"),
 			},
 		},
 		{
@@ -311,7 +311,7 @@ func listTestcases() []testcase {
 			},
 			filterTags: []string{"terra-mate,terra_mate"},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: nljoin("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -326,7 +326,7 @@ func listTestcases() []testcase {
 				"terra_mate",
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: nljoin("stack-a", "stack-b"),
 			},
 		},
 	}

@@ -22,7 +22,7 @@ const (
 )
 
 type (
-	// Status of a stack or deployment.
+	// Status of a stack.
 	Status uint8
 
 	// FilterStatus represents a filter for stack statuses.
