@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Ensured that SIGINT aborts execution of subsequent stacks in all cases.
+
 ## 0.4.1
 
 ### Added

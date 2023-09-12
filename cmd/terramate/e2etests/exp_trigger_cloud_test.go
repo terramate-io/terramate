@@ -52,7 +52,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 
 	assertRunResult(t, cli.listChangedStacks(),
 		runExpected{
-			Stdout: listStacks("stacks/my-stack-1"),
+			Stdout: nljoin("stacks/my-stack-1"),
 		},
 	)
 }
@@ -172,7 +172,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1"),
+					Stdout: nljoin("s1"),
 				},
 			},
 		},
@@ -202,7 +202,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1"),
+					Stdout: nljoin("s1"),
 				},
 			},
 		},
@@ -251,7 +251,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1", "s2"),
+					Stdout: nljoin("s1", "s2"),
 				},
 			},
 		},
@@ -282,7 +282,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1", "s2"),
+					Stdout: nljoin("s1", "s2"),
 				},
 			},
 		},

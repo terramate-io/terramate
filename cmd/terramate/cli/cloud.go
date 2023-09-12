@@ -22,7 +22,6 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/run"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -166,7 +165,7 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
+func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 	logger := log.With().
 		Logger()
 
@@ -329,6 +328,38 @@ func (c *cli) syncCloudDeployment(s *config.Stack, status deployment.Status) {
 	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
 		logger.Err(err).Str("stack_id", s.ID).Msg("failed to update deployment status for each")
+	}
+}
+
+func (c *cli) cloudSyncBefore(s *config.Stack, _ string) {
+	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
+		return
+	}
+	c.syncCloudDeployment(s, deployment.Running)
+}
+
+func (c *cli) cloudSyncAfter(s *config.Stack, err error) {
+	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
+		return
+	}
+	var status deployment.Status
+	switch {
+	case err == nil:
+		status = deployment.OK
+	case errors.IsKind(err, ErrRunCanceled):
+		status = deployment.Canceled
+	case errors.IsKind(err, ErrRunFailed):
+		status = deployment.Failed
+	default:
+		panic(errors.E(errors.ErrInternal, "unexpected run status"))
+	}
+
+	c.syncCloudDeployment(s, status)
+}
+
+func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
+	for _, run := range stacks {
+		c.cloudSyncAfter(run.Stack, errors.E(ErrRunCanceled))
 	}
 }
 
