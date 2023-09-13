@@ -450,8 +450,11 @@ func tokenClaims(token string) (jwt.MapClaims, error) {
 func cloudBaseURL() string {
 	var baseURL string
 	cloudHost := os.Getenv("TMC_API_HOST")
+	cloudURL := os.Getenv("TMC_API_URL")
 	if cloudHost != "" {
 		baseURL = "https://" + cloudHost
+	} else if cloudURL != "" {
+		baseURL = cloudURL
 	} else {
 		baseURL = cloudDefaultBaseURL
 	}
