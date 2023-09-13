@@ -8,17 +8,17 @@ import "time"
 type (
 	// Pull represents a pull request object.
 	Pull struct {
-		URL       string    `json:"url"`
-		HTMLURL   string    `json:"html_url"`
-		Number    int       `json:"number"`
-		Title     string    `json:"title"`
-		Body      string    `json:"body"`
-		State     string    `json:"state"`
-		User      User      `json:"user"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		ClosedAt  time.Time `json:"closed_at"`
-		MergedAt  time.Time `json:"merged_at"`
+		URL       string     `json:"url"`
+		HTMLURL   string     `json:"html_url"`
+		Number    int        `json:"number"`
+		Title     string     `json:"title"`
+		Body      string     `json:"body"`
+		State     string     `json:"state"`
+		User      User       `json:"user"`
+		CreatedAt *time.Time `json:"created_at,omitempty"`
+		UpdatedAt *time.Time `json:"updated_at,omitempty"`
+		ClosedAt  *time.Time `json:"closed_at,omitempty"`
+		MergedAt  *time.Time `json:"merged_at,omitempty"`
 
 		Head RefInfo `json:"head"`
 		Base RefInfo `json:"base"`
@@ -48,9 +48,9 @@ type (
 
 	// GitMetadata holds the commit metadata exported by Github.
 	GitMetadata struct {
-		Name  string    `json:"name"`
-		Email string    `json:"email"`
-		Date  time.Time `json:"date"`
+		Name  string     `json:"name"`
+		Email string     `json:"email"`
+		Date  *time.Time `json:"date,omitempty"`
 	}
 
 	// User represents the Github user.
