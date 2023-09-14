@@ -437,7 +437,7 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 		messageParts := strings.Split(message, "\n")
 		metadata.DeploymentCommitTitle = messageParts[0]
 		if len(messageParts) > 1 {
-			metadata.DeploymentCommitDescription = strings.Join(messageParts[1:], "\n")
+			metadata.DeploymentCommitDescription = strings.TrimSpace(strings.Join(messageParts[1:], "\n"))
 		}
 
 		metadata.DeploymentCommitAuthorLogin = commit.Author.Login
