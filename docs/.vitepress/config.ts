@@ -164,7 +164,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Globals', link: 'data-sharing/#globals' },
-          { text: 'Lazy Evaluation', link: 'data-sharing/#lazy-evaluation' },
+          { text: 'Lazy Evaluation', link: 'data-sharing/#lazy-evaluation-in-terramate' },
           { text: 'Metadata', link: 'data-sharing/#metadata' },
           { text: 'Map', link: 'map' },
         ],
