@@ -55,7 +55,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s2",
 			},
 			want: runExpected{
-				Stdout: listStacks("s1", "s2"),
+				Stdout: nljoin("s1", "s2"),
 			},
 		},
 		{
@@ -114,7 +114,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 			flags: []string{`--experimental-status=unhealthy`},
 			want: runExpected{
-				Stdout: listStacks("s1"),
+				Stdout: nljoin("s1"),
 			},
 		},
 		{
@@ -139,7 +139,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 			flags: []string{`--experimental-status=unhealthy`},
 			want: runExpected{
-				Stdout: listStacks("s1"),
+				Stdout: nljoin("s1"),
 			},
 		},
 		{
@@ -183,7 +183,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 			flags: []string{`--experimental-status=unhealthy`},
 			want: runExpected{
-				Stdout: listStacks("s1", "s2"),
+				Stdout: nljoin("s1", "s2"),
 			},
 		},
 		{
@@ -209,7 +209,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 			flags: []string{`--experimental-status=unhealthy`},
 			want: runExpected{
-				Stdout: listStacks("s1", "s2"),
+				Stdout: nljoin("s1", "s2"),
 			},
 		},
 	} {
