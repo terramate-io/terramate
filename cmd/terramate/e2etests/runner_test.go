@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -66,6 +67,7 @@ func newCLI(t *testing.T, chdir string, env ...string) tmcli {
 		env = os.Environ()
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
+	env = append(env, "GOCOVERDIR="+filepath.Join(projectRoot, "e2e-coverage-files"))
 	// custom cliconfig file
 	tm.userDir = t.TempDir()
 	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))

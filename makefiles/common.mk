@@ -62,7 +62,9 @@ license/check:
 ## generates coverage report
 .PHONY: coverage
 coverage:
-	go test -count=1 -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
+	go test -count=1 -coverprofile=test_$(COVERAGE_REPORT) -coverpkg=./...  ./...
+	go tool covdata textfmt -i=e2e-coverage-files -o=e2e_$(COVERAGE_REPORT)
+	go run go.shabbyrobe.org/gocovmerge/cmd/gocovmerge@latest test_$(COVERAGE_REPORT) e2e_$(COVERAGE_REPORT) > $(COVERAGE_REPORT)
 
 ## generates coverage report and shows it on the browser locally
 .PHONY: coverage/show

@@ -1740,7 +1740,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		cli := newCLI(t, s.RootDir(), testEnviron(t)...)
+		cli := newCLI(t, s.RootDir(), testEnviron(t.TempDir())...)
 		cli.appendEnv = append(cli.appendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=true")
 
 		assertRun(t, cli.run(
@@ -1910,7 +1910,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		tmcli := newCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli := newCLI(t, s.RootDir(), testEnviron(t.TempDir())...)
 		tmcli.appendEnv = append(tmcli.appendEnv, "TM_DISABLE_CHECK_GEN_CODE=true")
 		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
@@ -2035,7 +2035,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		cli := newCLI(t, s.RootDir(), testEnviron(t)...)
+		cli := newCLI(t, s.RootDir(), testEnviron(t.TempDir())...)
 		cli.appendEnv = append(cli.appendEnv, "TM_DISABLE_CHECK_GIT_UNCOMMITTED=true")
 
 		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
@@ -2274,7 +2274,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	hostenv := testEnviron(t)
+	hostenv := testEnviron(t.TempDir())
 	clienv := append(hostenv,
 		"TERRAMATE_OVERRIDDEN=oldValue",
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
@@ -2332,12 +2332,14 @@ func listStacks(stacks ...string) string {
 	return strings.Join(stacks, "\n") + "\n"
 }
 
-func testEnviron(t *testing.T) []string {
-	tempHomeDir := t.TempDir()
+func testEnviron(tempHomeDir string) []string {
 	env := []string{
 		fmt.Sprintf("%s="+tempHomeDir, cliconfig.DirEnv),
 		"PATH=" + os.Getenv("PATH"),
+
+		fmt.Sprintf("GOCOVERDIR=%s", filepath.Join(projectRoot, "e2e-coverage-files")),
 	}
+
 	if runtime.GOOS == "windows" {
 		// https://pkg.go.dev/os/exec
 		// As a special case on Windows, SYSTEMROOT is always added if

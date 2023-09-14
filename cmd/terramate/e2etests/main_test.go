@@ -19,6 +19,8 @@ var terramateTestBin string
 // testHelperBin is the path to the test binary we compiled for test purposes
 var testHelperBin string
 
+var projectRoot string
+
 // The TestMain function creates a terramate binary for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
@@ -52,8 +54,8 @@ func setupAndRunTests(m *testing.M) (status int) {
 
 	// this file is inside cmd/terramate/cli
 	// change code below if it's not the case anymore.
-	projectRoot := filepath.Join(packageDir, "../../..")
-	terramateTestBin, err = buildTerramate(goBin, projectRoot, binTmpDir)
+	projectRoot = filepath.Join(packageDir, "../../..")
+	terramateTestBin, err = buildTerramate(goBin, binTmpDir)
 	if err != nil {
 		log.Printf("failed to setup e2e tests: %v", err)
 		return 1
@@ -85,7 +87,7 @@ func buildTestHelper(goBin, testCmdPath, binDir string) (string, error) {
 	return outBinPath, nil
 }
 
-func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
+func buildTerramate(goBin, binDir string) (string, error) {
 	// We need to build the same way it is built on our Makefile + release process
 	// Invoking make here would assume that someone running go test ./... have
 	// make installed, so we are keeping the duplication to reduce deps when running tests.
@@ -93,6 +95,8 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 	cmd := exec.Command(
 		goBin,
 		"build",
+		"-cover",
+		"-coverpkg=./...",
 		"-tags",
 		"localhostEndpoints",
 		"-race",
@@ -100,6 +104,8 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 		outBinPath,
 		filepath.Join(projectRoot, "cmd/terramate"),
 	)
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOCOVERDIR=%s", filepath.Join(projectRoot, "e2e-coverage-files")))
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

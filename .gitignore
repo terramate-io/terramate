@@ -3,7 +3,7 @@ coverage.txt
 .terraform
 .terraform.lock.hcl
 /cmd/terramate/terramate
-
+e2e-coverage-files/*
 # Profiling artifacts
 cpu.prof
 mem.prof

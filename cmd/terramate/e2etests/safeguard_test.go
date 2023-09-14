@@ -155,7 +155,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 	})
 
 	t.Run("disable check_remote safeguard using env vars", func(t *testing.T) {
-		tmcli, file, _ := setup(t, testEnviron(t)...)
+		tmcli, file, _ := setup(t, testEnviron(t.TempDir())...)
 		tmcli.appendEnv = append(tmcli.appendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=true")
 
 		assertRunResult(t, tmcli.run("run", cat, file.HostPath()), runExpected{
