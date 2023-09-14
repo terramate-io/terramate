@@ -4,6 +4,9 @@
 name: ci
 on:
   push:
+    branches:
+      - main
+  pull_request:
   merge_group:
 
 jobs:
