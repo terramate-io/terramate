@@ -20,8 +20,13 @@ import (
 const (
 	// ErrRunFailed represents the error when the execution fails, whatever the reason.
 	ErrRunFailed errors.Kind = "execution failed"
+
 	// ErrRunCanceled represents the error when the execution was canceled.
 	ErrRunCanceled errors.Kind = "execution canceled"
+
+	// ErrRunCommandNotFound represents the error when the command cannot be found
+	// in the system.
+	ErrRunCommandNotFound errors.Kind = "command not found"
 )
 
 // ExecContext declares an stack execution context.
@@ -43,7 +48,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	c.checkOutdatedGeneratedCode()
-	c.checkSyncDeployment()
+	c.checkCloudSync()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
@@ -111,16 +116,60 @@ func (c *cli) runOnStacks() {
 		runStacks = append(runStacks, run)
 	}
 
-	c.createCloudDeployment(runStacks)
+	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
+		fatal(errors.E("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"))
+	}
 
-	err = c.RunAll(runStacks)
+	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
+		ensureAllStackHaveIDs(orderedStacks)
+	}
+
+	isSuccessExit := func(exitCode int) bool {
+		return exitCode == 0
+	}
+
+	if c.parsedArgs.Run.CloudSyncDeployment {
+		c.createCloudDeployment(runStacks)
+	}
+
+	if c.parsedArgs.Run.CloudSyncDriftStatus {
+		isSuccessExit = func(exitCode int) bool {
+			return exitCode == 0 || exitCode == 2
+		}
+	}
+
+	err = c.RunAll(runStacks, isSuccessExit)
 	if err != nil {
 		fatal(err, "one or more commands failed")
 	}
 }
 
-// RunAll will execute the list of RunStack definitions. A RunStack
-// defines the stack and its command to be executed.
+func ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
+	logger := log.With().
+		Str("action", "ensureAllStackHaveIDs").
+		Logger()
+
+	logger.Trace().Msg("Checking if selected stacks have id")
+
+	var stacksMissingIDs []string
+	for _, st := range stacks {
+		if st.ID == "" {
+			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
+		}
+	}
+
+	if len(stacksMissingIDs) > 0 {
+		for _, stackPath := range stacksMissingIDs {
+			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
+		}
+		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
+		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
+	}
+}
+
+// RunAll will execute the list of RunStack definitions. A RunStack defines the
+// stack and its command to be executed. The isSuccessCode is a predicate used
+// to decide if the command is considered a successful run or not.
 // During the execution of this function the default behavior
 // for signal handling will be changed so we can wait for the child
 // process to exit before exiting Terramate.
@@ -129,7 +178,7 @@ func (c *cli) runOnStacks() {
 // stacks.
 // If SIGINT is sent 3x then Terramate will send a SIGKILL to the currently
 // running process and abort the execution of all subsequent stacks.
-func (c *cli) RunAll(runStacks []ExecContext) error {
+func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) bool) error {
 	logger := log.With().
 		Str("action", "cli.RunAll()").
 		Logger()
@@ -154,7 +203,7 @@ func (c *cli) RunAll(runStacks []ExecContext) error {
 	defer close(cmds)
 
 	continueOnError := c.parsedArgs.Run.ContinueOnError
-	results := startCmdRunner(cmds)
+	results := startCmdConsumer(cmds)
 	for i, runContext := range runStacks {
 		cmdStr := strings.Join(runContext.Cmd, " ")
 		logger := log.With().
@@ -167,7 +216,7 @@ func (c *cli) RunAll(runStacks []ExecContext) error {
 		environ := newEnvironFrom(stackEnvs[runContext.Stack.Dir])
 		cmdPath, err := run.LookPath(runContext.Cmd[0], environ)
 		if err != nil {
-			c.cloudSyncAfter(runContext.Stack, errors.E(err, ErrRunFailed))
+			c.cloudSyncAfter(runContext.Stack, -1, errors.E(ErrRunCommandNotFound, err))
 			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, runContext.Stack.Dir))
 			if continueOnError {
 				continue
@@ -185,8 +234,9 @@ func (c *cli) RunAll(runStacks []ExecContext) error {
 		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
-			c.cloudSyncAfter(runContext.Stack, errors.E(err, ErrRunFailed))
-			errs.Append(errors.E(runContext.Stack, err, "running %s", cmd))
+			c.cloudSyncAfter(runContext.Stack, -1, errors.E(err, ErrRunFailed))
+			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
+			logger.Error().Err(err).Msg("failed to execute")
 			if continueOnError {
 				continue
 			}
@@ -215,23 +265,21 @@ func (c *cli) RunAll(runStacks []ExecContext) error {
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
 
-					c.cloudSyncAfter(runContext.Stack, errors.E(ErrRunCanceled))
+					c.cloudSyncAfter(runContext.Stack, -1, errors.E(ErrRunCanceled))
 					c.cloudSyncCancelStacks(runStacks[i+1:])
 
 					return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
 				}
-			case err := <-results:
+			case result := <-results:
 				logger.Trace().Msg("got command result")
-				if err != nil {
-					c.cloudSyncAfter(runContext.Stack, errors.E(ErrRunFailed, err))
-					err = errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir)
+				var err error
+				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
+					err = errors.E(result.err, ErrRunFailed, "running %s (at stack %s)", result.cmd, runContext.Stack.Dir)
 					errs.Append(err)
-
-					logger.Err(err).Send()
-				} else {
-					c.cloudSyncAfter(runContext.Stack, nil)
+					logger.Error().Err(err).Msg("failed to execute")
 				}
 
+				c.cloudSyncAfter(runContext.Stack, result.cmd.ProcessState.ExitCode(), err)
 				cmdIsRunning = false
 			}
 		}
@@ -248,15 +296,23 @@ func (c *cli) RunAll(runStacks []ExecContext) error {
 	return errs.AsError()
 }
 
-func startCmdRunner(cmds <-chan *exec.Cmd) <-chan error {
-	errs := make(chan error)
+type cmdResult struct {
+	cmd *exec.Cmd
+	err error
+}
+
+func startCmdConsumer(cmds <-chan *exec.Cmd) <-chan cmdResult {
+	results := make(chan cmdResult)
 	go func() {
 		for cmd := range cmds {
-			errs <- cmd.Wait()
+			results <- cmdResult{
+				cmd: cmd,
+				err: cmd.Wait(),
+			}
 		}
-		close(errs)
+		close(results)
 	}()
-	return errs
+	return results
 }
 
 func newEnvironFrom(stackEnviron []string) []string {
