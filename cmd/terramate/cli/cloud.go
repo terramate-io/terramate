@@ -5,8 +5,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -21,8 +19,6 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	prj "github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/run"
 )
 
 // ErrOnboardingIncomplete indicates the onboarding process is incomplete.
@@ -81,10 +77,11 @@ func (c *cli) cloudEnabled() bool {
 	return !c.cloud.disabled
 }
 
-func (c *cli) checkSyncDeployment() {
-	if !c.parsedArgs.Run.CloudSyncDeployment {
+func (c *cli) checkCloudSync() {
+	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus {
 		return
 	}
+
 	err := c.setupCloudConfig()
 	if err != nil {
 		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
@@ -97,11 +94,12 @@ func (c *cli) checkSyncDeployment() {
 		return
 	}
 
-	c.cloud.run.meta2id = make(map[string]int)
-
-	c.cloud.run.runUUID, err = generateRunID()
-	if err != nil {
-		fatal(err, "generating run uuid")
+	if c.parsedArgs.Run.CloudSyncDeployment {
+		c.cloud.run.meta2id = make(map[string]int)
+		c.cloud.run.runUUID, err = generateRunID()
+		if err != nil {
+			fatal(err, "generating run uuid")
+		}
 	}
 }
 
@@ -166,171 +164,28 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) createCloudDeployment(runStacks []run.ExecContext) {
-	logger := log.With().
-		Logger()
-
+func (c *cli) cloudSyncBefore(s *config.Stack, _ string) {
 	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
+	c.doCloudSyncDeployment(s, deployment.Running)
+}
 
-	logger.Trace().Msg("Checking if selected stacks have id")
-
-	var stacksMissingIDs []string
-	for _, run := range runStacks {
-		if run.Stack.ID == "" {
-			stacksMissingIDs = append(stacksMissingIDs, run.Stack.Dir.String())
-		}
+func (c *cli) cloudSyncAfter(s *config.Stack, exitCode int, err error) {
+	if !c.cloudEnabled() || !c.isCloudSync() {
+		return
 	}
 
-	if len(stacksMissingIDs) > 0 {
-		for _, stackPath := range stacksMissingIDs {
-			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
-		}
-		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
-		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
-	}
-
-	logger = logger.With().
-		Str("organization", c.cloud.run.orgUUID).
-		Logger()
-
-	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
-	defer cancel()
-
-	var (
-		err                 error
-		deploymentCommitSHA string
-		deploymentURL       string
-		reviewRequest       *cloud.DeploymentReviewRequest
-		metadata            *cloud.DeploymentMetadata
-		normalizedRepo      string
-		ghRepo              string
-	)
-
-	if c.prj.isRepo {
-		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
-		if err == nil {
-			normalizedRepo = cloud.NormalizeGitURI(repoURL)
-			if normalizedRepo != "local" {
-				reviewRequest, metadata, ghRepo = c.tryGithubMetadata(normalizedRepo)
-			} else {
-				logger.Debug().Msg("skipping review_request for local repository")
-			}
-		} else {
-			logger.Warn().Err(err).Msg("failed to retrieve repository URL")
-		}
-
-		deploymentCommitSHA = c.prj.headCommit()
-	}
-
-	ghRunID := os.Getenv("GITHUB_RUN_ID")
-	ghAttempt := os.Getenv("GITHUB_RUN_ATTEMPT")
-	if ghRunID != "" && ghAttempt != "" && ghRepo != "" {
-		deploymentURL = fmt.Sprintf(
-			"https://github.com/%s/actions/runs/%s/attempts/%s",
-			ghRepo,
-			ghRunID,
-			ghAttempt,
-		)
-
-		logger.Debug().
-			Str("deployment_url", deploymentURL).
-			Msg("detected deployment url")
-	}
-
-	if metadata != nil {
-		data, err := json.Marshal(metadata)
-		if err == nil {
-			logger.Debug().RawJSON("provider_metadata", data).Msg("detected provider metadata")
-		} else {
-			logger.Warn().Err(err).Msg("failed to encode deployment metadata")
-		}
+	if c.parsedArgs.Run.CloudSyncDeployment {
+		c.cloudSyncDeployment(s, err)
 	} else {
-		logger.Debug().Msg("no provider metadata detected")
-	}
-
-	payload := cloud.DeploymentStacksPayloadRequest{
-		ReviewRequest: reviewRequest,
-		Workdir:       prj.PrjAbsPath(c.rootdir(), c.wd()),
-		Metadata:      metadata,
-	}
-
-	for _, run := range runStacks {
-		tags := run.Stack.Tags
-		if tags == nil {
-			tags = []string{}
-		}
-		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			MetaID:            strings.ToLower(run.Stack.ID),
-			MetaName:          run.Stack.Name,
-			MetaDescription:   run.Stack.Description,
-			MetaTags:          tags,
-			Repository:        normalizedRepo,
-			Path:              run.Stack.Dir.String(),
-			CommitSHA:         deploymentCommitSHA,
-			DeploymentCommand: strings.Join(run.Cmd, " "),
-			DeploymentURL:     deploymentURL,
-		})
-	}
-	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
-	if err != nil {
-		log.Warn().
-			Err(errors.E(err, "failed to create cloud deployment")).
-			Msg(DisablingCloudMessage)
-
-		c.cloud.disabled = true
-		return
-	}
-
-	if len(res) != len(runStacks) {
-		logger.Warn().Err(errors.E(
-			"the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-			len(res), len(runStacks)),
-		).Msg(DisablingCloudMessage)
-
-		c.cloud.disabled = true
-		return
-	}
-
-	for _, r := range res {
-		logger.Debug().Msgf("deployment created: %+v\n", r)
-		if r.StackMetaID == "" {
-			fatal(errors.E("backend returned empty meta_id"))
-		}
-		c.cloud.run.meta2id[r.StackMetaID] = r.StackID
+		c.cloudSyncDriftStatus(s, exitCode, err)
 	}
 }
 
-func (c *cli) syncCloudDeployment(s *config.Stack, status deployment.Status) {
-	logger := log.With().
-		Str("organization", c.cloud.run.orgUUID).
-		Str("stack", s.RelPath()).
-		Stringer("status", status).
-		Logger()
-
-	stackID, ok := c.cloud.run.meta2id[s.ID]
-	if !ok {
-		logger.Error().Msg("unable to update deployment status due to invalid API response")
-		return
-	}
-
-	payload := cloud.UpdateDeploymentStacks{
-		Stacks: []cloud.UpdateDeploymentStack{
-			{
-				StackID: stackID,
-				Status:  status,
-			},
-		},
-	}
-
-	logger.Debug().Msg("updating deployment status")
-
-	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
-	defer cancel()
-	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
-	if err != nil {
-		logger.Err(err).Str("stack_id", s.ID).Msg("failed to update deployment status for each")
+func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
+	for _, run := range stacks {
+		c.cloudSyncAfter(run.Stack, -1, errors.E(ErrRunCanceled))
 	}
 }
 
@@ -344,13 +199,13 @@ func (c *cli) cloudInfo() {
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
-func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
+func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
 	logger := log.With().
-		Str("normalized_repository", normalizedRepo).
+		Str("normalized_repository", c.prj.prettyRepo()).
 		Str("head_commit", c.prj.headCommit()).
 		Logger()
 
-	r, err := repository.Parse(normalizedRepo)
+	r, err := repository.Parse(c.prj.prettyRepo())
 	if err != nil {
 		logger.Debug().
 			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
@@ -472,7 +327,7 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 
 	reviewRequest := &cloud.DeploymentReviewRequest{
 		Platform:    "github",
-		Repository:  normalizedRepo,
+		Repository:  c.prj.prettyRepo(),
 		URL:         pull.HTMLURL,
 		Number:      pull.Number,
 		Title:       pull.Title,
@@ -502,6 +357,10 @@ func (c *cli) tryGithubMetadata(normalizedRepo string) (*cloud.DeploymentReviewR
 	metadata.PullRequestClosedAt = pull.ClosedAt
 	metadata.PullRequestMergedAt = pull.MergedAt
 	return reviewRequest, metadata, ghToken
+}
+
+func (c *cli) isCloudSync() bool {
+	return c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
 }
 
 func (c *cli) loadCredential() (credential, error) {
