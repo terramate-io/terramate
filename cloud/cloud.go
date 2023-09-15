@@ -31,6 +31,8 @@ const (
 	MembershipsPath = "/v1/memberships"
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
+	// DriftsPath is the drifts endpoint base path.
+	DriftsPath = "/v1/drifts"
 	// StacksPath is the stacks endpoint base path.
 	StacksPath = "/v1/stacks"
 )
@@ -110,6 +112,25 @@ func (c *Client) CreateDeploymentStacks(
 func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID string, deploymentUUID string, payload UpdateDeploymentStacks) error {
 	_, err := Patch[EmptyResponse](ctx, c, payload, DeploymentsPath, orgUUID, deploymentUUID, "stacks")
 	return err
+}
+
+// CreateStackDrift pushes a new drift status for the given stack.
+func (c *Client) CreateStackDrift(
+	ctx context.Context,
+	orgUUID string,
+	driftPayload DriftStackPayloadRequest,
+) (EmptyResponse, error) {
+	err := driftPayload.Validate()
+	if err != nil {
+		return EmptyResponse(""), errors.E(err, "failed to prepare the request")
+	}
+	return Post[EmptyResponse](
+		ctx,
+		c,
+		driftPayload,
+		DriftsPath,
+		orgUUID,
+	)
 }
 
 // Get requests the endpoint components list making a GET request and decode the response into the

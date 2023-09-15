@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,27 +24,21 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
-func TestCLIRunWithCloudSync(t *testing.T) {
+func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 	type want struct {
 		run    runExpected
 		events eventsResponse
 	}
-	type cancelKind int
 	type testcase struct {
 		name       string
 		layout     []string
+		runflags   []string
 		skipIDGen  bool
 		workingDir string
 		cmd        []string
 		want       want
-		cancel     cancelKind
+		runMode    runMode
 	}
-
-	const (
-		noCancel = iota
-		hangCancel
-		sleepCancel
-	)
 
 	startFakeTMCServer(t)
 
@@ -94,9 +87,10 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "both failed stacks and continueOnError",
-			layout: []string{"s:s1", "s:s2"},
-			cmd:    []string{"--continue-on-error", "non-existent-command"},
+			name:     "both failed stacks and continueOnError",
+			layout:   []string{"s:s1", "s:s2"},
+			runflags: []string{"--continue-on-error"},
+			cmd:      []string{"non-existent-command"},
 			want: want{
 				run: runExpected{
 					Status:      1,
@@ -115,7 +109,8 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				"s:s2",
 				"f:s2/test.txt:test",
 			},
-			cmd: []string{"--continue-on-error", testHelperBin, "cat", "test.txt"},
+			runflags: []string{"--continue-on-error"},
+			cmd:      []string{testHelperBin, "cat", "test.txt"},
 			want: want{
 				run: runExpected{
 					Status:       1,
@@ -129,10 +124,9 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "canceled hang command",
-			layout: []string{"s:stack"},
-			cancel: hangCancel,
-			cmd:    []string{testHelperBin, "hang"},
+			name:    "canceled hang command",
+			layout:  []string{"s:stack"},
+			runMode: hangRun,
 			want: want{
 				run: runExpected{
 					Status:       1,
@@ -145,9 +139,9 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 			},
 		},
 		{
-			name:   "canceled subsequent stacks",
-			layout: []string{"s:s1", "s:s2"},
-			cancel: sleepCancel,
+			name:    "canceled subsequent stacks",
+			layout:  []string{"s:s1", "s:s2"},
+			runMode: sleepRun,
 			want: want{
 				run: runExpected{
 					Status:       1,
@@ -170,6 +164,23 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 				},
 				events: eventsResponse{
 					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "only stacks inside working dir are synced",
+			layout: []string{
+				"s:parent",
+				"s:parent/child",
+			},
+			workingDir: "parent/child",
+			want: want{
+				run: runExpected{
+					Status: 0,
+					Stdout: "/parent/child\n",
+				},
+				events: eventsResponse{
+					"parent/child": []string{"pending", "running", "ok"},
 				},
 			},
 		},
@@ -217,50 +228,18 @@ func TestCLIRunWithCloudSync(t *testing.T) {
 
 			s.BuildTree(genIdsLayout)
 			s.Git().CommitAll("all stacks committed")
-			cli := newCLI(t, filepath.Join(s.RootDir(), tc.workingDir))
+			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
 			uuid, err := uuid.NewRandom()
 			assert.NoError(t, err)
 			runid := uuid.String()
 			cli.appendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-			var exec *testCmd
-			cmd := []string{"run", "--cloud-sync-deployment"}
-			switch tc.cancel {
-			case noCancel:
-				if len(tc.cmd) > 0 {
-					cmd = append(cmd, tc.cmd...)
-				} else {
-					cmd = append(cmd, testHelperBin, "stack-abs-path", s.RootDir())
-				}
-				exec = cli.newCmd(cmd...)
-				exec.start()
-				_ = exec.wait()
-			case hangCancel:
-				cmd = append(cmd, testHelperBin, "hang")
-				exec = cli.newCmd(cmd...)
-				doCancelHang(t, exec)
-			case sleepCancel:
-				cmd = append(cmd, testHelperBin, "sleep", "1m")
-				exec = cli.newCmd(cmd...)
-				exec.setpgid()
-				exec.start()
-				done := make(chan error)
-				go func() {
-					done <- exec.wait()
-				}()
-				assert.NoError(t, pollBufferForMsgs(exec.stdout, "ready"))
-				exec.signalGroup(os.Interrupt)
-				<-done
-			default:
-				t.Fatalf("unexpected cancel kind: %d", tc.cancel)
-			}
+			runflags := []string{"--cloud-sync-deployment"}
+			runflags = append(runflags, tc.runflags...)
 
-			result := runResult{
-				Cmd:    strings.Join(cmd, " "),
-				Stdout: exec.stdout.String(),
-				Stderr: exec.stderr.String(),
-				Status: exec.exitCode(),
-			}
+			fixture := cli.newRunFixture(tc.runMode, s.RootDir(), runflags...)
+			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
+			result := fixture.run()
 			assertRunResult(t, result, tc.want.run)
 			assertRunEvents(t, runid, ids, tc.want.events)
 		})
@@ -357,49 +336,6 @@ func TestCloudSyncSkipped(t *testing.T) {
 			)
 		})
 	}
-}
-
-func doCancelHang(t *testing.T, exec *testCmd) {
-	exec.setpgid()
-	exec.start()
-	assert.NoError(t, pollBufferForMsgs(exec.stdout, "ready"))
-	sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt")
-	sendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt", "interrupt")
-
-	// We can't check the last interrupt message since the child process
-	// may be killed by Terramate with SIGKILL before it gets the signal
-	// or it is able to send messages to stdout.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	errs := make(chan error)
-	go func() {
-		errs <- exec.wait()
-		close(errs)
-	}()
-
-outer:
-	for ctx.Err() == nil {
-		t.Log("sending last interrupt signal to terramate")
-		exec.signalGroup(os.Interrupt)
-
-		sendctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		select {
-		case err := <-errs:
-			t.Logf("terramate err: %v", err)
-			t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
-			t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
-			assert.Error(t, err)
-			break outer
-		case <-sendctx.Done():
-			t.Log("terramate still running, re-sending interrupt")
-		}
-	}
-
-	t.Logf("terramate stdout:\n%s\n", exec.stdout.String())
-	t.Logf("terramate stderr:\n%s\n", exec.stderr.String())
 }
 
 func assertRunEvents(t *testing.T, runid string, ids []string, events map[string][]string) {
