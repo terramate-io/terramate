@@ -131,6 +131,7 @@ type cliSpec struct {
 
 	Run struct {
 		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
+		CloudSyncDriftStatus  bool     `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
 		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
 		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`

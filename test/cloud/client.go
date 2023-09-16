@@ -19,7 +19,7 @@ const defaultTestTimeout = 1 * time.Second
 
 // PutStack sets a new stack in the /v1/stacks/<org>/<stack id>.
 // Note: this is not a real endpoint.
-func PutStack(t *testing.T, orgUUID string, st cloud.Stack) {
+func PutStack(t *testing.T, orgUUID string, st cloud.StackResponse) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
 	defer cancel()
 
