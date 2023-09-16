@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
@@ -15,11 +16,12 @@ import (
 )
 
 type project struct {
-	rootdir string
-	wd      string
-	isRepo  bool
-	root    config.Root
-	baseRef string
+	rootdir        string
+	wd             string
+	isRepo         bool
+	root           config.Root
+	baseRef        string
+	normalizedRepo string
 
 	git struct {
 		wrapper                   *git.Git
@@ -33,6 +35,28 @@ type project struct {
 
 func (p project) gitcfg() *hcl.GitConfig {
 	return p.root.Tree().Node.Terramate.Config.Git
+}
+
+func (p *project) prettyRepo() string {
+	if p.normalizedRepo != "" {
+		return p.normalizedRepo
+	}
+	if p.isRepo {
+		repoURL, err := p.git.wrapper.URL(p.gitcfg().DefaultRemote)
+		if err == nil {
+			p.normalizedRepo = cloud.NormalizeGitURI(repoURL)
+		} else {
+			logger := log.With().
+				Str("action", "project.prettyRepo").
+				Logger()
+
+			logger.
+				Warn().
+				Err(err).
+				Msg("failed to retrieve repository URL")
+		}
+	}
+	return p.normalizedRepo
 }
 
 func (p *project) localDefaultBranchCommit() string {

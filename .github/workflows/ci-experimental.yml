@@ -3,7 +3,17 @@
 
 name: ci-experimental
 on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'makefiles/**'
+      - '.github/**'
+      - '**/*.tm.hcl'
+      - '.tool-versions'
+
   push:
+    branches:
+      - main
     paths-ignore:
       - 'docs/**'
       - 'makefiles/**'
