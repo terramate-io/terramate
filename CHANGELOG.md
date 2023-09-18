@@ -22,6 +22,15 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `--cloud-sync-drift-status` flag for syncing the status of drift detection
+  to the Terramate Cloud.
+
+### Fixed
+
+- Ensured that SIGINT aborts execution of subsequent stacks in all cases.
+
 ## 0.4.1
 
 ### Added

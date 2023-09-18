@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
@@ -132,6 +131,7 @@ type cliSpec struct {
 
 	Run struct {
 		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
+		CloudSyncDriftStatus  bool     `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
 		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
 		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
@@ -1934,131 +1934,6 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 	}
 
 	return true
-}
-
-func (c *cli) runOnStacks() {
-	logger := log.With().
-		Str("action", "runOnStacks()").
-		Str("workingDir", c.wd()).
-		Logger()
-
-	c.gitSafeguardDefaultBranchIsReachable()
-
-	if len(c.parsedArgs.Run.Command) == 0 {
-		logger.Fatal().Msgf("run expects a cmd")
-	}
-
-	c.checkOutdatedGeneratedCode()
-	c.checkSyncDeployment()
-
-	var stacks config.List[*config.SortableStack]
-	if c.parsedArgs.Run.NoRecursive {
-		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
-		if err != nil {
-			fatal(err, "loading stack in current directory")
-		}
-
-		if !found {
-			logger.Fatal().
-				Msg("--no-recursive provided but no stack found in the current directory")
-		}
-
-		stacks = append(stacks, st.Sortable())
-	} else {
-		var err error
-		stacks, err = c.computeSelectedStacks(true)
-		if err != nil {
-			fatal(err, "computing selected stacks")
-		}
-	}
-
-	logger.Trace().Msg("Get order of stacks to run command on.")
-
-	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
-	if err != nil {
-		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(err, "cycle detected: %s", reason)
-		} else {
-			fatal(err, "failed to plan execution")
-		}
-	}
-
-	if c.parsedArgs.Run.Reverse {
-		logger.Trace().Msg("Reversing stacks order.")
-		config.ReverseStacks(orderedStacks)
-	}
-
-	if c.parsedArgs.Run.DryRun {
-		logger.Trace().
-			Msg("Do a dry run - get order without actually running command.")
-		if len(orderedStacks) > 0 {
-			c.output.MsgStdOut("The stacks will be executed using order below:")
-
-			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.Dir().String())
-				c.output.MsgStdOut("\t%d. %s (%s)", i, s.Name, stackdir)
-			}
-		} else {
-			c.output.MsgStdOut("No stacks will be executed.")
-		}
-
-		return
-	}
-
-	var runStacks []run.ExecContext
-	for _, st := range orderedStacks {
-		run := run.ExecContext{
-			Stack: st.Stack,
-			Cmd:   c.parsedArgs.Run.Command,
-		}
-		if c.parsedArgs.Run.Eval {
-			run.Cmd = c.evalRunArgs(run.Stack, run.Cmd)
-		}
-		runStacks = append(runStacks, run)
-	}
-
-	c.createCloudDeployment(runStacks)
-
-	beforeHook := func(s *config.Stack, cmd string) {
-		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
-			return
-		}
-		c.syncCloudDeployment(s, deployment.Running)
-	}
-
-	afterHook := func(s *config.Stack, err error) {
-		if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
-			return
-		}
-		var status deployment.Status
-		switch {
-		case err == nil:
-			status = deployment.OK
-		case errors.IsKind(err, run.ErrCanceled):
-			status = deployment.Canceled
-		case errors.IsKind(err, run.ErrFailed):
-			status = deployment.Failed
-		default:
-			panic(errors.E(errors.ErrInternal, "unexpected run status"))
-		}
-
-		c.syncCloudDeployment(s, status)
-	}
-
-	err = run.ExecAll(
-		c.cfg(),
-		runStacks,
-		c.stdin,
-		c.stdout,
-		c.stderr,
-		c.parsedArgs.Run.ContinueOnError,
-		beforeHook,
-		afterHook,
-	)
-
-	if err != nil {
-		fatal(err, "one or more commands failed")
-	}
 }
 
 func (c *cli) wd() string           { return c.prj.wd }

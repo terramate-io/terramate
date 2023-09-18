@@ -74,7 +74,7 @@ func findExecutable(file string, exts []string) (string, error) {
 // In older versions of Go, LookPath could return a path relative to the current directory.
 // As of Go 1.19, LookPath will instead return that path along with an error satisfying
 // errors.Is(err, ErrDot). See the package documentation for more details.
-func lookPath(file string, environ []string) (string, error) {
+func LookPath(file string, environ []string) (string, error) {
 	var exts []string
 	x, _ := getEnv(`PATHEXT`, environ)
 	if x != "" {

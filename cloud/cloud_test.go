@@ -266,7 +266,7 @@ func TestCloudStacks(t *testing.T) {
 			}`,
 			want: want{
 				stacks: cloud.StacksResponse{
-					Stacks: []cloud.Stack{},
+					Stacks: []cloud.StackResponse{},
 				},
 			},
 		},
@@ -347,16 +347,18 @@ func TestCloudStacks(t *testing.T) {
 			}`,
 			want: want{
 				stacks: cloud.StacksResponse{
-					Stacks: []cloud.Stack{
+					Stacks: []cloud.StackResponse{
 						{
-							ID:              666,
-							Repository:      "github.com/terramate-io/terramate",
-							Path:            "/docs",
-							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
-							MetaName:        "documentation",
-							MetaDescription: "terramate documentation",
-							MetaTags:        []string{"docs"},
-							Status:          stack.Unrecognized,
+							ID: 666,
+							Stack: cloud.Stack{
+								Repository:      "github.com/terramate-io/terramate",
+								Path:            "/docs",
+								MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+								MetaName:        "documentation",
+								MetaDescription: "terramate documentation",
+								MetaTags:        []string{"docs"},
+							},
+							Status: stack.Unrecognized,
 						},
 					},
 				},
@@ -443,36 +445,42 @@ func TestCloudStacks(t *testing.T) {
 			}`,
 			want: want{
 				stacks: cloud.StacksResponse{
-					Stacks: []cloud.Stack{
+					Stacks: []cloud.StackResponse{
 						{
-							ID:              666,
-							Repository:      "github.com/terramate-io/terramate",
-							Path:            "/docs",
-							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
-							MetaName:        "documentation",
-							MetaDescription: "terramate documentation",
-							MetaTags:        []string{"docs"},
-							Status:          stack.OK,
+							ID: 666,
+							Stack: cloud.Stack{
+								Repository:      "github.com/terramate-io/terramate",
+								Path:            "/docs",
+								MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+								MetaName:        "documentation",
+								MetaDescription: "terramate documentation",
+								MetaTags:        []string{"docs"},
+							},
+							Status: stack.OK,
 						},
 						{
-							ID:              667,
-							Repository:      "github.com/terramate-io/terramate",
-							Path:            "/",
-							MetaID:          "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
-							MetaName:        "terramate",
-							MetaDescription: "terramate source code",
-							MetaTags:        []string{"golang"},
-							Status:          stack.OK,
+							ID: 667,
+							Stack: cloud.Stack{
+								Repository:      "github.com/terramate-io/terramate",
+								Path:            "/",
+								MetaID:          "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
+								MetaName:        "terramate",
+								MetaDescription: "terramate source code",
+								MetaTags:        []string{"golang"},
+							},
+							Status: stack.OK,
 						},
 						{
-							ID:              668,
-							Repository:      "github.com/terramate-io/terramate",
-							Path:            "/_testdata/example-stack",
-							MetaID:          "terramate-example-stack",
-							MetaName:        "test-stacks",
-							MetaDescription: "Used in terramate tests",
-							MetaTags:        []string{"test"},
-							Status:          stack.OK},
+							ID: 668,
+							Stack: cloud.Stack{
+								Repository:      "github.com/terramate-io/terramate",
+								Path:            "/_testdata/example-stack",
+								MetaID:          "terramate-example-stack",
+								MetaName:        "test-stacks",
+								MetaDescription: "Used in terramate tests",
+								MetaTags:        []string{"test"},
+							},
+							Status: stack.OK},
 					},
 				},
 			},
