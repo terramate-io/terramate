@@ -507,7 +507,7 @@ func TestCloudStacks(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(stacksResp, tc.want.stacks, cmpopts.IgnoreTypes(time.Time{})); diff != "" {
+			if diff := cmp.Diff(stacksResp, tc.want.stacks, cmpopts.IgnoreTypes(&time.Time{})); diff != "" {
 				t.Fatal(diff)
 			}
 		})

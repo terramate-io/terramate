@@ -49,9 +49,9 @@ type (
 		Status stack.Status `json:"status"`
 
 		// readonly fields
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		SeenAt    time.Time `json:"seen_at"`
+		CreatedAt *time.Time `json:"created_at,omitempty"`
+		UpdatedAt *time.Time `json:"updated_at,omitempty"`
+		SeenAt    *time.Time `json:"seen_at,omitempty"`
 	}
 
 	// Stack represents the stack as defined by the user HCL code.
@@ -138,10 +138,10 @@ type (
 		PullRequestBaseAuthorAvatarURL  string `json:"pull_request_base_author_avatar_url,omitempty"`
 		PullRequestBaseAuthorGravatarID string `json:"pull_request_base_author_gravatar_id,omitempty"`
 
-		PullRequestCreatedAt time.Time `json:"pull_request_created_at,omitempty"`
-		PullRequestUpdatedAt time.Time `json:"pull_request_updated_at,omitempty"`
-		PullRequestClosedAt  time.Time `json:"pull_request_closed_at,omitempty"`
-		PullRequestMergedAt  time.Time `json:"pull_request_merged_at,omitempty"`
+		PullRequestCreatedAt *time.Time `json:"pull_request_created_at,omitempty"`
+		PullRequestUpdatedAt *time.Time `json:"pull_request_updated_at,omitempty"`
+		PullRequestClosedAt  *time.Time `json:"pull_request_closed_at,omitempty"`
+		PullRequestMergedAt  *time.Time `json:"pull_request_merged_at,omitempty"`
 
 		DeploymentBranch string `json:"deployment_branch,omitempty"`
 
@@ -152,19 +152,19 @@ type (
 		DeploymentCommitTitle       string `json:"deployment_commit_title,omitempty"`
 		DeploymentCommitDescription string `json:"deployment_commit_description,omitempty"`
 
-		DeploymentCommitAuthorLogin      string    `json:"deployment_commit_author_login,omitempty"`
-		DeploymentCommitAuthorAvatarURL  string    `json:"deployment_commit_author_avatar_url,omitempty"`
-		DeploymentCommitAuthorGravatarID string    `json:"deployment_commit_author_gravatar_id,omitempty"`
-		DeploymentCommitAuthorGitName    string    `json:"deployment_commit_author_git_name,omitempty"`
-		DeploymentCommitAuthorGitEmail   string    `json:"deployment_commit_author_git_email,omitempty"`
-		DeploymentCommitAuthorGitDate    time.Time `json:"deployment_commit_author_git_date,omitempty"`
+		DeploymentCommitAuthorLogin      string     `json:"deployment_commit_author_login,omitempty"`
+		DeploymentCommitAuthorAvatarURL  string     `json:"deployment_commit_author_avatar_url,omitempty"`
+		DeploymentCommitAuthorGravatarID string     `json:"deployment_commit_author_gravatar_id,omitempty"`
+		DeploymentCommitAuthorGitName    string     `json:"deployment_commit_author_git_name,omitempty"`
+		DeploymentCommitAuthorGitEmail   string     `json:"deployment_commit_author_git_email,omitempty"`
+		DeploymentCommitAuthorGitDate    *time.Time `json:"deployment_commit_author_git_date,omitempty"`
 
-		DeploymentCommitCommitterLogin      string    `json:"deployment_commit_committer_login,omitempty"`
-		DeploymentCommitCommitterAvatarURL  string    `json:"deployment_commit_committer_avatar_url,omitempty"`
-		DeploymentCommitCommitterGravatarID string    `json:"deployment_commit_committer_gravatar_id,omitempty"`
-		DeploymentCommitCommitterGitName    string    `json:"deployment_commit_committer_git_name,omitempty"`
-		DeploymentCommitCommitterGitEmail   string    `json:"deployment_commit_committer_git_email,omitempty"`
-		DeploymentCommitCommitterGitDate    time.Time `json:"deployment_commit_committer_git_date,omitempty"`
+		DeploymentCommitCommitterLogin      string     `json:"deployment_commit_committer_login,omitempty"`
+		DeploymentCommitCommitterAvatarURL  string     `json:"deployment_commit_committer_avatar_url,omitempty"`
+		DeploymentCommitCommitterGravatarID string     `json:"deployment_commit_committer_gravatar_id,omitempty"`
+		DeploymentCommitCommitterGitName    string     `json:"deployment_commit_committer_git_name,omitempty"`
+		DeploymentCommitCommitterGitEmail   string     `json:"deployment_commit_committer_git_email,omitempty"`
+		DeploymentCommitCommitterGitDate    *time.Time `json:"deployment_commit_committer_git_date,omitempty"`
 
 		DeploymentTriggeredBy string `json:"deployment_triggered_by,omitempty"`
 	}
