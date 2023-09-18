@@ -100,17 +100,7 @@ func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err
 
 	req.Header.Set("Authorization", "Bearer "+cfg.ReqToken)
 
-	client := c.httpClient()
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", errors.E(err, "issuing GET %s", cfg.ReqURL)
-	}
-
-	defer func() {
-		err = errors.L(err, resp.Body.Close()).AsError()
-	}()
-
-	data, err := io.ReadAll(resp.Body)
+	data, err := c.doGetWithReq(req)
 	if err != nil {
 		return "", errors.E(err, "reading Github OIDC response body")
 	}
@@ -133,15 +123,17 @@ func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(err, "creating pulls request")
 	}
-
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
+	return c.doGetWithReq(req)
+}
 
+func (c *Client) doGetWithReq(req *http.Request) ([]byte, error) {
 	client := c.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.E(err, "requesting GET %s", url)
+		return nil, errors.E(err, "requesting GET %s", req.URL)
 	}
 
 	defer func() {
@@ -154,15 +146,15 @@ func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.E(ErrNotFound, "retrieving %s", url)
+		return nil, errors.E(ErrNotFound, "retrieving %s", req.URL)
 	}
 
 	if resp.StatusCode == http.StatusUnprocessableEntity {
-		return nil, errors.E(ErrUnprocessableEntity, "retrieving %s", url)
+		return nil, errors.E(ErrUnprocessableEntity, "retrieving %s", req.URL)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.E("unexpected status code: %s while getting %s", resp.Status, url)
+		return nil, errors.E("unexpected status code: %s while getting %s", resp.Status, req.URL)
 	}
 	return data, nil
 }
