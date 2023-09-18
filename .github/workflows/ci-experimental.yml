@@ -11,16 +11,6 @@ on:
       - '**/*.tm.hcl'
       - '.tool-versions'
 
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'docs/**'
-      - 'makefiles/**'
-      - '.github/**'
-      - '**/*.tm.hcl'
-      - '.tool-versions'
-
 jobs:
   build_test:
     name: Build and Test
@@ -35,6 +25,10 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
 
       - name: configure git
         run: git config --global core.autocrlf false
