@@ -209,7 +209,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 		testHelperBin,
 		"cat",
 		testfile,
-	), runExpected{Stdout: listStacks("stack-1")})
+	), runExpected{Stdout: nljoin("stack-1")})
 
 	assertRunResult(t, cli.triggerStack("/stack-2"), runExpected{
 		IgnoreStdout: true,
@@ -222,7 +222,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 		testHelperBin,
 		"cat",
 		testfile,
-	), runExpected{Stdout: listStacks("stack-1", "stack-2")})
+	), runExpected{Stdout: nljoin("stack-1", "stack-2")})
 }
 
 func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {

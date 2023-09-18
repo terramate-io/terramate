@@ -34,11 +34,13 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("trigger-the-stack")
 
-	cloudtest.PutStack(t, testserver.DefaultOrgUUID, cloud.Stack{
-		ID:         1,
-		Repository: repository,
-		MetaID:     stackID,
-		Status:     stack.Failed,
+	cloudtest.PutStack(t, testserver.DefaultOrgUUID, cloud.StackResponse{
+		ID: 1,
+		Stack: cloud.Stack{
+			Repository: repository,
+			MetaID:     stackID,
+		},
+		Status: stack.Failed,
 	})
 
 	git.SetRemoteURL("origin", fmt.Sprintf(`https://%s.git`, repository))
@@ -52,7 +54,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 
 	assertRunResult(t, cli.listChangedStacks(),
 		runExpected{
-			Stdout: listStacks("stacks/my-stack-1"),
+			Stdout: nljoin("stacks/my-stack-1"),
 		},
 	)
 }
@@ -66,7 +68,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 		name       string
 		layout     []string
 		repository string
-		stacks     []cloud.Stack
+		stacks     []cloud.StackResponse
 		flags      []string
 		workingDir string
 		want       want
@@ -126,12 +128,14 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.OK,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.OK,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -142,12 +146,14 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "gitlab.com/unknown-io/other",
-					Status:     stack.Failed,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "gitlab.com/unknown-io/other",
+					},
+					Status: stack.Failed,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -158,12 +164,14 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Failed,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Failed,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -172,7 +180,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1"),
+					Stdout: nljoin("s1"),
 				},
 			},
 		},
@@ -182,18 +190,22 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Failed,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Failed,
 				},
 				{
-					ID:         2,
-					MetaID:     "s2",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.OK,
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.OK,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -202,25 +214,29 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1"),
+					Stdout: nljoin("s1"),
 				},
 			},
 		},
 		{
 			name:   "no local stacks, 2 unhealthy stacks, trigger nothing",
 			layout: []string{},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Failed,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Failed,
 				},
 				{
-					ID:         2,
-					MetaID:     "s2",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Drifted,
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Drifted,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -231,18 +247,22 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Failed,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Failed,
 				},
 				{
-					ID:         2,
-					MetaID:     "s2",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Drifted,
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Drifted,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -251,7 +271,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1", "s2"),
+					Stdout: nljoin("s1", "s2"),
 				},
 			},
 		},
@@ -262,18 +282,22 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s2:id=s2",
 				"s:stack-without-id",
 			},
-			stacks: []cloud.Stack{
+			stacks: []cloud.StackResponse{
 				{
-					ID:         1,
-					MetaID:     "s1",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Failed,
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Failed,
 				},
 				{
-					ID:         2,
-					MetaID:     "s2",
-					Repository: "github.com/terramate-io/terramate",
-					Status:     stack.Drifted,
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status: stack.Drifted,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -282,7 +306,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					StdoutRegex: "Created trigger for stack",
 				},
 				list: runExpected{
-					Stdout: listStacks("s1", "s2"),
+					Stdout: nljoin("s1", "s2"),
 				},
 			},
 		},
