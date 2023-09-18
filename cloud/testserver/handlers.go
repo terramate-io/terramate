@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/julienschmidt/httprouter"
@@ -25,8 +26,7 @@ const DefaultOrgUUID = "0000-1111-2222-3333"
 
 func (orgHandler *membershipHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-	_, _ = w.Write([]byte(
-		fmt.Sprintf(`[
+	writeString(w, fmt.Sprintf(`[
 		{
 			"org_name": "terramate-io",
 			"org_display_name": "Terramate",
@@ -34,18 +34,17 @@ func (orgHandler *membershipHandler) ServeHTTP(w http.ResponseWriter, _ *http.Re
 			"status": "active"
 		}
 	]`, DefaultOrgUUID),
-	))
+	)
 }
 
 func (userHandler *userHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-	_, _ = w.Write([]byte(
-		`{
+	writeString(w, `{
 			    "email": "batman@example.com",
 			    "display_name": "batman",
 				"job_title": "entrepreneur"
 			}`,
-	))
+	)
 }
 
 func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -79,11 +78,11 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		data, err := json.Marshal(events)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 			return
 		}
 
-		_, _ = w.Write(data)
+		write(w, data)
 		return
 	}
 
@@ -93,11 +92,11 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		data, err := json.Marshal(deploymentInfo)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 			return
 		}
 
-		_, _ = w.Write(data)
+		write(w, data)
 		return
 	}
 
@@ -108,14 +107,14 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		err := json.Unmarshal(data, &p)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 			return
 		}
 
 		err = p.Validate()
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 			return
 		}
 
@@ -144,7 +143,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			dhandler.events[orguuid][deployuuid][s.MetaID] = append(dhandler.events[orguuid][deployuuid][s.MetaID], s.DeploymentStatus.String())
 		}
 		data, _ = json.Marshal(res)
-		_, _ = w.Write(data)
+		write(w, data)
 		return
 	}
 
@@ -155,7 +154,7 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		err := json.Unmarshal(data, &updateStacks)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 			return
 		}
 
@@ -166,7 +165,8 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 				dhandler.events[orguuid][deployuuid][gotStack.MetaID] = append(dhandler.events[orguuid][deployuuid][gotStack.MetaID], s.Status.String())
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(`{"error": "stack not found"}`))
+				writeString(w, `{"error": "stack not found"}`)
+				return
 			}
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -174,6 +174,65 @@ func (dhandler *deploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.WriteHeader(http.StatusMethodNotAllowed)
+}
+
+func (dhandler *driftHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	dhandler.mu.Lock()
+	defer dhandler.mu.Unlock()
+
+	params := httprouter.ParamsFromContext(r.Context())
+	orguuid := params.ByName("orguuid")
+
+	if orguuid == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeString(w, "expects an org uuid in the URL")
+		return
+	}
+
+	defer justClose(r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == "GET" {
+		body, err := json.Marshal(dhandler.drifts)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			writeErr(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		write(w, body)
+		return
+	}
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload cloud.DriftStackPayloadRequest
+	err = json.Unmarshal(body, &payload)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	err = payload.Validate()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
+	dhandler.drifts = append(dhandler.drifts, payload)
+	dhandler.statuses[payload.Stack.MetaID] = payload.Status
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -195,7 +254,7 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		var resp cloud.StacksResponse
-		var stacks []cloud.Stack
+		var stacks []cloud.StackResponse
 		stacksMap, ok := handler.stacks[orguuid]
 		if !ok {
 			w.WriteHeader(http.StatusOK)
@@ -217,9 +276,9 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		data, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("marshaling error"))
+			writeString(w, "marshaling error")
 		}
-		_, _ = w.Write(data)
+		write(w, data)
 		return
 	}
 
@@ -232,7 +291,7 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		stackid, err := strconv.Atoi(stackIDStr)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 		}
 		bodyData, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -240,13 +299,13 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_ = r.Body.Close()
+		justClose(r.Body)
 
-		var st cloud.Stack
+		var st cloud.StackResponse
 		err = json.Unmarshal(bodyData, &st)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(err.Error()))
+			writeErr(w, err)
 			return
 		}
 
@@ -256,7 +315,7 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _, ok := handler.stacks[orguuid]; !ok {
-			handler.stacks[orguuid] = make(map[int]cloud.Stack)
+			handler.stacks[orguuid] = make(map[int]cloud.StackResponse)
 		}
 		if _, ok := handler.statuses[orguuid]; !ok {
 			handler.statuses[orguuid] = make(map[int]stack.Status)
@@ -273,7 +332,7 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func newStackEndpoint() *stackHandler {
 	return &stackHandler{
-		stacks:   make(map[string]map[int]cloud.Stack),
+		stacks:   make(map[string]map[int]cloud.StackResponse),
 		statuses: make(map[string]map[int]stack.Status),
 	}
 }
@@ -282,6 +341,12 @@ func newDeploymentEndpoint() *deploymentHandler {
 	return &deploymentHandler{
 		deployments: make(map[string]map[string]map[int64]cloud.DeploymentStackRequest),
 		events:      make(map[string]map[string]map[string][]string),
+	}
+}
+
+func newDriftEndpoint() *driftHandler {
+	return &driftHandler{
+		statuses: make(map[string]stack.Status),
 	}
 }
 
@@ -318,6 +383,14 @@ func RouterWith(enabled map[string]bool) *httprouter.Router {
 		router.Handler("PATCH", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
 	}
 
+	driftEndpoint := newDriftEndpoint()
+	if enabled[cloud.DriftsPath] {
+		router.Handler("POST", fmt.Sprintf("%s/:orguuid", cloud.DriftsPath), driftEndpoint)
+
+		// test only
+		router.Handler("GET", fmt.Sprintf("%s/:orguuid", cloud.DriftsPath), driftEndpoint)
+	}
+
 	// test endpoint always enabled
 	router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/events", cloud.DeploymentsPath), deploymentEndpoint)
 	return router
@@ -327,7 +400,7 @@ type (
 	userHandler       struct{}
 	membershipHandler struct{}
 	stackHandler      struct {
-		stacks   map[string]map[int]cloud.Stack
+		stacks   map[string]map[int]cloud.StackResponse
 		statuses map[string]map[int]stack.Status
 	}
 	deploymentHandler struct {
@@ -338,6 +411,11 @@ type (
 
 		events map[string]map[string]map[string][]string
 	}
+	driftHandler struct {
+		mu       sync.Mutex
+		drifts   []cloud.DriftStackPayloadRequest
+		statuses map[string]stack.Status // map of stack_meta_id -> status
+	}
 )
 
 // EnableAllConfig returns a map that enables all cloud endpoints.
@@ -346,6 +424,23 @@ func EnableAllConfig() map[string]bool {
 		cloud.UsersPath:       true,
 		cloud.MembershipsPath: true,
 		cloud.DeploymentsPath: true,
+		cloud.DriftsPath:      true,
 		cloud.StacksPath:      true,
 	}
+}
+
+func write(w io.Writer, data []byte) {
+	_, _ = w.Write(data)
+}
+
+func writeErr(w io.Writer, err error) {
+	_, _ = w.Write([]byte(err.Error()))
+}
+
+func writeString(w io.Writer, str string) {
+	write(w, []byte(str))
+}
+
+func justClose(c io.Closer) {
+	_ = c.Close()
 }
