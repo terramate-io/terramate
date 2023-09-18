@@ -42,16 +42,11 @@ type (
 		Status      string `json:"status"`
 	}
 
-	// Stack represents a stack in the Terramate Cloud.
-	Stack struct {
-		ID              int          `json:"stack_id"`
-		Repository      string       `json:"repository"`
-		Path            string       `json:"path"`
-		MetaID          string       `json:"meta_id"`
-		MetaName        string       `json:"meta_name"`
-		MetaDescription string       `json:"meta_description"`
-		MetaTags        []string     `json:"meta_tags"`
-		Status          stack.Status `json:"status"`
+	// StackResponse represents a stack in the Terramate Cloud.
+	StackResponse struct {
+		ID int `json:"stack_id"`
+		Stack
+		Status stack.Status `json:"status"`
 
 		// readonly fields
 		CreatedAt time.Time `json:"created_at"`
@@ -59,21 +54,27 @@ type (
 		SeenAt    time.Time `json:"seen_at"`
 	}
 
+	// Stack represents the stack as defined by the user HCL code.
+	Stack struct {
+		Repository      string   `json:"repository"`
+		Path            string   `json:"path"`
+		MetaID          string   `json:"meta_id"`
+		MetaName        string   `json:"meta_name"`
+		MetaDescription string   `json:"meta_description"`
+		MetaTags        []string `json:"meta_tags"`
+	}
+
 	// StacksResponse represents the stacks object response.
 	StacksResponse struct {
-		Stacks []Stack `json:"stacks"`
+		Stacks []StackResponse `json:"stacks"`
 	}
 
 	// DeploymentStackRequest represents the stack object of the request payload
 	// type for the creation of stack deployments.
 	DeploymentStackRequest struct {
+		Stack
+
 		CommitSHA         string            `json:"commit_sha,omitempty"`
-		Repository        string            `json:"repository"`
-		Path              string            `json:"path"`
-		MetaID            string            `json:"meta_id"`
-		MetaName          string            `json:"meta_name,omitempty"`
-		MetaDescription   string            `json:"meta_description,omitempty"`
-		MetaTags          []string          `json:"meta_tags,omitempty"`
 		DeploymentURL     string            `json:"deployment_url,omitempty"`
 		DeploymentStatus  deployment.Status `json:"deployment_status,omitempty"`
 		DeploymentCommand string            `json:"deployment_cmd"`
@@ -105,6 +106,16 @@ type (
 	// It's marshaled as a flat hashmap of values.
 	// Note: no sensitive information must be stored here because it could be logged.
 	DeploymentMetadata GitHubMetadata
+
+	// DriftStackPayloadRequest is the payload for the drift sync.
+	DriftStackPayloadRequest struct {
+		Stack    Stack          `json:"stack"`
+		Status   stack.Status   `json:"drift_status"`
+		Metadata GitHubMetadata `json:"metadata,omitempty"`
+	}
+
+	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
+	DriftStackPayloadRequests []DriftStackPayloadRequest
 
 	// GitHubMetadata stores the GitHub related metadata.
 	GitHubMetadata struct {
@@ -186,7 +197,7 @@ var (
 	_ = Resource(User{})
 	_ = Resource(MemberOrganization{})
 	_ = Resource(MemberOrganizations{})
-	_ = Resource(Stack{})
+	_ = Resource(StackResponse{})
 	_ = Resource(StacksResponse{})
 	_ = Resource(DeploymentStackRequest{})
 	_ = Resource(DeploymentStackRequests{})
@@ -196,6 +207,8 @@ var (
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
 	_ = Resource(DeploymentReviewRequest{})
+	_ = Resource(DriftStackPayloadRequest{})
+	_ = Resource(DriftStackPayloadRequests{})
 	_ = Resource(EmptyResponse(""))
 )
 
@@ -246,7 +259,7 @@ func (org MemberOrganization) Validate() error {
 }
 
 // Validate the stack entity.
-func (stack Stack) Validate() error {
+func (stack StackResponse) Validate() error {
 	if stack.MetaID == "" {
 		return errors.E(`missing "meta_id" field`)
 	}
@@ -269,23 +282,42 @@ func (stacksResp StacksResponse) Validate() error {
 
 // Validate the deployment stack request.
 func (d DeploymentStackRequest) Validate() error {
-	if d.Repository == "" {
-		return errors.E(`missing "repository" field`)
-	}
-	if d.Path == "" {
-		return errors.E(`missing "path" field`)
-	}
-	if d.MetaID == "" {
-		return errors.E(`missing "meta_id" field`)
-	}
-	if strings.ToLower(d.MetaID) != d.MetaID {
-		return errors.E(`"meta_id" requires a lowercase string but %s provided`, d.MetaID)
+	if err := d.Stack.Validate(); err != nil {
+		return err
 	}
 	if d.DeploymentCommand == "" {
 		return errors.E(`missing "deployment_cmd" field`)
 	}
 	return nil
 }
+
+// Validate the stack object.
+func (s Stack) Validate() error {
+	if s.Repository == "" {
+		return errors.E(`missing "repository" field`)
+	}
+	if s.Path == "" {
+		return errors.E(`missing "path" field`)
+	}
+	if s.MetaID == "" {
+		return errors.E(`missing "meta_id" field`)
+	}
+	if strings.ToLower(s.MetaID) != s.MetaID {
+		return errors.E(`"meta_id" requires a lowercase string but %s provided`, s.MetaID)
+	}
+	return nil
+}
+
+// Validate the drift request payload.
+func (d DriftStackPayloadRequest) Validate() error {
+	if err := d.Stack.Validate(); err != nil {
+		return err
+	}
+	return d.Status.Validate()
+}
+
+// Validate the list of drift requests.
+func (ds DriftStackPayloadRequests) Validate() error { return validateResourceList(ds...) }
 
 // Validate the list of deployment stack requests.
 func (d DeploymentStackRequests) Validate() error { return validateResourceList(d...) }
