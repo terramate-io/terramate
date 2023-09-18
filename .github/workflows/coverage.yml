@@ -31,8 +31,12 @@ jobs:
       COVERAGE_REPORT: coverage.txt
 
     steps:
-      - name: checkout
+      - name: checkout repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          fetch-depth: 0
 
       - name: setup Go
         uses: actions/setup-go@v3
