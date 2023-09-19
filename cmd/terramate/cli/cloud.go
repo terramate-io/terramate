@@ -292,7 +292,7 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 		messageParts := strings.Split(message, "\n")
 		metadata.DeploymentCommitTitle = messageParts[0]
 		if len(messageParts) > 1 {
-			metadata.DeploymentCommitDescription = strings.Join(messageParts[1:], "\n")
+			metadata.DeploymentCommitDescription = strings.TrimSpace(strings.Join(messageParts[1:], "\n"))
 		}
 
 		metadata.DeploymentCommitAuthorLogin = commit.Author.Login
@@ -401,8 +401,11 @@ func tokenClaims(token string) (jwt.MapClaims, error) {
 func cloudBaseURL() string {
 	var baseURL string
 	cloudHost := os.Getenv("TMC_API_HOST")
+	cloudURL := os.Getenv("TMC_API_URL")
 	if cloudHost != "" {
 		baseURL = "https://" + cloudHost
+	} else if cloudURL != "" {
+		baseURL = cloudURL
 	} else {
 		baseURL = cloudDefaultBaseURL
 	}
