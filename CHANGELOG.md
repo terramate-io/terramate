@@ -30,6 +30,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Ensured that SIGINT aborts execution of subsequent stacks in all cases.
+- Removed non-supported functions (`tm_sensitive` and `tm_nonsensitive`)
 
 ## 0.4.1
 

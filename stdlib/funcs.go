@@ -49,6 +49,10 @@ func Functions(basedir string) map[string]function.Function {
 	scope := &tflang.Scope{BaseDir: basedir}
 	tffuncs := scope.Functions()
 
+	// not supported functions
+	delete(tffuncs, "sensitive")
+	delete(tffuncs, "nonsensitive")
+
 	tmfuncs := map[string]function.Function{}
 	for name, function := range tffuncs {
 		tmfuncs["tm_"+name] = function
