@@ -24,6 +24,19 @@ import (
 // DefaultOrgUUID is the test organization UUID.
 const DefaultOrgUUID = "0000-1111-2222-3333"
 
+type (
+	// Route declares an HTTP route.
+	Route struct {
+		Path    string
+		Handler http.Handler
+	}
+
+	// Custom declares a custom server config.
+	Custom struct {
+		Routes map[string]Route
+	}
+)
+
 func (orgHandler *membershipHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	writeString(w, fmt.Sprintf(`[
@@ -330,26 +343,6 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
-func newStackEndpoint() *stackHandler {
-	return &stackHandler{
-		stacks:   make(map[string]map[int]cloud.StackResponse),
-		statuses: make(map[string]map[int]stack.Status),
-	}
-}
-
-func newDeploymentEndpoint() *deploymentHandler {
-	return &deploymentHandler{
-		deployments: make(map[string]map[string]map[int64]cloud.DeploymentStackRequest),
-		events:      make(map[string]map[string]map[string][]string),
-	}
-}
-
-func newDriftEndpoint() *driftHandler {
-	return &driftHandler{
-		statuses: make(map[string]stack.Status),
-	}
-}
-
 // Router returns the default fake cloud router.
 func Router() *httprouter.Router {
 	return RouterWith(EnableAllConfig())
@@ -359,9 +352,14 @@ func Router() *httprouter.Router {
 // enabled endpoints.
 func RouterWith(enabled map[string]bool) *httprouter.Router {
 	router := httprouter.New()
+	RouterAdd(router, enabled)
+	return router
+}
 
+// RouterAdd enables endpoints in an existing router.
+func RouterAdd(router *httprouter.Router, enabled map[string]bool) {
 	if enabled[cloud.UsersPath] {
-		router.Handler("GET", cloud.UsersPath, &userHandler{})
+		router.Handler("GET", cloud.UsersPath, newUserEndpoint())
 	}
 
 	if enabled[cloud.StacksPath] {
@@ -373,7 +371,7 @@ func RouterWith(enabled map[string]bool) *httprouter.Router {
 	}
 
 	if enabled[cloud.MembershipsPath] {
-		router.Handler("GET", cloud.MembershipsPath, &membershipHandler{})
+		router.Handler("GET", cloud.MembershipsPath, newMembershipEndpoint())
 	}
 
 	deploymentEndpoint := newDeploymentEndpoint()
@@ -393,7 +391,26 @@ func RouterWith(enabled map[string]bool) *httprouter.Router {
 
 	// test endpoint always enabled
 	router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/events", cloud.DeploymentsPath), deploymentEndpoint)
-	return router
+}
+
+// RouterAddCustoms add custom routes to the fake server.
+// This is used by very specific test cases which requires injection of custom
+// errors in the server.
+func RouterAddCustoms(router *httprouter.Router, custom Custom) {
+	for method, route := range custom.Routes {
+		router.Handler(method, route.Path, route.Handler)
+	}
+}
+
+// EnableAllConfig returns a map that enables all cloud endpoints.
+func EnableAllConfig() map[string]bool {
+	return map[string]bool{
+		cloud.UsersPath:       true,
+		cloud.MembershipsPath: true,
+		cloud.DeploymentsPath: true,
+		cloud.DriftsPath:      true,
+		cloud.StacksPath:      true,
+	}
 }
 
 type (
@@ -418,14 +435,31 @@ type (
 	}
 )
 
-// EnableAllConfig returns a map that enables all cloud endpoints.
-func EnableAllConfig() map[string]bool {
-	return map[string]bool{
-		cloud.UsersPath:       true,
-		cloud.MembershipsPath: true,
-		cloud.DeploymentsPath: true,
-		cloud.DriftsPath:      true,
-		cloud.StacksPath:      true,
+func newMembershipEndpoint() *membershipHandler {
+	return &membershipHandler{}
+}
+
+func newUserEndpoint() *userHandler {
+	return &userHandler{}
+}
+
+func newStackEndpoint() *stackHandler {
+	return &stackHandler{
+		stacks:   make(map[string]map[int]cloud.StackResponse),
+		statuses: make(map[string]map[int]stack.Status),
+	}
+}
+
+func newDeploymentEndpoint() *deploymentHandler {
+	return &deploymentHandler{
+		deployments: make(map[string]map[string]map[int64]cloud.DeploymentStackRequest),
+		events:      make(map[string]map[string]map[string][]string),
+	}
+}
+
+func newDriftEndpoint() *driftHandler {
+	return &driftHandler{
+		statuses: make(map[string]stack.Status),
 	}
 }
 

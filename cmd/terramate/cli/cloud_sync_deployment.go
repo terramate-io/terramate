@@ -105,28 +105,31 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 	}
 	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		log.Warn().
-			Err(errors.E(err, "failed to create cloud deployment")).
-			Msg(DisablingCloudMessage)
+		logger.Error().
+			Err(err).
+			Msg("failed to create cloud deployment")
 
-		c.cloud.disabled = true
+		c.disableCloudFeatures(cloudError())
 		return
 	}
 
 	if len(res) != len(runStacks) {
-		logger.Warn().Err(errors.E(
-			"the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-			len(res), len(runStacks)),
-		).Msg(DisablingCloudMessage)
+		logger.Error().
+			Msgf("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
+				len(res), len(runStacks))
 
-		c.cloud.disabled = true
+		c.disableCloudFeatures(cloudError())
 		return
 	}
 
 	for _, r := range res {
 		logger.Debug().Msgf("deployment created: %+v\n", r)
 		if r.StackMetaID == "" {
-			fatal(errors.E("backend returned empty meta_id"))
+			logger.Error().
+				Msg("backend returned empty meta_id")
+
+			c.disableCloudFeatures(cloudError())
+			return
 		}
 		c.cloud.run.meta2id[r.StackMetaID] = r.StackID
 	}

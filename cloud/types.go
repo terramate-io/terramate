@@ -236,8 +236,11 @@ func (orgs MemberOrganizations) String() string {
 
 // Validate if the user has the Terramate CLI required fields.
 func (u User) Validate() error {
+	if u.Email == "" {
+		return errors.E(`missing "email" field.`)
+	}
 	if u.DisplayName == "" {
-		return errors.E(`missing "display_name" field.`)
+		return errors.E(`missing "display_name" field`)
 	}
 	return nil
 }
