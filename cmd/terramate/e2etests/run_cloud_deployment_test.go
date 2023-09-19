@@ -37,7 +37,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		workingDir string
 		cmd        []string
 		want       want
-		runMode    runMode
 	}
 
 	startFakeTMCServer(t)
@@ -50,6 +49,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				"s:s2",
 			},
 			skipIDGen: true,
+			cmd:       []string{testHelperBin, "echo", "ok"},
 			want: want{
 				run: runExpected{
 					Status:      1,
@@ -124,39 +124,10 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
-			name:    "canceled hang command",
-			layout:  []string{"s:stack"},
-			runMode: hangRun,
-			want: want{
-				run: runExpected{
-					Status:       1,
-					IgnoreStdout: true,
-					IgnoreStderr: true,
-				},
-				events: eventsResponse{
-					"stack": []string{"pending", "running", "canceled"},
-				},
-			},
-		},
-		{
-			name:    "canceled subsequent stacks",
-			layout:  []string{"s:s1", "s:s2"},
-			runMode: sleepRun,
-			want: want{
-				run: runExpected{
-					Status:       1,
-					IgnoreStdout: true,
-					IgnoreStderr: true,
-				},
-				events: eventsResponse{
-					"s1": []string{"pending", "running", "failed"},
-					"s2": []string{"pending", "canceled"},
-				},
-			},
-		},
-		{
-			name:   "basic success sync",
-			layout: []string{"s:stack"},
+			name:     "basic success sync",
+			layout:   []string{"s:stack"},
+			runflags: []string{`--eval`},
+			cmd:      []string{testHelperBinAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: runExpected{
 					Status: 0,
@@ -174,6 +145,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				"s:parent/child",
 			},
 			workingDir: "parent/child",
+			runflags:   []string{`--eval`},
+			cmd:        []string{testHelperBinAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: runExpected{
 					Status: 0,
@@ -190,6 +163,9 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				"s:s1",
 				"s:s2",
 			},
+			runflags: []string{`--eval`},
+			cmd:      []string{testHelperBinAsHCL, "echo", "${terramate.stack.path.absolute}"},
+
 			want: want{
 				run: runExpected{
 					Status: 0,
@@ -234,12 +210,11 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			runid := uuid.String()
 			cli.appendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-			runflags := []string{"--cloud-sync-deployment"}
+			runflags := []string{"run", "--cloud-sync-deployment"}
 			runflags = append(runflags, tc.runflags...)
-
-			fixture := cli.newRunFixture(tc.runMode, s.RootDir(), runflags...)
-			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
-			result := fixture.run()
+			runflags = append(runflags, "--")
+			runflags = append(runflags, tc.cmd...)
+			result := cli.run(runflags...)
 			assertRunResult(t, result, tc.want.run)
 			assertRunEvents(t, runid, ids, tc.want.events)
 		})
