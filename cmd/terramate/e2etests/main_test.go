@@ -19,6 +19,10 @@ var terramateTestBin string
 // testHelperBin is the path to the test binary we compiled for test purposes
 var testHelperBin string
 
+// testHelperBinAsHCL is the path to the test binary but as a safe HCL expression
+// that's valid in all supported OSs.
+var testHelperBinAsHCL string
+
 // The TestMain function creates a terramate binary for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
@@ -65,6 +69,11 @@ func setupAndRunTests(m *testing.M) (status int) {
 		log.Printf("failed to setup e2e tests: %v", err)
 		return 1
 	}
+
+	testHelperBinAsHCL = fmt.Sprintf(`${tm_chomp(<<-EOF
+		%s
+	EOF
+	)}`, testHelperBin)
 
 	return m.Run()
 }
