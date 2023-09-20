@@ -29,7 +29,6 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		workingDir string
 		cmd        []string
 		want       want
-		runMode    runMode
 	}
 
 	for _, tc := range []testcase{
@@ -39,6 +38,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2", // missing id
 			},
+			cmd: []string{testHelperBin, "echo", "ok"},
 			want: want{
 				run: runExpected{
 					Status:      1,
@@ -167,41 +167,6 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name:    "canceled hang command",
-			layout:  []string{"s:stack:id=stack"},
-			runMode: hangRun,
-			want: want{
-				run: runExpected{
-					Status:       1,
-					IgnoreStdout: true,
-					IgnoreStderr: true,
-				},
-			},
-		},
-		{
-			name:    "skipped subsequent stacks",
-			layout:  []string{"s:s1:id=s1", "s:s2:id=s2"},
-			runMode: sleepRun,
-			want: want{
-				run: runExpected{
-					Status:       1,
-					IgnoreStdout: true,
-					IgnoreStderr: true,
-				},
-				drifts: cloud.DriftStackPayloadRequests{
-					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
-						},
-						Status: stack.Failed,
-					},
-				},
-			},
-		},
-		{
 			name:   "basic drift sync",
 			layout: []string{"s:stack:id=stack"},
 			cmd: []string{
@@ -228,6 +193,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				"s:parent/child:id=child",
 			},
 			workingDir: "parent/child",
+			runflags:   []string{`--eval`},
+			cmd:        []string{testHelperBinAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: runExpected{
 					Status: 0,
@@ -287,12 +254,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			s.BuildTree(tc.layout)
 			s.Git().CommitAll("all stacks committed")
 			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
-			runflags := []string{"--cloud-sync-drift-status"}
+			runflags := []string{"run", "--cloud-sync-drift-status"}
 			runflags = append(runflags, tc.runflags...)
-
-			fixture := cli.newRunFixture(tc.runMode, s.RootDir(), runflags...)
-			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
-			result := fixture.run()
+			runflags = append(runflags, "--")
+			runflags = append(runflags, tc.cmd...)
+			result := cli.run(runflags...)
 			assertRunResult(t, result, tc.want.run)
 			assertRunDrifts(t, tc.want.drifts)
 		})

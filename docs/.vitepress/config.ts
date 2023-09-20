@@ -1,11 +1,26 @@
 import type { HeadConfig } from 'vitepress'
 import { defineConfig } from 'vitepress'
+import { glob } from 'glob'
 
 function getPath(path: string) {
   const uri = path.replace(/(?:(^|\/)index)?\.md$/, '$1')
 
   return uri === 'index' ? '' : uri
 }
+
+const ignoreFiles = [
+  'functions/index.md',
+]
+
+// dynamically constructs the sidebar for the Terraform functions.
+const tfFunctionLinks = glob.sync('functions/*.md', { ignore: ignoreFiles }).map((f: string): object => {
+  const name = f.replace('.md', '').replace('functions/', '')
+
+  return {
+    text: name,
+    link: `/functions/${name}`,
+  }
+}).sort().reverse()
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -181,24 +196,39 @@ export default defineConfig({
       },
       {
         text: '🔧 Functions',
-        link: 'functions',
+        link: 'functions/index',
         collapsed: false,
         items: [
           {
-            text: 'tm_ternary',
-            link: 'functions/#tm-ternary-bool-expr-expr-expr',
-          },
-          {
-            text: 'tm_hcl_expression',
-            link: 'functions/#tm-hcl-expression-string-expr',
-          },
-          {
-            text: 'tm_version_match',
-            link: 'functions/#tm-version-match-version-string-constraint-string-optional-arg-object',
-          },
-          {
-            text: 'Experimental Functions',
-            link: 'functions/#experimental-functions',
+            text: 'Terramate specific functions',
+            items: [
+              {
+                text: 'tm_ternary',
+                link: 'functions/terramate-builtin/tm_ternary.md',
+              },
+              {
+                text: 'tm_hcl_expression',
+                link: 'functions/terramate-builtin/tm_hcl_expression.md',
+              },
+              {
+                text: 'tm_version_match',
+                link: 'functions/terramate-builtin/tm_version_match.md',
+              },
+              {
+                text: 'Experimental Functions',
+                items: [
+                  {
+                    text: 'tm_vendor',
+                    link: 'functions/terramate-builtin/tm_vendor.md',
+                  },
+                ],
+              },
+              {
+                text: 'Terraform Functions',
+                collapsed: true,
+                items: tfFunctionLinks,
+              },
+            ],
           },
         ],
       },

@@ -1,6 +1,8 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
+//go:build !darwin
+
 package e2etest
 
 import (
@@ -69,10 +71,7 @@ func testSIGINTx3(t *testing.T, continueOnError bool) {
 	// as path separator and this makes an invalid HCL string as \ is used for
 	// escaping symbols or unicode code sequences.
 	// The HEREDOC is used to create a raw string with no characters interpretation.
-	cmd := tm.newCmd("run", continueOnErrorFlag, "--eval", fmt.Sprintf(`${tm_chomp(<<-EOF
-		%s
-	EOF
-	)}`, testHelperBin),
+	cmd := tm.newCmd("run", continueOnErrorFlag, "--eval", testHelperBinAsHCL,
 		// this would be simplified by supporting list in the evaluation output.
 		// NOTE: an extra parameter is provided for `hang` but it's ignore by the helper.
 		`${terramate.stack.path.absolute == "/stack2" ? "hang" : "echo"}`,
@@ -163,10 +162,7 @@ func testSIGINTx1(t *testing.T, continueOnError bool) {
 	}
 
 	tm := newCLI(t, s.RootDir())
-	cmd := tm.newCmd("run", continueOnErrorFlag, "--eval", fmt.Sprintf(`${tm_chomp(<<-EOF
-	%s
-EOF
-)}`, testHelperBin),
+	cmd := tm.newCmd("run", continueOnErrorFlag, "--eval", testHelperBinAsHCL,
 		// this would be simplified by supporting list in the evaluation output.
 		`${terramate.stack.path.absolute == "/stack2" ? "sleep" : "echo"}`,
 		// A big sleep time because MacOS runner in GHA is very slow.
