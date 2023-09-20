@@ -2286,54 +2286,56 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		Str("workingDir", wd).
 		Logger()
 
-	logger.Trace().Msg("Create new git wrapper.")
-
 	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
 	if err != nil {
 		return project{}, false, err
 	}
 
+	logger.Trace().Msg("Create new git wrapper.")
 	gw, err := newGit(wd, false)
+
 	if err == nil {
 		logger.Trace().Msg("Get root of git repo.")
 
 		gitdir, err := gw.Root()
 		if err == nil {
-			logger.Trace().Msg("Get absolute path of git directory.")
+			if !rootfound || rootCfgPath == gitdir {
+				logger.Trace().Msg("Get absolute path of git directory.")
 
-			gitabs := gitdir
-			if !filepath.IsAbs(gitabs) {
-				gitabs = filepath.Join(wd, gitdir)
+				gitabs := gitdir
+				if !filepath.IsAbs(gitabs) {
+					gitabs = filepath.Join(wd, gitdir)
+				}
+
+				logger.Trace().Msg("Evaluate symbolic links.")
+
+				rootdir, err := filepath.EvalSymlinks(gitabs)
+				if err != nil {
+					return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
+				}
+
+				if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
+					log.Warn().
+						Str("rootConfig", rootCfgPath).
+						Str("projectRoot", rootdir).
+						Err(errors.E(ErrRootCfgInvalidDir)).
+						Msg("ignoring root config")
+				}
+
+				logger.Trace().Msg("Load root config.")
+
+				cfg, err := config.LoadRoot(rootdir)
+				if err != nil {
+					return project{}, false, err
+				}
+
+				prj.isRepo = true
+				prj.root = *cfg
+				prj.rootdir = rootdir
+				prj.git.wrapper = gw
+
+				return prj, true, nil
 			}
-
-			logger.Trace().Msg("Evaluate symbolic links.")
-
-			rootdir, err := filepath.EvalSymlinks(gitabs)
-			if err != nil {
-				return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
-			}
-
-			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
-				log.Warn().
-					Str("rootConfig", rootCfgPath).
-					Str("projectRoot", rootdir).
-					Err(errors.E(ErrRootCfgInvalidDir)).
-					Msg("ignoring root config")
-			}
-
-			logger.Trace().Msg("Load root config.")
-
-			cfg, err := config.LoadRoot(rootdir)
-			if err != nil {
-				return project{}, false, err
-			}
-
-			prj.isRepo = true
-			prj.root = *cfg
-			prj.rootdir = rootdir
-			prj.git.wrapper = gw
-
-			return prj, true, nil
 		}
 	}
 
