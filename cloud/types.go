@@ -112,6 +112,7 @@ type (
 		Stack    Stack               `json:"stack"`
 		Status   stack.Status        `json:"drift_status"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
+		Command  []string            `json:"command"`
 	}
 
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
