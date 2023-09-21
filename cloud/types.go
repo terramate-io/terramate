@@ -59,9 +59,9 @@ type (
 		Repository      string   `json:"repository"`
 		Path            string   `json:"path"`
 		MetaID          string   `json:"meta_id"`
-		MetaName        string   `json:"meta_name"`
-		MetaDescription string   `json:"meta_description"`
-		MetaTags        []string `json:"meta_tags"`
+		MetaName        string   `json:"meta_name,omitempty"`
+		MetaDescription string   `json:"meta_description,omitempty"`
+		MetaTags        []string `json:"meta_tags,omitempty"`
 	}
 
 	// StacksResponse represents the stacks object response.
