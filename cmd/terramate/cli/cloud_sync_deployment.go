@@ -5,11 +5,11 @@ package cli
 
 import (
 	"context"
-	stdjson "encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
@@ -37,16 +37,16 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 		err                 error
 		deploymentCommitSHA string
 		deploymentURL       string
-		reviewRequest       *cloud.DeploymentReviewRequest
-		metadata            *cloud.DeploymentMetadata
 		ghRepo              string
 	)
 
 	if c.prj.isRepo {
-		if c.prj.prettyRepo() != "local" {
-			reviewRequest, metadata, ghRepo = c.tryGithubMetadata()
+		r, err := repository.Parse(c.prj.prettyRepo())
+		if err != nil {
+			logger.Debug().
+				Msg("repository cannot be normalized: skipping pull request retrievals for commit")
 		} else {
-			logger.Debug().Msg("skipping review_request for local repository")
+			ghRepo = r.Owner + "/" + r.Name
 		}
 
 		deploymentCommitSHA = c.prj.headCommit()
@@ -67,21 +67,10 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 			Msg("detected deployment url")
 	}
 
-	if metadata != nil {
-		data, err := stdjson.Marshal(metadata)
-		if err == nil {
-			logger.Debug().RawJSON("provider_metadata", data).Msg("detected provider metadata")
-		} else {
-			logger.Warn().Err(err).Msg("failed to encode deployment metadata")
-		}
-	} else {
-		logger.Debug().Msg("no provider metadata detected")
-	}
-
 	payload := cloud.DeploymentStacksPayloadRequest{
-		ReviewRequest: reviewRequest,
+		ReviewRequest: c.cloud.run.reviewRequest,
 		Workdir:       prj.PrjAbsPath(c.rootdir(), c.wd()),
-		Metadata:      metadata,
+		Metadata:      c.cloud.run.metadata,
 	}
 
 	for _, run := range runStacks {

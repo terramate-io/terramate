@@ -122,6 +122,7 @@ func (c *cli) runOnStacks() {
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
 		c.ensureAllStackHaveIDs(orderedStacks)
+		c.detectCloudMetadata()
 	}
 
 	isSuccessExit := func(exitCode int) bool {
