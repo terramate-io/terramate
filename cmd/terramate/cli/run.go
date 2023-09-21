@@ -121,7 +121,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
-		ensureAllStackHaveIDs(orderedStacks)
+		c.ensureAllStackHaveIDs(orderedStacks)
 	}
 
 	isSuccessExit := func(exitCode int) bool {
@@ -141,29 +141,6 @@ func (c *cli) runOnStacks() {
 	err = c.RunAll(runStacks, isSuccessExit)
 	if err != nil {
 		fatal(err, "one or more commands failed")
-	}
-}
-
-func ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
-	logger := log.With().
-		Str("action", "ensureAllStackHaveIDs").
-		Logger()
-
-	logger.Trace().Msg("Checking if selected stacks have id")
-
-	var stacksMissingIDs []string
-	for _, st := range stacks {
-		if st.ID == "" {
-			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
-		}
-	}
-
-	if len(stacksMissingIDs) > 0 {
-		for _, stackPath := range stacksMissingIDs {
-			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
-		}
-		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
-		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
 	}
 }
 

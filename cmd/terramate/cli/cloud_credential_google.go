@@ -24,6 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -48,12 +49,12 @@ type (
 		jwtClaims    jwt.MapClaims
 		expireAt     time.Time
 		email        string
-		isValidated  bool
 		orgs         cloud.MemberOrganizations
 		user         cloud.User
 
 		output out.O
 		clicfg cliconfig.Config
+		client *cloud.Client
 	}
 
 	createAuthURIResponse struct {
@@ -424,11 +425,17 @@ func endpointURL(endpoint string, idpKey string) *url.URL {
 	return u
 }
 
-func newGoogleCredential(output out.O, idpKey string, clicfg cliconfig.Config) *googleCredential {
+func newGoogleCredential(
+	output out.O,
+	idpKey string,
+	clicfg cliconfig.Config,
+	client *cloud.Client,
+) *googleCredential {
 	return &googleCredential{
 		output: output,
 		clicfg: clicfg,
 		idpKey: idpKey,
+		client: client,
 	}
 }
 
@@ -443,7 +450,11 @@ func (g *googleCredential) Load() (bool, error) {
 	}
 
 	err = g.update(credinfo.IDToken, credinfo.RefreshToken)
-	return true, err
+	if err != nil {
+		return true, err
+	}
+	g.client.Credential = g
+	return true, g.fetchDetails()
 }
 
 func (g *googleCredential) Name() string {
@@ -569,8 +580,7 @@ func (g *googleCredential) Token() (string, error) {
 	return g.token, nil
 }
 
-// Validate if the credential is ready to be used.
-func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
+func (g *googleCredential) fetchDetails() error {
 	var (
 		err  error
 		user cloud.User
@@ -580,7 +590,7 @@ func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
 		defer cancel()
-		orgs, err = cloudcfg.client.MemberOrganizations(ctx)
+		orgs, err = g.client.MemberOrganizations(ctx)
 	}()
 
 	if err != nil {
@@ -590,29 +600,22 @@ func (g *googleCredential) Validate(cloudcfg cloudConfig) error {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
 		defer cancel()
-		user, err = cloudcfg.client.Users(ctx)
+		user, err = g.client.Users(ctx)
 	}()
 
-	if err != nil && !errors.IsKind(err, cloud.ErrNotFound) {
+	if err != nil {
+		if errors.IsKind(err, cloud.ErrNotFound) {
+			return errors.E(clitest.ErrCloudOnboardingIncomplete)
+		}
 		return err
 	}
-
-	g.isValidated = true
 	g.orgs = orgs
 	g.user = user
-
-	if len(g.orgs) == 0 || g.user.DisplayName == "" {
-		return errors.E(ErrOnboardingIncomplete)
-	}
 	return nil
 }
 
-// Info display the credential details.
-func (g *googleCredential) Info() {
-	if !g.isValidated {
-		panic(errors.E(errors.ErrInternal, "cred.Info() called for unvalidated credential"))
-	}
-
+// info display the credential details.
+func (g *googleCredential) info() {
 	g.output.MsgStdOut("status: signed in")
 	g.output.MsgStdOut("provider: %s", g.Name())
 

@@ -86,6 +86,16 @@ const defaultVendorDir = "/modules"
 
 const terramateUserConfigDir = ".terramate.d"
 
+const (
+	// HumanMode is the default normal mode when Terramate is executed at the user's machine.
+	HumanMode UIMode = iota
+	// AutomationMode is the mode when Terramate executes in the CI/CD environment.
+	AutomationMode
+)
+
+// UIMode defines different modes of operation for the cli.
+type UIMode int
+
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag    bool     `name:"version" help:"Terramate version"`
@@ -247,6 +257,7 @@ type cli struct {
 	prj        project
 	httpClient http.Client
 	cloud      cloudConfig
+	uimode     UIMode
 
 	checkpointResults chan *checkpoint.CheckResponse
 
@@ -461,6 +472,11 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
+	uimode := HumanMode
+	if val := os.Getenv("CI"); envVarIsSet(val) {
+		uimode = AutomationMode
+	}
+
 	return &cli{
 		version:    version,
 		stdin:      stdin,
@@ -471,6 +487,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		clicfg:     clicfg,
 		ctx:        ctx,
 		prj:        prj,
+		uimode:     uimode,
 
 		// in order to reduce the number of TCP/SSL handshakes we reuse the same
 		// http.Client in all requests, for most hosts.
@@ -1882,7 +1899,7 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 }
 
 func envVarIsSet(val string) bool {
-	return val != "0" && val != "false"
+	return val != "" && val != "0" && val != "false"
 }
 
 func (c *cli) checkOutdatedGeneratedCode() {
@@ -1940,7 +1957,7 @@ func (c *cli) wd() string           { return c.prj.wd }
 func (c *cli) rootdir() string      { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root    { return &c.prj.root }
 func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
-func (c *cli) cred() credential     { return c.cloud.credential }
+func (c *cli) cred() credential     { return c.cloud.client.Credential.(credential) }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)

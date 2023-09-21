@@ -14,6 +14,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -42,7 +43,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			want: want{
 				run: runExpected{
 					Status:      1,
-					StderrRegex: "flag requires that selected stacks contain an ID field",
+					StderrRegex: string(clitest.ErrCloudStacksWithoutID),
 				},
 			},
 		},

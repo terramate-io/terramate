@@ -16,10 +16,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -53,7 +52,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			want: want{
 				run: runExpected{
 					Status:      1,
-					StderrRegex: "flag requires that selected stacks contain an ID field",
+					StderrRegex: string(clitest.ErrCloudStacksWithoutID),
 				},
 			},
 		},
@@ -217,98 +216,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			result := cli.run(runflags...)
 			assertRunResult(t, result, tc.want.run)
 			assertRunEvents(t, runid, ids, tc.want.events)
-		})
-	}
-}
-
-func TestCloudSyncSkipped(t *testing.T) {
-	type testcase struct {
-		name      string
-		endpoints map[string]bool
-		want      runExpected
-	}
-
-	for _, tc := range []testcase{
-		{
-			name:      "all endpoints",
-			endpoints: testserver.EnableAllConfig(),
-		},
-		{
-			name: "/v1/users is not working",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       false,
-				cloud.MembershipsPath: true,
-				cloud.DeploymentsPath: true,
-			},
-			want: runExpected{
-				Status:      0,
-				StderrRegex: cli.DisablingCloudMessage,
-			},
-		},
-		{
-			name: "/v1/memberships is not working",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-			},
-			want: runExpected{
-				Status:      0,
-				StderrRegex: cli.DisablingCloudMessage,
-			},
-		},
-		{
-			name: "/v1/deployments is not working",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: true,
-				cloud.DeploymentsPath: false,
-			},
-			want: runExpected{
-				Status:      0,
-				StderrRegex: cli.DisablingCloudMessage,
-			},
-		},
-	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			fakeserver := &http.Server{
-				Handler: testserver.RouterWith(tc.endpoints),
-				Addr:    "localhost:3001",
-			}
-
-			const fakeserverShutdownTimeout = 3 * time.Second
-			errChan := make(chan error)
-			go func() {
-				errChan <- fakeserver.ListenAndServe()
-			}()
-
-			t.Cleanup(func() {
-				err := fakeserver.Close()
-				if err != nil {
-					t.Logf("fakeserver HTTP Close error: %v", err)
-				}
-				select {
-				case err := <-errChan:
-					if err != nil && !errors.Is(err, http.ErrServerClosed) {
-						t.Error(err)
-					}
-				case <-time.After(fakeserverShutdownTimeout):
-					t.Error("time excedeed waiting for fakeserver shutdown")
-				}
-			})
-
-			s := sandbox.New(t)
-			s.BuildTree([]string{
-				"s:stack:id=test",
-			})
-			s.Git().CommitAll("created stacks")
-			tm := newCLI(t, s.RootDir())
-			tm.loglevel = zerolog.WarnLevel.String()
-			assertRunResult(t,
-				tm.run("run", "--cloud-sync-deployment", "--", testHelperBin, "true"),
-				tc.want,
-			)
 		})
 	}
 }
