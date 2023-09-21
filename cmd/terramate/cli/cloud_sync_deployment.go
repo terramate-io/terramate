@@ -13,7 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
 )
@@ -124,7 +123,7 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 	}
 }
 
-func (c *cli) cloudSyncDeployment(s *config.Stack, err error) {
+func (c *cli) cloudSyncDeployment(runContext ExecContext, err error) {
 	var status deployment.Status
 	switch {
 	case err == nil:
@@ -137,17 +136,18 @@ func (c *cli) cloudSyncDeployment(s *config.Stack, err error) {
 		panic(errors.E(errors.ErrInternal, "unexpected run status"))
 	}
 
-	c.doCloudSyncDeployment(s, status)
+	c.doCloudSyncDeployment(runContext, status)
 }
 
-func (c *cli) doCloudSyncDeployment(s *config.Stack, status deployment.Status) {
+func (c *cli) doCloudSyncDeployment(runContext ExecContext, status deployment.Status) {
+	st := runContext.Stack
 	logger := log.With().
 		Str("organization", c.cloud.run.orgUUID).
-		Str("stack", s.RelPath()).
+		Str("stack", st.RelPath()).
 		Stringer("status", status).
 		Logger()
 
-	stackID, ok := c.cloud.run.meta2id[s.ID]
+	stackID, ok := c.cloud.run.meta2id[st.ID]
 	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return
@@ -168,7 +168,7 @@ func (c *cli) doCloudSyncDeployment(s *config.Stack, status deployment.Status) {
 	defer cancel()
 	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		logger.Err(err).Str("stack_id", s.ID).Msg("failed to update deployment status for each")
+		logger.Err(err).Str("stack_id", st.ID).Msg("failed to update deployment status for each")
 	} else {
 		logger.Debug().Msg("deployment status synced successfully")
 	}
