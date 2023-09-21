@@ -109,9 +109,9 @@ type (
 
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
-		Stack    Stack          `json:"stack"`
-		Status   stack.Status   `json:"drift_status"`
-		Metadata GitHubMetadata `json:"metadata,omitempty"`
+		Stack    Stack               `json:"stack"`
+		Status   stack.Status        `json:"drift_status"`
+		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
 	}
 
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
@@ -316,6 +316,13 @@ func (d DriftStackPayloadRequest) Validate() error {
 	if err := d.Stack.Validate(); err != nil {
 		return err
 	}
+	if d.Metadata != nil {
+		err := d.Metadata.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
 	return d.Status.Validate()
 }
 

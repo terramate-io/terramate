@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	stdjson "encoding/json"
 	"os"
 	"strings"
 	"time"
@@ -37,7 +38,9 @@ type cloudConfig struct {
 		runUUID string
 		orgUUID string
 
-		meta2id map[string]int
+		meta2id       map[string]int
+		reviewRequest *cloud.DeploymentReviewRequest
+		metadata      *cloud.DeploymentMetadata
 	}
 }
 
@@ -206,23 +209,41 @@ func (c *cli) cloudInfo() {
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
-func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
+func (c *cli) detectCloudMetadata() {
 	logger := log.With().
 		Str("normalized_repository", c.prj.prettyRepo()).
 		Str("head_commit", c.prj.headCommit()).
 		Logger()
+
+	if c.prj.prettyRepo() == "local" {
+		logger.Debug().Msg("skipping review_request and metadata for local repository")
+		return
+	}
 
 	r, err := repository.Parse(c.prj.prettyRepo())
 	if err != nil {
 		logger.Debug().
 			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
 
-		return nil, nil, ""
+		return
 	}
 
 	if r.Host != github.Domain {
-		return nil, nil, ""
+		return
 	}
+
+	defer func() {
+		if c.cloud.run.metadata != nil {
+			data, err := stdjson.Marshal(c.cloud.run.metadata)
+			if err == nil {
+				logger.Debug().RawJSON("provider_metadata", data).Msg("detected metadata")
+			} else {
+				logger.Warn().Err(err).Msg("failed to encode deployment metadata")
+			}
+		} else {
+			logger.Debug().Msg("no provider metadata detected")
+		}
+	}()
 
 	ghRepo := r.Owner + "/" + r.Name
 
@@ -254,14 +275,14 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 			} else {
 				logger.Warn().Msg("The provided GitHub token does not have permission to read this repository or it does not exists.")
 			}
-			return nil, nil, ghRepo
+			return
 		}
 
 		if errors.IsKind(err, github.ErrUnprocessableEntity) {
 			logger.Warn().
 				Msg("The HEAD commit cannot be found in the remote. Did you forget to push?")
 
-			return nil, nil, ghRepo
+			return
 		}
 
 		logger.Warn().
@@ -319,11 +340,13 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 		metadata.DeploymentCommitCommitterGitDate = commit.Commit.Committer.Date
 	}
 
+	c.cloud.run.metadata = metadata
+
 	if len(pulls) == 0 {
 		logger.Warn().
 			Msg("no pull request associated with HEAD commit")
 
-		return nil, metadata, ghRepo
+		return
 	}
 
 	pull := pulls[0]
@@ -363,7 +386,8 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 	metadata.PullRequestUpdatedAt = pull.UpdatedAt
 	metadata.PullRequestClosedAt = pull.ClosedAt
 	metadata.PullRequestMergedAt = pull.MergedAt
-	return reviewRequest, metadata, ghToken
+
+	c.cloud.run.reviewRequest = reviewRequest
 }
 
 func (c *cli) isCloudSync() bool {

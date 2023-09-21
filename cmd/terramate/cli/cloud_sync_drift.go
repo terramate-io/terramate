@@ -52,7 +52,8 @@ func (c *cli) cloudSyncDriftStatus(st *config.Stack, exitCode int, err error) {
 			MetaDescription: st.Description,
 			MetaTags:        st.Tags,
 		},
-		Status: status,
+		Status:   status,
+		Metadata: c.cloud.run.metadata,
 	})
 
 	if err != nil {
