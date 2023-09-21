@@ -174,28 +174,28 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) cloudSyncBefore(s *config.Stack, _ string) {
+func (c *cli) cloudSyncBefore(run ExecContext, _ string) {
 	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
-	c.doCloudSyncDeployment(s, deployment.Running)
+	c.doCloudSyncDeployment(run, deployment.Running)
 }
 
-func (c *cli) cloudSyncAfter(s *config.Stack, exitCode int, err error) {
+func (c *cli) cloudSyncAfter(runContext ExecContext, exitCode int, err error) {
 	if !c.cloudEnabled() || !c.isCloudSync() {
 		return
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.cloudSyncDeployment(s, err)
+		c.cloudSyncDeployment(runContext, err)
 	} else {
-		c.cloudSyncDriftStatus(s, exitCode, err)
+		c.cloudSyncDriftStatus(runContext, exitCode, err)
 	}
 }
 
 func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
 	for _, run := range stacks {
-		c.cloudSyncAfter(run.Stack, -1, errors.E(ErrRunCanceled))
+		c.cloudSyncAfter(run, -1, errors.E(ErrRunCanceled))
 	}
 }
 
