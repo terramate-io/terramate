@@ -29,17 +29,18 @@ type githubOIDC struct {
 	repoOwner string
 	repoName  string
 
-	reqURL      string
-	reqToken    string
-	isValidated bool
-	orgs        cloud.MemberOrganizations
+	reqURL   string
+	reqToken string
+	orgs     cloud.MemberOrganizations
 
 	output out.O
+	client *cloud.Client
 }
 
-func newGithubOIDC(output out.O) *githubOIDC {
+func newGithubOIDC(output out.O, client *cloud.Client) *githubOIDC {
 	return &githubOIDC{
 		output: output,
+		client: client,
 	}
 }
 
@@ -68,7 +69,11 @@ func (g *githubOIDC) Load() (bool, error) {
 	}
 
 	err := g.Refresh()
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	g.client.Credential = g
+	return true, g.fetchDetails()
 }
 
 func (g *githubOIDC) Name() string {
@@ -161,26 +166,20 @@ func (g *githubOIDC) Token() (string, error) {
 }
 
 // Validate if the credential is ready to be used.
-func (g *githubOIDC) Validate(cloudcfg cloudConfig) error {
+func (g *githubOIDC) fetchDetails() error {
 	const apiTimeout = 5 * time.Second
 
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
-	orgs, err := cloudcfg.client.MemberOrganizations(ctx)
+	orgs, err := g.client.MemberOrganizations(ctx)
 	if err != nil {
 		return err
 	}
-
-	g.isValidated = true
 	g.orgs = orgs
 	return nil
 }
 
-func (g *githubOIDC) Info() {
-	if !g.isValidated {
-		panic(errors.E(errors.ErrInternal, "cred.Info() called for unvalidated credential"))
-	}
-
+func (g *githubOIDC) info() {
 	if len(g.orgs) > 0 && g.orgs[0].Status == "trusted" {
 		g.output.MsgStdOut("status: signed in")
 	} else {
@@ -201,7 +200,6 @@ func (g *githubOIDC) Info() {
 	}
 }
 
-// organizations returns the list of organizations associated with the credential.
 func (g *githubOIDC) organizations() cloud.MemberOrganizations {
 	return g.orgs
 }

@@ -121,7 +121,8 @@ func (c *cli) runOnStacks() {
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
-		ensureAllStackHaveIDs(orderedStacks)
+		c.ensureAllStackHaveIDs(orderedStacks)
+		c.detectCloudMetadata()
 	}
 
 	isSuccessExit := func(exitCode int) bool {
@@ -141,29 +142,6 @@ func (c *cli) runOnStacks() {
 	err = c.RunAll(runStacks, isSuccessExit)
 	if err != nil {
 		fatal(err, "one or more commands failed")
-	}
-}
-
-func ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
-	logger := log.With().
-		Str("action", "ensureAllStackHaveIDs").
-		Logger()
-
-	logger.Trace().Msg("Checking if selected stacks have id")
-
-	var stacksMissingIDs []string
-	for _, st := range stacks {
-		if st.ID == "" {
-			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
-		}
-	}
-
-	if len(stacksMissingIDs) > 0 {
-		for _, stackPath := range stacksMissingIDs {
-			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
-		}
-		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
-		fatal(errors.E("The --cloud-sync-deployment flag requires that selected stacks contain an ID field"))
 	}
 }
 
@@ -211,12 +189,12 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 			Stringer("stack", runContext.Stack).
 			Logger()
 
-		c.cloudSyncBefore(runContext.Stack, cmdStr)
+		c.cloudSyncBefore(runContext, cmdStr)
 
 		environ := newEnvironFrom(stackEnvs[runContext.Stack.Dir])
 		cmdPath, err := run.LookPath(runContext.Cmd[0], environ)
 		if err != nil {
-			c.cloudSyncAfter(runContext.Stack, -1, errors.E(ErrRunCommandNotFound, err))
+			c.cloudSyncAfter(runContext, -1, errors.E(ErrRunCommandNotFound, err))
 			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, runContext.Stack.Dir))
 			if continueOnError {
 				continue
@@ -234,7 +212,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
-			c.cloudSyncAfter(runContext.Stack, -1, errors.E(err, ErrRunFailed))
+			c.cloudSyncAfter(runContext, -1, errors.E(err, ErrRunFailed))
 			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
 			logger.Error().Err(err).Msg("failed to execute")
 			if continueOnError {
@@ -265,7 +243,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
 
-					c.cloudSyncAfter(runContext.Stack, -1, errors.E(ErrRunCanceled))
+					c.cloudSyncAfter(runContext, -1, errors.E(ErrRunCanceled))
 					c.cloudSyncCancelStacks(runStacks[i+1:])
 
 					return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
@@ -279,7 +257,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 					logger.Error().Err(err).Msg("failed to execute")
 				}
 
-				c.cloudSyncAfter(runContext.Stack, result.cmd.ProcessState.ExitCode(), err)
+				c.cloudSyncAfter(runContext, result.cmd.ProcessState.ExitCode(), err)
 				cmdIsRunning = false
 			}
 		}

@@ -9,15 +9,18 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/stack"
-	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) cloudSyncDriftStatus(st *config.Stack, exitCode int, err error) {
+func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err error) {
+	st := runContext.Stack
+
 	logger := log.With().
 		Str("action", "cloudSyncDriftStatus").
 		Stringer("stack", st.Dir).
 		Int("exit_code", exitCode).
+		Strs("command", runContext.Cmd).
 		Err(err).
 		Logger()
 
@@ -51,11 +54,13 @@ func (c *cli) cloudSyncDriftStatus(st *config.Stack, exitCode int, err error) {
 			MetaDescription: st.Description,
 			MetaTags:        st.Tags,
 		},
-		Status: status,
+		Status:   status,
+		Metadata: c.cloud.run.metadata,
+		Command:  runContext.Cmd,
 	})
 
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to sync the drift status")
+		logger.Error().Err(err).Msg(clitest.CloudSyncDriftFailedMessage)
 	} else {
 		logger.Debug().Msg("synced drift_status successfully")
 	}
