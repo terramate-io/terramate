@@ -299,6 +299,8 @@ func (c *cli) detectCloudMetadata() {
 	metadata := &cloud.DeploymentMetadata{
 		GithubActionsDeploymentTriggeredBy: os.Getenv("GITHUB_ACTOR"),
 		GithubActionsDeploymentBranch:      os.Getenv("GITHUB_REF_NAME"),
+		GithubActionsRunID:                 os.Getenv("GITHUB_RUN_ID"),
+		GithubActionsRunAttempt:            os.Getenv("GITHUB_RUN_ATTEMPT"),
 		GitHeadCommitSHA:                   headCommit,
 	}
 
