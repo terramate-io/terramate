@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	stdjson "encoding/json"
 	"os"
 	"strings"
 	"time"
@@ -15,14 +16,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 )
-
-// ErrOnboardingIncomplete indicates the onboarding process is incomplete.
-const ErrOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 
 const (
 	defaultCloudTimeout  = 60 * time.Second
@@ -30,22 +29,18 @@ const (
 	defaultGithubTimeout = defaultCloudTimeout
 )
 
-// DisablingCloudMessage is the message displayed in the warning when disabling
-// the cloud features. It's exported because it's checked in tests.
-const DisablingCloudMessage = "disabling the cloud features"
-
 type cloudConfig struct {
 	disabled bool
 	client   *cloud.Client
 	output   out.O
 
-	credential credential
-
 	run struct {
 		runUUID string
 		orgUUID string
 
-		meta2id map[string]int
+		meta2id       map[string]int
+		reviewRequest *cloud.DeploymentReviewRequest
+		metadata      *cloud.DeploymentMetadata
 	}
 }
 
@@ -56,9 +51,11 @@ type credential interface {
 	Refresh() error
 	IsExpired() bool
 	ExpireAt() time.Time
-	Validate(cloudcfg cloudConfig) error
+
+	// private interface
+
 	organizations() cloud.MemberOrganizations
-	Info()
+	info()
 }
 
 type keyValue struct {
@@ -68,13 +65,29 @@ type keyValue struct {
 
 func (c *cli) credentialPrecedence(output out.O) []credential {
 	return []credential{
-		newGithubOIDC(output),
-		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg),
+		newGithubOIDC(output, c.cloud.client),
+		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg, c.cloud.client),
 	}
 }
 
 func (c *cli) cloudEnabled() bool {
 	return !c.cloud.disabled
+}
+
+func (c *cli) disableCloudFeatures(err error) {
+	log.Warn().Err(err).Msg(clitest.CloudDisablingMessage)
+
+	c.cloud.disabled = true
+}
+
+func (c *cli) handleCriticalError(err error) {
+	if err != nil {
+		if c.uimode == HumanMode {
+			fatal(err)
+		}
+
+		c.disableCloudFeatures(err)
+	}
 }
 
 func (c *cli) checkCloudSync() {
@@ -83,12 +96,7 @@ func (c *cli) checkCloudSync() {
 	}
 
 	err := c.setupCloudConfig()
-	if err != nil {
-		log.Warn().Err(errors.E(err, "failed to check if credentials work")).
-			Msg(DisablingCloudMessage)
-
-		c.cloud.disabled = true
-	}
+	c.handleCriticalError(err)
 
 	if c.cloud.disabled {
 		return
@@ -97,35 +105,28 @@ func (c *cli) checkCloudSync() {
 	if c.parsedArgs.Run.CloudSyncDeployment {
 		c.cloud.run.meta2id = make(map[string]int)
 		c.cloud.run.runUUID, err = generateRunID()
-		if err != nil {
-			fatal(err, "generating run uuid")
-		}
+		c.handleCriticalError(err)
 	}
 }
 
 func (c *cli) setupCloudConfig() error {
-	c.cloud = cloudConfig{
-		client: &cloud.Client{
-			BaseURL:    cloudBaseURL(),
-			IDPKey:     idpkey(),
-			HTTPClient: &c.httpClient,
-		},
-		output: c.output,
-	}
-	cred, err := c.loadCredential()
-	if err != nil {
-		return err
-	}
+	logger := log.With().
+		Str("action", "cli.setupCloudConfig").
+		Logger()
 
-	c.cloud.credential = cred
-	c.cloud.client.Credential = cred
-	err = cred.Validate(c.cloud)
+	err := c.loadCredential()
 	if err != nil {
-		return err
+		logger.Error().Err(err).Msg("failed to load the cloud credentials")
+		return cloudError()
 	}
 
 	// at this point we know user is onboarded, ie has at least 1 organization.
 	orgs := c.cred().organizations()
+
+	if len(orgs) == 0 {
+		logger.Error().Msgf(clitest.CloudNoMembershipMessage)
+		return errors.E(clitest.ErrCloudOnboardingIncomplete)
+	}
 
 	useOrgName := os.Getenv("TM_CLOUD_ORGANIZATION")
 	if useOrgName != "" {
@@ -133,7 +134,10 @@ func (c *cli) setupCloudConfig() error {
 		for _, org := range orgs {
 			if org.Name == useOrgName {
 				if org.Status != "active" && org.Status != "trusted" {
-					fatal(errors.E("You are not yet an active member of organization %s. Please accept the invitation first.", useOrgName))
+					logger.Error().
+						Msgf("You are not yet an active member of organization %s. Please accept the invitation first.", useOrgName)
+
+					return cloudError()
 				}
 
 				useOrgUUID = org.UUID
@@ -142,80 +146,104 @@ func (c *cli) setupCloudConfig() error {
 		}
 
 		if useOrgUUID == "" {
-			fatal(errors.E("You are not a member of organization %q or the organization does not exist. Available organizations: %s",
-				useOrgName,
-				orgs,
-			))
+			logger.Error().
+				Msgf("You are not a member of organization %q or the organization does not exist. Available organizations: %s",
+					useOrgName,
+					orgs,
+				)
+
+			return cloudError()
 		}
 
 		c.cloud.run.orgUUID = useOrgUUID
 	} else if len(orgs) != 1 {
-		fatal(
-			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization: %s", orgs),
-		)
+		logger.Error().
+			Msgf("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization: %s", orgs)
+
+		return cloudError()
 	} else {
 		org := orgs[0]
 		if org.Status != "active" && org.Status != "trusted" {
-			fatal(errors.E("You are not yet an active member of organization %s. Please accept the invitation first.", org.Name))
+			logger.Error().
+				Msgf("You are not yet an active member of organization %s. Please accept the invitation first.", org.Name)
+
+			return cloudError()
 		}
 		c.cloud.run.orgUUID = org.UUID
 	}
-
 	return nil
 }
 
-func (c *cli) cloudSyncBefore(s *config.Stack, _ string) {
+func (c *cli) cloudSyncBefore(run ExecContext, _ string) {
 	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
 		return
 	}
-	c.doCloudSyncDeployment(s, deployment.Running)
+	c.doCloudSyncDeployment(run, deployment.Running)
 }
 
-func (c *cli) cloudSyncAfter(s *config.Stack, exitCode int, err error) {
+func (c *cli) cloudSyncAfter(runContext ExecContext, exitCode int, err error) {
 	if !c.cloudEnabled() || !c.isCloudSync() {
 		return
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.cloudSyncDeployment(s, err)
+		c.cloudSyncDeployment(runContext, err)
 	} else {
-		c.cloudSyncDriftStatus(s, exitCode, err)
+		c.cloudSyncDriftStatus(runContext, exitCode, err)
 	}
 }
 
 func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
 	for _, run := range stacks {
-		c.cloudSyncAfter(run.Stack, -1, errors.E(ErrRunCanceled))
+		c.cloudSyncAfter(run, -1, errors.E(ErrRunCanceled))
 	}
 }
 
 func (c *cli) cloudInfo() {
-	err := c.setupCloudConfig()
+	err := c.loadCredential()
 	if err != nil {
 		fatal(err)
 	}
-	c.cred().Info()
+	c.cred().info()
 	// verbose info
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
-func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.DeploymentMetadata, string) {
+func (c *cli) detectCloudMetadata() {
 	logger := log.With().
 		Str("normalized_repository", c.prj.prettyRepo()).
 		Str("head_commit", c.prj.headCommit()).
 		Logger()
+
+	if c.prj.prettyRepo() == "local" {
+		logger.Debug().Msg("skipping review_request and metadata for local repository")
+		return
+	}
 
 	r, err := repository.Parse(c.prj.prettyRepo())
 	if err != nil {
 		logger.Debug().
 			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
 
-		return nil, nil, ""
+		return
 	}
 
 	if r.Host != github.Domain {
-		return nil, nil, ""
+		return
 	}
+
+	defer func() {
+		if c.cloud.run.metadata != nil {
+			data, err := stdjson.Marshal(c.cloud.run.metadata)
+			if err == nil {
+				logger.Debug().RawJSON("provider_metadata", data).Msg("detected metadata")
+			} else {
+				logger.Warn().Err(err).Msg("failed to encode deployment metadata")
+			}
+		} else {
+			logger.Debug().Msg("no provider metadata detected")
+		}
+	}()
 
 	ghRepo := r.Owner + "/" + r.Name
 
@@ -247,14 +275,14 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 			} else {
 				logger.Warn().Msg("The provided GitHub token does not have permission to read this repository or it does not exists.")
 			}
-			return nil, nil, ghRepo
+			return
 		}
 
 		if errors.IsKind(err, github.ErrUnprocessableEntity) {
 			logger.Warn().
 				Msg("The HEAD commit cannot be found in the remote. Did you forget to push?")
 
-			return nil, nil, ghRepo
+			return
 		}
 
 		logger.Warn().
@@ -312,11 +340,13 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 		metadata.DeploymentCommitCommitterGitDate = commit.Commit.Committer.Date
 	}
 
+	c.cloud.run.metadata = metadata
+
 	if len(pulls) == 0 {
 		logger.Warn().
 			Msg("no pull request associated with HEAD commit")
 
-		return nil, metadata, ghRepo
+		return
 	}
 
 	pull := pulls[0]
@@ -356,33 +386,63 @@ func (c *cli) tryGithubMetadata() (*cloud.DeploymentReviewRequest, *cloud.Deploy
 	metadata.PullRequestUpdatedAt = pull.UpdatedAt
 	metadata.PullRequestClosedAt = pull.ClosedAt
 	metadata.PullRequestMergedAt = pull.MergedAt
-	return reviewRequest, metadata, ghToken
+
+	c.cloud.run.reviewRequest = reviewRequest
 }
 
 func (c *cli) isCloudSync() bool {
 	return c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
 }
 
-func (c *cli) loadCredential() (credential, error) {
+func (c *cli) loadCredential() error {
+	c.cloud = cloudConfig{
+		client: &cloud.Client{
+			BaseURL:    cloudBaseURL(),
+			IDPKey:     idpkey(),
+			HTTPClient: &c.httpClient,
+		},
+		output: c.output,
+	}
+
 	probes := c.credentialPrecedence(c.output)
-	var cred credential
 	var found bool
 	for _, probe := range probes {
 		var err error
 		found, err = probe.Load()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if found {
-			cred = probe
 			break
 		}
 	}
 	if !found {
-		return nil, errors.E("no credential found")
+		return errors.E("no credential found")
+	}
+	return nil
+}
+
+func (c *cli) ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
+	logger := log.With().
+		Str("action", "cli.ensureAllStackHaveIDs").
+		Logger()
+
+	logger.Trace().Msg("Checking if selected stacks have id")
+
+	var stacksMissingIDs []string
+	for _, st := range stacks {
+		if st.ID == "" {
+			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
+		}
 	}
 
-	return cred, nil
+	if len(stacksMissingIDs) > 0 {
+		for _, stackPath := range stacksMissingIDs {
+			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
+		}
+		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
+		c.handleCriticalError(errors.E(clitest.ErrCloudStacksWithoutID))
+	}
 }
 
 func tokenClaims(token string) (jwt.MapClaims, error) {
@@ -418,4 +478,8 @@ func idpkey() string {
 		idpKey = defaultAPIKey
 	}
 	return idpKey
+}
+
+func cloudError() error {
+	return errors.E(clitest.ErrCloud)
 }

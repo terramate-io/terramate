@@ -50,6 +50,9 @@ type runExpected struct {
 	StdoutRegex string
 	StderrRegex string
 
+	StdoutRegexes []string
+	StderrRegexes []string
+
 	IgnoreStdout bool
 	IgnoreStderr bool
 
@@ -63,7 +66,8 @@ func newCLI(t *testing.T, chdir string, env ...string) tmcli {
 		chdir: chdir,
 	}
 	if len(env) == 0 {
-		env = os.Environ()
+		// by default, it's assumed human mode
+		env = removeEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	// custom cliconfig file
@@ -281,14 +285,20 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 			wantStdout = flatten(wantStdout)
 		}
 		if want.StdoutRegex != "" {
-			matched, err := regexp.MatchString(want.StdoutRegex, stdout)
-			assert.NoError(t, err, "failed to compile regex %q", want.StdoutRegex)
+			want.StdoutRegexes = append(want.StdoutRegexes, want.StdoutRegex)
+		}
 
-			if !matched {
-				t.Errorf("%q stdout=\"%s\" does not match regex %q", got.Cmd,
-					stdout,
-					want.StdoutRegex,
-				)
+		if len(want.StdoutRegexes) > 0 {
+			for _, stdoutRegex := range want.StdoutRegexes {
+				matched, err := regexp.MatchString(stdoutRegex, stdout)
+				assert.NoError(t, err, "failed to compile regex %q", stdoutRegex)
+
+				if !matched {
+					t.Errorf("%q stdout=\"%s\" does not match regex %q", got.Cmd,
+						stdout,
+						stdoutRegex,
+					)
+				}
 			}
 		} else {
 			if diff := cmp.Diff(wantStdout, stdout); diff != "" {
@@ -299,14 +309,20 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 
 	if !want.IgnoreStderr {
 		if want.StderrRegex != "" {
-			matched, err := regexp.MatchString(want.StderrRegex, got.Stderr)
-			assert.NoError(t, err, "failed to compile regex %q", want.StderrRegex)
+			want.StderrRegexes = append(want.StderrRegexes, want.StderrRegex)
+		}
 
-			if !matched {
-				t.Errorf("%q stderr=\"%s\" does not match regex %q", got.Cmd,
-					got.Stderr,
-					want.StderrRegex,
-				)
+		if len(want.StderrRegexes) > 0 {
+			for _, stderrRegex := range want.StderrRegexes {
+				matched, err := regexp.MatchString(stderrRegex, got.Stderr)
+				assert.NoError(t, err, "failed to compile regex %q", stderrRegex)
+
+				if !matched {
+					t.Errorf("%q stderr=\"%s\" does not match regex %q", got.Cmd,
+						got.Stderr,
+						stderrRegex,
+					)
+				}
 			}
 		} else {
 			if want.Stderr != got.Stderr {
@@ -316,4 +332,21 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 	}
 
 	assert.EqualInts(t, want.Status, got.Status, "exit status mismatch")
+}
+
+func removeEnv(environ []string, names ...string) []string {
+	ret := make([]string, 0, len(environ))
+	for _, env := range environ {
+		toBeDeleted := false
+		for _, name := range names {
+			if strings.HasPrefix(env, name+"=") {
+				toBeDeleted = true
+				break
+			}
+		}
+		if !toBeDeleted {
+			ret = append(ret, env)
+		}
+	}
+	return ret
 }

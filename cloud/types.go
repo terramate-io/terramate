@@ -59,9 +59,9 @@ type (
 		Repository      string   `json:"repository"`
 		Path            string   `json:"path"`
 		MetaID          string   `json:"meta_id"`
-		MetaName        string   `json:"meta_name"`
-		MetaDescription string   `json:"meta_description"`
-		MetaTags        []string `json:"meta_tags"`
+		MetaName        string   `json:"meta_name,omitempty"`
+		MetaDescription string   `json:"meta_description,omitempty"`
+		MetaTags        []string `json:"meta_tags,omitempty"`
 	}
 
 	// StacksResponse represents the stacks object response.
@@ -109,9 +109,10 @@ type (
 
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
-		Stack    Stack          `json:"stack"`
-		Status   stack.Status   `json:"drift_status"`
-		Metadata GitHubMetadata `json:"metadata,omitempty"`
+		Stack    Stack               `json:"stack"`
+		Status   stack.Status        `json:"drift_status"`
+		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
+		Command  []string            `json:"command"`
 	}
 
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
@@ -236,8 +237,11 @@ func (orgs MemberOrganizations) String() string {
 
 // Validate if the user has the Terramate CLI required fields.
 func (u User) Validate() error {
+	if u.Email == "" {
+		return errors.E(`missing "email" field.`)
+	}
 	if u.DisplayName == "" {
-		return errors.E(`missing "display_name" field.`)
+		return errors.E(`missing "display_name" field`)
 	}
 	return nil
 }
@@ -313,6 +317,13 @@ func (d DriftStackPayloadRequest) Validate() error {
 	if err := d.Stack.Validate(); err != nil {
 		return err
 	}
+	if d.Metadata != nil {
+		err := d.Metadata.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
 	return d.Status.Validate()
 }
 
