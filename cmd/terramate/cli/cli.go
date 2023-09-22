@@ -1336,6 +1336,10 @@ func (c *cli) printStacks() {
 		log.Fatal().Msg("the --why flag must be used together with --changed")
 	}
 
+	if !c.prj.isRepo && c.parsedArgs.Changed {
+		log.Fatal().Msg("The --changed flag requires a git repository")
+	}
+
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 
 	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
