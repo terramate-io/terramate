@@ -297,10 +297,9 @@ func (c *cli) detectCloudMetadata() {
 	}
 
 	metadata := &cloud.DeploymentMetadata{
-		Platform:              "github",
-		DeploymentTriggeredBy: os.Getenv("GITHUB_ACTOR"),
-		DeploymentBranch:      os.Getenv("GITHUB_REF_NAME"),
-		DeploymentCommitSHA:   headCommit,
+		GithubActionsDeploymentTriggeredBy: os.Getenv("GITHUB_ACTOR"),
+		GithubActionsDeploymentBranch:      os.Getenv("GITHUB_REF_NAME"),
+		GitHeadCommitSHA:                   headCommit,
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), defaultGithubTimeout)
@@ -313,31 +312,31 @@ func (c *cli) detectCloudMetadata() {
 			Msg("failed to retrieve commit information from GitHub API")
 	} else {
 		isVerified := commit.Verification.Verified
-		metadata.DeploymentCommitVerified = &isVerified
-		metadata.DeploymentCommitVerifiedReason = commit.Verification.Reason
+		metadata.GithubCommitVerified = &isVerified
+		metadata.GithubCommitVerifiedReason = commit.Verification.Reason
 
 		message := commit.Commit.Message
 		messageParts := strings.Split(message, "\n")
-		metadata.DeploymentCommitTitle = messageParts[0]
+		metadata.GithubCommitTitle = messageParts[0]
 		if len(messageParts) > 1 {
-			metadata.DeploymentCommitDescription = strings.TrimSpace(strings.Join(messageParts[1:], "\n"))
+			metadata.GithubCommitDescription = strings.TrimSpace(strings.Join(messageParts[1:], "\n"))
 		}
 
-		metadata.DeploymentCommitAuthorLogin = commit.Author.Login
-		metadata.DeploymentCommitAuthorAvatarURL = commit.Author.AvatarURL
-		metadata.DeploymentCommitAuthorGravatarID = commit.Author.GravatarID
+		metadata.GithubCommitAuthorLogin = commit.Author.Login
+		metadata.GithubCommitAuthorAvatarURL = commit.Author.AvatarURL
+		metadata.GithubCommitAuthorGravatarID = commit.Author.GravatarID
 
-		metadata.DeploymentCommitAuthorGitName = commit.Commit.Author.Name
-		metadata.DeploymentCommitAuthorGitEmail = commit.Commit.Author.Email
-		metadata.DeploymentCommitAuthorGitDate = commit.Commit.Author.Date
+		metadata.GithubCommitAuthorGitName = commit.Commit.Author.Name
+		metadata.GithubCommitAuthorGitEmail = commit.Commit.Author.Email
+		metadata.GithubCommitAuthorGitDate = commit.Commit.Author.Date
 
-		metadata.DeploymentCommitCommitterLogin = commit.Committer.Login
-		metadata.DeploymentCommitCommitterAvatarURL = commit.Committer.AvatarURL
-		metadata.DeploymentCommitCommitterGravatarID = commit.Committer.GravatarID
+		metadata.GithubCommitCommitterLogin = commit.Committer.Login
+		metadata.GithubCommitCommitterAvatarURL = commit.Committer.AvatarURL
+		metadata.GithubCommitCommitterGravatarID = commit.Committer.GravatarID
 
-		metadata.DeploymentCommitCommitterGitName = commit.Commit.Committer.Name
-		metadata.DeploymentCommitCommitterGitEmail = commit.Commit.Committer.Email
-		metadata.DeploymentCommitCommitterGitDate = commit.Commit.Committer.Date
+		metadata.GithubCommitCommitterGitName = commit.Commit.Committer.Name
+		metadata.GithubCommitCommitterGitEmail = commit.Commit.Committer.Email
+		metadata.GithubCommitCommitterGitDate = commit.Commit.Committer.Date
 	}
 
 	c.cloud.run.metadata = metadata
@@ -365,27 +364,27 @@ func (c *cli) detectCloudMetadata() {
 		CommitSHA:   pull.Head.SHA,
 	}
 
-	metadata.PullRequestAuthorLogin = pull.User.Login
-	metadata.PullRequestAuthorAvatarURL = pull.User.AvatarURL
-	metadata.PullRequestAuthorGravatarID = pull.User.GravatarID
-	metadata.PullRequestHeadLabel = pull.Head.Label
-	metadata.PullRequestHeadRef = pull.Head.Ref
-	metadata.PullRequestHeadSHA = pull.Head.SHA
-	metadata.PullRequestHeadAuthorLogin = pull.Head.User.Login
-	metadata.PullRequestHeadAuthorAvatarURL = pull.Head.User.AvatarURL
-	metadata.PullRequestHeadAuthorGravatarID = pull.Head.User.GravatarID
+	metadata.GithubPullRequestAuthorLogin = pull.User.Login
+	metadata.GithubPullRequestAuthorAvatarURL = pull.User.AvatarURL
+	metadata.GithubPullRequestAuthorGravatarID = pull.User.GravatarID
+	metadata.GithubPullRequestHeadLabel = pull.Head.Label
+	metadata.GithubPullRequestHeadRef = pull.Head.Ref
+	metadata.GithubPullRequestHeadSHA = pull.Head.SHA
+	metadata.GithubPullRequestHeadAuthorLogin = pull.Head.User.Login
+	metadata.GithubPullRequestHeadAuthorAvatarURL = pull.Head.User.AvatarURL
+	metadata.GithubPullRequestHeadAuthorGravatarID = pull.Head.User.GravatarID
 
-	metadata.PullRequestBaseLabel = pull.Base.Label
-	metadata.PullRequestBaseRef = pull.Base.Ref
-	metadata.PullRequestBaseSHA = pull.Base.SHA
-	metadata.PullRequestBaseAuthorLogin = pull.Base.User.Login
-	metadata.PullRequestBaseAuthorAvatarURL = pull.Base.User.AvatarURL
-	metadata.PullRequestBaseAuthorGravatarID = pull.Base.User.GravatarID
+	metadata.GithubPullRequestBaseLabel = pull.Base.Label
+	metadata.GithubPullRequestBaseRef = pull.Base.Ref
+	metadata.GithubPullRequestBaseSHA = pull.Base.SHA
+	metadata.GithubPullRequestBaseAuthorLogin = pull.Base.User.Login
+	metadata.GithubPullRequestBaseAuthorAvatarURL = pull.Base.User.AvatarURL
+	metadata.GithubPullRequestBaseAuthorGravatarID = pull.Base.User.GravatarID
 
-	metadata.PullRequestCreatedAt = pull.CreatedAt
-	metadata.PullRequestUpdatedAt = pull.UpdatedAt
-	metadata.PullRequestClosedAt = pull.ClosedAt
-	metadata.PullRequestMergedAt = pull.MergedAt
+	metadata.GithubPullRequestCreatedAt = pull.CreatedAt
+	metadata.GithubPullRequestUpdatedAt = pull.UpdatedAt
+	metadata.GithubPullRequestClosedAt = pull.ClosedAt
+	metadata.GithubPullRequestMergedAt = pull.MergedAt
 
 	c.cloud.run.reviewRequest = reviewRequest
 }

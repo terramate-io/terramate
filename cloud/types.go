@@ -101,12 +101,6 @@ type (
 		Metadata      *DeploymentMetadata      `json:"metadata,omitempty"`
 	}
 
-	// DeploymentMetadata stores the metadata available in the target platform.
-	// For now, we only support GitHub Metadata.
-	// It's marshaled as a flat hashmap of values.
-	// Note: no sensitive information must be stored here because it could be logged.
-	DeploymentMetadata GitHubMetadata
-
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
 		Stack    Stack               `json:"stack"`
@@ -118,56 +112,57 @@ type (
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
 	DriftStackPayloadRequests []DriftStackPayloadRequest
 
-	// GitHubMetadata stores the GitHub related metadata.
-	GitHubMetadata struct {
-		Platform                    string `json:"platform"`
-		PullRequestAuthorLogin      string `json:"pull_request_author_login,omitempty"`
-		PullRequestAuthorAvatarURL  string `json:"pull_request_author_avatar_url,omitempty"`
-		PullRequestAuthorGravatarID string `json:"pull_request_author_gravatar_id,omitempty"`
+	// DeploymentMetadata stores the metadata available in the target platform.
+	// For now, we only support GitHub and Github Actions Metadata.
+	// It's marshaled as a flat hashmap of values.
+	// Note: no sensitive information must be stored here because it could be logged.
+	DeploymentMetadata struct {
+		GitHeadCommitSHA string `json:"git_head_commit_sha,omitempty"`
 
-		PullRequestHeadLabel            string `json:"pull_request_head_label,omitempty"`
-		PullRequestHeadRef              string `json:"pull_request_head_ref,omitempty"`
-		PullRequestHeadSHA              string `json:"pull_request_head_sha,omitempty"`
-		PullRequestHeadAuthorLogin      string `json:"pull_request_head_author_login,omitempty"`
-		PullRequestHeadAuthorAvatarURL  string `json:"pull_request_head_author_avatar_url,omitempty"`
-		PullRequestHeadAuthorGravatarID string `json:"pull_request_head_author_gravatar_id,omitempty"`
+		GithubPullRequestAuthorLogin      string `json:"github_pull_request_author_login,omitempty"`
+		GithubPullRequestAuthorAvatarURL  string `json:"github_pull_request_author_avatar_url,omitempty"`
+		GithubPullRequestAuthorGravatarID string `json:"github_pull_request_author_gravatar_id,omitempty"`
 
-		PullRequestBaseLabel            string `json:"pull_request_base_label,omitempty"`
-		PullRequestBaseRef              string `json:"pull_request_base_ref,omitempty"`
-		PullRequestBaseSHA              string `json:"pull_request_base_sha,omitempty"`
-		PullRequestBaseAuthorLogin      string `json:"pull_request_base_author_login,omitempty"`
-		PullRequestBaseAuthorAvatarURL  string `json:"pull_request_base_author_avatar_url,omitempty"`
-		PullRequestBaseAuthorGravatarID string `json:"pull_request_base_author_gravatar_id,omitempty"`
+		GithubPullRequestHeadLabel            string `json:"github_pull_request_head_label,omitempty"`
+		GithubPullRequestHeadRef              string `json:"github_pull_request_head_ref,omitempty"`
+		GithubPullRequestHeadSHA              string `json:"github_pull_request_head_sha,omitempty"`
+		GithubPullRequestHeadAuthorLogin      string `json:"github_pull_request_head_author_login,omitempty"`
+		GithubPullRequestHeadAuthorAvatarURL  string `json:"github_pull_request_head_author_avatar_url,omitempty"`
+		GithubPullRequestHeadAuthorGravatarID string `json:"github_pull_request_head_author_gravatar_id,omitempty"`
 
-		PullRequestCreatedAt *time.Time `json:"pull_request_created_at,omitempty"`
-		PullRequestUpdatedAt *time.Time `json:"pull_request_updated_at,omitempty"`
-		PullRequestClosedAt  *time.Time `json:"pull_request_closed_at,omitempty"`
-		PullRequestMergedAt  *time.Time `json:"pull_request_merged_at,omitempty"`
+		GithubPullRequestBaseLabel            string `json:"github_pull_request_base_label,omitempty"`
+		GithubPullRequestBaseRef              string `json:"github_pull_request_base_ref,omitempty"`
+		GithubPullRequestBaseSHA              string `json:"github_pull_request_base_sha,omitempty"`
+		GithubPullRequestBaseAuthorLogin      string `json:"github_pull_request_base_author_login,omitempty"`
+		GithubPullRequestBaseAuthorAvatarURL  string `json:"github_pull_request_base_author_avatar_url,omitempty"`
+		GithubPullRequestBaseAuthorGravatarID string `json:"github_pull_request_base_author_gravatar_id,omitempty"`
 
-		DeploymentBranch string `json:"deployment_branch,omitempty"`
+		GithubPullRequestCreatedAt *time.Time `json:"github_pull_request_created_at,omitempty"`
+		GithubPullRequestUpdatedAt *time.Time `json:"github_pull_request_updated_at,omitempty"`
+		GithubPullRequestClosedAt  *time.Time `json:"github_pull_request_closed_at,omitempty"`
+		GithubPullRequestMergedAt  *time.Time `json:"github_pull_request_merged_at,omitempty"`
 
-		DeploymentCommitVerified       *bool  `json:"deployment_commit_verified,omitempty"`
-		DeploymentCommitVerifiedReason string `json:"deployment_commit_verified_reason,omitempty"`
+		GithubCommitVerified       *bool  `json:"github_commit_verified,omitempty"`
+		GithubCommitVerifiedReason string `json:"github_commit_verified_reason,omitempty"`
 
-		DeploymentCommitSHA         string `json:"deployment_commit_sha,omitempty"`
-		DeploymentCommitTitle       string `json:"deployment_commit_title,omitempty"`
-		DeploymentCommitDescription string `json:"deployment_commit_description,omitempty"`
+		GithubCommitTitle            string     `json:"github_commit_title,omitempty"`
+		GithubCommitDescription      string     `json:"github_commit_description,omitempty"`
+		GithubCommitAuthorLogin      string     `json:"github_commit_author_login,omitempty"`
+		GithubCommitAuthorAvatarURL  string     `json:"github_commit_author_avatar_url,omitempty"`
+		GithubCommitAuthorGravatarID string     `json:"github_commit_author_gravatar_id,omitempty"`
+		GithubCommitAuthorGitName    string     `json:"github_commit_author_git_name,omitempty"`
+		GithubCommitAuthorGitEmail   string     `json:"github_commit_author_git_email,omitempty"`
+		GithubCommitAuthorGitDate    *time.Time `json:"github_commit_author_git_date,omitempty"`
 
-		DeploymentCommitAuthorLogin      string     `json:"deployment_commit_author_login,omitempty"`
-		DeploymentCommitAuthorAvatarURL  string     `json:"deployment_commit_author_avatar_url,omitempty"`
-		DeploymentCommitAuthorGravatarID string     `json:"deployment_commit_author_gravatar_id,omitempty"`
-		DeploymentCommitAuthorGitName    string     `json:"deployment_commit_author_git_name,omitempty"`
-		DeploymentCommitAuthorGitEmail   string     `json:"deployment_commit_author_git_email,omitempty"`
-		DeploymentCommitAuthorGitDate    *time.Time `json:"deployment_commit_author_git_date,omitempty"`
+		GithubCommitCommitterLogin      string     `json:"github_commit_committer_login,omitempty"`
+		GithubCommitCommitterAvatarURL  string     `json:"github_commit_committer_avatar_url,omitempty"`
+		GithubCommitCommitterGravatarID string     `json:"github_commit_committer_gravatar_id,omitempty"`
+		GithubCommitCommitterGitName    string     `json:"github_commit_committer_git_name,omitempty"`
+		GithubCommitCommitterGitEmail   string     `json:"github_commit_committer_git_email,omitempty"`
+		GithubCommitCommitterGitDate    *time.Time `json:"github_commit_committer_git_date,omitempty"`
 
-		DeploymentCommitCommitterLogin      string     `json:"deployment_commit_committer_login,omitempty"`
-		DeploymentCommitCommitterAvatarURL  string     `json:"deployment_commit_committer_avatar_url,omitempty"`
-		DeploymentCommitCommitterGravatarID string     `json:"deployment_commit_committer_gravatar_id,omitempty"`
-		DeploymentCommitCommitterGitName    string     `json:"deployment_commit_committer_git_name,omitempty"`
-		DeploymentCommitCommitterGitEmail   string     `json:"deployment_commit_committer_git_email,omitempty"`
-		DeploymentCommitCommitterGitDate    *time.Time `json:"deployment_commit_committer_git_date,omitempty"`
-
-		DeploymentTriggeredBy string `json:"deployment_triggered_by,omitempty"`
+		GithubActionsDeploymentBranch      string `json:"github_actions_deployment_branch,omitempty"`
+		GithubActionsDeploymentTriggeredBy string `json:"github_actions_triggered_by,omitempty"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
@@ -355,9 +350,6 @@ func (d DeploymentStacksPayloadRequest) Validate() error {
 
 // Validate the metadata.
 func (m DeploymentMetadata) Validate() error {
-	if m.Platform == "" {
-		return errors.E(`missing "platform" field`)
-	}
 	return nil
 }
 
