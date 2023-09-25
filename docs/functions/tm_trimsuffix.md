@@ -7,7 +7,7 @@ description: |-
 
 # `tm_trimsuffix` Function
 
-`trimsuffix` removes the specified suffix from the end of the given string.
+`tm_trimsuffix` removes the specified suffix from the end of the given string.
 
 ## Examples
 

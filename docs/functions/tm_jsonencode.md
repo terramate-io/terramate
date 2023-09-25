@@ -9,11 +9,9 @@ description: The tm_jsonencode function encodes a given value as a JSON string.
 
 The JSON encoding is defined in [RFC 7159](https://tools.ietf.org/html/rfc7159).
 
-This function maps
-[Terraform language values](https://developer.hashicorp.com/terraform/language/expressions/types)
-to JSON values in the following way:
+This function maps **Terramate language values** to JSON values in the following way:
 
-| Terraform type | JSON type |
+| Terramate type | JSON type |
 | -------------- | --------- |
 | `string`       | String    |
 | `number`       | Number    |
@@ -25,15 +23,14 @@ to JSON values in the following way:
 | `object(...)`  | Object    |
 | Null value     | `null`    |
 
-Since the JSON format cannot fully represent all of the Terraform language
+Since the JSON format cannot fully represent all of the Terramate language
 types, passing the `jsonencode` result to `jsondecode` will not produce an
 identical value, but the automatic type conversion rules mean that this is
 rarely a problem in practice.
 
 When encoding strings, this function escapes some characters using
 Unicode escape sequences: replacing `<`, `>`, `&`, `U+2028`, and `U+2029` with
-`\u003c`, `\u003e`, `\u0026`, `\u2028`, and `\u2029`. This is to preserve
-compatibility with Terraform 0.11 behavior.
+`\u003c`, `\u003e`, `\u0026`, `\u2028`, and `\u2029`. 
 
 The `jsonencode` command outputs a minified representation of the input.
 

@@ -19,7 +19,7 @@ as defined in [RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4
 `privatekey` must be a PEM-encoded RSA private key that is not itself
 encrypted.
 
-Terraform has no corresponding function for _encrypting_ a message. Use this
+Terramate has no corresponding function for _encrypting_ a message. Use this
 function to decrypt ciphertexts returned by remote services using a keypair
 negotiated out-of-band.
 

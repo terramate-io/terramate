@@ -7,8 +7,7 @@ description: |-
 
 # `tm_chunklist` Function
 
-`chunklist` splits a single list into fixed-size chunks, returning a list
-of lists.
+`chunklist` splits a single list into fixed-size chunks, returning a list of lists.
 
 ```hcl
 tm_chunklist(list, chunk_size)

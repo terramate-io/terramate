@@ -5,7 +5,7 @@ description: The tm_tobool function converts a value to boolean.
 
 # `tm_tobool` Function
 
-`tobool` converts its argument to a boolean value.
+`tm_tobool` converts its argument to a boolean value.
 
 Explicit type conversions are rarely necessary in Terraform because it will
 convert types automatically where required. Use the explicit type conversion

@@ -7,8 +7,7 @@ description: |-
 
 # `tm_zipmap` Function
 
-`tm_zipmap` constructs a map from a list of keys and a corresponding list of
-values.
+`tm_zipmap` constructs a map from a list of keys and a corresponding list of values.
 
 ```hcl
 tm_zipmap(keyslist, valueslist)

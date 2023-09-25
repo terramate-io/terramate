@@ -5,13 +5,13 @@ description: The tm_toset function converts a value to a set.
 
 # `tm_toset` Function
 
-`toset` converts its argument to a set value.
+`tm_toset` converts its argument to a set value.
 
 Explicit type conversions are rarely necessary in Terraform because it will
 convert types automatically where required. Use the explicit type conversion
 functions only to normalize types returned in module outputs.
 
-Pass a _list_ value to `toset` to convert it to a set, which will remove any
+Pass a _list_ value to `tm_toset` to convert it to a set, which will remove any
 duplicate elements and discard the ordering of the elements.
 
 ## Examples

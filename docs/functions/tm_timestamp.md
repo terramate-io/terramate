@@ -14,7 +14,7 @@ strings using [RFC 3339](https://tools.ietf.org/html/rfc3339)
 "Date and Time format" syntax, and so `timestamp` returns a string
 in this format.
 
-The tm_result of this function will change every second, so using this function
+The result of this function will change every second, so using this function
 directly with resource attributes will cause a diff to be detected on every
 Terraform run. We do not recommend using this function in resource attributes,
 but in rare cases it can be used in conjunction with
