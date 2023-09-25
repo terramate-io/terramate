@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -121,6 +122,30 @@ func TestCloudSyncUIMode(t *testing.T) {
 						},
 					},
 				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`FTL failed to load credentials: ` + string(clitest.ErrCloudOnboardingIncomplete),
+						},
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`FTL failed to load credentials: ` + string(clitest.ErrCloudOnboardingIncomplete),
+						},
+					},
+				},
 			},
 		},
 		{
@@ -206,6 +231,32 @@ func TestCloudSyncUIMode(t *testing.T) {
 						},
 					},
 				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`ERR ` + string(cloud.ErrUnexpectedResponseBody),
+							`FTL failed to load credentials`,
+						},
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`ERR ` + string(cloud.ErrUnexpectedResponseBody),
+							`FTL failed to load credentials`,
+						},
+					},
+				},
 			},
 		},
 		{
@@ -267,6 +318,32 @@ func TestCloudSyncUIMode(t *testing.T) {
 						StderrRegexes: []string{
 							`failed to load the cloud credentials`,
 							string(clitest.CloudDisablingMessage),
+						},
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`ERR ` + regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							`FTL failed to load credentials`,
+						},
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`ERR ` + regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							`FTL failed to load credentials`,
 						},
 					},
 				},
@@ -354,6 +431,32 @@ func TestCloudSyncUIMode(t *testing.T) {
 							clitest.CloudNoMembershipMessage,
 							string(clitest.ErrCloudOnboardingIncomplete),
 							string(clitest.CloudDisablingMessage),
+						},
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\n",
+						StderrRegexes: []string{
+							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+						},
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\n",
+						StderrRegexes: []string{
+							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
 					},
 				},
@@ -453,6 +556,26 @@ func TestCloudSyncUIMode(t *testing.T) {
 							`Please set TM_CLOUD_ORGANIZATION environment variable`,
 							clitest.CloudDisablingMessage,
 						},
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
 					},
 				},
 			},
