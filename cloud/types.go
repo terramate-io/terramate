@@ -123,6 +123,13 @@ type (
 		GithubPullRequestAuthorAvatarURL  string `json:"github_pull_request_author_avatar_url,omitempty"`
 		GithubPullRequestAuthorGravatarID string `json:"github_pull_request_author_gravatar_id,omitempty"`
 
+		GithubPullRequestURL            string `json:"github_pull_request_url,omitempty"`
+		GithubPullRequestNumber         int    `json:"github_pull_request_number,omitempty"`
+		GithubPullRequestTitle          string `json:"github_pull_request_title,omitempty"`
+		GithubPullRequestDescription    string `json:"github_pull_request_description,omitempty"`
+		GithubPullRequestState          string `json:"github_pull_request_state,omitempty"`
+		GithubPullRequestMergeCommitSHA string `json:"github_pull_request_merge_commit_sha,omitempty"`
+
 		GithubPullRequestHeadLabel            string `json:"github_pull_request_head_label,omitempty"`
 		GithubPullRequestHeadRef              string `json:"github_pull_request_head_ref,omitempty"`
 		GithubPullRequestHeadSHA              string `json:"github_pull_request_head_sha,omitempty"`

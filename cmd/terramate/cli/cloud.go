@@ -366,15 +366,22 @@ func (c *cli) detectCloudMetadata() {
 		CommitSHA:   pull.Head.SHA,
 	}
 
-	metadata.GithubPullRequestAuthorLogin = pull.User.Login
-	metadata.GithubPullRequestAuthorAvatarURL = pull.User.AvatarURL
-	metadata.GithubPullRequestAuthorGravatarID = pull.User.GravatarID
+	metadata.GithubPullRequestURL = pull.HTMLURL
+	metadata.GithubPullRequestNumber = pull.Number
+	metadata.GithubPullRequestTitle = pull.Title
+	metadata.GithubPullRequestDescription = pull.Body
+	metadata.GithubPullRequestState = pull.State
+	metadata.GithubPullRequestMergeCommitSHA = pull.MergeCommitSHA
 	metadata.GithubPullRequestHeadLabel = pull.Head.Label
 	metadata.GithubPullRequestHeadRef = pull.Head.Ref
 	metadata.GithubPullRequestHeadSHA = pull.Head.SHA
 	metadata.GithubPullRequestHeadAuthorLogin = pull.Head.User.Login
 	metadata.GithubPullRequestHeadAuthorAvatarURL = pull.Head.User.AvatarURL
 	metadata.GithubPullRequestHeadAuthorGravatarID = pull.Head.User.GravatarID
+	metadata.GithubPullRequestCreatedAt = pull.CreatedAt
+	metadata.GithubPullRequestUpdatedAt = pull.UpdatedAt
+	metadata.GithubPullRequestClosedAt = pull.ClosedAt
+	metadata.GithubPullRequestMergedAt = pull.MergedAt
 
 	metadata.GithubPullRequestBaseLabel = pull.Base.Label
 	metadata.GithubPullRequestBaseRef = pull.Base.Ref
@@ -383,10 +390,9 @@ func (c *cli) detectCloudMetadata() {
 	metadata.GithubPullRequestBaseAuthorAvatarURL = pull.Base.User.AvatarURL
 	metadata.GithubPullRequestBaseAuthorGravatarID = pull.Base.User.GravatarID
 
-	metadata.GithubPullRequestCreatedAt = pull.CreatedAt
-	metadata.GithubPullRequestUpdatedAt = pull.UpdatedAt
-	metadata.GithubPullRequestClosedAt = pull.ClosedAt
-	metadata.GithubPullRequestMergedAt = pull.MergedAt
+	metadata.GithubPullRequestAuthorLogin = pull.User.Login
+	metadata.GithubPullRequestAuthorAvatarURL = pull.User.AvatarURL
+	metadata.GithubPullRequestAuthorGravatarID = pull.User.GravatarID
 
 	c.cloud.run.reviewRequest = reviewRequest
 }

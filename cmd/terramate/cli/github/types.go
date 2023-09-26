@@ -20,8 +20,9 @@ type (
 		ClosedAt  *time.Time `json:"closed_at,omitempty"`
 		MergedAt  *time.Time `json:"merged_at,omitempty"`
 
-		Head RefInfo `json:"head"`
-		Base RefInfo `json:"base"`
+		MergeCommitSHA string  `json:"merge_commit_sha,omitempty"`
+		Head           RefInfo `json:"head"`
+		Base           RefInfo `json:"base"`
 
 		// rest of the fields aren't important for the cli.
 	}
