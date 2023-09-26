@@ -164,7 +164,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 			runflags: []string{`--eval`},
 			cmd:      []string{testHelperBinAsHCL, "echo", "${terramate.stack.path.absolute}"},
-
 			want: want{
 				run: runExpected{
 					Status: 0,
@@ -174,6 +173,15 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					"s1": []string{"pending", "running", "ok"},
 					"s2": []string{"pending", "running", "ok"},
 				},
+			},
+		},
+		{
+			name:     "no selected stacks selected do not create a deployment",
+			layout:   []string{},
+			runflags: []string{`--eval`},
+			cmd:      []string{testHelperBinAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			want: want{
+				events: eventsResponse{},
 			},
 		},
 	} {
@@ -202,7 +210,9 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			}
 
 			s.BuildTree(genIdsLayout)
-			s.Git().CommitAll("all stacks committed")
+			if len(tc.layout) > 0 {
+				s.Git().CommitAll("all stacks committed")
+			}
 			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
 			uuid, err := uuid.NewRandom()
 			assert.NoError(t, err)

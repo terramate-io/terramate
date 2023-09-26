@@ -104,6 +104,11 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
+	if len(orderedStacks) == 0 {
+		logger.Debug().Msg("no selected stacks")
+		return
+	}
+
 	var runStacks []ExecContext
 	for _, st := range orderedStacks {
 		run := ExecContext{
