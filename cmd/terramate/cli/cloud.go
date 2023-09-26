@@ -202,7 +202,7 @@ func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
 func (c *cli) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
-		fatal(err)
+		fatal(err, "failed to load credentials")
 	}
 	c.cred().info()
 	// verbose info
