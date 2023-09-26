@@ -5,13 +5,13 @@ description: The tm_element function retrieves a single element from a list.
 
 # `tm_element` Function
 
-`element` retrieves a single element from a list.
+`tm_element` retrieves a single element from a list.
 
 ```hcl
 tm_element(list, index)
 ```
 
-The tm_index is zero-based. This function produces an error if used with an
+The index is zero-based. This function produces an error if used with an
 empty list. The index must be a non-negative integer.
 
 Use the built-in index syntax `list[index]` in most cases. Use this function

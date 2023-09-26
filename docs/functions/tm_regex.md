@@ -102,7 +102,7 @@ no characters. These are "zero-width" matching operators:
 | `\b`     | At an ASCII word boundary (transition between `\w` and either `\W`, `\A` or `\z`, or vice-versa) |
 | `\B`     | Not at an ASCII word boundary                                                                    |
 
-Terraform uses the
+Terramate uses the
 [RE2](https://github.com/google/re2/wiki/Syntax) regular expression language.
 This engine does not support all of the features found in some other regular
 expression engines; in particular, it does not support backreferences.
@@ -155,7 +155,7 @@ string.
 - [`tm_regexall`](./tm_regexall.md) searches for potentially multiple matches of a given pattern in a string.
 - [`tm_replace`](./tm_replace.md) replaces a substring of a string with another string, optionally matching using the same regular expression syntax as `regex`.
 
-If Terraform already has a more specialized function to parse the syntax you
+If Terramate already has a more specialized function to parse the syntax you
 are trying to match, prefer to use that function instead. Regular expressions
 can be hard to read and can obscure your intent, making a configuration harder
 to read and understand.

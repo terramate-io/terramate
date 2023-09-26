@@ -5,7 +5,7 @@ description: The tm_tomap function converts a value to a map.
 
 # `tm_tomap` Function
 
-`tomap` converts its argument to a map value.
+`tm_tomap` converts its argument to a map value.
 
 Explicit type conversions are rarely necessary in Terraform because it will
 convert types automatically where required. Use the explicit type conversion

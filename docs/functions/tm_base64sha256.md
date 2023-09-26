@@ -8,7 +8,7 @@ description: |-
 # `tm_base64sha256` Function
 
 `tm_base64sha256` computes the SHA256 hash of a given string and encodes it with
-Base64. This is not equivalent to `base64encode(sha256("test"))` since `sha256()`
+Base64. This is not equivalent to `tm_base64encode(sha256("test"))` since `sha256()`
 returns hexadecimal representation.
 
 The given string is first encoded as UTF-8 and then the SHA256 algorithm is applied

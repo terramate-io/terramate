@@ -7,7 +7,7 @@ description: |-
 
 # `tm_title` Function
 
-`title` converts the first letter of each word in the given string to uppercase.
+`tm_title` converts the first letter of each word in the given string to uppercase.
 
 ## Examples
 

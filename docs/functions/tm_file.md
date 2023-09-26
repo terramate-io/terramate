@@ -7,8 +7,7 @@ description: |-
 
 # `tm_file` Function
 
-`file` reads the contents of a file at the given path and returns them as
-a string.
+`tm_file` reads the contents of a file at the given path and returns them as a string.
 
 ```hcl
 tm_file(path)

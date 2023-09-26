@@ -9,7 +9,7 @@ description: >-
 
 # `tm_trim` Function
 
-`trim` removes the specified set of characters from the start and end of the given
+`tm_trim` removes the specified set of characters from the start and end of the given
 string.
 
 ```hcl

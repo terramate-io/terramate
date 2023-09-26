@@ -23,8 +23,6 @@ b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
 
 ## Related Functions
 
-## Related Functions
-
 * [`tm_filesha256`](./tm_filesha256.md) calculates the same hash from
   the contents of a file rather than from a string value.
 * [`tm_base64sha256`](./tm_base64sha256.md) calculates the same hash but returns

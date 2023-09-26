@@ -17,7 +17,7 @@ features such as symlinks.
 If the path is empty then the result is `"."`, representing the current
 working directory.
 
-The tm_behavior of this function depends on the host platform. On Windows systems,
+The behavior of this function depends on the host platform. On Windows systems,
 it uses backslash `\` as the path segment separator. On Unix systems, the slash
 `/` is used.
 
@@ -37,5 +37,4 @@ baz.txt
 ## Related Functions
 
 * [`tm_dirname`](./tm_dirname.md) returns all of the segments of a filesystem path
-  _except_ the last, discarding the portion that would be returned by
-  `basename`.
+  _except_ the last, discarding the portion that would be returned by `tm_basename`.

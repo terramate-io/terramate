@@ -13,19 +13,18 @@ of the result of decoding that string.
 The JSON encoding is defined in [RFC 7159](https://tools.ietf.org/html/rfc7159).
 
 This function maps JSON values to
-[Terraform language values](https://developer.hashicorp.com/terraform/language/expressions/types)
-in the following way:
+**Terramate language values** in the following way:
 
-| JSON type | Terraform type                                               |
+| JSON type | Terramate type                                               |
 | --------- | ------------------------------------------------------------ |
 | String    | `string`                                                     |
 | Number    | `number`                                                     |
 | Boolean   | `bool`                                                       |
 | Object    | `object(...)` with attribute types determined per this table |
 | Array     | `tuple(...)` with element types determined per this table    |
-| Null      | The Terraform language `null` value                          |
+| Null      | The Terramate `null` value                          |
 
-The Terraform language automatic type conversion rules mean that you don't
+The Terramate language automatic type conversion rules mean that you don't
 usually need to worry about exactly what type is produced for a given value,
 and can just use the result in an intuitive way.
 

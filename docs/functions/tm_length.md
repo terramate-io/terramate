@@ -34,6 +34,4 @@ tm_length("👾🕹️")
 A "character" is a _grapheme cluster_, as defined by
 [Unicode Standard Annex #29](http://unicode.org/reports/tr29/). Note that
 remote APIs may have a different definition of "character" for the purpose of
-length limits on string arguments; a Terraform provider is responsible for
-translating Terraform's string representation into that used by its respective
-remote system and applying any additional validation rules to it.
+length limits on string arguments; 

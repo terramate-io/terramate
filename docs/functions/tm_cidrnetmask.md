@@ -7,7 +7,7 @@ description: |-
 
 # `tm_cidrnetmask` Function
 
-`cidrnetmask` converts an IPv4 address prefix given in CIDR notation into
+`tm_cidrnetmask` converts an IPv4 address prefix given in CIDR notation into
 a subnet mask address.
 
 ```hcl

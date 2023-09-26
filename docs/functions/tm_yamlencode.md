@@ -24,11 +24,11 @@ to YAML tags in the following way:
 | `object(...)`  | `!!map`              |
 | Null value     | `!!null`             |
 
-`yamlencode` uses the implied syntaxes for all of the above types, so it does
+`tm_yamlencode` uses the implied syntaxes for all of the above types, so it does
 not generate explicit YAML tags.
 
-Because the YAML format cannot fully represent all of the Terraform language
-types, passing the `yamlencode` result to `yamldecode` will not produce an
+Because the YAML format cannot fully represent all of the Terramate language
+types, passing the `tm_yamlencode` result to `tm_yamldecode` will not produce an
 identical value, but the Terraform language automatic type conversion rules
 mean that this is rarely a problem in practice.
 

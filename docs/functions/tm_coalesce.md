@@ -47,7 +47,7 @@ tm_coalesce({}, "hello")
 
 Error: Error in function call
 
-Call to function "coalesce" failed: all arguments must have the same type.
+Call to function "tm_coalesce" failed: all arguments must have the same type.
 ```
 
 ## Related Functions

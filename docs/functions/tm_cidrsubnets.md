@@ -7,7 +7,7 @@ description: |-
 
 # `tm_cidrsubnets` Function
 
-`cidrsubnets` calculates a sequence of consecutive IP address ranges within
+`tm_cidrsubnets` calculates a sequence of consecutive IP address ranges within
 a particular CIDR prefix.
 
 ```hcl
@@ -23,9 +23,9 @@ value is therefore a list with one element per `newbits` argument, each
 a string containing an address range in CIDR notation.
 
 For more information on IP addressing concepts, see the documentation for the
-related function [`tm_cidrsubnet`](./tm_cidrsubnet.md). `cidrsubnet` calculates
+related function [`tm_cidrsubnet`](./tm_cidrsubnet.md). `tm_cidrsubnet` calculates
 a single subnet address within a prefix while allowing you to specify its
-subnet number, while `cidrsubnets` can calculate many at once, potentially of
+subnet number, while `tm_cidrsubnets` can calculate many at once, potentially of
 different sizes, and assigns subnet numbers automatically.
 
 When using this function to partition an address space as part of a network
@@ -41,12 +41,6 @@ the same addressing scheme as the given prefix.
 octets that have leading zeros as decimal numbers, which is contrary to some
 other systems which interpret them as octal. We have preserved this behavior
 for backward compatibility, but recommend against relying on this behavior.
-
--tm_**Note:** [The Terraform module `hashicorp/subnets/cidr`](https://registry.terraform.io/modules/hashicorp/subnets/cidr)
-wraps `cidrsubnets` to provide additional functionality for assigning symbolic
-names to your networks and skipping prefixes for obsolete allocations. Its
-documentation includes usage examples for several popular cloud virtual network
-platforms.
 
 ## Examples
 
@@ -68,7 +62,7 @@ tm_cidrsubnets("fd00:fd12:3456:7890::/56", 16, 16, 16, 32)
 ]
 ```
 
-You can use nested `cidrsubnets` calls with
+You can use nested `tm_cidrsubnets` calls with
 [`for` expressions](https://developer.hashicorp.com/terraform/language/expressions/for)
 to concisely allocate groups of network address blocks:
 

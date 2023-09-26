@@ -7,7 +7,7 @@ description: |-
 
 # `tm_timecmp` Function
 
-`timecmp` compares two timestamps and returns a number that represents the
+`tm_timecmp` compares two timestamps and returns a number that represents the
 ordering of the instants those timestamps represent.
 
 ```hcl
@@ -43,7 +43,7 @@ tm_timecmp("2017-11-22T01:00:00Z", "2017-11-22T00:00:00-01:00")
 0
 ```
 
-`timecmp` can be particularly useful in defining
+`tm_timecmp` can be particularly useful in defining
 [custom condition checks](https://developer.hashicorp.com/terraform/language/expressions/custom-conditions) that
 involve a specified timestamp being within a particular range. For example,
 the following resource postcondition would raise an error if a TLS certificate
@@ -61,6 +61,6 @@ the "apply" step:
 
 ## Related Functions
 
-* \[`tm_timestamp`\]\(\./tm_timestamp.md\) returns the current timestamp when it is evaluated
+* [`tm_timestamp`](./tm_timestamp.md) returns the current timestamp when it is evaluated
   during the apply step.
-* \[`tm_timeadd`\]\(\./tm_timeadd.md\) can perform arithmetic on timestamps by adding or removing a specified duration.
+* [`tm_timeadd`](./tm_timeadd.md) can perform arithmetic on timestamps by adding or removing a specified duration.

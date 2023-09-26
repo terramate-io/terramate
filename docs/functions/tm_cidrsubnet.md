@@ -7,7 +7,7 @@ description: |-
 
 # `tm_cidrsubnet` Function
 
-`cidrsubnet` calculates a subnet address within given IP network address prefix.
+`tm_cidrsubnet` calculates a subnet address within given IP network address prefix.
 
 ```hcl
 tm_cidrsubnet(prefix, newbits, netnum)
@@ -50,14 +50,14 @@ fd00:fd12:3456:7800:a200::/72
 
 ## Netmasks and Subnets
 
-Using `cidrsubnet` requires familiarity with some network addressing concepts.
+Using `tm_cidrsubnet` requires familiarity with some network addressing concepts.
 
 The most important idea is that an IP address (whether IPv4 or IPv6) is
 fundamentally constructed from binary digits, even though we conventionally
 represent it as either four decimal octets (for IPv4) or a sequence of 16-bit
 hexadecimal numbers (for IPv6).
 
-Taking our example above of `cidrsubnet("10.1.2.0/24", 4, 15)`, the function
+Taking our example above of `tm_cidrsubnet("10.1.2.0/24", 4, 15)`, the function
 will first convert the given IP address string into an equivalent binary
 representation:
 
@@ -94,10 +94,10 @@ different notation) the conversion from decimal to binary and shows the range
 of possible host addresses in this network.
 
 While [`tm_cidrhost`](./tm_cidrhost.md) allows calculating single host IP addresses,
-`cidrsubnet` on the other hand creates a new network prefix _within_ the given
+`tm_cidrsubnet` on the other hand creates a new network prefix _within_ the given
 network prefix. In other words, it creates a subnet.
 
-When we call `cidrsubnet` we also pass two additional arguments: `newbits` and
+When we call `tm_cidrsubnet` we also pass two additional arguments: `newbits` and
 `netnum`. `newbits` decides how much longer the resulting prefix will be in
 bits; in our example here we specified `4`, which means that the resulting
 subnet will have a prefix length of 24 + 4 = 28 bits. We can imagine these

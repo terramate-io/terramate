@@ -7,7 +7,7 @@ description: |-
 
 # `tm_cidrhost` Function
 
-`cidrhost` calculates a full host IP address for a given host number within
+`tm_cidrhost` calculates a full host IP address for a given host number within
 a given IP network address prefix.
 
 ```hcl

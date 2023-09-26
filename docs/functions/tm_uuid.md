@@ -5,7 +5,7 @@ description: The tm_uuid function generates a unique id.
 
 # `tm_uuid` Function
 
-`uuid` generates a unique identifier string.
+`tm_uuid` generates a unique identifier string.
 
 The id is a generated and formatted as required by
 [RFC 4122 section 4.4](https://tools.ietf.org/html/rfc4122#section-4.4),

@@ -5,14 +5,14 @@ description: The tm_tostring function converts a value to a string.
 
 # `tm_tostring` Function
 
-`tostring` converts its argument to a string value.
+`tm_tostring` converts its argument to a string value.
 
 Explicit type conversions are rarely necessary in Terraform because it will
 convert types automatically where required. Use the explicit type conversion
 functions only to normalize types returned in module outputs.
 
 Only the primitive types (string, number, and bool) and `null` can be converted to string.
-`tostring(null)` produces a `null` value of type `string`. All other values produce an error. 
+`tm_tostring(null)` produces a `null` value of type `string`. All other values produce an error. 
 
 ## Examples
 

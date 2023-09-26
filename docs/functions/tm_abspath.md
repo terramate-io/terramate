@@ -18,6 +18,6 @@ only the contents are then stored) or in `connection` and `provisioner` blocks.
 ## Examples
 
 ```
-tm_abspath(path.root)
-/home/user/some/terraform/root
+tm_abspath("stacks/vpc")
+/home/user/repo/stacks/vpc
 ```

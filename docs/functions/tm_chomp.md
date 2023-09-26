@@ -5,7 +5,7 @@ description: The tm_chomp function removes newline characters at the end of a st
 
 # `tm_chomp` Function
 
-`chomp` removes newline characters at the end of a string.
+`tm_chomp` removes newline characters at the end of a string.
 
 This can be useful if, for example, the string was read from a file that has
 a newline character at the end.

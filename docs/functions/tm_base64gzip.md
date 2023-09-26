@@ -1,13 +1,13 @@
 ---
 title: tm_base64gzip - Functions - Configuration Language
 description: |-
-  The tm_base64encode function compresses the given string with gzip and then
+  The tm_base64gzip function compresses the given string with gzip and then
   encodes the result in Base64.
 ---
 
 # `tm_base64gzip` Function
 
-`base64gzip` compresses a string with gzip and then encodes the result in
+`tm_base64gzip` compresses a string with gzip and then encodes the result in
 Base64 encoding.
 
 Terraform uses the "standard" Base64 alphabet as defined in

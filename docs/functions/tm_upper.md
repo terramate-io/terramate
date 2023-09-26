@@ -7,7 +7,7 @@ description: >-
 
 # `tm_upper` Function
 
-`upper` converts all cased letters in the given string to uppercase.
+`tm_upper` converts all cased letters in the given string to uppercase.
 
 ## Examples
 
