@@ -27,5 +27,5 @@ tm_slice(["a", "b", "c", "d"], 1, 3)
 
 ## Related Functions
 
-* \[`tm_substr`\]\(\./tm_substr.md\) performs a similar function for characters in a
+* [`tm_substr`](./tm_substr.md) performs a similar function for characters in a
   string, although it uses a length instead of an end index.

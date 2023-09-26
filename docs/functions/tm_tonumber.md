@@ -5,7 +5,7 @@ description: The tm_tonumber function converts a value to a number.
 
 # `tm_tonumber` Function
 
-`tonumber` converts its argument to a number value.
+`tm_tonumber` converts its argument to a number value.
 
 Explicit type conversions are rarely necessary in Terraform because it will
 convert types automatically where required. Use the explicit type conversion

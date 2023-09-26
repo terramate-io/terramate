@@ -1,13 +1,11 @@
 ---
 title: tm_one - Functions - Configuration Language
 description: |-
-  The tm_'one' function transforms a list with either zero or one elements into
+  The tm_one function transforms a list with either zero or one elements into
   either a null value or the value of the first element.
 ---
 
 # `tm_one` Function
-
--> **Note:** This function is available only in Terraform v0.15 and later.
 
 `tm_one` takes a list, set, or tuple value with either zero or one elements.
 If the collection is empty, `one` returns `null`. Otherwise, `one` returns
@@ -91,7 +89,7 @@ Invalid value for "list" parameter: must be a list, set, or tuple value with
 either zero or one elements.
 ```
 
-### Using `one` with sets
+### Using `tm_one` with sets
 
 The `tm_one` function can be particularly helpful in situations where you have a
 set that you know has only zero or one elements. Set values don't support
@@ -106,11 +104,11 @@ tm_one(toset(["hello"]))
 "hello"
 ```
 
-Don't use `one` with sets that might have more than one element. This function
+Don't use `tm_one` with sets that might have more than one element. This function
 will fail in that case:
 
 ```
-tm_one(toset(["hello","goodbye"]))
+tm_one(tm_toset(["hello","goodbye"]))
 
 Error: Invalid function argument
 

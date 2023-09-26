@@ -15,8 +15,8 @@ to a string and returns a list of all matches.
 tm_regexall(pattern, string)
 ```
 
-`regexall` is a variant of [`tm_regex`](./tm_regex.md) and uses the same pattern
-syntax. For any given input to `regex`, `regexall` returns a list of whatever
+`tm_regexall` is a variant of [`tm_regex`](./tm_regex.md) and uses the same pattern
+syntax. For any given input to `tm_regex`, `tm_regexall` returns a list of whatever
 type `regex` would've returned, with one element per match. That is:
 
 - If the pattern has no capture groups at all, the result is a list of
@@ -26,7 +26,7 @@ type `regex` would've returned, with one element per match. That is:
 - If the pattern has one or more _named_ capture groups, the result is a
   list of maps.
 
-`regexall` can also be used to test whether a particular string matches a
+`tm_regexall` can also be used to test whether a particular string matches a
 given pattern, by testing whether the length of the resulting list of matches
 is greater than zero.
 
@@ -51,7 +51,7 @@ false
 - [`tm_regex`](./tm_regex.md) searches for a single match of a given pattern, and
   returns an error if no match is found.
 
-If Terraform already has a more specialized function to parse the syntax you
+If Terramate already has a more specialized function to parse the syntax you
 are trying to match, prefer to use that function instead. Regular expressions
 can be hard to read and can obscure your intent, making a configuration harder
 to read and understand.

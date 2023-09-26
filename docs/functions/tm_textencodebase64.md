@@ -2,14 +2,10 @@
 title: tm_textencodebase64 - Functions - Configuration Language
 description: >-
   The tm_textencodebase64 function encodes the unicode characters in a given string
-  using a
-
-  specified character encoding, returning the result base64 encoded.
+  using a specified character encoding, returning the result base64 encoded.
 ---
 
 # `tm_textencodebase64` Function
-
--> **Note:** This function is supported only in Terraform v0.14 and later.
 
 `tm_textencodebase64` encodes the unicode characters in a given string using a
 specified character encoding, returning the result base64 encoded because

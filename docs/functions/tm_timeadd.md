@@ -1,13 +1,12 @@
 ---
 title: tm_timeadd - Functions - Configuration Language
 description: |-
-  The tm_timeadd function adds a duration to a timestamp, returning a new
-  timestamp.
+  The tm_timeadd function adds a duration to a timestamp, returning a new timestamp.
 ---
 
 # `tm_timeadd` Function
 
-`timeadd` adds a duration to a timestamp, returning a new timestamp.
+`tm_timeadd` adds a duration to a timestamp, returning a new timestamp.
 
 ```hcl
 tm_timeadd(timestamp, duration)

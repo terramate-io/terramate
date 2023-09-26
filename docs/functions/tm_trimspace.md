@@ -7,7 +7,7 @@ description: |-
 
 # `tm_trimspace` Function
 
-`trimspace` removes any space characters from the start and end of the given
+`tm_trimspace` removes any space characters from the start and end of the given
 string.
 
 This function follows the Unicode definition of "space", which includes

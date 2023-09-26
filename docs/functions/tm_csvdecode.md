@@ -5,7 +5,7 @@ description: The tm_csvdecode function decodes CSV data into a list of maps.
 
 # `tm_csvdecode` Function
 
-`csvdecode` decodes a string containing CSV-formatted data and produces a
+`tm_csvdecode` decodes a string containing CSV-formatted data and produces a
 list of maps representing that data.
 
 CSV is _Comma-separated Values_, an encoding format for tabular data. There
@@ -38,7 +38,7 @@ tm_csvdecode("a,b,c\n1,2,3\n4,5,6")
 
 ## Use with the `for_each` meta-argument
 
-You can use the result of `csvdecode` with
+You can use the result of `tm_csvdecode` with
 [the `for_each` meta-argument](https://developer.hashicorp.com/terraform/language/meta-arguments/for_each)
 to describe a collection of similar objects whose differences are
 described by the rows in the given CSV file.
@@ -59,7 +59,7 @@ locals {
     bar1,m3.large,ami-54d2a63b
   CSV
 
-  instances = csvdecode(local.csv_data)
+  instances = tm_csvdecode(local.csv_data)
 }
 
 resource "aws_instance" "example" {

@@ -7,7 +7,7 @@ description: |-
 
 # `tm_templatefile` Function
 
-`templatefile` reads the file at the given path and renders its content
+`tm_templatefile` reads the file at the given path and renders its content
 as a template using a supplied set of template variables.
 
 ```hcl
@@ -16,29 +16,27 @@ tm_templatefile(path, vars)
 
 The template syntax is the same as for
 [string templates](https://developer.hashicorp.com/terraform/language/expressions/strings#string-templates)
-in the main Terraform language, including interpolation sequences delimited with
+in the main Terramate language, including interpolation sequences delimited with
 `${` ... `}`. This function just allows longer template sequences to be factored
 out into a separate file for readability.
 
 The "vars" argument must be an object. Within the template file, each of the
 keys in the map is available as a variable for interpolation. The template may
-also use any other function available in the Terraform language, except that
-recursive calls to `templatefile` are not permitted. Variable names must
+also use any other function available in the Terramate language, except that
+recursive calls to `tm_templatefile` are not permitted. Variable names must
 each start with a letter, followed by zero or more letters, digits, or
 underscores.
 
-Strings in the Terraform language are sequences of Unicode characters, so
+Strings in the Terramate language are sequences of Unicode characters, so
 this function will interpret the file contents as UTF-8 encoded text and
 return the resulting Unicode characters. If the file contains invalid UTF-8
 sequences then this function will produce an error.
 
 This function can be used only with files that already exist on disk at the
-beginning of a Terraform run. Functions do not participate in the dependency
-graph, so this function cannot be used with files that are generated
-dynamically during a Terraform operation.
+beginning of Terramate execution.
 
-`*.tftpl` is the recommended naming pattern to use for your template files.
-Terraform will not prevent you from using other names, but following this
+`*.tmtpl` is the recommended naming pattern to use for your template files.
+Terramate will not prevent you from using other names, but following this
 convention will help your editor understand the content and likely provide
 better editing experience as a result.
 
@@ -46,7 +44,7 @@ better editing experience as a result.
 
 ### Lists
 
-Given a template file `backends.tftpl` with the following content:
+Given a template file `backends.tmtpl` with the following content:
 
 ```
 %{ for addr in ip_addrs ~}
@@ -57,7 +55,7 @@ backend ${addr}:${port}
 The `tm_templatefile` function renders the template:
 
 ```
-tm_templatefile("${path.module}/backends.tftpl", { port = 8080, ip_addrs = ["10.0.0.1", "10.0.0.2"] })
+tm_templatefile("${path.module}/backends.tmtpl", { port = 8080, ip_addrs = ["10.0.0.1", "10.0.0.2"] })
 backend 10.0.0.1:8080
 backend 10.0.0.2:8080
 
@@ -65,7 +63,7 @@ backend 10.0.0.2:8080
 
 ### Maps
 
-Given a template file `config.tftpl` with the following content:
+Given a template file `config.tmtpl` with the following content:
 
 ```
 %{ for config_key, config_value in config }
@@ -77,7 +75,7 @@ The `tm_templatefile` function renders the template:
 
 ```
 tm_templatefile(
-               "${path.module}/config.tftpl",
+               "${path.module}/config.tmtpl",
                {
                  config = {
                    "x"   = "y"
@@ -116,7 +114,7 @@ ${yamlencode({
 })}
 ```
 
-Given the same input as the `backends.tftpl` example in the previous section,
+Given the same input as the `backends.tmtpl` example in the previous section,
 this will produce a valid JSON or YAML representation of the given data
 structure, without the need to manually handle escaping or delimiters.
 In the latest examples above, the repetition based on elements of `ip_addrs` is
@@ -126,11 +124,16 @@ rather than by using
 [template directives](https://developer.hashicorp.com/terraform/language/expressions/strings#directives).
 
 ```json
-{"backends":["10.0.0.1:8080","10.0.0.2:8080"]}
+{
+  "backends": [
+    "10.0.0.1:8080",
+    "10.0.0.2:8080"
+  ]
+}
 ```
 
 If the resulting template is small, you can choose instead to write
-`jsonencode` or `yamlencode` calls inline in your main configuration files, and
+`tm_jsonencode` or `tm_yamlencode` calls inline in your main configuration files, and
 avoid creating separate template files at all:
 
 ```hcl

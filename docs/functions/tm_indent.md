@@ -7,7 +7,7 @@ description: |-
 
 # `tm_indent` Function
 
-`indent` adds a given number of spaces to the beginnings of all but the first
+`tm_indent` adds a given number of spaces to the beginnings of all but the first
 line in a given multi-line string.
 
 ```hcl

@@ -5,7 +5,7 @@ description: The tm_contains function determines whether a list or set contains 
 
 # `tm_contains` Function
 
-`contains` determines whether a given list or set contains a given single value
+`tm_contains` determines whether a given list or set contains a given single value
 as one of its elements.
 
 ```hcl

@@ -5,7 +5,7 @@ description: The tm_fileexists function determines whether a file exists at a gi
 
 # `tm_fileexists` Function
 
-`fileexists` determines whether a file exists at a given path.
+`tm_fileexists` determines whether a file exists at a given path.
 
 ```hcl
 tm_fileexists(path)

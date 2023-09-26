@@ -8,7 +8,7 @@ description: |-
 
 # `tm_try` Function
 
-`try` evaluates all of its argument expressions in turn and returns the result
+`tm_try` evaluates all of its argument expressions in turn and returns the result
 of the first one that does not produce any errors.
 
 This is a special function that is able to catch errors produced when evaluating
@@ -17,7 +17,7 @@ structures whose shape is not well-known at implementation time.
 
 For example, if some data is retrieved from an external system in JSON or YAML
 format and then decoded, the result may have attributes that are not guaranteed
-to be set. We can use `try` to produce a normalized data structure which has
+to be set. We can use `tm_try` to produce a normalized data structure which has
 a predictable type that can therefore be used more conveniently elsewhere in
 the configuration:
 
@@ -35,7 +35,7 @@ With the above local value expressions, configuration elsewhere in the module
 can refer to `local.normalized_value` attributes without the need to repeatedly
 check for and handle absent attributes that would otherwise produce errors.
 
-We can also use `try` to deal with situations where a value might be provided
+We can also use `tm_try` to deal with situations where a value might be provided
 in two different forms, allowing us to normalize to the most general form:
 
 ```hcl
@@ -77,7 +77,7 @@ as a malformed resource reference.
 presence of and types of object attributes. Although it can technically accept
 any sort of expression, we recommend using it only with simple attribute
 references and type conversion functions as shown in the examples above.
-Overuse of `try` to suppress errors will lead to a configuration that is hard
+Overuse of `tm_try` to suppress errors will lead to a configuration that is hard
 to understand and maintain.
 
 ## Examples
@@ -107,5 +107,5 @@ A local value with the name "nonexist" has not been declared.
 
 ## Related Functions
 
-* \[`tm_can`\]\(\./tm_can.md\), which tries evaluating an expression and returns a
+* [`tm_can`](./tm_can.md), which tries evaluating an expression and returns a
   boolean value indicating whether it succeeded.

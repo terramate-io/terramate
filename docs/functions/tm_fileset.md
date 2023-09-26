@@ -5,7 +5,7 @@ description: The tm_fileset function enumerates a set of regular file names give
 
 # `tm_fileset` Function
 
-`fileset` enumerates a set of regular file names given a path and pattern.
+`tm_fileset` enumerates a set of regular file names given a path and pattern.
 The path is automatically removed from the resulting set of file names and any
 result still containing path separators always returns forward slash (`/`) as
 the path separator for cross-system compatibility.
@@ -65,13 +65,3 @@ tm_fileset("${path.module}/files", "**")
 ]
 ```
 
-A common use of `fileset` is to create one resource instance per matched file, using
-[the `for_each` meta-argument](https://developer.hashicorp.com/terraform/language/meta-arguments/for_each):
-
-```hcl
-resource "example_thing" "example" {
-  for_each = fileset(path.module, "files/*")
-
-  # other configuration using each.value
-}
-```

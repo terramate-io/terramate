@@ -10,8 +10,6 @@ description: >-
 
 # `tm_textdecodebase64` Function
 
--> **Note:** This function is supported only in Terraform v0.14 and later.
-
 `tm_textdecodebase64` function decodes a string that was previously Base64-encoded,
 and then interprets the result as characters in a specified character encoding.
 

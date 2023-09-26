@@ -7,7 +7,7 @@ description: |-
 
 # `tm_formatlist` Function
 
-`formatlist` produces a list of strings by formatting a number of other
+`tm_formatlist` produces a list of strings by formatting a number of other
 values according to a specification string.
 
 ```hcl
