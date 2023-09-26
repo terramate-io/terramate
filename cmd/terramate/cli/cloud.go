@@ -123,11 +123,6 @@ func (c *cli) setupCloudConfig() error {
 	// at this point we know user is onboarded, ie has at least 1 organization.
 	orgs := c.cred().organizations()
 
-	if len(orgs) == 0 {
-		logger.Error().Msgf(clitest.CloudNoMembershipMessage)
-		return errors.E(clitest.ErrCloudOnboardingIncomplete)
-	}
-
 	useOrgName := os.Getenv("TM_CLOUD_ORGANIZATION")
 	if useOrgName != "" {
 		var useOrgUUID string
@@ -156,20 +151,33 @@ func (c *cli) setupCloudConfig() error {
 		}
 
 		c.cloud.run.orgUUID = useOrgUUID
-	} else if len(orgs) != 1 {
-		logger.Error().
-			Msgf("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization: %s", orgs)
-
-		return cloudError()
 	} else {
-		org := orgs[0]
-		if org.Status != "active" && org.Status != "trusted" {
+		var activeOrgs cloud.MemberOrganizations
+		var invitedOrgs cloud.MemberOrganizations
+		for _, org := range orgs {
+			if org.Status == "active" || org.Status == "trusted" {
+				activeOrgs = append(activeOrgs, org)
+			} else if org.Status == "invited" {
+				invitedOrgs = append(invitedOrgs, org)
+			}
+		}
+		if len(activeOrgs) == 0 {
+			logger.Error().Msgf(clitest.CloudNoMembershipMessage)
+
+			if len(invitedOrgs) > 0 {
+				logger.Warn().Msgf("You have pending invitation for the following organizations: %s", invitedOrgs)
+			}
+
+			return errors.E(clitest.ErrCloudOnboardingIncomplete)
+		}
+		if len(activeOrgs) > 1 {
 			logger.Error().
-				Msgf("You are not yet an active member of organization %s. Please accept the invitation first.", org.Name)
+				Msgf("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization: %s", activeOrgs)
 
 			return cloudError()
 		}
-		c.cloud.run.orgUUID = org.UUID
+
+		c.cloud.run.orgUUID = activeOrgs[0].UUID
 	}
 	return nil
 }
