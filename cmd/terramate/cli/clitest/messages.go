@@ -12,7 +12,7 @@ const (
 
 	// CloudNoMembershipMessage is the message displayed when the user is not member
 	// of any organization.
-	CloudNoMembershipMessage = "You are not member of any organization"
+	CloudNoMembershipMessage = "You are not an active member of any organization"
 
 	// CloudSyncDriftFailedMessage is the message displayed when a drift sync fails.
 	CloudSyncDriftFailedMessage = "failed to sync the drift status"

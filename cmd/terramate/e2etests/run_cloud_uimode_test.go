@@ -581,6 +581,220 @@ func TestCloudSyncUIMode(t *testing.T) {
 			},
 		},
 		{
+			name: "/v1/memberships returns no active memberships",
+			endpoints: map[string]bool{
+				cloud.UsersPath:       true,
+				cloud.MembershipsPath: false,
+				cloud.DeploymentsPath: true,
+				cloud.DriftsPath:      true,
+			},
+			customEndpoints: testserver.Custom{
+				Routes: map[string]testserver.Route{
+					"GET": {
+						Path: cloud.MembershipsPath,
+						Handler: http.HandlerFunc(
+							func(w http.ResponseWriter, _ *http.Request) {
+								writeJSON(w, `[
+									{
+										"org_name": "terramate-io",
+										"org_display_name": "Terramate",
+										"org_uuid": "c7d721ee-f455-4d3c-934b-b1d96bbaad17",
+										"status": "invited"
+									},
+									{
+										"org_name": "mineiros-io",
+										"org_display_name": "Mineiros",
+										"org_uuid": "b2f153e8-ceb1-4f26-898e-eb7789869bee",
+										"status": "invited"
+									}
+								]`)
+							},
+						),
+					},
+				},
+			},
+			subcases: []subtestcase{
+				{
+					name:   "syncing a deployment",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-deployment",
+						"--", testHelperBin, "true",
+					},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`ERR ` + clitest.CloudNoMembershipMessage,
+							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+						},
+					},
+				},
+				{
+					name:   "syncing a deployment",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-deployment",
+						"--", testHelperBin, "true",
+					},
+					want: runExpected{
+						StderrRegexes: []string{
+							`ERR ` + clitest.CloudNoMembershipMessage,
+							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							clitest.CloudDisablingMessage,
+						},
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-drift-status",
+						"--", testHelperBin, "true",
+					},
+					want: runExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							`ERR ` + clitest.CloudNoMembershipMessage,
+							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+						},
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-drift-status",
+						"--", testHelperBin, "true",
+					},
+					want: runExpected{
+						StderrRegexes: []string{
+							`ERR ` + clitest.CloudNoMembershipMessage,
+							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							clitest.CloudDisablingMessage,
+						},
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+					},
+				},
+			},
+		},
+		{
+			name: "/v1/memberships returns 1 single active memberships out of many",
+			endpoints: map[string]bool{
+				cloud.UsersPath:       true,
+				cloud.MembershipsPath: false,
+				cloud.DeploymentsPath: true,
+				cloud.DriftsPath:      true,
+			},
+			customEndpoints: testserver.Custom{
+				Routes: map[string]testserver.Route{
+					"GET": {
+						Path: cloud.MembershipsPath,
+						Handler: http.HandlerFunc(
+							func(w http.ResponseWriter, _ *http.Request) {
+								writeJSON(w, `[
+									{
+										"org_name": "terramate-io",
+										"org_display_name": "Terramate",
+										"org_uuid": "c7d721ee-f455-4d3c-934b-b1d96bbaad17",
+										"status": "invited"
+									},
+									{
+										"org_name": "mineiros-io",
+										"org_display_name": "Mineiros",
+										"org_uuid": "b2f153e8-ceb1-4f26-898e-eb7789869bee",
+										"status": "active"
+									}
+								]`)
+							},
+						),
+					},
+				},
+			},
+			subcases: []subtestcase{
+				{
+					name:   "syncing a deployment",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-deployment",
+						"--", testHelperBin, "true",
+					},
+				},
+				{
+					name:   "syncing a deployment",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-deployment",
+						"--", testHelperBin, "true",
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-drift-status",
+						"--", testHelperBin, "true",
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--cloud-sync-drift-status",
+						"--", testHelperBin, "true",
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"experimental", "cloud", "info"},
+					want: runExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+					},
+				},
+			},
+		},
+		{
 			name: "/v1/deployments is not working",
 			endpoints: map[string]bool{
 				cloud.UsersPath:       true,
