@@ -18,6 +18,9 @@ jobs:
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
 
+      - name: check hosts
+        run: strace gh auth token --hostname github.com
+
       - name: setup go
         uses: actions/setup-go@v3
         with:
