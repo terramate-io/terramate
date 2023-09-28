@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## 0.4.2
+
 ### Added
 
 - Add `--cloud-sync-drift-status` flag for syncing the status of drift detection
