@@ -60,7 +60,7 @@ func AssertFileContentEquals(t *testing.T, fname string, want string) {
 	}
 }
 
-// Chmod is a portable version of the os.Chmod.
-func Chmod(t testing.TB, fname string, mode fs.FileMode) {
-	assert.NoError(t, chmod(fname, mode))
+// AssertChmod is a portable version of the os.AssertChmod.
+func AssertChmod(t testing.TB, fname string, mode fs.FileMode) {
+	assert.NoError(t, Chmod(fname, mode))
 }

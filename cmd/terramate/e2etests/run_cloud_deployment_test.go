@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,23 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				run: runExpected{
 					Status:      1,
 					StderrRegex: string(clitest.ErrCloudStacksWithoutID),
+				},
+			},
+		},
+		{
+			name: "using --cloud-sync-terraform-plan-file with deployment sync -- fails",
+			layout: []string{
+				"s:s1",
+				`f:s1/out.tfplan:{}`,
+			},
+			runflags: []string{
+				`--cloud-sync-terraform-plan-file=out.tfplan`,
+			},
+			cmd: []string{testHelperBin, "echo", "ok"},
+			want: want{
+				run: runExpected{
+					Status:      1,
+					StderrRegex: regexp.QuoteMeta(`--cloud-sync-terraform-plan-file can only be used with --cloud-sync-drift-status`),
 				},
 			},
 		},

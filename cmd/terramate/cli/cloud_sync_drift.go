@@ -4,7 +4,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"os/exec"
+	"path/filepath"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
@@ -38,6 +42,16 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err err
 		return
 	}
 
+	var driftDetails *cloud.DriftDetails
+
+	if planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile; planfile != "" {
+		var err error
+		driftDetails, err = c.getTerraformDriftDetails(runContext, planfile)
+		if err != nil {
+			logger.Error().Err(err).Msg("skipping the sync of Terraform plan details")
+		}
+	}
+
 	logger = logger.With().
 		Stringer("drift_status", status).
 		Logger()
@@ -55,6 +69,7 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err err
 			MetaTags:        st.Tags,
 		},
 		Status:   status,
+		Details:  driftDetails,
 		Metadata: c.cloud.run.metadata,
 		Command:  runContext.Cmd,
 	})
@@ -64,4 +79,43 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err err
 	} else {
 		logger.Debug().Msg("synced drift_status successfully")
 	}
+}
+
+func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) (*cloud.DriftDetails, error) {
+	logger := log.With().
+		Str("action", "getTerraformDriftDetails").
+		Str("planfile", planfile).
+		Stringer("stack", runContext.Stack.Dir).
+		Logger()
+
+	if filepath.IsAbs(planfile) {
+		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	const tfShowTimeout = 5 * time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), tfShowTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "terraform", "show", "-no-color", planfile)
+	cmd.Dir = runContext.Stack.Dir.HostPath(c.rootdir())
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	logger.Trace().Msgf("executing %s", cmd.String())
+	err := cmd.Run()
+	if err != nil {
+		logger.Debug().Str("stderr", stderr.String()).Msg("command stderr")
+
+		return nil, errors.E(clitest.ErrCloudTerraformPlanFile, "executing: %s", cmd.String())
+	}
+
+	logger.Trace().Msg("drift details gathered successfully")
+
+	return &cloud.DriftDetails{
+		Provisioner:    "terraform",
+		ChangesetASCII: stdout.String(),
+	}, nil
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 )
 
-func chmod(fname string, mode fs.FileMode) error {
+// Chmod changes file permissions.
+func Chmod(fname string, mode fs.FileMode) error {
 	return os.Chmod(fname, mode)
 }
