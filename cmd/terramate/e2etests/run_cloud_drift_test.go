@@ -4,6 +4,7 @@
 package e2etest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -34,10 +35,18 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		workingDir       string
 		cmd              []string
 		driftDetailASCII string
+		driftDetailJSON  string
 		want             want
 	}
 
 	const testPlanASCII = "here goes the terraform plan output\n"
+
+	testUnsanitizedPlanJSON, err := os.ReadFile("_testdata/unsanitized.plan.json")
+	assert.NoError(t, err)
+	testSanitizedPlanJSON, err := os.ReadFile("_testdata/sanitized.plan.json")
+	assert.NoError(t, err)
+
+	testSanitizedPlanJSON = bytes.TrimSpace(testSanitizedPlanJSON)
 
 	absPlanFilePath := test.WriteFile(t, t.TempDir(), "out.tfplan", ``)
 
@@ -324,6 +333,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 			cmd:              []string{testHelperBin, "exit", "2"},
 			driftDetailASCII: testPlanASCII,
+			driftDetailJSON:  string(testUnsanitizedPlanJSON),
 			want: want{
 				run: runExpected{},
 				drifts: cloud.DriftStackPayloadRequests{
@@ -338,6 +348,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						Details: &cloud.DriftDetails{
 							Provisioner:    "terraform",
 							ChangesetASCII: testPlanASCII,
+							ChangesetJSON:  string(testSanitizedPlanJSON),
 						},
 					},
 					{
@@ -351,6 +362,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						Details: &cloud.DriftDetails{
 							Provisioner:    "terraform",
 							ChangesetASCII: testPlanASCII,
+							ChangesetJSON:  string(testSanitizedPlanJSON),
 						},
 					},
 				},
@@ -369,6 +381,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 
 			env := removeEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 			env = append(env, `TM_TEST_TERRAFORM_SHOW_ASCII_OUTPUT=`+tc.driftDetailASCII)
+			env = append(env, `TM_TEST_TERRAFORM_SHOW_JSON_OUTPUT=`+tc.driftDetailJSON)
 			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.prependToPath(filepath.Dir(testHelperBin))
 			runflags := []string{"run", "--cloud-sync-drift-status"}
