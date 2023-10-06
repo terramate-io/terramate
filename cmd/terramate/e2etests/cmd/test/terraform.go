@@ -11,13 +11,17 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-const envNameShowASCII = "TM_TEST_TERRAFORM_SHOW_ASCII_OUTPUT"
+const (
+	envNameShowASCII = "TM_TEST_TERRAFORM_SHOW_ASCII_OUTPUT"
+	envNameShowJSON  = "TM_TEST_TERRAFORM_SHOW_JSON_OUTPUT"
+)
 
 func terraform() {
 	switch os.Args[1] {
 	case "show":
 		fs := flag.NewFlagSet("terraform show", flag.ExitOnError)
 		_ = fs.Bool("no-color", false, "-no-color (ignored)")
+		isJSON := fs.Bool("json", false, "outputs a json")
 		err := fs.Parse(os.Args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -41,9 +45,17 @@ func terraform() {
 
 		// file exists but ignore it
 
-		output := os.Getenv(envNameShowASCII)
-		if output == "" {
-			panic(errors.E("please set %s", envNameShowASCII))
+		var output string
+		if !*isJSON {
+			output = os.Getenv(envNameShowASCII)
+			if output == "" {
+				panic(errors.E("please set %s", envNameShowASCII))
+			}
+		} else {
+			output = os.Getenv(envNameShowJSON)
+			if output == "" {
+				panic(errors.E("please set %s", envNameShowJSON))
+			}
 		}
 		fmt.Print(output)
 	default:

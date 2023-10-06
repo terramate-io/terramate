@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"path"
 
 	"github.com/terramate-io/terramate"
@@ -45,6 +46,8 @@ const ErrNotFound errors.Kind = "resource not found (HTTP Status 404)"
 
 // ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
 const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
+
+const debug = false
 
 type (
 	// Client is the cloud SDK client.
@@ -197,10 +200,20 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 		return entity, err
 	}
 
+	if debug {
+		data, _ := httputil.DumpRequestOut(req, true)
+		fmt.Printf(">>> %s\n\n", data)
+	}
+
 	client := c.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return entity, err
+	}
+
+	if debug {
+		data, _ := httputil.DumpResponse(resp, true)
+		fmt.Printf("<<< %s\n\n", data)
 	}
 
 	defer func() {
