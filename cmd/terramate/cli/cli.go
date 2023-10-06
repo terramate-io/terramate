@@ -140,16 +140,17 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		CloudSyncDeployment   bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
-		CloudSyncDriftStatus  bool     `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
-		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
-		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
-		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
-		NoRecursive           bool     `default:"false" help:"Do not recurse into child stacks"`
-		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
-		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
-		Eval                  bool     `default:"false" help:"Evaluate command line arguments as HCL strings"`
-		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
+		CloudSyncDeployment        bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
+		CloudSyncDriftStatus       bool     `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
+		CloudSyncTerraformPlanFile string   `default:"" help:"Enable sync of Terraform plan file"`
+		DisableCheckGenCode        bool     `default:"false" help:"Disable outdated generated code check"`
+		DisableCheckGitRemote      bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
+		ContinueOnError            bool     `default:"false" help:"Continue executing in other stacks in case of error"`
+		NoRecursive                bool     `default:"false" help:"Do not recurse into child stacks"`
+		DryRun                     bool     `default:"false" help:"Plan the execution but do not execute it"`
+		Reverse                    bool     `default:"false" help:"Reverse the order of execution"`
+		Eval                       bool     `default:"false" help:"Evaluate command line arguments as HCL strings"`
+		Command                    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`

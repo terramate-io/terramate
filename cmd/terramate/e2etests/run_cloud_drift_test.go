@@ -5,6 +5,8 @@ package e2etest
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -25,13 +28,18 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		drifts cloud.DriftStackPayloadRequests
 	}
 	type testcase struct {
-		name       string
-		layout     []string
-		runflags   []string
-		workingDir string
-		cmd        []string
-		want       want
+		name             string
+		layout           []string
+		runflags         []string
+		workingDir       string
+		cmd              []string
+		driftDetailASCII string
+		want             want
 	}
+
+	const testPlanASCII = "here goes the terraform plan output\n"
+
+	absPlanFilePath := test.WriteFile(t, t.TempDir(), "out.tfplan", ``)
 
 	for _, tc := range []testcase{
 		{
@@ -245,6 +253,109 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "using --cloud-sync-terraform-plan-file with non-existent plan file",
+			layout: []string{
+				"s:s1:id=s1",
+			},
+			runflags: []string{
+				`--cloud-sync-terraform-plan-file=out.tfplan`,
+			},
+			cmd: []string{testHelperBin, "exit", "2"},
+			want: want{
+				run: runExpected{
+					StderrRegexes: []string{
+						string(clitest.ErrCloudTerraformPlanFile),
+						"skipping",
+					},
+				},
+				drifts: cloud.DriftStackPayloadRequests{
+					{
+						Stack: cloud.Stack{
+							Repository: "local",
+							Path:       "/s1",
+							MetaName:   "s1",
+							MetaID:     "s1",
+						},
+						Status: stack.Drifted,
+					},
+				},
+			},
+		},
+		{
+			name: "using --cloud-sync-terraform-plan-file with absolute path",
+			layout: []string{
+				"s:s1:id=s1",
+			},
+			runflags: []string{
+				fmt.Sprintf(`--cloud-sync-terraform-plan-file=%s`, absPlanFilePath),
+			},
+			cmd: []string{testHelperBin, "exit", "2"},
+			want: want{
+				run: runExpected{
+					StderrRegexes: []string{
+						string(clitest.ErrCloudInvalidTerraformPlanFilePath),
+						"skipping",
+					},
+				},
+				drifts: cloud.DriftStackPayloadRequests{
+					{
+						Stack: cloud.Stack{
+							Repository: "local",
+							Path:       "/s1",
+							MetaName:   "s1",
+							MetaID:     "s1",
+						},
+						Status: stack.Drifted,
+					},
+				},
+			},
+		},
+		{
+			name: "using --cloud-sync-terraform-plan-file=out.tfplan",
+			layout: []string{
+				"s:s1:id=s1",
+				`f:s1/out.tfplan:`,
+				"s:s2:id=s2",
+				`f:s2/out.tfplan:`,
+			},
+			runflags: []string{
+				`--cloud-sync-terraform-plan-file=out.tfplan`,
+			},
+			cmd:              []string{testHelperBin, "exit", "2"},
+			driftDetailASCII: testPlanASCII,
+			want: want{
+				run: runExpected{},
+				drifts: cloud.DriftStackPayloadRequests{
+					{
+						Stack: cloud.Stack{
+							Repository: "local",
+							Path:       "/s1",
+							MetaName:   "s1",
+							MetaID:     "s1",
+						},
+						Status: stack.Drifted,
+						Details: &cloud.DriftDetails{
+							Provisioner:    "terraform",
+							ChangesetASCII: testPlanASCII,
+						},
+					},
+					{
+						Stack: cloud.Stack{
+							Repository: "local",
+							Path:       "/s2",
+							MetaName:   "s2",
+							MetaID:     "s2",
+						},
+						Status: stack.Drifted,
+						Details: &cloud.DriftDetails{
+							Provisioner:    "terraform",
+							ChangesetASCII: testPlanASCII,
+						},
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -255,7 +366,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 
 			s.BuildTree(tc.layout)
 			s.Git().CommitAll("all stacks committed")
-			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
+
+			env := removeEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
+			env = append(env, `TM_TEST_TERRAFORM_SHOW_ASCII_OUTPUT=`+tc.driftDetailASCII)
+			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+			cli.prependToPath(filepath.Dir(testHelperBin))
 			runflags := []string{"run", "--cloud-sync-drift-status"}
 			runflags = append(runflags, tc.runflags...)
 			runflags = append(runflags, "--")

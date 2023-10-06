@@ -120,6 +120,10 @@ func (c *cli) runOnStacks() {
 		fatal(errors.E("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"))
 	}
 
+	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
+		fatal(errors.E("--cloud-sync-terraform-plan-file can only be used with --cloud-sync-drift-status"))
+	}
+
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
 		c.ensureAllStackHaveIDs(orderedStacks)
 		c.detectCloudMetadata()

@@ -11,6 +11,7 @@ import (
 	"github.com/hectane/go-acl"
 )
 
-func chmod(fname string, mode fs.FileMode) error {
+// Chmod changes file permissions.
+func Chmod(fname string, mode fs.FileMode) error {
 	return acl.Chmod(fname, mode)
 }

@@ -1429,8 +1429,8 @@ func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 	tmpdir := t.TempDir()
 	test.Mkdir(t, tmpdir, subdir)
 
-	test.Chmod(t, filepath.Join(tmpdir, subdir), 0)
-	defer test.Chmod(t, filepath.Join(tmpdir, subdir), 0755)
+	test.AssertChmod(t, filepath.Join(tmpdir, subdir), 0)
+	defer test.AssertChmod(t, filepath.Join(tmpdir, subdir), 0755)
 
 	_, err := fmt.FormatTree(tmpdir)
 	assert.Error(t, err)
@@ -1445,8 +1445,8 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 		b = 3
 	}`)
 
-	test.Chmod(t, filepath.Join(tmpdir, filename), 0)
-	defer test.Chmod(t, filepath.Join(tmpdir, filename), 0755)
+	test.AssertChmod(t, filepath.Join(tmpdir, filename), 0)
+	defer test.AssertChmod(t, filepath.Join(tmpdir, filename), 0755)
 
 	_, err := fmt.FormatTree(tmpdir)
 	assert.Error(t, err)

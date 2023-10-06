@@ -16,9 +16,9 @@ import (
 	"time"
 )
 
-func main() {
+func helper() {
 	if len(os.Args) < 2 {
-		log.Fatal("test requires at least one subcommand argument")
+		log.Fatalf("%s requires at least one subcommand argument", os.Args[0])
 	}
 
 	// note: unrecovered panic() aborts the program with exit code 2 and this

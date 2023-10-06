@@ -58,7 +58,7 @@ func TestRunLookPathFromStackEnviron(t *testing.T) {
 
 	assert.NoError(t, dstFile.Close())
 
-	test.Chmod(t, dstFilename, srcPerm)
+	test.AssertChmod(t, dstFilename, srcPerm)
 
 	_ = s.CreateStack(stackName)
 
