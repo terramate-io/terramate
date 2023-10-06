@@ -64,6 +64,13 @@ type (
 		MetaTags        []string `json:"meta_tags,omitempty"`
 	}
 
+	// DriftDetails represents the details of a drift.
+	DriftDetails struct {
+		Provisioner    string `json:"provisioner"`
+		ChangesetASCII string `json:"changeset_ascii,omitempty"`
+		ChangesetJSON  string `json:"changeset_json,omitempty"`
+	}
+
 	// StacksResponse represents the stacks object response.
 	StacksResponse struct {
 		Stacks []StackResponse `json:"stacks"`
@@ -105,6 +112,7 @@ type (
 	DriftStackPayloadRequest struct {
 		Stack    Stack               `json:"stack"`
 		Status   stack.Status        `json:"drift_status"`
+		Details  *DriftDetails       `json:"drift_details,omitempty"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
 		Command  []string            `json:"command"`
 	}
@@ -214,6 +222,7 @@ var (
 	_ = Resource(DeploymentReviewRequest{})
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
+	_ = Resource(DriftDetails{})
 	_ = Resource(EmptyResponse(""))
 )
 
@@ -328,11 +337,29 @@ func (d DriftStackPayloadRequest) Validate() error {
 		}
 	}
 
+	if d.Details != nil {
+		err := d.Details.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
 	return d.Status.Validate()
 }
 
 // Validate the list of drift requests.
 func (ds DriftStackPayloadRequests) Validate() error { return validateResourceList(ds...) }
+
+// Validate the drift details.
+func (ds DriftDetails) Validate() error {
+	if ds.Provisioner == "" {
+		return errors.E(`field "provisioner" is required`)
+	}
+	if ds.ChangesetASCII == "" && ds.ChangesetJSON == "" {
+		return errors.E(`either "changeset_ascii" or "changeset_json" must be set`)
+	}
+	return nil
+}
 
 // Validate the list of deployment stack requests.
 func (d DeploymentStackRequests) Validate() error { return validateResourceList(d...) }
