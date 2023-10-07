@@ -4,6 +4,8 @@
 package cli
 
 import (
+	"context"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -15,6 +17,8 @@ import (
 	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
+	"github.com/terramate-io/terramate/sync"
+	"go.lsp.dev/jsonrpc2"
 )
 
 const (
@@ -149,6 +153,11 @@ func (c *cli) runOnStacks() {
 	}
 }
 
+func jsonrpc2Conn(rw io.ReadWriteCloser) jsonrpc2.Conn {
+	stream := jsonrpc2.NewStream(rw)
+	return jsonrpc2.NewConn(stream)
+}
+
 // RunAll will execute the list of RunStack definitions. A RunStack defines the
 // stack and its command to be executed. The isSuccessCode is a predicate used
 // to decide if the command is considered a successful run or not.
@@ -213,6 +222,26 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		cmd.Stdout = c.stdout
 		cmd.Stderr = c.stderr
 
+		parentR, childW, err := os.Pipe()
+		if err != nil {
+			return errors.E(err, "failed to create an OS pipe")
+		}
+
+		childR, parentW, err := os.Pipe()
+		if err != nil {
+			return errors.E(err, "failed to create an OS pipe")
+		}
+
+		cmd.ExtraFiles = []*os.File{
+			childR,
+			childW,
+		}
+
+		conn := jsonrpc2Conn(&readWriter{parentR, parentW})
+		server := sync.ServerWithLogger(conn, logger)
+
+		conn.Go(context.TODO(), server.Handler)
+
 		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
@@ -225,6 +254,9 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 			c.cloudSyncCancelStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
+
+		<-conn.Done()
+		logger.Info().Msg("parent connection closed")
 
 		cmds <- cmd
 		interruptions := 0
@@ -301,6 +333,7 @@ func newEnvironFrom(stackEnviron []string) []string {
 	environ := make([]string, len(os.Environ()))
 	copy(environ, os.Environ())
 	environ = append(environ, stackEnviron...)
+	environ = append(environ, "TM_PARENT=true")
 	return environ
 }
 

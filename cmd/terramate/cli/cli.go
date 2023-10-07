@@ -9,9 +9,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,7 +36,9 @@ import (
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/sync"
 	"github.com/terramate-io/terramate/versions"
+	"go.lsp.dev/jsonrpc2"
 
 	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/stdlib"
@@ -217,6 +221,13 @@ type cliSpec struct {
 			Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
 			Info  struct{} `cmd:"" help:"cloud information status"`
 		} `cmd:"" help:"Terramate Cloud commands"`
+
+		Parent struct {
+			SetStackValue struct {
+				Name  string `help:"name of the value"`
+				Value string `help:"value expression"`
+			} `cmd:"" help:"set a stack value"`
+		} `cmd:"" help:"Internally used to communicate with parent Terramate"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -572,9 +583,84 @@ func (c *cli) run() {
 		c.getConfigValue()
 	case "experimental cloud info":
 		c.cloudInfo()
+	case "experimental parent set-stack-value":
+		c.parentSetStackValue()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
+}
+
+type readWriter struct {
+	io.ReadCloser
+	io.WriteCloser
+}
+
+func (s *readWriter) Close() error {
+	s.ReadCloser.Close()
+	s.WriteCloser.Close()
+	return nil
+}
+
+func (c *cli) parentSetStackValue() {
+	if c.parsedArgs.Experimental.Parent.SetStackValue.Name == "" ||
+		c.parsedArgs.Experimental.Parent.SetStackValue.Value == "" {
+		log.Fatal().Msg("wrong args")
+	}
+
+	if hasParent := os.Getenv("TM_PARENT"); hasParent != "true" {
+		log.Fatal().Msg("not a descendent of terramate")
+	}
+
+	// TODO(i4k): make this portable
+	_, err := os.Lstat("/proc/self/fd/3")
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
+	_, err = os.Lstat("/proc/self/fd/4")
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
+	childR := os.NewFile(uintptr(3), "/proc/self/fd/3")
+	childW := os.NewFile(uintptr(4), "/proc/self/fd/4")
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
+	defer stop()
+
+	rpcConn := jsonrpc2Conn(&readWriter{childR, childW})
+	server := &childServer{}
+	rpcConn.Go(ctx, server.Handler)
+	var result bool
+	id, err := rpcConn.Call(ctx, sync.MethodStackSetValue, sync.RequestSetStackValue{
+		StackPath: prj.PrjAbsPath(c.rootdir(), c.wd()).String(),
+		Name:      c.parsedArgs.Experimental.Parent.SetStackValue.Name,
+		Value:     c.parsedArgs.Experimental.Parent.SetStackValue.Value,
+	}, &result)
+
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
+	log.Info().Msgf("send request: id:%s, result:%t", id, result)
+
+	rpcConn.Close()
+	log.Info().Msg("child waiting for connection closing")
+	<-rpcConn.Done()
+	log.Info().Msg("aborting child")
+
+	stdfmt.Printf(`{"%s": "%s"}`,
+		c.parsedArgs.Experimental.Parent.SetStackValue.Name,
+		c.parsedArgs.Experimental.Parent.SetStackValue.Value,
+	)
+}
+
+type childServer struct{}
+
+// Handler is the default editor request handler.
+func (e *childServer) Handler(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
+	log.Info().Msgf("child received request: %s", r.Method())
+	return reply(ctx, nil, nil)
 }
 
 func (c *cli) setupGit() {
