@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `--cloud-sync-terraform-plan-file=<plan>` flag for synchronizing the plan
+file in rendered ASCII and JSON (sensitive information removed).
+
 ## 0.4.2
 
 ### Added

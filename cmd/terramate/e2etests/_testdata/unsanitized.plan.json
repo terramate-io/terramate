@@ -1,0 +1,841 @@
+{
+    "format_version": "1.2",
+    "terraform_version": "1.5.6",
+    "variables": {
+        "test": {
+            "value": "Lenny redact this too"
+        }
+    },
+    "planned_values": {
+        "root_module": {
+            "resources": [
+                {
+                    "address": "aws_acm_certificate.lenny_redact",
+                    "mode": "managed",
+                    "type": "aws_acm_certificate",
+                    "name": "lenny_redact",
+                    "provider_name": "registry.terraform.io/hashicorp/aws",
+                    "schema_version": 0,
+                    "values": {
+                        "certificate_authority_arn": null,
+                        "certificate_chain": null,
+                        "early_renewal_duration": null,
+                        "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                        "tags": null,
+                        "tags_all": {
+                            "Environment": "testing",
+                            "Provisioner": "terramate",
+                            "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                            "TerramateStackPath": "/stacks/vpc",
+                            "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                        },
+                        "validation_option": []
+                    },
+                    "sensitive_values": {
+                        "domain_validation_options": [],
+                        "options": [],
+                        "private_key": true,
+                        "renewal_summary": [],
+                        "subject_alternative_names": [],
+                        "tags_all": {},
+                        "validation_emails": [],
+                        "validation_option": []
+                    }
+                },
+                {
+                    "address": "aws_secretsmanager_secret.example",
+                    "mode": "managed",
+                    "type": "aws_secretsmanager_secret",
+                    "name": "example",
+                    "provider_name": "registry.terraform.io/hashicorp/aws",
+                    "schema_version": 0,
+                    "values": {
+                        "description": null,
+                        "force_overwrite_replica_secret": false,
+                        "kms_key_id": null,
+                        "name": "example",
+                        "recovery_window_in_days": 30,
+                        "tags": null,
+                        "tags_all": {
+                            "Environment": "testing",
+                            "Provisioner": "terramate",
+                            "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                            "TerramateStackPath": "/stacks/vpc",
+                            "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                        }
+                    },
+                    "sensitive_values": {
+                        "replica": [],
+                        "tags_all": {}
+                    }
+                },
+                {
+                    "address": "aws_secretsmanager_secret_version.example",
+                    "mode": "managed",
+                    "type": "aws_secretsmanager_secret_version",
+                    "name": "example",
+                    "provider_name": "registry.terraform.io/hashicorp/aws",
+                    "schema_version": 0,
+                    "values": {
+                        "secret_binary": null,
+                        "secret_string": "you need to redact this Lenny"
+                    },
+                    "sensitive_values": {
+                        "version_stages": []
+                    }
+                },
+                {
+                    "address": "aws_subnet.a",
+                    "mode": "managed",
+                    "type": "aws_subnet",
+                    "name": "a",
+                    "provider_name": "registry.terraform.io/hashicorp/aws",
+                    "schema_version": 1,
+                    "values": {
+                        "assign_ipv6_address_on_creation": false,
+                        "cidr_block": "10.0.1.0/24",
+                        "customer_owned_ipv4_pool": null,
+                        "enable_dns64": false,
+                        "enable_lni_at_device_index": null,
+                        "enable_resource_name_dns_a_record_on_launch": false,
+                        "enable_resource_name_dns_aaaa_record_on_launch": false,
+                        "ipv6_cidr_block": null,
+                        "ipv6_native": false,
+                        "map_customer_owned_ip_on_launch": null,
+                        "map_public_ip_on_launch": false,
+                        "outpost_arn": null,
+                        "tags": {
+                            "Name": "kkmlr-testing-subnet-a"
+                        },
+                        "tags_all": {
+                            "Environment": "testing",
+                            "Name": "kkmlr-testing-subnet-a",
+                            "Provisioner": "terramate",
+                            "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                            "TerramateStackPath": "/stacks/vpc",
+                            "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                        },
+                        "timeouts": null
+                    },
+                    "sensitive_values": {
+                        "tags": {},
+                        "tags_all": {}
+                    }
+                },
+                {
+                    "address": "aws_vpc.main",
+                    "mode": "managed",
+                    "type": "aws_vpc",
+                    "name": "main",
+                    "provider_name": "registry.terraform.io/hashicorp/aws",
+                    "schema_version": 1,
+                    "values": {
+                        "assign_generated_ipv6_cidr_block": null,
+                        "cidr_block": "10.0.0.0/16",
+                        "enable_dns_support": true,
+                        "instance_tenancy": "default",
+                        "ipv4_ipam_pool_id": null,
+                        "ipv4_netmask_length": null,
+                        "ipv6_ipam_pool_id": null,
+                        "ipv6_netmask_length": null,
+                        "tags": {
+                            "Name": "kkmlr-testing-vpc"
+                        },
+                        "tags_all": {
+                            "Environment": "testing",
+                            "Name": "kkmlr-testing-vpc",
+                            "Provisioner": "terramate",
+                            "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                            "TerramateStackPath": "/stacks/vpc",
+                            "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                        }
+                    },
+                    "sensitive_values": {
+                        "tags": {},
+                        "tags_all": {}
+                    }
+                },
+                {
+                    "address": "tls_private_key.lenny_redact",
+                    "mode": "managed",
+                    "type": "tls_private_key",
+                    "name": "lenny_redact",
+                    "provider_name": "registry.terraform.io/hashicorp/tls",
+                    "schema_version": 1,
+                    "values": {
+                        "algorithm": "RSA",
+                        "ecdsa_curve": "P224",
+                        "id": "b24a920c81bedf0e4c1abd40453ac2a02722af43",
+                        "private_key_openssh": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdz\nc2gtcnNhAAAAAwEAAQAAAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dg\nk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBA\nzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDe\nTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzH\ns0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW\n95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQAAA7gYYX1QGGF9UAAA\nAAdzc2gtcnNhAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuB\nagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP\n7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3\niLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTs\nfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1k\nLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtNAAAAAwEAAQAAAQEAm8ODy2kp\nlXep8xy2poWgp7pMYvQOqnyoTfFWxmHjnyB4z3yOx/UO+qzBwmzR7S1wA3G2yUTj\neTgxDA1MVUJlqkGnaAe04/hT9rGv1MWf9bGAGBgLl3n0IsBECd6iPqSeUmi3IvrK\nDrAXyToiIU9FImd4t9NFTjPI9hKM7+s3C2IknVyC8eo7TyeenOLo01ak4g6CDu2e\nXNzU7ZOZhfV0DgAsYEh12XqslbrT2Y7qb78O+Njj/mjoPt8ZdLovhm0FWS7+hOPO\n/0Q3XXPPtcPbFhVJm7q8DFxm0EbFDh1umxw+tAa4fXRbaUkA6a9AgGSXz13hc7b6\nL+eOz9+F+UVKwQAAAIEAtxlmvAofBDMtmrMjt04L4OCyz54xiOu1Mqd0Roe7IMlU\nSsDTms89VOFHjW2cvY5785DlNC7yKxkCs9DxvBQK2SE2KJSw/yLg218LZ9yiKOZG\n0hO+tcPOACNOENUr+r4rGAkp1BzhTgLN6nQvpoVZqFHSXm4MDxhktoKmvcQ0w08A\nAACBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8vdmjs7cXI\nj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKlcKSI5Qjd\nc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAAAAgQD3uegweO6J\nFc4UrIDWgo8ephHRqkxauMBY6agJ/g8YFMXaOEudyzAzOvfqS0fcveG+Ajpysx8/\n/Vw0ebqByltXw6rwwnAT2IlXS6G/4vAznK0md3NfLY2S7X0okbQ0bVmStphvpWrz\nBWBqO7suzShrtdKHXFt6qMzJnZhS5PEAMQAAAAAB\n-----END OPENSSH PRIVATE KEY-----\n",
+                        "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                        "private_key_pem_pkcs8": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDU49XnPmvIYGTa\nkAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcT\nP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7J\nKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0\n/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6\nBMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOs\nw0nMZOtNAgMBAAECggEBAJvDg8tpKZV3qfMctqaFoKe6TGL0Dqp8qE3xVsZh458g\neM98jsf1DvqswcJs0e0tcANxtslE43k4MQwNTFVCZapBp2gHtOP4U/axr9TFn/Wx\ngBgYC5d59CLARAneoj6knlJotyL6yg6wF8k6IiFPRSJneLfTRU4zyPYSjO/rNwti\nJJ1cgvHqO08nnpzi6NNWpOIOgg7tnlzc1O2TmYX1dA4ALGBIddl6rJW609mO6m+/\nDvjY4/5o6D7fGXS6L4ZtBVku/oTjzv9EN11zz7XD2xYVSZu6vAxcZtBGxQ4dbpsc\nPrQGuH10W2lJAOmvQIBkl89d4XO2+i/njs/fhflFSsECgYEA3AAS+p23jgcxEFz1\n8w6vZCvPd4v3pMejRcIj/ur0Pbk7UeJany92aOztxciP7woITV9ce34w5qkrPgRq\no7IJ5ilvtjnifGK7ueUkT9mB2yKo+CfGsqVwpIjlCN1zhbESSHIBL7SoZGr4FUwT\nXm4NRvpqTn/7ZPHbNNk/6if8kd0CgYEA97noMHjuiRXOFKyA1oKPHqYR0apMWrjA\nWOmoCf4PGBTF2jhLncswMzr36ktH3L3hvgI6crMfP/1cNHm6gcpbV8Oq8MJwE9iJ\nV0uhv+LwM5ytJndzXy2Nku19KJG0NG1ZkraYb6Vq8wVgaju7Ls0oa7XSh1xbeqjM\nyZ2YUuTxADECgYA+TccSMphJIMBEYg9FRmNlewLGWF1JzT/wAYswJloFIPArwG7p\npgdir7amzKX2jGDNiLQoRRSUPlSAu793nHQxOorokHwTveJsQviFpJOh+67emGUt\nMq0z65DxccXFluAWpDKxz/fgeGrJnUHe/EvGTiTNFnGbpOLvlJcFOU3OAQKBgB/M\nAP2XyCZYYidNLQxbnbs1Xbwnu705UZcYBrWhopZYtDyaVTpfxkQNIZ01JHg09zDI\nYHAwhaZVAuzJYyMdsjPFrb9RdclWVeqajpxuqJ43UhJJ6skgs7dUPGhkq1i/YGvw\nfAh4lw2ydvmryQ7szm9k2yz8sdFAsWh/jfm14SlBAoGBALcZZrwKHwQzLZqzI7dO\nC+Dgss+eMYjrtTKndEaHuyDJVErA05rPPVThR41tnL2Oe/OQ5TQu8isZArPQ8bwU\nCtkhNiiUsP8i4NtfC2fcoijmRtITvrXDzgAjThDVK/q+KxgJKdQc4U4Czep0L6aF\nWahR0l5uDA8YZLaCpr3ENMNP\n-----END PRIVATE KEY-----\n",
+                        "public_key_fingerprint_md5": "0f:49:da:7a:21:6d:ac:68:b4:20:f2:fd:32:03:55:7e",
+                        "public_key_fingerprint_sha256": "SHA256:Z0mzxtreSlfdfpAcjAwvoi4GQ5509OR/vWdIUA5Q8z0",
+                        "public_key_openssh": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtN\n",
+                        "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1OPV5z5ryGBk2pAKAvAU\nqFu4jWqDFKmucqzXc1Dgk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqEL\nQ1Lh/+unSf8n91wn0bBAzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9Pk\nshrkYPPGXs/bEMb14rDeTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uS\nLDmCVqwkwxZqRbzlsmzHs0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQi\nixUXcl3rGj3S55yRsnrW95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTr\nTQIDAQAB\n-----END PUBLIC KEY-----\n",
+                        "rsa_bits": 2048
+                    },
+                    "sensitive_values": {}
+                },
+                {
+                    "address": "tls_self_signed_cert.example",
+                    "mode": "managed",
+                    "type": "tls_self_signed_cert",
+                    "name": "example",
+                    "provider_name": "registry.terraform.io/hashicorp/tls",
+                    "schema_version": 0,
+                    "values": {
+                        "allowed_uses": [
+                            "key_encipherment",
+                            "digital_signature",
+                            "server_auth"
+                        ],
+                        "dns_names": null,
+                        "early_renewal_hours": 0,
+                        "ip_addresses": null,
+                        "is_ca_certificate": false,
+                        "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                        "ready_for_renewal": false,
+                        "set_authority_key_id": false,
+                        "set_subject_key_id": false,
+                        "subject": [
+                            {
+                                "common_name": "example.com",
+                                "country": null,
+                                "locality": null,
+                                "organization": "ACME Examples, Inc",
+                                "organizational_unit": null,
+                                "postal_code": null,
+                                "province": null,
+                                "serial_number": null,
+                                "street_address": null
+                            }
+                        ],
+                        "uris": null,
+                        "validity_period_hours": 12
+                    },
+                    "sensitive_values": {
+                        "allowed_uses": [
+                            false,
+                            false,
+                            false
+                        ],
+                        "private_key_pem": true,
+                        "subject": [
+                            {}
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "resource_changes": [
+        {
+            "address": "aws_acm_certificate.lenny_redact",
+            "mode": "managed",
+            "type": "aws_acm_certificate",
+            "name": "lenny_redact",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "change": {
+                "actions": [
+                    "create"
+                ],
+                "before": null,
+                "after": {
+                    "certificate_authority_arn": null,
+                    "certificate_chain": null,
+                    "early_renewal_duration": null,
+                    "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                    "tags": null,
+                    "tags_all": {
+                        "Environment": "testing",
+                        "Provisioner": "terramate",
+                        "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                        "TerramateStackPath": "/stacks/vpc",
+                        "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                    },
+                    "validation_option": []
+                },
+                "after_unknown": {
+                    "arn": true,
+                    "certificate_body": true,
+                    "domain_name": true,
+                    "domain_validation_options": true,
+                    "id": true,
+                    "key_algorithm": true,
+                    "not_after": true,
+                    "not_before": true,
+                    "options": true,
+                    "pending_renewal": true,
+                    "renewal_eligibility": true,
+                    "renewal_summary": true,
+                    "status": true,
+                    "subject_alternative_names": true,
+                    "tags_all": {},
+                    "type": true,
+                    "validation_emails": true,
+                    "validation_method": true,
+                    "validation_option": []
+                },
+                "before_sensitive": false,
+                "after_sensitive": {
+                    "domain_validation_options": [],
+                    "options": [],
+                    "private_key": true,
+                    "renewal_summary": [],
+                    "subject_alternative_names": [],
+                    "tags_all": {},
+                    "validation_emails": [],
+                    "validation_option": []
+                }
+            }
+        },
+        {
+            "address": "aws_secretsmanager_secret.example",
+            "mode": "managed",
+            "type": "aws_secretsmanager_secret",
+            "name": "example",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "change": {
+                "actions": [
+                    "create"
+                ],
+                "before": null,
+                "after": {
+                    "description": null,
+                    "force_overwrite_replica_secret": false,
+                    "kms_key_id": null,
+                    "name": "example",
+                    "recovery_window_in_days": 30,
+                    "tags": null,
+                    "tags_all": {
+                        "Environment": "testing",
+                        "Provisioner": "terramate",
+                        "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                        "TerramateStackPath": "/stacks/vpc",
+                        "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                    }
+                },
+                "after_unknown": {
+                    "arn": true,
+                    "id": true,
+                    "name_prefix": true,
+                    "policy": true,
+                    "replica": true,
+                    "tags_all": {}
+                },
+                "before_sensitive": false,
+                "after_sensitive": {
+                    "replica": [],
+                    "tags_all": {}
+                }
+            }
+        },
+        {
+            "address": "aws_secretsmanager_secret_version.example",
+            "mode": "managed",
+            "type": "aws_secretsmanager_secret_version",
+            "name": "example",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "change": {
+                "actions": [
+                    "create"
+                ],
+                "before": null,
+                "after": {
+                    "secret_binary": null,
+                    "secret_string": "you need to redact this Lenny"
+                },
+                "after_unknown": {
+                    "arn": true,
+                    "id": true,
+                    "secret_id": true,
+                    "version_id": true,
+                    "version_stages": true
+                },
+                "before_sensitive": false,
+                "after_sensitive": {
+                    "secret_binary": true,
+                    "secret_string": true,
+                    "version_stages": []
+                }
+            }
+        },
+        {
+            "address": "aws_subnet.a",
+            "mode": "managed",
+            "type": "aws_subnet",
+            "name": "a",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "change": {
+                "actions": [
+                    "create"
+                ],
+                "before": null,
+                "after": {
+                    "assign_ipv6_address_on_creation": false,
+                    "cidr_block": "10.0.1.0/24",
+                    "customer_owned_ipv4_pool": null,
+                    "enable_dns64": false,
+                    "enable_lni_at_device_index": null,
+                    "enable_resource_name_dns_a_record_on_launch": false,
+                    "enable_resource_name_dns_aaaa_record_on_launch": false,
+                    "ipv6_cidr_block": null,
+                    "ipv6_native": false,
+                    "map_customer_owned_ip_on_launch": null,
+                    "map_public_ip_on_launch": false,
+                    "outpost_arn": null,
+                    "tags": {
+                        "Name": "kkmlr-testing-subnet-a"
+                    },
+                    "tags_all": {
+                        "Environment": "testing",
+                        "Name": "kkmlr-testing-subnet-a",
+                        "Provisioner": "terramate",
+                        "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                        "TerramateStackPath": "/stacks/vpc",
+                        "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                    },
+                    "timeouts": null
+                },
+                "after_unknown": {
+                    "arn": true,
+                    "availability_zone": true,
+                    "availability_zone_id": true,
+                    "id": true,
+                    "ipv6_cidr_block_association_id": true,
+                    "owner_id": true,
+                    "private_dns_hostname_type_on_launch": true,
+                    "tags": {},
+                    "tags_all": {},
+                    "vpc_id": true
+                },
+                "before_sensitive": false,
+                "after_sensitive": {
+                    "tags": {},
+                    "tags_all": {}
+                }
+            }
+        },
+        {
+            "address": "aws_vpc.main",
+            "mode": "managed",
+            "type": "aws_vpc",
+            "name": "main",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "change": {
+                "actions": [
+                    "create"
+                ],
+                "before": null,
+                "after": {
+                    "assign_generated_ipv6_cidr_block": null,
+                    "cidr_block": "10.0.0.0/16",
+                    "enable_dns_support": true,
+                    "instance_tenancy": "default",
+                    "ipv4_ipam_pool_id": null,
+                    "ipv4_netmask_length": null,
+                    "ipv6_ipam_pool_id": null,
+                    "ipv6_netmask_length": null,
+                    "tags": {
+                        "Name": "kkmlr-testing-vpc"
+                    },
+                    "tags_all": {
+                        "Environment": "testing",
+                        "Name": "kkmlr-testing-vpc",
+                        "Provisioner": "terramate",
+                        "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                        "TerramateStackPath": "/stacks/vpc",
+                        "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                    }
+                },
+                "after_unknown": {
+                    "arn": true,
+                    "default_network_acl_id": true,
+                    "default_route_table_id": true,
+                    "default_security_group_id": true,
+                    "dhcp_options_id": true,
+                    "enable_dns_hostnames": true,
+                    "enable_network_address_usage_metrics": true,
+                    "id": true,
+                    "ipv6_association_id": true,
+                    "ipv6_cidr_block": true,
+                    "ipv6_cidr_block_network_border_group": true,
+                    "main_route_table_id": true,
+                    "owner_id": true,
+                    "tags": {},
+                    "tags_all": {}
+                },
+                "before_sensitive": false,
+                "after_sensitive": {
+                    "tags": {},
+                    "tags_all": {}
+                }
+            }
+        },
+        {
+            "address": "tls_private_key.lenny_redact",
+            "mode": "managed",
+            "type": "tls_private_key",
+            "name": "lenny_redact",
+            "provider_name": "registry.terraform.io/hashicorp/tls",
+            "change": {
+                "actions": [
+                    "no-op"
+                ],
+                "before": {
+                    "algorithm": "RSA",
+                    "ecdsa_curve": "P224",
+                    "id": "b24a920c81bedf0e4c1abd40453ac2a02722af43",
+                    "private_key_openssh": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdz\nc2gtcnNhAAAAAwEAAQAAAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dg\nk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBA\nzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDe\nTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzH\ns0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW\n95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQAAA7gYYX1QGGF9UAAA\nAAdzc2gtcnNhAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuB\nagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP\n7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3\niLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTs\nfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1k\nLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtNAAAAAwEAAQAAAQEAm8ODy2kp\nlXep8xy2poWgp7pMYvQOqnyoTfFWxmHjnyB4z3yOx/UO+qzBwmzR7S1wA3G2yUTj\neTgxDA1MVUJlqkGnaAe04/hT9rGv1MWf9bGAGBgLl3n0IsBECd6iPqSeUmi3IvrK\nDrAXyToiIU9FImd4t9NFTjPI9hKM7+s3C2IknVyC8eo7TyeenOLo01ak4g6CDu2e\nXNzU7ZOZhfV0DgAsYEh12XqslbrT2Y7qb78O+Njj/mjoPt8ZdLovhm0FWS7+hOPO\n/0Q3XXPPtcPbFhVJm7q8DFxm0EbFDh1umxw+tAa4fXRbaUkA6a9AgGSXz13hc7b6\nL+eOz9+F+UVKwQAAAIEAtxlmvAofBDMtmrMjt04L4OCyz54xiOu1Mqd0Roe7IMlU\nSsDTms89VOFHjW2cvY5785DlNC7yKxkCs9DxvBQK2SE2KJSw/yLg218LZ9yiKOZG\n0hO+tcPOACNOENUr+r4rGAkp1BzhTgLN6nQvpoVZqFHSXm4MDxhktoKmvcQ0w08A\nAACBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8vdmjs7cXI\nj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKlcKSI5Qjd\nc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAAAAgQD3uegweO6J\nFc4UrIDWgo8ephHRqkxauMBY6agJ/g8YFMXaOEudyzAzOvfqS0fcveG+Ajpysx8/\n/Vw0ebqByltXw6rwwnAT2IlXS6G/4vAznK0md3NfLY2S7X0okbQ0bVmStphvpWrz\nBWBqO7suzShrtdKHXFt6qMzJnZhS5PEAMQAAAAAB\n-----END OPENSSH PRIVATE KEY-----\n",
+                    "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                    "private_key_pem_pkcs8": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDU49XnPmvIYGTa\nkAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcT\nP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7J\nKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0\n/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6\nBMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOs\nw0nMZOtNAgMBAAECggEBAJvDg8tpKZV3qfMctqaFoKe6TGL0Dqp8qE3xVsZh458g\neM98jsf1DvqswcJs0e0tcANxtslE43k4MQwNTFVCZapBp2gHtOP4U/axr9TFn/Wx\ngBgYC5d59CLARAneoj6knlJotyL6yg6wF8k6IiFPRSJneLfTRU4zyPYSjO/rNwti\nJJ1cgvHqO08nnpzi6NNWpOIOgg7tnlzc1O2TmYX1dA4ALGBIddl6rJW609mO6m+/\nDvjY4/5o6D7fGXS6L4ZtBVku/oTjzv9EN11zz7XD2xYVSZu6vAxcZtBGxQ4dbpsc\nPrQGuH10W2lJAOmvQIBkl89d4XO2+i/njs/fhflFSsECgYEA3AAS+p23jgcxEFz1\n8w6vZCvPd4v3pMejRcIj/ur0Pbk7UeJany92aOztxciP7woITV9ce34w5qkrPgRq\no7IJ5ilvtjnifGK7ueUkT9mB2yKo+CfGsqVwpIjlCN1zhbESSHIBL7SoZGr4FUwT\nXm4NRvpqTn/7ZPHbNNk/6if8kd0CgYEA97noMHjuiRXOFKyA1oKPHqYR0apMWrjA\nWOmoCf4PGBTF2jhLncswMzr36ktH3L3hvgI6crMfP/1cNHm6gcpbV8Oq8MJwE9iJ\nV0uhv+LwM5ytJndzXy2Nku19KJG0NG1ZkraYb6Vq8wVgaju7Ls0oa7XSh1xbeqjM\nyZ2YUuTxADECgYA+TccSMphJIMBEYg9FRmNlewLGWF1JzT/wAYswJloFIPArwG7p\npgdir7amzKX2jGDNiLQoRRSUPlSAu793nHQxOorokHwTveJsQviFpJOh+67emGUt\nMq0z65DxccXFluAWpDKxz/fgeGrJnUHe/EvGTiTNFnGbpOLvlJcFOU3OAQKBgB/M\nAP2XyCZYYidNLQxbnbs1Xbwnu705UZcYBrWhopZYtDyaVTpfxkQNIZ01JHg09zDI\nYHAwhaZVAuzJYyMdsjPFrb9RdclWVeqajpxuqJ43UhJJ6skgs7dUPGhkq1i/YGvw\nfAh4lw2ydvmryQ7szm9k2yz8sdFAsWh/jfm14SlBAoGBALcZZrwKHwQzLZqzI7dO\nC+Dgss+eMYjrtTKndEaHuyDJVErA05rPPVThR41tnL2Oe/OQ5TQu8isZArPQ8bwU\nCtkhNiiUsP8i4NtfC2fcoijmRtITvrXDzgAjThDVK/q+KxgJKdQc4U4Czep0L6aF\nWahR0l5uDA8YZLaCpr3ENMNP\n-----END PRIVATE KEY-----\n",
+                    "public_key_fingerprint_md5": "0f:49:da:7a:21:6d:ac:68:b4:20:f2:fd:32:03:55:7e",
+                    "public_key_fingerprint_sha256": "SHA256:Z0mzxtreSlfdfpAcjAwvoi4GQ5509OR/vWdIUA5Q8z0",
+                    "public_key_openssh": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtN\n",
+                    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1OPV5z5ryGBk2pAKAvAU\nqFu4jWqDFKmucqzXc1Dgk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqEL\nQ1Lh/+unSf8n91wn0bBAzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9Pk\nshrkYPPGXs/bEMb14rDeTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uS\nLDmCVqwkwxZqRbzlsmzHs0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQi\nixUXcl3rGj3S55yRsnrW95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTr\nTQIDAQAB\n-----END PUBLIC KEY-----\n",
+                    "rsa_bits": 2048
+                },
+                "after": {
+                    "algorithm": "RSA",
+                    "ecdsa_curve": "P224",
+                    "id": "b24a920c81bedf0e4c1abd40453ac2a02722af43",
+                    "private_key_openssh": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdz\nc2gtcnNhAAAAAwEAAQAAAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dg\nk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBA\nzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDe\nTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzH\ns0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW\n95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQAAA7gYYX1QGGF9UAAA\nAAdzc2gtcnNhAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuB\nagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP\n7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3\niLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTs\nfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1k\nLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtNAAAAAwEAAQAAAQEAm8ODy2kp\nlXep8xy2poWgp7pMYvQOqnyoTfFWxmHjnyB4z3yOx/UO+qzBwmzR7S1wA3G2yUTj\neTgxDA1MVUJlqkGnaAe04/hT9rGv1MWf9bGAGBgLl3n0IsBECd6iPqSeUmi3IvrK\nDrAXyToiIU9FImd4t9NFTjPI9hKM7+s3C2IknVyC8eo7TyeenOLo01ak4g6CDu2e\nXNzU7ZOZhfV0DgAsYEh12XqslbrT2Y7qb78O+Njj/mjoPt8ZdLovhm0FWS7+hOPO\n/0Q3XXPPtcPbFhVJm7q8DFxm0EbFDh1umxw+tAa4fXRbaUkA6a9AgGSXz13hc7b6\nL+eOz9+F+UVKwQAAAIEAtxlmvAofBDMtmrMjt04L4OCyz54xiOu1Mqd0Roe7IMlU\nSsDTms89VOFHjW2cvY5785DlNC7yKxkCs9DxvBQK2SE2KJSw/yLg218LZ9yiKOZG\n0hO+tcPOACNOENUr+r4rGAkp1BzhTgLN6nQvpoVZqFHSXm4MDxhktoKmvcQ0w08A\nAACBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8vdmjs7cXI\nj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKlcKSI5Qjd\nc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAAAAgQD3uegweO6J\nFc4UrIDWgo8ephHRqkxauMBY6agJ/g8YFMXaOEudyzAzOvfqS0fcveG+Ajpysx8/\n/Vw0ebqByltXw6rwwnAT2IlXS6G/4vAznK0md3NfLY2S7X0okbQ0bVmStphvpWrz\nBWBqO7suzShrtdKHXFt6qMzJnZhS5PEAMQAAAAAB\n-----END OPENSSH PRIVATE KEY-----\n",
+                    "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                    "private_key_pem_pkcs8": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDU49XnPmvIYGTa\nkAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcT\nP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7J\nKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0\n/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6\nBMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOs\nw0nMZOtNAgMBAAECggEBAJvDg8tpKZV3qfMctqaFoKe6TGL0Dqp8qE3xVsZh458g\neM98jsf1DvqswcJs0e0tcANxtslE43k4MQwNTFVCZapBp2gHtOP4U/axr9TFn/Wx\ngBgYC5d59CLARAneoj6knlJotyL6yg6wF8k6IiFPRSJneLfTRU4zyPYSjO/rNwti\nJJ1cgvHqO08nnpzi6NNWpOIOgg7tnlzc1O2TmYX1dA4ALGBIddl6rJW609mO6m+/\nDvjY4/5o6D7fGXS6L4ZtBVku/oTjzv9EN11zz7XD2xYVSZu6vAxcZtBGxQ4dbpsc\nPrQGuH10W2lJAOmvQIBkl89d4XO2+i/njs/fhflFSsECgYEA3AAS+p23jgcxEFz1\n8w6vZCvPd4v3pMejRcIj/ur0Pbk7UeJany92aOztxciP7woITV9ce34w5qkrPgRq\no7IJ5ilvtjnifGK7ueUkT9mB2yKo+CfGsqVwpIjlCN1zhbESSHIBL7SoZGr4FUwT\nXm4NRvpqTn/7ZPHbNNk/6if8kd0CgYEA97noMHjuiRXOFKyA1oKPHqYR0apMWrjA\nWOmoCf4PGBTF2jhLncswMzr36ktH3L3hvgI6crMfP/1cNHm6gcpbV8Oq8MJwE9iJ\nV0uhv+LwM5ytJndzXy2Nku19KJG0NG1ZkraYb6Vq8wVgaju7Ls0oa7XSh1xbeqjM\nyZ2YUuTxADECgYA+TccSMphJIMBEYg9FRmNlewLGWF1JzT/wAYswJloFIPArwG7p\npgdir7amzKX2jGDNiLQoRRSUPlSAu793nHQxOorokHwTveJsQviFpJOh+67emGUt\nMq0z65DxccXFluAWpDKxz/fgeGrJnUHe/EvGTiTNFnGbpOLvlJcFOU3OAQKBgB/M\nAP2XyCZYYidNLQxbnbs1Xbwnu705UZcYBrWhopZYtDyaVTpfxkQNIZ01JHg09zDI\nYHAwhaZVAuzJYyMdsjPFrb9RdclWVeqajpxuqJ43UhJJ6skgs7dUPGhkq1i/YGvw\nfAh4lw2ydvmryQ7szm9k2yz8sdFAsWh/jfm14SlBAoGBALcZZrwKHwQzLZqzI7dO\nC+Dgss+eMYjrtTKndEaHuyDJVErA05rPPVThR41tnL2Oe/OQ5TQu8isZArPQ8bwU\nCtkhNiiUsP8i4NtfC2fcoijmRtITvrXDzgAjThDVK/q+KxgJKdQc4U4Czep0L6aF\nWahR0l5uDA8YZLaCpr3ENMNP\n-----END PRIVATE KEY-----\n",
+                    "public_key_fingerprint_md5": "0f:49:da:7a:21:6d:ac:68:b4:20:f2:fd:32:03:55:7e",
+                    "public_key_fingerprint_sha256": "SHA256:Z0mzxtreSlfdfpAcjAwvoi4GQ5509OR/vWdIUA5Q8z0",
+                    "public_key_openssh": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtN\n",
+                    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1OPV5z5ryGBk2pAKAvAU\nqFu4jWqDFKmucqzXc1Dgk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqEL\nQ1Lh/+unSf8n91wn0bBAzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9Pk\nshrkYPPGXs/bEMb14rDeTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uS\nLDmCVqwkwxZqRbzlsmzHs0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQi\nixUXcl3rGj3S55yRsnrW95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTr\nTQIDAQAB\n-----END PUBLIC KEY-----\n",
+                    "rsa_bits": 2048
+                },
+                "after_unknown": {},
+                "before_sensitive": {
+                    "private_key_openssh": true,
+                    "private_key_pem": true,
+                    "private_key_pem_pkcs8": true
+                },
+                "after_sensitive": {
+                    "private_key_openssh": true,
+                    "private_key_pem": true,
+                    "private_key_pem_pkcs8": true
+                }
+            }
+        },
+        {
+            "address": "tls_self_signed_cert.example",
+            "mode": "managed",
+            "type": "tls_self_signed_cert",
+            "name": "example",
+            "provider_name": "registry.terraform.io/hashicorp/tls",
+            "change": {
+                "actions": [
+                    "create"
+                ],
+                "before": null,
+                "after": {
+                    "allowed_uses": [
+                        "key_encipherment",
+                        "digital_signature",
+                        "server_auth"
+                    ],
+                    "dns_names": null,
+                    "early_renewal_hours": 0,
+                    "ip_addresses": null,
+                    "is_ca_certificate": false,
+                    "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                    "ready_for_renewal": false,
+                    "set_authority_key_id": false,
+                    "set_subject_key_id": false,
+                    "subject": [
+                        {
+                            "common_name": "example.com",
+                            "country": null,
+                            "locality": null,
+                            "organization": "ACME Examples, Inc",
+                            "organizational_unit": null,
+                            "postal_code": null,
+                            "province": null,
+                            "serial_number": null,
+                            "street_address": null
+                        }
+                    ],
+                    "uris": null,
+                    "validity_period_hours": 12
+                },
+                "after_unknown": {
+                    "allowed_uses": [
+                        false,
+                        false,
+                        false
+                    ],
+                    "cert_pem": true,
+                    "id": true,
+                    "key_algorithm": true,
+                    "subject": [
+                        {}
+                    ],
+                    "validity_end_time": true,
+                    "validity_start_time": true
+                },
+                "before_sensitive": false,
+                "after_sensitive": {
+                    "allowed_uses": [
+                        false,
+                        false,
+                        false
+                    ],
+                    "private_key_pem": true,
+                    "subject": [
+                        {}
+                    ]
+                }
+            }
+        }
+    ],
+    "prior_state": {
+        "format_version": "1.0",
+        "terraform_version": "1.5.6",
+        "values": {
+            "root_module": {
+                "resources": [
+                    {
+                        "address": "tls_private_key.lenny_redact",
+                        "mode": "managed",
+                        "type": "tls_private_key",
+                        "name": "lenny_redact",
+                        "provider_name": "registry.terraform.io/hashicorp/tls",
+                        "schema_version": 1,
+                        "values": {
+                            "algorithm": "RSA",
+                            "ecdsa_curve": "P224",
+                            "id": "b24a920c81bedf0e4c1abd40453ac2a02722af43",
+                            "private_key_openssh": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdz\nc2gtcnNhAAAAAwEAAQAAAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dg\nk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBA\nzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDe\nTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzH\ns0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW\n95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQAAA7gYYX1QGGF9UAAA\nAAdzc2gtcnNhAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuB\nagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP\n7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3\niLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTs\nfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1k\nLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtNAAAAAwEAAQAAAQEAm8ODy2kp\nlXep8xy2poWgp7pMYvQOqnyoTfFWxmHjnyB4z3yOx/UO+qzBwmzR7S1wA3G2yUTj\neTgxDA1MVUJlqkGnaAe04/hT9rGv1MWf9bGAGBgLl3n0IsBECd6iPqSeUmi3IvrK\nDrAXyToiIU9FImd4t9NFTjPI9hKM7+s3C2IknVyC8eo7TyeenOLo01ak4g6CDu2e\nXNzU7ZOZhfV0DgAsYEh12XqslbrT2Y7qb78O+Njj/mjoPt8ZdLovhm0FWS7+hOPO\n/0Q3XXPPtcPbFhVJm7q8DFxm0EbFDh1umxw+tAa4fXRbaUkA6a9AgGSXz13hc7b6\nL+eOz9+F+UVKwQAAAIEAtxlmvAofBDMtmrMjt04L4OCyz54xiOu1Mqd0Roe7IMlU\nSsDTms89VOFHjW2cvY5785DlNC7yKxkCs9DxvBQK2SE2KJSw/yLg218LZ9yiKOZG\n0hO+tcPOACNOENUr+r4rGAkp1BzhTgLN6nQvpoVZqFHSXm4MDxhktoKmvcQ0w08A\nAACBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8vdmjs7cXI\nj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKlcKSI5Qjd\nc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAAAAgQD3uegweO6J\nFc4UrIDWgo8ephHRqkxauMBY6agJ/g8YFMXaOEudyzAzOvfqS0fcveG+Ajpysx8/\n/Vw0ebqByltXw6rwwnAT2IlXS6G/4vAznK0md3NfLY2S7X0okbQ0bVmStphvpWrz\nBWBqO7suzShrtdKHXFt6qMzJnZhS5PEAMQAAAAAB\n-----END OPENSSH PRIVATE KEY-----\n",
+                            "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1OPV5z5ryGBk2pAKAvAUqFu4jWqDFKmucqzXc1Dgk3UrgWoA\nwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqELQ1Lh/+unSf8n91wn0bBAzycQD+6C\nKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9PkshrkYPPGXs/bEMb14rDeTKrwN4iy\nHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uSLDmCVqwkwxZqRbzlsmzHs0WU7Hzr\nRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQiixUXcl3rGj3S55yRsnrW95jNZC2G\nicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTrTQIDAQABAoIBAQCbw4PLaSmVd6nz\nHLamhaCnukxi9A6qfKhN8VbGYeOfIHjPfI7H9Q76rMHCbNHtLXADcbbJRON5ODEM\nDUxVQmWqQadoB7Tj+FP2sa/UxZ/1sYAYGAuXefQiwEQJ3qI+pJ5SaLci+soOsBfJ\nOiIhT0UiZ3i300VOM8j2Eozv6zcLYiSdXILx6jtPJ56c4ujTVqTiDoIO7Z5c3NTt\nk5mF9XQOACxgSHXZeqyVutPZjupvvw742OP+aOg+3xl0ui+GbQVZLv6E487/RDdd\nc8+1w9sWFUmburwMXGbQRsUOHW6bHD60Brh9dFtpSQDpr0CAZJfPXeFztvov547P\n34X5RUrBAoGBANwAEvqdt44HMRBc9fMOr2Qrz3eL96THo0XCI/7q9D25O1HiWp8v\ndmjs7cXIj+8KCE1fXHt+MOapKz4EaqOyCeYpb7Y54nxiu7nlJE/ZgdsiqPgnxrKl\ncKSI5Qjdc4WxEkhyAS+0qGRq+BVME15uDUb6ak5/+2Tx2zTZP+on/JHdAoGBAPe5\n6DB47okVzhSsgNaCjx6mEdGqTFq4wFjpqAn+DxgUxdo4S53LMDM69+pLR9y94b4C\nOnKzHz/9XDR5uoHKW1fDqvDCcBPYiVdLob/i8DOcrSZ3c18tjZLtfSiRtDRtWZK2\nmG+lavMFYGo7uy7NKGu10odcW3qozMmdmFLk8QAxAoGAPk3HEjKYSSDARGIPRUZj\nZXsCxlhdSc0/8AGLMCZaBSDwK8Bu6aYHYq+2psyl9oxgzYi0KEUUlD5UgLu/d5x0\nMTqK6JB8E73ibEL4haSTofuu3phlLTKtM+uQ8XHFxZbgFqQysc/34HhqyZ1B3vxL\nxk4kzRZxm6Ti75SXBTlNzgECgYAfzAD9l8gmWGInTS0MW527NV28J7u9OVGXGAa1\noaKWWLQ8mlU6X8ZEDSGdNSR4NPcwyGBwMIWmVQLsyWMjHbIzxa2/UXXJVlXqmo6c\nbqieN1ISSerJILO3VDxoZKtYv2Br8HwIeJcNsnb5q8kO7M5vZNss/LHRQLFof435\nteEpQQKBgQC3GWa8Ch8EMy2asyO3Tgvg4LLPnjGI67Uyp3RGh7sgyVRKwNOazz1U\n4UeNbZy9jnvzkOU0LvIrGQKz0PG8FArZITYolLD/IuDbXwtn3KIo5kbSE761w84A\nI04Q1Sv6visYCSnUHOFOAs3qdC+mhVmoUdJebgwPGGS2gqa9xDTDTw==\n-----END RSA PRIVATE KEY-----\n",
+                            "private_key_pem_pkcs8": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDU49XnPmvIYGTa\nkAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcT\nP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7J\nKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0\n/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6\nBMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOs\nw0nMZOtNAgMBAAECggEBAJvDg8tpKZV3qfMctqaFoKe6TGL0Dqp8qE3xVsZh458g\neM98jsf1DvqswcJs0e0tcANxtslE43k4MQwNTFVCZapBp2gHtOP4U/axr9TFn/Wx\ngBgYC5d59CLARAneoj6knlJotyL6yg6wF8k6IiFPRSJneLfTRU4zyPYSjO/rNwti\nJJ1cgvHqO08nnpzi6NNWpOIOgg7tnlzc1O2TmYX1dA4ALGBIddl6rJW609mO6m+/\nDvjY4/5o6D7fGXS6L4ZtBVku/oTjzv9EN11zz7XD2xYVSZu6vAxcZtBGxQ4dbpsc\nPrQGuH10W2lJAOmvQIBkl89d4XO2+i/njs/fhflFSsECgYEA3AAS+p23jgcxEFz1\n8w6vZCvPd4v3pMejRcIj/ur0Pbk7UeJany92aOztxciP7woITV9ce34w5qkrPgRq\no7IJ5ilvtjnifGK7ueUkT9mB2yKo+CfGsqVwpIjlCN1zhbESSHIBL7SoZGr4FUwT\nXm4NRvpqTn/7ZPHbNNk/6if8kd0CgYEA97noMHjuiRXOFKyA1oKPHqYR0apMWrjA\nWOmoCf4PGBTF2jhLncswMzr36ktH3L3hvgI6crMfP/1cNHm6gcpbV8Oq8MJwE9iJ\nV0uhv+LwM5ytJndzXy2Nku19KJG0NG1ZkraYb6Vq8wVgaju7Ls0oa7XSh1xbeqjM\nyZ2YUuTxADECgYA+TccSMphJIMBEYg9FRmNlewLGWF1JzT/wAYswJloFIPArwG7p\npgdir7amzKX2jGDNiLQoRRSUPlSAu793nHQxOorokHwTveJsQviFpJOh+67emGUt\nMq0z65DxccXFluAWpDKxz/fgeGrJnUHe/EvGTiTNFnGbpOLvlJcFOU3OAQKBgB/M\nAP2XyCZYYidNLQxbnbs1Xbwnu705UZcYBrWhopZYtDyaVTpfxkQNIZ01JHg09zDI\nYHAwhaZVAuzJYyMdsjPFrb9RdclWVeqajpxuqJ43UhJJ6skgs7dUPGhkq1i/YGvw\nfAh4lw2ydvmryQ7szm9k2yz8sdFAsWh/jfm14SlBAoGBALcZZrwKHwQzLZqzI7dO\nC+Dgss+eMYjrtTKndEaHuyDJVErA05rPPVThR41tnL2Oe/OQ5TQu8isZArPQ8bwU\nCtkhNiiUsP8i4NtfC2fcoijmRtITvrXDzgAjThDVK/q+KxgJKdQc4U4Czep0L6aF\nWahR0l5uDA8YZLaCpr3ENMNP\n-----END PRIVATE KEY-----\n",
+                            "public_key_fingerprint_md5": "0f:49:da:7a:21:6d:ac:68:b4:20:f2:fd:32:03:55:7e",
+                            "public_key_fingerprint_sha256": "SHA256:Z0mzxtreSlfdfpAcjAwvoi4GQ5509OR/vWdIUA5Q8z0",
+                            "public_key_openssh": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDU49XnPmvIYGTakAoC8BSoW7iNaoMUqa5yrNdzUOCTdSuBagDCx4ExGXEOF5av6NYGnl7zPnDnuQcTP4c6oQtDUuH/66dJ/yf3XCfRsEDPJxAP7oIq6+BFIPMpM/aGb2d5+FTBw/G4pz7JKjiT0+SyGuRg88Zez9sQxvXisN5MqvA3iLIdKb2UHtx0HUU8e5qY4UKJFZ3C+xc0/DZnq5IsOYJWrCTDFmpFvOWybMezRZTsfOtGH4YEGTP+++qWHYT8ilUsaoB849G6BMsEtCKLFRdyXesaPdLnnJGyetb3mM1kLYaJwsB8+WDMfb1Q2S2PcJlpr5khrZOsw0nMZOtN\n",
+                            "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1OPV5z5ryGBk2pAKAvAU\nqFu4jWqDFKmucqzXc1Dgk3UrgWoAwseBMRlxDheWr+jWBp5e8z5w57kHEz+HOqEL\nQ1Lh/+unSf8n91wn0bBAzycQD+6CKuvgRSDzKTP2hm9nefhUwcPxuKc+ySo4k9Pk\nshrkYPPGXs/bEMb14rDeTKrwN4iyHSm9lB7cdB1FPHuamOFCiRWdwvsXNPw2Z6uS\nLDmCVqwkwxZqRbzlsmzHs0WU7HzrRh+GBBkz/vvqlh2E/IpVLGqAfOPRugTLBLQi\nixUXcl3rGj3S55yRsnrW95jNZC2GicLAfPlgzH29UNktj3CZaa+ZIa2TrMNJzGTr\nTQIDAQAB\n-----END PUBLIC KEY-----\n",
+                            "rsa_bits": 2048
+                        },
+                        "sensitive_values": {
+                            "private_key_openssh": true,
+                            "private_key_pem": true,
+                            "private_key_pem_pkcs8": true
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "configuration": {
+        "provider_config": {
+            "aws": {
+                "name": "aws",
+                "full_name": "registry.terraform.io/hashicorp/aws",
+                "expressions": {
+                    "default_tags": [
+                        {
+                            "tags": {
+                                "constant_value": {
+                                    "Environment": "testing",
+                                    "Provisioner": "terramate",
+                                    "TerramateRepository": "http://gihub.com/terramate-io/example-repo",
+                                    "TerramateStackPath": "/stacks/vpc",
+                                    "TerramateStackUUID": "919f2a7d-9f19-40eb-a221-af84e17b4503"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "tls": {
+                "name": "tls",
+                "full_name": "registry.terraform.io/hashicorp/tls"
+            }
+        },
+        "root_module": {
+            "resources": [
+                {
+                    "address": "aws_acm_certificate.lenny_redact",
+                    "mode": "managed",
+                    "type": "aws_acm_certificate",
+                    "name": "lenny_redact",
+                    "provider_config_key": "aws",
+                    "expressions": {
+                        "certificate_body": {
+                            "references": [
+                                "tls_self_signed_cert.example.cert_pem",
+                                "tls_self_signed_cert.example"
+                            ]
+                        },
+                        "private_key": {
+                            "references": [
+                                "tls_private_key.lenny_redact.private_key_pem",
+                                "tls_private_key.lenny_redact"
+                            ]
+                        }
+                    },
+                    "schema_version": 0
+                },
+                {
+                    "address": "aws_secretsmanager_secret.example",
+                    "mode": "managed",
+                    "type": "aws_secretsmanager_secret",
+                    "name": "example",
+                    "provider_config_key": "aws",
+                    "expressions": {
+                        "name": {
+                            "constant_value": "example"
+                        }
+                    },
+                    "schema_version": 0
+                },
+                {
+                    "address": "aws_secretsmanager_secret_version.example",
+                    "mode": "managed",
+                    "type": "aws_secretsmanager_secret_version",
+                    "name": "example",
+                    "provider_config_key": "aws",
+                    "expressions": {
+                        "secret_id": {
+                            "references": [
+                                "aws_secretsmanager_secret.example.id",
+                                "aws_secretsmanager_secret.example"
+                            ]
+                        },
+                        "secret_string": {
+                            "constant_value": "you need to redact this Lenny"
+                        }
+                    },
+                    "schema_version": 0
+                },
+                {
+                    "address": "aws_subnet.a",
+                    "mode": "managed",
+                    "type": "aws_subnet",
+                    "name": "a",
+                    "provider_config_key": "aws",
+                    "expressions": {
+                        "cidr_block": {
+                            "constant_value": "10.0.1.0/24"
+                        },
+                        "tags": {
+                            "constant_value": {
+                                "Name": "kkmlr-testing-subnet-a"
+                            }
+                        },
+                        "vpc_id": {
+                            "references": [
+                                "aws_vpc.main.id",
+                                "aws_vpc.main"
+                            ]
+                        }
+                    },
+                    "schema_version": 1
+                },
+                {
+                    "address": "aws_vpc.main",
+                    "mode": "managed",
+                    "type": "aws_vpc",
+                    "name": "main",
+                    "provider_config_key": "aws",
+                    "expressions": {
+                        "cidr_block": {
+                            "constant_value": "10.0.0.0/16"
+                        },
+                        "tags": {
+                            "constant_value": {
+                                "Name": "kkmlr-testing-vpc"
+                            }
+                        }
+                    },
+                    "schema_version": 1
+                },
+                {
+                    "address": "tls_private_key.lenny_redact",
+                    "mode": "managed",
+                    "type": "tls_private_key",
+                    "name": "lenny_redact",
+                    "provider_config_key": "tls",
+                    "expressions": {
+                        "algorithm": {
+                            "constant_value": "RSA"
+                        }
+                    },
+                    "schema_version": 1
+                },
+                {
+                    "address": "tls_self_signed_cert.example",
+                    "mode": "managed",
+                    "type": "tls_self_signed_cert",
+                    "name": "example",
+                    "provider_config_key": "tls",
+                    "expressions": {
+                        "allowed_uses": {
+                            "constant_value": [
+                                "key_encipherment",
+                                "digital_signature",
+                                "server_auth"
+                            ]
+                        },
+                        "private_key_pem": {
+                            "references": [
+                                "tls_private_key.lenny_redact.private_key_pem",
+                                "tls_private_key.lenny_redact"
+                            ]
+                        },
+                        "subject": [
+                            {
+                                "common_name": {
+                                    "constant_value": "example.com"
+                                },
+                                "organization": {
+                                    "constant_value": "ACME Examples, Inc"
+                                }
+                            }
+                        ],
+                        "validity_period_hours": {
+                            "constant_value": 12
+                        }
+                    },
+                    "schema_version": 0
+                }
+            ],
+            "variables": {
+                "test": {
+                    "default": "Lenny redact this too",
+                    "sensitive": true
+                }
+            }
+        }
+    },
+    "relevant_attributes": [
+        {
+            "resource": "tls_private_key.lenny_redact",
+            "attribute": [
+                "private_key_pem"
+            ]
+        },
+        {
+            "resource": "tls_self_signed_cert.example",
+            "attribute": [
+                "cert_pem"
+            ]
+        },
+        {
+            "resource": "aws_secretsmanager_secret.example",
+            "attribute": [
+                "id"
+            ]
+        },
+        {
+            "resource": "aws_vpc.main",
+            "attribute": [
+                "id"
+            ]
+        }
+    ],
+    "timestamp": "2023-09-20T16:10:40Z"
+}

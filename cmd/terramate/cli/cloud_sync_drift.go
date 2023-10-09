@@ -6,10 +6,13 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os/exec"
 	"path/filepath"
 	"time"
 
+	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/hashicorp/terraform-json/sanitize"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/stack"
@@ -92,30 +95,75 @@ func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) 
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	const tfShowTimeout = 5 * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), tfShowTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "terraform", "show", "-no-color", planfile)
-	cmd.Dir = runContext.Stack.Dir.HostPath(c.rootdir())
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	logger.Trace().Msgf("executing %s", cmd.String())
-	err := cmd.Run()
+	renderedPlan, err := c.runTerraformShow(runContext, planfile, "-no-color")
 	if err != nil {
-		logger.Debug().Str("stderr", stderr.String()).Msg("command stderr")
+		return nil, err
+	}
 
-		return nil, errors.E(clitest.ErrCloudTerraformPlanFile, "executing: %s", cmd.String())
+	jsonPlanData, err := c.runTerraformShow(runContext, planfile, "-no-color", "-json")
+	if err != nil {
+		return nil, err
+	}
+
+	var oldPlan tfjson.Plan
+	err = json.Unmarshal([]byte(jsonPlanData), &oldPlan)
+	if err != nil {
+		return nil, errors.E(err, "unmarshaling Terraform JSON plan")
+	}
+
+	newPlan, err := sanitize.SanitizePlan(&oldPlan)
+	if err != nil {
+		return nil, errors.E(err, "failed to sanitize Terraform JSON plan")
+	}
+
+	// unset the config as it could still contain unredacted sensitive values.
+	newPlan.Config = nil
+
+	newPlanData, err := json.Marshal(newPlan)
+	if err != nil {
+		return nil, errors.E(err, "failed to marshal sanitized Terraform JSON plan")
 	}
 
 	logger.Trace().Msg("drift details gathered successfully")
 
 	return &cloud.DriftDetails{
 		Provisioner:    "terraform",
-		ChangesetASCII: stdout.String(),
+		ChangesetASCII: renderedPlan,
+		ChangesetJSON:  string(newPlanData),
 	}, nil
+}
+
+func (c *cli) runTerraformShow(runContext ExecContext, planfile string, flags ...string) (string, error) {
+	var stdout, stderr bytes.Buffer
+
+	args := []string{
+		"show",
+	}
+	args = append(args, flags...)
+	args = append(args, planfile)
+
+	const tfShowTimeout = 5 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), tfShowTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "terraform", args...)
+	cmd.Dir = runContext.Stack.Dir.HostPath(c.rootdir())
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	logger := log.With().
+		Str("action", "runTerraformShow").
+		Str("planfile", planfile).
+		Stringer("stack", runContext.Stack.Dir).
+		Str("command", cmd.String()).
+		Logger()
+
+	logger.Trace().Msg("executing")
+	err := cmd.Run()
+	if err != nil {
+		logger.Error().Str("stderr", stderr.String()).Msg("command stderr")
+		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "executing: %s", cmd.String())
+	}
+
+	return stdout.String(), nil
 }
