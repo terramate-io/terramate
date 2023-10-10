@@ -109,6 +109,22 @@ func (c *cli) checkCloudSync() {
 	}
 }
 
+func (c *cli) cloudOrgName() string {
+	orgName := os.Getenv("TM_CLOUD_ORGANIZATION")
+	if orgName != "" {
+		return orgName
+	}
+
+	cfg := c.rootNode()
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Cloud != nil {
+		return cfg.Terramate.Config.Cloud.Organization
+	}
+
+	return ""
+}
+
 func (c *cli) setupCloudConfig() error {
 	logger := log.With().
 		Str("action", "cli.setupCloudConfig").
@@ -123,7 +139,7 @@ func (c *cli) setupCloudConfig() error {
 	// at this point we know user is onboarded, ie has at least 1 organization.
 	orgs := c.cred().organizations()
 
-	useOrgName := os.Getenv("TM_CLOUD_ORGANIZATION")
+	useOrgName := c.cloudOrgName()
 	if useOrgName != "" {
 		var useOrgUUID string
 		for _, org := range orgs {
@@ -172,7 +188,7 @@ func (c *cli) setupCloudConfig() error {
 		}
 		if len(activeOrgs) > 1 {
 			logger.Error().
-				Msgf("Please set TM_CLOUD_ORGANIZATION environment variable to a specific available organization: %s", activeOrgs)
+				Msgf("Please set TM_CLOUD_ORGANIZATION environment variable or terramate.config.cloud.organization configuration attribute to a specific available organization: %s", activeOrgs)
 
 			return cloudError()
 		}

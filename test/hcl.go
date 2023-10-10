@@ -239,6 +239,7 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	}
 
 	assertTerramateRunBlock(t, got.Run, want.Run)
+	assertTerramateCloudBlock(t, got.Cloud, want.Cloud)
 }
 
 func assertGenHCLBlocks(t *testing.T, got, want []hcl.GenHCLBlock) {
@@ -305,6 +306,22 @@ func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
 	wantHCL := hclFromAttributes(t, want.Env.Attributes)
 
 	AssertDiff(t, gotHCL, wantHCL)
+}
+
+func assertTerramateCloudBlock(t *testing.T, got, want *hcl.CloudConfig) {
+	t.Helper()
+
+	if (want == nil) != (got == nil) {
+		t.Fatalf("want.Cloud[%+v] != got.Cloud[%+v]", want, got)
+	}
+
+	if want == nil {
+		return
+	}
+
+	if *want != *got {
+		t.Fatalf("want.Cloud[%+v] != got.Cloud[%+v]", want, got)
+	}
 }
 
 // hclFromAttributes ensures that we always build the same HCL document

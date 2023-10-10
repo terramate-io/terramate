@@ -579,6 +579,60 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "empty config.cloud block",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								cloud {}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Cloud: &hcl.CloudConfig{
+								Organization: "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "basic config.cloud block",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								cloud {
+									organization = "my-org"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Cloud: &hcl.CloudConfig{
+								Organization: "my-org",
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
