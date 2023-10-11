@@ -7,6 +7,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/hashicorp/terraform-json/sanitize"
 )
 
 func helper() {
@@ -51,6 +55,8 @@ func helper() {
 		cat(os.Args[2])
 	case "stack-abs-path":
 		stackAbsPath(os.Args[2])
+	case "tf-plan-sanitize":
+		tfPlanSanitize(os.Args[2])
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -106,6 +112,19 @@ func stackAbsPath(base string) {
 	rel, err := filepath.Rel(base, cwd)
 	checkerr(err)
 	fmt.Println("/" + filepath.ToSlash(rel))
+}
+
+func tfPlanSanitize(fname string) {
+	var oldPlan tfjson.Plan
+	oldPlanData, err := os.ReadFile(fname)
+	checkerr(err)
+	err = json.Unmarshal(oldPlanData, &oldPlan)
+	checkerr(err)
+	newPlan, err := sanitize.SanitizePlan(&oldPlan)
+	checkerr(err)
+	newPlanData, err := json.Marshal(newPlan)
+	checkerr(err)
+	fmt.Print(string(newPlanData))
 }
 
 func checkerr(err error) {

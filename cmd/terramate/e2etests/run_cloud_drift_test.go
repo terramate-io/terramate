@@ -274,8 +274,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			want: want{
 				run: runExpected{
 					StderrRegexes: []string{
-						string(clitest.ErrCloudTerraformPlanFile),
-						"skipping",
+						clitest.CloudSkippingTerraformPlanSync,
 					},
 				},
 				drifts: cloud.DriftStackPayloadRequests{
