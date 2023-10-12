@@ -116,8 +116,21 @@ func (m *Manager) ListChanged() (*Report, error) {
 
 	logger.Trace().Msg("Create git wrapper on project root.")
 
+	//TODO: This should be created once somewhere, then shared.
+	gOuter, err := git.WithConfig(git.Config{
+		WorkingDir: m.root.HostDir(),
+		Env:        os.Environ(),
+	})
+
+	if err != nil {
+		return nil, errors.E(errListChanged, err)
+	}
+
+	globalArgs := setupInheritedGitConfigArgs(gOuter)
+
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: m.root.HostDir(),
+		GlobalArgs: globalArgs,
 	})
 
 	if err != nil {
@@ -599,10 +612,23 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return nil, errors.E("is not a directory")
 	}
 
+	//TODO: This should be created once somewhere, then shared.
+	gOuter, err := git.WithConfig(git.Config{
+		WorkingDir: dir,
+		Env:        os.Environ(),
+	})
+
+	if err != nil {
+		return nil, errors.E(errListChanged, err)
+	}
+
+	globalArgs := setupInheritedGitConfigArgs(gOuter)
+
 	logger.Trace().Msg("Create git wrapper with dir.")
 
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: dir,
+		GlobalArgs: globalArgs,
 	})
 	if err != nil {
 		return nil, err
@@ -663,6 +689,24 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 		UntrackedFiles:   untracked,
 		UncommittedFiles: uncommitted,
 	}, nil
+}
+
+// setupInheritedGitConfigArgs detects git config values that have to be passed
+// on to the git wrapper used for diff-tree
+func setupInheritedGitConfigArgs(git *git.Git) []string {
+	logger := log.With().
+		Str("action", "setupInheritedGitConfigArgs").
+		Logger()
+
+	var r []string
+
+	safeDirs, err := git.GetConfigValue("safe.directory")
+	if err == nil && safeDirs != "" {
+		logger.Debug().Msgf("detected safe.directory = %s", safeDirs)
+		r = append(r, "-c", fmt.Sprintf("safe.directory=%s", safeDirs))
+	}
+
+	return r
 }
 
 // EntrySlice implements the Sort interface.
