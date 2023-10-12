@@ -125,6 +125,9 @@ func (c *cli) runOnStacks() {
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
+		if !c.prj.isRepo {
+			fatal(errors.E("cloud features requires a git repository"))
+		}
 		c.ensureAllStackHaveIDs(orderedStacks)
 		c.detectCloudMetadata()
 	}
