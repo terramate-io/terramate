@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -51,7 +52,7 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err err
 		var err error
 		driftDetails, err = c.getTerraformDriftDetails(runContext, planfile)
 		if err != nil {
-			logger.Error().Err(err).Msg("skipping the sync of Terraform plan details")
+			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
 	}
 
@@ -95,33 +96,30 @@ func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) 
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
+	absPlanFilePath := filepath.Join(runContext.Stack.HostDir(c.cfg()), planfile)
+	_, err := os.Lstat(absPlanFilePath)
+	if err != nil {
+		return nil, errors.E(err, "checking plan file")
+	}
+
 	renderedPlan, err := c.runTerraformShow(runContext, planfile, "-no-color")
 	if err != nil {
-		return nil, err
+		logger.Warn().Err(err).Msg("failed to synchronize the ASCII plan output")
 	}
 
+	var newJSONPlanData []byte
 	jsonPlanData, err := c.runTerraformShow(runContext, planfile, "-no-color", "-json")
-	if err != nil {
-		return nil, err
+	if err == nil {
+		newJSONPlanData, err = sanitizeJSONPlan([]byte(jsonPlanData))
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to sanitize the JSON plan output")
+		}
+	} else {
+		logger.Warn().Err(err).Msg("failed to synchronize the JSON plan output")
 	}
 
-	var oldPlan tfjson.Plan
-	err = json.Unmarshal([]byte(jsonPlanData), &oldPlan)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling Terraform JSON plan")
-	}
-
-	newPlan, err := sanitize.SanitizePlan(&oldPlan)
-	if err != nil {
-		return nil, errors.E(err, "failed to sanitize Terraform JSON plan")
-	}
-
-	// unset the config as it could still contain unredacted sensitive values.
-	newPlan.Config = nil
-
-	newPlanData, err := json.Marshal(newPlan)
-	if err != nil {
-		return nil, errors.E(err, "failed to marshal sanitized Terraform JSON plan")
+	if renderedPlan == "" && len(newJSONPlanData) == 0 {
+		return nil, nil
 	}
 
 	logger.Trace().Msg("drift details gathered successfully")
@@ -129,8 +127,29 @@ func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) 
 	return &cloud.DriftDetails{
 		Provisioner:    "terraform",
 		ChangesetASCII: renderedPlan,
-		ChangesetJSON:  string(newPlanData),
+		ChangesetJSON:  string(newJSONPlanData),
 	}, nil
+}
+
+func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
+	var oldPlan tfjson.Plan
+	err := json.Unmarshal([]byte(jsonPlanBytes), &oldPlan)
+	if err != nil {
+		return nil, errors.E(err, "unmarshaling Terraform JSON plan")
+	}
+	err = oldPlan.Validate()
+	if err != nil {
+		return nil, errors.E(err, "validating plan file")
+	}
+	newPlan, err := sanitize.SanitizePlan(&oldPlan)
+	if err != nil {
+		return nil, errors.E(err)
+	}
+	newJSONPlanData, err := json.Marshal(newPlan)
+	if err != nil {
+		return nil, errors.E(err, "failed to marshal sanitized Terraform JSON plan")
+	}
+	return newJSONPlanData, nil
 }
 
 func (c *cli) runTerraformShow(runContext ExecContext, planfile string, flags ...string) (string, error) {

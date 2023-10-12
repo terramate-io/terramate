@@ -16,6 +16,9 @@ const (
 
 	// CloudSyncDriftFailedMessage is the message displayed when a drift sync fails.
 	CloudSyncDriftFailedMessage = "failed to sync the drift status"
+
+	// CloudSkippingTerraformPlanSync is the message displayed when a terraform plan sync is skipped.
+	CloudSkippingTerraformPlanSync = "skipping the sync of Terraform plan details"
 )
 
 const (
