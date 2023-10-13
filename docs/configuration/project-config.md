@@ -135,3 +135,24 @@ on `terramate.config.run.env` blocks won't affect the `env` namespace.
 
 You can have multiple `terramate.config.run.env` blocks defined on different
 files, but variable names **cannot** be defined twice.
+
+### The `terramate.config.cloud` block
+
+Properties related to Terramate Cloud can be defined inside the `terramate.config.cloud` block.
+Currently, this block is only used to set the default cloud organization name:
+```hcl
+terramate {
+  config {
+    cloud {
+      organization = "my-org-name"
+    }
+  }
+}
+```
+Setting a cloud organization name is required when
+* syncing with Terramate Cloud, i.e. by using `terramate run` with the `--cloud-sync-drift-status` or `--cloud-sync-deployment` options, and
+* the user is member of more than one cloud organizations.
+
+The specified name will be used to select which of the user's organizations to use in the scope of the project.
+
+It's also possible to select a cloud organization by setting the environment variable `TM_CLOUD_ORGANIZATION` to the organization name. If set, the value from the environment variable will override the configuration setting.
