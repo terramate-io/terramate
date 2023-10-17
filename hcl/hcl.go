@@ -103,10 +103,17 @@ type GitConfig struct {
 	CheckRemote bool
 }
 
+// CloudConfig represents Terramate cloud configuration.
+type CloudConfig struct {
+	// Organization is the name of the cloud organization
+	Organization string
+}
+
 // RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
-	Git *GitConfig
-	Run *RunConfig
+	Git   *GitConfig
+	Run   *RunConfig
+	Cloud *CloudConfig
 }
 
 // ManifestDesc represents a parsed manifest description.
@@ -1416,7 +1423,7 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 		))
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run", "cloud"))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
@@ -1440,6 +1447,17 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 		logger.Trace().Msg("Parse run config.")
 
 		errs.Append(parseRunConfig(cfg.Run, runBlock))
+	}
+
+	cloudBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("cloud")]
+	if ok {
+		logger.Trace().Msg("Type is 'cloud'")
+
+		cfg.Cloud = &CloudConfig{}
+
+		logger.Trace().Msg("Parse cloud config.")
+
+		errs.Append(parseCloudConfig(cfg.Cloud, cloudBlock))
 	}
 
 	return errs.AsError()
@@ -1594,6 +1612,56 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			errs.Append(errors.E(
 				attr.NameRange,
 				"unrecognized attribute terramate.config.git.%s",
+				attr.Name,
+			))
+		}
+	}
+	return errs.AsError()
+}
+
+func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
+	logger := log.With().
+		Str("action", "parseCloudConfig()").
+		Logger()
+
+	logger.Trace().Msg("Range over block attributes.")
+
+	errs := errors.L()
+
+	errs.AppendWrap(ErrTerramateSchema, cloudBlock.ValidateSubBlocks())
+
+	for _, attr := range cloudBlock.Attributes.SortedList() {
+		logger := logger.With().
+			Str("attribute", attr.Name).
+			Logger()
+
+		logger.Trace().Msg("setting attribute on config")
+
+		value, diags := attr.Expr.Value(nil)
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags,
+				"failed to evaluate terramate.config.cloud.%s attribute", attr.Name,
+			))
+			continue
+		}
+
+		switch attr.Name {
+		case "organization":
+			if value.Type() != cty.String {
+				errs.Append(attrErr(attr,
+					"terramate.config.cloud.organization is not a string but %q",
+					value.Type().FriendlyName(),
+				))
+
+				continue
+			}
+
+			cloud.Organization = value.AsString()
+
+		default:
+			errs.Append(errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.cloud.%s",
 				attr.Name,
 			))
 		}
