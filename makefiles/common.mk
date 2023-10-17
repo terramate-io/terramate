@@ -162,3 +162,8 @@ help:
 			} \
 	} \
 	{ lastLine = $$0 }' $(MAKEFILE_LIST)
+
+## run tests within docker
+.PHONY: docker/test
+docker/test:
+	docker build --rm -f containers/test/Dockerfile .
