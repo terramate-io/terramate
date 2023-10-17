@@ -154,10 +154,11 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Failed,
 						},
