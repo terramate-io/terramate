@@ -380,7 +380,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Status: stack.Drifted,
 							Details: &cloud.DriftDetails{
 								Provisioner:   "terraform",
-								ChangesetJSON: string(test.ReadFile(t, "_testdata/cloud-sync-drift-plan-file", "sanitized.plan.json")),
+								ChangesetJSON: loadJSONPlan(t, "_testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
 						},
 						ChangesetASCIIRegexes: []string{
@@ -399,7 +399,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Status: stack.Drifted,
 							Details: &cloud.DriftDetails{
 								Provisioner:   "terraform",
-								ChangesetJSON: string(test.ReadFile(t, "_testdata/cloud-sync-drift-plan-file", "sanitized.plan.json")),
+								ChangesetJSON: loadJSONPlan(t, "_testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
 						},
 						ChangesetASCIIRegexes: []string{
@@ -512,10 +512,21 @@ func assertRunDrifts(t *testing.T, expectedDrifts expectedDriftStackPayloadReque
 		assert.NoError(t, json.Unmarshal([]byte(got.Details.ChangesetJSON), &gotPlan))
 		assert.NoError(t, json.Unmarshal([]byte(expected.Details.ChangesetJSON), &wantPlan))
 
-		if diff := cmp.Diff(gotPlan, wantPlan, cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp")); diff != "" {
+		if diff := cmp.Diff(gotPlan, wantPlan, cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp", "FormatVersion")); diff != "" {
 			t.Logf("want: %+v", expected.Details.ChangesetJSON)
 			t.Logf("got: %+v", got.Details.ChangesetJSON)
 			t.Fatal(diff)
 		}
 	}
+}
+
+func loadJSONPlan(t *testing.T, fname string) string {
+	fname = filepath.FromSlash(fname)
+	jsonBytes := test.ReadFile(t, filepath.Dir(fname), filepath.Base(fname))
+	var plan tfjson.Plan
+	assert.NoError(t, json.Unmarshal(jsonBytes, &plan))
+	plan.TerraformVersion = terraformVersion
+	jsonNewBytes, err := json.Marshal(&plan)
+	assert.NoError(t, err)
+	return string(jsonNewBytes)
 }
