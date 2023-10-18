@@ -280,6 +280,7 @@ func TestVendorManifest(t *testing.T) {
 
 			// Remove the default README.md created by the sandbox
 			test.RemoveFile(t, repoSandbox.RootDir(), "README.md")
+			test.RemoveFile(t, repoSandbox.RootDir(), ".gitignore")
 
 			for _, file := range tcase.files {
 				path := filepath.Join(repoSandbox.RootDir(), file)

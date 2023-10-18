@@ -72,6 +72,13 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 	return nil
 }
 
+// CopyAll copies all files from dstdir into srcdir.
+func CopyAll(dstdir, srcdir string) error {
+	return CopyDir(dstdir, srcdir, func(_ string, _ os.DirEntry) bool {
+		return true
+	})
+}
+
 func copyFile(destfile, srcfile string) error {
 	src, err := os.Open(srcfile)
 	if err != nil {

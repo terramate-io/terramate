@@ -18,8 +18,7 @@ test/fakecloud:
 ## build the helper binary
 .PHONY: test/helper
 test/helper:
-	go build -o bin/helper ./cmd/terramate/e2etests/cmd/test
-	cp bin/helper bin/terraform
+	go build -o bin/helper ./cmd/terramate/e2etests/cmd/helper
 
 ## test code
 .PHONY: test

@@ -8,11 +8,12 @@ require (
 	github.com/cli/go-gh/v2 v2.1.0
 	github.com/cli/safeexec v1.0.0
 	github.com/emicklei/dot v0.16.0
-	github.com/go-git/go-git/v5 v5.4.2
+	github.com/go-git/go-git/v5 v5.9.0
 	github.com/go-test/deep v1.1.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
+	github.com/hashicorp/hc-install v0.6.1
 	github.com/hashicorp/hcl/v2 v2.14.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hashicorp/terraform-json v0.17.1
@@ -31,9 +32,11 @@ require (
 )
 
 require (
-	github.com/acomagu/bufpipe v1.0.3 // indirect
-	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
+	github.com/acomagu/bufpipe v1.0.4 // indirect
+	github.com/cloudflare/circl v1.3.3 // indirect
+	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
+	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -46,6 +49,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
+	golang.org/x/mod v0.13.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -64,8 +68,8 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/rs/zerolog v1.28.0
 	github.com/zclconf/go-cty-yaml v1.0.2 // indirect
-	golang.org/x/crypto v0.0.0-20220517005047-85d78b3ac167 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.10.0
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/sys v0.12.0
+	golang.org/x/text v0.13.0 // indirect
 )

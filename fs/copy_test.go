@@ -31,7 +31,8 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 	err := fs.CopyDir(destdir, s.RootDir(), func(path string, entry os.DirEntry) bool {
 		return entry.Name() != "notcopy" &&
 			entry.Name() != ".git" &&
-			entry.Name() != "README.md"
+			entry.Name() != "README.md" &&
+			entry.Name() != ".gitignore"
 	})
 
 	assert.NoError(t, err)
