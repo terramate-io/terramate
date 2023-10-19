@@ -4,12 +4,16 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
@@ -212,13 +216,29 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		cmd := exec.Command(cmdPath, runContext.Cmd[1:]...)
 		cmd.Dir = runContext.Stack.HostDir(c.cfg())
 		cmd.Env = environ
+
+		stdout := c.stdout
+		stderr := c.stderr
+
+		logSyncWait := func() {}
+		if c.cloudEnabled() && c.parsedArgs.Run.CloudSyncDeployment {
+			logSyncer := cloud.NewLogSyncer(func(logs cloud.DeploymentLogs) {
+				c.syncLogs(&logger, runContext, logs)
+			})
+			stdout = logSyncer.NewBuffer(cloud.StdoutLogChannel, c.stdout)
+			stderr = logSyncer.NewBuffer(cloud.StderrLogChannel, c.stderr)
+
+			logSyncWait = logSyncer.Wait
+		}
+
 		cmd.Stdin = c.stdin
-		cmd.Stdout = c.stdout
-		cmd.Stderr = c.stderr
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
 
 		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
+			logSyncWait()
 			c.cloudSyncAfter(runContext, -1, errors.E(err, ErrRunFailed))
 			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
 			logger.Error().Err(err).Msg("failed to execute")
@@ -250,13 +270,14 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
 
+					logSyncWait()
 					c.cloudSyncAfter(runContext, -1, errors.E(ErrRunCanceled))
 					c.cloudSyncCancelStacks(runStacks[i+1:])
-
 					return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
 				}
 			case result := <-results:
 				logger.Trace().Msg("got command result")
+				logSyncWait()
 				var err error
 				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
 					err = errors.E(result.err, ErrRunFailed, "running %s (at stack %s)", result.cmd, runContext.Stack.Dir)
@@ -279,6 +300,20 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 	}
 
 	return errs.AsError()
+}
+
+func (c *cli) syncLogs(logger *zerolog.Logger, runContext ExecContext, logs cloud.DeploymentLogs) {
+	data, _ := json.Marshal(logs)
+	logger.Trace().RawJSON("logs", data).Msg("synchronizing logs")
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	stackID := c.cloud.run.meta2id[runContext.Stack.ID]
+	err := c.cloud.client.SyncDeploymentLogs(
+		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs,
+	)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to sync logs")
+	}
 }
 
 type cmdResult struct {

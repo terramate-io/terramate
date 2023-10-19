@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"strconv"
 
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/cloud/stack"
@@ -131,6 +132,26 @@ func (c *Client) CreateStackDrift(
 		DriftsPath,
 		orgUUID,
 	)
+}
+
+// SyncDeploymentLogs sends a batch of deployment logs to Terramate Cloud.
+func (c *Client) SyncDeploymentLogs(
+	ctx context.Context,
+	orgUUID string,
+	stackID int,
+	deploymentUUID string,
+	logs DeploymentLogs,
+) error {
+	err := logs.Validate()
+	if err != nil {
+		return errors.E(err, "failed to prepare the request")
+	}
+	// Endpoint:/v1/stacks/{org_uuid}/{stack_id}/deployments/{deployment_uuid}/logs
+	_, err = Post[EmptyResponse](
+		ctx, c, logs,
+		StacksPath, orgUUID, strconv.Itoa(stackID), "deployments", deploymentUUID, "logs",
+	)
+	return err
 }
 
 // Get requests the endpoint components list making a GET request and decode the response into the
