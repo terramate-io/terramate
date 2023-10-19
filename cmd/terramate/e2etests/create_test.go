@@ -185,9 +185,8 @@ func TestCreateStackIgnoreExistingFatalOnOtherErrors(t *testing.T) {
 
 	s := sandbox.New(t)
 	root := s.RootEntry()
-	root.CreateDir("stack")
-	// Here we fail stack creating with an access error
-	root.Chmod("stack", 0444)
+	root.CreateFile("stack", "")
+	// Here we fail stack creating because a file with the same name exists
 	cli := newCLI(t, s.RootDir())
 
 	assertRunResult(t, cli.run("create", "stack", "--ignore-existing"), runExpected{
