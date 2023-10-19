@@ -14,8 +14,9 @@ package sandbox
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
+	stdfs "io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -24,11 +25,13 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 )
@@ -40,6 +43,8 @@ type S struct {
 	git     *Git
 	rootdir string
 	cfg     *config.Root
+
+	Env []string
 }
 
 // DirEntry represents a directory and can be used to create files inside the
@@ -78,6 +83,7 @@ func New(t testing.TB) S {
 
 	s.git = NewGit(t, s.RootDir())
 	s.git.Init()
+	s.commitGitIgnore()
 	return s
 }
 
@@ -90,6 +96,7 @@ func NewWithGitConfig(t testing.TB, cfg GitConfig) S {
 
 	s.git = NewGitWithConfig(t, cfg)
 	s.git.Init()
+	s.commitGitIgnore()
 	return s
 }
 
@@ -107,7 +114,7 @@ func NoGit(t testing.TB) S {
 
 	outerDir := t.TempDir()
 
-	buildTree(t, config.NewRoot(config.NewTree(outerDir)), []string{
+	buildTree(t, config.NewRoot(config.NewTree(outerDir)), nil, []string{
 		"s:this-stack-must-never-be-visible",
 		"s:other-hidden-stack",
 	})
@@ -121,37 +128,41 @@ func NoGit(t testing.TB) S {
 	}
 }
 
+func (s S) commitGitIgnore() {
+	s.BuildTree([]string{"file:.gitignore:" + defaultGitIgnoreContent})
+	s.git.CommitAll("add gitignore")
+}
+
 // BuildTree builds a tree layout based on the layout specification.
 // Each string in the slice represents a filesystem operation, and each
 // operation has the format below:
 //
-//	<kind>:<relative path>[:param]
+//	<kind>:<param1>[:param2]
 //
 // Where kind is one of the below:
 //
-//	"d" for directory creation.
-//	"g" for local git directory creation.
-//	"s" for initialized stacks.
-//	"f" for file creation.
-//	"l" for symbolic link creation.
-//	"t" for terramate block.
+//	"d" or "dir" for directory creation.
+//	"g" or "git" for local git directory creation.
+//	"s" or "stack" for initialized stacks.
+//	"f" or "file" for file creation.
+//	"l" or "link" for symbolic link creation.
+//	"copy" for copying directories or files.
+//	"run" for executing a command inside directory.
 //
-// And [:param] is optional and it depends on the command.
+// And [:param2] is optional and it depends on the kind.
 //
-// For the operations "f" and "s" [:param] is defined as:
+// For the operations "f" and "s" [:param2] is defined as:
 //
 //	For "f" it is the content of the file to be created.
 //	For "s" it is a key value pair of the form:
 //	  <attr1>=<val1>[;<attr2>=<val2>]
 //
 // Where attrN is a string attribute of the terramate block of the stack.
-// TODO(i4k): document empty data field.
-//
 // Example:
 //
 //	s:name-of-the-stack:id=stack-id;after=["other-stack"]
 //
-// For the operation "l" the [:param] is the link name, while <relative path>
+// For the operation "l" the [:param2] is the link name, while <param1>
 // is the target of the symbolic link:
 //
 //	l:<target>:<link name>
@@ -164,12 +175,18 @@ func NoGit(t testing.TB) S {
 //
 //	ln -s dir/file dir/link
 //
+// For "copy" the [:param1] is the source directory and [:param2] is the target
+// directory.
+//
+// For "run" the [:param1] is the working directory and [:param2] is the command
+// to be executed.
+//
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
 func (s S) BuildTree(layout []string) {
 	s.t.Helper()
 
-	buildTree(s.t, s.Config(), layout)
+	buildTree(s.t, s.Config(), s.Env, layout)
 }
 
 // IsGit tells if the sandbox is a git repository.
@@ -417,7 +434,7 @@ func (de DirEntry) CreateDir(relpath string) DirEntry {
 
 // Chmod does the same as [test.Chmod] for the given file/dir inside
 // this DirEntry.
-func (de DirEntry) Chmod(relpath string, mode fs.FileMode) {
+func (de DirEntry) Chmod(relpath string, mode stdfs.FileMode) {
 	test.AssertChmod(de.t, filepath.Join(de.abspath, relpath), mode)
 }
 
@@ -581,12 +598,13 @@ func parseListSpec(t testing.TB, name, value string) []string {
 	return list
 }
 
-func buildTree(t testing.TB, root *config.Root, layout []string) {
+func buildTree(t testing.TB, root *config.Root, environ []string, layout []string) {
 	t.Helper()
 
 	rootdir := root.HostDir()
-	parsePathData := func(spec string) (string, string) {
-		tmp := spec[2:]
+	parseParams := func(spec string) (string, string) {
+		colonIndex := strings.Index(spec, ":") + 1
+		tmp := spec[colonIndex:]
 		if len(tmp) == 0 {
 			// relative to s.rootdir
 			return ".", ""
@@ -600,7 +618,7 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 		return path, data
 	}
 
-	gentmfile := func(relpath, data string) {
+	genStackFile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
 		cfgdir := filepath.Join(rootdir, filepath.FromSlash(relpath))
@@ -641,34 +659,85 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 	}
 
 	for _, spec := range layout {
-		path, data := parsePathData(spec)
-
-		specKind := string(spec[0:2])
+		param1, param2 := parseParams(spec)
+		colonIndex := strings.Index(spec, ":") + 1
+		specKind := string(spec[0:colonIndex])
 		switch specKind {
-		case "d:":
-			test.MkdirAll(t, filepath.Join(rootdir, spec[2:]))
-		case "l:":
-			target := filepath.Join(rootdir, path)
-			linkName := filepath.Join(rootdir, data)
+		case "d:", "dir:":
+			test.MkdirAll(t, filepath.Join(rootdir, spec[colonIndex:]))
+		case "l:", "link:":
+			target := filepath.Join(rootdir, param1)
+			linkName := filepath.Join(rootdir, param2)
 			test.Symlink(t, target, linkName)
-		case "g:":
-			repodir := filepath.Join(rootdir, spec[2:])
+		case "g:", "git:":
+			repodir := filepath.Join(rootdir, spec[colonIndex:])
 			test.MkdirAll(t, repodir)
 			git := NewGit(t, repodir)
 			git.Init()
-		case "s:":
-			if data == "" {
-				abspath := filepath.Join(rootdir, path)
+		case "s:", "stack:":
+			if param2 == "" {
+				abspath := filepath.Join(rootdir, param1)
 				stackdir := project.PrjAbsPath(rootdir, abspath)
 				assert.NoError(t, stack.Create(root, config.Stack{Dir: stackdir}))
 				continue
 			}
 
-			gentmfile(path, data)
-		case "f:":
-			test.WriteFile(t, rootdir, path, data)
+			genStackFile(param1, param2)
+		case "f:", "file:":
+			test.WriteFile(t, rootdir, param1, param2)
+		case "copy:":
+			assert.NoError(t, fs.CopyAll(
+				filepath.Join(rootdir, param1),
+				param2,
+			))
+		case "run:":
+			cmdParts := strings.Split(param2, " ")
+			path, err := run.LookPath(cmdParts[0], environ)
+			assert.NoError(t, err)
+			cmd := exec.Command(path, cmdParts[1:]...)
+			cmd.Dir = filepath.Join(rootdir, param1)
+			cmd.Env = environ
+			out, err := cmd.CombinedOutput()
+			assert.NoError(t, err, "failed to execute sandbox run: (output: %s)", out)
 		default:
 			t.Fatalf("unknown spec kind: %q", specKind)
 		}
 	}
 }
+
+const defaultGitIgnoreContent = `
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data, such as
+# password, private keys, and other secrets. These should not be part of version 
+# control as they are data points which are potentially sensitive and subject 
+# to change depending on the environment.
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are usually used to override resources locally and so
+# are not checked in
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include override files you do wish to add to version control using negated pattern
+# !example_override.tf
+
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+# example: *tfplan*
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+`

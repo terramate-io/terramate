@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -159,4 +161,26 @@ func CanonPath(t testing.TB, path string) string {
 	p, err = filepath.Abs(p)
 	assert.NoError(t, err)
 	return p
+}
+
+// PrependToPath prepend a directory to the OS PATH variable in a portable way.
+// It returns the new env slice and a boolean telling if the env was updated or
+// not.
+func PrependToPath(env []string, dir string) ([]string, bool) {
+	envKeyEquality := func(s1, s2 string) bool { return s1 == s2 }
+	if runtime.GOOS == "windows" {
+		envKeyEquality = strings.EqualFold
+	}
+
+	for i, v := range env {
+		eqPos := strings.Index(v, "=")
+		key := v[:eqPos]
+		oldv := v[eqPos+1:]
+		if envKeyEquality(key, "PATH") {
+			v = key + "=" + dir + string(os.PathListSeparator) + oldv
+			env[i] = v
+			return env, true
+		}
+	}
+	return env, false
 }

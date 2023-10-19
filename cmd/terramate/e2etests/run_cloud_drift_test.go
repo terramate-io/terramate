@@ -4,16 +4,18 @@
 package e2etest
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/stack"
@@ -23,30 +25,27 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
+type expectedDriftStackPayloadRequests []expectedDriftStackPayloadRequest
+type expectedDriftStackPayloadRequest struct {
+	cloud.DriftStackPayloadRequest
+
+	ChangesetASCIIRegexes []string
+}
+
 func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	type want struct {
 		run    runExpected
-		drifts cloud.DriftStackPayloadRequests
+		drifts expectedDriftStackPayloadRequests
 	}
 	type testcase struct {
-		name             string
-		layout           []string
-		runflags         []string
-		workingDir       string
-		cmd              []string
-		driftDetailASCII string
-		driftDetailJSON  string
-		want             want
+		name       string
+		layout     []string
+		runflags   []string
+		env        []string
+		workingDir string
+		cmd        []string
+		want       want
 	}
-
-	const testPlanASCII = "here goes the terraform plan output\n"
-
-	testUnsanitizedPlanJSON, err := os.ReadFile("_testdata/unsanitized.plan.json")
-	assert.NoError(t, err)
-	testSanitizedPlanJSON, err := os.ReadFile("_testdata/sanitized.plan.json")
-	assert.NoError(t, err)
-
-	testSanitizedPlanJSON = bytes.TrimSpace(testSanitizedPlanJSON)
 
 	absPlanFilePath := test.WriteFile(t, t.TempDir(), "out.tfplan", ``)
 
@@ -74,15 +73,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/stack",
-							MetaName:   "stack",
-							MetaID:     "stack",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/stack",
+								MetaName:   "stack",
+								MetaID:     "stack",
+							},
+							Status: stack.Failed,
 						},
-						Status: stack.Failed,
 					},
 				},
 			},
@@ -99,15 +100,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Failed,
 						},
-						Status: stack.Failed,
 					},
 				},
 			},
@@ -126,30 +129,34 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Failed,
 						},
-						Status: stack.Failed,
 					},
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s2",
-							MetaName:   "s2",
-							MetaID:     "s2",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s2",
+								MetaName:   "s2",
+								MetaID:     "s2",
+							},
+							Status: stack.Failed,
 						},
-						Status: stack.Failed,
 					},
 				},
 			},
 		},
 		{
-			name: "failed cmd and continueOnError",
+			name: "one failed cmd and continueOnError",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -163,24 +170,28 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Stdout:      "test",
 					StderrRegex: `(no such file or directory|The system cannot find the file specified)`,
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Failed,
 						},
-						Status: stack.Failed,
 					},
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s2",
-							MetaName:   "s2",
-							MetaID:     "s2",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s2",
+								MetaName:   "s2",
+								MetaID:     "s2",
+							},
+							Status: stack.OK,
 						},
-						Status: stack.OK,
 					},
 				},
 			},
@@ -192,15 +203,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				testHelperBin, "exit", "2",
 			},
 			want: want{
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/stack",
-							MetaName:   "stack",
-							MetaID:     "stack",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/stack",
+								MetaName:   "stack",
+								MetaID:     "stack",
+							},
+							Status: stack.Drifted,
 						},
-						Status: stack.Drifted,
 					},
 				},
 			},
@@ -219,15 +232,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status: 0,
 					Stdout: "/parent/child\n",
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/parent/child",
-							MetaName:   "child",
-							MetaID:     "child",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/parent/child",
+								MetaName:   "child",
+								MetaID:     "child",
+							},
+							Status: stack.OK,
 						},
-						Status: stack.OK,
 					},
 				},
 			},
@@ -240,24 +255,28 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 			cmd: []string{testHelperBin, "exit", "2"},
 			want: want{
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Drifted,
 						},
-						Status: stack.Drifted,
 					},
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s2",
-							MetaName:   "s2",
-							MetaID:     "s2",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s2",
+								MetaName:   "s2",
+								MetaID:     "s2",
+							},
+							Status: stack.Drifted,
 						},
-						Status: stack.Drifted,
 					},
 				},
 			},
@@ -277,15 +296,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						clitest.CloudSkippingTerraformPlanSync,
 					},
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Drifted,
 						},
-						Status: stack.Drifted,
 					},
 				},
 			},
@@ -306,15 +327,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						"skipping",
 					},
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Drifted,
 						},
-						Status: stack.Drifted,
 					},
 				},
 			},
@@ -323,45 +346,65 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			name: "using --cloud-sync-terraform-plan-file=out.tfplan",
 			layout: []string{
 				"s:s1:id=s1",
-				`f:s1/out.tfplan:`,
 				"s:s2:id=s2",
-				`f:s2/out.tfplan:`,
+				"copy:s1:_testdata/cloud-sync-drift-plan-file",
+				"copy:s2:_testdata/cloud-sync-drift-plan-file",
+				"run:s1:terraform init",
+				"run:s2:terraform init",
 			},
 			runflags: []string{
 				`--cloud-sync-terraform-plan-file=out.tfplan`,
 			},
-			cmd:              []string{testHelperBin, "exit", "2"},
-			driftDetailASCII: testPlanASCII,
-			driftDetailJSON:  string(testUnsanitizedPlanJSON),
+			env: []string{
+				`TF_VAR_content=my secret`,
+			},
+			cmd: []string{
+				"terraform", "plan", "-no-color", "-detailed-exitcode", "-out=out.tfplan",
+			},
 			want: want{
-				run: runExpected{},
-				drifts: cloud.DriftStackPayloadRequests{
+				run: runExpected{
+					StdoutRegexes: []string{
+						`Terraform used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				},
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Drifted,
+							Details: &cloud.DriftDetails{
+								Provisioner:   "terraform",
+								ChangesetJSON: string(test.ReadFile(t, "_testdata/cloud-sync-drift-plan-file", "sanitized.plan.json")),
+							},
 						},
-						Status: stack.Drifted,
-						Details: &cloud.DriftDetails{
-							Provisioner:    "terraform",
-							ChangesetASCII: testPlanASCII,
-							ChangesetJSON:  string(testSanitizedPlanJSON),
+						ChangesetASCIIRegexes: []string{
+							`Terraform used the selected providers to generate the following execution`,
+							`local_file.foo will be created`,
 						},
 					},
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s2",
-							MetaName:   "s2",
-							MetaID:     "s2",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s2",
+								MetaName:   "s2",
+								MetaID:     "s2",
+							},
+							Status: stack.Drifted,
+							Details: &cloud.DriftDetails{
+								Provisioner:   "terraform",
+								ChangesetJSON: string(test.ReadFile(t, "_testdata/cloud-sync-drift-plan-file", "sanitized.plan.json")),
+							},
 						},
-						Status: stack.Drifted,
-						Details: &cloud.DriftDetails{
-							Provisioner:    "terraform",
-							ChangesetASCII: testPlanASCII,
-							ChangesetJSON:  string(testSanitizedPlanJSON),
+						ChangesetASCIIRegexes: []string{
+							`Terraform used the selected providers to generate the following execution`,
+							`local_file.foo will be created`,
 						},
 					},
 				},
@@ -374,15 +417,15 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			startFakeTMCServer(t)
 
 			s := sandbox.New(t)
+			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(terraformTestBin))
 
 			s.BuildTree(tc.layout)
 			s.Git().CommitAll("all stacks committed")
 
-			env := removeEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
-			env = append(env, `TM_TEST_TERRAFORM_SHOW_ASCII_OUTPUT=`+tc.driftDetailASCII)
-			env = append(env, `TM_TEST_TERRAFORM_SHOW_JSON_OUTPUT=`+tc.driftDetailJSON)
+			env := removeEnv(os.Environ(), "CI")
+			env = append(env, tc.env...)
 			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-			cli.prependToPath(filepath.Dir(testHelperBin))
+			cli.prependToPath(filepath.Dir(terraformTestBin))
 			runflags := []string{"run", "--cloud-sync-drift-status"}
 			runflags = append(runflags, tc.runflags...)
 			runflags = append(runflags, "--")
@@ -394,7 +437,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	}
 }
 
-func assertRunDrifts(t *testing.T, expectedDrifts cloud.DriftStackPayloadRequests) {
+func assertRunDrifts(t *testing.T, expectedDrifts expectedDriftStackPayloadRequests) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -404,15 +447,75 @@ func assertRunDrifts(t *testing.T, expectedDrifts cloud.DriftStackPayloadRequest
 	}, "GET", cloud.DriftsPath+"/"+testserver.DefaultOrgUUID, nil)
 	assert.NoError(t, err)
 
-	// TODO(i4k): skip checking interpolated commands for now because of the hack
-	// for making the --eval work with the helper binary in a portable way.
-	// We can't portably predict the command because when using --eval the
-	// whole argument list is interpolated, including the program name, and then
-	// on Windows it requires a special escaped string.
-	// See variable `testHelperBinAsHCL`.
-	if diff := cmp.Diff(res, expectedDrifts, cmpopts.IgnoreFields(cloud.DriftStackPayloadRequest{}, "Command")); diff != "" {
-		t.Logf("want: %+v", expectedDrifts)
-		t.Logf("got: %+v", res)
-		t.Fatal(diff)
+	if len(expectedDrifts) != len(res) {
+		t.Errorf("expected %d drifts but found %d", len(expectedDrifts), len(res))
+	}
+
+	for i, expected := range expectedDrifts {
+		got := res[i]
+		// TODO(i4k): skip checking interpolated commands for now because of the hack
+		// for making the --eval work with the helper binary in a portable way.
+		// We can't portably predict the command because when using --eval the
+		// whole argument list is interpolated, including the program name, and then
+		// on Windows it requires a special escaped string.
+		// See variable `testHelperBinAsHCL`.
+		if diff := cmp.Diff(got, expected.DriftStackPayloadRequest, cmpopts.IgnoreFields(cloud.DriftStackPayloadRequest{}, "Command", "Details")); diff != "" {
+			t.Logf("want: %+v", expectedDrifts)
+			t.Logf("got: %+v", got)
+			t.Fatal(diff)
+		}
+
+		if (expected.DriftStackPayloadRequest.Details == nil) !=
+			(got.Details == nil) {
+			t.Fatalf("drift_detals is absent in expected or got result: want %v != got %v",
+				expected.DriftStackPayloadRequest.Details,
+				got.Details,
+			)
+		}
+
+		if expected.DriftStackPayloadRequest.Details == nil {
+			continue
+		}
+
+		assert.EqualStrings(t, expected.DriftStackPayloadRequest.Details.Provisioner,
+			got.Details.Provisioner,
+			"provisioner mismatch",
+		)
+
+		if len(expected.ChangesetASCIIRegexes) > 0 {
+			changeSetASCII := got.Details.ChangesetASCII
+
+			for _, changesetASCIIRegex := range expected.ChangesetASCIIRegexes {
+				matched, err := regexp.MatchString(changesetASCIIRegex, changeSetASCII)
+				assert.NoError(t, err, "failed to compile regex %q", changesetASCIIRegex)
+
+				if !matched {
+					t.Errorf("changeset_ascii=\"%s\" does not match regex %q",
+						changeSetASCII,
+						changesetASCIIRegex,
+					)
+				}
+			}
+
+		} else {
+			assert.EqualStrings(t, expected.DriftStackPayloadRequest.Details.ChangesetASCII,
+				got.Details.ChangesetASCII,
+				"changeset_ascii mismatch")
+		}
+
+		if got.Details.ChangesetJSON == expected.Details.ChangesetJSON {
+			continue
+		}
+
+		var gotPlan, wantPlan tfjson.Plan
+
+		assert.NoError(t, json.Unmarshal([]byte(got.Details.ChangesetJSON), &gotPlan))
+		assert.NoError(t, json.Unmarshal([]byte(expected.Details.ChangesetJSON), &wantPlan))
+
+		if diff := cmp.Diff(gotPlan, wantPlan, cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp")); diff != "" {
+			t.Logf("want: %+v", expected.Details.ChangesetJSON)
+			t.Logf("got: %+v", got.Details.ChangesetJSON)
+			t.Fatal(diff)
+		}
 	}
 }

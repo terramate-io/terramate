@@ -1,7 +1,7 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-// test is a test command that implements behaviors that are
+// helper is a utility command that implements behaviors that are
 // useful when testing terramate run features in a way that reduces
 // dependencies on the environment to run the tests.
 package main
@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/terraform-json/sanitize"
 )
 
-func helper() {
+func main() {
 	if len(os.Args) < 2 {
 		log.Fatalf("%s requires at least one subcommand argument", os.Args[0])
 	}

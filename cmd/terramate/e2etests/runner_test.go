@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -89,27 +88,13 @@ func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
 }
 
 func (tm *tmcli) prependToPath(dir string) {
-	envKeyEquality := func(s1, s2 string) bool { return s1 == s2 }
-	if runtime.GOOS == "windows" {
-		envKeyEquality = strings.EqualFold
-	}
-	addTo := func(env []string, dir string) bool {
-		for i, v := range env {
-			eqPos := strings.Index(v, "=")
-			key := v[:eqPos]
-			oldv := v[eqPos+1:]
-			if envKeyEquality(key, "PATH") {
-				v = key + "=" + dir + string(os.PathListSeparator) + oldv
-				env[i] = v
-				return true
-			}
+	var found bool
+	tm.appendEnv, found = test.PrependToPath(tm.appendEnv, dir)
+	if !found {
+		tm.environ, found = test.PrependToPath(tm.environ, dir)
+		if !found {
+			tm.appendEnv = append(tm.appendEnv, fmt.Sprintf("PATH=%s", dir))
 		}
-		return false
-	}
-
-	found := addTo(tm.appendEnv, dir)
-	if !found && !addTo(tm.environ, dir) {
-		tm.appendEnv = append(tm.appendEnv, fmt.Sprintf("PATH=%s", dir))
 	}
 }
 
