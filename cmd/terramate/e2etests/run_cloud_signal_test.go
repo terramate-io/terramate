@@ -115,7 +115,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 	type want struct {
 		run    runExpected
-		drifts cloud.DriftStackPayloadRequests
+		drifts expectedDriftStackPayloadRequests
 	}
 	type testcase struct {
 		name       string
@@ -150,15 +150,17 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					IgnoreStdout: true,
 					IgnoreStderr: true,
 				},
-				drifts: cloud.DriftStackPayloadRequests{
+				drifts: expectedDriftStackPayloadRequests{
 					{
-						Stack: cloud.Stack{
-							Repository: "local",
-							Path:       "/s1",
-							MetaName:   "s1",
-							MetaID:     "s1",
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository: "local",
+								Path:       "/s1",
+								MetaName:   "s1",
+								MetaID:     "s1",
+							},
+							Status: stack.Failed,
 						},
-						Status: stack.Failed,
 					},
 				},
 			},

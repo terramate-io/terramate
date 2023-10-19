@@ -719,8 +719,6 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 		tcase := tc
 
 		t.Run(tcase.name, func(t *testing.T) {
-			t.Helper()
-
 			if tcase.skipOn == runtime.GOOS {
 				t.Skipf("skipping on GOOS %q", tcase.skipOn)
 				return
@@ -833,7 +831,8 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				// sandbox creates README.md inside test dirs
 				if d.Name() == config.DefaultFilename ||
 					d.Name() == stackpkg.DefaultFilename ||
-					d.Name() == "README.md" {
+					d.Name() == "README.md" ||
+					d.Name() == ".gitignore" {
 					return nil
 				}
 

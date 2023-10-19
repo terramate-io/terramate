@@ -4,21 +4,31 @@
 package e2etest
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/go-version"
+	install "github.com/hashicorp/hc-install"
+	"github.com/hashicorp/hc-install/product"
+	"github.com/hashicorp/hc-install/releases"
+	"github.com/hashicorp/hc-install/src"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/test"
 )
+
+const terraformVersion = "1.5.0"
 
 // terramateTestBin is the path to the terramate binary we compiled for test purposes
 var terramateTestBin string
+
+// terraformTestBin is the path to the installed terraform binary.
+var terraformTestBin string
 
 // testHelperBin is the path to the test binary we compiled for test purposes
 var testHelperBin string
@@ -67,7 +77,7 @@ func setupAndRunTests(m *testing.M) (status int) {
 		return 1
 	}
 
-	testCmdPath := filepath.Join(packageDir, "cmd", "test")
+	testCmdPath := filepath.Join(packageDir, "cmd", "helper")
 	testHelperBin, err = buildTestHelper(goBin, testCmdPath, binTmpDir)
 	if err != nil {
 		log.Printf("failed to setup e2e tests: %v", err)
@@ -78,6 +88,21 @@ func setupAndRunTests(m *testing.M) (status int) {
 		%s
 	EOF
 	)}`, testHelperBin)
+
+	tfExecPath, installer, err := installTerraform()
+	if err != nil {
+		log.Printf("failed to setup Terraform binary")
+		return 1
+	}
+
+	terraformTestBin = tfExecPath
+
+	defer func() {
+		err := installer.Remove(context.Background())
+		if err != nil {
+			log.Printf("failed to remove terraform installation")
+		}
+	}()
 
 	return m.Run()
 }
@@ -95,17 +120,6 @@ func buildTestHelper(goBin, testCmdPath, binDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to build test helper: %v (output: %s)", err, string(out))
 	}
-	data, err := ioutil.ReadFile(outBinPath)
-	if err != nil {
-		return "", errors.E(err, "reading helper binary")
-	}
-
-	tfPath := filepath.Join(binDir, "terraform"+platExeSuffix())
-	err = ioutil.WriteFile(tfPath, data, 0644)
-	if err != nil {
-		return "", errors.E(err, "writing fake terraform binary")
-	}
-	err = test.Chmod(tfPath, 0550)
 	return outBinPath, err
 }
 
@@ -130,6 +144,25 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 		return "", fmt.Errorf("failed to build terramate: %v (output: %s)", err, string(out))
 	}
 	return outBinPath, nil
+}
+
+func installTerraform() (string, *install.Installer, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	installer := install.NewInstaller()
+	version := version.Must(version.NewVersion(terraformVersion))
+
+	execPath, err := installer.Install(ctx, []src.Installable{
+		&releases.ExactVersion{
+			Product: product.Terraform,
+			Version: version,
+		},
+	})
+	if err != nil {
+		return "", nil, errors.E(err, "installing Terraform")
+	}
+	return execPath, installer, nil
 }
 
 func lookupGoBin() (string, error) {
