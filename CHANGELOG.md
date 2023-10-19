@@ -27,6 +27,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `--cloud-sync-terraform-plan-file=<plan>` flag for synchronizing the plan
 file in rendered ASCII and JSON (sensitive information removed).
 - Add configuration attribute `terramate.config.cloud.organization` to select which cloud organization to use when syncing with Terramate Cloud.
+- Add sync of logs to _Terramate Cloud_ when using `--cloud-sync-deployment` flag.
 
 ## 0.4.2
 

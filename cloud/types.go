@@ -5,6 +5,7 @@ package cloud
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -203,6 +204,26 @@ type (
 	UpdateDeploymentStacks struct {
 		Stacks []UpdateDeploymentStack `json:"stacks"`
 	}
+
+	// DeploymentLogs represents a batch of log messages.
+	DeploymentLogs []*DeploymentLog
+
+	// LogChannel is an enum-like type for the output channels supported.
+	LogChannel int
+
+	// DeploymentLog represents a single log message.
+	DeploymentLog struct {
+		Line      int64      `json:"log_line"`
+		Timestamp *time.Time `json:"timestamp"`
+		Channel   LogChannel `json:"channel"`
+		Message   string     `json:"message"`
+	}
+)
+
+const (
+	unknownLogChannel LogChannel = iota
+	StdoutLogChannel             // StdoutLogChannel is the stdout channel
+	StderrLogChannel             // StderrLogChannel is the stderr channel
 )
 
 var (
@@ -223,6 +244,8 @@ var (
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
 	_ = Resource(DriftDetails{})
+	_ = Resource(DeploymentLogs{})
+	_ = Resource(DeploymentLog{})
 	_ = Resource(EmptyResponse(""))
 )
 
@@ -416,6 +439,22 @@ func (ds UpdateDeploymentStacks) Validate() error { return validateResourceList(
 // Validate the list of deployment stacks response.
 func (ds DeploymentStacksResponse) Validate() error { return validateResourceList(ds...) }
 
+// Validate a deployment log.
+func (l DeploymentLog) Validate() error {
+	if l.Channel == unknownLogChannel {
+		return errors.E(`missing "channel" field`)
+	}
+	if l.Message == "" {
+		return errors.E(`empty "message" field`)
+	}
+	if l.Timestamp == nil {
+		return errors.E(`missing "timestamp" field`)
+	}
+	return nil
+}
+
+// Validate a list of deployment logs.
+func (ls DeploymentLogs) Validate() error { return validateResourceList(ls...) }
 func validateResourceList[T Resource](resources ...T) error {
 	for _, resource := range resources {
 		err := resource.Validate()
@@ -435,4 +474,37 @@ func (s EmptyResponse) Validate() error {
 		return nil
 	}
 	return errors.E("unexpected non-empty string")
+}
+
+// UnmarshalJSON implements the [json.Unmarshaler] interface.
+func (c *LogChannel) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+	switch str {
+	case "stdout":
+		*c = StdoutLogChannel
+	case "stderr":
+		*c = StderrLogChannel
+	default:
+		return errors.E("unrecognized log channel: %s", str)
+	}
+	return nil
+}
+
+// MarshalJSON implements the [json.Marshaler] interface.
+func (c *LogChannel) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+// String returns the channel name.
+func (c LogChannel) String() string {
+	if c == StdoutLogChannel {
+		return "stdout"
+	}
+	if c == StderrLogChannel {
+		return "stderr"
+	}
+	return "unknown"
 }
