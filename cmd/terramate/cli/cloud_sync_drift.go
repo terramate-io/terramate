@@ -142,7 +142,9 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(err, "validating plan file")
 	}
-	newPlan, err := sanitize.SanitizePlan(&oldPlan)
+
+	const replaceWith = "__terramate_redacted__"
+	newPlan, err := sanitize.SanitizePlanWithValue(&oldPlan, replaceWith)
 	if err != nil {
 		return nil, errors.E(err)
 	}
