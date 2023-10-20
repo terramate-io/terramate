@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
+	"os"
 	"path"
 	"strconv"
 
@@ -67,6 +69,14 @@ type (
 		Token() (string, error)
 	}
 )
+
+var debugAPIRequests bool
+
+func init() {
+	if d := os.Getenv("TMC_API_DEBUG"); d == "1" || d == "true" {
+		debugAPIRequests = true
+	}
+}
 
 // Users retrieves the user details for the signed in user.
 func (c *Client) Users(ctx context.Context) (user User, err error) {
@@ -218,10 +228,20 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 		return entity, err
 	}
 
+	if debugAPIRequests {
+		data, _ := httputil.DumpRequestOut(req, true)
+		fmt.Printf(">>> %s\n\n", data)
+	}
+
 	client := c.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return entity, err
+	}
+
+	if debugAPIRequests {
+		data, _ := httputil.DumpResponse(resp, true)
+		fmt.Printf("<<< %s\n\n", data)
 	}
 
 	defer func() {
