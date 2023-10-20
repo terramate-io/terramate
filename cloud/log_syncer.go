@@ -16,16 +16,15 @@ import (
 type (
 	// LogSyncer is the log syncer controller type.
 	LogSyncer struct {
-		pending      DeploymentLogs
-		fds          []io.Closer
-		in           chan *DeploymentLog
-		lastEnqueued time.Time
-		syncfn       Syncer
-		wg           sync.WaitGroup
-		shutdown     chan struct{}
+		pending  DeploymentLogs
+		fds      []io.Closer
+		in       chan *DeploymentLog
+		syncfn   Syncer
+		wg       sync.WaitGroup
+		shutdown chan struct{}
 
 		batchSize    int
-		idleDuration time.Duration
+		syncInterval time.Duration
 	}
 
 	// Syncer is the actual synchronizer callback.
@@ -35,19 +34,19 @@ type (
 // DefaultLogBatchSize is the default batch size.
 const DefaultLogBatchSize = 256
 
-// DefaultLogIdleDuration is the maximum idle duration before a sync could happen.
-const DefaultLogIdleDuration = 1 * time.Second
+// DefaultLogSyncInterval is the maximum idle duration before a sync could happen.
+const DefaultLogSyncInterval = 1 * time.Second
 
 // NewLogSyncer creates a new log syncer.
 func NewLogSyncer(syncfn Syncer) *LogSyncer {
-	return NewLogSyncerWith(syncfn, DefaultLogBatchSize, DefaultLogIdleDuration)
+	return NewLogSyncerWith(syncfn, DefaultLogBatchSize, DefaultLogSyncInterval)
 }
 
 // NewLogSyncerWith creates a new customizable syncer.
 func NewLogSyncerWith(
 	syncfn Syncer,
 	batchSize int,
-	idleDuration time.Duration,
+	syncInterval time.Duration,
 ) *LogSyncer {
 	l := &LogSyncer{
 		in:       make(chan *DeploymentLog, batchSize),
@@ -55,7 +54,7 @@ func NewLogSyncerWith(
 		shutdown: make(chan struct{}),
 
 		batchSize:    batchSize,
-		idleDuration: idleDuration,
+		syncInterval: syncInterval,
 	}
 	l.start()
 	return l
@@ -127,28 +126,39 @@ func (s *LogSyncer) Wait() {
 
 func (s *LogSyncer) start() {
 	go func() {
-		s.lastEnqueued = time.Now()
-		for e := range s.in {
-			s.enqueue(e)
+		ticker := time.NewTicker(s.syncInterval)
+		defer ticker.Stop()
+
+	outer:
+		for {
+			select {
+			case e, ok := <-s.in:
+				if !ok {
+					break outer
+				}
+				s.enqueue(e)
+			case <-ticker.C:
+				s.syncAll()
+			}
 		}
-		for len(s.pending) > 0 {
-			rest := min(s.batchSize, len(s.pending))
-			s.syncfn(s.pending[:rest])
-			s.pending = s.pending[rest:]
-		}
+		s.syncAll()
 		s.shutdown <- struct{}{}
 	}()
 }
 
-func (s *LogSyncer) enqueue(l *DeploymentLog) {
-	s.pending = append(s.pending, l)
-	if len(s.pending) >= s.batchSize ||
-		(len(s.pending) > 0 && time.Since(s.lastEnqueued) > s.idleDuration) {
+func (s *LogSyncer) syncAll() {
+	for len(s.pending) > 0 {
 		rest := min(s.batchSize, len(s.pending))
 		s.syncfn(s.pending[:rest])
 		s.pending = s.pending[rest:]
 	}
-	s.lastEnqueued = time.Now()
+}
+
+func (s *LogSyncer) enqueue(l *DeploymentLog) {
+	s.pending = append(s.pending, l)
+	if len(s.pending) >= s.batchSize {
+		s.syncAll()
+	}
 }
 
 func readLines(r io.Reader, pending []byte) (line [][]byte, rest []byte, err error) {
@@ -205,15 +215,18 @@ func readLine(r io.Reader) (line []byte, err error) {
 	}
 }
 
-// dropCRLN drops a terminal \r from the data.
+// dropCRLN drops a terminating \n and \r from the data.
 func dropCRLN(data []byte) []byte {
+	data = dropByte(data, '\n')
+	data = dropByte(data, '\r')
+	return data
+}
+
+func dropByte(data []byte, b byte) []byte {
 	if len(data) == 0 {
 		return data
 	}
-	if data[len(data)-1] == '\n' {
-		data = data[0 : len(data)-1]
-	}
-	if data[len(data)-1] == '\r' {
+	if data[len(data)-1] == b {
 		data = data[0 : len(data)-1]
 	}
 	return data

@@ -29,7 +29,7 @@ type (
 		name         string
 		writes       []write
 		batchSize    int
-		idleDuration time.Duration
+		syncInterval time.Duration
 		want         want
 	}
 )
@@ -118,6 +118,26 @@ func TestCloudLogSyncer(t *testing.T) {
 							Line:    4,
 							Channel: cloud.StdoutLogChannel,
 							Message: "amazing",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "empty line -- regression check",
+			writes: []write{
+				{channel: cloud.StdoutLogChannel, data: []byte("\n")},
+			},
+			want: want{
+				output: map[cloud.LogChannel][]byte{
+					cloud.StdoutLogChannel: []byte("\n"),
+				},
+				batches: []cloud.DeploymentLogs{
+					{
+						{
+							Line:    1,
+							Channel: cloud.StdoutLogChannel,
+							Message: "",
 						},
 					},
 				},
@@ -221,7 +241,7 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name:         "batch size is respected",
 			batchSize:    1,
-			idleDuration: 10 * time.Second, // just to ensure it's not used in slow envs
+			syncInterval: 10 * time.Second, // just to ensure it's not used in slow envs
 			writes: []write{
 				{channel: cloud.StdoutLogChannel, data: []byte("A\n")},
 				{channel: cloud.StdoutLogChannel, data: []byte("B\nC\n")},
@@ -287,7 +307,7 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name:         "if no write happens after configured idle duration then pending data is synced",
 			batchSize:    6,
-			idleDuration: 100 * time.Millisecond,
+			syncInterval: 100 * time.Millisecond,
 			writes: []write{
 				{channel: cloud.StdoutLogChannel, data: []byte("first write\n")},
 				{
@@ -303,7 +323,7 @@ func TestCloudLogSyncer(t *testing.T) {
 					cloud.StdoutLogChannel: []byte("first write\nwrite after idle time\nanother\nmultiline\nwrite\nhere"),
 				},
 				batches: []cloud.DeploymentLogs{
-					// first batch is due to idle duration trigger.
+					// first batch is due to sync interval trigger.
 					{
 						{
 							Line:    1,
@@ -348,7 +368,7 @@ func TestCloudLogSyncer(t *testing.T) {
 			var gotBatches []cloud.DeploymentLogs
 			s := cloud.NewLogSyncerWith(func(logs cloud.DeploymentLogs) {
 				gotBatches = append(gotBatches, logs)
-			}, tc.batchSize, tc.idleDuration)
+			}, tc.batchSize, tc.syncInterval)
 			var stdoutBuf, stderrBuf bytes.Buffer
 			stdoutProxy := s.NewBuffer(cloud.StdoutLogChannel, &stdoutBuf)
 			stderrProxy := s.NewBuffer(cloud.StderrLogChannel, &stderrBuf)
@@ -404,8 +424,8 @@ func (tc *testcase) validate(t *testing.T) {
 	if tc.batchSize == 0 {
 		tc.batchSize = cloud.DefaultLogBatchSize
 	}
-	if tc.idleDuration == 0 {
-		tc.idleDuration = 1 * time.Second
+	if tc.syncInterval == 0 {
+		tc.syncInterval = 1 * time.Second
 	}
 }
 
