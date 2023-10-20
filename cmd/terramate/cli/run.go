@@ -304,7 +304,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 
 func (c *cli) syncLogs(logger *zerolog.Logger, runContext ExecContext, logs cloud.DeploymentLogs) {
 	data, _ := json.Marshal(logs)
-	logger.Trace().RawJSON("logs", data).Msg("synchronizing logs")
+	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 	stackID := c.cloud.run.meta2id[runContext.Stack.ID]

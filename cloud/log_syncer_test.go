@@ -28,7 +28,6 @@ type (
 	testcase struct {
 		name         string
 		writes       []write
-		maxLineSize  int
 		batchSize    int
 		idleDuration time.Duration
 		want         want
@@ -36,24 +35,35 @@ type (
 )
 
 func TestCloudLogSyncer(t *testing.T) {
+	hugeLine := bytes.Repeat([]byte{'A'}, 1*1024*1024) // 1 mib line, no line ending
+
 	for _, tc := range []testcase{
 		{
 			name: "no output",
 		},
-		/*
-			TODO(i4k): improve scanner to not have a line size limit
+		{
+			name: "unlimited line length",
+			writes: []write{
 				{
-					name:        "log line bigger than maximum",
-					maxLineSize: 1,
-					writes: []write{
+					channel: cloud.StdoutLogChannel,
+					data:    hugeLine,
+				},
+			},
+			want: want{
+				output: map[cloud.LogChannel][]byte{
+					cloud.StdoutLogChannel: hugeLine,
+				},
+				batches: []cloud.DeploymentLogs{
+					{
 						{
-							channel: cloud.StdoutLogChannel,
-							data:    []byte("AA"),
+							Line:    1,
+							Channel: cloud.StdoutLogChannel,
+							Message: string(hugeLine),
 						},
 					},
-					want: want{},
 				},
-		*/
+			},
+		},
 		{
 			name: "multiple writes with no newline",
 			writes: []write{
@@ -358,7 +368,7 @@ func TestCloudLogSyncer(t *testing.T) {
 			var gotBatches []cloud.DeploymentLogs
 			s := cloud.NewLogSyncerWith(func(logs cloud.DeploymentLogs) {
 				gotBatches = append(gotBatches, logs)
-			}, tc.maxLineSize, tc.batchSize, tc.idleDuration)
+			}, tc.batchSize, tc.idleDuration)
 			var stdoutBuf, stderrBuf bytes.Buffer
 			stdoutProxy := s.NewBuffer(cloud.StdoutLogChannel, &stdoutBuf)
 			stderrProxy := s.NewBuffer(cloud.StderrLogChannel, &stderrBuf)
@@ -410,9 +420,6 @@ func TestCloudLogSyncer(t *testing.T) {
 func (tc *testcase) validate(t *testing.T) {
 	if tc.name == "" {
 		t.Fatalf("testcase without name: %+v", tc)
-	}
-	if tc.maxLineSize == 0 {
-		tc.maxLineSize = cloud.DefaultLogMaxLineSize
 	}
 	if tc.batchSize == 0 {
 		tc.batchSize = cloud.DefaultLogBatchSize

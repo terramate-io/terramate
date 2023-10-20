@@ -4,7 +4,6 @@
 package cloud
 
 import (
-	"bufio"
 	"bytes"
 	"io"
 	"sync"
@@ -25,7 +24,6 @@ type (
 		wg           sync.WaitGroup
 		shutdown     chan struct{}
 
-		maxLineSize  int
 		batchSize    int
 		idleDuration time.Duration
 	}
@@ -33,10 +31,6 @@ type (
 	// Syncer is the actual synchronizer callback.
 	Syncer func(l DeploymentLogs)
 )
-
-// DefaultLogMaxLineSize is the default maximum line.
-// TODO(i4k): to be removed.
-const DefaultLogMaxLineSize = 4096
 
 // DefaultLogBatchSize is the default batch size.
 const DefaultLogBatchSize = 256
@@ -46,25 +40,20 @@ const DefaultLogIdleDuration = 1 * time.Second
 
 // NewLogSyncer creates a new log syncer.
 func NewLogSyncer(syncfn Syncer) *LogSyncer {
-	return NewLogSyncerWith(syncfn, DefaultLogMaxLineSize, DefaultLogBatchSize, DefaultLogIdleDuration)
+	return NewLogSyncerWith(syncfn, DefaultLogBatchSize, DefaultLogIdleDuration)
 }
 
 // NewLogSyncerWith creates a new customizable syncer.
 func NewLogSyncerWith(
 	syncfn Syncer,
-	maxLineSize int,
 	batchSize int,
 	idleDuration time.Duration,
 ) *LogSyncer {
-	if maxLineSize == 0 {
-		panic("max line size must be set")
-	}
 	l := &LogSyncer{
 		in:       make(chan *DeploymentLog, batchSize),
 		syncfn:   syncfn,
 		shutdown: make(chan struct{}),
 
-		maxLineSize:  maxLineSize,
 		batchSize:    batchSize,
 		idleDuration: idleDuration,
 	}
@@ -79,34 +68,38 @@ func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		line := int64(1)
-		scanner := bufio.NewScanner(r)
-		maxLineSize := s.maxLineSize
-		buf := make([]byte, maxLineSize)
-		scanner.Buffer(buf, maxLineSize)
-		// no internal allocation
-		scanner.Split(scanLines)
+		linenum := int64(1)
 
+		var pending []byte
 		errs := errors.L()
-		for scanner.Scan() {
-			message := scanner.Text()
-			_, err := out.Write([]byte(message))
-			if err != nil {
-				errs.Append(errors.E(err, "writing to terminal"))
-				continue
+		for {
+			lines, rest, readErr := readLines(r, pending)
+			if readErr != nil && readErr != io.EOF {
+				errs.Append(readErr)
+				break
 			}
+			if readErr == io.EOF && len(rest) > 0 {
+				lines = [][]byte{rest}
+			}
+			for _, line := range lines {
+				_, err := out.Write(line)
+				if err != nil {
+					errs.Append(errors.E(err, "writing to terminal"))
+				}
 
-			t := time.Now().UTC()
-			s.in <- &DeploymentLog{
-				Channel:   channel,
-				Line:      line,
-				Message:   string(dropCRLN([]byte(message))),
-				Timestamp: &t,
+				t := time.Now().UTC()
+				s.in <- &DeploymentLog{
+					Channel:   channel,
+					Line:      linenum,
+					Message:   string(dropCRLN([]byte(line))),
+					Timestamp: &t,
+				}
+				linenum++
 			}
-			line++
-		}
-		if err := scanner.Err(); err != nil {
-			errs.Append(errors.E(err, "scanning output lines"))
+			if readErr == io.EOF {
+				break
+			}
+			pending = rest
 		}
 
 		errs.Append(r.Close())
@@ -158,27 +151,58 @@ func (s *LogSyncer) enqueue(l *DeploymentLog) {
 	s.lastEnqueued = time.Now()
 }
 
-// scanLines is a split function for a [bufio.Scanner] that returns each line of
-// text. It's similar to [bufio.ScanLines] but do not remove the trailing newline
-// marker and optional carriege return. The returned line may be empty.
-// The end-of-line marker is one optional carriage return followed
-// by one mandatory newline. In regular expression notation, it is `\r?\n`.
-// The last non-empty line of input will be returned even if it has no
-// newline.
-func scanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
+func readLines(r io.Reader, pending []byte) (line [][]byte, rest []byte, err error) {
+	const readSize = 1024
+
+	var buf [readSize]byte
+	rest = pending
+	for {
+		n, err := r.Read(buf[:])
+		if n > 0 {
+			rest = append(rest, buf[:n]...)
+			var lines [][]byte
+
+			var nlpos int
+			for nlpos != -1 {
+				nlpos = bytes.IndexByte(rest, '\n')
+				if nlpos >= 0 {
+					lines = append(lines, rest[:nlpos+1]) // line includes ln
+					rest = rest[nlpos+1:]
+				}
+			}
+			if len(lines) > 0 {
+				return lines, rest, err
+			}
+		} else if err == nil {
+			// misbehaving reader
+			return nil, nil, io.EOF
+		}
+		if err != nil {
+			return nil, rest, err
+		}
+
+		// line ending not found, continue reading.
 	}
-	if i := bytes.IndexByte(data, '\n'); i >= 0 {
-		// We have a full newline-terminated line.
-		return i + 1, data[0 : i+1], nil
+}
+
+func readLine(r io.Reader) (line []byte, err error) {
+	var buf [1]byte
+	for {
+		n, err := r.Read(buf[:])
+		if n > 0 {
+			b := buf[0]
+			line = append(line, b)
+			if b == '\n' {
+				return line, err
+			}
+		} else if err == nil {
+			// misbehaving reader
+			return nil, io.EOF
+		}
+		if err != nil {
+			return line, err
+		}
 	}
-	// If we're at EOF, we have a final, non-terminated line. Return it.
-	if atEOF {
-		return len(data), data, nil
-	}
-	// Request more data.
-	return 0, nil, nil
 }
 
 // dropCRLN drops a terminating \n and \r from the data.
