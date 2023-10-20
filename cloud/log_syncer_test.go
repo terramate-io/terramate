@@ -114,6 +114,26 @@ func TestCloudLogSyncer(t *testing.T) {
 			},
 		},
 		{
+			name: "empty line -- regression check",
+			writes: []write{
+				{channel: cloud.StdoutLogChannel, data: []byte("\n")},
+			},
+			want: want{
+				output: map[cloud.LogChannel][]byte{
+					cloud.StdoutLogChannel: []byte("\n"),
+				},
+				batches: []cloud.DeploymentLogs{
+					{
+						{
+							Line:    1,
+							Channel: cloud.StdoutLogChannel,
+							Message: "",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "multiple writes with CRLN",
 			writes: []write{
 				{channel: cloud.StdoutLogChannel, data: []byte("terramate\r\ncloud\r\n")},
