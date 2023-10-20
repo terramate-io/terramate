@@ -448,9 +448,6 @@ func (l DeploymentLog) Validate() error {
 	if l.Channel == unknownLogChannel {
 		return errors.E(`missing "channel" field`)
 	}
-	if l.Message == "" {
-		return errors.E(`empty "message" field`)
-	}
 	if l.Timestamp == nil {
 		return errors.E(`missing "timestamp" field`)
 	}

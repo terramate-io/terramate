@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -248,101 +246,6 @@ func (dhandler *driftHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	orguuid := params.ByName("orguuid")
-	filterStatusStr := r.FormValue("status")
-	filterStatus := stack.AllFilter
-
-	if filterStatusStr != "" && filterStatusStr != "unhealthy" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if filterStatusStr == "unhealthy" {
-		filterStatus = stack.UnhealthyFilter
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-
-	if r.Method == "GET" {
-		var resp cloud.StacksResponse
-		var stacks []cloud.StackResponse
-		stacksMap, ok := handler.stacks[orguuid]
-		if !ok {
-			w.WriteHeader(http.StatusOK)
-			data, _ := json.Marshal(resp)
-			_, _ = w.Write(data)
-			return
-		}
-		for _, st := range stacksMap {
-			if stack.FilterStatus(st.Status)&filterStatus != 0 {
-				stacks = append(stacks, st)
-			}
-		}
-
-		sort.Slice(stacks, func(i, j int) bool {
-			return stacks[i].ID < stacks[j].ID
-		})
-
-		resp.Stacks = stacks
-		data, err := json.Marshal(resp)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			writeString(w, "marshaling error")
-		}
-		write(w, data)
-		return
-	}
-
-	if r.Method == "PUT" {
-		stackIDStr := params.ByName("stackid")
-		if stackIDStr == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		stackid, err := strconv.Atoi(stackIDStr)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			writeErr(w, err)
-		}
-		bodyData, err := io.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		justClose(r.Body)
-
-		var st cloud.StackResponse
-		err = json.Unmarshal(bodyData, &st)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			writeErr(w, err)
-			return
-		}
-
-		if stackid != st.ID {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		if _, ok := handler.stacks[orguuid]; !ok {
-			handler.stacks[orguuid] = make(map[int]cloud.StackResponse)
-		}
-		if _, ok := handler.statuses[orguuid]; !ok {
-			handler.statuses[orguuid] = make(map[int]stack.Status)
-		}
-
-		handler.stacks[orguuid][stackid] = st
-		handler.statuses[orguuid][stackid] = st.Status
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	w.WriteHeader(http.StatusMethodNotAllowed)
-}
-
 // Router returns the default fake cloud router.
 func Router() *httprouter.Router {
 	return RouterWith(EnableAllConfig())
@@ -365,6 +268,9 @@ func RouterAdd(router *httprouter.Router, enabled map[string]bool) {
 	if enabled[cloud.StacksPath] {
 		stackHandler := newStackEndpoint()
 		router.Handler("GET", cloud.StacksPath+"/:orguuid", stackHandler)
+		router.Handler("POST", cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", stackHandler)
+		router.Handler("GET", cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", stackHandler)
+		router.Handler("GET", cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs/events", stackHandler)
 
 		// not a real TMC handler, only used by tests to populate the stacks state.
 		router.Handler("PUT", cloud.StacksPath+"/:orguuid/:stackid", stackHandler)
@@ -416,10 +322,6 @@ func EnableAllConfig() map[string]bool {
 type (
 	userHandler       struct{}
 	membershipHandler struct{}
-	stackHandler      struct {
-		stacks   map[string]map[int]cloud.StackResponse
-		statuses map[string]map[int]stack.Status
-	}
 	deploymentHandler struct {
 		nextStackID int64
 		// as hacky as it can get:
@@ -441,13 +343,6 @@ func newMembershipEndpoint() *membershipHandler {
 
 func newUserEndpoint() *userHandler {
 	return &userHandler{}
-}
-
-func newStackEndpoint() *stackHandler {
-	return &stackHandler{
-		stacks:   make(map[string]map[int]cloud.StackResponse),
-		statuses: make(map[string]map[int]stack.Status),
-	}
 }
 
 func newDeploymentEndpoint() *deploymentHandler {

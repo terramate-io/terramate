@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/terramate-io/terramate/cloud/testserver"
@@ -12,10 +13,11 @@ import (
 
 func main() {
 	s := &http.Server{
-		Addr:    "localhost:3001",
+		Addr:    "0.0.0.0:3001",
 		Handler: testserver.Router(),
 	}
 
+	fmt.Printf("listening at %s\n", s.Addr)
 	err := s.ListenAndServe()
 	if err != nil {
 		panic(err)
