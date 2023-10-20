@@ -58,6 +58,7 @@ type (
 	// Stack represents the stack as defined by the user HCL code.
 	Stack struct {
 		Repository      string   `json:"repository"`
+		DefaultBranch   string   `json:"default_branch"`
 		Path            string   `json:"path"`
 		MetaID          string   `json:"meta_id"`
 		MetaName        string   `json:"meta_name,omitempty"`
@@ -335,6 +336,9 @@ func (d DeploymentStackRequest) Validate() error {
 func (s Stack) Validate() error {
 	if s.Repository == "" {
 		return errors.E(`missing "repository" field`)
+	}
+	if s.DefaultBranch == "" {
+		return errors.E(`missing "default_branch" field`)
 	}
 	if s.Path == "" {
 		return errors.E(`missing "path" field`)

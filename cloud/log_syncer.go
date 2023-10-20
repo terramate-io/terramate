@@ -205,15 +205,18 @@ func readLine(r io.Reader) (line []byte, err error) {
 	}
 }
 
-// dropCRLN drops a terminal \r from the data.
+// dropCRLN drops a terminating \n and \r from the data.
 func dropCRLN(data []byte) []byte {
+	data = dropByte(data, '\n')
+	data = dropByte(data, '\r')
+	return data
+}
+
+func dropByte(data []byte, b byte) []byte {
 	if len(data) == 0 {
 		return data
 	}
-	if data[len(data)-1] == '\n' {
-		data = data[0 : len(data)-1]
-	}
-	if data[len(data)-1] == '\r' {
+	if data[len(data)-1] == b {
 		data = data[0 : len(data)-1]
 	}
 	return data

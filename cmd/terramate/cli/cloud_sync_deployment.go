@@ -84,6 +84,7 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 				MetaDescription: run.Stack.Description,
 				MetaTags:        tags,
 				Repository:      c.prj.prettyRepo(),
+				DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 				Path:            run.Stack.Dir.String(),
 			},
 			CommitSHA:         deploymentCommitSHA,
