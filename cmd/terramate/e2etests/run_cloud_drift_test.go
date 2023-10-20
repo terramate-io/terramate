@@ -38,13 +38,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		drifts expectedDriftStackPayloadRequests
 	}
 	type testcase struct {
-		name       string
-		layout     []string
-		runflags   []string
-		env        []string
-		workingDir string
-		cmd        []string
-		want       want
+		name          string
+		layout        []string
+		runflags      []string
+		env           []string
+		workingDir    string
+		defaultBranch string
+		cmd           []string
+		want          want
 	}
 
 	absPlanFilePath := test.WriteFile(t, t.TempDir(), "out.tfplan", ``)
@@ -77,10 +78,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/stack",
-								MetaName:   "stack",
-								MetaID:     "stack",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
 							},
 							Status: stack.Failed,
 						},
@@ -104,10 +106,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Failed,
 						},
@@ -133,10 +136,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Failed,
 						},
@@ -144,10 +148,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s2",
-								MetaName:   "s2",
-								MetaID:     "s2",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s2",
+								MetaName:      "s2",
+								MetaID:        "s2",
 							},
 							Status: stack.Failed,
 						},
@@ -174,10 +179,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Failed,
 						},
@@ -185,10 +191,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s2",
-								MetaName:   "s2",
-								MetaID:     "s2",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s2",
+								MetaName:      "s2",
+								MetaID:        "s2",
 							},
 							Status: stack.OK,
 						},
@@ -207,10 +214,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/stack",
-								MetaName:   "stack",
-								MetaID:     "stack",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
 							},
 							Status: stack.Drifted,
 						},
@@ -236,10 +244,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/parent/child",
-								MetaName:   "child",
-								MetaID:     "child",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/parent/child",
+								MetaName:      "child",
+								MetaID:        "child",
 							},
 							Status: stack.OK,
 						},
@@ -259,10 +268,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Drifted,
 						},
@@ -270,10 +280,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s2",
-								MetaName:   "s2",
-								MetaID:     "s2",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s2",
+								MetaName:      "s2",
+								MetaID:        "s2",
 							},
 							Status: stack.Drifted,
 						},
@@ -300,10 +311,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Drifted,
 						},
@@ -331,10 +343,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Drifted,
 						},
@@ -372,10 +385,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s1",
-								MetaName:   "s1",
-								MetaID:     "s1",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
 							},
 							Status: stack.Drifted,
 							Details: &cloud.DriftDetails{
@@ -391,10 +405,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository: "local",
-								Path:       "/s2",
-								MetaName:   "s2",
-								MetaID:     "s2",
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/s2",
+								MetaName:      "s2",
+								MetaID:        "s2",
 							},
 							Status: stack.Drifted,
 							Details: &cloud.DriftDetails{
@@ -410,13 +425,56 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "drift with different default branch",
+			layout: []string{
+				"s:stack:id=stack",
+				`f:cfg.tm.hcl:terramate {
+					config {
+						git {
+							default_branch = "trunk"
+						}
+					}
+				}`,
+			},
+			cmd: []string{
+				testHelperBin, "exit", "2",
+			},
+			defaultBranch: "trunk",
+			want: want{
+				drifts: expectedDriftStackPayloadRequests{
+					{
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository:    "local",
+								DefaultBranch: "trunk",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
+							},
+							Status: stack.Drifted,
+						},
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// NOTE: this test needs to be serial :-(
 			startFakeTMCServer(t)
 
-			s := sandbox.New(t)
+			defaultBranch := tc.defaultBranch
+			if defaultBranch == "" {
+				defaultBranch = "main"
+			}
+
+			s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
+				LocalBranchName:         defaultBranch,
+				DefaultRemoteName:       "origin",
+				DefaultRemoteBranchName: defaultBranch,
+			})
+
 			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(terraformTestBin))
 
 			s.BuildTree(tc.layout)
