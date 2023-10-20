@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,13 +23,16 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-const terraformVersion = "1.5.0"
+const terraformInstallVersion = "1.5.0"
 
 // terramateTestBin is the path to the terramate binary we compiled for test purposes
 var terramateTestBin string
 
 // terraformTestBin is the path to the installed terraform binary.
 var terraformTestBin string
+
+// terraformVersion is the detected or installed Terraform version.
+var terraformVersion string
 
 // testHelperBin is the path to the test binary we compiled for test purposes
 var testHelperBin string
@@ -89,20 +93,13 @@ func setupAndRunTests(m *testing.M) (status int) {
 	EOF
 	)}`, testHelperBin)
 
-	tfExecPath, installer, err := installTerraform()
+	tfExecPath, cleanup, err := installTerraform()
 	if err != nil {
 		log.Printf("failed to setup Terraform binary")
 		return 1
 	}
-
+	defer cleanup()
 	terraformTestBin = tfExecPath
-
-	defer func() {
-		err := installer.Remove(context.Background())
-		if err != nil {
-			log.Printf("failed to remove terraform installation")
-		}
-	}()
 
 	return m.Run()
 }
@@ -146,12 +143,33 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 	return outBinPath, nil
 }
 
-func installTerraform() (string, *install.Installer, error) {
+func installTerraform() (string, func(), error) {
+	requireVersion := os.Getenv("TM_TEST_TERRAFORM_REQUIRED_VERSION")
+	tfExecPath, err := exec.LookPath("terraform")
+	if err == nil {
+		cmd := exec.Command("terraform", "version")
+		output, err := cmd.Output()
+		if err == nil && len(output) > 0 {
+			lines := strings.Split(string(output), "\n")
+			terraformVersion = strings.TrimPrefix(strings.TrimSpace(lines[0]), "Terraform v")
+
+			if requireVersion == "" || terraformVersion == requireVersion {
+				log.Printf("Terraform detected version: %s", terraformVersion)
+				return tfExecPath, func() {}, nil
+			}
+		}
+	}
+
+	installVersion := terraformInstallVersion
+	if requireVersion != "" {
+		installVersion = requireVersion
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
 	installer := install.NewInstaller()
-	version := version.Must(version.NewVersion(terraformVersion))
+	version := version.Must(version.NewVersion(installVersion))
 
 	execPath, err := installer.Install(ctx, []src.Installable{
 		&releases.ExactVersion{
@@ -162,7 +180,14 @@ func installTerraform() (string, *install.Installer, error) {
 	if err != nil {
 		return "", nil, errors.E(err, "installing Terraform")
 	}
-	return execPath, installer, nil
+	terraformVersion = installVersion
+	log.Printf("Terraform installed version: %s", terraformVersion)
+	return execPath, func() {
+		err := installer.Remove(context.Background())
+		if err != nil {
+			log.Printf("failed to remove terraform installation")
+		}
+	}, nil
 }
 
 func lookupGoBin() (string, error) {
