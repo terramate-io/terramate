@@ -66,6 +66,7 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err err
 	_, err = c.cloud.client.CreateStackDrift(ctx, c.cloud.run.orgUUID, cloud.DriftStackPayloadRequest{
 		Stack: cloud.Stack{
 			Repository:      c.prj.prettyRepo(),
+			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 			Path:            st.Dir.String(),
 			MetaID:          st.ID,
 			MetaName:        st.Name,
