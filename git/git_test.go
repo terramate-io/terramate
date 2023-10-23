@@ -1,13 +1,14 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build linux
+//go:build linux || darwin
 
 package git_test
 
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
@@ -333,6 +334,84 @@ func TestListRemoteWithMultipleBranches(t *testing.T) {
 	}
 
 	assertEqualRemotes(t, got, want)
+}
+
+func TestShowMetadata(t *testing.T) {
+	type testcase struct {
+		name        string
+		title       string
+		description string
+	}
+
+	tests := []testcase{
+		{
+			name:        "title-only",
+			title:       "add feature x",
+			description: "",
+		},
+		{
+			name:        "title with single-line description",
+			title:       "add feature y",
+			description: "this is the latest feature",
+		},
+		{
+			name:  "title with multi-line description",
+			title: "add feature y",
+			description: `this is the latest feature:
+				* a
+				* b
+				* c`,
+		},
+	}
+
+	for _, tc := range tests {
+		repodir := test.EmptyRepo(t, false)
+
+		env := []string{
+			"GIT_COMMITTER_DATE=1597490918 +0530",
+			"GIT_AUTHOR_DATE=1597490918 +0530",
+			"GIT_COMMITTER_NAME=" + test.Username,
+			"GIT_AUTHOR_NAME=" + test.Username,
+			"GIT_COMMITTER_EMAIL=" + test.Email,
+			"GIT_AUTHOR_EMAIL=" + test.Email,
+		}
+
+		commitTime := time.Unix(1597490918, 0)
+
+		gw := test.NewGitWrapper(t, repodir, env)
+		filename := test.WriteFile(t, repodir, "README.md", "# Test")
+		assert.NoError(t, gw.Add(filename), "git add %s", filename)
+
+		commitMsg := tc.title
+		if tc.description != "" {
+			// git commit message uses two newlines to separate subject and body
+			commitMsg += "\n\n" + tc.description
+		}
+
+		err := gw.Commit(commitMsg)
+		assert.NoError(t, err, "commit")
+
+		got, err := gw.ShowCommitMetadata("HEAD")
+		assert.NoError(t, err)
+
+		want := &git.CommitMetadata{
+			Author:  test.Username,
+			Email:   test.Email,
+			Time:    &commitTime,
+			Subject: tc.title,
+			Body:    tc.description,
+		}
+
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Fatalf(
+				"failed test '%s', got metadata %v != want %v. Details (got-, want+):\n%s",
+				tc.name,
+				got,
+				want,
+				diff,
+			)
+		}
+	}
 }
 
 const defaultBranch = "main"

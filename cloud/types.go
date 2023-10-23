@@ -123,11 +123,15 @@ type (
 	DriftStackPayloadRequests []DriftStackPayloadRequest
 
 	// DeploymentMetadata stores the metadata available in the target platform.
-	// For now, we only support GitHub and Github Actions Metadata.
 	// It's marshaled as a flat hashmap of values.
 	// Note: no sensitive information must be stored here because it could be logged.
 	DeploymentMetadata struct {
-		GitHeadCommitSHA string `json:"git_head_commit_sha,omitempty"`
+		GitCommitSHA         string     `json:"git_commit_sha,omitempty"`
+		GitCommitAuthorName  string     `json:"git_commit_author_name,omitempty"`
+		GitCommitAuthorEmail string     `json:"git_commit_author_email,omitempty"`
+		GitCommitAuthorTime  *time.Time `json:"git_commit_author_time,omitempty"`
+		GitCommitTitle       string     `json:"git_commit_title,omitempty"`
+		GitCommitDescription string     `json:"git_commit_description,omitempty"`
 
 		GithubPullRequestAuthorLogin      string `json:"github_pull_request_author_login,omitempty"`
 		GithubPullRequestAuthorAvatarURL  string `json:"github_pull_request_author_avatar_url,omitempty"`
