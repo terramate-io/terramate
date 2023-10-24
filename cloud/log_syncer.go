@@ -8,6 +8,7 @@ import (
 	"io"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
@@ -68,6 +69,7 @@ func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
 	go func() {
 		defer s.wg.Done()
 		linenum := int64(1)
+		syncDisabled := false
 
 		var pending []byte
 		errs := errors.L()
@@ -84,6 +86,16 @@ func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
 				_, err := out.Write(line)
 				if err != nil {
 					errs.Append(errors.E(err, "writing to terminal"))
+				}
+
+				if syncDisabled {
+					continue
+				}
+
+				if !utf8.Valid(line) {
+					syncDisabled = true
+					errs.Append(errors.E("skipping sync of non-utf8 (%s) output", channel.String()))
+					continue
 				}
 
 				t := time.Now().UTC()

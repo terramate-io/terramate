@@ -361,6 +361,33 @@ func TestCloudLogSyncer(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "disable sync in case non-utf8 output is detected",
+			writes: []write{
+				{channel: cloud.StdoutLogChannel, data: []byte("valid\n")},
+				{channel: cloud.StdoutLogChannel, data: []byte{0x80, 1, 2, 3, 4, '\n'}},
+				{channel: cloud.StdoutLogChannel, data: []byte("another valid")},
+			},
+			want: want{
+				output: map[cloud.LogChannel][]byte{
+					cloud.StdoutLogChannel: {
+						'v', 'a', 'l', 'i', 'd', '\n',
+						0x80, 1, 2, 3, 4, '\n',
+						'a', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'v', 'a', 'l', 'i', 'd',
+					},
+				},
+				batches: []cloud.DeploymentLogs{
+					{
+						// sync is disabled at first non-utf8 sequence.
+						{
+							Line:    1,
+							Channel: cloud.StdoutLogChannel,
+							Message: "valid",
+						},
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		tc.validate(t)
