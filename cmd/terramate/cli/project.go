@@ -216,6 +216,19 @@ func (p *project) setDefaults() error {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 
+	if gitOpt.DefaultBranch == "" {
+		autoDefaultBranch := ""
+		if p.git.wrapper != nil {
+			autoDefaultBranch = p.git.wrapper.RemoteDefaultBranch(gitOpt.DefaultRemote)
+		}
+
+		if autoDefaultBranch != "" {
+			gitOpt.DefaultBranch = autoDefaultBranch
+		} else {
+			gitOpt.DefaultBranch = defaultBranch
+		}
+	}
+
 	return nil
 }
 
