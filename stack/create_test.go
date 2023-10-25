@@ -19,6 +19,7 @@ import (
 )
 
 func TestStackCreation(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		err     error
 		imports []string
@@ -167,7 +168,9 @@ func TestStackCreation(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			buildImportedFiles(t, s.RootDir(), tc.imports)

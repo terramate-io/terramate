@@ -24,6 +24,7 @@ const (
 )
 
 func TestNoArgs(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		err := recover()
 		if err == nil {
@@ -34,6 +35,7 @@ func TestNoArgs(t *testing.T) {
 }
 
 func TestEmptyTopLevelError(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		err := recover()
 		if err == nil {
@@ -44,6 +46,7 @@ func TestEmptyTopLevelError(t *testing.T) {
 }
 
 func TestUnknownTypesWithNoFormat(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		err := recover()
 		if err == nil {
@@ -54,6 +57,7 @@ func TestUnknownTypesWithNoFormat(t *testing.T) {
 }
 
 func TestErrorString(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name string
 		err  error
@@ -280,6 +284,7 @@ func TestErrorString(t *testing.T) {
 }
 
 func TestErrorIs(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name    string
 		err     error
@@ -426,6 +431,7 @@ func TestErrorIs(t *testing.T) {
 }
 
 func TestErrorRangeRepresentation(t *testing.T) {
+	t.Parallel()
 	t.Run("valid abspath", func(t *testing.T) {
 		filerange := hcl.Range{
 			Filename: "/test/test.tm",
@@ -478,6 +484,7 @@ func TestErrorRangeRepresentation(t *testing.T) {
 }
 
 func TestDetailedRepresentation(t *testing.T) {
+	t.Parallel()
 	filerange := hcl.Range{
 		Filename: "test.tm",
 		Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},

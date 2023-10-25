@@ -14,6 +14,7 @@ import (
 )
 
 func TestGenHCLLetsMapSchemaErrors(t *testing.T) {
+	t.Parallel()
 	for _, maptc := range maptest.SchemaErrorTestcases() {
 		tc := testcase{
 			name:  "genhcl with lets and " + maptc.Name,

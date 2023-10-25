@@ -20,6 +20,7 @@ import (
 )
 
 func TestVendorEvents(t *testing.T) {
+	t.Parallel()
 	type file struct {
 		path string
 		body fmt.Stringer
@@ -43,8 +44,6 @@ func TestVendorEvents(t *testing.T) {
 		repositories []repository
 		want         []progressEvent
 	}
-
-	t.Parallel()
 
 	const progressMessage = "downloading"
 

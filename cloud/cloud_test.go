@@ -22,6 +22,7 @@ import (
 )
 
 func TestCloudCustomHTTPClient(t *testing.T) {
+	t.Parallel()
 	isCalled := false
 	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		isCalled = true
@@ -77,6 +78,7 @@ func TestCloudCustomHTTPClient(t *testing.T) {
 }
 
 func TestCommonAPIFailCases(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name       string
 		statusCode int
@@ -117,6 +119,7 @@ func TestCommonAPIFailCases(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 
@@ -160,6 +163,7 @@ func TestCommonAPIFailCases(t *testing.T) {
 }
 
 func TestCloudMemberOrganizations(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		orgs cloud.MemberOrganizations
 		err  error
@@ -216,6 +220,7 @@ func TestCloudMemberOrganizations(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 
@@ -242,6 +247,7 @@ func TestCloudMemberOrganizations(t *testing.T) {
 }
 
 func TestCloudStacks(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		stacks cloud.StacksResponse
 		err    error
@@ -488,6 +494,7 @@ func TestCloudStacks(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 

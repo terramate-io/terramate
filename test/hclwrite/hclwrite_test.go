@@ -19,6 +19,7 @@ import (
 )
 
 func TestHCLWrite(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name string
 		hcl  fmt.Stringer
@@ -248,7 +249,9 @@ func TestHCLWrite(t *testing.T) {
 	}
 
 	for _, tcase := range tcases {
+		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 			want := hclwrite.Format(tcase.want)
 			got := tcase.hcl.String()
 
@@ -265,6 +268,7 @@ func TestHCLWrite(t *testing.T) {
 }
 
 func TestHCLWriteAddingAttributeValue(t *testing.T) {
+	t.Parallel()
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}

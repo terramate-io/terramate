@@ -15,6 +15,7 @@ import (
 )
 
 func TestRangeFromHCLRange(t *testing.T) {
+	t.Parallel()
 	// We create a dir to simulate how the path will look
 	// like in different OS's, like Windows.
 	rootdir := t.TempDir()
@@ -37,6 +38,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 }
 
 func TestRangeStrRepr(t *testing.T) {
+	t.Parallel()
 	rootdir := t.TempDir()
 	tmrange := info.NewRange(rootdir, Mkrange(
 		filepath.Join(rootdir, "dir", "assert.tm"),
@@ -54,6 +56,7 @@ func TestRangeStrRepr(t *testing.T) {
 }
 
 func TestRangeWithFileOnRootdir(t *testing.T) {
+	t.Parallel()
 	rootdir := t.TempDir()
 	path := "assert.tm"
 	start := Start(0, 0, 0)
@@ -66,6 +69,7 @@ func TestRangeWithFileOnRootdir(t *testing.T) {
 }
 
 func TestRangeOnRootWithFileOnRootdir(t *testing.T) {
+	t.Parallel()
 	rootdir := string(os.PathSeparator)
 	path := "assert.tm"
 	start := Start(0, 0, 0)

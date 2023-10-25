@@ -983,6 +983,7 @@ func computeRelativePaths(
 }
 
 func TestModVendorWithCommitIDRef(t *testing.T) {
+	t.Parallel()
 	const (
 		path     = "github.com/terramate-io/example"
 		filename = "test.txt"
@@ -1025,6 +1026,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 }
 
 func TestModVendorWithRef(t *testing.T) {
+	t.Parallel()
 	const (
 		path     = "github.com/terramate-io/example"
 		ref      = "main"
@@ -1099,6 +1101,7 @@ func TestModVendorWithRef(t *testing.T) {
 }
 
 func TestModVendorDoesNothingIfRefExists(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 
 	s.RootEntry().CreateFile("file.txt", "data")
@@ -1133,6 +1136,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 }
 
 func TestModVendorNoRefFails(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	gitURI := uri.File(s.RootDir())
 	rootdir := t.TempDir()

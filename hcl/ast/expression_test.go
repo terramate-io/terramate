@@ -15,6 +15,7 @@ import (
 )
 
 func TestAstExpressionToTokens(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name string
 		expr string

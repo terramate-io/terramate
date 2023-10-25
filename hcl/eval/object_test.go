@@ -25,6 +25,7 @@ func (s strValue) Info() eval.Info {
 }
 
 func TestCtyObjectSetAt(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name    string
 		obj     *eval.Object
@@ -147,6 +148,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			wantErr: errors.E(eval.ErrCannotExtendObject),
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.obj.SetAt(tc.path, tc.val)
 			errtest.Assert(t, err, tc.wantErr)

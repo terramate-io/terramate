@@ -12,6 +12,7 @@ import (
 )
 
 func TestFormatAttributes(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name       string
 		attributes map[string]cty.Value

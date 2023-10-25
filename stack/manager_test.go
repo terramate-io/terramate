@@ -37,6 +37,7 @@ type listTestcase struct {
 const defaultBranch = "origin/main"
 
 func TestListChangedStacks(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []listTestcase{
 		{
 			name:        "single stack: not changed",
@@ -136,7 +137,9 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			if tc.baseRef == "" {
 				tc.baseRef = defaultBranch
 			}
@@ -162,6 +165,7 @@ func TestListChangedStacks(t *testing.T) {
 }
 
 func TestListChangedStackReason(t *testing.T) {
+	t.Parallel()
 	repo := singleNotMergedCommitBranch(t)
 
 	m := newManager(t, repo.Dir)

@@ -10,6 +10,7 @@ import (
 )
 
 func TestSandboxWithArbitraryRepoConfig(t *testing.T) {
+	t.Parallel()
 	const remote = "mineiros"
 	const remoteBranch = "default"
 	const localBranch = "trunk"
