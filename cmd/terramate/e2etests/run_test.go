@@ -1501,13 +1501,13 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	wantList := stack.RelPath() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
-	cat := test.LookPath(t, "cat")
 	wantRun := mainTfContents
 
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 
@@ -1515,7 +1515,8 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 
@@ -1523,7 +1524,8 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{})
 }
@@ -1534,7 +1536,6 @@ func TestRunReverseExecution(t *testing.T) {
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
-	cat := test.LookPath(t, "cat")
 	cli := newCLI(t, s.RootDir())
 	assertRunOrder := func(stacks ...string) {
 		t.Helper()
@@ -1547,7 +1548,8 @@ func TestRunReverseExecution(t *testing.T) {
 		assertRunResult(t, cli.run(
 			"run",
 			"--reverse",
-			cat,
+			testHelperBin,
+			"cat",
 			testfile,
 		), runExpected{Stdout: want})
 
@@ -1555,7 +1557,8 @@ func TestRunReverseExecution(t *testing.T) {
 			"run",
 			"--reverse",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			testfile,
 		), runExpected{Stdout: want})
 	}
@@ -1666,7 +1669,6 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
-	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
 		"%s%s",
 		mainTfContents,
@@ -1676,7 +1678,8 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 }
@@ -1702,13 +1705,13 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	stack.CreateFile("untracked-file.txt", `# something`)
 
 	cli := newCLI(t, s.RootDir())
-	cat := test.LookPath(t, "cat")
 
 	// check untracked with --changed
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -1718,7 +1721,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	// check untracked *without* --changed
 	assertRunResult(t, cli.run(
 		"run",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -1732,14 +1736,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			"run",
 			"--changed",
 			"--disable-check-git-untracked",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		))
 
 		assertRunResult(t, cli.run(
 			"run",
 			"--disable-check-git-untracked",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		), runExpected{
 			Stdout: mainTfContents,
@@ -1753,13 +1759,15 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		assertRun(t, cli.run(
 			"run",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		))
 
 		assertRunResult(t, cli.run(
 			"run",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		), runExpected{
 			Stdout: mainTfContents,
@@ -1783,13 +1791,15 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		assertRun(t, cli.run(
 			"run",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		))
 
 		assertRunResult(t, cli.run(
 			"run",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		), runExpected{
 			Stdout: mainTfContents,
@@ -1970,19 +1980,20 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	git.CommitAll("first commit")
 
 	cli := newCLI(t, s.RootDir())
-	cat := test.LookPath(t, "cat")
 
 	// everything committed, repo is clean
 	assertRunResult(t, cli.run(
 		"run",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: mainTfInitialContents})
 
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: mainTfInitialContents})
 
@@ -1991,7 +2002,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 
 	assertRunResult(t, cli.run(
 		"run",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -2001,7 +2013,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -2012,7 +2025,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--dry-run",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		IgnoreStdout: true,
@@ -2024,7 +2038,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		assertRunResult(t, cli.run(
 			"--disable-check-git-uncommitted",
 			"run",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		), runExpected{
 			Stdout: mainTfAlteredContents,
@@ -2034,7 +2049,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 			"--disable-check-git-uncommitted",
 			"--changed",
 			"run",
-			cat,
+			testHelperBin,
+			"cat",
 			mainTfFileName,
 		), runExpected{
 			Stdout: mainTfAlteredContents,
@@ -2045,10 +2061,12 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		cli := newCLI(t, s.RootDir(), testEnviron(t)...)
 		cli.appendEnv = append(cli.appendEnv, "TM_DISABLE_CHECK_GIT_UNCOMMITTED=true")
 
-		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
+		assertRunResult(t, cli.run("run", testHelperBin,
+			"cat", mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
 		})
-		assertRunResult(t, cli.run("--changed", "run", cat, mainTfFileName), runExpected{
+		assertRunResult(t, cli.run("--changed", "run", testHelperBin,
+			"cat", mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
 		})
 	})
@@ -2069,10 +2087,15 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		git.Add(rootConfig)
 		git.Commit("commit root config")
 
-		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
+		assertRunResult(t, cli.run("run",
+			testHelperBin,
+			"cat",
+			mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
 		})
-		assertRunResult(t, cli.run("--changed", "run", cat, mainTfFileName), runExpected{
+		assertRunResult(t, cli.run(
+			"--changed", "run", testHelperBin,
+			"cat", mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
 		})
 	})
@@ -2099,9 +2122,9 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	git.Push("main")
 
 	tmcli := newCLI(t, s.RootDir())
-	cat := test.LookPath(t, "cat")
 
-	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
+	assertRunResult(t, tmcli.run("run", testHelperBin,
+		"cat", testFilename), runExpected{
 		Stdout: contentsStack1 + contentsStack2,
 	})
 
@@ -2116,12 +2139,14 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	git.CheckoutNew("adding-stack1-config")
 	git.CommitAll("adding stack-1 config")
 
-	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
+	assertRunResult(t, tmcli.run("run", testHelperBin,
+		"cat", testFilename), runExpected{
 		Status:      defaultErrExitStatus,
 		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
-	assertRunResult(t, tmcli.run("run", "--changed", cat, testFilename), runExpected{
+	assertRunResult(t, tmcli.run("run", "--changed", testHelperBin,
+		"cat", testFilename), runExpected{
 		Status:      defaultErrExitStatus,
 		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
@@ -2129,7 +2154,8 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	// Check that if inside cwd it should still detect changes outside
 	tmcli = newCLI(t, stack2.Path())
 
-	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
+	assertRunResult(t, tmcli.run("run", testHelperBin,
+		"cat", testFilename), runExpected{
 		Status:      defaultErrExitStatus,
 		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
@@ -2172,12 +2198,14 @@ func TestRunContinueOnError(t *testing.T) {
 	git.Push("main")
 
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("run", "cat", "main.tf"), runExpected{
+	assertRunResult(t, cli.run("run", testHelperBin,
+		"cat", "main.tf"), runExpected{
 		StderrRegex: "one or more commands failed",
 		Status:      1,
 	})
 
-	assertRunResult(t, cli.run("run", "--continue-on-error", "cat", "main.tf"), runExpected{
+	assertRunResult(t, cli.run("run", "--continue-on-error", testHelperBin,
+		"cat", "main.tf"), runExpected{
 		IgnoreStderr: true,
 		Stdout:       expectedOutput,
 		Status:       1,
@@ -2210,26 +2238,30 @@ func TestRunNoRecursive(t *testing.T) {
 	git.Push("main")
 
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("run", "cat", "file.txt"), runExpected{
+	assertRunResult(t, cli.run("run", testHelperBin,
+		"cat", "file.txt"), runExpected{
 		Stdout: `parentchild1child2`,
 	})
 
 	cli = newCLI(t, parent.Path())
-	assertRunResult(t, cli.run("run", "--no-recursive", "cat", "file.txt"),
+	assertRunResult(t, cli.run("run", "--no-recursive", testHelperBin,
+		"cat", "file.txt"),
 		runExpected{
 			Stdout: `parent`,
 		},
 	)
 
 	cli = newCLI(t, child1.Path())
-	assertRunResult(t, cli.run("run", "--no-recursive", "cat", "file.txt"),
+	assertRunResult(t, cli.run("run", "--no-recursive", testHelperBin,
+		"cat", "file.txt"),
 		runExpected{
 			Stdout: `child1`,
 		},
 	)
 
 	cli = newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("run", "--no-recursive", "cat", "file.txt"),
+	assertRunResult(t, cli.run("run", "--no-recursive", testHelperBin,
+		"cat", "file.txt"),
 		runExpected{
 			Status:       1,
 			IgnoreStderr: true,
