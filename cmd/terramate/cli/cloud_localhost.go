@@ -6,12 +6,12 @@
 package cli
 
 import (
-	"github.com/hashicorp/go-uuid"
-	cloudtest "github.com/terramate-io/terramate/test/cloud"
 	"os"
+
+	"github.com/hashicorp/go-uuid"
 )
 
-const cloudDefaultBaseURL = cloudtest.TestEndpoint
+const cloudDefaultBaseURL = "http://localhost:3001"
 
 func generateRunID() (string, error) {
 	if runid := os.Getenv("TM_TEST_RUN_ID"); runid != "" {

@@ -5,23 +5,28 @@ package e2etest
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud/testserver"
 )
 
-func startFakeTMCServer(t *testing.T) {
+func startFakeTMCServer(t *testing.T) string {
+	l, err := net.Listen("tcp", ":0")
+	assert.NoError(t, err)
+
 	fakeserver := &http.Server{
 		Handler: testserver.Router(),
-		Addr:    "localhost:3001",
+		Addr:    l.Addr().String(),
 	}
 
 	const fakeserverShutdownTimeout = 3 * time.Second
 	errChan := make(chan error)
 	go func() {
-		errChan <- fakeserver.ListenAndServe()
+		errChan <- fakeserver.Serve(l)
 	}()
 
 	t.Cleanup(func() {
@@ -38,4 +43,6 @@ func startFakeTMCServer(t *testing.T) {
 			t.Error("time excedeed waiting for fakeserver shutdown")
 		}
 	})
+
+	return l.Addr().String()
 }

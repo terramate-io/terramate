@@ -260,6 +260,9 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		handler.mu.Lock()
+		defer handler.mu.Unlock()
+
 		if _, ok := handler.stacks[orguuid]; !ok {
 			handler.stacks[orguuid] = make(map[int]cloud.StackResponse)
 		}

@@ -11,6 +11,7 @@ import (
 )
 
 func TestRunEval(t *testing.T) {
+	t.Parallel()
 	// tests the `terramate run --eval -- cmd containing '${tm_upper("hcl")}'`
 
 	type testcase struct {
@@ -124,6 +125,7 @@ func TestRunEval(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			if len(tc.layout) == 0 {
 				t.Fatal("please set tc.layout, so it run at least 1 stack")

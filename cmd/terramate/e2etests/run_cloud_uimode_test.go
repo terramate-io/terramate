@@ -6,12 +6,14 @@ package e2etest
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
@@ -21,6 +23,8 @@ import (
 )
 
 func TestCloudSyncUIMode(t *testing.T) {
+	t.Parallel()
+
 	type subtestcase struct {
 		name   string
 		cmd    []string
@@ -991,6 +995,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			for _, subcase := range tc.subcases {
 				subcase := subcase
 				uimode := "human"
@@ -998,6 +1003,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode = "automation"
 				}
 				t.Run(fmt.Sprintf("%s - %s", uimode, subcase.name), func(t *testing.T) {
+					t.Parallel()
 					if len(subcase.cmd) == 0 {
 						t.Fatal("invalid testcase: cmd not set")
 					}
@@ -1005,17 +1011,21 @@ func TestCloudSyncUIMode(t *testing.T) {
 					if subcase.uimode == cli.AutomationMode {
 						env = append(env, "CI=true")
 					}
+					listener, err := net.Listen("tcp", ":0")
+					assert.NoError(t, err)
+					env = append(env, "TMC_API_URL=http://"+listener.Addr().String())
+
 					router := testserver.RouterWith(tc.endpoints)
 					fakeserver := &http.Server{
 						Handler: router,
-						Addr:    "localhost:3001",
+						Addr:    listener.Addr().String(),
 					}
 					testserver.RouterAddCustoms(router, tc.customEndpoints)
 
 					const fakeserverShutdownTimeout = 3 * time.Second
 					errChan := make(chan error)
 					go func() {
-						errChan <- fakeserver.ListenAndServe()
+						errChan <- fakeserver.Serve(listener)
 					}()
 
 					t.Cleanup(func() {

@@ -6,6 +6,7 @@
 package e2etest
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 )
 
 func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		run    runExpected
 		events eventsResponse
@@ -32,8 +34,6 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 		want       want
 		runMode    runMode
 	}
-
-	startFakeTMCServer(t)
 
 	for _, tc := range []testcase{
 		{
@@ -70,6 +70,10 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			addr := startFakeTMCServer(t)
+
 			s := sandbox.New(t)
 			var genIdsLayout []string
 			ids := []string{}
@@ -94,7 +98,10 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 
 			s.BuildTree(genIdsLayout)
 			s.Git().CommitAll("all stacks committed")
-			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
+			env := removeEnv(os.Environ(), "CI")
+			env = append(env, "TMC_API_URL=http://"+addr)
+
+			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			uuid, err := uuid.NewRandom()
 			assert.NoError(t, err)
 			runid := uuid.String()
@@ -107,12 +114,13 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
 			result := fixture.run()
 			assertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, runid, ids, tc.want.events)
+			assertRunEvents(t, addr, runid, ids, tc.want.events)
 		})
 	}
 }
 
 func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		run    runExpected
 		drifts expectedDriftStackPayloadRequests
@@ -169,14 +177,17 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			// NOTE: this test needs to be serial :-(
-			startFakeTMCServer(t)
+			addr := startFakeTMCServer(t)
 
 			s := sandbox.New(t)
 
 			s.BuildTree(tc.layout)
 			s.Git().CommitAll("all stacks committed")
-			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
+
+			env := removeEnv(os.Environ(), "CI")
+			env = append(env, "TMC_API_URL=http://"+addr)
+
+			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			runflags := []string{"--cloud-sync-drift-status"}
 			runflags = append(runflags, tc.runflags...)
 
@@ -184,7 +195,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
 			result := fixture.run()
 			assertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, tc.want.drifts)
+			assertRunDrifts(t, addr, tc.want.drifts)
 		})
 	}
 }

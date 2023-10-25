@@ -56,7 +56,9 @@ func TestVersionCheck(t *testing.T) {
 
 	for _, checkedCmd := range checkedCmds {
 		name := fmt.Sprintf("%s is checked", checkedCmd)
+		checkedCmd := checkedCmd
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			assertRunResult(t, run(t, checkedCmd, invalidVersion), runExpected{
 				Status:      1,
 				StderrRegex: string(versions.ErrCheck),
@@ -65,7 +67,9 @@ func TestVersionCheck(t *testing.T) {
 	}
 	for _, uncheckedCmd := range uncheckedCmds {
 		name := fmt.Sprintf("%s isnt checked", uncheckedCmd)
+		uncheckedCmd := uncheckedCmd
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			assertRunResult(t, run(t, uncheckedCmd, invalidVersion), runExpected{
 				Status:       0,
 				IgnoreStdout: true,
@@ -76,7 +80,9 @@ func TestVersionCheck(t *testing.T) {
 	cmds := append(checkedCmds, uncheckedCmds...)
 	for _, cmd := range cmds {
 		name := fmt.Sprintf("%s works with valid version", cmd)
+		cmd := cmd
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			assertRunResult(t, run(t, cmd, tm.Version()), runExpected{
 				Status:       0,
 				IgnoreStdout: true,

@@ -60,6 +60,7 @@ func TestVendorModule(t *testing.T) {
 	}
 
 	t.Run("default configuration", func(t *testing.T) {
+		t.Parallel()
 		defaultVendor := project.NewPath("/modules")
 		s := sandbox.New(t)
 		tmcli := newCLI(t, s.RootDir())
@@ -67,6 +68,7 @@ func TestVendorModule(t *testing.T) {
 		checkVendoredFiles(t, s.RootDir(), res, defaultVendor)
 
 		t.Run("using tm_vendor and generate", func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			s.CreateStack("stack")
 			s.RootEntry().CreateFile("config.tm", tmVendorGenBlocks())
@@ -78,6 +80,7 @@ func TestVendorModule(t *testing.T) {
 	})
 
 	t.Run("root configuration", func(t *testing.T) {
+		t.Parallel()
 		const rootcfg = "/from/root/cfg"
 
 		setup := func() sandbox.S {
@@ -93,6 +96,7 @@ func TestVendorModule(t *testing.T) {
 		checkVendoredFiles(t, s.RootDir(), res, project.NewPath(rootcfg))
 
 		t.Run("using tm_vendor and generate", func(t *testing.T) {
+			t.Parallel()
 			s := setup()
 
 			s.CreateStack("stack")
@@ -105,6 +109,7 @@ func TestVendorModule(t *testing.T) {
 	})
 
 	t.Run(".terramate configuration", func(t *testing.T) {
+		t.Parallel()
 		const dotTerramateCfg = "/from/dottm/cfg"
 
 		setup := func() sandbox.S {
@@ -125,6 +130,7 @@ func TestVendorModule(t *testing.T) {
 		checkVendoredFiles(t, s.RootDir(), res, project.NewPath(dotTerramateCfg))
 
 		t.Run("using tm_vendor and generate", func(t *testing.T) {
+			t.Parallel()
 			s := setup()
 
 			s.CreateStack("stack")
@@ -137,6 +143,7 @@ func TestVendorModule(t *testing.T) {
 	})
 
 	t.Run("CLI configuration", func(t *testing.T) {
+		t.Parallel()
 		s := sandbox.New(t)
 
 		rootcfg := "/from/root/cfg"
@@ -153,6 +160,7 @@ func TestVendorModule(t *testing.T) {
 	})
 
 	t.Run("CLI configuration with subdir", func(t *testing.T) {
+		t.Parallel()
 		s := sandbox.New(t)
 
 		cliCfg := "/with/subdir"
