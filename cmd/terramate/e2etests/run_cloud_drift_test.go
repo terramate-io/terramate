@@ -33,6 +33,7 @@ type expectedDriftStackPayloadRequest struct {
 }
 
 func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		run    runExpected
 		drifts expectedDriftStackPayloadRequests
@@ -461,8 +462,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			// NOTE: this test needs to be serial :-(
-			startFakeTMCServer(t)
+			t.Parallel()
+			addr := startFakeTMCServer(t)
 
 			defaultBranch := tc.defaultBranch
 			if defaultBranch == "" {
@@ -482,6 +483,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 
 			env := removeEnv(os.Environ(), "CI")
 			env = append(env, tc.env...)
+			env = append(env, "TMC_API_URL=http://"+addr)
 			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.prependToPath(filepath.Dir(terraformTestBin))
 			runflags := []string{"run", "--cloud-sync-drift-status"}
@@ -490,17 +492,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			runflags = append(runflags, tc.cmd...)
 			result := cli.run(runflags...)
 			assertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, tc.want.drifts)
+			assertRunDrifts(t, addr, tc.want.drifts)
 		})
 	}
 }
 
-func assertRunDrifts(t *testing.T, expectedDrifts expectedDriftStackPayloadRequests) {
+func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	res, err := cloud.Request[cloud.DriftStackPayloadRequests](ctx, &cloud.Client{
-		BaseURL:    "http://localhost:3001",
+		BaseURL:    "http://" + tmcAddr,
 		Credential: &credential{},
 	}, "GET", cloud.DriftsPath+"/"+testserver.DefaultOrgUUID, nil)
 	assert.NoError(t, err)

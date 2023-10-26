@@ -317,6 +317,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 }
 
 func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
+	t.Parallel()
 	wantStdout := generate.Report{
 		Successes: []generate.Result{
 			{
@@ -361,6 +362,7 @@ func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
 
 	runFromDir := func(t *testing.T, wd string) {
 		t.Run(fmt.Sprintf("terramate -C %s generate", wd), func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			s.BuildTree([]string{
 				"s:stacks/stack-1",

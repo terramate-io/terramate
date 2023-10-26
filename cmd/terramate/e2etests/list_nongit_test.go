@@ -11,6 +11,7 @@ import (
 )
 
 func TestE2EListNonGit(t *testing.T) {
+	t.Parallel()
 	for _, tcase := range listTestcases() {
 		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {

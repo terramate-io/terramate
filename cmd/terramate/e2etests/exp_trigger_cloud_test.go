@@ -5,6 +5,7 @@ package e2etest
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -16,12 +17,14 @@ import (
 )
 
 func TestTriggerUnhealthyStacks(t *testing.T) {
+	t.Parallel()
+
 	const (
 		stackID    = "my-stack-1"
 		repository = "github.com/terramate-io/terramate"
 	)
 
-	startFakeTMCServer(t)
+	addr := startFakeTMCServer(t)
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
@@ -34,7 +37,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("trigger-the-stack")
 
-	cloudtest.PutStack(t, testserver.DefaultOrgUUID, cloud.StackResponse{
+	cloudtest.PutStack(t, addr, testserver.DefaultOrgUUID, cloud.StackResponse{
 		ID: 1,
 		Stack: cloud.Stack{
 			Repository: repository,
@@ -44,8 +47,9 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	})
 
 	git.SetRemoteURL("origin", fmt.Sprintf(`https://%s.git`, repository))
-
-	cli := newCLI(t, s.RootDir())
+	env := removeEnv(os.Environ(), "CI")
+	env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+	cli := newCLI(t, s.RootDir(), env...)
 	assertRunResult(t, cli.run("experimental", "trigger", "--experimental-status=unhealthy"), runExpected{
 		IgnoreStdout: true,
 	})
@@ -60,6 +64,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 }
 
 func TestCloudTriggerUnhealthy(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		trigger runExpected
 		list    runExpected
@@ -73,8 +78,6 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 		workingDir string
 		want       want
 	}
-
-	startFakeTMCServer(t)
 
 	for _, tc := range []testcase{
 		{
@@ -313,6 +316,10 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			addr := startFakeTMCServer(t)
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			repository := tc.repository
@@ -331,9 +338,11 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 
 			s.Git().SetRemoteURL("origin", repositoryURL)
 			for _, st := range tc.stacks {
-				cloudtest.PutStack(t, testserver.DefaultOrgUUID, st)
+				cloudtest.PutStack(t, addr, testserver.DefaultOrgUUID, st)
 			}
-			cli := newCLI(t, filepath.Join(s.RootDir(), tc.workingDir))
+			env := removeEnv(os.Environ(), "CI")
+			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+			cli := newCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
 			args := []string{"experimental", "trigger"}
 			args = append(args, tc.flags...)
 			result := cli.run(args...)

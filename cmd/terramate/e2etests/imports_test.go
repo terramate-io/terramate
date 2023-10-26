@@ -12,7 +12,9 @@ import (
 )
 
 func TestImportsGlob(t *testing.T) {
+	t.Parallel()
 	testcase := func(t *testing.T, pattern string, want runExpected) {
+		t.Parallel()
 		s := sandbox.New(t)
 		s.BuildTree([]string{
 			`s:.`,

@@ -42,6 +42,7 @@ func TestRunAbortNextStacksIfSIGINTx1(t *testing.T) {
 }
 
 func testSIGINTx3(t *testing.T, continueOnError bool) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		// multiple stacks so we can check execution is aborted.
@@ -141,6 +142,7 @@ func testSIGINTx3(t *testing.T, continueOnError bool) {
 }
 
 func testSIGINTx1(t *testing.T, continueOnError bool) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		`s:stack1`,

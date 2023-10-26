@@ -6,7 +6,9 @@ package e2etest
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -25,6 +27,7 @@ import (
 )
 
 func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		run    runExpected
 		events eventsResponse
@@ -38,8 +41,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		cmd        []string
 		want       want
 	}
-
-	startFakeTMCServer(t)
 
 	for _, tc := range []testcase{
 		{
@@ -197,6 +198,10 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			addr := startFakeTMCServer(t)
+
 			s := sandbox.New(t)
 			var genIdsLayout []string
 			ids := []string{}
@@ -221,7 +226,11 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 
 			s.BuildTree(genIdsLayout)
 			s.Git().CommitAll("all stacks committed")
-			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)))
+
+			env := removeEnv(os.Environ(), "CI")
+			env = append(env, "TMC_API_URL=http://"+addr)
+			cli := newCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+
 			uuid, err := uuid.NewRandom()
 			assert.NoError(t, err)
 			runid := uuid.String()
@@ -233,12 +242,12 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			runflags = append(runflags, tc.cmd...)
 			result := cli.run(runflags...)
 			assertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, runid, ids, tc.want.events)
+			assertRunEvents(t, addr, runid, ids, tc.want.events)
 		})
 	}
 }
 
-func assertRunEvents(t *testing.T, runid string, ids []string, events map[string][]string) {
+func assertRunEvents(t *testing.T, tmcAddr string, runid string, ids []string, events map[string][]string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -262,7 +271,7 @@ func assertRunEvents(t *testing.T, runid string, ids []string, events map[string
 	}
 
 	res, err := cloud.Request[eventsResponse](ctx, &cloud.Client{
-		BaseURL:    "http://localhost:3001",
+		BaseURL:    "http://" + tmcAddr,
 		Credential: &credential{},
 	}, "GET", cloud.DeploymentsPath+"/"+testserver.DefaultOrgUUID+"/"+runid+"/events", nil)
 	assert.NoError(t, err)
@@ -275,6 +284,7 @@ func assertRunEvents(t *testing.T, runid string, ids []string, events map[string
 }
 
 func TestRunGithubTokenDetection(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	git := s.Git()
 	git.SetRemoteURL("origin", "https://github.com/any-org/any-repo")
@@ -286,15 +296,18 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 	git.CommitAll("all files")
 
+	l, err := net.Listen("tcp", ":0")
+	assert.NoError(t, err)
+
 	fakeserver := &http.Server{
 		Handler: testserver.Router(),
-		Addr:    "localhost:3001",
+		Addr:    l.Addr().String(),
 	}
 
 	const fakeserverShutdownTimeout = 3 * time.Second
 	errChan := make(chan error)
 	go func() {
-		errChan <- fakeserver.ListenAndServe()
+		errChan <- fakeserver.Serve(l)
 	}()
 
 	t.Cleanup(func() {
@@ -313,9 +326,11 @@ func TestRunGithubTokenDetection(t *testing.T) {
 	})
 
 	t.Run("GH_TOKEN detection", func(t *testing.T) {
+		t.Parallel()
 		tm := newCLI(t, s.RootDir())
 		tm.loglevel = "debug"
 		tm.appendEnv = append(tm.appendEnv, "GH_TOKEN=abcd")
+		tm.appendEnv = append(tm.appendEnv, "TMC_API_URL=http://"+l.Addr().String())
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
@@ -327,8 +342,10 @@ func TestRunGithubTokenDetection(t *testing.T) {
 	})
 
 	t.Run("GITHUB_TOKEN detection", func(t *testing.T) {
+		t.Parallel()
 		tm := newCLI(t, s.RootDir())
 		tm.appendEnv = append(tm.appendEnv, "GITHUB_TOKEN=abcd")
+		tm.appendEnv = append(tm.appendEnv, "TMC_API_URL=http://"+l.Addr().String())
 		tm.loglevel = "debug"
 
 		result := tm.run("run",
@@ -341,12 +358,14 @@ func TestRunGithubTokenDetection(t *testing.T) {
 	})
 
 	t.Run("GH config file detection", func(t *testing.T) {
+		t.Parallel()
 		_, err := safeexec.LookPath("gh")
 		if err != nil {
 			t.Skip("gh tool not installed")
 		}
 
 		tm := newCLI(t, s.RootDir())
+		tm.appendEnv = append(tm.appendEnv, "TMC_API_URL=http://"+l.Addr().String())
 		tm.loglevel = "debug"
 		ghConfigDir := t.TempDir()
 		test.WriteFile(t, ghConfigDir, "hosts.yml", `github.com:

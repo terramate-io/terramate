@@ -847,31 +847,37 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			sandboxes := []sandbox.S{
 				sandbox.New(t),
 				sandbox.NoGit(t),
 			}
 
 			for _, s := range sandboxes {
-				s.BuildTree(tc.layout)
-				test.WriteRootConfig(t, s.RootDir())
+				s := s
+				t.Run("run on sandbox", func(t *testing.T) {
+					t.Parallel()
+					s.BuildTree(tc.layout)
+					test.WriteRootConfig(t, s.RootDir())
 
-				wd := s.RootDir()
-				if tc.workingDir != "" {
-					wd = filepath.Join(wd, tc.workingDir)
-				}
+					wd := s.RootDir()
+					if tc.workingDir != "" {
+						wd = filepath.Join(wd, tc.workingDir)
+					}
 
-				var filterArgs []string
-				for _, filter := range tc.filterTags {
-					filterArgs = append(filterArgs, "--tags", filter)
-				}
-				for _, filter := range tc.filterNoTags {
-					filterArgs = append(filterArgs, "--no-tags", filter)
-				}
+					var filterArgs []string
+					for _, filter := range tc.filterTags {
+						filterArgs = append(filterArgs, "--tags", filter)
+					}
+					for _, filter := range tc.filterNoTags {
+						filterArgs = append(filterArgs, "--no-tags", filter)
+					}
 
-				cli := newCLI(t, wd)
-				assertRunResult(t, cli.stacksRunOrder(filterArgs...), tc.want)
+					cli := newCLI(t, wd)
+					assertRunResult(t, cli.stacksRunOrder(filterArgs...), tc.want)
+				})
 			}
 		})
 	}
@@ -1435,6 +1441,7 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 	for _, s := range sandboxes {
 		s := s
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s.BuildTree(tc.layout)
 			test.WriteRootConfig(t, s.RootDir())
 

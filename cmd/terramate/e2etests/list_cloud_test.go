@@ -4,6 +4,7 @@
 package e2etest
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 )
 
 func TestCloudListUnhealthy(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name       string
 		layout     []string
@@ -24,8 +26,6 @@ func TestCloudListUnhealthy(t *testing.T) {
 		workingDir string
 		want       runExpected
 	}
-
-	startFakeTMCServer(t)
 
 	for _, tc := range []testcase{
 		{
@@ -237,6 +237,10 @@ func TestCloudListUnhealthy(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			addr := startFakeTMCServer(t)
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			repository := tc.repository
@@ -248,9 +252,11 @@ func TestCloudListUnhealthy(t *testing.T) {
 				s.Git().CommitAll("all stacks committed")
 			}
 			for _, st := range tc.stacks {
-				cloudtest.PutStack(t, testserver.DefaultOrgUUID, st)
+				cloudtest.PutStack(t, addr, testserver.DefaultOrgUUID, st)
 			}
-			cli := newCLI(t, filepath.Join(s.RootDir(), tc.workingDir))
+			env := removeEnv(os.Environ(), "CI")
+			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+			cli := newCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
 			args := []string{"list"}
 			args = append(args, tc.flags...)
 			result := cli.run(args...)

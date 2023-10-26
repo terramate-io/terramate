@@ -6,11 +6,13 @@ package e2etest
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
@@ -18,6 +20,7 @@ import (
 )
 
 func TestCloudConfig(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name      string
 		layout    []string
@@ -114,6 +117,7 @@ func TestCloudConfig(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			router := testserver.RouterWith(map[string]bool{
 				cloud.UsersPath:       true,
 				cloud.MembershipsPath: false,
@@ -121,9 +125,12 @@ func TestCloudConfig(t *testing.T) {
 				cloud.DriftsPath:      true,
 			})
 
+			l, err := net.Listen("tcp", ":0")
+			assert.NoError(t, err)
+
 			fakeserver := &http.Server{
 				Handler: router,
-				Addr:    "localhost:3001",
+				Addr:    l.Addr().String(),
 			}
 			testserver.RouterAddCustoms(router, testserver.Custom{
 				Routes: map[string]testserver.Route{
@@ -154,7 +161,7 @@ func TestCloudConfig(t *testing.T) {
 			const fakeserverShutdownTimeout = 3 * time.Second
 			errChan := make(chan error)
 			go func() {
-				errChan <- fakeserver.ListenAndServe()
+				errChan <- fakeserver.Serve(l)
 			}()
 
 			t.Cleanup(func() {
@@ -187,6 +194,7 @@ func TestCloudConfig(t *testing.T) {
 				env = append(env, fmt.Sprintf("%v=%v", k, v))
 			}
 
+			env = append(env, "TMC_API_URL=http://"+l.Addr().String())
 			tm := newCLI(t, s.RootDir(), env...)
 
 			cmd := []string{
