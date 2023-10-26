@@ -71,7 +71,7 @@ jobs:
         run: terramate run --tags golang --changed -- make build
 
       - name: check cloud info
-        run: terramate run --tags golang --changed -- ./bin/terramate experimental cloud info
+        run: terramate run --tags golang --changed -- ./bin/terramate -vv experimental cloud info
 
   gh_integration_test:
     name: GHA Integration Test
