@@ -474,13 +474,16 @@ func (g *googleCredential) ExpireAt() time.Time {
 }
 
 func (g *googleCredential) Refresh() (err error) {
-	g.output.MsgStdOutV("refreshing token...")
+	if g.token != "" {
+		g.output.MsgStdOutV("refreshing token...")
 
-	defer func() {
-		if err == nil {
-			g.output.MsgStdOutV("token successfully refreshed.")
-		}
-	}()
+		defer func() {
+			if err == nil {
+				g.output.MsgStdOutV("token successfully refreshed.")
+				g.output.MsgStdOutV("next token refresh in: %s", time.Until(g.ExpireAt()))
+			}
+		}()
+	}
 
 	const oidcTimeout = 3 // seconds
 	const refreshTokenURL = "https://securetoken.googleapis.com/v1/token"

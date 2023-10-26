@@ -92,7 +92,18 @@ func (g *githubOIDC) ExpireAt() time.Time {
 	return g.expireAt
 }
 
-func (g *githubOIDC) Refresh() error {
+func (g *githubOIDC) Refresh() (err error) {
+	if g.token != "" {
+		g.output.MsgStdOutV("refreshing token...")
+
+		defer func() {
+			if err == nil {
+				g.output.MsgStdOutV("token successfully refreshed.")
+				g.output.MsgStdOutV("next token refresh in: %s", time.Until(g.ExpireAt()))
+			}
+		}()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
