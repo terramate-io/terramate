@@ -19,19 +19,19 @@ import (
 func TestVersionCheck(t *testing.T) {
 	t.Parallel()
 
-	checkedCmds := []string{
-		"experimental metadata",
-		"experimental globals",
-		"experimental run-order",
-		"experimental run-graph",
-		"generate",
-		"list",
-		fmt.Sprintf("run cat %s", stack.DefaultFilename),
+	checkedCmds := map[string]string{
+		"experimental metadata":  "experimental metadata",
+		"experimental globals":   "experimental globals",
+		"experimental run-order": "experimental run-order",
+		"experimental run-graph": "experimental run-graph",
+		"generate":               "generate",
+		"list":                   "list",
+		"run":                    fmt.Sprintf("run %s cat %s", testHelperBin, stack.DefaultFilename),
 	}
-	uncheckedCmds := []string{
-		"--help",
-		"--version",
-		"version",
+	uncheckedCmds := map[string]string{
+		"help":            "--help",
+		"version flag":    "--version",
+		"version command": "version",
 	}
 
 	run := func(t *testing.T, cmd string, version string) runResult {
@@ -54,8 +54,8 @@ func TestVersionCheck(t *testing.T) {
 		invalidVersion = "0.0.0"
 	)
 
-	for _, checkedCmd := range checkedCmds {
-		name := fmt.Sprintf("%s is checked", checkedCmd)
+	for name, checkedCmd := range checkedCmds {
+		name := fmt.Sprintf("name %s is checked", name)
 		checkedCmd := checkedCmd
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -65,8 +65,8 @@ func TestVersionCheck(t *testing.T) {
 			})
 		})
 	}
-	for _, uncheckedCmd := range uncheckedCmds {
-		name := fmt.Sprintf("%s isnt checked", uncheckedCmd)
+	for name, uncheckedCmd := range uncheckedCmds {
+		name := fmt.Sprintf("name %s isnt checked", name)
 		uncheckedCmd := uncheckedCmd
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -77,9 +77,16 @@ func TestVersionCheck(t *testing.T) {
 		})
 	}
 
-	cmds := append(checkedCmds, uncheckedCmds...)
-	for _, cmd := range cmds {
-		name := fmt.Sprintf("%s works with valid version", cmd)
+	cmds := map[string]string{}
+	for name, cmd := range checkedCmds {
+		cmds[name] = cmd
+	}
+	for name, cmd := range uncheckedCmds {
+		cmds[name] = cmd
+	}
+
+	for name, cmd := range cmds {
+		name := fmt.Sprintf("%s works with valid version", name)
 		cmd := cmd
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

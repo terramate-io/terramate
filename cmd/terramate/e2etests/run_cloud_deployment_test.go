@@ -334,7 +334,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", "true")
+			"--cloud-sync-deployment", "--", testHelperBin, "true")
 		assertRunResult(t, result, runExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from GH_TOKEN",
@@ -350,7 +350,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", "true")
+			"--cloud-sync-deployment", "--", testHelperBin, "true")
 		assertRunResult(t, result, runExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from GITHUB_TOKEN",
@@ -377,7 +377,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", "true")
+			"--cloud-sync-deployment", "--", testHelperBin, "true")
 		assertRunResult(t, result, runExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from oauth_token",
