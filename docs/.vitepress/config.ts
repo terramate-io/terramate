@@ -149,6 +149,19 @@ export default defineConfig({
         ],
       },
       {
+        text: '⚙️ Configuration',
+        collapsed: false,
+        items: [
+          { text: 'Terramate Configuration', link: 'configuration/' },
+          { text: 'Project Setup', link: 'configuration/project-setup' },
+          {
+            text: 'Project Configuration',
+            link: 'configuration/project-config',
+          },
+          { text: 'Upgrade Check', link: 'configuration/upgrade-check' },
+        ],
+      },
+      {
         text: '📚 Stacks',
         collapsed: false,
         items: [
@@ -175,18 +188,16 @@ export default defineConfig({
       },
       {
         text: '🔗 Sharing Data',
-        link: 'data-sharing',
         collapsed: false,
         items: [
-          { text: 'Globals', link: 'data-sharing/#globals' },
-          { text: 'Lazy Evaluation', link: 'data-sharing/#lazy-evaluation-in-terramate' },
-          { text: 'Metadata', link: 'data-sharing/#metadata' },
+          { text: 'Overview', link: 'data-sharing/overview'},
+          { text: 'Globals', link: 'data-sharing/globals' },
+          { text: 'Metadata', link: 'data-sharing/metadata' },
           { text: 'Map', link: 'map' },
         ],
       },
       {
         text: '😍 Code Generation',
-        link: 'code-generation/',
         collapsed: false,
         items: [
           { text: 'Overview', link: 'code-generation/' },
@@ -196,9 +207,12 @@ export default defineConfig({
       },
       {
         text: '🔧 Functions',
-        link: 'functions/index',
         collapsed: false,
         items: [
+          {
+            text: 'Overview',
+            link: 'functions/index'
+          },
           {
             text: 'Terramate specific functions',
             items: [
@@ -223,33 +237,20 @@ export default defineConfig({
                   },
                 ],
               },
-              {
-                text: 'Terraform Functions',
-                collapsed: true,
-                items: tfFunctionLinks,
-              },
             ],
           },
-        ],
-      },
-      {
-        text: '⚙️ Configuration',
-        collapsed: false,
-        items: [
-          { text: 'Terramate Configuration', link: 'configuration/' },
-          { text: 'Project Setup', link: 'configuration/project-setup' },
           {
-            text: 'Project Configuration',
-            link: 'configuration/project-config',
+            text: 'Terraform Functions',
+            collapsed: true,
+            items: tfFunctionLinks,
           },
-          { text: 'Upgrade Check', link: 'configuration/upgrade-check' },
         ],
       },
       {
         text: '💻 Commands (CLI)',
-        link: 'cmdline/',
         collapsed: false,
         items: [
+          { text: 'Overview', link: 'cmdline/index'},
           { text: 'clone', link: 'cmdline/clone' },
           { text: 'cloud login', link: 'cmdline/cloud-login' },
           { text: 'cloud info', link: 'cmdline/cloud-info' },
