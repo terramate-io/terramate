@@ -17,6 +17,7 @@ import (
 )
 
 func TestStackClone(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name    string
 		layout  []string
@@ -81,7 +82,9 @@ func TestStackClone(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
@@ -100,6 +103,7 @@ func TestStackClone(t *testing.T) {
 }
 
 func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	srcdir := t.TempDir()
 	destdir := filepath.Join(s.RootDir(), "new-stack")
@@ -108,6 +112,7 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 }
 
 func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	srcdir := filepath.Join(s.RootDir(), "src-stack")
 	destdir := t.TempDir()
@@ -116,6 +121,7 @@ func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 }
 
 func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:stack",
@@ -133,6 +139,7 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 }
 
 func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
+	t.Parallel()
 	const (
 		stackID          = "stack-id"
 		stackName        = "stack name"
@@ -209,6 +216,7 @@ generate_hcl "test2.hcl" {
 }
 
 func TestStackClonesTags(t *testing.T) {
+	t.Parallel()
 	const (
 		stackName        = "stack name"
 		stackDesc        = "stack description"

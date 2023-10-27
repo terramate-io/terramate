@@ -14,6 +14,7 @@ import (
 )
 
 func TestGenFileLetsMapSchemaErrors(t *testing.T) {
+	t.Parallel()
 	for _, maptc := range maptest.SchemaErrorTestcases() {
 		tc := testcase{
 			name:  "genfile with lets and " + maptc.Name,

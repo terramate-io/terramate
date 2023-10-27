@@ -11,6 +11,7 @@ import (
 )
 
 func TestNormalizeGitURL(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name       string
 		raw        string

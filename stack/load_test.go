@@ -16,6 +16,7 @@ import (
 )
 
 func TestLoadFailsWithInvalidConfig(t *testing.T) {
+	t.Parallel()
 	tcases := map[string]fmt.Stringer{
 		"generate_hcl no label": Doc(
 			GenerateHCL(
@@ -54,7 +55,9 @@ func TestLoadFailsWithInvalidConfig(t *testing.T) {
 	}
 
 	for testname, invalidConfig := range tcases {
+		invalidConfig := invalidConfig
 		t.Run(testname, func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 
 			stackEntry := s.CreateStack("stack")

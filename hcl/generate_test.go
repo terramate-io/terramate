@@ -14,6 +14,7 @@ import (
 )
 
 func TestHCLParserGenerateBlocksRange(t *testing.T) {
+	t.Parallel()
 	tcases := []testcase{
 		{
 			name: "multiple files",

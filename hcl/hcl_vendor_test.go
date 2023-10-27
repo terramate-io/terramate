@@ -12,6 +12,7 @@ import (
 )
 
 func TestHCLParserVendor(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []testcase{
 		{
 			name: "empty vendor",

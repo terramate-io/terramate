@@ -14,6 +14,7 @@ import (
 )
 
 func TestMergeVendorReportsNoReports(t *testing.T) {
+	t.Parallel()
 	reports := make(chan download.Report)
 	merged := download.MergeVendorReports(reports)
 
@@ -23,6 +24,7 @@ func TestMergeVendorReportsNoReports(t *testing.T) {
 }
 
 func TestMergeVendorReportsSingleReport(t *testing.T) {
+	t.Parallel()
 	reports := make(chan download.Report)
 	merged := download.MergeVendorReports(reports)
 
@@ -37,6 +39,7 @@ func TestMergeVendorReportsSingleReport(t *testing.T) {
 }
 
 func TestMergeVendorReportsNReports(t *testing.T) {
+	t.Parallel()
 	reports := make(chan download.Report)
 	merged := download.MergeVendorReports(reports)
 
@@ -87,6 +90,7 @@ func TestMergeVendorReportsNReports(t *testing.T) {
 }
 
 func TestRemoveIgnoredFromReportByErrKind(t *testing.T) {
+	t.Parallel()
 	got := download.NewReport(project.NewPath("/test"))
 	got.Ignored = []download.IgnoredVendor{
 		{

@@ -30,7 +30,7 @@ test/helper:
 ## test code
 .PHONY: test
 test: test/helper build
-	go test -tags localhostEndpoints ./... -timeout=20m
+	go test -tags localhostEndpoints ./... -timeout=20m -p 100
 	./bin/terramate.exe run -- helper.exe true
 
  ## remove build artifacts

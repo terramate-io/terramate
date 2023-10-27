@@ -12,6 +12,7 @@ import (
 )
 
 func TestRepoIsSetupWithSyncRemoteOriginMain(t *testing.T) {
+	t.Parallel()
 	const (
 		remote   = "origin"
 		revision = "main"

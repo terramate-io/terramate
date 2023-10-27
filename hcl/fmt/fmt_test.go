@@ -21,6 +21,7 @@ import (
 )
 
 func TestFormatMultiline(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name     string
 		input    string
@@ -1245,7 +1246,9 @@ var = [
 	}
 
 	for _, tcase := range tcases {
+		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 			tempdir := t.TempDir()
 
 			got, err := fmt.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))

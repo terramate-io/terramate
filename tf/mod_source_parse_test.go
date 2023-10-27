@@ -13,6 +13,7 @@ import (
 )
 
 func TestParseGitSources(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		parsed tf.Source
 		err    error
@@ -472,7 +473,9 @@ func TestParseGitSources(t *testing.T) {
 	}
 
 	for _, tcase := range tcases {
+		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := tf.ParseSource(tcase.source)
 			assert.IsError(t, err, tcase.want.err)
 			if tcase.want.err != nil {

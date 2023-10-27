@@ -719,6 +719,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 		tcase := tc
 
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 			if tcase.skipOn == runtime.GOOS {
 				t.Skipf("skipping on GOOS %q", tcase.skipOn)
 				return
