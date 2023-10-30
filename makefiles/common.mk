@@ -69,6 +69,11 @@ coverage:
 coverage/show: coverage
 	go tool cover -html=$(COVERAGE_REPORT)
 
+## run tests within docker
+.PHONY: test/docker
+test/docker:
+	docker build --progress=plain --rm -f containers/test/Dockerfile .
+
 ## start fuzzying to generate some new corpus/find errors on partial eval
 .PHONY: test/fuzz/eval
 test/fuzz/eval:
@@ -161,9 +166,4 @@ help:
 				printf "  ${GREEN}%-30s${RESET} %s\n", cmd, msg; \
 			} \
 	} \
-	{ lastLine = $$0 }' $(MAKEFILE_LIST)
-
-## run tests within docker
-.PHONY: docker/test
-docker/test:
-	docker build --rm -f containers/test/Dockerfile .
+	{ lastLine = $$0 }' $(MAKEFILE_LIST) | sort
