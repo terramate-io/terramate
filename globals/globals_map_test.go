@@ -15,6 +15,7 @@ import (
 )
 
 func TestGlobalsWithMapSchemaErrors(t *testing.T) {
+	t.Parallel()
 	for _, mapcase := range maptest.SchemaErrorTestcases() {
 		tc := testcase{
 			name: "globals with " + mapcase.Name,

@@ -30,6 +30,7 @@ type testcase struct {
 }
 
 func TestEvalTmFuncall(t *testing.T) {
+	t.Parallel()
 	tcases := []testcase{
 		{
 			name: "tm_ternary - cond is true, with primitive values",
@@ -71,7 +72,9 @@ func TestEvalTmFuncall(t *testing.T) {
 	tcases = append(tcases, tmAbspathTestcases(t)...)
 
 	for _, tc := range tcases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			basedir := tc.basedir
 			if basedir == "" {
 				basedir = root(t)

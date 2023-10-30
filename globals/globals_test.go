@@ -4088,6 +4088,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 func testGlobals(t *testing.T, tcase testcase) {
 	t.Run(tcase.name, func(t *testing.T) {
+		t.Parallel()
 		s := sandbox.New(t)
 		s.BuildTree(tcase.layout)
 		for _, globalBlock := range tcase.configs {

@@ -19,6 +19,7 @@ import (
 )
 
 func TestHCLParserModules(t *testing.T) {
+	t.Parallel()
 	type (
 		want struct {
 			modules []tf.Module
@@ -195,7 +196,9 @@ module "test" {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			configdir := t.TempDir()
 			tfpath := test.WriteFile(t, configdir, tc.input.filename, tc.input.body)
 			fixupFiledirOnErrorsFileRanges(configdir, tc.want.errs)

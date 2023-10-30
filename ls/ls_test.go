@@ -20,11 +20,13 @@ import (
 )
 
 func TestInitialization(t *testing.T) {
+	t.Parallel()
 	f := lstest.Setup(t)
 	f.Editor.CheckInitialize(f.Sandbox.RootDir())
 }
 
 func TestDocumentOpen(t *testing.T) {
+	t.Parallel()
 	f := lstest.Setup(t)
 
 	stack := f.Sandbox.CreateStack("stack")
@@ -43,6 +45,8 @@ func TestDocumentOpen(t *testing.T) {
 
 func TestDocumentChange(t *testing.T) {
 	t.Skip("not ready")
+
+	t.Parallel()
 
 	type change struct {
 		file string

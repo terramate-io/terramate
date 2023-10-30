@@ -216,7 +216,9 @@ func TestLoadRunEnv(t *testing.T) {
 		},
 	}
 
+	// TODO(i4k): these tests should not call setenv()!
 	for _, tcase := range tcases {
+		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)

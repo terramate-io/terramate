@@ -20,6 +20,7 @@ import (
 const CookedCommitID = "4e991b55e3d58b9c3137a791a9986ed9c5069697"
 
 func TestGit(t *testing.T) {
+	t.Parallel()
 	git, err := git.WithConfig(git.Config{})
 	assert.NoError(t, err, "new git wrapper")
 
@@ -30,6 +31,7 @@ func TestGit(t *testing.T) {
 }
 
 func TestGitLog(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		repo    func(t *testing.T) string
 		revs    []string
@@ -123,6 +125,7 @@ func TestGitLog(t *testing.T) {
 }
 
 func TestRevParse(t *testing.T) {
+	t.Parallel()
 	repodir := mkOneCommitRepo(t)
 
 	git := test.NewGitWrapper(t, repodir, []string{})
@@ -151,6 +154,7 @@ func TestClone(t *testing.T) {
 }
 
 func TestCurrentBranch(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	git := s.Git()
 
@@ -163,6 +167,7 @@ func TestCurrentBranch(t *testing.T) {
 }
 
 func TestFetchRemoteRev(t *testing.T) {
+	t.Parallel()
 	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, []string{})
 
@@ -190,6 +195,7 @@ func TestFetchRemoteRev(t *testing.T) {
 }
 
 func TestFetchRemoteRevErrorHandling(t *testing.T) {
+	t.Parallel()
 	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, []string{})
 	// should fail because the repo has no origin remote set.
@@ -198,6 +204,7 @@ func TestFetchRemoteRevErrorHandling(t *testing.T) {
 }
 
 func TestListingAvailableRemotes(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name string
 		want []git.Remote
@@ -259,7 +266,9 @@ func TestListingAvailableRemotes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repodir := mkOneCommitRepo(t)
 			g := test.NewGitWrapper(t, repodir, []string{})
 
@@ -294,6 +303,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 }
 
 func TestListRemoteWithMultipleBranches(t *testing.T) {
+	t.Parallel()
 	const (
 		remote = "origin"
 	)

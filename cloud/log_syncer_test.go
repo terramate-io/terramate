@@ -35,6 +35,7 @@ type (
 )
 
 func TestCloudLogSyncer(t *testing.T) {
+	t.Parallel()
 	hugeLine := bytes.Repeat([]byte{'A'}, 1*1024*1024) // 1 mib line, no line ending
 
 	for _, tc := range []testcase{
@@ -392,6 +393,7 @@ func TestCloudLogSyncer(t *testing.T) {
 		tc := tc
 		tc.validate(t)
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotBatches []cloud.DeploymentLogs
 			s := cloud.NewLogSyncerWith(func(logs cloud.DeploymentLogs) {
 				gotBatches = append(gotBatches, logs)

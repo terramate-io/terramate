@@ -15,6 +15,7 @@ import (
 )
 
 func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"f:test/1",

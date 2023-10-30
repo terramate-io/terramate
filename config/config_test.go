@@ -17,6 +17,7 @@ import (
 )
 
 func TestIsStack(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"d:/dir",
@@ -50,7 +51,9 @@ func TestValidStackIDs(t *testing.T) {
 	}
 
 	for _, validID := range validIDs {
+		validID := validID
 		t.Run(fmt.Sprintf("valid ID %s", validID), func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			s.BuildTree([]string{
 				"s:stack:id=" + validID,
@@ -63,7 +66,9 @@ func TestValidStackIDs(t *testing.T) {
 	}
 
 	for _, invalidID := range invalidIDs {
+		invalidID := invalidID
 		t.Run(fmt.Sprintf("invalid ID %s", invalidID), func(t *testing.T) {
+			t.Parallel()
 			s := sandbox.New(t)
 			s.BuildTree([]string{
 				"s:stack:id=" + invalidID,
@@ -77,6 +82,7 @@ func TestValidStackIDs(t *testing.T) {
 }
 
 func TestConfigLookup(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"d:/dir",
@@ -114,6 +120,7 @@ func TestConfigLookup(t *testing.T) {
 }
 
 func TestConfigStacksByPaths(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name     string
 		layout   []string
@@ -294,6 +301,7 @@ func TestConfigStacksByPaths(t *testing.T) {
 }
 
 func TestConfigSkipdir(t *testing.T) {
+	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:/stack",

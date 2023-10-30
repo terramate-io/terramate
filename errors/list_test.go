@@ -15,6 +15,7 @@ import (
 )
 
 func TestEmptyErrorListReturnsEmptyErrors(t *testing.T) {
+	t.Parallel()
 	e := errors.L()
 	errs := e.Errors()
 
@@ -22,6 +23,7 @@ func TestEmptyErrorListReturnsEmptyErrors(t *testing.T) {
 }
 
 func TestErrorListReturnsAllErrors(t *testing.T) {
+	t.Parallel()
 	// This test was updated to reflect the changed API of errors.List.Errors().
 	// Now it doesn't ignore errors anymore.
 
@@ -45,12 +47,14 @@ func TestErrorListReturnsAllErrors(t *testing.T) {
 }
 
 func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {
+	t.Parallel()
 	errs := errors.L()
 	assert.EqualStrings(t, "", errs.Error())
 	assert.EqualStrings(t, "", errs.Detailed())
 }
 
 func TestEmptyErrorListAsErrorIsNil(t *testing.T) {
+	t.Parallel()
 	errs := errors.L()
 	err := errs.AsError()
 	if err != nil {
@@ -59,6 +63,7 @@ func TestEmptyErrorListAsErrorIsNil(t *testing.T) {
 }
 
 func TestErrorListIgnoresNilErrors(t *testing.T) {
+	t.Parallel()
 	errs := errors.L(nil, nil)
 	errs.Append(nil)
 	err := errs.AsError()
@@ -68,6 +73,7 @@ func TestErrorListIgnoresNilErrors(t *testing.T) {
 }
 
 func TestErrorListFlattensAllDiagnostics(t *testing.T) {
+	t.Parallel()
 	const (
 		detail1 = "error 1"
 		detail2 = "error 2"
@@ -113,6 +119,7 @@ func TestErrorListFlattensAllDiagnostics(t *testing.T) {
 }
 
 func TestErrorListFlattensOtherErrorList(t *testing.T) {
+	t.Parallel()
 	const (
 		kind1 errors.Kind = "kind1"
 		kind2 errors.Kind = "kind2"
@@ -135,6 +142,7 @@ func TestErrorListFlattensOtherErrorList(t *testing.T) {
 }
 
 func TestErrorListsWithMatchingErrors(t *testing.T) {
+	t.Parallel()
 	const (
 		kind1 errors.Kind = "kind1"
 		kind2 errors.Kind = "kind2"
@@ -163,6 +171,7 @@ func TestErrorListsWithMatchingErrors(t *testing.T) {
 }
 
 func TestErrorListStringDetailedPresentation(t *testing.T) {
+	t.Parallel()
 	errs := errors.L(E("one"))
 	assert.EqualStrings(t, "error list:\n\t-one", errs.Detailed())
 

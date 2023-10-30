@@ -19,6 +19,7 @@ import (
 )
 
 func TestTmVendor(t *testing.T) {
+	t.Parallel()
 	type testcase struct {
 		name      string
 		expr      string
@@ -120,7 +121,9 @@ func TestTmVendor(t *testing.T) {
 	}
 
 	for _, tcase := range tcases {
+		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 			rootdir := t.TempDir()
 			events := make(chan event.VendorRequest)
 			vendordir := project.NewPath(tcase.vendorDir)

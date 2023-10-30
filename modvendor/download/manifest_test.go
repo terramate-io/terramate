@@ -25,6 +25,7 @@ import (
 )
 
 func TestVendorManifest(t *testing.T) {
+	t.Parallel()
 	type (
 		manifestConfig struct {
 			path     string
@@ -275,7 +276,9 @@ func TestVendorManifest(t *testing.T) {
 	}
 
 	for _, tcase := range testcases {
+		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 			repoSandbox := sandbox.New(t)
 
 			// Remove the default README.md created by the sandbox
@@ -334,6 +337,7 @@ func TestInvalidManifestFailsDotTerramate(t *testing.T) {
 }
 
 func testInvalidManifestFails(t *testing.T, configpath string) {
+	t.Parallel()
 	repoSandbox := sandbox.New(t)
 	test.WriteFile(t, repoSandbox.RootDir(), configpath, "not valid HCL")
 

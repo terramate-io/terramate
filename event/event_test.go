@@ -11,6 +11,7 @@ import (
 )
 
 func TestEventStream(t *testing.T) {
+	t.Parallel()
 	stream := event.NewStream[int](3)
 
 	assert.IsTrue(t, stream.Send(1))
@@ -28,6 +29,7 @@ func TestEventStream(t *testing.T) {
 }
 
 func TestEventStreamZeroValueWontBlock(t *testing.T) {
+	t.Parallel()
 	var stream event.Stream[string]
 
 	assert.IsTrue(t, !stream.Send("ok"))

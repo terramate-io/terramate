@@ -14,7 +14,7 @@ next:
 # File Generation
 
 Terramate supports the generation of arbitrary text files referencing
-[Terramate defined data](../data-sharing/).
+[Terramate defined data](../data-sharing/index.md).
 
 File generation is done using `generate_file`
 blocks in [Terramate configuration files](../configuration/index.md).
