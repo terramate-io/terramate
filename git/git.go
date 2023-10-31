@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -75,6 +77,15 @@ type (
 		cmd    string // Command-line executed
 		stdout []byte // stdout of the failed command
 		stderr []byte // stderr of the failed command
+	}
+
+	// CommitMetadata is metadata associated with a Git commit.
+	CommitMetadata struct {
+		Author  string
+		Email   string
+		Time    *time.Time
+		Subject string
+		Body    string
 	}
 )
 
@@ -725,6 +736,54 @@ func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
 	}
 
 	return removeEmptyLines(strings.Split(out, "\n")), nil
+}
+
+// ShowCommitMetadata returns common metadata associated with the given object.
+// An object name can be a commit SHA or a symbolic name, i.e. HEAD, branch-name, etc.
+func (git *Git) ShowCommitMetadata(objectName string) (*CommitMetadata, error) {
+	// %n - newline
+	// %an - author name
+	// %at - author time (unix)
+	// %ae - author email
+	// %s - commit msg subject
+	// %b - commit msg body
+	out, err := git.exec("show", "-s", "--format=%an%n%at%n%ae%n%s%n%b", objectName)
+	if err != nil {
+		return nil, fmt.Errorf("show: %w", err)
+	}
+
+	lines := strings.SplitN(out, "\n", 5)
+	// 4 lines without body, 5+ with body
+	if len(lines) < 4 {
+		return nil, fmt.Errorf("show metadata: malformed output: %v", out)
+	}
+
+	author := strings.TrimSpace(lines[0])
+
+	var commitTime *time.Time
+	unixTime, err := strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 64)
+	if err == nil {
+		v := time.Unix(unixTime, 0)
+		commitTime = &v
+	} else {
+		commitTime = nil
+	}
+
+	email := strings.TrimSpace(lines[2])
+	subject := strings.TrimSpace(lines[3])
+
+	body := ""
+	if len(lines) > 4 {
+		body = strings.TrimSpace(lines[4])
+	}
+
+	return &CommitMetadata{
+		Author:  author,
+		Time:    commitTime,
+		Email:   email,
+		Subject: subject,
+		Body:    body,
+	}, nil
 }
 
 // Root returns the git root directory.

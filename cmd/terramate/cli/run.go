@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -37,6 +38,13 @@ const (
 type ExecContext struct {
 	Stack *config.Stack
 	Cmd   []string
+}
+
+// RunResult contains exit code and duration of a completed run.
+type RunResult struct {
+	ExitCode   int
+	StartedAt  *time.Time
+	FinishedAt *time.Time
 }
 
 func (c *cli) runOnStacks() {
@@ -205,7 +213,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		environ := newEnvironFrom(stackEnvs[runContext.Stack.Dir])
 		cmdPath, err := run.LookPath(runContext.Cmd[0], environ)
 		if err != nil {
-			c.cloudSyncAfter(runContext, -1, errors.E(ErrRunCommandNotFound, err))
+			c.cloudSyncAfter(runContext, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
 			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, runContext.Stack.Dir))
 			if continueOnError {
 				continue
@@ -237,9 +245,19 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 
 		logger.Info().Msg("running")
 
+		startTime := time.Now().UTC()
+
 		if err := cmd.Start(); err != nil {
+			endTime := time.Now().UTC()
+
 			logSyncWait()
-			c.cloudSyncAfter(runContext, -1, errors.E(err, ErrRunFailed))
+
+			res := RunResult{
+				ExitCode:   -1,
+				StartedAt:  &startTime,
+				FinishedAt: &endTime,
+			}
+			c.cloudSyncAfter(runContext, res, errors.E(err, ErrRunFailed))
 			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
 			logger.Error().Err(err).Msg("failed to execute")
 			if continueOnError {
@@ -270,8 +288,16 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
 
+					endTime := time.Now().UTC()
+
 					logSyncWait()
-					c.cloudSyncAfter(runContext, -1, errors.E(ErrRunCanceled))
+
+					res := RunResult{
+						ExitCode:   -1,
+						StartedAt:  &startTime,
+						FinishedAt: &endTime,
+					}
+					c.cloudSyncAfter(runContext, res, errors.E(ErrRunCanceled))
 					c.cloudSyncCancelStacks(runStacks[i+1:])
 					return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
 				}
@@ -285,7 +311,22 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 					logger.Error().Err(err).Msg("failed to execute")
 				}
 
-				c.cloudSyncAfter(runContext, result.cmd.ProcessState.ExitCode(), err)
+				res := RunResult{
+					ExitCode:   result.cmd.ProcessState.ExitCode(),
+					StartedAt:  &startTime,
+					FinishedAt: result.finishedAt,
+				}
+
+				logMsg := logger.Debug().Int("exit_code", res.ExitCode)
+				if res.StartedAt != nil && res.FinishedAt != nil {
+					logMsg = logMsg.
+						Time("started_at", *res.StartedAt).
+						Time("finished_at", *res.FinishedAt).
+						TimeDiff("duration", *res.FinishedAt, *res.StartedAt)
+				}
+				logMsg.Msg("command execution finished")
+
+				c.cloudSyncAfter(runContext, res, err)
 				cmdIsRunning = false
 			}
 		}
@@ -317,17 +358,22 @@ func (c *cli) syncLogs(logger *zerolog.Logger, runContext ExecContext, logs clou
 }
 
 type cmdResult struct {
-	cmd *exec.Cmd
-	err error
+	cmd        *exec.Cmd
+	err        error
+	finishedAt *time.Time
 }
 
 func startCmdConsumer(cmds <-chan *exec.Cmd) <-chan cmdResult {
 	results := make(chan cmdResult)
 	go func() {
 		for cmd := range cmds {
+			err := cmd.Wait()
+			endTime := time.Now().UTC()
+
 			results <- cmdResult{
-				cmd: cmd,
-				err: cmd.Wait(),
+				cmd:        cmd,
+				err:        err,
+				finishedAt: &endTime,
 			}
 		}
 		close(results)
