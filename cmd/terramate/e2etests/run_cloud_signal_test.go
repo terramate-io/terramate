@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
@@ -193,9 +194,11 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 
 			fixture := cli.newRunFixture(tc.runMode, s.RootDir(), runflags...)
 			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
+			minStartTime := time.Now().UTC()
 			result := fixture.run()
+			maxEndTime := time.Now().UTC()
 			assertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, addr, tc.want.drifts)
+			assertRunDrifts(t, addr, tc.want.drifts, minStartTime, maxEndTime)
 		})
 	}
 }

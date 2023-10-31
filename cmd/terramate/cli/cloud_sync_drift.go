@@ -21,24 +21,24 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err error) {
+func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err error) {
 	st := runContext.Stack
 
 	logger := log.With().
 		Str("action", "cloudSyncDriftStatus").
 		Stringer("stack", st.Dir).
-		Int("exit_code", exitCode).
+		Int("exit_code", res.ExitCode).
 		Strs("command", runContext.Cmd).
 		Err(err).
 		Logger()
 
 	var status stack.Status
 	switch {
-	case exitCode == 0:
+	case res.ExitCode == 0:
 		status = stack.OK
-	case exitCode == 2:
+	case res.ExitCode == 2:
 		status = stack.Drifted
-	case exitCode == 1 || exitCode > 2 || errors.IsAnyKind(err, ErrRunCommandNotFound, ErrRunFailed):
+	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, ErrRunCommandNotFound, ErrRunFailed):
 		status = stack.Failed
 	default:
 		// ignore exit codes < 0
@@ -73,10 +73,12 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, exitCode int, err err
 			MetaDescription: st.Description,
 			MetaTags:        st.Tags,
 		},
-		Status:   status,
-		Details:  driftDetails,
-		Metadata: c.cloud.run.metadata,
-		Command:  runContext.Cmd,
+		Status:     status,
+		Details:    driftDetails,
+		Metadata:   c.cloud.run.metadata,
+		Command:    runContext.Cmd,
+		StartedAt:  res.StartedAt,
+		FinishedAt: res.FinishedAt,
 	})
 
 	if err != nil {

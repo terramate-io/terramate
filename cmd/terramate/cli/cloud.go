@@ -206,7 +206,7 @@ func (c *cli) cloudSyncBefore(run ExecContext, _ string) {
 	c.doCloudSyncDeployment(run, deployment.Running)
 }
 
-func (c *cli) cloudSyncAfter(runContext ExecContext, exitCode int, err error) {
+func (c *cli) cloudSyncAfter(runContext ExecContext, res RunResult, err error) {
 	if !c.cloudEnabled() || !c.isCloudSync() {
 		return
 	}
@@ -214,13 +214,13 @@ func (c *cli) cloudSyncAfter(runContext ExecContext, exitCode int, err error) {
 	if c.parsedArgs.Run.CloudSyncDeployment {
 		c.cloudSyncDeployment(runContext, err)
 	} else {
-		c.cloudSyncDriftStatus(runContext, exitCode, err)
+		c.cloudSyncDriftStatus(runContext, res, err)
 	}
 }
 
 func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
 	for _, run := range stacks {
-		c.cloudSyncAfter(run, -1, errors.E(ErrRunCanceled))
+		c.cloudSyncAfter(run, RunResult{ExitCode: -1}, errors.E(ErrRunCanceled))
 	}
 }
 

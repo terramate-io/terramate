@@ -112,11 +112,13 @@ type (
 
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
-		Stack    Stack               `json:"stack"`
-		Status   stack.Status        `json:"drift_status"`
-		Details  *DriftDetails       `json:"drift_details,omitempty"`
-		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
-		Command  []string            `json:"command"`
+		Stack      Stack               `json:"stack"`
+		Status     stack.Status        `json:"drift_status"`
+		Details    *DriftDetails       `json:"drift_details,omitempty"`
+		Metadata   *DeploymentMetadata `json:"metadata,omitempty"`
+		Command    []string            `json:"command"`
+		StartedAt  *time.Time          `json:"started_at,omitempty"`
+		FinishedAt *time.Time          `json:"finished_at,omitempty"`
 	}
 
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest

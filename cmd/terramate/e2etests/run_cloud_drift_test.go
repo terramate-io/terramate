@@ -490,14 +490,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			runflags = append(runflags, tc.runflags...)
 			runflags = append(runflags, "--")
 			runflags = append(runflags, tc.cmd...)
+
+			minStartTime := time.Now().UTC()
 			result := cli.run(runflags...)
+			maxEndTime := time.Now().UTC()
 			assertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, addr, tc.want.drifts)
+			assertRunDrifts(t, addr, tc.want.drifts, minStartTime, maxEndTime)
 		})
 	}
 }
 
-func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests) {
+func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests, minStartTime, maxEndTime time.Time) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -519,7 +522,7 @@ func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftS
 		// whole argument list is interpolated, including the program name, and then
 		// on Windows it requires a special escaped string.
 		// See variable `testHelperBinAsHCL`.
-		if diff := cmp.Diff(got, expected.DriftStackPayloadRequest, cmpopts.IgnoreFields(cloud.DriftStackPayloadRequest{}, "Command", "Details")); diff != "" {
+		if diff := cmp.Diff(got, expected.DriftStackPayloadRequest, cmpopts.IgnoreFields(cloud.DriftStackPayloadRequest{}, "Command", "Details", "StartedAt", "FinishedAt")); diff != "" {
 			t.Logf("want: %+v", expectedDrifts)
 			t.Logf("got: %+v", got)
 			t.Fatal(diff)
@@ -532,6 +535,8 @@ func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftS
 				got.Details,
 			)
 		}
+
+		assertDriftRunDuration(t, &got, minStartTime, maxEndTime)
 
 		if expected.DriftStackPayloadRequest.Details == nil {
 			continue
@@ -577,6 +582,24 @@ func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftS
 			t.Logf("got: %+v", got.Details.ChangesetJSON)
 			t.Fatal(diff)
 		}
+	}
+}
+
+func assertDriftRunDuration(t *testing.T, got *cloud.DriftStackPayloadRequest, minStartTime, maxEndTime time.Time) {
+	hasStartTime := got.StartedAt != nil
+	hasEndTime := got.FinishedAt != nil
+	assert.IsTrue(t, hasStartTime == hasEndTime, "hasStartTime(%s) == hasEndTime(%s)", hasStartTime, hasEndTime)
+
+	if got.Status == stack.OK || got.Status == stack.Drifted || got.Status == stack.Unknown {
+		assert.IsTrue(t, hasStartTime, "hasStartTime for status %s", got.Status)
+		assert.IsTrue(t, hasEndTime, "hasEndTime for status %s", got.Status)
+	}
+
+	if got.StartedAt != nil && got.FinishedAt != nil {
+		assert.IsTrue(t, minStartTime.Compare(*got.StartedAt) <= 0, "StartedAt(%s) >= %s", *got.StartedAt, minStartTime)
+		assert.IsTrue(t, maxEndTime.Compare(*got.FinishedAt) >= 0, "FinishedAt(%s) <= %s", *got.FinishedAt, maxEndTime)
+
+		assert.IsTrue(t, got.StartedAt.Compare(*got.FinishedAt) <= 0, "StartedAt(%s) <= FinishedAt(%s)", *got.StartedAt, *got.FinishedAt)
 	}
 }
 
