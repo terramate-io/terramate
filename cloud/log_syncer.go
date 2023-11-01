@@ -116,7 +116,7 @@ func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
 		errs.Append(r.Close())
 		errs.Append(w.Close())
 		if err := errs.AsError(); err != nil {
-			log.Error().Err(err).Msg("synchroning command output")
+			log.Error().Err(err).Msg("synchronizing command output")
 		}
 	}()
 	return w
