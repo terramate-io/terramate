@@ -17,6 +17,17 @@ var (
 	procGenerateConsoleCtrlEvent = libkernel32.MustFindProc("GenerateConsoleCtrlEvent")
 )
 
+func (tc *testCmd) start() {
+	t := tc.t
+	t.Helper()
+
+	assert.NoError(t, tc.cmd.Start())
+}
+
+func (tc *testCmd) wait() error {
+	return tc.cmd.Wait()
+}
+
 func (tc *testCmd) setpgid() {
 	tc.cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,

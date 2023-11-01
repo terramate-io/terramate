@@ -135,17 +135,6 @@ func (tc *testCmd) run() error {
 	return tc.cmd.Run()
 }
 
-func (tc *testCmd) start() {
-	t := tc.t
-	t.Helper()
-
-	assert.NoError(t, tc.cmd.Start())
-}
-
-func (tc *testCmd) wait() error {
-	return tc.cmd.Wait()
-}
-
 func (tc *testCmd) exitCode() int {
 	return tc.cmd.ProcessState.ExitCode()
 }
