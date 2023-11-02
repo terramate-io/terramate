@@ -40,7 +40,6 @@ jobs:
       contents: read  # This is required for actions/checkout
 
     strategy:
-      fail-fast: false
       matrix:
         os: ["ubuntu-20.04", "macos-11", "macos-12"]
         go: ["1.20"]
