@@ -109,6 +109,7 @@ func buildTestHelper(goBin, testCmdPath, binDir string) (string, error) {
 	cmd := exec.Command(
 		goBin,
 		"build",
+		"-buildvcs=false",
 		"-o",
 		outBinPath,
 		testCmdPath,
@@ -128,6 +129,7 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 	cmd := exec.Command(
 		goBin,
 		"build",
+		"-buildvcs=false",
 		"-tags",
 		"localhostEndpoints",
 		"-race",
