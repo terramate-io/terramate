@@ -13,7 +13,7 @@ import (
 
 func TestInitializedGitHasOriginMain(t *testing.T) {
 	t.Parallel()
-	basedir := t.TempDir()
+	basedir := test.TempDir(t)
 	git := sandbox.NewGit(t, basedir)
 	git.Init()
 	git.RevParse("origin/main")
@@ -21,7 +21,7 @@ func TestInitializedGitHasOriginMain(t *testing.T) {
 
 func TestInitializeArbitraryRemote(t *testing.T) {
 	t.Parallel()
-	basedir := t.TempDir()
+	basedir := test.TempDir(t)
 	git := sandbox.NewGit(t, basedir)
 	git.InitLocalRepo()
 

@@ -199,7 +199,7 @@ module "test" {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			configdir := t.TempDir()
+			configdir := test.TempDir(t)
 			tfpath := test.WriteFile(t, configdir, tc.input.filename, tc.input.body)
 			fixupFiledirOnErrorsFileRanges(configdir, tc.want.errs)
 
@@ -353,7 +353,7 @@ func TestTerraformHasBackend(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, false)
 			s.BuildTree(tc.layout)
 
 			path := filepath.Join(s.RootDir(), filename)

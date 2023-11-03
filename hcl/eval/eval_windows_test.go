@@ -10,11 +10,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/terramate-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func tmAbspathTestcases(t *testing.T) []testcase {
-	tempDir := t.TempDir()
+	tempDir := test.TempDir(t)
 
 	root := root(t)
 	return []testcase{

@@ -350,7 +350,7 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	const filename = "file.txt"
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	stackEntry := s.CreateStack("stack")
 
 	assertFileExist := func(file string) {
@@ -420,7 +420,7 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	stackEntry := s.CreateStack("stack")
 	s.RootEntry().CreateConfig(
 		Doc(

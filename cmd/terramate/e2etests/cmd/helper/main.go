@@ -53,6 +53,10 @@ func main() {
 		env()
 	case "cat":
 		cat(os.Args[2])
+	case "rm":
+		rm(os.Args[2])
+	case "tempdir":
+		tempDir()
 	case "stack-abs-path":
 		stackAbsPath(os.Args[2])
 	case "tf-plan-sanitize":
@@ -104,6 +108,19 @@ func cat(fname string) {
 	bytes, err := os.ReadFile(fname)
 	checkerr(err)
 	fmt.Printf("%s", string(bytes))
+}
+
+// rm remove the given path.
+func rm(fname string) {
+	err := os.RemoveAll(fname)
+	checkerr(err)
+}
+
+// tempdir creates a temporary directory.
+func tempDir() {
+	tmpdir, err := os.MkdirTemp("", "tm-tmpdir")
+	checkerr(err)
+	fmt.Print(tmpdir)
 }
 
 func stackAbsPath(base string) {

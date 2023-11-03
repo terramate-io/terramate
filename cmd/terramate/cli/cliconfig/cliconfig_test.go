@@ -141,7 +141,7 @@ func TestLoad(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, false)
 			s.BuildTree([]string{
 				"d:home",
 			})

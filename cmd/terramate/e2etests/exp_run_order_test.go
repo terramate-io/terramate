@@ -322,7 +322,7 @@ func TestOrderGraphAfter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 			cli := newCLI(t, s.RootDir())
 			assertRunResult(t, cli.stacksRunGraph(), tc.want)

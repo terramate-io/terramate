@@ -58,7 +58,7 @@ func TestLoadFailsWithInvalidConfig(t *testing.T) {
 		invalidConfig := invalidConfig
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 
 			stackEntry := s.CreateStack("stack")
 			stackEntry.CreateConfig(invalidConfig.String() + "\n" + Stack().String())

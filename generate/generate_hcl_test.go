@@ -1323,7 +1323,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		),
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		fmt.Sprintf("f:%s:%s", config.DefaultFilename, generateHCLConfig.String()),
 		"s:stack",
@@ -1357,7 +1357,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 		Str("required_version", "1.11"),
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	stack := s.CreateStack("stack")
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
@@ -1407,7 +1407,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	stackEntry := s.CreateStack("stack")
 	childStack := s.CreateStack("stack/child")
 	grandChildStack := s.CreateStack("stack/child/grand")
@@ -1487,7 +1487,7 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	stackEntry := s.CreateStack("stack")
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(
@@ -1646,14 +1646,11 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	}
 	t.Parallel()
 
-	s := sandbox.NoGit(t)
+	s := sandbox.NoGit(t, true)
 	rootEntry := s.RootEntry().CreateDir("root")
 	stackEntry := s.CreateStack("root/stack")
 	rootEntry.CreateConfig(
 		Doc(
-			Terramate(
-				Config(),
-			),
 			GenerateHCL(
 				Labels("file1.tf"),
 				Content(
@@ -1698,7 +1695,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.NoGit(t)
+	s := sandbox.NoGit(t, true)
 
 	// Creates a file with a generated header inside dot dirs.
 	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
@@ -1713,7 +1710,7 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	stackEntry := s.CreateStack("stack")
 	s.RootEntry().CreateConfig(
 		Doc(

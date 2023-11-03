@@ -263,7 +263,7 @@ func TestVendorEvents(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			repositories := sandbox.NoGit(t)
+			repositories := sandbox.NoGit(t, false)
 			reposURI := uri.File(repositories.RootDir())
 
 			for _, repo := range tcase.repositories {
@@ -311,7 +311,7 @@ func TestVendorEvents(t *testing.T) {
 				}
 			}
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			source := applyConfigTemplate(t, tcase.source, reposURI)
 			modsrc := test.ParseSource(t, source)
 
