@@ -19,10 +19,12 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/fs"
@@ -190,6 +192,46 @@ func (s S) BuildTree(layout []string) {
 	s.t.Helper()
 
 	buildTree(s.t, s.Config(), s.Env, layout)
+}
+
+// AssertTree compares the current tree against the given layout specification.
+// The specification works similar to BuildTree.
+//
+// The following directives are supported:
+//
+// "s:<stackpath>" or "stack:..."
+// Assert that stackpath is a stack.
+//
+// "d:<dirpath>" or "dir:..."
+// Assert that dirpath is an existing directory.
+//
+// "f:<filepath>[:<content>]" or "file:..."
+// Assert that filepath is an existing file, optionally having the given content.
+func (s S) AssertTree(layout []string, opts ...AssertTreeOption) {
+	s.t.Helper()
+
+	o := &assertTreeOptions{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	assertTree(s.t, s.Config(), layout, o)
+}
+
+// AssertTreeOption is the common option type for AssertTree.
+type AssertTreeOption func(o *assertTreeOptions)
+
+// WithStrictStackValidation is an option for AssertTree to validate that
+// the list of stacks given in the layout _exactly_ matches the list of stacks
+// in the tree, i.e. it doesn't just check that the given stacks exist, but also
+// that there are no other stacks beyond that.
+func WithStrictStackValidation() AssertTreeOption {
+	return func(o *assertTreeOptions) { o.withStrictStacks = true }
+}
+
+type assertTreeOptions struct {
+	withStrictStacks bool
+	//TODO(snk): add withStrictFiles
 }
 
 // IsGit tells if the sandbox is a git repository.
@@ -704,6 +746,78 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 			assert.NoError(t, err, "failed to execute sandbox run: (output: %s)", out)
 		default:
 			t.Fatalf("unknown spec kind: %q", specKind)
+		}
+	}
+}
+
+func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTreeOptions) {
+	t.Helper()
+
+	popArg := func(spec string) (string, string) {
+		idx := strings.Index(spec, ":")
+		if idx == -1 {
+			return spec, ""
+		}
+		return spec[0:idx], spec[idx+1:]
+	}
+
+	rootdir := root.HostDir()
+
+	wantStrictStacks := []string{}
+
+	for _, spec := range layout {
+		specKind, spec := popArg(spec)
+
+		switch specKind {
+		case "d", "dir":
+			dirname, _ := popArg(spec)
+			test.IsDir(t, rootdir, dirname)
+
+		case "f", "file":
+			fname, spec := popArg(spec)
+			want, _ := popArg(spec)
+
+			if want != "" {
+				got := string(test.ReadFile(t, rootdir, fname))
+				assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
+			} else {
+				test.IsFile(t, rootdir, fname)
+			}
+
+		case "!e", "not_exist":
+			fname, _ := popArg(spec)
+			test.DoesNotExist(t, rootdir, fname)
+
+		case "s", "stack":
+			stackdir, _ := popArg(spec)
+			prjStackdir := project.PrjAbsPath(rootdir, stackdir)
+
+			if opts.withStrictStacks {
+				wantStrictStacks = append(wantStrictStacks, prjStackdir.String())
+			} else {
+				_, err := config.LoadStack(root, prjStackdir)
+				assert.NoError(t, err, "not a valid stack")
+			}
+
+		default:
+			t.Fatalf("unknown spec kind: %q", specKind)
+		}
+	}
+
+	if opts.withStrictStacks {
+		gotStrictStacks := []string{}
+		stackEntries, err := stack.List(root.Tree())
+		assert.NoError(t, err)
+
+		for _, st := range stackEntries {
+			gotStrictStacks = append(gotStrictStacks, st.Stack.Dir.String())
+		}
+
+		sort.Strings(wantStrictStacks)
+		sort.Strings(gotStrictStacks)
+
+		if diff := cmp.Diff(wantStrictStacks, gotStrictStacks); diff != "" {
+			t.Errorf("stack list mismatch (-want +got): %s", diff)
 		}
 	}
 }

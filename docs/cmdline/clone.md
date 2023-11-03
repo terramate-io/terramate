@@ -15,11 +15,13 @@ next:
 
 **Note:** This is an experimental command and is likely subject to change in the future.
 
-The `clone` command clones a stack. Terramate will automatically update the 
-UUID of the cloned stack.
+The `clone` command clones stacks from a source to a target directory. Terramate will recursively copy the stack
+files and directories, and automatically update the `stack.id` with generated UUIDs for the cloned stacks.
 
-**Note:** Currently, `clone` does not support nested stacks. We will add this
-functionality in the future.
+The source directory can be a stack itself, or it can contain stacks in sub-directories.
+
+The flag `--skip-child-stacks` can be set to change this behaviour, so stacks in sub-directories will be ignored;
+in this case, the source directory itself must be a stack.
 
 ## Usage
 
@@ -31,4 +33,10 @@ Clone a stack `alice` to target `bob`:
 
 ```bash
 terramate experimental clone stacks/alice stacks/bob
+```
+
+Clone all stacks within directory `stacks` to `cloned-stacks`:
+
+```bash
+terramate experimental clone stacks cloned-stacks
 ```

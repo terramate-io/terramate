@@ -159,8 +159,9 @@ type cliSpec struct {
 
 	Experimental struct {
 		Clone struct {
-			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
-			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
+			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
+			DestDir         string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
+			SkipChildStacks bool   `default:"false" help:"Clone ignores child stacks"`
 		} `cmd:"" help:"Clones a stack"`
 
 		Trigger struct {
@@ -785,26 +786,30 @@ func (c *cli) triggerStack(stack string) {
 }
 
 func (c *cli) cloneStack() {
-	srcstack := c.parsedArgs.Experimental.Clone.SrcDir
-	deststack := c.parsedArgs.Experimental.Clone.DestDir
+	srcdir := c.parsedArgs.Experimental.Clone.SrcDir
+	destdir := c.parsedArgs.Experimental.Clone.DestDir
+	skipChildStacks := c.parsedArgs.Experimental.Clone.SkipChildStacks
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("action", "cli.cloneStack()").
-		Str("src", srcstack).
-		Str("dest", deststack).
+		Str("src", srcdir).
+		Str("dest", destdir).
+		Bool("skipChildStacks", skipChildStacks).
 		Logger()
 
 	logger.Trace().Msg("cloning stack")
 
-	srcdir := filepath.Join(c.wd(), srcstack)
-	destdir := filepath.Join(c.wd(), deststack)
+	// Convert to absolute paths
+	absSrcdir := filepath.Join(c.wd(), srcdir)
+	absDestdir := filepath.Join(c.wd(), destdir)
 
-	if err := stack.Clone(c.cfg(), destdir, srcdir); err != nil {
-		fatal(err, "cloning %s to %s", srcstack, deststack)
+	n, err := stack.Clone(c.cfg(), absDestdir, absSrcdir, skipChildStacks)
+	if err != nil {
+		fatal(err, "cloning %s to %s", srcdir, destdir)
 	}
 
-	c.output.MsgStdOut("Cloned stack %s to %s with success", srcstack, deststack)
-	c.output.MsgStdOut("Generating code on the new cloned stack")
+	c.output.MsgStdOut("Cloned %d stack(s) from %s to %s with success", n, srcdir, destdir)
+	c.output.MsgStdOut("Generating code on the new cloned stack(s)")
 
 	c.generate()
 }
