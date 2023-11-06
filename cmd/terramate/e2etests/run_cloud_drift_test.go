@@ -18,7 +18,7 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/test"
@@ -85,7 +85,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status: stack.Failed,
+							Status: drift.Failed,
 						},
 					},
 				},
@@ -113,7 +113,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Failed,
+							Status: drift.Failed,
 						},
 					},
 				},
@@ -143,7 +143,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Failed,
+							Status: drift.Failed,
 						},
 					},
 					{
@@ -155,7 +155,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: stack.Failed,
+							Status: drift.Failed,
 						},
 					},
 				},
@@ -186,7 +186,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Failed,
+							Status: drift.Failed,
 						},
 					},
 					{
@@ -198,7 +198,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: stack.OK,
+							Status: drift.OK,
 						},
 					},
 				},
@@ -221,7 +221,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 						},
 					},
 				},
@@ -251,7 +251,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "child",
 								MetaID:        "child",
 							},
-							Status: stack.OK,
+							Status: drift.OK,
 						},
 					},
 				},
@@ -275,7 +275,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 						},
 					},
 					{
@@ -287,7 +287,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 						},
 					},
 				},
@@ -318,7 +318,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 						},
 					},
 				},
@@ -350,7 +350,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 						},
 					},
 				},
@@ -392,7 +392,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 							Details: &cloud.DriftDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "_testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
@@ -412,7 +412,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 							Details: &cloud.DriftDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "_testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
@@ -453,7 +453,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status: stack.Drifted,
+							Status: drift.Drifted,
 						},
 					},
 				},
@@ -590,7 +590,7 @@ func assertDriftRunDuration(t *testing.T, got *cloud.DriftStackPayloadRequest, m
 	hasEndTime := got.FinishedAt != nil
 	assert.IsTrue(t, hasStartTime == hasEndTime, "hasStartTime(%s) == hasEndTime(%s)", hasStartTime, hasEndTime)
 
-	if got.Status == stack.OK || got.Status == stack.Drifted || got.Status == stack.Unknown {
+	if got.Status == drift.OK || got.Status == drift.Drifted || got.Status == drift.Unknown {
 		assert.IsTrue(t, hasStartTime, "hasStartTime for status %s", got.Status)
 		assert.IsTrue(t, hasEndTime, "hasEndTime for status %s", got.Status)
 	}

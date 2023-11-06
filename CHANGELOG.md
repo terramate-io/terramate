@@ -28,6 +28,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 file in rendered ASCII and JSON (sensitive information removed).
 - Add configuration attribute `terramate.config.cloud.organization` to select which cloud organization to use when syncing with Terramate Cloud.
 - Add sync of logs to _Terramate Cloud_ when using `--cloud-sync-deployment` flag.
+- Add `terramate experimental cloud drift show` for retrieving drift details from Terramate Cloud.
 
 ## 0.4.2
 

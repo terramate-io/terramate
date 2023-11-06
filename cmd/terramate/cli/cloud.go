@@ -16,12 +16,15 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
+	prj "github.com/terramate-io/terramate/project"
 )
 
 const (
@@ -232,6 +235,63 @@ func (c *cli) cloudInfo() {
 	c.cred().info()
 	// verbose info
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
+}
+
+func (c *cli) cloudDriftShow() {
+	err := c.setupCloudConfig()
+	if err != nil {
+		fatal(err)
+	}
+	st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+	if err != nil {
+		fatal(err, "loading stack in current directory")
+	}
+	if !found {
+		fatal(errors.E("No stack selected. Please enter a stack to show a potential drift."))
+	}
+	if st.ID == "" {
+		fatal(errors.E("The stack must have an ID for using TMC features"))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+
+	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), st.ID)
+	if err != nil {
+		fatal(err)
+	}
+	if !found {
+		fatal(errors.E("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String()))
+	}
+
+	if stackResp.Status != stack.Drifted && stackResp.DriftStatus != drift.Drifted {
+		c.output.MsgStdOut("Stack %s is not drifted.", st.Dir.String())
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+
+	// stack is drifted
+	drifts, err := c.cloud.client.StackDrifts(ctx, c.cloud.run.orgUUID, stackResp.ID, 1)
+	if err != nil {
+		fatal(err)
+	}
+	if len(drifts) == 0 {
+		fatal(errors.E("Stack %s is drifted, but no details are available.", st.Dir.String()))
+	}
+	driftData := drifts[0]
+
+	ctx, cancel = context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	driftData, err = c.cloud.client.DriftDetails(ctx, c.cloud.run.orgUUID, stackResp.ID, driftData.ID)
+	if err != nil {
+		fatal(err)
+	}
+	if driftData.Status != drift.Drifted || driftData.Details == nil || driftData.Details.Provisioner == "" {
+		fatal(errors.E("Stack %s is drifted, but no details are available.", st.Dir.String()))
+	}
+	c.output.MsgStdOutV("drift provisioner: %s", driftData.Details.Provisioner)
+	c.output.MsgStdOut(driftData.Details.ChangesetASCII)
 }
 
 func (c *cli) detectCloudMetadata() {

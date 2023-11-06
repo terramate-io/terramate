@@ -82,7 +82,6 @@ func (c *cli) runOnStacks() {
 			fatal(err, "computing selected stacks")
 		}
 	}
-
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
 	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)

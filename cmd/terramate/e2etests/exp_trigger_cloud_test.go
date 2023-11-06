@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	cloudtest "github.com/terramate-io/terramate/test/cloud"
@@ -43,7 +45,9 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 			Repository: repository,
 			MetaID:     stackID,
 		},
-		Status: stack.Failed,
+		Status:           stack.Failed,
+		DeploymentStatus: deployment.Failed,
+		DriftStatus:      drift.OK,
 	})
 
 	git.SetRemoteURL("origin", fmt.Sprintf(`https://%s.git`, repository))
@@ -138,7 +142,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.OK,
+					Status:           stack.OK,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Unknown,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -156,7 +162,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "gitlab.com/unknown-io/other",
 					},
-					Status: stack.Failed,
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Unknown,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -174,7 +182,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Failed,
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Unknown,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -200,7 +210,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Failed,
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Unknown,
 				},
 				{
 					ID: 2,
@@ -208,7 +220,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.OK,
+					Status:           stack.OK,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Unknown,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -231,7 +245,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Failed,
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Unknown,
 				},
 				{
 					ID: 2,
@@ -239,7 +255,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Drifted,
+					Status:           stack.Drifted,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Drifted,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -257,7 +275,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Failed,
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Unknown,
 				},
 				{
 					ID: 2,
@@ -265,7 +285,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Drifted,
+					Status:           stack.Drifted,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Drifted,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -292,7 +314,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Failed,
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Unknown,
 				},
 				{
 					ID: 2,
@@ -300,7 +324,9 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status: stack.Drifted,
+					Status:           stack.Drifted,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Drifted,
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},

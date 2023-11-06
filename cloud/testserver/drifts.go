@@ -11,18 +11,18 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/drift"
 )
 
 type driftHandler struct {
 	mu       sync.Mutex
 	drifts   []cloud.DriftStackPayloadRequest
-	statuses map[string]stack.Status // map of stack_meta_id -> status
+	statuses map[string]drift.Status // map of stack_meta_id -> status
 }
 
 func newDriftEndpoint() *driftHandler {
 	return &driftHandler{
-		statuses: make(map[string]stack.Status),
+		statuses: make(map[string]drift.Status),
 	}
 }
 

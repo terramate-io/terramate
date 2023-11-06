@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-json/sanitize"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -32,14 +32,14 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 		Err(err).
 		Logger()
 
-	var status stack.Status
+	var status drift.Status
 	switch {
 	case res.ExitCode == 0:
-		status = stack.OK
+		status = drift.OK
 	case res.ExitCode == 2:
-		status = stack.Drifted
+		status = drift.Drifted
 	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, ErrRunCommandNotFound, ErrRunFailed):
-		status = stack.Failed
+		status = drift.Failed
 	default:
 		// ignore exit codes < 0
 		logger.Debug().Msg("skipping drift sync")
@@ -76,9 +76,9 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 		Status:     status,
 		Details:    driftDetails,
 		Metadata:   c.cloud.run.metadata,
-		Command:    runContext.Cmd,
 		StartedAt:  res.StartedAt,
 		FinishedAt: res.FinishedAt,
+		Command:    runContext.Cmd,
 	})
 
 	if err != nil {
