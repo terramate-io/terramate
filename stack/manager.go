@@ -28,6 +28,8 @@ type (
 	Manager struct {
 		root       *config.Root // whole config
 		gitBaseRef string       // gitBaseRef is the git ref where we compare changes.
+
+		outerGit *git.Git
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -116,12 +118,7 @@ func (m *Manager) ListChanged() (*Report, error) {
 
 	logger.Trace().Msg("Create git wrapper on project root.")
 
-	//TODO: This should be created once somewhere, then shared.
-	gOuter, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.HostDir(),
-		Env:        os.Environ(),
-	})
-
+	gOuter, err := m.globalGit()
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -154,7 +151,7 @@ func (m *Manager) ListChanged() (*Report, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	changedFiles, err := listChangedFiles(m.root.HostDir(), m.gitBaseRef)
+	changedFiles, err := m.listChangedFiles(m.root.HostDir(), m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -527,7 +524,7 @@ func (m *Manager) moduleChanged(
 	logger.Debug().
 		Str("path", modPath).
 		Msg("Get list of changed files.")
-	changedFiles, err := listChangedFiles(modPath, m.gitBaseRef)
+	changedFiles, err := m.listChangedFiles(modPath, m.gitBaseRef)
 	if err != nil {
 		return false, "", errors.E(err,
 			"listing changes in the module %q",
@@ -593,7 +590,7 @@ func (m *Manager) moduleChanged(
 }
 
 // listChangedFiles lists all changed files in the dir directory.
-func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
+func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	logger := log.With().
 		Str("action", "listChangedFiles()").
 		Str("path", dir).
@@ -612,12 +609,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return nil, errors.E("is not a directory")
 	}
 
-	//TODO: This should be created once somewhere, then shared.
-	gOuter, err := git.WithConfig(git.Config{
-		WorkingDir: dir,
-		Env:        os.Environ(),
-	})
-
+	gOuter, err := m.globalGit()
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -653,6 +645,17 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	return g.DiffNames(baseRef, headRef)
+}
+
+func (m *Manager) globalGit() (*git.Git, error) {
+	var err error
+	if m.outerGit == nil {
+		m.outerGit, err = git.WithConfig(git.Config{
+			WorkingDir: m.root.HostDir(),
+			Env:        os.Environ(),
+		})
+	}
+	return m.outerGit, err
 }
 
 func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
