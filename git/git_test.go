@@ -7,6 +7,7 @@ package git_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -412,6 +413,38 @@ func TestShowMetadata(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestGetConfigValue(t *testing.T) {
+	repodir := mkOneCommitRepo(t)
+
+	gw, err := git.WithConfig(git.Config{
+		Username:       test.Username,
+		Email:          test.Email,
+		WorkingDir:     repodir,
+		Isolated:       true,
+		Env:            []string{},
+		AllowPorcelain: true,
+		GlobalArgs:     []string{"-c", fmt.Sprintf("safe.directory=%s", repodir)},
+	})
+	assert.NoError(t, err, "new git wrapper")
+
+	// Existing values
+	tests := map[string]string{
+		"user.name":      test.Username,
+		"user.email":     test.Email,
+		"safe.directory": repodir,
+	}
+
+	for k, v := range tests {
+		out, err := gw.GetConfigValue(k)
+		assert.NoError(t, err, "git config %s", k)
+		assert.EqualStrings(t, v, out)
+	}
+
+	// Non-existing value
+	_, err = gw.GetConfigValue("nothing")
+	assert.Error(t, err, "git config: non-existing key")
 }
 
 const defaultBranch = "main"
