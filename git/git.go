@@ -42,6 +42,10 @@ type (
 		// commands. It's useful if the user is not sure if all commands used by
 		// their program are plumbing.
 		AllowPorcelain bool
+
+		// Global arguments that are automatically added when executing git commands.
+		// This is useful for setting config overrides or other common flags.
+		GlobalArgs []string
 	}
 
 	// Git is the wrapper object.
@@ -835,6 +839,15 @@ func (git *Git) URL(remote string) (string, error) {
 	return git.exec("remote", "get-url", remote)
 }
 
+// GetConfigValue returns the value mapped to given config key, or an error if they doesn't exist.
+func (git *Git) GetConfigValue(key string) (string, error) {
+	s, err := git.exec("config", key)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(s), nil
+}
+
 func (git *Git) exec(command string, args ...string) (string, error) {
 	logger := log.With().
 		Str("action", "Git.exec()").
@@ -845,10 +858,15 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 
 	cmd := exec.Cmd{
 		Path: git.config.ProgramPath,
-		Args: []string{git.config.ProgramPath, command},
+		Args: []string{git.config.ProgramPath},
 		Dir:  git.config.WorkingDir,
 		Env:  []string{},
 	}
+
+	logger.Trace().Msg("Append global arguments and command")
+
+	cmd.Args = append(cmd.Args, git.config.GlobalArgs...)
+	cmd.Args = append(cmd.Args, command)
 
 	logger.Trace().Msg("Append arguments")
 
