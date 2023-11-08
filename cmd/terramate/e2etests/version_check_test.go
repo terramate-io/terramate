@@ -101,7 +101,7 @@ func TestVersionCheck(t *testing.T) {
 func TestProvidesCorrectVersion(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, false)
 	cli := newCLI(t, s.RootDir())
 	want := tm.Version() + "\n"
 

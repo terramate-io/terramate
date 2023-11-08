@@ -6,7 +6,6 @@ package e2etest
 import (
 	"testing"
 
-	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -17,10 +16,8 @@ func TestE2EListNonGit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.NoGit(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
-
-			test.WriteRootConfig(t, s.RootDir())
 
 			cli := newCLI(t, s.RootDir())
 			var args []string

@@ -246,6 +246,7 @@ func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 
 	args := []string{
 		"-b", defaultBranch,
+		"--template=",
 	}
 
 	if bare {

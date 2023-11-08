@@ -1249,7 +1249,7 @@ var = [
 		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			tempdir := t.TempDir()
+			tempdir := test.TempDir(t)
 
 			got, err := fmt.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))
 
@@ -1361,7 +1361,7 @@ d = []
 				subdirName = "subdir"
 			)
 
-			rootdir := t.TempDir()
+			rootdir := test.TempDir(t)
 			test.Mkdir(t, rootdir, subdirName)
 			subdir := filepath.Join(rootdir, subdirName)
 
@@ -1421,7 +1421,7 @@ d = []
 }
 
 func TestFormatTreeReturnsEmptyResultsForEmptyDir(t *testing.T) {
-	tmpdir := t.TempDir()
+	tmpdir := test.TempDir(t)
 	got, err := fmt.FormatTree(tmpdir)
 	assert.NoError(t, err)
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
@@ -1429,7 +1429,7 @@ func TestFormatTreeReturnsEmptyResultsForEmptyDir(t *testing.T) {
 
 func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 	const subdir = "subdir"
-	tmpdir := t.TempDir()
+	tmpdir := test.TempDir(t)
 	test.Mkdir(t, tmpdir, subdir)
 
 	test.AssertChmod(t, filepath.Join(tmpdir, subdir), 0)
@@ -1442,7 +1442,7 @@ func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 	const filename = "filename.tm"
 
-	tmpdir := t.TempDir()
+	tmpdir := test.TempDir(t)
 	test.WriteFile(t, tmpdir, filename, `globals{
 	a = 2
 		b = 3
@@ -1456,7 +1456,7 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 }
 
 func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
-	tmpdir := t.TempDir()
+	tmpdir := test.TempDir(t)
 	_, err := fmt.FormatTree(filepath.Join(tmpdir, "non-existent"))
 	assert.Error(t, err)
 }
@@ -1472,7 +1472,7 @@ a = 1
 `
 	)
 
-	tmpdir := t.TempDir()
+	tmpdir := test.TempDir(t)
 	test.WriteFile(t, tmpdir, ".file.tm", unformattedCode)
 	test.WriteFile(t, tmpdir, "file.tf", unformattedCode)
 	test.WriteFile(t, tmpdir, "file.hcl", unformattedCode)

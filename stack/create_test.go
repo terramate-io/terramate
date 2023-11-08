@@ -171,7 +171,7 @@ func TestStackCreation(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 			buildImportedFiles(t, s.RootDir(), tc.imports)
 

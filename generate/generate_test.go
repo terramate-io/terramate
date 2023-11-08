@@ -569,7 +569,7 @@ func TestGenerateCleanup(t *testing.T) {
 func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	dir := s.RootEntry().CreateDir("dir")
 	file := dir.CreateFile("file.hcl", genhcl.Header)
 	file.Chmod(0)
@@ -725,7 +725,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				return
 			}
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 
 			configurationFiles := map[string]struct{}{}
@@ -823,17 +823,12 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 
 				assert.NoError(t, err, "checking for unwanted generated files")
 				if d.IsDir() {
-					if d.Name() == ".git" {
-						return filepath.SkipDir
-					}
 					return nil
 				}
 
-				// sandbox creates README.md inside test dirs
 				if d.Name() == config.DefaultFilename ||
 					d.Name() == stackpkg.DefaultFilename ||
-					d.Name() == "README.md" ||
-					d.Name() == ".gitignore" {
+					d.Name() == "root.config.tm" {
 					return nil
 				}
 

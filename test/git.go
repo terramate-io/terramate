@@ -47,7 +47,7 @@ func EmptyRepo(t testing.TB, bare bool) string {
 
 	gw := NewGitWrapper(t, "", []string{})
 
-	repodir := t.TempDir()
+	repodir := TempDir(t)
 	err := gw.Init(repodir, DefBranch, bare)
 	assert.NoError(t, err, "git init")
 

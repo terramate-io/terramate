@@ -21,7 +21,7 @@ func BenchmarkGenerate(b *testing.B) {
 	// Terramate must be smart and only evaluate the used globals.
 
 	b.StopTimer()
-	s := sandbox.New(b)
+	s := sandbox.NoGit(b, true)
 
 	stackPaths := []string{
 		"s1",
@@ -73,7 +73,7 @@ func BenchmarkGenerateRegex(b *testing.B) {
 	// pattern. The tm_regex() function must cache its compiled patterns.
 
 	b.StopTimer()
-	s := sandbox.New(b)
+	s := sandbox.NoGit(b, true)
 
 	stackPaths := []string{
 		"s1",

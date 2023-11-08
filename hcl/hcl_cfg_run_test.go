@@ -14,6 +14,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclutils"
 )
 
@@ -30,7 +31,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 		// We generate the code from the expressions in order to compare it but for that
 		// we need an origin file/data to get the tokens for each expression,
 		// hence all this x_x.
-		rootdir := t.TempDir()
+		rootdir := test.TempDir(t)
 		filepath := filepath.Join(rootdir, "test_file.hcl")
 		assert.NoError(t, os.WriteFile(filepath, []byte(rawattributes), 0700))
 

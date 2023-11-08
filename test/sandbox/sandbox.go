@@ -79,7 +79,7 @@ type FileEntry struct {
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
 func New(t testing.TB) S {
-	s := NoGit(t)
+	s := NoGit(t, false)
 
 	s.git = NewGit(t, s.RootDir())
 	s.git.Init()
@@ -90,7 +90,7 @@ func New(t testing.TB) S {
 // NewWithGitConfig creates a new sandbox using the cfg configuration for the
 // git repository.
 func NewWithGitConfig(t testing.TB, cfg GitConfig) S {
-	s := NoGit(t)
+	s := NoGit(t, false)
 
 	cfg.repoDir = s.RootDir()
 
@@ -105,15 +105,14 @@ func NewWithGitConfig(t testing.TB, cfg GitConfig) S {
 // It is a programming error to use a test env created with a testing.TB other
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
-func NoGit(t testing.TB) S {
+func NoGit(t testing.TB, createProject bool) S {
 	t.Helper()
 
 	// here we create some stacks outside the root directory of the
 	// sandbox so we can check if terramate does not ascend to parent
 	// directories.
 
-	outerDir := t.TempDir()
-
+	outerDir := test.TempDir(t)
 	buildTree(t, config.NewRoot(config.NewTree(outerDir)), nil, []string{
 		"s:this-stack-must-never-be-visible",
 		"s:other-hidden-stack",
@@ -121,6 +120,10 @@ func NoGit(t testing.TB) S {
 
 	rootdir := filepath.Join(outerDir, "sandbox")
 	test.MkdirAll(t, rootdir)
+
+	if createProject {
+		test.WriteRootConfig(t, rootdir)
+	}
 
 	return S{
 		t:       t,

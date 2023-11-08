@@ -335,7 +335,7 @@ func listTestcases() []testcase {
 func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"d:stack"})
 	stackDir := s.DirEntry("stack")
 	stackDir.CreateFile("stack.tm", "stack {}")

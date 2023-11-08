@@ -173,7 +173,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
-	cli := newCLI(t, t.TempDir())
+	cli := newCLI(t, test.TempDir(t))
 
 	git := s.Git()
 	git.CommitAll("first commit")
@@ -310,7 +310,7 @@ func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 	t.Parallel()
 
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 	assertFails := func(stderrRegex string) {
 		t.Helper()
 
@@ -437,7 +437,7 @@ func TestBug515(t *testing.T) {
 
 	// bug: https://github.com/terramate-io/terramate/issues/515
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		"s:stacks/stack",
 		"f:common/file.tm",

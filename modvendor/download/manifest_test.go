@@ -311,7 +311,7 @@ func TestVendorManifest(t *testing.T) {
 			repogit.CommitAll("setup vendored repo")
 
 			gitURI := uri.File(repoSandbox.RootDir())
-			rootdir := t.TempDir()
+			rootdir := test.TempDir(t)
 			source := newSource(t, gitURI, "main")
 
 			vendordir := project.NewPath("/vendor")

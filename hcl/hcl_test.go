@@ -1014,7 +1014,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 func testParser(t *testing.T, tc testcase) {
 	t.Run(tc.name, func(t *testing.T) {
 		t.Parallel()
-		configsDir := t.TempDir()
+		configsDir := test.TempDir(t)
 		for _, inputConfigFile := range tc.input {
 			if inputConfigFile.filename == "" {
 				panic("expect a filename in the input config")
@@ -1109,7 +1109,7 @@ func parse(tc testcase) (hcl.Config, error) {
 }
 
 func TestHCLParseReParsingFails(t *testing.T) {
-	temp := t.TempDir()
+	temp := test.TempDir(t)
 	p, err := hcl.NewTerramateParser(temp, temp)
 	assert.NoError(t, err)
 	test.WriteFile(t, temp, "test.tm", `terramate {}`)
@@ -1125,7 +1125,7 @@ func TestHCLParseReParsingFails(t *testing.T) {
 }
 
 func TestHCLParseProvidesAllParsedBodies(t *testing.T) {
-	cfgdir := t.TempDir()
+	cfgdir := test.TempDir(t)
 	parser, err := hcl.NewTerramateParser(cfgdir, cfgdir)
 	assert.NoError(t, err)
 

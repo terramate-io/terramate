@@ -1715,7 +1715,7 @@ func (tcase testcase) run(t *testing.T) {
 	t.Run(tcase.name, func(t *testing.T) {
 		t.Parallel()
 
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
 		stack := stacks[0].Stack

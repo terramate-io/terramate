@@ -1713,7 +1713,7 @@ EOT
 			const genname = "test"
 			const stackname = "stack"
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			stackEntry := s.CreateStack(stackname)
 			stack := stackEntry.Load(s.Config())
 			path := filepath.Join(s.RootDir(), stackname)

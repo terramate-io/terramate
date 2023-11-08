@@ -62,21 +62,22 @@ func TestVendorModule(t *testing.T) {
 	t.Run("default configuration", func(t *testing.T) {
 		t.Parallel()
 		defaultVendor := project.NewPath("/modules")
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 		checkVendoredFiles(t, s.RootDir(), res, defaultVendor)
+	})
 
-		t.Run("using tm_vendor and generate", func(t *testing.T) {
-			t.Parallel()
-			s := sandbox.New(t)
-			s.CreateStack("stack")
-			s.RootEntry().CreateFile("config.tm", tmVendorGenBlocks())
+	t.Run("using tm_vendor and generate", func(t *testing.T) {
+		t.Parallel()
+		defaultVendor := project.NewPath("/modules")
+		s := sandbox.NoGit(t, true)
+		s.CreateStack("stack")
+		s.RootEntry().CreateFile("config.tm", tmVendorGenBlocks())
 
-			tmcli := newCLI(t, s.RootDir())
-			res := tmcli.run("generate")
-			checkVendoredFiles(t, s.RootDir(), res, defaultVendor)
-		})
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("generate")
+		checkVendoredFiles(t, s.RootDir(), res, defaultVendor)
 	})
 
 	t.Run("root configuration", func(t *testing.T) {
@@ -84,7 +85,7 @@ func TestVendorModule(t *testing.T) {
 		const rootcfg = "/from/root/cfg"
 
 		setup := func() sandbox.S {
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			rootcfg := "/from/root/cfg"
 			s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
 			return s
@@ -113,7 +114,7 @@ func TestVendorModule(t *testing.T) {
 		const dotTerramateCfg = "/from/dottm/cfg"
 
 		setup := func() sandbox.S {
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 
 			rootcfg := "/from/root/cfg"
 			s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
@@ -144,7 +145,7 @@ func TestVendorModule(t *testing.T) {
 
 	t.Run("CLI configuration", func(t *testing.T) {
 		t.Parallel()
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 
 		rootcfg := "/from/root/cfg"
 		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
@@ -161,7 +162,7 @@ func TestVendorModule(t *testing.T) {
 
 	t.Run("CLI configuration with subdir", func(t *testing.T) {
 		t.Parallel()
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 
 		cliCfg := "/with/subdir"
 		gitSource := gitSource + "//subdir"
@@ -174,7 +175,7 @@ func TestVendorModule(t *testing.T) {
 func TestVendorModuleRecursiveDependencyIsPatched(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.NoGit(t)
+	s := sandbox.NoGit(t, false)
 	s.BuildTree([]string{
 		"g:repos/target",
 		"g:repos/dep",
@@ -270,10 +271,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	modC := setupModuleGit("modC", "test", modZ)
 
 	// setup project
-	s := sandbox.NoGit(t)
-	s.RootEntry().CreateConfig(Terramate(
-		Config(),
-	).String())
+	s := sandbox.NoGit(t, true)
 	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", modA, "main")
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})

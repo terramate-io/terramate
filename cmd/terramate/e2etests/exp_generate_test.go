@@ -146,7 +146,7 @@ func TestGenerateDebug(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 			root := s.RootEntry()
 

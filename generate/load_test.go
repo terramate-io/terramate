@@ -538,7 +538,7 @@ func TestLoad(t *testing.T) {
 		tcase := tc
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 			root := s.RootEntry()
 			for _, cfg := range tcase.configs {
