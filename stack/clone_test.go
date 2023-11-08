@@ -85,7 +85,7 @@ func TestStackClone(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 
 			srcdir := filepath.Join(s.RootDir(), tc.src)
@@ -104,8 +104,8 @@ func TestStackClone(t *testing.T) {
 
 func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
-	srcdir := t.TempDir()
+	s := sandbox.NoGit(t, true)
+	srcdir := test.TempDir(t)
 	destdir := filepath.Join(s.RootDir(), "new-stack")
 	err := stack.Clone(s.Config(), destdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
@@ -113,16 +113,16 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 
 func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	srcdir := filepath.Join(s.RootDir(), "src-stack")
-	destdir := t.TempDir()
+	destdir := test.TempDir(t)
 	err := stack.Clone(s.Config(), destdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
 func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		"s:stack",
 		"f:stack/.dotfile",
@@ -178,7 +178,7 @@ generate_hcl "test2.hcl" {
 }
 `
 	)
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")
@@ -232,7 +232,7 @@ stack {
 }
 `
 	)
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")

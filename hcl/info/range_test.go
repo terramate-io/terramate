@@ -11,6 +11,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclutils"
 )
 
@@ -18,7 +19,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 	t.Parallel()
 	// We create a dir to simulate how the path will look
 	// like in different OS's, like Windows.
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 	path := filepath.Join("dir", "sub", "assert.tm")
 	start := Start(1, 1, 0)
 	end := End(3, 2, 37)
@@ -39,7 +40,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 
 func TestRangeStrRepr(t *testing.T) {
 	t.Parallel()
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 	tmrange := info.NewRange(rootdir, Mkrange(
 		filepath.Join(rootdir, "dir", "assert.tm"),
 		Start(1, 1, 0),
@@ -57,7 +58,7 @@ func TestRangeStrRepr(t *testing.T) {
 
 func TestRangeWithFileOnRootdir(t *testing.T) {
 	t.Parallel()
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 	path := "assert.tm"
 	start := Start(0, 0, 0)
 	end := End(0, 0, 0)

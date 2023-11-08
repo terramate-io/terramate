@@ -14,6 +14,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/test"
 	cloudtest "github.com/terramate-io/terramate/test/cloud"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -87,7 +88,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 		{
 			name:       "only unhealthy filter is permitted",
 			layout:     []string{"s:s1:id=s1"},
-			repository: t.TempDir(),
+			repository: test.TempDir(t),
 			flags:      []string{`--experimental-status=drifted`},
 			want: want{
 				trigger: runExpected{
@@ -99,7 +100,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 		{
 			name:       "local repository is not permitted with --experimental-status=unhealthy",
 			layout:     []string{"s:s1:id=s1"},
-			repository: t.TempDir(),
+			repository: test.TempDir(t),
 			flags:      []string{`--experimental-status=unhealthy`},
 			want: want{
 				trigger: runExpected{

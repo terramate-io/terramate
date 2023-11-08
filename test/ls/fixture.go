@@ -24,7 +24,7 @@ type Fixture struct {
 func Setup(t *testing.T, layout ...string) Fixture {
 	t.Helper()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree(layout)
 
 	// WHY: LSP is bidirectional, the editor calls the server

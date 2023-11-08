@@ -14,17 +14,20 @@ import (
 	"github.com/madlambda/spells/assert"
 )
 
+var tmTestRootTempdir string
+
+func init() {
+	tmTestRootTempdir = os.Getenv("TM_TEST_ROOT_TEMPDIR")
+}
+
 // TempDir creates a temporary directory.
-func TempDir(t testing.TB, base string) string {
+func TempDir(t testing.TB) string {
 	t.Helper()
-
-	if base == "" {
-		t.Fatalf("use t.TempDir() for temporary directories inside tmp")
+	if tmTestRootTempdir == "" {
+		// fallback for the slower implementation if env is not set.
+		return t.TempDir()
 	}
-
-	dir, err := os.MkdirTemp(base, "terramate-test")
-	assert.NoError(t, err, "creating temp directory")
-	return CanonPath(t, dir)
+	return tempDir(t, tmTestRootTempdir)
 }
 
 // ReadDir calls os.Readir asserting the success of the operation.
@@ -42,7 +45,7 @@ func WriteFile(t testing.TB, dir string, filename string, content string) string
 	t.Helper()
 
 	if dir == "" {
-		dir = t.TempDir()
+		dir = TempDir(t)
 	}
 
 	path := filepath.Join(dir, filename)
@@ -143,8 +146,8 @@ func RemoveAll(t testing.TB, path string) {
 func NonExistingDir(t testing.TB) string {
 	t.Helper()
 
-	tmp := t.TempDir()
-	tmp2 := TempDir(t, tmp)
+	tmp := TempDir(t)
+	tmp2 := tempDir(t, tmp)
 
 	RemoveAll(t, tmp)
 
@@ -183,4 +186,10 @@ func PrependToPath(env []string, dir string) ([]string, bool) {
 		}
 	}
 	return env, false
+}
+
+func tempDir(t testing.TB, base string) string {
+	dir, err := os.MkdirTemp(base, "terramate-test")
+	assert.NoError(t, err, "creating temp directory")
+	return dir
 }

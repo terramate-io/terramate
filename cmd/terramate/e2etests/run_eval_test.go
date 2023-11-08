@@ -126,13 +126,11 @@ func TestRunEval(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			if len(tc.layout) == 0 {
 				t.Fatal("please set tc.layout, so it run at least 1 stack")
 			}
 			s.BuildTree(tc.layout)
-			git := s.Git()
-			git.CommitAll("everything")
 			tmCli := newCLI(t, s.RootDir())
 			cmd := []string{`run`}
 			if tc.eval {

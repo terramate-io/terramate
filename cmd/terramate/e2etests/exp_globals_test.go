@@ -239,7 +239,7 @@ stack "/stacks/stack-name":
 
 			sandboxes := []sandbox.S{
 				sandbox.New(t),
-				sandbox.NoGit(t),
+				sandbox.NoGit(t, true),
 			}
 
 			for _, s := range sandboxes {
@@ -250,8 +250,6 @@ stack "/stacks/stack-name":
 					test.AppendFile(t, path, "globals.tm",
 						globalBlock.add.String())
 				}
-
-				test.WriteRootConfig(t, s.RootDir())
 
 				ts := newCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
 				assertRunResult(t, ts.run("experimental", "globals"), tcase.want)

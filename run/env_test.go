@@ -220,7 +220,7 @@ func TestLoadRunEnv(t *testing.T) {
 	for _, tcase := range tcases {
 		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)

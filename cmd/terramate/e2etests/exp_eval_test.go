@@ -263,7 +263,7 @@ func TestExpEval(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, false)
 			s.BuildTree(tc.layout)
 			for _, globalBlock := range tc.globals {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
@@ -416,8 +416,7 @@ func TestGetConfigValue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
-
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 
 			for _, globalBlock := range tc.globals {
@@ -425,8 +424,6 @@ func TestGetConfigValue(t *testing.T) {
 				test.AppendFile(t, path, "globals.tm",
 					globalBlock.add.String())
 			}
-
-			test.WriteRootConfig(t, s.RootDir())
 			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
 			globalArgs := []string{}
 			for globalName, globalExpr := range tc.overrideGlobals {

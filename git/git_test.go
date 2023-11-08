@@ -148,7 +148,7 @@ func TestClone(t *testing.T) {
 	git.CommitAll("add file")
 
 	repoURL := "file://" + s.RootDir()
-	cloneDir := t.TempDir()
+	cloneDir := test.TempDir(t)
 	git.Clone(repoURL, cloneDir)
 
 	got := test.ReadFile(t, cloneDir, filename)

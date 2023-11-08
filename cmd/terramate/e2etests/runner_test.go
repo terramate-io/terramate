@@ -70,7 +70,7 @@ func newCLI(t *testing.T, chdir string, env ...string) tmcli {
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	// custom cliconfig file
-	tm.userDir = t.TempDir()
+	tm.userDir = test.TempDir(t)
 	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))
 	env = append(env,
 		"TM_CLI_CONFIG_FILE="+cliConfigPath,

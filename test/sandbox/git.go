@@ -104,7 +104,7 @@ func (git *Git) initRemoteRepo(branchName string) string {
 	t := git.t
 	t.Helper()
 
-	git.bareRepo = t.TempDir()
+	git.bareRepo = test.TempDir(t)
 	baregit := test.NewGitWrapper(t, git.bareRepo, []string{})
 
 	err := baregit.Init(git.bareRepo, branchName, true)

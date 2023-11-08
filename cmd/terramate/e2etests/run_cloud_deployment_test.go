@@ -367,7 +367,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 		tm := newCLI(t, s.RootDir())
 		tm.appendEnv = append(tm.appendEnv, "TMC_API_URL=http://"+l.Addr().String())
 		tm.loglevel = "debug"
-		ghConfigDir := t.TempDir()
+		ghConfigDir := test.TempDir(t)
 		test.WriteFile(t, ghConfigDir, "hosts.yml", `github.com:
     user: test
     oauth_token: abcd

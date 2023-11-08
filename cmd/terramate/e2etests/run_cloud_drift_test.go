@@ -49,7 +49,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		want          want
 	}
 
-	absPlanFilePath := test.WriteFile(t, t.TempDir(), "out.tfplan", ``)
+	absPlanFilePath := test.WriteFile(t, test.TempDir(t), "out.tfplan", ``)
 
 	for _, tc := range []testcase{
 		{

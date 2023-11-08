@@ -40,3 +40,5 @@ jobs:
 
       - name: make build
         run: make build
+
+      - uses: Kesin11/actions-timeline@v1

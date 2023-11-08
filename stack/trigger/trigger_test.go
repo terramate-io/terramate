@@ -80,7 +80,7 @@ func TestTriggerStacks(t *testing.T) {
 }
 
 func testTrigger(t *testing.T, tc testcase) {
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree(tc.layout)
 	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(t, err)
@@ -241,7 +241,7 @@ func TestTriggerParser(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			file := test.WriteFile(t, t.TempDir(), "test-trigger.hcl", tc.body.String())
+			file := test.WriteFile(t, test.TempDir(t), "test-trigger.hcl", tc.body.String())
 			_, err := trigger.ParseFile(file)
 			errtest.Assert(t, err, tc.err, "when parsing: %s", tc.body)
 		})

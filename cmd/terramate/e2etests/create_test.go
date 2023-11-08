@@ -43,7 +43,7 @@ func TestCreateStack(t *testing.T) {
 	}
 
 	testCreate := func(t *testing.T, flags ...string) {
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 		cli := newCLI(t, s.RootDir())
 		createFile(s, stackImport1)
 		createFile(s, stackImport2)
@@ -126,7 +126,7 @@ func TestCreateStack(t *testing.T) {
 func TestCreateStackDefaults(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	cli := newCLI(t, s.RootDir())
 	cli.run("create", "stack")
 
@@ -153,7 +153,7 @@ func TestCreateStackDefaults(t *testing.T) {
 func TestCreateStackIgnoreExistingOnDefaultStackCfgFound(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	cli := newCLI(t, s.RootDir())
 	assertRunResult(t, cli.run("create", "stack"), runExpected{
 		IgnoreStdout: true,
@@ -168,7 +168,7 @@ func TestCreateStackIgnoreExistingOnDefaultStackCfgFound(t *testing.T) {
 func TestCreateStackIgnoreExistingOnStackFound(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		"f:stack/non_default_cfg.tm:stack{\n}",
 	})
@@ -183,7 +183,7 @@ func TestCreateStackIgnoreExistingOnStackFound(t *testing.T) {
 func TestCreateStackIgnoreExistingFatalOnOtherErrors(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	root := s.RootEntry()
 	root.CreateFile("stack", "")
 	// Here we fail stack creating because a file with the same name exists
@@ -199,7 +199,7 @@ func TestCreateFailsWithIncompatibleFlags(t *testing.T) {
 	t.Parallel()
 
 	test := func(t *testing.T, args ...string) {
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 		root := s.RootEntry()
 		root.CreateDir("stack")
 		cli := newCLI(t, s.RootDir())
@@ -255,7 +255,7 @@ func TestCreateFailsWithIncompatibleFlags(t *testing.T) {
 }
 
 func TestCreateWithAllTerraformModuleAtRoot(t *testing.T) {
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		`f:main.tf:terraform {
 			backend "remote" {
@@ -277,7 +277,7 @@ func TestCreateWithAllTerraformModuleAtRoot(t *testing.T) {
 
 func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
 	testCase := func(t *testing.T, generate bool) {
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 		const backendContent = `terraform {
 		backend "remote" {
 			attr = "value"
@@ -350,7 +350,7 @@ Created stack /prod/stacks/B
 }
 
 func TestCreateWithAllTerraformSkipActualStacks(t *testing.T) {
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		`s:stack`,
 		`f:stack/main.tf:terraform {
@@ -365,7 +365,7 @@ func TestCreateWithAllTerraformSkipActualStacks(t *testing.T) {
 }
 
 func TestCreateWithAllTerraformDetectModulesInsideStacks(t *testing.T) {
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	const backendContent = `terraform {
 		backend "remote" {
 			attr = "value"
@@ -433,7 +433,7 @@ func TestCreateEnsureStackID(t *testing.T) {
 }
 
 func testEnsureStackID(t *testing.T, wd string, layout []string) {
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree(layout)
 	if wd == "" {
 		wd = s.RootDir()

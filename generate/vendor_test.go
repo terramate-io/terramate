@@ -248,7 +248,7 @@ func TestGenerateVendor(t *testing.T) {
 func TestGenerateVendorRequestEvents(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"s:stack"})
 	rootentry := s.RootEntry()
 

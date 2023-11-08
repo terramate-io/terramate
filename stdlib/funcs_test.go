@@ -124,7 +124,7 @@ func TestTmVendor(t *testing.T) {
 		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			rootdir := t.TempDir()
+			rootdir := test.TempDir(t)
 			events := make(chan event.VendorRequest)
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
@@ -284,7 +284,7 @@ func TestStdlibTmVersionMatch(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
-			rootdir := t.TempDir()
+			rootdir := test.TempDir(t)
 			ctx := eval.NewContext(stdlib.Functions(rootdir))
 			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
 			errors.Assert(t, err, tc.wantErr)
@@ -315,7 +315,7 @@ func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
 		}
 	}()
 
-	stdlib.Functions(filepath.Join(t.TempDir(), "non-existent"))
+	stdlib.Functions(filepath.Join(test.TempDir(t), "non-existent"))
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
@@ -326,7 +326,7 @@ func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
 		}
 	}()
 
-	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
+	path := test.WriteFile(t, test.TempDir(t), "somefile.txt", ``)
 	_ = stdlib.Functions(path)
 }
 

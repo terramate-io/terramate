@@ -50,7 +50,7 @@ generate_hcl "test2.hcl" {
 }
 `
 	)
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")

@@ -852,7 +852,7 @@ func TestCLIRunOrder(t *testing.T) {
 			t.Parallel()
 			sandboxes := []sandbox.S{
 				sandbox.New(t),
-				sandbox.NoGit(t),
+				sandbox.NoGit(t, true),
 			}
 
 			for _, s := range sandboxes {
@@ -860,7 +860,6 @@ func TestCLIRunOrder(t *testing.T) {
 				t.Run("run on sandbox", func(t *testing.T) {
 					t.Parallel()
 					s.BuildTree(tc.layout)
-					test.WriteRootConfig(t, s.RootDir())
 
 					wd := s.RootDir()
 					if tc.workingDir != "" {
@@ -1435,7 +1434,7 @@ func TestRunWantedBy(t *testing.T) {
 func testRunSelection(t *testing.T, tc selectionTestcase) {
 	sandboxes := []sandbox.S{
 		sandbox.New(t),
-		sandbox.NoGit(t),
+		sandbox.NoGit(t, true),
 	}
 
 	for _, s := range sandboxes {
@@ -1443,7 +1442,6 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			s.BuildTree(tc.layout)
-			test.WriteRootConfig(t, s.RootDir())
 
 			var baseArgs []string
 			for _, filter := range tc.filterTags {
@@ -2372,7 +2370,7 @@ func nljoin(stacks ...string) string {
 }
 
 func testEnviron(t *testing.T) []string {
-	tempHomeDir := t.TempDir()
+	tempHomeDir := test.TempDir(t)
 	env := []string{
 		fmt.Sprintf("%s="+tempHomeDir, cliconfig.DirEnv),
 		"PATH=" + os.Getenv("PATH"),
