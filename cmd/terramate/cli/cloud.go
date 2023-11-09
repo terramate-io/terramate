@@ -461,6 +461,8 @@ func setGithubActionsMetadata(md *cloud.DeploymentMetadata) {
 	md.GithubActionsDeploymentBranch = os.Getenv("GITHUB_REF_NAME")
 	md.GithubActionsRunID = os.Getenv("GITHUB_RUN_ID")
 	md.GithubActionsRunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
+	md.GithubActionsWorkflowName = os.Getenv("GITHUB_WORKFLOW")
+	md.GithubActionsWorkflowRef = os.Getenv("GITHUB_WORKFLOW_REF")
 }
 
 func setGithubCommitMetadata(md *cloud.DeploymentMetadata, commit *github.Commit) {

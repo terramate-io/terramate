@@ -202,6 +202,8 @@ type (
 		GithubActionsDeploymentTriggeredBy string `json:"github_actions_triggered_by,omitempty"`
 		GithubActionsRunID                 string `json:"github_actions_run_id,omitempty"`
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
+		GithubActionsWorkflowName          string `json:"github_actions_workflow_name,omitempty"`
+		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
