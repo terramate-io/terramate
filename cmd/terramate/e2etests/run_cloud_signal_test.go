@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -169,7 +169,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: stack.Failed,
+							Status: drift.Failed,
 						},
 					},
 				},

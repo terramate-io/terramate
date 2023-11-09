@@ -216,6 +216,10 @@ type cliSpec struct {
 		Cloud struct {
 			Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
 			Info  struct{} `cmd:"" help:"cloud information status"`
+			Drift struct {
+				Show struct {
+				} `cmd:"" help:"show drifts"`
+			} `cmd:"" help:"manage cloud drifts"`
 		} `cmd:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -572,6 +576,8 @@ func (c *cli) run() {
 		c.getConfigValue()
 	case "experimental cloud info":
 		c.cloudInfo()
+	case "experimental cloud drift show":
+		c.cloudDriftShow()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -993,7 +999,7 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.Stacks(ctx, c.cloud.run.orgUUID, status)
+		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, status)
 		if err != nil {
 			fatal(err)
 		}
