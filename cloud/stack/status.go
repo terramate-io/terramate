@@ -5,7 +5,6 @@
 package stack
 
 import (
-	"bytes"
 	"encoding/json"
 	"math/bits"
 	"strconv"
@@ -16,17 +15,11 @@ import (
 const (
 	// ErrInvalidStatus represents an invalid stack status error.
 	ErrInvalidStatus errors.Kind = "invalid stack status"
-
-	// ErrInvalidFilterStatus represents an invalid filter stack status error.
-	ErrInvalidFilterStatus errors.Kind = "invalid filter stack status"
 )
 
 type (
 	// Status of a stack.
 	Status uint8
-
-	// FilterStatus represents a filter for stack statuses.
-	FilterStatus Status
 )
 
 const (
@@ -37,15 +30,6 @@ const (
 	Canceled                        // Canceled indicates the deployment of the stack was canceled.
 	Unrecognized                    // Unrecognized indicates any status returned from TMC but still not recognized by the client.
 	lastStatus   = Unrecognized
-)
-
-const (
-	// UnhealthyFilter status is used for filtering not Ok status.
-	UnhealthyFilter FilterStatus = FilterStatus(Unknown | Drifted | Failed | Canceled | Unrecognized)
-	// AllFilter filters for any stacks statuses.
-	AllFilter FilterStatus = FilterStatus(OK) | UnhealthyFilter
-	// NoFilter disables the filtering for statuses.
-	NoFilter FilterStatus = 0
 )
 
 // NewStatus creates a new stack status from a string.
@@ -112,38 +96,4 @@ func (s Status) String() string {
 	default:
 		return "unrecognized"
 	}
-}
-
-// NewStatusFilter creates a new filter for stack statuses.
-func NewStatusFilter(str string) FilterStatus {
-	if str == "unhealthy" {
-		return UnhealthyFilter
-	}
-
-	return FilterStatus(NewStatus(str))
-}
-
-// Validate the status filter.
-func (f FilterStatus) Validate() error {
-	if f > UnhealthyFilter {
-		return errors.E(ErrInvalidFilterStatus)
-	}
-	return nil
-}
-
-func (f FilterStatus) String() string {
-	if f == UnhealthyFilter {
-		return "unhealthy"
-	}
-	var out bytes.Buffer
-
-	for _, s := range []Status{OK, Drifted, Canceled, Unknown} {
-		if Status(f)&s > 0 {
-			if out.Len() > 0 {
-				_, _ = out.WriteRune('|')
-			}
-			_, _ = out.WriteString(s.String())
-		}
-	}
-	return out.String()
 }

@@ -32,16 +32,6 @@ func TestCloudListUnhealthy(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name:       "only unhealthy filter is permitted",
-			layout:     []string{"s:s1:id=s1"},
-			repository: test.TempDir(t),
-			flags:      []string{`--experimental-status=drifted`},
-			want: runExpected{
-				Status:      1,
-				StderrRegex: "only unhealthy filter allowed",
-			},
-		},
-		{
 			name:       "local repository is not permitted with --experimental-status=unhealthy",
 			layout:     []string{"s:s1:id=s1"},
 			repository: test.TempDir(t),
@@ -163,6 +153,172 @@ func TestCloudListUnhealthy(t *testing.T) {
 			flags: []string{`--experimental-status=unhealthy`},
 			want: runExpected{
 				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack drifted, other failed, return both when filter=unhealthy",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloud.StackResponse{
+				{
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Drifted,
+					DeploymentStatus: deployment.Failed,
+					DriftStatus:      drift.Drifted,
+				},
+				{
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+			},
+			flags: []string{`--experimental-status=unhealthy`},
+			want: runExpected{
+				Stdout: nljoin("s1", "s2"),
+			},
+		},
+		// RESUME add new test for filter=drifted
+		{
+			name: "1 cloud stack drifted, other drifted, return both when filter=drifted",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloud.StackResponse{
+				{
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Drifted,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Drifted,
+				},
+				{
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Drifted,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.Drifted,
+				},
+			},
+			flags: []string{`--experimental-status=drifted`},
+			want: runExpected{
+				Stdout: nljoin("s1", "s2"),
+			},
+		},
+		{
+			name: "1 cloud stack ok, other failed, return first when filter=ok",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloud.StackResponse{
+				{
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.OK,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+				{
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+			},
+			flags: []string{`--experimental-status=ok`},
+			want: runExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack ok, other failed, return second when filter=failed",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloud.StackResponse{
+				{
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.OK,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+				{
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+			},
+			flags: []string{`--experimental-status=failed`},
+			want: runExpected{
+				Stdout: nljoin("s2"),
+			},
+		},
+		{
+			name: "1 cloud stack ok, other failed, return both when no filter is provided",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloud.StackResponse{
+				{
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.OK,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+				{
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+			},
+			flags: []string{},
+			want: runExpected{
+				Stdout: nljoin("s1", "s2"),
 			},
 		},
 		{

@@ -1372,13 +1372,11 @@ func (c *cli) printStacks() {
 }
 
 func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
-	status := cloudstack.NoFilter
-	if strStatus != "" {
-		status = cloudstack.NewStatusFilter(strStatus)
-		if status != cloudstack.UnhealthyFilter {
-			fatal(errors.E("only %s filter allowed", cloudstack.UnhealthyFilter))
-		}
+	status := cloudstack.NewFilterStatus(strStatus)
+	if status == cloudstack.FilterStatusUnrecognized {
+		fatal(errors.E("unrecognized filter %s provided", strStatus))
 	}
+
 	return status
 }
 

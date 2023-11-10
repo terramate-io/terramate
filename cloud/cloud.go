@@ -91,7 +91,7 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 // StacksByStatus returns all stacks for the given organization.
 func (c *Client) StacksByStatus(ctx context.Context, orgUUID string, status stack.FilterStatus) (StacksResponse, error) {
 	path := path.Join(StacksPath, orgUUID)
-	if status == stack.UnhealthyFilter {
+	if status != stack.NoFilter {
 		path += "?status=" + status.String()
 	}
 	return Get[StacksResponse](ctx, c, path)

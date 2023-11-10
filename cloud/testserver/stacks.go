@@ -38,15 +38,11 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	orguuid := params.ByName("orguuid")
 	filterStatusStr := r.FormValue("status")
-	filterStatus := stack.AllFilter
+	filterStatus := stack.NewFilterStatus(filterStatusStr)
 
-	if filterStatusStr != "" && filterStatusStr != "unhealthy" {
+	if filterStatusStr != "" && filterStatus == stack.FilterStatusUnrecognized {
 		w.WriteHeader(http.StatusBadRequest)
 		return
-	}
-
-	if filterStatusStr == "unhealthy" {
-		filterStatus = stack.UnhealthyFilter
 	}
 
 	w.Header().Add("Content-Type", "application/json")
@@ -63,7 +59,7 @@ func (handler *stackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, st := range stacksMap {
-			if stack.FilterStatus(st.Status)&filterStatus != 0 {
+			if filterStatus.MetaEquals(st.Status.String()) {
 				stacks = append(stacks, st)
 			}
 		}
