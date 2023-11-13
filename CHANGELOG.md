@@ -30,6 +30,10 @@ file in rendered ASCII and JSON (sensitive information removed).
 - Add sync of logs to _Terramate Cloud_ when using `--cloud-sync-deployment` flag.
 - Add `terramate experimental cloud drift show` for retrieving drift details from Terramate Cloud.
 
+### Fixed
+
+- Missing file ranges in the parsing errors of some stack block attributes.
+
 ## 0.4.2
 
 ### Added

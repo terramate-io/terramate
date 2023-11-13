@@ -710,22 +710,22 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 			// below change in the future**.
 
 		case "tags":
-			errs.Append(assignSet(attr.Name, &stack.Tags, attrVal))
+			errs.Append(assignSet(attr, &stack.Tags, attrVal))
 
 		case "after":
-			errs.Append(assignSet(attr.Name, &stack.After, attrVal))
+			errs.Append(assignSet(attr, &stack.After, attrVal))
 
 		case "before":
-			errs.Append(assignSet(attr.Name, &stack.Before, attrVal))
+			errs.Append(assignSet(attr, &stack.Before, attrVal))
 
 		case "wants":
-			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
+			errs.Append(assignSet(attr, &stack.Wants, attrVal))
 
 		case "wanted_by":
-			errs.Append(assignSet(attr.Name, &stack.WantedBy, attrVal))
+			errs.Append(assignSet(attr, &stack.WantedBy, attrVal))
 
 		case "watch":
-			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
+			errs.Append(assignSet(attr, &stack.Watch, attrVal))
 
 		default:
 			errs.Append(errors.E(
@@ -1115,7 +1115,7 @@ func validateGenerateFileBlock(block *ast.Block) error {
 	return errs.AsError()
 }
 
-func assignSet(name string, target *[]string, val cty.Value) error {
+func assignSet(attr *hcl.Attribute, target *[]string, val cty.Value) error {
 	logger := log.With().
 		Str("action", "hcl.assignSet()").
 		Logger()
@@ -1127,8 +1127,8 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
 	// we have to check the elements themselves.
 	if !val.Type().IsTupleType() && !val.Type().IsListType() {
-		return errors.E(ErrTerramateSchema, "field %q must be a set(string) but "+
-			"found a %q", name, val.Type().FriendlyName())
+		return errors.E(ErrTerramateSchema, attr.Expr.Range(),
+			"field %q must be a set(string) but found a %q", attr.Name, val.Type().FriendlyName())
 	}
 
 	logger.Trace().Msg("Iterate over values.")
@@ -1145,8 +1145,9 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 		logger.Trace().Msg("Check element is of correct type.")
 
 		if elem.Type() != cty.String {
-			errs.Append(errors.E("field %q must be a set(string) but element %d "+
-				"has type %q", name, index, elem.Type().FriendlyName()))
+			errs.Append(errors.E(ErrTerramateSchema, attr.Expr.Range(),
+				"field %q must be a set(string) but element %d has type %q",
+				attr.Name, index, elem.Type().FriendlyName()))
 
 			continue
 		}
@@ -1155,8 +1156,9 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 
 		str := elem.AsString()
 		if _, ok := values[str]; ok {
-			errs.Append(errors.E("duplicated entry %q in the index %d of field %q"+
-				" of type set(string)", str, name))
+			errs.Append(errors.E(ErrTerramateSchema, attr.Expr.Range(),
+				"duplicated entry %q in the index %d of field %q of type set(string)",
+				str, attr.Name))
 
 			continue
 		}
@@ -1395,7 +1397,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 				errs.Append(err)
 				continue
 			}
-			if err := assignSet(attr.Name, &cfg.Manifest.Default.Files, attrVal); err != nil {
+			if err := assignSet(attr.Attribute, &cfg.Manifest.Default.Files, attrVal); err != nil {
 				errs.Append(errors.E(err, attr.NameRange))
 			}
 		default:
