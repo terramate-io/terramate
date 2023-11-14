@@ -107,7 +107,7 @@ Successes:
 	[-] removed1.tf
 	[-] removed2.tf
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.`,
 			wantMinimal: `Created file /test/test
 Changed file /test2/test
 Deleted file /test3/test
@@ -155,7 +155,7 @@ Failures:
 	[-] removed1.tf
 	[-] removed2.tf
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.`,
 			wantMinimal: `Error on /test: full error
 Error on /test2: partial error
 Created file /test2/created1.tf
@@ -219,7 +219,7 @@ Failures:
 - /failed2
 	error: error
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.`,
 			wantMinimal: `Created file /success/created.tf
 Changed file /success/changed.tf
 Deleted file /success/removed.tf
@@ -269,7 +269,7 @@ Failures:
 	error: error1
 	error: error2
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.`,
 			wantMinimal: `Error on /failed: error
 Error on /failed2: error1
 Error on /failed2: error2`,
@@ -299,7 +299,7 @@ Successes:
 Fatal failure while cleaning up generated code outside stacks:
 	error: cleanup error
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.`,
 			wantMinimal: `Created file /success/created.tf
 Changed file /success/changed.tf
 Deleted file /success/removed.tf

@@ -124,7 +124,7 @@ func (r Report) Full() string {
 	}
 
 	if needsHint {
-		addLine("Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.")
+		addLine("Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.")
 	}
 
 	return strings.Join(report, "\n")
