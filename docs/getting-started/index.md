@@ -308,7 +308,7 @@ Successes:
 - /dev/mysite
         [~] mysite.tf
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
 ```
 
 Commit the changed files with `git commit -am 'changed dev title'`, then run `terramate list --changed`. This command displays stacks with outstanding changes compared to the main branch:

@@ -116,7 +116,7 @@ Successes:
 	[+] file.hcl
 	[+] file.txt
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
 `,
 				},
 				files: []file{
@@ -166,7 +166,7 @@ Successes:
 	[+] file.hcl
 	[+] file.txt
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
 Vendor report:
 
 [+] %s
@@ -254,7 +254,7 @@ Successes:
 - /stack2
 	[+] file.hcl
 
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
 `,
 				},
 				files: []file{
