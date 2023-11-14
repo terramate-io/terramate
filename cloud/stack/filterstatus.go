@@ -14,7 +14,7 @@ const (
 )
 
 type (
-	// FilterStatus represents the query paramater used for filtering stacks via the API
+	// FilterStatus represents the query parameter used for filtering stacks via the API
 	FilterStatus string
 )
 
