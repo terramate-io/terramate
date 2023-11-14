@@ -74,7 +74,9 @@ The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
 The ID can't be bigger than 64 bytes, **it's case insensitive** and
 **must** be unique on the whole project.
 
-There is no default value determined for the stack ID.
+There is no default value determined for the stack ID, but when users use
+the [create](../cmdline/create.md) command to create new stacks or the [clone](../cmdline/clone.md)
+command to clone stacks, the ID will default to a [random UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier#:~:text=Version%204%20(random)%5Bedit%5D).
 
 ```hcl
 stack {
