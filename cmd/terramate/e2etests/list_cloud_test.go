@@ -322,6 +322,39 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 		},
 		{
+			name: "1 cloud stack ok, other failed, return both when all filter is provided",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloud.StackResponse{
+				{
+					ID: 1,
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.OK,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+				{
+					ID: 2,
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					Status:           stack.Failed,
+					DeploymentStatus: deployment.OK,
+					DriftStatus:      drift.OK,
+				},
+			},
+			flags: []string{`--experimental-status=all`},
+			want: runExpected{
+				Stdout: nljoin("s1", "s2"),
+			},
+		},
+		{
 			name:   "no local stacks, 2 unhealthy stacks, return nothing",
 			layout: []string{},
 			stacks: []cloud.StackResponse{

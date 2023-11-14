@@ -24,6 +24,7 @@ const (
 	FilterStatusFailed    FilterStatus = "failed"    // FilterStatusFailed represents a failed status filter
 	FilterStatusHealthy   FilterStatus = "healthy"   // FilterStatusHealthy represents a healthy status filter
 	FilterStatusUnhealthy FilterStatus = "unhealthy" // FilterStatusUnhealthy represents an unhealthy status filter
+	FilterStatusAll       FilterStatus = "all"       // FilterStatusAll represents an all status filter
 )
 
 const (
@@ -40,6 +41,8 @@ func NewFilterStatus(status string) FilterStatus {
 		return FilterStatusHealthy
 	case "unhealthy":
 		return FilterStatusUnhealthy
+	case "all":
+		return FilterStatusAll
 	case "ok":
 		return FilterStatusOK
 	case "drifted":
@@ -69,6 +72,8 @@ func (s FilterStatus) MetaEquals(status string) bool {
 		return isHealthyStatus(parsedStatus)
 	case FilterStatusUnhealthy:
 		return isUnhealthyStatus(parsedStatus)
+	case FilterStatusAll:
+		return true
 	default:
 		return parsedStatus == s
 	}

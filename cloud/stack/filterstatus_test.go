@@ -24,6 +24,7 @@ func TestNewStatus(t *testing.T) {
 		{status: "failed", want: stack.FilterStatusFailed},
 		{status: "healthy", want: stack.FilterStatusHealthy},
 		{status: "unhealthy", want: stack.FilterStatusUnhealthy},
+		{status: "all", want: stack.FilterStatusAll},
 		{status: "abc", want: stack.FilterStatusUnrecognized},
 		{status: "", want: stack.NoFilter},
 	} {
@@ -48,6 +49,9 @@ func TestMetaEquals(t *testing.T) {
 		{filterStatus: stack.NewFilterStatus("healthy"), status: "ok", want: true},
 		{filterStatus: stack.NewFilterStatus("unhealthy"), status: "drifted", want: true},
 		{filterStatus: stack.NewFilterStatus("unhealthy"), status: "failed", want: true},
+		{filterStatus: stack.NewFilterStatus("all"), status: "failed", want: true},
+		{filterStatus: stack.NewFilterStatus("all"), status: "ok", want: true},
+		{filterStatus: stack.NewFilterStatus("all"), status: "drifted", want: true},
 		{filterStatus: stack.NewFilterStatus("ok"), status: "ok", want: true},
 		{filterStatus: stack.NewFilterStatus("ok"), status: "failed", want: false},
 		{filterStatus: stack.NewFilterStatus("ok"), status: "abc123", want: false},
