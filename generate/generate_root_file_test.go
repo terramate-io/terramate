@@ -709,7 +709,7 @@ func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T
 
 	const filename = "file.txt"
 
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 
 	assertFileExist := func(file string) {
 		t.Helper()

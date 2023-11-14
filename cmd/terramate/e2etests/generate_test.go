@@ -280,7 +280,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 
 			for _, file := range tcase.files {
@@ -363,7 +363,7 @@ func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
 	runFromDir := func(t *testing.T, wd string) {
 		t.Run(fmt.Sprintf("terramate -C %s generate", wd), func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree([]string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",

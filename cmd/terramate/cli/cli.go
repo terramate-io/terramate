@@ -159,8 +159,9 @@ type cliSpec struct {
 
 	Experimental struct {
 		Clone struct {
-			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
-			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
+			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
+			DestDir         string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
+			SkipChildStacks bool   `default:"false" help:"Clone ignores child stacks"`
 		} `cmd:"" help:"Clones a stack"`
 
 		Trigger struct {
@@ -216,6 +217,10 @@ type cliSpec struct {
 		Cloud struct {
 			Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
 			Info  struct{} `cmd:"" help:"cloud information status"`
+			Drift struct {
+				Show struct {
+				} `cmd:"" help:"show drifts"`
+			} `cmd:"" help:"manage cloud drifts"`
 		} `cmd:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -572,6 +577,8 @@ func (c *cli) run() {
 		c.getConfigValue()
 	case "experimental cloud info":
 		c.cloudInfo()
+	case "experimental cloud drift show":
+		c.cloudDriftShow()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
@@ -779,26 +786,30 @@ func (c *cli) triggerStack(stack string) {
 }
 
 func (c *cli) cloneStack() {
-	srcstack := c.parsedArgs.Experimental.Clone.SrcDir
-	deststack := c.parsedArgs.Experimental.Clone.DestDir
+	srcdir := c.parsedArgs.Experimental.Clone.SrcDir
+	destdir := c.parsedArgs.Experimental.Clone.DestDir
+	skipChildStacks := c.parsedArgs.Experimental.Clone.SkipChildStacks
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("action", "cli.cloneStack()").
-		Str("src", srcstack).
-		Str("dest", deststack).
+		Str("src", srcdir).
+		Str("dest", destdir).
+		Bool("skipChildStacks", skipChildStacks).
 		Logger()
 
 	logger.Trace().Msg("cloning stack")
 
-	srcdir := filepath.Join(c.wd(), srcstack)
-	destdir := filepath.Join(c.wd(), deststack)
+	// Convert to absolute paths
+	absSrcdir := filepath.Join(c.wd(), srcdir)
+	absDestdir := filepath.Join(c.wd(), destdir)
 
-	if err := stack.Clone(c.cfg(), destdir, srcdir); err != nil {
-		fatal(err, "cloning %s to %s", srcstack, deststack)
+	n, err := stack.Clone(c.cfg(), absDestdir, absSrcdir, skipChildStacks)
+	if err != nil {
+		fatal(err, "cloning %s to %s", srcdir, destdir)
 	}
 
-	c.output.MsgStdOut("Cloned stack %s to %s with success", srcstack, deststack)
-	c.output.MsgStdOut("Generating code on the new cloned stack")
+	c.output.MsgStdOut("Cloned %d stack(s) from %s to %s with success", n, srcdir, destdir)
+	c.output.MsgStdOut("Generating code on the new cloned stack(s)")
 
 	c.generate()
 }
@@ -993,7 +1004,7 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.Stacks(ctx, c.cloud.run.orgUUID, status)
+		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, status)
 		if err != nil {
 			fatal(err)
 		}

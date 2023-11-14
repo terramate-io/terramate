@@ -88,13 +88,45 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 	return Get[MemberOrganizations](ctx, c, MembershipsPath)
 }
 
-// Stacks returns all stacks for the given organization.
-func (c *Client) Stacks(ctx context.Context, orgUUID string, status stack.FilterStatus) (StacksResponse, error) {
+// StacksByStatus returns all stacks for the given organization.
+func (c *Client) StacksByStatus(ctx context.Context, orgUUID string, status stack.FilterStatus) (StacksResponse, error) {
 	path := path.Join(StacksPath, orgUUID)
 	if status == stack.UnhealthyFilter {
 		path += "?status=" + status.String()
 	}
 	return Get[StacksResponse](ctx, c, path)
+}
+
+// GetStack retrieves the details of the stack with given repo and metaID.
+func (c *Client) GetStack(ctx context.Context, orgUUID, repo, metaID string) (StackResponse, bool, error) {
+	path := path.Join(StacksPath, orgUUID)
+	path += fmt.Sprintf("?repository=%s&meta_id=%s", repo, metaID)
+	stacks, err := Get[StacksResponse](ctx, c, path)
+	if err != nil {
+		return StackResponse{}, false, err
+	}
+	if len(stacks.Stacks) == 0 {
+		return StackResponse{}, false, nil
+	}
+	if len(stacks.Stacks) != 1 {
+		return StackResponse{}, false, errors.E("org+repo+meta_id must be unique. Unexpected TMC backend response")
+	}
+	return stacks.Stacks[0], true, nil
+}
+
+// StackDrifts returns the drifts of the given stack.
+func (c *Client) StackDrifts(ctx context.Context, orgUUID string, stackID int, limit int) (Drifts, error) {
+	path := path.Join(StacksPath, orgUUID, strconv.Itoa(stackID), "drifts")
+	if limit != 0 {
+		path += "?limit=" + strconv.Itoa(limit)
+	}
+	return Get[Drifts](ctx, c, path)
+}
+
+// DriftDetails retrieves details of the given driftID.
+func (c *Client) DriftDetails(ctx context.Context, orgUUID string, stackID int, driftID int) (Drift, error) {
+	path := path.Join(DriftsPath, orgUUID, strconv.Itoa(stackID), strconv.Itoa(driftID))
+	return Get[Drift](ctx, c, path)
 }
 
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.

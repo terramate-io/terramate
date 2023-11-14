@@ -786,7 +786,7 @@ func TestDownloadVendor(t *testing.T) {
 		source := applyConfigTemplate(t, tc.source, uriModulesDir)
 		return fixture{
 			modsrc:        test.ParseSource(t, source),
-			rootdir:       t.TempDir(),
+			rootdir:       test.TempDir(t),
 			vendorDir:     project.NewPath(tc.vendordir),
 			uriModulesDir: uriModulesDir,
 		}
@@ -1003,7 +1003,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	repogit.Checkout("main")
 
 	gitURI := uri.File(repoSandbox.RootDir())
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURI, ref))
 	assert.NoError(t, err)
@@ -1041,7 +1041,7 @@ func TestModVendorWithRef(t *testing.T) {
 	repogit.CommitAll("add file")
 
 	gitURI := uri.File(repoSandbox.RootDir())
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 
 	source := newSource(t, gitURI, ref)
 
@@ -1110,7 +1110,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	g.CommitAll("add file")
 
 	gitURI := uri.File(s.RootDir())
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=main", gitURI))
 	assert.NoError(t, err)
@@ -1139,7 +1139,7 @@ func TestModVendorNoRefFails(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)
 	gitURI := uri.File(s.RootDir())
-	rootdir := t.TempDir()
+	rootdir := test.TempDir(t)
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURI))
 	assert.NoError(t, err)

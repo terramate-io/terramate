@@ -355,7 +355,7 @@ func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
 }
 
 // WriteRootConfig writes a basic terramate root config.
-func WriteRootConfig(t *testing.T, rootdir string) {
+func WriteRootConfig(t testing.TB, rootdir string) {
 	WriteFile(t, rootdir, "root.config.tm", `
 terramate {
 	config {

@@ -115,5 +115,4 @@ jobs:
       - gh_integration_test
     runs-on: ubuntu-20.04
     steps:
-      - name: Required Checks
-        run: echo "All required checks worked"
+      - uses: Kesin11/actions-timeline@v1

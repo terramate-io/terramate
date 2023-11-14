@@ -4,6 +4,7 @@
 package test
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,17 +15,60 @@ import (
 	"github.com/madlambda/spells/assert"
 )
 
+var tmTestRootTempdir string
+
+func init() {
+	tmTestRootTempdir = os.Getenv("TM_TEST_ROOT_TEMPDIR")
+}
+
 // TempDir creates a temporary directory.
-func TempDir(t testing.TB, base string) string {
+func TempDir(t testing.TB) string {
 	t.Helper()
-
-	if base == "" {
-		t.Fatalf("use t.TempDir() for temporary directories inside tmp")
+	if tmTestRootTempdir == "" {
+		// fallback for the slower implementation if env is not set.
+		return t.TempDir()
 	}
+	return tempDir(t, tmTestRootTempdir)
+}
 
-	dir, err := os.MkdirTemp(base, "terramate-test")
-	assert.NoError(t, err, "creating temp directory")
-	return CanonPath(t, dir)
+// DoesNotExist calls os.Stat and asserts that the entry does not exist
+func DoesNotExist(t testing.TB, dir, fname string) {
+	t.Helper()
+	_, err := os.Stat(filepath.Join(dir, fname))
+	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	assert.NoError(t, err, "stat error")
+
+	t.Fatalf("should not exist: %s", fname)
+}
+
+// IsDir calls os.Stat and asserts that the entry is a directory
+func IsDir(t testing.TB, dir, fname string) {
+	t.Helper()
+	isDirOrFile(t, dir, fname, true)
+}
+
+// IsFile calls os.Stat and asserts that the entry is a file
+func IsFile(t testing.TB, dir, fname string) {
+	t.Helper()
+	isDirOrFile(t, dir, fname, false)
+}
+
+func isDirOrFile(t testing.TB, dir, fname string, isDir bool) {
+	t.Helper()
+	fi, err := os.Stat(filepath.Join(dir, fname))
+	if errors.Is(err, os.ErrNotExist) {
+		if isDir {
+			t.Fatalf("directory does not exist: %s", fname)
+		} else {
+			t.Fatalf("file does not exist: %s", fname)
+		}
+		return
+	}
+	assert.NoError(t, err, "stat error")
+
+	assert.IsTrue(t, fi.IsDir() == isDir, "want:\n%s\ngot:\n%s\n", fi.IsDir(), isDir)
 }
 
 // ReadDir calls os.Readir asserting the success of the operation.
@@ -42,7 +86,7 @@ func WriteFile(t testing.TB, dir string, filename string, content string) string
 	t.Helper()
 
 	if dir == "" {
-		dir = t.TempDir()
+		dir = TempDir(t)
 	}
 
 	path := filepath.Join(dir, filename)
@@ -143,8 +187,8 @@ func RemoveAll(t testing.TB, path string) {
 func NonExistingDir(t testing.TB) string {
 	t.Helper()
 
-	tmp := t.TempDir()
-	tmp2 := TempDir(t, tmp)
+	tmp := TempDir(t)
+	tmp2 := tempDir(t, tmp)
 
 	RemoveAll(t, tmp)
 
@@ -183,4 +227,10 @@ func PrependToPath(env []string, dir string) ([]string, bool) {
 		}
 	}
 	return env, false
+}
+
+func tempDir(t testing.TB, base string) string {
+	dir, err := os.MkdirTemp(base, "terramate-test")
+	assert.NoError(t, err, "creating temp directory")
+	return dir
 }

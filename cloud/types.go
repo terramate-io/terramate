@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -47,7 +48,9 @@ type (
 	StackResponse struct {
 		ID int `json:"stack_id"`
 		Stack
-		Status stack.Status `json:"status"`
+		Status           stack.Status      `json:"status"`
+		DeploymentStatus deployment.Status `json:"deployment_status"`
+		DriftStatus      drift.Status      `json:"drift_status"`
 
 		// readonly fields
 		CreatedAt *time.Time `json:"created_at,omitempty"`
@@ -110,15 +113,26 @@ type (
 		Metadata      *DeploymentMetadata      `json:"metadata,omitempty"`
 	}
 
+	// Drift represents the drift information for a given stack.
+	Drift struct {
+		ID       int                 `json:"id"`
+		Status   drift.Status        `json:"status"`
+		Details  *DriftDetails       `json:"drift_details,omitempty"`
+		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
+	}
+
+	// Drifts is a list of drift.
+	Drifts []Drift
+
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
 		Stack      Stack               `json:"stack"`
-		Status     stack.Status        `json:"drift_status"`
+		Status     drift.Status        `json:"drift_status"`
 		Details    *DriftDetails       `json:"drift_details,omitempty"`
 		Metadata   *DeploymentMetadata `json:"metadata,omitempty"`
-		Command    []string            `json:"command"`
 		StartedAt  *time.Time          `json:"started_at,omitempty"`
 		FinishedAt *time.Time          `json:"finished_at,omitempty"`
+		Command    []string            `json:"command"`
 	}
 
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
@@ -188,6 +202,8 @@ type (
 		GithubActionsDeploymentTriggeredBy string `json:"github_actions_triggered_by,omitempty"`
 		GithubActionsRunID                 string `json:"github_actions_run_id,omitempty"`
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
+		GithubActionsWorkflowName          string `json:"github_actions_workflow_name,omitempty"`
+		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
 	}
 
 	// DeploymentReviewRequest is the review_request object.
@@ -248,6 +264,7 @@ var (
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
 	_ = Resource(DeploymentReviewRequest{})
+	_ = Resource(Drifts{})
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
 	_ = Resource(DriftDetails{})
@@ -358,10 +375,32 @@ func (s Stack) Validate() error {
 	return nil
 }
 
+// Validate a drift.
+func (d Drift) Validate() error {
+	if err := d.Status.Validate(); err != nil {
+		return err
+	}
+	if d.Details != nil {
+		return d.Details.Validate()
+	}
+	return nil
+}
+
+// Validate a list of drifts.
+func (ds Drifts) Validate() error {
+	return validateResourceList[Drift](ds...)
+}
+
 // Validate the drift request payload.
 func (d DriftStackPayloadRequest) Validate() error {
 	if err := d.Stack.Validate(); err != nil {
 		return err
+	}
+	if err := d.Status.Validate(); err != nil {
+		return err
+	}
+	if d.Details != nil {
+		return d.Details.Validate()
 	}
 	if d.Metadata != nil {
 		err := d.Metadata.Validate()
@@ -385,11 +424,15 @@ func (ds DriftStackPayloadRequests) Validate() error { return validateResourceLi
 
 // Validate the drift details.
 func (ds DriftDetails) Validate() error {
+	if ds.Provisioner == "" && ds.ChangesetASCII == "" && ds.ChangesetJSON == "" {
+		// TODO: backend returns the `details` object even if it was not synchronized.
+		return nil
+	}
 	if ds.Provisioner == "" {
 		return errors.E(`field "provisioner" is required`)
 	}
 	if ds.ChangesetASCII == "" && ds.ChangesetJSON == "" {
-		return errors.E(`either "changeset_ascii" or "changeset_json" must be set`)
+		return errors.E(`"changeset_ascii" or "changeset_json" must be set`)
 	}
 	return nil
 }

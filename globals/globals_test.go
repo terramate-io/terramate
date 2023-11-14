@@ -4058,7 +4058,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 
 			for _, c := range tcase.configs {
@@ -4089,7 +4089,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 func testGlobals(t *testing.T, tcase testcase) {
 	t.Run(tcase.name, func(t *testing.T) {
 		t.Parallel()
-		s := sandbox.New(t)
+		s := sandbox.NoGit(t, true)
 		s.BuildTree(tcase.layout)
 		for _, globalBlock := range tcase.configs {
 			path := filepath.Join(s.RootDir(), globalBlock.path)

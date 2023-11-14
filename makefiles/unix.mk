@@ -37,8 +37,10 @@ test/helper:
 
 ## test code
 .PHONY: test
-test: 
-	go test -count=1 -race ./...
+tempdir=$(shell ./bin/helper tempdir)
+test: test/helper
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) go test -race -count=1 ./...
+	./bin/helper rm $(tempdir)
 
 ## test if terramate works with CI git environment.
 .PHONY: test/ci

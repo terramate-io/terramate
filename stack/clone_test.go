@@ -85,12 +85,12 @@ func TestStackClone(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 
 			srcdir := filepath.Join(s.RootDir(), tc.src)
 			destdir := filepath.Join(s.RootDir(), tc.dest)
-			err := stack.Clone(s.Config(), destdir, srcdir)
+			_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 			assert.IsError(t, err, tc.wantErr)
 
 			if tc.wantErr != nil {
@@ -104,25 +104,25 @@ func TestStackClone(t *testing.T) {
 
 func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
-	srcdir := t.TempDir()
+	s := sandbox.NoGit(t, true)
+	srcdir := test.TempDir(t)
 	destdir := filepath.Join(s.RootDir(), "new-stack")
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
 func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	srcdir := filepath.Join(s.RootDir(), "src-stack")
-	destdir := t.TempDir()
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	destdir := test.TempDir(t)
+	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
 func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
 		"s:stack",
 		"f:stack/.dotfile",
@@ -130,7 +130,7 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	})
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.NoError(t, err)
 
 	entries := test.ReadDir(t, destdir)
@@ -178,7 +178,7 @@ generate_hcl "test2.hcl" {
 }
 `
 	)
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")
@@ -188,7 +188,7 @@ generate_hcl "test2.hcl" {
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
 
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.NoError(t, err)
 
 	cfg := test.ParseTerramateConfig(t, destdir)
@@ -232,7 +232,7 @@ stack {
 }
 `
 	)
-	s := sandbox.New(t)
+	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")
@@ -242,7 +242,7 @@ stack {
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
 
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.NoError(t, err)
 
 	cfg := test.ParseTerramateConfig(t, destdir)

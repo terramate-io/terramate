@@ -82,7 +82,6 @@ func (c *cli) runOnStacks() {
 			fatal(err, "computing selected stacks")
 		}
 	}
-
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
 	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
@@ -134,6 +133,10 @@ func (c *cli) runOnStacks() {
 
 	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
 		fatal(errors.E("--cloud-sync-terraform-plan-file can only be used with --cloud-sync-drift-status"))
+	}
+
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !c.parsedArgs.Run.CloudSyncDriftStatus {
+		fatal(errors.E("--cloud-sync-terraform-plan-file should be used with --cloud-sync-drift-status flag"))
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {

@@ -29,9 +29,13 @@ test/helper:
 
 ## test code
 .PHONY: test
+.ONESHELL:
+tempdir=$(shell .\bin\helper.exe tempdir)
 test: test/helper build
-	go test -tags localhostEndpoints ./... -timeout=20m -p 100
-	./bin/terramate.exe run -- helper.exe true
+	set TM_TEST_ROOT_TEMPDIR=$(tempdir)
+	go test -timeout 20m -p 100 ./...
+	.\bin\helper.exe rm $(tempdir)
+	.\bin\terramate.exe run -- helper.exe true
 
  ## remove build artifacts
 .PHONY: clean

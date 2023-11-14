@@ -1214,7 +1214,7 @@ func TestOutdatedDetection(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NoGit(t, true)
 			for i, step := range tcase.steps {
 				t.Logf("step %d", i)
 
