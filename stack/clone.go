@@ -5,6 +5,7 @@ package stack
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -27,12 +28,13 @@ const (
 
 // Clone will clone the stack at srcdir into destdir.
 //
-// - srcdir must be a stack (fail otherwise)
+// - srcdir must contain at least one stack directly, or in subdirs unless skipChildStacks is set (fail otherwise)
 // - destdir must not exist (fail otherwise)
+// - if skipChildStacks is true, child stacks are ignored
 // - All files and directories are copied  (except dotfiles/dirs)
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
-func Clone(root *config.Root, destdir, srcdir string) error {
+func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int, error) {
 	rootdir := root.HostDir()
 
 	logger := log.With().
@@ -40,49 +42,116 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 		Str("rootdir", rootdir).
 		Str("destdir", destdir).
 		Str("srcdir", srcdir).
+		Bool("skipChildStacks", skipChildStacks).
 		Logger()
 
 	logger.Trace().Msg("cloning stack, checking invariants")
 
 	if !strings.HasPrefix(srcdir, rootdir) {
-		return errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
+		return 0, errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
 	}
 
 	if !strings.HasPrefix(destdir, rootdir) {
-		return errors.E(ErrInvalidStackDir, "dest dir %q must be inside project root %q", destdir, rootdir)
+		return 0, errors.E(ErrInvalidStackDir, "dest dir %q must be inside project root %q", destdir, rootdir)
 	}
 
 	if _, err := os.Stat(destdir); err == nil {
-		return errors.E(ErrCloneDestDirExists, destdir)
+		return 0, errors.E(ErrCloneDestDirExists, destdir)
 	}
 
-	srcStack, err := config.LoadStack(root, project.PrjAbsPath(root.HostDir(), srcdir))
-	if err != nil {
-		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
+	needsCleanup := true
+	defer func() {
+		if !needsCleanup {
+			return
+		}
+
+		if err := os.RemoveAll(destdir); err != nil {
+			logger.Debug().Err(err).Msg("failed to cleanup destdir after error")
+		}
+	}()
+
+	srcpath := project.PrjAbsPath(rootdir, srcdir)
+
+	// Get all stacks in srcpath (including children)
+	tree, found := root.Lookup(srcpath)
+	if !found {
+		return 0, errors.E(ErrInvalidStackDir, "src dir %q must contain valid stacks", srcdir)
 	}
 
-	logger.Trace().Msg("copying stack files")
-
-	if err := fs.CopyDir(destdir, srcdir, filterDotFiles); err != nil {
-		return err
+	stackTrees := tree.Stacks()
+	if len(stackTrees) == 0 {
+		return 0, errors.E(ErrInvalidStackDir, "src dir %q must contain valid stacks", srcdir)
 	}
 
-	if srcStack.ID == "" {
-		logger.Trace().Msg("stack has no ID, nothing else to do")
-		return nil
+	type cloneTask struct {
+		Srcdir         string
+		Destdir        string
+		ShouldUpdateID bool
+	}
+	tasks := []cloneTask{}
+
+	// Use this set to identify stack root dirs and don't recurse into them when copying
+	stackset := map[string]struct{}{}
+
+	for _, e := range stackTrees {
+		stackSrcdir := e.HostDir()
+		rel, _ := filepath.Rel(srcdir, stackSrcdir)
+
+		stackDestdir := filepath.Join(destdir, rel)
+
+		// If destdir is within srcdir, we could encounter a stackDestdir in the source dir
+		// created by a previous cloneTask. They must be ignored, too.
+		stackset[stackSrcdir] = struct{}{}
+		stackset[stackDestdir] = struct{}{}
+
+		if skipChildStacks && rel != "." {
+			logger.Trace().Msgf("skipping child stack %q", stackSrcdir)
+			continue
+		}
+
+		tasks = append(tasks, cloneTask{
+			Srcdir:         stackSrcdir,
+			Destdir:        stackDestdir,
+			ShouldUpdateID: e.Node.Stack.ID != "",
+		})
 	}
 
-	logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
-	_, err = UpdateStackID(destdir)
-	if err != nil {
-		return err
+	if len(tasks) == 0 {
+		return 0, errors.E(ErrInvalidStackDir, "no stacks to clone in %q", srcdir)
 	}
 
-	return root.LoadSubTree(project.PrjAbsPath(rootdir, destdir))
-}
+	logger.Trace().Msgf("found %d stacks to clone", len(tasks))
 
-func filterDotFiles(_ string, entry os.DirEntry) bool {
-	return !strings.HasPrefix(entry.Name(), ".")
+	for _, st := range tasks {
+		filter := func(dir string, entry os.DirEntry) bool {
+			if strings.HasPrefix(entry.Name(), ".") {
+				return false
+			}
+
+			abspath := filepath.Join(dir, entry.Name())
+			_, found := stackset[abspath]
+			return !found
+		}
+
+		logger.Trace().Msgf("copying stack files from %q to %q", st.Srcdir, st.Destdir)
+
+		if err := fs.CopyDir(st.Destdir, st.Srcdir, filter); err != nil {
+			return 0, err
+		}
+
+		if !st.ShouldUpdateID {
+			logger.Trace().Msg("stack has no ID, nothing else to do")
+			continue
+		}
+
+		logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
+		if _, err := UpdateStackID(st.Destdir); err != nil {
+			return 0, err
+		}
+	}
+
+	needsCleanup = false
+	return len(tasks), root.LoadSubTree(project.PrjAbsPath(rootdir, destdir))
 }
 
 // UpdateStackID updates the stack.id of the given stack directory.

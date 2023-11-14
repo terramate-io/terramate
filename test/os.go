@@ -4,6 +4,7 @@
 package test
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -28,6 +29,46 @@ func TempDir(t testing.TB) string {
 		return t.TempDir()
 	}
 	return tempDir(t, tmTestRootTempdir)
+}
+
+// DoesNotExist calls os.Stat and asserts that the entry does not exist
+func DoesNotExist(t testing.TB, dir, fname string) {
+	t.Helper()
+	_, err := os.Stat(filepath.Join(dir, fname))
+	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	assert.NoError(t, err, "stat error")
+
+	t.Fatalf("should not exist: %s", fname)
+}
+
+// IsDir calls os.Stat and asserts that the entry is a directory
+func IsDir(t testing.TB, dir, fname string) {
+	t.Helper()
+	isDirOrFile(t, dir, fname, true)
+}
+
+// IsFile calls os.Stat and asserts that the entry is a file
+func IsFile(t testing.TB, dir, fname string) {
+	t.Helper()
+	isDirOrFile(t, dir, fname, false)
+}
+
+func isDirOrFile(t testing.TB, dir, fname string, isDir bool) {
+	t.Helper()
+	fi, err := os.Stat(filepath.Join(dir, fname))
+	if errors.Is(err, os.ErrNotExist) {
+		if isDir {
+			t.Fatalf("directory does not exist: %s", fname)
+		} else {
+			t.Fatalf("file does not exist: %s", fname)
+		}
+		return
+	}
+	assert.NoError(t, err, "stat error")
+
+	assert.IsTrue(t, fi.IsDir() == isDir, "want:\n%s\ngot:\n%s\n", fi.IsDir(), isDir)
 }
 
 // ReadDir calls os.Readir asserting the success of the operation.
