@@ -124,6 +124,11 @@ type (
 	// Drifts is a list of drift.
 	Drifts []Drift
 
+	// DriftsStackPayloadResponse is the payload returned when listing stack drifts.
+	DriftsStackPayloadResponse struct {
+		Drifts Drifts `json:"drifts"`
+	}
+
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
 		Stack      Stack               `json:"stack"`
@@ -421,6 +426,9 @@ func (d DriftStackPayloadRequest) Validate() error {
 
 // Validate the list of drift requests.
 func (ds DriftStackPayloadRequests) Validate() error { return validateResourceList(ds...) }
+
+// Validate the drifts list response payload.
+func (ds DriftsStackPayloadResponse) Validate() error { return validateResourceList(ds.Drifts...) }
 
 // Validate the drift details.
 func (ds DriftDetails) Validate() error {

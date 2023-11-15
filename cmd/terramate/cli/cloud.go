@@ -272,14 +272,14 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 
 	// stack is drifted
-	drifts, err := c.cloud.client.StackDrifts(ctx, c.cloud.run.orgUUID, stackResp.ID, 1)
+	driftsResp, err := c.cloud.client.StackDrifts(ctx, c.cloud.run.orgUUID, stackResp.ID, 1)
 	if err != nil {
 		fatal(err)
 	}
-	if len(drifts) == 0 {
+	if len(driftsResp.Drifts) == 0 {
 		fatal(errors.E("Stack %s is drifted, but no details are available.", st.Dir.String()))
 	}
-	driftData := drifts[0]
+	driftData := driftsResp.Drifts[0]
 
 	ctx, cancel = context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
