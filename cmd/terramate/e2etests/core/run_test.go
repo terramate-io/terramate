@@ -2884,8 +2884,10 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 			mainTfFileName), RunExpected{
 			Stdout: mainTfAlteredContents,
 		})
+
+		// Provide change base so we don't compare to the config commit.
 		AssertRunResult(t, cli.Run(
-			"--changed", "run", "--quiet", HelperPath,
+			"--changed", "--git-change-base", "HEAD^^", "run", "--quiet", HelperPath,
 			"cat", mainTfFileName), RunExpected{
 			Stdout: mainTfAlteredContents,
 		})

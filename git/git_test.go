@@ -462,6 +462,313 @@ func TestGetConfigValue(t *testing.T) {
 	assert.Error(t, err, "git config: non-existing key")
 }
 
+func TestFindNearestCommonParent(t *testing.T) {
+	repodir := test.EmptyRepo(t, false)
+
+	gw, err := git.WithConfig(git.Config{
+		WorkingDir:     repodir,
+		Isolated:       true,
+		AllowPorcelain: true,
+	})
+	assert.NoError(t, err, "new git wrapper")
+
+	hashToName := map[string]string{"": ""}
+	nameToHash := map[string]string{"": ""}
+
+	setNamedCommit := func(name string) {
+		hash, err := gw.RevParse("HEAD")
+		assert.NoError(t, err, "git rev-parse")
+
+		hashToName[hash] = name
+		nameToHash[name] = hash
+	}
+
+	makeNamedCommit := func(name string) {
+		test.WriteFile(t, repodir, name, "")
+		assert.NoError(t, gw.Add(name), "git add")
+		assert.NoError(t, gw.Commit(name), "git commit")
+
+		setNamedCommit(name)
+	}
+
+	type testcase struct {
+		Commit     string
+		Ref        string
+		ForkedFrom string
+
+		WantForkPoint    string
+		WantIsMainCommit bool
+	}
+
+	var tests []testcase
+
+	makeNamedCommit("main_commit_1")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:           "main_commit_1",
+			ForkedFrom:       "main",
+			WantForkPoint:    "main_commit_1",
+			WantIsMainCommit: true,
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("branch_a", true))
+	makeNamedCommit("branch_a_commit_1")
+	makeNamedCommit("branch_a_commit_2")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:        "branch_a_commit_1",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_1",
+		},
+		{
+			Commit:        "branch_a_commit_2",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_1",
+		},
+		{
+			Ref:           "branch_a",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_1",
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("main", false))
+	assert.NoError(t, gw.Merge("branch_a"))
+	setNamedCommit("main_commit_2")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:           "main_commit_2",
+			ForkedFrom:       "main",
+			WantForkPoint:    "main_commit_2",
+			WantIsMainCommit: true,
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("branch_b", true))
+	makeNamedCommit("branch_b_commit_1")
+	makeNamedCommit("branch_b_commit_2")
+
+	tests = append(tests, []testcase{
+		{
+			ForkedFrom:    "main",
+			Commit:        "branch_b_commit_1",
+			WantForkPoint: "main_commit_2",
+		},
+		{
+			ForkedFrom:    "main",
+			Commit:        "branch_b_commit_2",
+			WantForkPoint: "main_commit_2",
+		},
+		{
+			Ref:           "branch_b",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_2",
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("main", false))
+	assert.NoError(t, gw.Merge("branch_b"))
+	setNamedCommit("main_commit_3")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:           "main_commit_3",
+			ForkedFrom:       "main",
+			WantForkPoint:    "main_commit_3",
+			WantIsMainCommit: true,
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("branch_unmerged", true))
+	makeNamedCommit("branch_unmerged_commit_1")
+	makeNamedCommit("branch_unmerged_commit_2")
+	makeNamedCommit("branch_unmerged_commit_3")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:        "branch_unmerged_commit_1",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Commit:        "branch_unmerged_commit_2",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Commit:        "branch_unmerged_commit_3",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Ref:           "branch_unmerged",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("main", false))
+	assert.NoError(t, gw.Checkout("branch_c", true))
+	makeNamedCommit("branch_c_commit_1")
+
+	assert.NoError(t, gw.Checkout("branch_d", true))
+	makeNamedCommit("branch_d_commit_1")
+
+	assert.NoError(t, gw.Checkout("branch_c", false))
+	assert.NoError(t, gw.Merge("branch_d"))
+	setNamedCommit("branch_c_commit_2")
+
+	makeNamedCommit("branch_c_commit_3")
+
+	assert.NoError(t, gw.Checkout("main", false))
+	assert.NoError(t, gw.Merge("branch_c"))
+	setNamedCommit("main_commit_4")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:        "branch_c_commit_1",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Commit:        "branch_d_commit_1",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Commit:        "branch_d_commit_1",
+			ForkedFrom:    "branch_c",
+			WantForkPoint: "branch_c_commit_1",
+		},
+		{
+			Commit:        "branch_c_commit_2",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Commit:        "branch_c_commit_3",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Commit:           "main_commit_4",
+			ForkedFrom:       "main",
+			WantForkPoint:    "main_commit_4",
+			WantIsMainCommit: true,
+		},
+		{
+			Ref:           "branch_d",
+			ForkedFrom:    "branch_c",
+			WantForkPoint: "branch_c_commit_1",
+		},
+		{
+			Ref:           "branch_d",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Ref:           "branch_c",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_3",
+		},
+		{
+			Ref:           "branch_c",
+			ForkedFrom:    "branch_d",
+			WantForkPoint: "branch_d_commit_1",
+		}}...,
+	)
+
+	assert.NoError(t, gw.Checkout("branch_wip", true))
+	makeNamedCommit("branch_wip_commit_1")
+	makeNamedCommit("branch_wip_commit_2")
+
+	tests = append(tests, []testcase{
+		{
+			Commit:        "branch_wip_commit_1",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_4",
+		},
+		{
+			Commit:        "branch_wip_commit_2",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_4",
+		},
+		{
+			Ref:           "branch_wip",
+			ForkedFrom:    "main",
+			WantForkPoint: "main_commit_4",
+		}}...,
+	)
+
+	/*
+		  * branch_wip_commit_2
+		  * branch_wip_commit_1
+		 /
+		* main_commit_4
+		|\
+		| * branch_c_commit_3
+		| * branch_c_commit_2
+		| |\
+		| | * branch_d_commit_1
+		| |/
+		| * branch_c_commit_1
+		|/
+		|
+		| * branch_unmerged_commit_3
+		| * branch_unmerged_commit_2
+		| * branch_unmerged_commit_1
+		|/
+		* main_commit_3
+		|\
+		| * branch_b_commit_2
+		| * branch_b_commit_1
+		|/
+		* main_commit_2
+		|\
+		| * branch_a_commit_2
+		| * branch_a_commit_1
+		|/
+		* main_commit_1
+	*/
+
+	for _, tc := range tests {
+		assert.IsTrue(t, (tc.Commit != "") != (tc.Ref != ""), "set either commit or ref")
+		var rev string
+		if tc.Commit != "" {
+			rev = nameToHash[tc.Commit]
+		} else {
+			rev = tc.Ref
+		}
+
+		wantName := tc.WantForkPoint
+		wantHash := nameToHash[wantName]
+
+		gotHash, err := gw.FindNearestCommonParent(tc.ForkedFrom, rev)
+		assert.NoError(t, err, "FindNearestCommonParent")
+		gotName := hashToName[gotHash]
+
+		assert.EqualStrings(t, wantHash, gotHash,
+			"fork point for %v (%v), want = %v (%v), got = %v (%v)",
+			tc.Commit, rev, wantName, wantHash, gotName, gotHash)
+
+		gotIsMainCommit, err := gw.IsFirstParentAncestor(rev, "main")
+		assert.NoError(t, err, "IsFirstParentAncestor")
+
+		if tc.WantIsMainCommit {
+			assert.IsTrue(t, gotIsMainCommit,
+				"%v (%v) is main commit", tc.Commit, rev)
+		} else {
+			assert.IsTrue(t, !gotIsMainCommit,
+				"%v (%v) is not main commit", tc.Commit, rev)
+		}
+
+	}
+}
+
 const defaultBranch = "main"
 
 func mkOneCommitRepo(t *testing.T) string {
