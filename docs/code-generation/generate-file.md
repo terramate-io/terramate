@@ -16,15 +16,13 @@ next:
 Terramate supports the generation of arbitrary text files referencing
 [Terramate defined data](../data-sharing/index.md).
 
-File generation is done using `generate_file`
-blocks in [Terramate configuration files](../configuration/index.md).
+File generation is done using `generate_file` blocks in [Terramate configuration files](../configuration/index.md).
 
 Each `generate_file` block requires a single label that is the path
 where the generated file will be saved.
 For more details about how code generation use labels check the [Labels Overview](index.md#labels) docs.
 
-The block has an optional **`context`** attribute which overrides the [generation context]
-(index.md#generation-context).
+The block has an optional **`context`** attribute which overrides the [generation context](index.md#generation-context).
 
 The **`content`** attribute defines the string that will be written on the file.
 
