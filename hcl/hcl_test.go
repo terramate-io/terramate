@@ -943,6 +943,63 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 		},
+		// Note: the testcases below also apply for "before", "wants", "wanted_by" and "watch" but
+		// only "after" is tested, because all of them have the same implementation.
+		// If this assumption is not correct anymore, please test them all individually here.
+		{
+			name: "regression check for stack.after without error ranges",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							after = 1
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema, Mkrange("stack.tm", Start(3, 16, 30), End(3, 17, 31))),
+				},
+			},
+		},
+		{
+			name: "regression check for stack.after with wrong element item and missing error ranges",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							after = [1]
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema, Mkrange("stack.tm", Start(3, 16, 30), End(3, 19, 33))),
+				},
+			},
+		},
+		{
+			name: "regression check for stack.after with duplicates and missing error ranges",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							after = ["A", "B", "dup", "dup", "C"]
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema, Mkrange("stack.tm", Start(3, 16, 30), End(3, 45, 59))),
+				},
+			},
+		},
 		{
 			name:     "terramate in non-root directory fails",
 			parsedir: "stack",

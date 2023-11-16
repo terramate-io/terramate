@@ -32,6 +32,10 @@ file in rendered ASCII and JSON (sensitive information removed).
 - Add support for cloning nested stacks to `terramate experimental clone`. It can also be used to clone directories that
 are not stacks themselves, but contain stacks in sub-directories.
 
+### Fixed
+
+- Missing file ranges in the parsing errors of some stack block attributes.
+
 ## 0.4.2
 
 ### Added
