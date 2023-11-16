@@ -4,7 +4,6 @@
 name: ci
 on:
   pull_request:
-  merge_group:
 
 jobs:
   checks:
