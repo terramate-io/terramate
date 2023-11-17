@@ -202,7 +202,7 @@ is mentioned on **before**/**after** but the mentioned stack has no changes
 on it, it will be ignored when calculating order.
 
 An example of such a command would be using terramate to run **terraform apply**,
-but only on changes stacks, like this:
+but only on changed stacks, like this:
 
 ```bash
 terramate run --changed terraform apply
