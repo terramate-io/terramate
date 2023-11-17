@@ -22,6 +22,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
+	"golang.org/x/exp/slices"
 )
 
 // Errors returned during the HCL parsing.
@@ -45,6 +46,7 @@ type Config struct {
 	Vendor    *VendorConfig
 	Asserts   []AssertConfig
 	Generate  GenerateConfig
+	Scripts   []*Script
 
 	Imported RawConfig
 
@@ -1406,7 +1408,12 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	return errs.AsError()
 }
 
-func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
+// hasExperimentalFeature returns true if the config has the provided experimental feature enabled.
+func (p *TerramateParser) hasExperimentalFeature(feature string) bool {
+	return slices.Contains(p.Experiments, feature)
+}
+
+func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	errs := errors.L()
 
 	for _, attr := range block.Attributes.SortedList() {
@@ -1422,7 +1429,12 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 				"evaluating terramate.config.experiments attribute"))
 			continue
 		}
-		errs.Append(assignSet(attr.Attribute, &cfg.Experiments, val))
+
+		if err := assignSet(attr.Attribute, &cfg.Experiments, val); err != nil {
+			errs.Append(err)
+			continue
+		}
+		p.Experiments = cfg.Experiments
 	}
 
 	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run", "cloud"))
@@ -1654,6 +1666,16 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			"unrecognized attribute %q", attr.Name))
 	}
 
+	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
+	if ok {
+		var tmconfig Terramate
+		tmconfig, err := p.parseTerramateBlock(tmBlock)
+		errs.Append(err)
+		if err == nil {
+			config.Terramate = &tmconfig
+		}
+	}
+
 	var foundstack, foundVendor bool
 	var stackblock, vendorBlock *ast.Block
 
@@ -1701,16 +1723,22 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			if err == nil {
 				config.Generate.Files = append(config.Generate.Files, genfile)
 			}
-		}
-	}
 
-	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
-	if ok {
-		var tmconfig Terramate
-		tmconfig, err := parseTerramateBlock(tmBlock)
-		errs.Append(err)
-		if err == nil {
-			config.Terramate = &tmconfig
+		case "script":
+			if !p.hasExperimentalFeature("scripts") {
+				errs.Append(
+					errors.E(ErrTerramateSchema, block.DefRange(),
+						"unrecognized block %q", block.Type),
+				)
+				continue
+			}
+
+			scriptCfg, err := p.parseScriptBlock(block)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			config.Scripts = append(config.Scripts, scriptCfg)
 		}
 	}
 
@@ -1861,7 +1889,7 @@ func validateMap(block *ast.Block) (err error) {
 	return nil
 }
 
-func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
+func (p *TerramateParser) parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 	tm := Terramate{}
 
 	errKind := ErrTerramateSchema
@@ -1915,7 +1943,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 	if ok {
 		tm.Config = &RootConfig{}
 
-		err := parseRootConfig(tm.Config, configBlock)
+		err := p.parseRootConfig(tm.Config, configBlock)
 		if err != nil {
 			errs.Append(errors.E(errKind, err))
 		}

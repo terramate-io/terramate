@@ -17,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"golang.org/x/exp/slices"
 )
 
 // ParseTerramateConfig parses the Terramate configuration found
@@ -67,6 +68,7 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	AssertDiff(t, got.Vendor, want.Vendor, "terramate vendor")
 	assertGenHCLBlocks(t, got.Generate.HCLs, want.Generate.HCLs)
 	assertGenFileBlocks(t, got.Generate.Files, want.Generate.Files)
+	assertScriptBlocks(t, got.Scripts, want.Scripts)
 }
 
 // AssertDiff will compare the two values and fail if they are not the same
@@ -199,7 +201,7 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 	}
 
 	if (want == nil) != (got == nil) {
-		t.Fatalf("want[%v] != got[%v]", want, got)
+		t.Fatalf("terramate: want[%v] != got[%v]", want, got)
 	}
 
 	if want == nil {
@@ -272,6 +274,52 @@ func assertGenFileBlocks(t *testing.T, got, want []hcl.GenFileBlock) {
 		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genfile label differs")
 		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genfile asserts")
 	}
+}
+
+func assertScriptBlocks(t *testing.T, got, want []*hcl.Script) {
+	t.Helper()
+
+	if (got == nil) != (want == nil) {
+		t.Fatalf("script: want[%+v] != got[%+v]", want, got)
+	}
+
+	if want == nil {
+		return
+	}
+
+	assert.EqualInts(t, len(got), len(want), "script length mismatch")
+
+	for i, g := range got {
+		w := want[i]
+
+		assert.EqualStrings(t,
+			exprAsStr(t, w.Description.Expr), exprAsStr(t, g.Description.Expr),
+			"description expr mismatch")
+
+		assert.IsTrue(t, slices.Equal(w.Labels, g.Labels),
+			fmt.Sprintf("script label value mismatch: want[%#v], got [%#v]", w.Labels, g.Labels))
+
+		assert.EqualInts(t, len(w.Jobs), len(g.Jobs), "script len(jobs) mismatch")
+		for k, gotJob := range g.Jobs {
+			wantJob := w.Jobs[k]
+
+			if wantJob.Command != nil {
+				assert.EqualStrings(t,
+					exprAsStr(t, wantJob.Command.Expr),
+					exprAsStr(t, gotJob.Command.Expr),
+					"command mismatch")
+			}
+
+			if wantJob.Commands != nil {
+				assert.EqualStrings(t,
+					exprAsStr(t, wantJob.Commands.Expr),
+					exprAsStr(t, gotJob.Commands.Expr),
+					"commands mismatch")
+			}
+
+		}
+	}
+
 }
 
 func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
