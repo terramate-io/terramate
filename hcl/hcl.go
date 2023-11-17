@@ -22,6 +22,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
+	"golang.org/x/exp/slices"
 )
 
 // Errors returned during the HCL parsing.
@@ -759,6 +760,14 @@ func (c Config) Experiments() []string {
 		return c.Terramate.Config.Experiments
 	}
 	return []string{}
+}
+
+// hasExperimentalFeature returns true if the config has an experimental feature enabled
+func (c Config) hasExperimentalFeature(feature string) bool {
+	return c.Terramate != nil &&
+		c.Terramate.Config != nil &&
+		c.Terramate.Config.Experiments != nil &&
+		slices.Contains(c.Terramate.Config.Experiments, feature)
 }
 
 // AbsDir returns the absolute path of the configuration directory.
