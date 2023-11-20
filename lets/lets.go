@@ -6,7 +6,6 @@ package lets
 
 import (
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -58,10 +57,6 @@ func Load(letblock *ast.MergedBlock, ctx *eval.Context) error {
 
 // Eval evaluates all lets expressions and returns an EvalReport..
 func (letExprs Exprs) Eval(ctx *eval.Context) error {
-	logger := log.With().
-		Str("action", "Exprs.Eval()").
-		Logger()
-
 	lets := Map{}
 	pendingExprsErrs := map[string]*errors.List{}
 	pendingExprs := make(Exprs)
@@ -76,19 +71,10 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
-		logger.Trace().Msg("evaluating pending expressions")
-
 	pendingExpression:
 		for name, expr := range pendingExprs {
-			logger := logger.With().
-				Stringer("origin", expr.Origin.Path()).
-				Str("let", name).
-				Logger()
-
 			vars := expr.Variables()
 			pendingExprsErrs[name] = errors.L()
-
-			logger.Trace().Msg("checking var access inside expression")
 
 			for _, namespace := range vars {
 				if !ctx.HasNamespace(namespace.RootName()) {
@@ -119,8 +105,6 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 				continue
 			}
 
-			logger.Trace().Msg("evaluating expression")
-
 			val, err := ctx.Eval(expr)
 			if err != nil {
 				pendingExprsErrs[name].Append(errors.E(ErrEval, err, "let.%s", name))
@@ -136,8 +120,6 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 			delete(pendingExprs, name)
 			delete(pendingExprsErrs, name)
-
-			logger.Trace().Msg("updating lets eval context with evaluated attribute")
 
 			ctx.SetNamespace("let", lets.Attributes())
 		}

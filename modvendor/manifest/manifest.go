@@ -9,20 +9,12 @@ import (
 	"path/filepath"
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 )
 
 // LoadFileMatcher will load a gitignore.Matcher
 func LoadFileMatcher(rootdir string) (gitignore.Matcher, error) {
-	logger := log.With().
-		Str("action", "modvendor.loadFileMatcher").
-		Str("rootdir", rootdir).
-		Logger()
-
-	logger.Trace().Msg("checking for manifest on .terramate")
-
 	dotTerramate := filepath.Join(rootdir, ".terramate")
 	dotTerramateInfo, err := os.Stat(dotTerramate)
 
@@ -32,12 +24,9 @@ func LoadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 			return nil, errors.E(err, "parsing manifest on .terramate")
 		}
 		if hasVendorManifest(cfg) {
-			logger.Trace().Msg("found manifest on .terramate")
 			return newMatcher(cfg), nil
 		}
 	}
-
-	logger.Trace().Msg("checking for manifest on root")
 
 	cfg, err := hcl.ParseDir(rootdir, rootdir)
 	if err != nil {
@@ -45,7 +34,6 @@ func LoadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 	}
 
 	if hasVendorManifest(cfg) {
-		logger.Trace().Msg("found manifest on root")
 		return newMatcher(cfg), nil
 	}
 

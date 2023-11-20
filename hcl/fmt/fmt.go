@@ -14,8 +14,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/fs"
-
-	"github.com/rs/zerolog/log"
 )
 
 // ErrHCLSyntax is the error kind for syntax errors.
@@ -63,13 +61,6 @@ func Format(src, filename string) (string, error) {
 // All files will be left untouched. To save the formatted result on disk you
 // can use FormatResult.Save for each FormatResult.
 func FormatTree(dir string) ([]FormatResult, error) {
-	logger := log.With().
-		Str("action", "hcl.FormatTree()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing terramate files")
-
 	files, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
@@ -79,20 +70,12 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	errs := errors.L()
 
 	for _, f := range files {
-		logger := log.With().
-			Str("file", f).
-			Logger()
-
-		logger.Trace().Msg("reading file")
-
 		path := filepath.Join(dir, f)
 		fileContents, err := os.ReadFile(path)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
-
-		logger.Trace().Msg("formatting file")
 
 		currentCode := string(fileContents)
 		formatted, err := Format(currentCode, path)
@@ -102,11 +85,8 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		}
 
 		if currentCode == formatted {
-			logger.Trace().Msg("file already formatted")
 			continue
 		}
-
-		logger.Trace().Msg("file needs formatting, adding to results")
 
 		results = append(results, FormatResult{
 			path:      path,
@@ -121,11 +101,6 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	}
 
 	for _, d := range dirs {
-		logger := log.With().
-			Str("subdir", d).
-			Logger()
-
-		logger.Trace().Msg("recursively formatting")
 		subres, err := FormatTree(filepath.Join(dir, d))
 		if err != nil {
 			errs.Append(err)
@@ -161,15 +136,8 @@ const (
 )
 
 func fmtBody(body *hclwrite.Body) {
-	logger := log.With().
-		Str("action", "hcl.fmtBody()").
-		Logger()
-
 	attrs := body.Attributes()
 	for name, attr := range attrs {
-		logger.Trace().
-			Str("name", name).
-			Msg("formatting attribute")
 		body.SetAttributeRaw(name, fmtAttrExpr(attr.Expr().BuildTokens(nil)))
 	}
 
@@ -202,13 +170,6 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 // If there is no more tokens after the end of
 // the list the returned position will be equal to len(tokens).
 func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, int) {
-	logger := log.With().
-		Str("action", "hcl.fmtListExpr()").
-		Str("tokens", tokensStr(tokens)).
-		Logger()
-
-	logger.Trace().Msg("formatting list")
-
 	elemIndex := 0
 	newTokens := hclwrite.Tokens{tokens[elemIndex], newlineToken()}
 	elemIndex++
@@ -235,22 +196,13 @@ func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, 
 		}
 
 		if tokenType == hclsyntax.TokenCBrack {
-			logger.Trace().Msg("reached end of list")
 			break
 		}
-
-		logger.Trace().Msg("getting next element of the list")
 
 		element, nextPos := fmtExpr(tokens[elemIndex:])
 		elemIndex += nextPos
 
 		element = trimNewlines(element)
-
-		logger.Trace().
-			Str("element", tokensStr(element)).
-			Str("tokens", tokensStr(tokens)).
-			Int("elemNextPos", elemIndex).
-			Msg("new element got")
 
 		newTokens = append(newTokens, element...)
 		// Heredocs need to be handled differently, the comma must
@@ -272,10 +224,7 @@ func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, 
 	// Handling ["one"][0] and things like [[0]%[0]]
 	// We can also have newlines when dealing with operations
 
-	logger.Trace().Msg("checking if formatted list has operators/index access")
-
 	if elemIndex == len(tokens) {
-		logger.Trace().Msg("no more tokens, returning formatted list")
 		return newTokens, elemIndex
 	}
 
@@ -289,11 +238,9 @@ func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, 
 	for searchCommentOrNl {
 		switch tokens[elemIndex].Type {
 		case hclsyntax.TokenComment:
-			logger.Trace().Msg("found comment after end of list, adding token")
 			newTokens = append(newTokens, tokens[elemIndex])
 			elemIndex++
 		case hclsyntax.TokenNewline:
-			logger.Trace().Msg("found newline after end of list, ignoring")
 			hasNewlineBeforeToken = true
 			elemIndex++
 		default:
@@ -309,14 +256,12 @@ func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, 
 		{
 			// this handle scenarios like:
 			// { a = []\nb = [] }
-			logger.Trace().Msg("inside object, adding newline after list")
 
 			newTokens = append(newTokens, newlineToken())
 			return newTokens, elemIndex
 		}
 	case hclsyntax.TokenComma, hclsyntax.TokenCBrack, hclsyntax.TokenCParen:
 		{
-			logger.Trace().Msg("finished processing list")
 
 			return newTokens, elemIndex
 		}
@@ -327,25 +272,20 @@ func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, 
 			// Also we could be inside an object but still have an indexing operation
 			// so we use newlines to disambiguate.
 			if isInsideObject && hasNewlineBeforeToken {
-				logger.Trace().Msg("inside object, adding newline after list")
 
 				newTokens = append(newTokens, newlineToken())
 				return newTokens, elemIndex
 			}
-
-			logger.Trace().Msg("getting tokens for list index access")
 
 			indexAccess, nextPos := fmtIndexAccess(tokens[elemIndex:])
 			elemIndex += nextPos
 
 			newTokens = append(newTokens, indexAccess...)
 
-			logger.Trace().Msg("returning formatted list with index access")
 			return newTokens, elemIndex
 		}
 	default:
 		{
-			logger.Trace().Msg("we have an operator between this list and next element")
 			// HCL allows all sort of crazy things, instead of mapping all of them
 			// we just assume the next token is an operator and the rest can be any expression
 			newTokens = append(newTokens, tokens[elemIndex])

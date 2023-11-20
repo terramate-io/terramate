@@ -83,9 +83,6 @@ func (m *Manager) List() (*Report, error) {
 		Stacks: entries,
 	}
 
-	logger.Trace().Str("repo", m.root.HostDir()).
-		Msg("Create git wrapper for repo.")
-
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: m.root.HostDir(),
 	})
@@ -93,7 +90,6 @@ func (m *Manager) List() (*Report, error) {
 		return nil, errors.E(errList, err)
 	}
 
-	logger.Trace().Msg("Check if path is git repo.")
 	if !g.IsRepository() {
 		return report, nil
 	}
@@ -116,8 +112,6 @@ func (m *Manager) ListChanged() (*Report, error) {
 		Str("action", "ListChanged()").
 		Logger()
 
-	logger.Trace().Msg("Create git wrapper on project root.")
-
 	gOuter, err := m.globalGit()
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
@@ -133,8 +127,6 @@ func (m *Manager) ListChanged() (*Report, error) {
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
-
-	logger.Trace().Msg("Check if path is git repo.")
 
 	if !g.IsRepository() {
 		return nil, errors.E(
@@ -252,8 +244,6 @@ func (m *Manager) ListChanged() (*Report, error) {
 		return nil, errors.E(errListChanged, "searching for stacks", err)
 	}
 
-	logger.Trace().Msg("Range over all stacks.")
-
 rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
@@ -297,27 +287,12 @@ rangeStacks:
 
 			tfpath := filepath.Join(stack.HostDir(m.root), file.Name())
 
-			logger.Trace().
-				Stringer("stack", stack).
-				Str("configFile", tfpath).
-				Msg("Parse modules.")
-
 			modules, err := tf.ParseModules(tfpath)
 			if err != nil {
 				return errors.E(errListChanged, "parsing modules", err)
 			}
 
-			logger.Trace().
-				Stringer("stack", stack).
-				Str("configFile", tfpath).
-				Msg("Range over modules.")
-
 			for _, mod := range modules {
-				logger.Trace().
-					Stringer("stack", stack).
-					Str("configFile", tfpath).
-					Msg("Check if module changed.")
-
 				changed, why, err := m.moduleChanged(mod, stack.HostDir(m.root), make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
@@ -348,14 +323,10 @@ rangeStacks:
 		}
 	}
 
-	logger.Trace().Msg("Make set of changed stacks.")
-
 	changedStacks := make([]Entry, 0, len(stackSet))
 	for _, stack := range stackSet {
 		changedStacks = append(changedStacks, stack)
 	}
-
-	logger.Trace().Msg("Sort changed stacks.")
 
 	sort.Sort(EntrySlice(changedStacks))
 
@@ -380,10 +351,6 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	visited := dag.Visited{}
 	sort.Sort(allstacks)
 	for _, elem := range allstacks {
-		logger.Trace().
-			Stringer("stack", elem.Dir()).
-			Msg("Building dag")
-
 		err := run.BuildDAG(
 			wantsDag,
 			m.root,
@@ -399,8 +366,6 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 			return nil, errors.E(err, "building wants DAG")
 		}
 	}
-
-	logger.Trace().Msg("Validating DAG.")
 
 	reason, err := wantsDag.Validate()
 	if err != nil {
@@ -463,8 +428,6 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 		return errors.E(err, "listing files of directory %q", dir)
 	}
 
-	logger.Trace().
-		Msg("Range files in dir.")
 	for _, file := range files {
 		if file.IsDir() {
 			continue
@@ -496,23 +459,14 @@ func (m *Manager) moduleChanged(
 		return false, "", nil
 	}
 
-	logger.Trace().
-		Str("path", basedir).
-		Msg("Check if module source is local directory.")
 	if !mod.IsLocal() {
 		// if the source is a remote path (URL, VCS path, S3 bucket, etc) then
 		// we assume it's not changed.
 		return false, "", nil
 	}
 
-	logger.Trace().
-		Str("path", basedir).
-		Msg("Get module path.")
 	modPath := filepath.Join(basedir, mod.Source)
 
-	logger.Trace().
-		Str("path", modPath).
-		Msg("Get module path info.")
 	st, err := os.Stat(modPath)
 
 	// TODO(i4k): resolve symlinks
@@ -548,32 +502,20 @@ func (m *Manager) moduleChanged(
 			return nil
 		}
 
-		logger.Trace().
-			Str("path", modPath).
-			Msg("Parse modules.")
 		modules, err := tf.ParseModules(filepath.Join(modPath, file.Name()))
 		if err != nil {
 			return errors.E(err, "parsing module %q", mod.Source)
 		}
 
-		logger.Trace().
-			Str("path", modPath).
-			Msg("Range over modules.")
 		for _, mod2 := range modules {
 			var reason string
 
-			logger.Trace().
-				Str("path", modPath).
-				Msg("Get if module is changed.")
 			changed, reason, err = m.moduleChanged(mod2, modPath, visited)
 			if err != nil {
 				return err
 			}
 
 			if changed {
-				logger.Trace().
-					Str("path", modPath).
-					Msg("Module was changed.")
 				why = fmt.Sprintf("%s%s changed because %s ", why, mod.Source, reason)
 				return nil
 			}
@@ -591,19 +533,10 @@ func (m *Manager) moduleChanged(
 
 // listChangedFiles lists all changed files in the dir directory.
 func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
-	logger := log.With().
-		Str("action", "listChangedFiles()").
-		Str("path", dir).
-		Logger()
-
-	logger.Trace().Msg("Get dir info.")
-
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "stat failed on %q", dir)
 	}
-
-	logger.Trace().Msg("Check if path is dir.")
 
 	if !st.IsDir() {
 		return nil, errors.E("is not a directory")
@@ -616,8 +549,6 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 
 	globalArgs := setupInheritedGitConfigArgs(gOuter)
 
-	logger.Trace().Msg("Create git wrapper with dir.")
-
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: dir,
 		GlobalArgs: globalArgs,
@@ -626,14 +557,10 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 		return nil, err
 	}
 
-	logger.Trace().Msg("Get commit id of git base ref.")
-
 	baseRef, err := g.RevParse(gitBaseRef)
 	if err != nil {
 		return nil, errors.E(err, "getting revision %q", gitBaseRef)
 	}
-
-	logger.Trace().Msg("Get commit id of HEAD.")
 
 	headRef, err := g.RevParse("HEAD")
 	if err != nil {

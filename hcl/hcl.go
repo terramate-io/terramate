@@ -337,11 +337,6 @@ func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ..
 // AddDir walks over all the files in the directory dir and add all .tm and
 // .tm.hcl files to the parser.
 func (p *TerramateParser) AddDir(dir string) error {
-	logger := log.With().
-		Str("action", "parser.AddDir()").
-		Str("dir", dir).
-		Logger()
-
 	tmFiles, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return errors.E(err, "adding directory to terramate parser")
@@ -349,9 +344,6 @@ func (p *TerramateParser) AddDir(dir string) error {
 
 	for _, filename := range tmFiles {
 		path := filepath.Join(dir, filename)
-		logger.Trace().
-			Str("file", path).
-			Msg("Reading config file.")
 
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -361,8 +353,6 @@ func (p *TerramateParser) AddDir(dir string) error {
 		if err := p.AddFileContent(path, data); err != nil {
 			return err
 		}
-
-		logger.Trace().Msg("file added")
 	}
 
 	return nil
@@ -654,8 +644,6 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 	logger.Debug().Msg("Get stack attributes.")
 	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
 	for _, attr := range ast.SortRawAttributes(attrs) {
-		logger.Trace().Msg("Get attribute value.")
-
 		attrVal, err := p.evalctx.Eval(attr.Expr)
 		if err != nil {
 			errs.Append(
@@ -663,10 +651,6 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 			)
 			continue
 		}
-
-		logger.Trace().
-			Str("attribute", attr.Name).
-			Msg("Setting attribute on configuration.")
 
 		switch attr.Name {
 		case "id":
@@ -689,7 +673,6 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 			stack.Name = attrVal.AsString()
 
 		case "description":
-			logger.Trace().Msg("parsing stack description.")
 			if attrVal.Type() != cty.String {
 				errs.Append(hclAttrErr(attr,
 					"field stack.\"description\" must be a \"string\" but given %q",
@@ -808,13 +791,6 @@ func (c Config) Save(filename string) (err error) {
 // .tm.hcl. It parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
 func ParseDir(root string, dir string) (Config, error) {
-	logger := log.With().
-		Str("action", "ParseDir()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("Parsing configuration files")
-
 	p, err := NewTerramateParser(root, dir)
 	if err != nil {
 		return Config{}, err
@@ -1116,10 +1092,6 @@ func validateGenerateFileBlock(block *ast.Block) error {
 }
 
 func assignSet(attr *hcl.Attribute, target *[]string, val cty.Value) error {
-	logger := log.With().
-		Str("action", "hcl.assignSet()").
-		Logger()
-
 	if val.IsNull() {
 		return nil
 	}
@@ -1131,8 +1103,6 @@ func assignSet(attr *hcl.Attribute, target *[]string, val cty.Value) error {
 			"field %q must be a set(string) but found a %q", attr.Name, val.Type().FriendlyName())
 	}
 
-	logger.Trace().Msg("Iterate over values.")
-
 	errs := errors.L()
 	var elems []string
 	values := map[string]struct{}{}
@@ -1142,8 +1112,6 @@ func assignSet(attr *hcl.Attribute, target *[]string, val cty.Value) error {
 		index++
 		_, elem := iterator.Element()
 
-		logger.Trace().Msg("Check element is of correct type.")
-
 		if elem.Type() != cty.String {
 			errs.Append(errors.E(ErrTerramateSchema, attr.Expr.Range(),
 				"field %q must be a set(string) but element %d has type %q",
@@ -1151,8 +1119,6 @@ func assignSet(attr *hcl.Attribute, target *[]string, val cty.Value) error {
 
 			continue
 		}
-
-		logger.Trace().Msg("Get element as string.")
 
 		str := elem.AsString()
 		if _, ok := values[str]; ok {
@@ -1326,10 +1292,6 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 }
 
 func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
-	logger := log.With().
-		Str("action", "hcl.parseVendorConfig()").
-		Logger()
-
 	errs := errors.L()
 
 	for _, attr := range vendor.Attributes {
@@ -1375,8 +1337,6 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 		return err
 	}
 
-	logger.Trace().Msg("parsing vendor.manifest.default block")
-
 	cfg.Manifest = &ManifestConfig{}
 
 	if len(manifestBlock.Blocks) == 0 {
@@ -1411,13 +1371,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 }
 
 func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
-	logger := log.With().
-		Str("action", "parseRootConfig()").
-		Logger()
-
 	errs := errors.L()
-
-	logger.Trace().Msg("Range over block attributes.")
 
 	for _, attr := range block.Attributes.SortedList() {
 		errs.Append(errors.E(attr.NameRange,
@@ -1429,35 +1383,23 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
-		logger.Trace().Msg("Type is 'git'")
-
 		cfg.Git = NewGitConfig()
-
-		logger.Trace().Msg("Parse git config.")
 
 		errs.Append(parseGitConfig(cfg.Git, gitBlock))
 	}
 
 	runBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("run")]
 	if ok {
-		logger.Trace().Msg("Type is 'run'")
-
 		cfg.Run = &RunConfig{
 			CheckGenCode: true,
 		}
-
-		logger.Trace().Msg("Parse run config.")
 
 		errs.Append(parseRunConfig(cfg.Run, runBlock))
 	}
 
 	cloudBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("cloud")]
 	if ok {
-		logger.Trace().Msg("Type is 'cloud'")
-
 		cfg.Cloud = &CloudConfig{}
-
-		logger.Trace().Msg("Parse cloud config.")
 
 		errs.Append(parseCloudConfig(cfg.Cloud, cloudBlock))
 	}
@@ -1466,12 +1408,6 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 }
 
 func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
-	logger := log.With().
-		Str("action", "parseRunConfig()").
-		Logger()
-
-	logger.Trace().Msg("Checking run.env block")
-
 	errs := errors.L()
 	for _, attr := range runBlock.Attributes.SortedList() {
 		value, diags := attr.Expr.Value(nil)
@@ -1522,21 +1458,11 @@ func parseRunEnv(runEnv *RunEnv, envBlock *ast.MergedBlock) error {
 }
 
 func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
-	logger := log.With().
-		Str("action", "parseGitConfig()").
-		Logger()
-
-	logger.Trace().Msg("Range over block attributes.")
-
 	errs := errors.L()
 
 	errs.AppendWrap(ErrTerramateSchema, gitBlock.ValidateSubBlocks())
 
 	for _, attr := range gitBlock.Attributes.SortedList() {
-		logger := logger.With().
-			Str("attribute", attr.Name).
-			Logger()
-
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
@@ -1544,8 +1470,6 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			))
 			continue
 		}
-
-		logger.Trace().Msg("setting attribute on config")
 
 		switch attr.Name {
 		case "default_branch":
@@ -1622,23 +1546,11 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 }
 
 func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
-	logger := log.With().
-		Str("action", "parseCloudConfig()").
-		Logger()
-
-	logger.Trace().Msg("Range over block attributes.")
-
 	errs := errors.L()
 
 	errs.AppendWrap(ErrTerramateSchema, cloudBlock.ValidateSubBlocks())
 
 	for _, attr := range cloudBlock.Attributes.SortedList() {
-		logger := logger.With().
-			Str("attribute", attr.Name).
-			Logger()
-
-		logger.Trace().Msg("setting attribute on config")
-
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
@@ -1684,8 +1596,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	errKind := ErrTerramateSchema
 	errs := errors.L()
 
-	logger.Trace().Msg("checking for top-level attributes.")
-
 	rawconfig := p.Imported.Copy()
 	err := rawconfig.Merge(p.Config)
 	if err != nil {
@@ -1698,22 +1608,14 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			"unrecognized attribute %q", attr.Name))
 	}
 
-	logger.Trace().Msg("Range over unmerged blocks.")
-
 	var foundstack, foundVendor bool
 	var stackblock, vendorBlock *ast.Block
 
 	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
-		logger := logger.With().
-			Str("block", block.Type).
-			Logger()
-
 		switch block.Type {
 		case StackBlockType:
-			logger.Trace().Msg("Found stack block type.")
-
 			if foundstack {
 				errs.Append(errors.E(errKind, block.DefRange(),
 					"duplicated stack block"))
@@ -1723,7 +1625,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			foundstack = true
 			stackblock = block
 		case "assert":
-			logger.Trace().Msg("found assert block")
 			assertCfg, err := parseAssertConfig(block)
 			if err != nil {
 				errs.Append(err)
@@ -1732,8 +1633,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			config.Asserts = append(config.Asserts, assertCfg)
 
 		case "vendor":
-			logger.Trace().Msg("found vendor block")
-
 			if foundVendor {
 				errs.Append(errors.E(errKind, block.DefRange(),
 					"duplicated vendor block"))
@@ -1744,8 +1643,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			vendorBlock = block
 
 		case "generate_hcl":
-			logger.Trace().Msg("Found \"generate_hcl\" block")
-
 			genhcl, err := parseGenerateHCLBlock(block)
 			errs.Append(err)
 			if err == nil {
@@ -1753,8 +1650,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			}
 
 		case "generate_file":
-			logger.Trace().Msg("Found \"generate_file\" block")
-
 			genfile, err := parseGenerateFileBlock(block)
 			errs.Append(err)
 			if err == nil {
@@ -1921,12 +1816,6 @@ func validateMap(block *ast.Block) (err error) {
 }
 
 func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
-	logger := log.With().
-		Str("action", "parseTerramateBlock").
-		Logger()
-
-	logger.Trace().Msg("Range over terramate block attributes.")
-
 	tm := Terramate{}
 
 	errKind := ErrTerramateSchema
@@ -1939,8 +1828,6 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 		}
 		switch attr.Name {
 		case "required_version":
-			logger.Trace().Msg("Parsing  attribute 'required_version'.")
-
 			if value.Type() != cty.String {
 				errs.Append(errors.E(errKind, attr.Expr.Range(),
 					"attribute is not a string"))
@@ -1955,8 +1842,6 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 			tm.RequiredVersion = value.AsString()
 
 		case "required_version_allow_prereleases":
-			logger.Trace().Msg("Parsing  attribute 'required_version_allow_prereleases'.")
-
 			if value.Type() != cty.Bool {
 				errs.Append(errors.E(errKind, attr.Expr.Range(),
 					"attribute is not a bool"))
@@ -1980,15 +1865,9 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("config"))
 
-	logger.Trace().Msg("Parse terramate sub blocks")
-
 	configBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("config")]
 	if ok {
-		logger.Trace().Msg("Found config block.")
-
 		tm.Config = &RootConfig{}
-
-		logger.Trace().Msg("Parse root config.")
 
 		err := parseRootConfig(tm.Config, configBlock)
 		if err != nil {

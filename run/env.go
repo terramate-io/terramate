@@ -45,14 +45,9 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		Stringer("stack", st).
 		Logger()
 
-	logger.Trace().Msg("checking if we have run env config")
-
 	if !root.Tree().Node.HasRunEnv() {
-		logger.Trace().Msg("no run env config found, nothing to do")
 		return nil, nil
 	}
-
-	logger.Trace().Msg("loading globals")
 
 	globalsReport := globals.ForStack(root, st)
 	if err := globalsReport.AsError(); err != nil {
@@ -75,14 +70,10 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 			Str("attribute", attr.Name).
 			Logger()
 
-		logger.Trace().Msg("evaluating")
-
 		val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
 			return nil, errors.E(ErrEval, err)
 		}
-
-		logger.Trace().Msg("checking evaluated value type")
 
 		if val.Type() != cty.String {
 			return nil, errors.E(
@@ -94,7 +85,6 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		}
 		envVars = append(envVars, attr.Name+"="+val.AsString())
 
-		logger.Trace().Msg("env var loaded")
 	}
 
 	return envVars, nil
