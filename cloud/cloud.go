@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -295,7 +296,7 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 		return entity, nil
 	}
 
-	if ctype := resp.Header.Get("Content-Type"); ctype != contentType {
+	if ctype, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ctype != contentType {
 		return entity, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
 	}
 
