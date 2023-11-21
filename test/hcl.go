@@ -238,6 +238,10 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 		}
 	}
 
+	if !slices.Equal(want.Experiments, got.Experiments) {
+		t.Fatalf("want.Experiments[%+v] != got.Experiments[%+v]", want.Experiments, got.Experiments)
+	}
+
 	assertTerramateRunBlock(t, got.Run, want.Run)
 	assertTerramateCloudBlock(t, got.Cloud, want.Cloud)
 }
