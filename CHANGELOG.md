@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `terramate.config.experiments` configuration to enable experimental features.
+
 ## 0.4.3
 
 ### Added
