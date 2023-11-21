@@ -46,6 +46,7 @@ type Config struct {
 	Vendor    *VendorConfig
 	Asserts   []AssertConfig
 	Generate  GenerateConfig
+	Scripts   []*Script
 
 	Imported RawConfig
 
@@ -1663,6 +1664,16 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			"unrecognized attribute %q", attr.Name))
 	}
 
+	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
+	if ok {
+		var tmconfig Terramate
+		tmconfig, err := parseTerramateBlock(tmBlock)
+		errs.Append(err)
+		if err == nil {
+			config.Terramate = &tmconfig
+		}
+	}
+
 	var foundstack, foundVendor bool
 	var stackblock, vendorBlock *ast.Block
 
@@ -1710,16 +1721,22 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			if err == nil {
 				config.Generate.Files = append(config.Generate.Files, genfile)
 			}
-		}
-	}
 
-	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
-	if ok {
-		var tmconfig Terramate
-		tmconfig, err := parseTerramateBlock(tmBlock)
-		errs.Append(err)
-		if err == nil {
-			config.Terramate = &tmconfig
+		case "script":
+			if !config.hasExperimentalFeature("scripts") {
+				errs.Append(
+					errors.E(ErrTerramateSchema, block.DefRange(),
+						"unrecognized block %q", block.Type),
+				)
+				continue
+			}
+
+			scriptCfg, err := p.parseScriptBlock(block)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			config.Scripts = append(config.Scripts, scriptCfg)
 		}
 	}
 

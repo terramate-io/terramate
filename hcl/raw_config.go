@@ -40,6 +40,7 @@ func NewTopLevelRawConfig() RawConfig {
 	return NewCustomRawConfig(map[string]mergeHandler{
 		"terramate":     (*RawConfig).mergeBlock,
 		"globals":       (*RawConfig).mergeLabeledBlock,
+		"script":        (*RawConfig).addBlock,
 		"stack":         (*RawConfig).addBlock,
 		"vendor":        (*RawConfig).addBlock,
 		"generate_file": (*RawConfig).addBlock,
