@@ -5,6 +5,7 @@ package test
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -201,7 +202,7 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 	}
 
 	if (want == nil) != (got == nil) {
-		t.Fatalf("want[%v] != got[%v]", want, got)
+		t.Fatalf("TerramateBlock want[%v] != got[%v]", want, got)
 	}
 
 	if want == nil {
@@ -240,6 +241,10 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 		}
 	}
 
+	if !reflect.DeepEqual(want.Experiments, got.Experiments) {
+		t.Fatalf("want.Experiments[%+v] != got.Experiments[%+v]", want.Experiments, got.Experiments)
+	}
+
 	assertTerramateRunBlock(t, got.Run, want.Run)
 	assertTerramateCloudBlock(t, got.Cloud, want.Cloud)
 }
@@ -276,7 +281,7 @@ func assertScriptBlocks(t *testing.T, got, want []*hcl.Script) {
 	t.Helper()
 
 	if (got == nil) != (want == nil) {
-		t.Fatalf("want[%+v] != got[%+v]", want, got)
+		t.Fatalf("scriptBlock want[%+v] != got[%+v]", want, got)
 	}
 
 	if want == nil {

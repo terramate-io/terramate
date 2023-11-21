@@ -252,8 +252,12 @@ func TestHCLScript(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{},
 				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Experiments: []string{"scripts"},
+						},
+					},
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
@@ -554,8 +558,12 @@ func TestHCLScript(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{},
 				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Experiments: []string{"scripts"},
+						},
+					},
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
@@ -572,6 +580,76 @@ func TestHCLScript(t *testing.T) {
 							Jobs: []*hcl.ScriptJob{
 								{
 									Commands: makeCommands(t, `[["cat", "main.tf"]]`),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "script inside a stack dir",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+					terramate {
+						config {
+							experiments = ["scripts"]
+						}
+					}
+				`,
+				},
+				{
+					filename: "stack/stack.tm",
+					body: `
+						stack {
+							name = "stack"
+							description = "some stack"
+							after = ["after"]
+							before = ["before"]
+							wants = ["wants"]
+							wanted_by = ["wanted"]
+							watch = ["watch"]
+						}
+					`,
+				},
+				{
+					filename: "stack/script.tm",
+					body: `
+					  script "group1" "script1" {
+						description = "some description"
+						job {
+						  command = ["echo", "hello"]
+						}
+					  }
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Experiments: []string{"scripts"},
+						},
+					},
+					Stack: &hcl.Stack{
+						Name:        "stack",
+						Description: "some stack",
+						After:       []string{"after"},
+						Before:      []string{"before"},
+						Wants:       []string{"wants"},
+						WantedBy:    []string{"wanted"},
+						Watch:       []string{"watch"},
+					},
+					Scripts: []*hcl.Script{
+						{
+							Labels:      []string{"group1", "script1"},
+							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some description"`)),
+							Jobs: []*hcl.ScriptJob{
+								{
+									Command: makeCommand(t, `["echo", "hello"]`),
 								},
 							},
 						},

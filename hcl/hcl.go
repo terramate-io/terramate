@@ -765,10 +765,7 @@ func (c Config) Experiments() []string {
 
 // hasExperimentalFeature returns true if the config has an experimental feature enabled
 func (c Config) hasExperimentalFeature(feature string) bool {
-	return c.Terramate != nil &&
-		c.Terramate.Config != nil &&
-		c.Terramate.Config.Experiments != nil &&
-		slices.Contains(c.Terramate.Config.Experiments, feature)
+	return slices.Contains(c.Experiments(), feature)
 }
 
 // AbsDir returns the absolute path of the configuration directory.

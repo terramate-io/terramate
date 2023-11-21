@@ -401,7 +401,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							Experiments: []string{},
+							Experiments: nil, // TODO: fix impl
 						},
 					},
 				},
