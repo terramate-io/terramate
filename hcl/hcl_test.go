@@ -320,6 +320,117 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "terramate.config.experiments with wrong type",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								experiments = 1
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 23, 60), End(4, 24, 61))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.experiments with wrong item type",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								experiments = ["A", 1, "B"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 23, 60), End(4, 36, 73))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.experiments with duplicates",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								experiments = ["A", "B", "A"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 23, 60), End(4, 38, 75))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.experiments with empty set",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								experiments = []
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Experiments: []string{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.experiments with correct values",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								experiments = ["scripts", "awesome-feature"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Experiments: []string{"scripts", "awesome-feature"},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
