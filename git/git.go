@@ -109,33 +109,20 @@ type remoteSorter []Remote
 
 // WithConfig creates a new git wrapper by providing the config.
 func WithConfig(cfg Config) (*Git, error) {
-	logger := log.With().
-		Str("action", "WithConfig()").
-		Str("workingDir", cfg.WorkingDir).
-		Logger()
-
-	logger.Trace().
-		Msg("Construct new config.")
 	git := &Git{
 		config: cfg,
 	}
 
-	logger.Trace().
-		Msg("Apply defaults.")
 	err := git.applyDefaults()
 	if err != nil {
 		return nil, fmt.Errorf("applying default config values: %w", err)
 	}
 
-	logger.Trace().
-		Msg("Validate git config.")
 	err = git.validate()
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Trace().
-		Msg("Get git version.")
 	_, err = git.Version()
 	if err != nil {
 		return nil, err
@@ -144,19 +131,9 @@ func WithConfig(cfg Config) (*Git, error) {
 }
 
 func (git *Git) applyDefaults() error {
-	logger := log.With().
-		Str("action", "applyDefaults()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
 	cfg := &git.config
 
 	if cfg.ProgramPath == "" {
-		logger.Trace().
-			Msg("Config program path was null.")
-
-		logger.Trace().
-			Msg("Look for path 'git'.")
 		programPath, err := exec.LookPath("git")
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrGitNotFound, err)
@@ -166,11 +143,6 @@ func (git *Git) applyDefaults() error {
 	}
 
 	if cfg.WorkingDir == "" {
-		logger.Trace().
-			Msg("Working directory was null.")
-
-		logger.Trace().
-			Msg("Get working directory.")
 		wd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get working directory: %w", err)
@@ -185,14 +157,6 @@ func (git *Git) applyDefaults() error {
 func (git *Git) validate() error {
 	cfg := git.config
 
-	logger := log.With().
-		Str("action", "validate()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
-	logger.Trace().
-		Str("path", cfg.ProgramPath).
-		Msg("Get path program path information.")
 	_, err := os.Stat(cfg.ProgramPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat git program path \"%s\": %w: %v",
@@ -235,11 +199,6 @@ func (git *Git) Version() (string, error) {
 // store revisions.
 // Beware: Init is a porcelain method.
 func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
-	logger := log.With().
-		Str("action", "Init()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
 	if !git.config.AllowPorcelain {
 		return fmt.Errorf("Init: %w", ErrDenyPorcelain)
 	}
@@ -252,8 +211,6 @@ func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 	if bare {
 		args = append(args, "--bare")
 	}
-
-	logger.Trace().Msg("Append arguments to init command and execute.")
 
 	args = append(args, dir)
 	_, err := git.exec("init", args...)
@@ -270,8 +227,6 @@ func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 	git.config.WorkingDir = dir
 
 	if git.config.Username != "" {
-		logger.Trace().
-			Msg("Username was set. Configure username.")
 		_, err = git.exec("config", "--local", "user.name", git.config.Username)
 		if err != nil {
 			return err
@@ -279,8 +234,6 @@ func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 	}
 
 	if git.config.Email != "" {
-		logger.Trace().
-			Msg("Email was set. Configure email.")
 		_, err = git.exec("config", "--local", "user.email", git.config.Email)
 		if err != nil {
 			return err
@@ -303,13 +256,6 @@ func (git *Git) RemoteAdd(name string, url string) error {
 func (git *Git) Remotes() ([]Remote, error) {
 	const refprefix = "refs/remotes/"
 
-	logger := log.With().
-		Str("action", "Remotes()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
-	logger.Trace().
-		Msg("Get all remote references.")
 	res, err := git.exec("for-each-ref", "--format", "%(refname)", refprefix)
 
 	if err != nil {
@@ -322,12 +268,7 @@ func (git *Git) Remotes() ([]Remote, error) {
 
 	references := map[string][]string{}
 
-	logger.Trace().
-		Msg("Range over references.")
 	for _, rawref := range strings.Split(res, "\n") {
-		logger.Trace().
-			Str("reference", rawref).
-			Msg("Format reference.")
 		trimmedref := strings.TrimPrefix(rawref, refprefix)
 		parsed := strings.Split(trimmedref, "/")
 		if len(parsed) < 2 {
@@ -336,22 +277,15 @@ func (git *Git) Remotes() ([]Remote, error) {
 		name := parsed[0]
 		branch := strings.Join(parsed[1:], "/")
 		branches := references[name]
-		logger.Trace().
-			Str("reference", branch).
-			Msg("Append formatted reference to branches array.")
 		references[name] = append(branches, branch)
 	}
 
 	var remotes remoteSorter
 
-	logger.Trace().
-		Msg("Create remotes array.")
 	for name, branches := range references {
 		remotes = append(remotes, Remote{Name: name, Branches: branches})
 	}
 
-	logger.Trace().
-		Msg("Sort remotes.")
 	sort.Stable(remotes)
 	return remotes, nil
 }
@@ -362,24 +296,13 @@ func (git *Git) Remotes() ([]Remote, error) {
 //
 // It returns only the first line of the commit message.
 func (git *Git) LogSummary(revs ...string) ([]LogLine, error) {
-	logger := log.With().
-		Str("action", "LogSummary()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
 	if len(revs) == 0 {
-		logger.Trace().
-			Msg("Length of revisions was 0. Append 'HEAD'.")
 		revs = append(revs, "HEAD")
 	}
 
-	logger.Trace().
-		Msg("Append `-pretty-oneline` argument.")
 	args := append([]string{}, "--pretty=oneline")
 	args = append(args, revs...)
 
-	logger.Trace().
-		Msg("Get list of revs.")
 	out, err := git.exec("rev-list", args...)
 	if err != nil {
 		return nil, err
@@ -389,8 +312,6 @@ func (git *Git) LogSummary(revs ...string) ([]LogLine, error) {
 
 	lines := strings.Split(out, "\n")
 
-	logger.Trace().
-		Msg("Range over revs.")
 	for _, line := range lines {
 		l := strings.TrimSpace(line)
 		if len(l) == 0 {
@@ -402,8 +323,6 @@ func (git *Git) LogSummary(revs ...string) ([]LogLine, error) {
 			return nil, fmt.Errorf("malformed log line")
 		}
 
-		logger.Trace().
-			Msg("Append rev to logs.")
 		logs = append(logs, LogLine{
 			CommitID: l[0:index],
 			Message:  l[index+1:],
@@ -451,8 +370,6 @@ func (git *Git) Commit(msg string, args ...string) error {
 		return fmt.Errorf("Commit: %w", ErrDenyPorcelain)
 	}
 
-	logger.Trace().
-		Msg("Range args.")
 	for _, arg := range args {
 		if arg == "-m" {
 			return fmt.Errorf("the -m argument is already implicitly set")
@@ -533,28 +450,17 @@ func (git *Git) Status() (string, error) {
 // recurse is set, then it walks into child trees as well. If
 // relative is set, then only show local changes of current dir.
 func (git *Git) DiffTree(from, to string, relative, nameOnly, recurse bool) (string, error) {
-	logger := log.With().
-		Str("action", "DiffTree()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
 	args := []string{from, to}
 
 	if relative {
-		logger.Trace().
-			Msg("Set `--relative` command line arg.")
 		args = append(args, "--relative")
 	}
 
 	if nameOnly {
-		logger.Trace().
-			Msg("Set `--name-only` command line arg.")
 		args = append(args, "--name-only")
 	}
 
 	if recurse {
-		logger.Trace().
-			Msg("Set `--r` command line arg.")
 		args = append(args, "-r") // git help shows no long flag name
 	}
 
@@ -565,11 +471,6 @@ func (git *Git) DiffTree(from, to string, relative, nameOnly, recurse bool) (str
 // commit ids differences and return all the file names containing differences
 // relative to configuration WorkingDir.
 func (git *Git) DiffNames(from, to string) ([]string, error) {
-	log.Trace().
-		Str("action", "DiffNames()").
-		Str("workingDir", git.config.WorkingDir).
-		Str("reference", fmt.Sprintf("from `%s` to `%s`", from, to)).
-		Msg("Get tree differences.")
 	diff, err := git.DiffTree(from, to, true, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("diff-tree: %w", err)
@@ -580,11 +481,6 @@ func (git *Git) DiffNames(from, to string) ([]string, error) {
 
 // NewBranch creates a new branch reference pointing to current HEAD.
 func (git *Git) NewBranch(name string) error {
-	log.Trace().
-		Str("action", "NewBranch()").
-		Str("workingDir", git.config.WorkingDir).
-		Str("reference", name).
-		Msg("Get commit ID.")
 	_, err := git.RevParse(name)
 	if err == nil {
 		return fmt.Errorf("branch \"%s\" already exists", name)
@@ -601,11 +497,6 @@ func (git *Git) NewBranch(name string) error {
 
 // DeleteBranch deletes the branch.
 func (git *Git) DeleteBranch(name string) error {
-	log.Trace().
-		Str("action", "DeleteBranch()").
-		Str("workingDir", git.config.WorkingDir).
-		Str("reference", name).
-		Msg("Get commit ID.")
 	_, err := git.RevParse(name)
 	if err != nil {
 		return fmt.Errorf("branch \"%s\" doesn't exist", name)
@@ -630,11 +521,6 @@ func (git *Git) Checkout(rev string, create bool) error {
 	}
 
 	if create {
-		log.Trace().
-			Str("action", "Checkout()").
-			Str("workingDir", git.config.WorkingDir).
-			Str("reference", rev).
-			Msg("Create new branch.")
 		err := git.NewBranch(rev)
 		if err != nil {
 			return err
@@ -850,13 +736,6 @@ func (git *Git) GetConfigValue(key string) (string, error) {
 }
 
 func (git *Git) exec(command string, args ...string) (string, error) {
-	logger := log.With().
-		Str("action", "Git.exec()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
-
-	logger.Trace().Msg("Create cmd to execute")
-
 	cmd := exec.Cmd{
 		Path: git.config.ProgramPath,
 		Args: []string{git.config.ProgramPath},
@@ -864,12 +743,8 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		Env:  []string{},
 	}
 
-	logger.Trace().Msg("Append global arguments and command")
-
 	cmd.Args = append(cmd.Args, git.config.GlobalArgs...)
 	cmd.Args = append(cmd.Args, command)
-
-	logger.Trace().Msg("Append arguments")
 
 	cmd.Args = append(cmd.Args, args...)
 
@@ -881,16 +756,12 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	}
 
 	if git.config.Isolated {
-		logger.Trace().
-			Msg("Add git config environment variables.")
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_SYSTEM=/dev/null")
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_GLOBAL=/dev/null")
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=1") // back-compat
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1") // back-compat
 		cmd.Env = append(cmd.Env, "GIT_ATTR_NOSYSTEM=1")
 	}
-
-	logger.Trace().Msg("Running git command")
 
 	stdout, err := cmd.Output()
 	if err != nil {
@@ -902,8 +773,6 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 
 		return "", NewCmdError(cmd.String(), stdout, stderr)
 	}
-
-	logger.Trace().Msg("git command executed with success")
 
 	out := strings.TrimSpace(string(stdout))
 	return out, nil
@@ -966,9 +835,6 @@ func (r remoteSorter) Swap(i, j int) {
 }
 
 func removeEmptyLines(lines []string) []string {
-	log.Trace().
-		Str("action", "removeEmptyLines()").
-		Msg("Remove empty lines.")
 	outlines := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)

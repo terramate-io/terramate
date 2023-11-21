@@ -84,7 +84,6 @@ func (s *Server) Handler(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return handler(ctx, reply, r, logger)
 	}
 
-	logger.Trace().Msg("not implemented")
 	return reply(ctx, nil, jsonrpc2.ErrMethodNotFound)
 }
 
@@ -331,16 +330,9 @@ func listFiles(fromFile string) ([]string, error) {
 		return nil, err
 	}
 
-	log.Trace().Msg("looking for Terramate files")
-
 	files := []string{}
 	for _, dirEntry := range dirEntries {
-		logger := log.With().
-			Str("entryName", dirEntry.Name()).
-			Logger()
-
 		if dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring dir")
 			continue
 		}
 
@@ -368,8 +360,6 @@ func (s *Server) checkFiles(files []string, currentFile string, currentContent s
 	if !found {
 		rootdir = s.workspace
 	}
-
-	log.Trace().Msgf("using project root: %s (found: %t)", rootdir, found)
 
 	parser, err := hcl.NewTerramateParser(rootdir, dir)
 	if err != nil {

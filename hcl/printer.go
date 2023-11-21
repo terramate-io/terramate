@@ -4,7 +4,6 @@
 package hcl
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -14,13 +13,6 @@ import (
 
 // PrintImports will print the given imports list as import blocks.
 func PrintImports(w io.Writer, imports []string) error {
-	logger := log.With().
-		Str("action", "PrintImports()").
-		Str("imports", fmt.Sprint(imports)).
-		Logger()
-
-	logger.Trace().Msg("Create empty hcl file")
-
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
 
@@ -42,13 +34,10 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		Str("stack", cfg.Stack.Name).
 		Logger()
 
-	logger.Trace().Msg("Create empty hcl file")
-
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
 
 	if cfg.Terramate != nil {
-		logger.Trace().Msg("Append terramate block")
 
 		tm := cfg.Terramate
 		tmBlock := rootBody.AppendNewBlock("terramate", nil)
@@ -61,7 +50,6 @@ func PrintConfig(w io.Writer, cfg Config) error {
 	}
 
 	if cfg.Stack != nil {
-		logger.Trace().Msg("Append 'stack' block")
 
 		stack := cfg.Stack
 		stackBlock := rootBody.AppendNewBlock("stack", nil)

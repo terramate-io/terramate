@@ -45,8 +45,6 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 		Bool("skipChildStacks", skipChildStacks).
 		Logger()
 
-	logger.Trace().Msg("cloning stack, checking invariants")
-
 	if !strings.HasPrefix(srcdir, rootdir) {
 		return 0, errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
 	}
@@ -105,7 +103,6 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 		stackset[stackDestdir] = struct{}{}
 
 		if skipChildStacks && rel != "." {
-			logger.Trace().Msgf("skipping child stack %q", stackSrcdir)
 			continue
 		}
 
@@ -120,8 +117,6 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 		return 0, errors.E(ErrInvalidStackDir, "no stacks to clone in %q", srcdir)
 	}
 
-	logger.Trace().Msgf("found %d stacks to clone", len(tasks))
-
 	for _, st := range tasks {
 		filter := func(dir string, entry os.DirEntry) bool {
 			if strings.HasPrefix(entry.Name(), ".") {
@@ -133,18 +128,14 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 			return !found
 		}
 
-		logger.Trace().Msgf("copying stack files from %q to %q", st.Srcdir, st.Destdir)
-
 		if err := fs.CopyDir(st.Destdir, st.Srcdir, filter); err != nil {
 			return 0, err
 		}
 
 		if !st.ShouldUpdateID {
-			logger.Trace().Msg("stack has no ID, nothing else to do")
 			continue
 		}
 
-		logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
 		if _, err := UpdateStackID(st.Destdir); err != nil {
 			return 0, err
 		}
@@ -158,13 +149,6 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 // The functions updates just the file which defines the stack block.
 // The updated file will lose all comments.
 func UpdateStackID(stackdir string) (string, error) {
-	logger := log.With().
-		Str("action", "stack.updateStackID()").
-		Str("stack", stackdir).
-		Logger()
-
-	logger.Trace().Msg("parsing stack")
-
 	parser, err := hcl.NewTerramateParser(stackdir, stackdir)
 	if err != nil {
 		return "", err
@@ -177,8 +161,6 @@ func UpdateStackID(stackdir string) (string, error) {
 	if err := parser.Parse(); err != nil {
 		return "", err
 	}
-
-	logger.Trace().Msg("finding file containing stack definition")
 
 	stackFilePath := getStackFilepath(parser)
 	if stackFilePath == "" {
@@ -196,14 +178,10 @@ func UpdateStackID(stackdir string) (string, error) {
 	// has no comments on it, so building a new HCL file from the parsed
 	// AST will lose all comments from the original code.
 
-	logger.Trace().Msg("reading stack file")
-
 	stackContents, err := os.ReadFile(stackFilePath)
 	if err != nil {
 		return "", errors.E(err, "reading stack definition file")
 	}
-
-	logger.Trace().Msg("parsing stack file")
 
 	parsed, diags := hclwrite.ParseConfig([]byte(stackContents), stackFilePath, hhcl.InitialPos)
 	if diags.HasErrors() {
@@ -211,8 +189,6 @@ func UpdateStackID(stackdir string) (string, error) {
 	}
 
 	blocks := parsed.Body().Blocks()
-
-	logger.Trace().Msg("searching for stack ID attribute")
 
 	for _, block := range blocks {
 		if block.Type() != hcl.StackBlockType {
@@ -228,8 +204,6 @@ func UpdateStackID(stackdir string) (string, error) {
 
 		body := block.Body()
 		body.SetAttributeValue("id", cty.StringVal(id))
-
-		logger.Trace().Msg("saving updated file")
 
 		err = os.WriteFile(stackFilePath, parsed.Bytes(), originalFileMode)
 		if err != nil {

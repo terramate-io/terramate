@@ -37,14 +37,10 @@ func ParseModules(path string) ([]Module, error) {
 		Str("path", path).
 		Logger()
 
-	logger.Trace().Msg("Get path information.")
-
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, errors.E(err, "stat failed on %q", path)
 	}
-
-	logger.Trace().Msg("Create new parser")
 
 	p := hclparse.NewParser()
 
@@ -56,8 +52,6 @@ func ParseModules(path string) ([]Module, error) {
 	}
 
 	body := f.Body.(*hclsyntax.Body)
-
-	logger.Trace().Msg("Parse modules")
 
 	var modules []Module
 	for _, block := range body.Blocks {
@@ -78,7 +72,6 @@ func ParseModules(path string) ([]Module, error) {
 			Str("module", moduleName).
 			Logger()
 
-		logger.Trace().Msg("Get source attribute.")
 		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
 			logger.Debug().
@@ -116,8 +109,6 @@ func IsStack(path string) (bool, error) {
 
 	body := f.Body.(*hclsyntax.Body)
 
-	logger.Trace().Msg("Parse terraform.backend blocks")
-
 	for _, block := range body.Blocks {
 		switch block.Type {
 		case "terraform":
@@ -126,7 +117,6 @@ func IsStack(path string) (bool, error) {
 					continue
 				}
 
-				logger.Trace().Msg("found a backend block")
 				return true, nil
 			}
 		case "provider":
@@ -138,12 +128,6 @@ func IsStack(path string) (bool, error) {
 }
 
 func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, error) {
-	logger := log.With().
-		Str("action", "findStringAttr()").
-		Logger()
-
-	logger.Trace().Msg("Range over attributes.")
-
 	attrs := ast.AsHCLAttributes(block.Body.Attributes)
 
 	for _, attr := range ast.SortRawAttributes(attrs) {
@@ -151,14 +135,11 @@ func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, erro
 			continue
 		}
 
-		logger.Trace().Msg("Found attribute that we were looking for.")
-		logger.Trace().Msg("Get attribute value.")
 		attrVal, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			return "", false, errors.E(diags)
 		}
 
-		logger.Trace().Msg("Check value type is correct.")
 		if attrVal.Type() != cty.String {
 			return "", false, errors.E(
 				"attribute %q is not a string", attr.Name, attr.Expr.Range(),
