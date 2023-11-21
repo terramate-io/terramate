@@ -26,7 +26,7 @@ func TestCloudCustomHTTPClient(t *testing.T) {
 	isCalled := false
 	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		isCalled = true
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = io.WriteString(w, "[]")
 	}))
 	defer s.Close()
@@ -528,7 +528,7 @@ func newTestServer(statusCode int, body string, headers http.Header) *httptest.S
 				w.Header().Set(k, v[0])
 			}
 		} else {
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		}
 		w.WriteHeader(statusCode)
 		_, _ = io.WriteString(w, body)

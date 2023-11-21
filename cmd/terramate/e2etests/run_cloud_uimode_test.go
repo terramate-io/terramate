@@ -42,7 +42,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 	}
 
 	writeJSON := func(w http.ResponseWriter, str string) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write([]byte(str))
 	}
 
