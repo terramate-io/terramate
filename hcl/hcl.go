@@ -243,8 +243,9 @@ type Evaluator interface {
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	Config   RawConfig
-	Imported RawConfig
+	Config      RawConfig
+	Experiments []string
+	Imported    RawConfig
 
 	rootdir   string
 	dir       string
@@ -290,7 +291,7 @@ const (
 // The parser creates sub-parsers for parsing imports but keeps a list of all
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // Calling Parse() or MinimalParse() multiple times is an error.
-func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+func NewTerramateParser(rootdir string, dir string, experiments ...string) (*TerramateParser, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "failed to stat directory %q", dir)
@@ -304,12 +305,13 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 	}
 
 	return &TerramateParser{
+		Config:      NewTopLevelRawConfig(),
+		Imported:    NewTopLevelRawConfig(),
+		Experiments: experiments,
 		rootdir:     rootdir,
 		dir:         dir,
 		files:       map[string][]byte{},
 		hclparser:   hclparse.NewParser(),
-		Config:      NewTopLevelRawConfig(),
-		Imported:    NewTopLevelRawConfig(),
 		parsedFiles: make(map[string]parsedFile),
 		evalctx:     eval.NewContext(stdlib.Functions(dir)),
 	}, nil
@@ -317,8 +319,8 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 
 // NewStrictTerramateParser is like NewTerramateParser but will fail instead of
 // warn for harmless configuration mistakes.
-func NewStrictTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
-	parser, err := NewTerramateParser(rootdir, dir)
+func NewStrictTerramateParser(rootdir string, dir string, experiments ...string) (*TerramateParser, error) {
+	parser, err := NewTerramateParser(rootdir, dir, experiments...)
 	if err != nil {
 		return nil, err
 	}
@@ -750,6 +752,15 @@ func (c Config) HasRunEnv() bool {
 		c.Terramate.Config.Run.Env != nil
 }
 
+// Experiments returns the config enabled experiments, if any.
+func (c Config) Experiments() []string {
+	if c.Terramate != nil &&
+		c.Terramate.Config != nil {
+		return c.Terramate.Config.Experiments
+	}
+	return []string{}
+}
+
 // AbsDir returns the absolute path of the configuration directory.
 func (c Config) AbsDir() string { return c.absdir }
 
@@ -791,8 +802,8 @@ func (c Config) Save(filename string) (err error) {
 // using root as project workspace, parsing all files with the suffixes .tm and
 // .tm.hcl. It parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
-func ParseDir(root string, dir string) (Config, error) {
-	p, err := NewTerramateParser(root, dir)
+func ParseDir(root string, dir string, experiments ...string) (Config, error) {
+	p, err := NewTerramateParser(root, dir, experiments...)
 	if err != nil {
 		return Config{}, err
 	}
@@ -801,6 +812,30 @@ func ParseDir(root string, dir string) (Config, error) {
 		return Config{}, errors.E("adding files to parser", err)
 	}
 	return p.ParseConfig()
+}
+
+// IsRootConfig parses rootdir and tells if it contains a root config or not.
+func IsRootConfig(rootdir string) (bool, error) {
+	p, err := NewTerramateParser(rootdir, rootdir)
+	if err != nil {
+		return false, err
+	}
+	err = p.AddDir(rootdir)
+	if err != nil {
+		return false, errors.E(err, "adding files to parser")
+	}
+	errs := errors.L()
+	errs.Append(p.parseSyntax())
+	errs.Append(p.mergeConfig())
+	if err := errs.AsError(); err != nil {
+		return false, err
+	}
+	terramate := p.Config.MergedBlocks["terramate"]
+	if terramate == nil {
+		return false, nil
+	}
+	_, ok := terramate.Blocks[ast.NewEmptyLabelBlockType("config")]
+	return ok, nil
 }
 
 // parseGenerateHCLBlock the generate_hcl block.
