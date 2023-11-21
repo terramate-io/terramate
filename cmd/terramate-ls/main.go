@@ -68,8 +68,6 @@ func runServer(conn io.ReadWriteCloser) {
 		Str("action", "main.runServer()").
 		Logger()
 
-	logger.Trace().Msg("Creating context for OS signals.")
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 	defer stop()
 

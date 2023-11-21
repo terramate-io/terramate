@@ -125,8 +125,6 @@ func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) 
 		return nil, nil
 	}
 
-	logger.Trace().Msg("drift details gathered successfully")
-
 	return &cloud.DriftDetails{
 		Provisioner:    "terraform",
 		ChangesetASCII: renderedPlan,
@@ -182,7 +180,6 @@ func (c *cli) runTerraformShow(runContext ExecContext, planfile string, flags ..
 		Str("command", cmd.String()).
 		Logger()
 
-	logger.Trace().Msg("executing")
 	err := cmd.Run()
 	if err != nil {
 		logger.Error().Str("stderr", stderr.String()).Msg("command stderr")

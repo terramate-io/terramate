@@ -21,7 +21,6 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
 
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
@@ -140,19 +139,10 @@ func Load(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
-	logger := log.With().
-		Str("action", "genhcl.Load()").
-		Stringer("path", st.Dir).
-		Logger()
-
-	logger.Trace().Msg("loading generate_hcl blocks.")
-
 	hclBlocks, err := loadGenHCLBlocks(root, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
-
-	logger.Trace().Msg("generating HCL code.")
 
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
@@ -255,7 +245,6 @@ func Load(
 		return hcls[i].Label() < hcls[j].Label()
 	})
 
-	logger.Trace().Msg("evaluated all blocks with success")
 	return hcls, nil
 }
 
@@ -301,20 +290,8 @@ func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock
 //
 // Returns an error if the evaluation fails.
 func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) error {
-	logger := log.With().
-		Str("action", "genhcl.copyBody()").
-		Logger()
-
-	logger.Trace().Msg("sorting attributes")
-
 	attrs := ast.SortRawAttributes(ast.AsHCLAttributes(src.Attributes))
 	for _, attr := range attrs {
-		logger := logger.With().
-			Str("attrName", attr.Name).
-			Logger()
-
-		logger.Trace().Msg("evaluating.")
-
 		// a generate_hcl.content block must be partially evaluated multiple
 		// times then the updates nodes should not be persisted.
 		expr := &ast.CloneExpression{
@@ -326,11 +303,8 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 			return errors.E(err, attr.Expr.Range())
 		}
 
-		logger.Trace().Str("attribute", attr.Name).Msg("Setting evaluated attribute.")
 		dest.SetAttributeRaw(attr.Name, ast.TokensForExpression(newexpr))
 	}
-
-	logger.Trace().Msg("appending blocks")
 
 	for _, block := range src.Blocks {
 		err := appendBlock(dest, block, eval)
@@ -499,12 +473,6 @@ func setBodyAttributes(body *hclwrite.Body, attrs []tmAttribute) error {
 }
 
 func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
-	logger := log.With().
-		Str("action", "genhcl.appendDynamicBlock").
-		Logger()
-
-	logger.Trace().Msg("appending tm_dynamic block")
-
 	errs := errors.L()
 	if len(dynblock.Labels) != 1 {
 		errs.Append(errors.E(ErrParsing,
@@ -528,10 +496,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 
 	genBlockType := dynblock.Labels[0]
 
-	logger = logger.With().
-		Str("genBlockType", genBlockType).
-		Logger()
-
 	if attrs.condition != nil {
 		condition, err := evaluator.Eval(attrs.condition.Expr)
 		if err != nil {
@@ -541,7 +505,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 			return errors.E(ErrDynamicConditionEval, "want boolean got %s", condition.Type().FriendlyName())
 		}
 		if !condition.True() {
-			logger.Trace().Msg("condition is false, ignoring block")
 			return nil
 		}
 	}
@@ -549,7 +512,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 	var foreach cty.Value
 
 	if attrs.foreach != nil {
-		logger.Trace().Msg("evaluating for_each attribute")
 
 		foreach, err = evaluator.Eval(attrs.foreach.Expr)
 		if err != nil {
@@ -564,7 +526,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 	}
 
 	if foreach.IsNull() {
-		logger.Trace().Msg("no for_each, generating single block")
 
 		if attrs.iterator != nil {
 			return errors.E(ErrInvalidDynamicIterator,
@@ -575,8 +536,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 		return appendDynamicBlock(target, evaluator,
 			genBlockType, attrs, contentBlock)
 	}
-
-	logger.Trace().Msg("defining iterator name")
 
 	iterator := genBlockType
 
@@ -594,12 +553,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 		}
 		iterator = iteratorTraversal.RootName()
 	}
-
-	logger = logger.With().
-		Str("iterator", iterator).
-		Logger()
-
-	logger.Trace().Msg("generating blocks")
 
 	var tmDynamicErr error
 

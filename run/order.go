@@ -28,8 +28,6 @@ func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.
 		Str("root", root.HostDir()).
 		Logger()
 
-	logger.Trace().Msg("Computes implicit hierarchical order.")
-
 	isParentStack := func(s1, s2 *config.Stack) bool {
 		return s1.Dir.HasPrefix(s2.Dir.String() + "/")
 	}
@@ -48,8 +46,6 @@ func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.
 			}
 		}
 	}
-
-	logger.Trace().Msg("Sorting stacks.")
 
 	visited := dag.Visited{}
 	for _, elem := range stacks {
@@ -77,20 +73,14 @@ func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.
 		}
 	}
 
-	logger.Trace().Msg("Validate DAG.")
-
 	reason, err := d.Validate()
 	if err != nil {
 		return nil, reason, err
 	}
 
-	logger.Trace().Msg("Get topologically order DAG.")
-
 	order := d.Order()
 
 	orderedStacks := make(config.List[*config.SortableStack], 0, len(order))
-
-	logger.Trace().Msg("Get ordered stacks.")
 
 	isSelectedStack := func(s *config.Stack) bool {
 		// Stacks may be added on the DAG from after/before references
@@ -113,9 +103,6 @@ func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.
 		}
 		s := val.(*config.Stack)
 		if !isSelectedStack(s) {
-			logger.Trace().
-				Stringer("stack", s.Dir).
-				Msg("ignoring since not part of selected stacks")
 			continue
 		}
 		orderedStacks = append(orderedStacks, s.Sortable())
@@ -226,8 +213,6 @@ func BuildDAG(
 	stacks = append(stacks, ancestorStacks...)
 	stacks = append(stacks, descendantStacks...)
 
-	logger.Trace().Msg("Range over stacks.")
-
 	for _, elem := range stacks {
 		logger = log.With().
 			Str("action", "run.BuildDAG()").
@@ -238,8 +223,6 @@ func BuildDAG(
 		if _, ok := visited[dag.ID(elem.Dir().String())]; ok {
 			continue
 		}
-
-		logger.Trace().Msg("Build DAG.")
 
 		err = BuildDAG(d, root, elem.Stack, descendantsName, getDescendants,
 			ancestorsName, getAncestors, visited)

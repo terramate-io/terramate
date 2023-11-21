@@ -73,13 +73,6 @@ type List[T DirElem] []T
 // configpath != "" and found as true.
 func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, err error) {
 	for {
-		logger := log.With().
-			Str("action", "config.TryLoadConfig()").
-			Str("path", fromdir).
-			Logger()
-
-		logger.Trace().Msg("Parse Terramate config.")
-
 		cfg, err := hcl.ParseDir(fromdir, fromdir)
 		if err != nil {
 			// the imports only works for the correct rootdir.
@@ -142,8 +135,6 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tre
 		Strs("paths", relpaths).
 		Logger()
 
-	logger.Trace().Msg("lookup paths")
-
 	normalizePaths := func(paths []string) []project.Path {
 		pathmap := map[string]struct{}{}
 		var normalized []project.Path
@@ -173,8 +164,6 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tre
 	}
 
 	sort.Sort(stacks)
-
-	logger.Trace().Msgf("found %d stacks out of %d paths", len(stacks), len(relpaths))
 
 	return stacks
 }
@@ -382,8 +371,6 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err 
 		err = errors.L(err, f.Close()).AsError()
 	}()
 
-	logger.Trace().Msg("reading directory file names")
-
 	names, err := f.Readdirnames(0)
 	if err != nil {
 		return nil, errors.E(err, "failed to read files in %s", cfgdir)
@@ -413,7 +400,6 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err 
 			Logger()
 
 		if Skip(name) {
-			logger.Trace().Msg("skipping file")
 			continue
 		}
 		dir := filepath.Join(cfgdir, name)
@@ -422,11 +408,8 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err 
 			return nil, errors.E(err, "failed to stat %s", dir)
 		}
 		if !st.IsDir() {
-			logger.Trace().Msg("ignoring non-directory file")
 			continue
 		}
-
-		logger.Trace().Msg("loading children tree")
 
 		node, err := LoadTree(rootdir, dir)
 		if err != nil {

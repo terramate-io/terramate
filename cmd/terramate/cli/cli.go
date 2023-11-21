@@ -456,8 +456,6 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		log.Fatal().Msgf("evaluating symlinks on working dir: %s", wd)
 	}
 
-	logger.Trace().Msg("Running in directory")
-
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		fatal(err, "looking up project root")
@@ -466,8 +464,6 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	if !foundRoot {
 		log.Fatal().Msg("Project root not found. If you invoke Terramate inside a Git repository, Terramate will automatically assume the top level of your repository as the project root. If you use Terramate in a directory that isn't a Git repository, you must configure the project root by creating a terramate.tm.hcl configuration in the directory you wish to be the top-level of your Terramate project. For details please see https://terramate.io/docs/cli/configuration/project-config#project-configuration.")
 	}
-
-	logger.Trace().Msg("Set defaults from parsed command line arguments.")
 
 	err = prj.setDefaults()
 	if err != nil {
@@ -585,13 +581,7 @@ func (c *cli) run() {
 }
 
 func (c *cli) setupGit() {
-	logger := log.With().
-		Str("action", "setupGit()").
-		Str("workingDir", c.wd()).
-		Logger()
-
 	if c.prj.isRepo && c.parsedArgs.Changed {
-		logger.Trace().Msg("Check git default remote.")
 
 		if err := c.prj.checkDefaultRemote(); err != nil {
 			fatal(err, "checking git default remote")
@@ -672,16 +662,7 @@ func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStre
 }
 
 func (c *cli) vendorDir() prj.Path {
-	logger := log.With().
-		Str("workingDir", c.wd()).
-		Str("rootdir", c.rootdir()).
-		Str("action", "cli.vendorDir()").
-		Logger()
-
-	logger.Trace().Msg("checking vendor dir configuration")
-
 	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
-		logger.Trace().Msg("using CLI config")
 
 		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
 		if !path.IsAbs(dir) {
@@ -701,7 +682,6 @@ func (c *cli) vendorDir() prj.Path {
 	dotTerramateInfo, err := os.Stat(dotTerramate)
 
 	if err == nil && dotTerramateInfo.IsDir() {
-		logger.Trace().Msg("no CLI config, checking .terramate")
 
 		cfg, err := hcl.ParseDir(c.rootdir(), filepath.Join(c.rootdir(), ".terramate"))
 		if err != nil {
@@ -709,22 +689,16 @@ func (c *cli) vendorDir() prj.Path {
 		}
 
 		if hasVendorDirConfig(cfg) {
-			logger.Trace().Msg("using .terramate config")
 
 			return checkVendorDir(cfg.Vendor.Dir)
 		}
 	}
 
-	logger.Trace().Msg("no .terramate config, checking root")
-
 	hclcfg := c.rootNode()
 	if hasVendorDirConfig(hclcfg) {
-		logger.Trace().Msg("using root config")
 
 		return checkVendorDir(hclcfg.Vendor.Dir)
 	}
-
-	logger.Trace().Msg("no configuration provided, fallback to default")
 
 	return prj.NewPath(defaultVendorDir)
 }
@@ -789,15 +763,6 @@ func (c *cli) cloneStack() {
 	srcdir := c.parsedArgs.Experimental.Clone.SrcDir
 	destdir := c.parsedArgs.Experimental.Clone.DestDir
 	skipChildStacks := c.parsedArgs.Experimental.Clone.SkipChildStacks
-	logger := log.With().
-		Str("workingDir", c.wd()).
-		Str("action", "cli.cloneStack()").
-		Str("src", srcdir).
-		Str("dest", destdir).
-		Bool("skipChildStacks", skipChildStacks).
-		Logger()
-
-	logger.Trace().Msg("cloning stack")
 
 	// Convert to absolute paths
 	absSrcdir := filepath.Join(c.wd(), srcdir)
@@ -956,12 +921,8 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 
 	if err := c.prj.checkRemoteDefaultBranchIsReachable(); err != nil {
-		logger.Trace().Bool("is_reachable", false).Err(err).
-			Msg("Safeguard default-branch-is-reachable failed.")
 		fatal(err)
 	}
-	logger.Trace().Bool("is_reachable", true).
-		Msg("Safeguard default-branch-is-reachable passed.")
 }
 
 func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.FilterStatus) (*stack.Report, error) {
@@ -971,18 +932,8 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 	)
 
 	if isChanged {
-		log.Trace().
-			Str("action", "listStacks()").
-			Str("workingDir", c.wd()).
-			Msg("Listing changed stacks")
-
 		report, err = mgr.ListChanged()
 	} else {
-		log.Trace().
-			Str("action", "listStacks()").
-			Str("workingDir", c.wd()).
-			Msg("Listing all stacks")
-
 		report, err = mgr.List()
 	}
 
@@ -1112,19 +1063,12 @@ func (c *cli) initTerraform() {
 }
 
 func (c *cli) initDir(baseDir string) error {
-	logger := log.With().
-		Str("dir", baseDir).
-		Str("action", "cli.initDir()").
-		Logger()
-
 	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
 	var isStack bool
 	tree, found := c.prj.root.Lookup(pdir)
 	if found {
 		isStack = tree.IsStack()
 	}
-
-	logger.Trace().Msg("scanning TF files")
 
 	dirs, err := os.ReadDir(baseDir)
 	if err != nil {
@@ -1135,7 +1079,6 @@ func (c *cli) initDir(baseDir string) error {
 	for _, f := range dirs {
 		path := filepath.Join(baseDir, f.Name())
 		if strings.HasPrefix(f.Name(), ".") {
-			logger.Trace().Msgf("ignoring file %s", path)
 			continue
 		}
 
@@ -1149,7 +1092,6 @@ func (c *cli) initDir(baseDir string) error {
 		}
 
 		if filepath.Ext(f.Name()) != ".tf" {
-			logger.Trace().Msgf("ignoring file %s", path)
 			continue
 		}
 
@@ -1159,7 +1101,6 @@ func (c *cli) initDir(baseDir string) error {
 		}
 
 		if !found {
-			logger.Trace().Msgf("ignoring file %s", path)
 			continue
 		}
 
@@ -1196,21 +1137,11 @@ func (c *cli) createStack() {
 		c.scanCreate()
 		return
 	}
-	logger := log.With().
-		Str("workingDir", c.wd()).
-		Str("action", "cli.createStack()").
-		Str("imports", stdfmt.Sprint(c.parsedArgs.Create.Import)).
-		Str("after", stdfmt.Sprint(c.parsedArgs.Create.After)).
-		Str("before", stdfmt.Sprint(c.parsedArgs.Create.Before)).
-		Logger()
-
-	logger.Trace().Msg("creating stack")
 
 	stackHostDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
 
 	stackID := c.parsedArgs.Create.ID
 	if stackID == "" {
-		logger.Trace().Msg("no ID provided, generating one")
 
 		id, err := uuid.NewRandom()
 		if err != nil {
@@ -1298,43 +1229,25 @@ func (c *cli) createStack() {
 }
 
 func (c *cli) format() {
-	logger := log.With().
-		Str("workingDir", c.wd()).
-		Str("action", "format()").
-		Logger()
-
-	logger.Trace().Msg("formatting all files recursively")
 	results, err := fmt.FormatTree(c.wd())
 	if err != nil {
 		fatal(err, "formatting files")
 	}
 
-	logger.Trace().Msg("listing formatted files")
 	for _, res := range results {
 		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
 		c.output.MsgStdOut(path)
 	}
 
 	if c.parsedArgs.Fmt.Check {
-		logger.Trace().Msg("checking if we have unformatted files")
 		if len(results) > 0 {
-			logger.Trace().Msg("we have unformatted files")
 			os.Exit(1)
 		}
-		logger.Trace().Msg("all files formatted, nothing else to do")
 		return
 	}
 
-	logger.Trace().Msg("saving formatted files")
-
 	errs := errors.L()
 	for _, res := range results {
-		logger := log.With().
-			Str("workingDir", c.wd()).
-			Str("filepath", res.Path()).
-			Str("action", "format()").
-			Logger()
-		logger.Trace().Msg("saving formatted file")
 		errs.Append(res.Save())
 	}
 
@@ -1416,8 +1329,6 @@ func (c *cli) generateGraph() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().Msg("Handle graph label command line argument.")
-
 	switch c.parsedArgs.Experimental.RunGraph.Label {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
@@ -1478,11 +1389,9 @@ func (c *cli) generateGraph() {
 	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
-		logger.Trace().Msg("set output to stdout")
 
 		out = c.stdout
 	} else {
-		logger.Trace().Msg("set output to file")
 
 		f, err := os.Create(outFile)
 		if err != nil {
@@ -1620,13 +1529,6 @@ func (c *cli) generateDebug() {
 }
 
 func (c *cli) printStacksGlobals() {
-	logger := log.With().
-		Str("action", "printStacksGlobals()").
-		Logger()
-
-	logger.Trace().
-		Msg("Create new terramate manager.")
-
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
@@ -1660,9 +1562,6 @@ func (c *cli) printMetadata() {
 	logger := log.With().
 		Str("action", "cli.printMetadata()").
 		Logger()
-
-	logger.Trace().
-		Msg("Create new terramate manager.")
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
@@ -1920,11 +1819,8 @@ func (c *cli) checkOutdatedGeneratedCode() {
 		Logger()
 
 	if !c.checkGenCode() {
-		logger.Trace().Msg("outdated generated code check is disabled")
 		return
 	}
-
-	logger.Trace().Msg("checking if any stack has outdated code")
 
 	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
 	if err != nil {
@@ -1976,16 +1872,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 }
 
 func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.SortableStack], error) {
-	logger := log.With().
-		Str("action", "computeSelectedStacks()").
-		Str("workingDir", c.wd()).
-		Logger()
-
-	logger.Trace().Msg("Create new terramate manager.")
-
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-
-	logger.Trace().Msg("Get list of stacks.")
 
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
@@ -1993,8 +1880,6 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 	}
 
 	c.gitFileSafeguards(ensureCleanRepo)
-
-	logger.Trace().Msg("Filter stacks by working directory.")
 
 	entries := c.filterStacks(report.Stacks)
 	stacks := make(config.List[*config.SortableStack], len(entries))
@@ -2051,8 +1936,6 @@ func (c cli) checkVersion() {
 		Str("action", "cli.checkVersion()").
 		Str("root", c.rootdir()).
 		Logger()
-
-	logger.Trace().Msg("checking if terramate version satisfies project constraint")
 
 	rootcfg := c.rootNode()
 	if rootcfg.Terramate == nil {
@@ -2185,13 +2068,6 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		wd: wd,
 	}
 
-	logger := log.With().
-		Str("action", "lookupProject()").
-		Str("workingDir", wd).
-		Logger()
-
-	logger.Trace().Msg("Create new git wrapper.")
-
 	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
 	if err != nil {
 		return project{}, false, err
@@ -2199,18 +2075,14 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	gw, err := newGit(wd, false)
 	if err == nil {
-		logger.Trace().Msg("Get root of git repo.")
 
 		gitdir, err := gw.Root()
 		if err == nil {
-			logger.Trace().Msg("Get absolute path of git directory.")
 
 			gitabs := gitdir
 			if !filepath.IsAbs(gitabs) {
 				gitabs = filepath.Join(wd, gitdir)
 			}
-
-			logger.Trace().Msg("Evaluate symbolic links.")
 
 			rootdir, err := filepath.EvalSymlinks(gitabs)
 			if err != nil {
@@ -2224,8 +2096,6 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 					Err(errors.E(ErrRootCfgInvalidDir)).
 					Msg("ignoring root config")
 			}
-
-			logger.Trace().Msg("Load root config.")
 
 			cfg, err := config.LoadRoot(rootdir)
 			if err != nil {

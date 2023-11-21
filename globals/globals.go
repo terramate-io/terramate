@@ -9,12 +9,12 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/mapexpr"
 
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
@@ -74,18 +74,10 @@ func (a GlobalPathKey) name() string {
 // More specific globals (closer or at the current dir) have precedence over
 // less specific globals (closer or at the root dir).
 func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
-	logger := log.With().
-		Str("action", "globals.Load()").
-		Str("root", root.HostDir()).
-		Stringer("cfgdir", cfgdir).
-		Logger()
-
 	tree, ok := root.Lookup(cfgdir)
 	if !ok {
 		return NewEvalReport()
 	}
-
-	logger.Trace().Msg("loading expressions")
 
 	exprs, err := LoadExprs(tree)
 	if err != nil {
@@ -122,11 +114,6 @@ func newExprSet(origin project.Path) *ExprSet {
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
 func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
-	logger := log.With().
-		Str("action", "globals.LoadExprs()").
-		Stringer("dir", tree.Dir()).
-		Logger()
-
 	exprs := newExprSet(tree.Dir())
 
 	globalsBlocks := tree.Node.Globals.AsList()
@@ -161,8 +148,6 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 					"map label %s conflicts with global.%s attribute", varName, varName)
 			}
 
-			logger.Trace().Msgf("Add map.%s to globals", varName)
-
 			key := NewGlobalAttrPath(block.Labels, varName)
 			expr, err := mapexpr.NewMapExpr(varsBlock)
 			if err != nil {
@@ -175,10 +160,7 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 			}
 		}
 
-		logger.Trace().Msg("Range over attributes.")
-
 		for _, attr := range attrs {
-			logger.Trace().Msg("Add attribute to globals.")
 
 			key := NewGlobalAttrPath(block.Labels, attr.Name)
 			exprs.expressions[key] = Expr{
@@ -199,14 +181,10 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 		return globals, nil
 	}
 
-	logger.Trace().Msg("Loading stack globals from parent dir.")
-
 	parentGlobals, err := LoadExprs(parent)
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Trace().Msg("Merging globals with parent.")
 
 	globals.merge(parentGlobals)
 	return globals, nil
@@ -280,8 +258,6 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 		Str("action", "HierarchicalExprs.Eval()").
 		Logger()
 
-	logger.Trace().Msg("Create new evaluation context.")
-
 	report := NewEvalReport()
 	globals := report.Globals
 	pendingExprsErrs := map[GlobalPathKey]*errors.List{}
@@ -325,8 +301,6 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
-		logger.Trace().Msg("evaluating pending expressions")
-
 		for _, sortedGlobals := range sortedGlobalAccessors {
 
 		pendingExpression:
@@ -341,8 +315,6 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 					Stringer("origin", sortedGlobals.origin).
 					Strs("global", accessor.Path()).
 					Logger()
-
-				logger.Trace().Msg("checking var access inside expression")
 
 				traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
 				if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
@@ -471,15 +443,12 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 				// This is to avoid setting a label defined extension on the child
 				// and later overwriting that with an object definition on the parent
 
-				logger.Trace().Msg("evaluating expression")
-
 				val, err := ctx.Eval(expr)
 				if err != nil {
 					pendingExprsErrs[accessor].Append(errors.E(
 						ErrEval, err, "global.%s (%t)", accessor.rootname(), accessor.isattr))
 					continue
 				}
-
 				if hasOldValue && oldValue.IsObject() && !accessor.isattr {
 					// all the `attr = expr` inside global blocks become an entry
 					// in the globalExprs map but we have the special case that
@@ -492,10 +461,9 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 
 					// this `if` happens for the general case, which we must not
 					// set the fake expression when extending an existing object.
-
 					logger.Trace().Msg("ignoring implicitly created empty global")
+
 				} else {
-					logger.Trace().Msg("setting global")
 
 					err := setGlobal(globals, accessor, eval.NewValue(val,
 						eval.Info{
@@ -514,8 +482,6 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 
 				delete(pendingExprs, accessor)
 				delete(pendingExprsErrs, accessor)
-
-				logger.Trace().Msg("updating globals eval context with evaluated attribute")
 
 				ctx.SetNamespace("global", globals.AsValueMap())
 			}

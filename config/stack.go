@@ -218,12 +218,6 @@ func (s *Stack) HostDir(root *Root) string {
 
 // RuntimeValues returns the runtime "terramate" namespace for the stack.
 func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
-	logger := log.With().
-		Str("action", "stack.stackMetaToCtyMap()").
-		Logger()
-
-	logger.Trace().Msg("creating stack metadata")
-
 	stackpath := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(s.Dir.String()),
 		"relative": cty.StringVal(s.RelPath()),
@@ -237,10 +231,6 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 		"path":        stackpath,
 	}
 	if s.ID != "" {
-		logger.Trace().
-			Str("id", s.ID).
-			Msg("adding stack ID to metadata")
-
 		stackMapVals["id"] = cty.StringVal(s.ID)
 	}
 	stack := cty.ObjectVal(stackMapVals)
@@ -325,7 +315,6 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 		stacks = append(stacks, stack.Sortable())
 
 		if stack.ID != "" {
-			logger.Trace().Msg("stack has ID, checking for duplicate")
 			if otherStack, ok := stacksIDs[strings.ToLower(stack.ID)]; ok {
 				return List[*SortableStack]{}, errors.E(ErrStackDuplicatedID,
 					"stack %q and %q have same ID %q",

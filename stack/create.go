@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -41,10 +40,6 @@ const (
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
 func Create(root *config.Root, stack config.Stack, imports ...string) (err error) {
-	logger := log.With().
-		Str("action", "stack.Create()").
-		Logger()
-
 	err = stack.Validate()
 	if err != nil {
 		return err
@@ -59,14 +54,10 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 		return errors.E(ErrStackAlreadyExists)
 	}
 
-	logger.Trace().Msg("creating stack dir if absent")
-
 	hostpath := stack.Dir.HostPath(root.HostDir())
 	if err := os.MkdirAll(hostpath, createDirMode); err != nil {
 		return errors.E(err, "failed to create new stack directories")
 	}
-
-	logger.Trace().Msg("validating create configuration")
 
 	_, err = os.Stat(filepath.Join(hostpath, DefaultFilename))
 	if err == nil {
@@ -90,8 +81,6 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 	}
 
 	tmCfg.Stack = &stackCfg
-
-	logger.Trace().Msg("creating stack file")
 
 	stackFile, err := os.Create(filepath.Join(hostpath, DefaultFilename))
 	if err != nil {

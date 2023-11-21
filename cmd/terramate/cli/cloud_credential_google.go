@@ -227,11 +227,6 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 		return createAuthURIResponse{}, errors.E(err)
 	}
 
-	logger.Trace().
-		Str("response-body", string(data)).
-		Int("response-status-code", resp.StatusCode).
-		Msg("response")
-
 	if resp.StatusCode != 200 {
 		return createAuthURIResponse{}, errors.E("%s request returned %d", req.URL, resp.StatusCode)
 	}
@@ -298,11 +293,6 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Str("action", "tokenHandler.ServeHTTP").
 		Logger()
 
-	logger.Trace().
-		Str("endpoint", signInEndpoint).
-		Str("post-body", string(data)).
-		Msg("prepared request body")
-
 	url := endpointURL(signInEndpoint, h.idpKey)
 	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
 	if err != nil {
@@ -328,11 +318,6 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.errChan <- errors.E(err)
 		return
 	}
-
-	logger.Trace().
-		Str("response-body", string(data)).
-		Int("response-status-code", resp.StatusCode).
-		Msg("response")
 
 	if resp.StatusCode != 200 {
 		h.handleErr(w, errors.E("%s request returned %d", req.URL, resp.StatusCode))
