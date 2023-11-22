@@ -26,6 +26,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add `terramate.config.experiments` configuration to enable experimental features.
 
+### Fixed
+
+- fix(generate): blocks with context=root were ignored if defined in stacks.
+
 ## 0.4.3
 
 ### Added

@@ -186,6 +186,24 @@ func TestGenerateRootContext(t *testing.T) {
 						),
 					),
 				},
+				{
+					path: "/nested/stack",
+					add: Doc(
+						GenerateFile(
+							Labels("/target/dir/file3.txt"),
+							Expr("context", "root"),
+							Str("content", "/target/dir/file3.txt"),
+						),
+						GenerateFile(
+							Labels("/target/dir/file4.txt"),
+							Expr("context", "root"),
+							Str("content", "/target/dir/file4.txt"),
+						),
+						// It must also work if defined inside a stack.
+						// Note(i4k): regression test.
+						Stack(),
+					),
+				},
 			},
 			want: []generatedFile{
 				{
@@ -200,6 +218,8 @@ func TestGenerateRootContext(t *testing.T) {
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/target/dir/file1.txt"),
 						"file2.txt": stringer("/target/dir/file2.txt"),
+						"file3.txt": stringer("/target/dir/file3.txt"),
+						"file4.txt": stringer("/target/dir/file4.txt"),
 					},
 				},
 			},
@@ -211,7 +231,7 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 					{
 						Dir:     project.NewPath("/target/dir"),
-						Created: []string{"file1.txt", "file2.txt"},
+						Created: []string{"file1.txt", "file2.txt", "file3.txt", "file4.txt"},
 					},
 				},
 			},
