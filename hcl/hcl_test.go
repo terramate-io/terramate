@@ -33,9 +33,11 @@ type (
 		name      string
 		nonStrict bool
 		parsedir  string
-		rootdir   string
-		input     []cfgfile
-		want      want
+		// whether the experiments config should be loaded from rootdir
+		loadExperimentsConfig bool
+		rootdir               string
+		input                 []cfgfile
+		want                  want
 	}
 )
 
@@ -1272,6 +1274,14 @@ func parse(tc testcase) (hcl.Config, error) {
 	err = parser.AddDir(tc.parsedir)
 	if err != nil {
 		return hcl.Config{}, errors.E("adding files to parser", err)
+	}
+
+	if tc.loadExperimentsConfig {
+		rootcfg, err := hcl.ParseDir(tc.rootdir, tc.rootdir)
+		if err != nil {
+			return hcl.Config{}, errors.E("failed to load root config", err)
+		}
+		parser.Experiments = rootcfg.Experiments()
 	}
 	return parser.ParseConfig()
 }
