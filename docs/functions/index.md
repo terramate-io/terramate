@@ -8,7 +8,7 @@ prev:
 
 next:
   text: 'tm_ternary'
-  link: '/functions/tm_ternary'
+  link: '/functions/terramate-builtin/tm_ternary'
 ---
 
 # Terramate Functions
