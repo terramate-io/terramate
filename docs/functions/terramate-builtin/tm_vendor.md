@@ -5,7 +5,7 @@ description: |
 
 prev:
   text: 'tm_version_match'
-  link: '/functions/tm_version_match.md'
+  link: '/functions/terramate-builtin/tm_version_match.md'
 ---
 
 # `tm_vendor` Function

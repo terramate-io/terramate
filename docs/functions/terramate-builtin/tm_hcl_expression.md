@@ -4,11 +4,11 @@ description: This function is capable of generating HCL expressions from a strin
 
 prev:
   text: 'tm_ternary'
-  link: '/functions/tm_ternary.md'
+  link: '/functions/terramate-builtin/tm_ternary'
 
 next:
   text: 'tm_version_match'
-  link: 'functions/tm_version_match.md'
+  link: 'functions/terramate-builtin/tm_version_match.md'
 ---
 
 # `tm_hcl_expression` Function
