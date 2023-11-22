@@ -82,7 +82,6 @@ func (c *cli) runOnStacks() {
 			fatal(err, "computing selected stacks")
 		}
 	}
-	logger.Trace().Msg("Get order of stacks to run command on.")
 
 	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
 	if err != nil {
@@ -94,13 +93,10 @@ func (c *cli) runOnStacks() {
 	}
 
 	if c.parsedArgs.Run.Reverse {
-		logger.Trace().Msg("Reversing stacks order.")
 		config.ReverseStacks(orderedStacks)
 	}
 
 	if c.parsedArgs.Run.DryRun {
-		logger.Trace().
-			Msg("Do a dry run - get order without actually running command.")
 		if len(orderedStacks) > 0 {
 			c.output.MsgStdOut("The stacks will be executed using order below:")
 
@@ -179,10 +175,6 @@ func (c *cli) runOnStacks() {
 // If SIGINT is sent 3x then Terramate will send a SIGKILL to the currently
 // running process and abort the execution of all subsequent stacks.
 func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) bool) error {
-	logger := log.With().
-		Str("action", "cli.RunAll()").
-		Logger()
-
 	errs := errors.L()
 
 	// we load/check the env of all stacks beforehand then no stack is executed
@@ -191,8 +183,6 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 	if err != nil {
 		return err
 	}
-
-	logger.Trace().Msg("loaded stacks run environment variables, running commands")
 
 	const signalsBufferSize = 10
 	signals := make(chan os.Signal, signalsBufferSize)
@@ -305,7 +295,6 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 					return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
 				}
 			case result := <-results:
-				logger.Trace().Msg("got command result")
 				logSyncWait()
 				var err error
 				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
@@ -392,12 +381,6 @@ func newEnvironFrom(stackEnviron []string) []string {
 }
 
 func (c *cli) loadAllStackEnvs(runStacks []ExecContext) (map[prj.Path]run.EnvVars, error) {
-	logger := log.With().
-		Str("action", "cli.loadAllStackEnvs").
-		Logger()
-
-	logger.Trace().Msg("loading stacks run environment variables")
-
 	errs := errors.L()
 	stackEnvs := map[prj.Path]run.EnvVars{}
 	for _, elem := range runStacks {

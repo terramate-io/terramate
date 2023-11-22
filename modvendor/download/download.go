@@ -187,11 +187,6 @@ func vendor(
 	info *modinfo,
 	events ProgressEventStream,
 ) Report {
-	logger := log.With().
-		Str("action", "download.vendor()").
-		Str("module.source", modsrc.Raw).
-		Logger()
-
 	moddir, err := downloadVendor(rootdir, vendorDir, modsrc, events)
 	if err != nil {
 		if errors.IsKind(err, ErrAlreadyVendored) {
@@ -209,8 +204,6 @@ func vendor(
 		report.addIgnored(modsrc.Raw, errors.E(ErrDownloadMod, err, errmsg))
 		return report
 	}
-
-	logger.Trace().Msg("successfully downloaded")
 
 	report.addVendored(modsrc)
 	return vendorAll(rootdir, vendorDir, moddir, report, events)
@@ -261,13 +254,6 @@ func vendorAll(
 	report Report,
 	events ProgressEventStream,
 ) Report {
-	logger := log.With().
-		Str("action", "download.vendorAll()").
-		Str("dir", tfdir).
-		Logger()
-
-	logger.Trace().Msg("scanning .tf files for additional dependencies")
-
 	sources := newSourcesInfo()
 	originMap := map[string]struct{}{}
 	errs := errors.L(report.Error)
@@ -285,8 +271,6 @@ func vendorAll(
 			return nil
 		}
 
-		logger.Trace().Str("path", path).Msg("found Terraform file")
-
 		modules, err := tf.ParseModules(path)
 		if err != nil {
 			errs.Append(err)
@@ -294,16 +278,9 @@ func vendorAll(
 		}
 
 		for _, mod := range modules {
-			logger = logger.With().
-				Str("module.source", mod.Source).
-				Logger()
-
 			if mod.IsLocal() || mod.Source == "" {
-				logger.Trace().Msg("ignoring local module")
 				continue
 			}
-
-			logger.Trace().Msg("found remote module")
 
 			originMap[path] = struct{}{}
 
@@ -316,11 +293,6 @@ func vendorAll(
 
 	for _, info := range sources.list {
 		source := info.source
-		logger := logger.With().
-			Str("module.source", source).
-			Str("origin", info.origin).
-			Logger()
-
 		modsrc, err := tf.ParseSource(source)
 		if err != nil {
 			report.addIgnored(source, err)
@@ -333,7 +305,6 @@ func vendorAll(
 		targetVendorDir := modvendor.AbsVendorDir(rootdir, vendorDir, modsrc)
 		st, err := os.Stat(targetVendorDir)
 		if err == nil && st.IsDir() {
-			logger.Trace().Msg("already vendored")
 			info.vendoredAt = modvendor.TargetDir(vendorDir, modsrc)
 			continue
 		}
@@ -343,7 +314,6 @@ func vendorAll(
 			info.vendoredAt = modvendor.TargetDir(vendorDir, modsrc)
 			info.subdir = v.Source.Subdir
 
-			logger.Trace().Msg("vendored successfully")
 		}
 	}
 
@@ -368,15 +338,6 @@ func downloadVendor(
 	modsrc tf.Source,
 	events ProgressEventStream,
 ) (string, error) {
-	logger := log.With().
-		Str("action", "download.downloadVendor()").
-		Str("rootdir", rootdir).
-		Stringer("vendordir", vendorDir).
-		Str("url", modsrc.URL).
-		Str("path", modsrc.Path).
-		Str("ref", modsrc.Ref).
-		Logger()
-
 	if modsrc.Ref == "" {
 		return "", errors.E(ErrModRefEmpty, "ref: %v", modsrc)
 	}
@@ -385,8 +346,6 @@ func downloadVendor(
 	if _, err := os.Stat(modVendorDir); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", modVendorDir)
 	}
-
-	logger.Trace().Msg("setting up temp dir where module will be cloned")
 
 	// We want an initial temporary dir outside of the Terramate project
 	// to do the clone since some git setups will assume that any
@@ -418,14 +377,6 @@ func downloadVendor(
 		}
 	}()
 
-	logger = logger.With().
-		Str("clonedRepoDir", clonedRepoDir).
-		Str("modVendorDir", modVendorDir).
-		Str("tmTempDir", tmTempDir).
-		Logger()
-
-	logger.Trace().Msg("setting up git wrapper")
-
 	// Same strategy used on the Go toolchain:
 	// - https://github.com/golang/go/blob/2ebe77a2fda1ee9ff6fd9a3e08933ad1ebaea039/src/cmd/go/internal/get/get.go#L129
 
@@ -452,8 +403,6 @@ func downloadVendor(
 			Msg("dropped progress event, event handler is not fast enough or absent")
 	}
 
-	logger.Trace().Msg("cloning to workdir")
-
 	if err := g.Clone(modsrc.URL, clonedRepoDir); err != nil {
 		return "", err
 	}
@@ -467,8 +416,6 @@ func downloadVendor(
 	if err := os.RemoveAll(filepath.Join(clonedRepoDir, ".git")); err != nil {
 		return "", errors.E(err, "removing .git dir from cloned repo")
 	}
-
-	logger.Trace().Msg("checking for manifest")
 
 	matcher, err := manifest.LoadFileMatcher(clonedRepoDir)
 	if err != nil {
@@ -486,7 +433,6 @@ func downloadVendor(
 		return matcher.Match(strings.Split(relpath, pathSeparator), entry.IsDir())
 	}
 
-	logger.Trace().Msg("copying cloned mod to terramate temp vendor dir")
 	if err := fs.CopyDir(tmTempDir, clonedRepoDir, fileFilter); err != nil {
 		return "", errors.E(err, "copying cloned module")
 	}
@@ -495,7 +441,6 @@ func downloadVendor(
 		return "", errors.E(err, "creating mod dir inside vendor")
 	}
 
-	logger.Trace().Msg("moving cloned mod from terramate temp vendor to final vendor")
 	if err := os.Rename(tmTempDir, modVendorDir); err != nil {
 		// Assuming that the whole Terramate project is inside the
 		// same fs/mount/dev.
@@ -505,18 +450,8 @@ func downloadVendor(
 }
 
 func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
-	logger := log.With().
-		Str("action", "download.patchFiles").
-		Logger()
-
-	logger.Trace().Msg("patching vendored files")
-
 	errs := errors.L()
 	for _, fname := range files {
-		logger := logger.With().
-			Str("filename", fname).
-			Logger()
-
 		bytes, err := os.ReadFile(fname)
 		if err != nil {
 			errs.Append(err)
@@ -527,8 +462,6 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			errs.Append(errors.E(diags))
 			continue
 		}
-
-		logger.Trace().Msg("successfully parsed for patching")
 
 		blocks := parsedFile.Body().Blocks()
 		for _, block := range blocks {
@@ -549,10 +482,6 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			// TODO(i4k): improve to support parenthesis.
 
 			if info, ok := sources.set[sourceString]; ok && info.vendoredAt.String() != "" {
-				logger.Trace().
-					Str("module.source", sourceString).
-					Msg("found relevant module")
-
 				relPath, err := filepath.Rel(
 					filepath.Dir(fname), filepath.Join(rootdir, filepath.FromSlash(info.vendoredAt.String())),
 				)

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -115,11 +116,9 @@ func (c *Client) GetStack(ctx context.Context, orgUUID, repo, metaID string) (St
 }
 
 // StackDrifts returns the drifts of the given stack.
-func (c *Client) StackDrifts(ctx context.Context, orgUUID string, stackID int, limit int) (DriftsStackPayloadResponse, error) {
+func (c *Client) StackDrifts(ctx context.Context, orgUUID string, stackID int, page, perPage int) (DriftsStackPayloadResponse, error) {
 	path := path.Join(StacksPath, orgUUID, strconv.Itoa(stackID), "drifts")
-	if limit != 0 {
-		path += "?limit=" + strconv.Itoa(limit)
-	}
+	path += fmt.Sprintf("?page=%d&per_page=%d", page, perPage)
 	return Get[DriftsStackPayloadResponse](ctx, c, path)
 }
 
@@ -297,7 +296,7 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 		return entity, nil
 	}
 
-	if ctype := resp.Header.Get("Content-Type"); ctype != contentType {
+	if ctype, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ctype != contentType {
 		return entity, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
 	}
 

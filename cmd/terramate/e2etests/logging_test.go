@@ -13,15 +13,15 @@ func TestLoggingChangeChannel(t *testing.T) {
 	t.Parallel()
 	s := sandbox.NoGit(t, true)
 	cli := newCLI(t, s.RootDir())
-	cli.loglevel = "trace"
+	cli.loglevel = "debug"
 
 	assertRunResult(t, cli.listStacks(), runExpected{
-		StderrRegex: "TRC",
+		StderrRegex: "DBG",
 	})
 	assertRunResult(t, cli.listStacks("--log-destination", "stderr"), runExpected{
-		StderrRegex: "TRC",
+		StderrRegex: "DBG",
 	})
 	assertRunResult(t, cli.listStacks("--log-destination", "stdout"), runExpected{
-		StdoutRegex: "TRC",
+		StdoutRegex: "DBG",
 	})
 }

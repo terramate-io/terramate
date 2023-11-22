@@ -272,7 +272,7 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 
 	// stack is drifted
-	driftsResp, err := c.cloud.client.StackDrifts(ctx, c.cloud.run.orgUUID, stackResp.ID, 1)
+	driftsResp, err := c.cloud.client.StackDrifts(ctx, c.cloud.run.orgUUID, stackResp.ID, 1, 1)
 	if err != nil {
 		fatal(err)
 	}
@@ -561,8 +561,6 @@ func (c *cli) ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
 	logger := log.With().
 		Str("action", "cli.ensureAllStackHaveIDs").
 		Logger()
-
-	logger.Trace().Msg("Checking if selected stacks have id")
 
 	var stacksMissingIDs []string
 	for _, st := range stacks {

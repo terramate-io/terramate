@@ -667,29 +667,21 @@ func updateOutdatedFiles(
 }
 
 func writeGeneratedCode(target string, genfile GenFile) error {
-	logger := log.With().
-		Str("action", "writeGeneratedCode()").
-		Str("file", target).
-		Logger()
-
 	body := genfile.Header() + genfile.Body()
 
 	if genfile.Header() != "" {
 		// WHY: some file generation strategies don't provide
 		// headers, like generate_file, so we can't detect
 		// if we are overwriting a Terramate generated file.
-		logger.Trace().Msg("checking file can be written")
 		if err := checkFileCanBeOverwritten(target); err != nil {
 			return err
 		}
 	}
 
-	logger.Trace().Msg("creating intermediary dirs")
 	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 		return err
 	}
 
-	logger.Trace().Msg("writing file")
 	return os.WriteFile(target, []byte(body), 0666)
 }
 
@@ -706,13 +698,6 @@ func checkFileCanBeOverwritten(path string) error {
 // the file + true is returned if a file is found, but if no file is found
 // it will return an empty string and false indicating that the file doesn't exist.
 func readGeneratedFile(path string) (string, bool, error) {
-	logger := log.With().
-		Str("action", "readGeneratedCode()").
-		Str("path", path).
-		Logger()
-
-	logger.Trace().Msg("Get file information.")
-
 	data, found, err := readFile(path)
 	if err != nil {
 		return "", false, err
@@ -721,8 +706,6 @@ func readGeneratedFile(path string) (string, bool, error) {
 	if !found {
 		return "", false, nil
 	}
-
-	logger.Trace().Msg("Check if file has terramate header.")
 
 	if hasGenHCLHeader(data) {
 		return data, true, nil
@@ -738,13 +721,6 @@ func readGeneratedFile(path string) (string, bool, error) {
 // the file + true is returned if a file is found, but if no file is found
 // it will return an empty string and false indicating that the file doesn't exist.
 func readFile(path string) (string, bool, error) {
-	logger := log.With().
-		Str("action", "readFile()").
-		Str("path", path).
-		Logger()
-
-	logger.Trace().Msg("Get file information.")
-
 	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -752,8 +728,6 @@ func readFile(path string) (string, bool, error) {
 		}
 		return "", false, err
 	}
-
-	logger.Trace().Msg("Reading file")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -777,14 +751,7 @@ func forEachStack(
 	vendorRequests chan<- event.VendorRequest,
 	fn forEachStackFunc,
 ) Report {
-	logger := log.With().
-		Str("action", "generate.forEachStack()").
-		Str("root", root.HostDir()).
-		Logger()
-
 	report := Report{}
-
-	logger.Trace().Msg("List stacks.")
 
 	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
@@ -793,19 +760,11 @@ func forEachStack(
 	}
 
 	for _, elem := range stacks {
-		logger := logger.With().
-			Stringer("stack", elem).
-			Logger()
-
-		logger.Trace().Msg("Load stack globals.")
-
 		globalsReport := globals.ForStack(root, elem.Stack)
 		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(elem.Dir(), errors.E(ErrLoadingGlobals, err))
 			continue
 		}
-
-		logger.Trace().Msg("Calling stack callback.")
 
 		stackReport := fn(root, elem.Stack, globalsReport.Globals, vendorDir, vendorRequests)
 		report.addDirReport(elem.Dir(), stackReport)
@@ -1001,12 +960,6 @@ func hasGenHCLHeader(code string) bool {
 }
 
 func validateStackGeneratedFiles(root *config.Root, stackpath string, generated []GenFile) error {
-	logger := log.With().
-		Str("action", "generate.validateStackGeneratedFiles()").
-		Logger()
-
-	logger.Trace().Msg("Checking for invalid paths on generated files.")
-
 	errs := errors.L()
 
 	for _, file := range generated {

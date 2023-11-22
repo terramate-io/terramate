@@ -24,6 +24,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `terramate.config.experiments` configuration to enable experimental features.
+
+## 0.4.3
+
+### Added
+
 - Add `--cloud-sync-terraform-plan-file=<plan>` flag for synchronizing the plan
 file in rendered ASCII and JSON (sensitive information removed).
 - Add configuration attribute `terramate.config.cloud.organization` to select which cloud organization to use when syncing with Terramate Cloud.

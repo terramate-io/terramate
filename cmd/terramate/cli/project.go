@@ -197,12 +197,6 @@ func (p *project) setDefaults() error {
 }
 
 func (p project) checkDefaultRemote() error {
-	logger := log.With().
-		Str("action", "checkDefaultRemote()").
-		Logger()
-
-	logger.Trace().Msg("Get list of configured git remotes.")
-
 	remotes, err := p.git.wrapper.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
@@ -212,8 +206,6 @@ func (p project) checkDefaultRemote() error {
 
 	gitcfg := p.gitcfg()
 
-	logger.Trace().
-		Msg("Find default git remote.")
 	for _, remote := range remotes {
 		if remote.Name == gitcfg.DefaultRemote {
 			defRemote = &remote
@@ -227,7 +219,6 @@ func (p project) checkDefaultRemote() error {
 		)
 	}
 
-	logger.Trace().Msg("Find default git branch.")
 	for _, branch := range defRemote.Branches {
 		if branch == gitcfg.DefaultBranch {
 			return nil
