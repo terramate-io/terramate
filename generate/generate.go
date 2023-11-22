@@ -315,7 +315,7 @@ func doRootGeneration(root *config.Root) Report {
 			Bool("isStack", cfg.IsStack()).
 			Logger()
 
-		if cfg.IsEmptyConfig() || cfg.IsStack() {
+		if cfg.IsEmptyConfig() {
 			logger.Debug().Msg("ignoring directory")
 			continue
 		}
