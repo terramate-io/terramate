@@ -508,7 +508,7 @@ func TestCloudStacks(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			stacksResp, err := sdk.StacksByStatus(ctx, tc.org, tc.filter)
+			stacksResp, err := sdk.StacksByStatus(ctx, cloud.UUID(tc.org), tc.filter)
 			errtest.Assert(t, err, tc.want.err)
 			if err != nil {
 				return

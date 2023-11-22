@@ -23,7 +23,11 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-const terraformInstallVersion = "1.5.0"
+const (
+	terraformInstallVersion = "1.5.0"
+
+	testserverJSONFile = "testdata/cloud.data.json"
+)
 
 // terramateTestBin is the path to the terramate binary we compiled for test purposes
 var terramateTestBin string

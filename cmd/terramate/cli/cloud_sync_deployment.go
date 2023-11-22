@@ -26,7 +26,7 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 	}
 
 	logger = logger.With().
-		Str("organization", c.cloud.run.orgUUID).
+		Str("organization", string(c.cloud.run.orgUUID)).
 		Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -143,7 +143,7 @@ func (c *cli) cloudSyncDeployment(runContext ExecContext, err error) {
 func (c *cli) doCloudSyncDeployment(runContext ExecContext, status deployment.Status) {
 	st := runContext.Stack
 	logger := log.With().
-		Str("organization", c.cloud.run.orgUUID).
+		Str("organization", string(c.cloud.run.orgUUID)).
 		Str("stack", st.RelPath()).
 		Stringer("status", status).
 		Logger()

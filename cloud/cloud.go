@@ -90,8 +90,8 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 }
 
 // StacksByStatus returns all stacks for the given organization.
-func (c *Client) StacksByStatus(ctx context.Context, orgUUID string, status stack.FilterStatus) (StacksResponse, error) {
-	path := path.Join(StacksPath, orgUUID)
+func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, status stack.FilterStatus) (StacksResponse, error) {
+	path := path.Join(StacksPath, string(orgUUID))
 	if status == stack.UnhealthyFilter {
 		path += "?status=" + status.String()
 	}
@@ -99,8 +99,8 @@ func (c *Client) StacksByStatus(ctx context.Context, orgUUID string, status stac
 }
 
 // GetStack retrieves the details of the stack with given repo and metaID.
-func (c *Client) GetStack(ctx context.Context, orgUUID, repo, metaID string) (StackResponse, bool, error) {
-	path := path.Join(StacksPath, orgUUID)
+func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, metaID string) (StackResponse, bool, error) {
+	path := path.Join(StacksPath, string(orgUUID))
 	path += fmt.Sprintf("?repository=%s&meta_id=%s", repo, metaID)
 	stacks, err := Get[StacksResponse](ctx, c, path)
 	if err != nil {
@@ -116,23 +116,23 @@ func (c *Client) GetStack(ctx context.Context, orgUUID, repo, metaID string) (St
 }
 
 // StackDrifts returns the drifts of the given stack.
-func (c *Client) StackDrifts(ctx context.Context, orgUUID string, stackID int, page, perPage int) (DriftsStackPayloadResponse, error) {
-	path := path.Join(StacksPath, orgUUID, strconv.Itoa(stackID), "drifts")
+func (c *Client) StackDrifts(ctx context.Context, orgUUID UUID, stackID int, page, perPage int) (DriftsStackPayloadResponse, error) {
+	path := path.Join(StacksPath, string(orgUUID), strconv.Itoa(stackID), "drifts")
 	path += fmt.Sprintf("?page=%d&per_page=%d", page, perPage)
 	return Get[DriftsStackPayloadResponse](ctx, c, path)
 }
 
 // DriftDetails retrieves details of the given driftID.
-func (c *Client) DriftDetails(ctx context.Context, orgUUID string, stackID int, driftID int) (Drift, error) {
-	path := path.Join(DriftsPath, orgUUID, strconv.Itoa(stackID), strconv.Itoa(driftID))
+func (c *Client) DriftDetails(ctx context.Context, orgUUID UUID, stackID int, driftID int) (Drift, error) {
+	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa(stackID), strconv.Itoa(driftID))
 	return Get[Drift](ctx, c, path)
 }
 
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.
 func (c *Client) CreateDeploymentStacks(
 	ctx context.Context,
-	orgUUID string,
-	deploymentUUID string,
+	orgUUID UUID,
+	deploymentUUID UUID,
 	deploymentStacksPayload DeploymentStacksPayloadRequest,
 ) (DeploymentStacksResponse, error) {
 	err := deploymentStacksPayload.Validate()
@@ -144,22 +144,22 @@ func (c *Client) CreateDeploymentStacks(
 		c,
 		deploymentStacksPayload,
 		DeploymentsPath,
-		orgUUID,
-		deploymentUUID,
+		string(orgUUID),
+		string(deploymentUUID),
 		"stacks",
 	)
 }
 
 // UpdateDeploymentStacks updates the deployment status of each stack in the payload set.
-func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID string, deploymentUUID string, payload UpdateDeploymentStacks) error {
-	_, err := Patch[EmptyResponse](ctx, c, payload, DeploymentsPath, orgUUID, deploymentUUID, "stacks")
+func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID UUID, deploymentUUID UUID, payload UpdateDeploymentStacks) error {
+	_, err := Patch[EmptyResponse](ctx, c, payload, DeploymentsPath, string(orgUUID), string(deploymentUUID), "stacks")
 	return err
 }
 
 // CreateStackDrift pushes a new drift status for the given stack.
 func (c *Client) CreateStackDrift(
 	ctx context.Context,
-	orgUUID string,
+	orgUUID UUID,
 	driftPayload DriftStackPayloadRequest,
 ) (EmptyResponse, error) {
 	err := driftPayload.Validate()
@@ -171,16 +171,16 @@ func (c *Client) CreateStackDrift(
 		c,
 		driftPayload,
 		DriftsPath,
-		orgUUID,
+		string(orgUUID),
 	)
 }
 
 // SyncDeploymentLogs sends a batch of deployment logs to Terramate Cloud.
 func (c *Client) SyncDeploymentLogs(
 	ctx context.Context,
-	orgUUID string,
+	orgUUID UUID,
 	stackID int,
-	deploymentUUID string,
+	deploymentUUID UUID,
 	logs DeploymentLogs,
 ) error {
 	err := logs.Validate()
@@ -190,7 +190,7 @@ func (c *Client) SyncDeploymentLogs(
 	// Endpoint:/v1/stacks/{org_uuid}/{stack_id}/deployments/{deployment_uuid}/logs
 	_, err = Post[EmptyResponse](
 		ctx, c, logs,
-		StacksPath, orgUUID, strconv.Itoa(stackID), "deployments", deploymentUUID, "logs",
+		StacksPath, string(orgUUID), strconv.Itoa(stackID), "deployments", string(deploymentUUID), "logs",
 	)
 	return err
 }

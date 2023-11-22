@@ -3,20 +3,60 @@
 
 package testserver
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+	"strings"
 
-type userHandler struct{}
+	"github.com/golang-jwt/jwt"
+	"github.com/julienschmidt/httprouter"
+	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
+	"github.com/terramate-io/terramate/errors"
+)
 
-func newUserEndpoint() *userHandler {
-	return &userHandler{}
+// GetUsers implements the /v1/users endpoint.
+func GetUsers(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	user, err := userFromRequest(store, r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		writeErr(w, err)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	data, err := json.Marshal(user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		write(w, data)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	write(w, data)
 }
 
-func (userHandler *userHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-	writeString(w, `{
-			    "email": "batman@example.com",
-			    "display_name": "batman",
-				"job_title": "entrepreneur"
-			}`,
-	)
+func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, error) {
+	authorization := r.Header.Get("Authorization")
+	if authorization == "" {
+		return cloud.User{}, errors.E("no authorization header")
+	}
+
+	tokenStr := strings.TrimPrefix(authorization, "Bearer ")
+	if tokenStr == "" {
+		return cloud.User{}, errors.E("no bearer token")
+	}
+
+	var jwtParser jwt.Parser
+
+	claims := jwt.MapClaims{}
+	_, _, err := jwtParser.ParseUnverified(tokenStr, claims)
+	if err != nil {
+		return cloud.User{}, errors.E(err, "parsing jwt token")
+	}
+
+	email := claims["email"].(string)
+	user, found := store.GetUser(email)
+	if !found {
+		return cloud.User{}, errors.E("email %s not found", email)
+	}
+	return user, nil
 }

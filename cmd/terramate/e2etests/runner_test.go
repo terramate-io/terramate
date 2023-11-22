@@ -173,7 +173,7 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	}
 
 	claims := MyCustomClaims{
-		"batman@example.com",
+		"batman@terramate.io",
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
 			Issuer:    "terramate-tests",

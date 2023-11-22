@@ -14,21 +14,19 @@ GIT_CURRENT_MINOR_VERSION=$(shell echo $(GIT_CURRENT_VERSION) | cut -d. -f2)
 
 IS_VALID_GIT_VERSION=$(shell expr $(GIT_CURRENT_MAJOR_VERSION) '>=' $(GIT_MIN_MAJOR_VERSION) '&' $(GIT_CURRENT_MINOR_VERSION) '>=' $(GIT_MIN_MINOR_VERSION))
 
-
 ifneq "$(IS_VALID_GIT_VERSION)" "1"
 $(error "$(IS_VALID_GIT_VERSION) Unsupported git version $(GIT_CURRENT_VERSION). Minimum supported version: $(GIT_MIN_VERSION)")
 endif
 
-
 ## build a test binary -- not static, telemetry sent to localhost, etc
 .PHONY: test/build
-test/build: test/fakecloud
+test/build: test/testserver
 	go build -tags localhostEndpoints -o bin/test-terramate ./cmd/terramate
 
-## build bin/fakecloud
-.PHONY: test/fakecloud
-test/fakecloud:
-	go build -o bin/fakecloud ./cloud/testserver/cmd/fakecloud
+## build bin/testserver
+.PHONY: test/testserver
+test/testserver:
+	go build -o bin/testserver ./cloud/testserver/cmd/testserver
 
 ## build the helper binary
 .PHONY: test/helper
@@ -38,8 +36,8 @@ test/helper:
 ## test code
 .PHONY: test
 tempdir=$(shell ./bin/helper tempdir)
-test: test/helper
-	TM_TEST_ROOT_TEMPDIR=$(tempdir) go test -race -count=1 ./...
+test: test/helper build
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
 
 ## test if terramate works with CI git environment.

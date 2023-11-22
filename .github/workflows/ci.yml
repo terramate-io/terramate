@@ -56,6 +56,9 @@ jobs:
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
 
+      - name: make generate
+        run: terramate generate
+
       - name: make test
         run: terramate run --tags golang --changed -- make test
 

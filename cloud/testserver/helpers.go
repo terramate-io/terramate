@@ -3,14 +3,21 @@
 
 package testserver
 
-import "io"
+import (
+	"encoding/json"
+	"io"
+	"log"
+)
 
 func write(w io.Writer, data []byte) {
-	_, _ = w.Write(data)
+	_, err := w.Write(data)
+	if err != nil {
+		log.Printf("error: %v", err)
+	}
 }
 
 func writeErr(w io.Writer, err error) {
-	_, _ = w.Write([]byte(err.Error()))
+	write(w, []byte(err.Error()))
 }
 
 func writeString(w io.Writer, str string) {
@@ -18,5 +25,16 @@ func writeString(w io.Writer, str string) {
 }
 
 func justClose(c io.Closer) {
-	_ = c.Close()
+	if err := c.Close(); err != nil {
+		log.Printf("error: %v", err)
+	}
+}
+
+func marshalWrite(w io.Writer, obj interface{}) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
+	}
+	write(w, data)
 }

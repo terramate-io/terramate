@@ -39,8 +39,8 @@ type cloudConfig struct {
 	output   out.O
 
 	run struct {
-		runUUID string
-		orgUUID string
+		runUUID cloud.UUID
+		orgUUID cloud.UUID
 
 		meta2id       map[string]int
 		reviewRequest *cloud.DeploymentReviewRequest
@@ -108,8 +108,9 @@ func (c *cli) checkCloudSync() {
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
 		c.cloud.run.meta2id = make(map[string]int)
-		c.cloud.run.runUUID, err = generateRunID()
+		uuid, err := generateRunID()
 		c.handleCriticalError(err)
+		c.cloud.run.runUUID = cloud.UUID(uuid)
 	}
 }
 
@@ -145,7 +146,7 @@ func (c *cli) setupCloudConfig() error {
 
 	useOrgName := c.cloudOrgName()
 	if useOrgName != "" {
-		var useOrgUUID string
+		var useOrgUUID cloud.UUID
 		for _, org := range orgs {
 			if org.Name == useOrgName {
 				if org.Status != "active" && org.Status != "trusted" {

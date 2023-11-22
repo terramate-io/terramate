@@ -7,66 +7,76 @@ package testserver
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 )
-
-// DefaultOrgUUID is the test organization UUID.
-const DefaultOrgUUID = "0000-1111-2222-3333"
 
 type (
 	// Route declares an HTTP route.
 	Route struct {
 		Path    string
-		Handler http.Handler
+		Handler Handler
 	}
 
 	// Custom declares a custom server config.
 	Custom struct {
 		Routes map[string]Route
 	}
+
+	// Handler is the testserver handler interface.
+	Handler func(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params)
 )
 
 // Router returns the default fake cloud router.
-func Router() *httprouter.Router {
-	return RouterWith(EnableAllConfig())
+func Router(store *cloudstore.Data) *httprouter.Router {
+	return RouterWith(store, EnableAllConfig())
 }
 
 // RouterWith returns the testserver router configuration only for the
 // enabled endpoints.
-func RouterWith(enabled map[string]bool) *httprouter.Router {
+func RouterWith(store *cloudstore.Data, enabled map[string]bool) *httprouter.Router {
 	router := httprouter.New()
-	RouterAdd(router, enabled)
+	RouterAdd(store, router, enabled)
 	return router
 }
 
+func handler(store *cloudstore.Data, fn Handler) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		if !strings.HasPrefix(r.Header.Get("User-Agent"), "terramate/") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		fn(store, w, r, p)
+	}
+}
+
 // RouterAdd enables endpoints in an existing router.
-func RouterAdd(router *httprouter.Router, enabled map[string]bool) {
+func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[string]bool) {
 	if enabled[cloud.UsersPath] {
-		router.Handler("GET", cloud.UsersPath, newUserEndpoint())
+		router.GET(cloud.UsersPath, handler(store, GetUsers))
 	}
 
 	if enabled[cloud.StacksPath] {
-		stackHandler := newStackEndpoint()
-		router.Handler("GET", cloud.StacksPath+"/:orguuid", stackHandler)
-		router.Handler("POST", cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", stackHandler)
-		router.Handler("GET", cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", stackHandler)
-		router.Handler("GET", cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs/events", stackHandler)
+		router.GET(cloud.StacksPath+"/:orguuid", handler(store, GetStacks))
+		router.POST(cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", handler(store, PostDeploymentLogs))
+		router.GET(cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", handler(store, GetDeploymentLogs))
+		router.GET(cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs/events", handler(store, GetDeploymentLogsEvents))
 
 		// not a real TMC handler, only used by tests to populate the stacks state.
-		router.Handler("PUT", cloud.StacksPath+"/:orguuid/:stackid", stackHandler)
+		router.PUT(cloud.StacksPath+"/:orguuid/:stackuuid", handler(store, PutStack))
 	}
 
 	if enabled[cloud.MembershipsPath] {
-		router.Handler("GET", cloud.MembershipsPath, newMembershipEndpoint())
+		router.GET(cloud.MembershipsPath, handler(store, GetMemberships))
 	}
 
-	deploymentEndpoint := newDeploymentEndpoint()
 	if enabled[cloud.DeploymentsPath] {
-		router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
-		router.Handler("POST", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
-		router.Handler("PATCH", fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath), deploymentEndpoint)
+		router.GET(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, GetDeployments))
+		router.POST(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, CreateDeployment))
+		router.PATCH(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, PatchDeployment))
 	}
 
 	driftEndpoint := newDriftEndpoint()
@@ -76,17 +86,14 @@ func RouterAdd(router *httprouter.Router, enabled map[string]bool) {
 		// test only
 		router.Handler("GET", fmt.Sprintf("%s/:orguuid", cloud.DriftsPath), driftEndpoint)
 	}
-
-	// test endpoint always enabled
-	router.Handler("GET", fmt.Sprintf("%s/:orguuid/:deployuuid/events", cloud.DeploymentsPath), deploymentEndpoint)
 }
 
 // RouterAddCustoms add custom routes to the fake server.
 // This is used by very specific test cases which requires injection of custom
 // errors in the server.
-func RouterAddCustoms(router *httprouter.Router, custom Custom) {
+func RouterAddCustoms(router *httprouter.Router, store *cloudstore.Data, custom Custom) {
 	for method, route := range custom.Routes {
-		router.Handler(method, route.Path, route.Handler)
+		router.Handle(method, route.Path, handler(store, route.Handler))
 	}
 }
 
