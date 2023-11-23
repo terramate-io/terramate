@@ -5,7 +5,6 @@
 package testserver
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -47,6 +46,7 @@ func handler(store *cloudstore.Data, fn Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		if !strings.HasPrefix(r.Header.Get("User-Agent"), "terramate/") {
 			w.WriteHeader(http.StatusBadRequest)
+			writeString(w, "only supports terramate/.* User-Agents")
 			return
 		}
 		fn(store, w, r, p)
@@ -65,6 +65,8 @@ func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[st
 		router.GET(cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs", handler(store, GetDeploymentLogs))
 		router.GET(cloud.StacksPath+"/:orguuid/:stackid/deployments/:deployment_uuid/logs/events", handler(store, GetDeploymentLogsEvents))
 
+		router.GET(cloud.StacksPath+"/:orguuid/:stackid/drifts", handler(store, GetStackDrifts))
+
 		// not a real TMC handler, only used by tests to populate the stacks state.
 		router.PUT(cloud.StacksPath+"/:orguuid/:stackuuid", handler(store, PutStack))
 	}
@@ -75,16 +77,16 @@ func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[st
 
 	if enabled[cloud.DeploymentsPath] {
 		router.GET(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, GetDeployments))
-		router.POST(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, CreateDeployment))
+		router.POST(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, PostDeployment))
 		router.PATCH(cloud.DeploymentsPath+"/:orguuid/:deployuuid/stacks", handler(store, PatchDeployment))
 	}
 
-	driftEndpoint := newDriftEndpoint()
 	if enabled[cloud.DriftsPath] {
-		router.Handler("POST", fmt.Sprintf("%s/:orguuid", cloud.DriftsPath), driftEndpoint)
+		router.GET(cloud.DriftsPath+"/:orguuid/:stackid/:driftid", handler(store, GetDrift))
+		router.POST(cloud.DriftsPath+"/:orguuid", handler(store, PostDrift))
 
 		// test only
-		router.Handler("GET", fmt.Sprintf("%s/:orguuid", cloud.DriftsPath), driftEndpoint)
+		router.GET(cloud.DriftsPath+"/:orguuid", handler(store, GetDrifts))
 	}
 }
 

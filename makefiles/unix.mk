@@ -37,6 +37,7 @@ test/helper:
 .PHONY: test
 tempdir=$(shell ./bin/helper tempdir)
 test: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
 
