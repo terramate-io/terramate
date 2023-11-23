@@ -5,11 +5,11 @@ description: |
 
 next:
   text: 'tm_vendor'
-  link: '/functions/tm_vendor.md'
+  link: '/functions/terramate-builtin/tm_vendor.md'
 
 prev:
   text: 'tm_hcl_expression'
-  link: '/functions/tm_hcl_expression.md'
+  link: '/functions/terramate-builtin/tm_hcl_expression.md'
 ---
 
 ## `tm_version_match` Function
