@@ -11,7 +11,7 @@ prev:
 
 next:
   text: 'tm_hcl_expression'
-  link: 'functions/tm_hcl_expression.md'
+  link: 'functions/terramate-builtin/tm_hcl_expression.md'
 ---
 
 # `tm_ternary` Function
