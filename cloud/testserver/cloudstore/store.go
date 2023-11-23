@@ -242,6 +242,9 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int, error) {
 	if st.State.DeploymentStatus == 0 {
 		st.State.DeploymentStatus = deployment.OK
 	}
+	if st.State.Status == 0 {
+		st.State.Status = stack.Unknown
+	}
 	st.State.CreatedAt = &t
 	st.State.UpdatedAt = &t
 	st.State.SeenAt = &t

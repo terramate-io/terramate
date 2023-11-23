@@ -5,7 +5,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -23,11 +22,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	data, err := json.MarshalIndent(store, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(os.Stderr, "%s\n", data)
 	s := &http.Server{
 		Addr:    "0.0.0.0:3001",
 		Handler: testserver.Router(store),

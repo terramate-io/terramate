@@ -89,6 +89,23 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 	return tm
 }
 
+// NewInteropCLI creates a new runner CLI suited for interop tests.
+func NewInteropCLI(t *testing.T, chdir string, env ...string) CLI {
+	if toolsetTestPath == "" {
+		panic("runner is not initialized: use runner.Setup()")
+	}
+	tm := CLI{
+		t:     t,
+		Chdir: chdir,
+	}
+	if len(env) == 0 {
+		env = os.Environ()
+	}
+	env = append(env, "CHECKPOINT_DISABLE=1")
+	tm.environ = env
+	return tm
+}
+
 // PrependToPath prepend the provided directory to the OS's PATH
 // environment variable in a portable way.
 func (tm *CLI) PrependToPath(dir string) {
