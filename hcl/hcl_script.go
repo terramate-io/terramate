@@ -6,6 +6,7 @@ package hcl
 import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/info"
 )
 
 // Errors returned during the HCL parsing of script block
@@ -36,6 +37,7 @@ type ScriptDescription ast.Attribute
 
 // Script represents a parsed script block
 type Script struct {
+	Range       info.Range
 	Labels      []string           // Labels of the script block used for grouping scripts
 	Description *ScriptDescription // Description is a human readable description of a script
 	Jobs        []*ScriptJob       // Job represents the command(s) part of this script
@@ -63,6 +65,7 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 	errs := errors.L()
 
 	parsedScript := &Script{
+		Range:  block.Range,
 		Labels: block.Labels,
 	}
 
