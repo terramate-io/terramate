@@ -60,7 +60,7 @@ func NewStatus(str string) Status {
 func (s Status) Validate() error {
 	// each status has only 1 bit set.
 	if nbits := bits.OnesCount8(uint8(s)); nbits != 1 || s > lastStatus {
-		return errors.E(ErrInvalidStatus)
+		return errors.E(ErrInvalidStatus, "%s", s)
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func (s Status) String() string {
 	case Canceled:
 		return "canceled"
 	default:
-		return "unrecognized"
+		return "unrecognized (" + strconv.Itoa(int(s)) + ")"
 	}
 }
 

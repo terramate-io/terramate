@@ -13,10 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -37,8 +39,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 		layout          []string
 		endpoints       map[string]bool
 		customEndpoints testserver.Custom
-
-		subcases []subtestcase
+		cloudData       *cloudstore.Data
+		subcases        []subtestcase
 	}
 
 	writeJSON := func(w http.ResponseWriter, str string) {
@@ -47,7 +49,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 	}
 
 	const invalidUserData = `{
-		"email": "batman@example.com",
+		"email": "batman@terramate.io",
 		"display_name": "",
 		"job_title": ""
 	}`
@@ -164,8 +166,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 				Routes: map[string]testserver.Route{
 					"GET": {
 						Path: cloud.UsersPath,
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
+						Handler: testserver.Handler(
+							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, invalidUserData)
 							},
 						),
@@ -365,8 +367,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 				Routes: map[string]testserver.Route{
 					"GET": {
 						Path: cloud.MembershipsPath,
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
+						Handler: testserver.Handler(
+							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, `[]`)
 							},
 						),
@@ -446,7 +448,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
 							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
@@ -458,7 +460,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
 							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
@@ -467,35 +469,43 @@ func TestCloudSyncUIMode(t *testing.T) {
 			},
 		},
 		{
-			name: "/v1/memberships returns multiple memberships",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
-			},
-			customEndpoints: testserver.Custom{
-				Routes: map[string]testserver.Route{
-					"GET": {
-						Path: cloud.MembershipsPath,
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
-								writeJSON(w, `[
-									{
-										"org_name": "terramate-io",
-										"org_display_name": "Terramate",
-										"org_uuid": "c7d721ee-f455-4d3c-934b-b1d96bbaad17",
-										"status": "active"
-									},
-									{
-										"org_name": "mineiros-io",
-										"org_display_name": "Mineiros",
-										"org_uuid": "b2f153e8-ceb1-4f26-898e-eb7789869bee",
-										"status": "active"
-									}
-								]`)
+			name:      "/v1/memberships returns multiple memberships",
+			endpoints: testserver.EnableAllConfig(),
+			cloudData: &cloudstore.Data{
+				Orgs: map[string]cloudstore.Org{
+					"terramate": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Name:        "terramate",
+						DisplayName: "Terramate",
+						Domain:      "terramate.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
 							},
-						),
+						},
+					},
+					"mineiros": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeaf0001",
+						Name:        "mineiros",
+						DisplayName: "Mineiros",
+						Domain:      "mineiros.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+				},
+				Users: map[string]cloud.User{
+					"batman": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Email:       "batman@terramate.io",
+						DisplayName: "Batman",
+						JobTitle:    "Entrepreneur",
 					},
 				},
 			},
@@ -570,7 +580,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 				{
@@ -579,7 +589,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 			},
@@ -596,8 +606,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 				Routes: map[string]testserver.Route{
 					"GET": {
 						Path: cloud.MembershipsPath,
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
+						Handler: testserver.Handler(
+							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, `[
 									{
 										"org_name": "terramate-io",
@@ -692,7 +702,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
 					},
 				},
 				{
@@ -701,41 +711,49 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
 					},
 				},
 			},
 		},
 		{
-			name: "/v1/memberships returns 1 single active memberships out of many",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
-			},
-			customEndpoints: testserver.Custom{
-				Routes: map[string]testserver.Route{
-					"GET": {
-						Path: cloud.MembershipsPath,
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
-								writeJSON(w, `[
-									{
-										"org_name": "terramate-io",
-										"org_display_name": "Terramate",
-										"org_uuid": "c7d721ee-f455-4d3c-934b-b1d96bbaad17",
-										"status": "invited"
-									},
-									{
-										"org_name": "mineiros-io",
-										"org_display_name": "Mineiros",
-										"org_uuid": "b2f153e8-ceb1-4f26-898e-eb7789869bee",
-										"status": "active"
-									}
-								]`)
+			name:      "/v1/memberships returns 1 single active memberships out of many",
+			endpoints: testserver.EnableAllConfig(),
+			cloudData: &cloudstore.Data{
+				Orgs: map[string]cloudstore.Org{
+					"terramate": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Name:        "terramate",
+						DisplayName: "Terramate",
+						Domain:      "terramate.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
 							},
-						),
+						},
+					},
+					"mineiros": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeaf0001",
+						Name:        "mineiros",
+						DisplayName: "Mineiros",
+						Domain:      "mineiros.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "invited",
+							},
+						},
+					},
+				},
+				Users: map[string]cloud.User{
+					"batman": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Email:       "batman@terramate.io",
+						DisplayName: "Batman",
+						JobTitle:    "Entrepreneur",
 					},
 				},
 			},
@@ -784,7 +802,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 				{
@@ -793,7 +811,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: runExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: batman\nemail: batman@example.com\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 			},
@@ -845,8 +863,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 				Routes: map[string]testserver.Route{
 					"POST": {
 						Path: fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath),
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
+						Handler: testserver.Handler(
+							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, `[
 									{
 										"stack_id": 1,
@@ -1015,12 +1033,18 @@ func TestCloudSyncUIMode(t *testing.T) {
 					assert.NoError(t, err)
 					env = append(env, "TMC_API_URL=http://"+listener.Addr().String())
 
-					router := testserver.RouterWith(tc.endpoints)
+					store := tc.cloudData
+					if store == nil {
+						store, err = cloudstore.LoadDatastore(testserverJSONFile)
+						assert.NoError(t, err)
+					}
+
+					router := testserver.RouterWith(store, tc.endpoints)
 					fakeserver := &http.Server{
 						Handler: router,
 						Addr:    listener.Addr().String(),
 					}
-					testserver.RouterAddCustoms(router, tc.customEndpoints)
+					testserver.RouterAddCustoms(router, store, tc.customEndpoints)
 
 					const fakeserverShutdownTimeout = 3 * time.Second
 					errChan := make(chan error)

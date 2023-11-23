@@ -30,7 +30,7 @@ type (
 		Email       string `json:"email"`
 		DisplayName string `json:"display_name"`
 		JobTitle    string `json:"job_title"`
-		IDPUserID   string `json:"idp_user_id"`
+		UUID        UUID   `json:"user_uuid"`
 	}
 
 	// MemberOrganization represents the organization associated with the member.
@@ -39,7 +39,7 @@ type (
 		Name        string `json:"org_name"`
 		DisplayName string `json:"org_display_name"`
 		Domain      string `json:"org_domain"`
-		UUID        string `json:"org_uuid"`
+		UUID        UUID   `json:"org_uuid"`
 		Role        string `json:"role,omitempty"`
 		Status      string `json:"status"`
 	}
@@ -246,6 +246,9 @@ type (
 		Channel   LogChannel `json:"channel"`
 		Message   string     `json:"message"`
 	}
+
+	// UUID represents an UUID string.
+	UUID string
 )
 
 const (

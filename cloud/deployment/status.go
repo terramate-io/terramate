@@ -42,7 +42,7 @@ func NewStatus(str string) (Status, error) {
 func (s Status) Validate() error {
 	// each status has only 1 bit set.
 	if nbits := bits.OnesCount8(uint8(s)); nbits != 1 || s > lastStatus {
-		return errors.E(ErrInvalidStatus)
+		return errors.E(ErrInvalidStatus, "%s", s)
 	}
 	return nil
 }

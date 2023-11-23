@@ -8,22 +8,22 @@
 # It's used by the `make test` implemented for Windows at ./makefiles/windows.mk
 
 terramate {
-    config {
-        run {
-            env {
-                PATH = "${terramate.root.path.fs.absolute}/bin${global.PS}${env.PATH}"
-            }
-        }
-
-        git {
-            check_untracked     = false
-            check_uncommitted   = false
-            check_remote        = false
-        }
+  config {
+    run {
+      env {
+        PATH = "${terramate.root.path.fs.absolute}/bin${global.PS}${env.PATH}"
+      }
     }
+
+    git {
+      check_untracked   = false
+      check_uncommitted = false
+      check_remote      = false
+    }
+  }
 }
 
 globals {
-    # TODO(i4k): very brittle but works for now.
-    PS = tm_fileexists("/etc/hosts") ? ":" : ";"
+  # TODO(i4k): very brittle but works for now.
+  PS = tm_fileexists("/etc/hosts") ? ":" : ";"
 }

@@ -6,10 +6,11 @@
 package cli
 
 import (
-	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/terramate-io/terramate/errors"
 	"os"
 	"path/filepath"
+
+	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/errors"
 )
 
 func userTerramateDir() (string, error) {

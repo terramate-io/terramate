@@ -4,8 +4,6 @@
 package e2etest
 
 import (
-	"context"
-	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -21,7 +19,9 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -200,7 +200,9 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			addr := startFakeTMCServer(t)
+			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+			addr := startFakeTMCServer(t, cloudData)
 
 			s := sandbox.New(t)
 			var genIdsLayout []string
@@ -242,15 +244,12 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			runflags = append(runflags, tc.cmd...)
 			result := cli.run(runflags...)
 			assertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, addr, runid, ids, tc.want.events)
+			assertRunEvents(t, cloudData, runid, ids, tc.want.events)
 		})
 	}
 }
 
-func assertRunEvents(t *testing.T, tmcAddr string, runid string, ids []string, events map[string][]string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids []string, events map[string][]string) {
 	expectedEvents := eventsResponse{}
 	if events == nil {
 		events = make(map[string][]string)
@@ -270,15 +269,27 @@ func assertRunEvents(t *testing.T, tmcAddr string, runid string, ids []string, e
 		}
 	}
 
-	res, err := cloud.Request[eventsResponse](ctx, &cloud.Client{
-		BaseURL:    "http://" + tmcAddr,
-		Credential: &credential{},
-	}, "GET", cloud.DeploymentsPath+"/"+testserver.DefaultOrgUUID+"/"+runid+"/events", nil)
-	assert.NoError(t, err)
+	org := cloudData.MustOrgByName("terramate")
+	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, cloud.UUID(runid))
+	if err != nil && !errors.IsKind(err, cloudstore.ErrNotExists) {
+		t.Fatal(err)
+	}
 
-	if diff := cmp.Diff(res, expectedEvents); diff != "" {
+	gotEvents := eventsResponse{}
+	for id, events := range cloudEvents {
+		st, _, found := cloudData.GetStackByMetaID(org, id)
+		if !found {
+			t.Fatal("stack not found")
+		}
+		gotEvents[st.MetaID] = []string{}
+		for _, status := range events {
+			gotEvents[st.MetaID] = append(gotEvents[st.MetaID], status.String())
+		}
+	}
+
+	if diff := cmp.Diff(gotEvents, expectedEvents); diff != "" {
 		t.Logf("want: %+v", expectedEvents)
-		t.Logf("got: %+v", res)
+		t.Logf("got: %+v", gotEvents)
 		t.Fatal(diff)
 	}
 }
@@ -299,8 +310,11 @@ func TestRunGithubTokenDetection(t *testing.T) {
 	l, err := net.Listen("tcp", ":0")
 	assert.NoError(t, err)
 
+	store, err := cloudstore.LoadDatastore(testserverJSONFile)
+	assert.NoError(t, err)
+
 	fakeserver := &http.Server{
-		Handler: testserver.Router(),
+		Handler: testserver.Router(store),
 		Addr:    l.Addr().String(),
 	}
 

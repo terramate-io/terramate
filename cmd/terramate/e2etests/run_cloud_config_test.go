@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -26,11 +26,6 @@ func TestCloudConfig(t *testing.T) {
 		layout    []string
 		want      runExpected
 		customEnv map[string]string
-	}
-
-	writeJSON := func(w http.ResponseWriter, str string) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, _ = w.Write([]byte(str))
 	}
 
 	const fatalErr = `FTL ` + string(clitest.ErrCloud)
@@ -118,45 +113,30 @@ func TestCloudConfig(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			router := testserver.RouterWith(map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
+			store, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+
+			store.UpsertOrg(cloudstore.Org{
+				UUID:        "b2f153e8-ceb1-4f26-898e-eb7789869bee",
+				Name:        "mineiros-io",
+				DisplayName: "Mineiros",
+				Status:      "active",
+				Members: []cloudstore.Member{
+					{
+						UserUUID: store.MustGetUser("batman@terramate.io").UUID,
+						Role:     "member",
+						Status:   "active",
+					},
+				},
 			})
 
 			l, err := net.Listen("tcp", ":0")
 			assert.NoError(t, err)
 
 			fakeserver := &http.Server{
-				Handler: router,
+				Handler: testserver.Router(store),
 				Addr:    l.Addr().String(),
 			}
-			testserver.RouterAddCustoms(router, testserver.Custom{
-				Routes: map[string]testserver.Route{
-					"GET": {
-						Path: cloud.MembershipsPath,
-						Handler: http.HandlerFunc(
-							func(w http.ResponseWriter, _ *http.Request) {
-								writeJSON(w, `[
-									{
-										"org_name": "terramate-io",
-										"org_display_name": "Terramate",
-										"org_uuid": "c7d721ee-f455-4d3c-934b-b1d96bbaad17",
-										"status": "active"
-									},
-									{
-										"org_name": "mineiros-io",
-										"org_display_name": "Mineiros",
-										"org_uuid": "b2f153e8-ceb1-4f26-898e-eb7789869bee",
-										"status": "active"
-									}
-								]`)
-							},
-						),
-					},
-				},
-			})
 
 			const fakeserverShutdownTimeout = 3 * time.Second
 			errChan := make(chan error)

@@ -16,6 +16,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -73,7 +74,9 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			addr := startFakeTMCServer(t)
+			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+			addr := startFakeTMCServer(t, cloudData)
 
 			s := sandbox.New(t)
 			var genIdsLayout []string
@@ -115,7 +118,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 			fixture.cmd = tc.cmd // if empty, uses the runFixture default cmd.
 			result := fixture.run()
 			assertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, addr, runid, ids, tc.want.events)
+			assertRunEvents(t, cloudData, runid, ids, tc.want.events)
 		})
 	}
 }
@@ -178,7 +181,9 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			addr := startFakeTMCServer(t)
+			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+			addr := startFakeTMCServer(t, cloudData)
 
 			s := sandbox.New(t)
 
@@ -198,7 +203,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 			result := fixture.run()
 			maxEndTime := time.Now().UTC()
 			assertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, addr, tc.want.drifts, minStartTime, maxEndTime)
+			assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
 		})
 	}
 }

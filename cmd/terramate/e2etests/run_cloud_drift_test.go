@@ -19,7 +19,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -361,8 +361,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
-				"copy:s1:_testdata/cloud-sync-drift-plan-file",
-				"copy:s2:_testdata/cloud-sync-drift-plan-file",
+				"copy:s1:testdata/cloud-sync-drift-plan-file",
+				"copy:s2:testdata/cloud-sync-drift-plan-file",
 				"run:s1:terraform init",
 				"run:s2:terraform init",
 			},
@@ -395,7 +395,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Status: drift.Drifted,
 							Details: &cloud.DriftDetails{
 								Provisioner:   "terraform",
-								ChangesetJSON: loadJSONPlan(t, "_testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
 						},
 						ChangesetASCIIRegexes: []string{
@@ -415,7 +415,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Status: drift.Drifted,
 							Details: &cloud.DriftDetails{
 								Provisioner:   "terraform",
-								ChangesetJSON: loadJSONPlan(t, "_testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
 						},
 						ChangesetASCIIRegexes: []string{
@@ -463,7 +463,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			addr := startFakeTMCServer(t)
+
+			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+			addr := startFakeTMCServer(t, cloudData)
 
 			defaultBranch := tc.defaultBranch
 			if defaultBranch == "" {
@@ -495,19 +498,19 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			result := cli.run(runflags...)
 			maxEndTime := time.Now().UTC()
 			assertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, addr, tc.want.drifts, minStartTime, maxEndTime)
+			assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
 		})
 	}
 }
 
-func assertRunDrifts(t *testing.T, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests, minStartTime, maxEndTime time.Time) {
+func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests, minStartTime, maxEndTime time.Time) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	res, err := cloud.Request[cloud.DriftStackPayloadRequests](ctx, &cloud.Client{
 		BaseURL:    "http://" + tmcAddr,
 		Credential: &credential{},
-	}, "GET", cloud.DriftsPath+"/"+testserver.DefaultOrgUUID, nil)
+	}, "GET", cloud.DriftsPath+"/"+string(cloudData.MustOrgByName("terramate").UUID), nil)
 	assert.NoError(t, err)
 
 	if len(expectedDrifts) != len(res) {

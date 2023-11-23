@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
-	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/test"
-	cloudtest "github.com/terramate-io/terramate/test/cloud"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -24,7 +24,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 		name       string
 		layout     []string
 		repository string
-		stacks     []cloud.StackResponse
+		stacks     []cloudstore.Stack
 		flags      []string
 		workingDir string
 		want       runExpected
@@ -75,16 +75,17 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.OK,
-					DeploymentStatus: deployment.OK,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -95,16 +96,17 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "gitlab.com/unknown-io/other",
 					},
-					Status:           stack.Failed,
-					DeploymentStatus: deployment.Failed,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.OK,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -115,16 +117,17 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Failed,
-					DeploymentStatus: deployment.Failed,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.OK,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -138,26 +141,28 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Failed,
-					DeploymentStatus: deployment.Failed,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.OK,
+					},
 				},
 				{
-					ID: 2,
 					Stack: cloud.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.OK,
-					DeploymentStatus: deployment.OK,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -168,26 +173,28 @@ func TestCloudListUnhealthy(t *testing.T) {
 		{
 			name:   "no local stacks, 2 unhealthy stacks, return nothing",
 			layout: []string{},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Failed,
-					DeploymentStatus: deployment.Failed,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.OK,
+					},
 				},
 				{
-					ID: 2,
 					Stack: cloud.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Drifted,
-					DeploymentStatus: deployment.OK,
-					DriftStatus:      drift.Drifted,
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -198,26 +205,28 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Failed,
-					DeploymentStatus: deployment.Failed,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.OK,
+					},
 				},
 				{
-					ID: 2,
 					Stack: cloud.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Drifted,
-					DeploymentStatus: deployment.OK,
-					DriftStatus:      drift.Drifted,
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -232,26 +241,28 @@ func TestCloudListUnhealthy(t *testing.T) {
 				"s:s2:id=s2",
 				"s:stack-without-id",
 			},
-			stacks: []cloud.StackResponse{
+			stacks: []cloudstore.Stack{
 				{
-					ID: 1,
 					Stack: cloud.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Failed,
-					DeploymentStatus: deployment.Failed,
-					DriftStatus:      drift.OK,
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.OK,
+					},
 				},
 				{
-					ID: 2,
 					Stack: cloud.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
-					Status:           stack.Drifted,
-					DeploymentStatus: deployment.OK,
-					DriftStatus:      drift.Drifted,
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
 				},
 			},
 			flags: []string{`--experimental-status=unhealthy`},
@@ -264,7 +275,9 @@ func TestCloudListUnhealthy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			addr := startFakeTMCServer(t)
+			store, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+			addr := startFakeTMCServer(t, store)
 
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
@@ -276,8 +289,11 @@ func TestCloudListUnhealthy(t *testing.T) {
 			if len(tc.layout) > 0 {
 				s.Git().CommitAll("all stacks committed")
 			}
+
+			org := store.MustOrgByName("terramate")
 			for _, st := range tc.stacks {
-				cloudtest.PutStack(t, addr, testserver.DefaultOrgUUID, st)
+				_, err := store.UpsertStack(org.UUID, st)
+				assert.NoError(t, err)
 			}
 			env := removeEnv(os.Environ(), "CI")
 			env = append(env, "TMC_API_URL=http://"+addr, "CI=")

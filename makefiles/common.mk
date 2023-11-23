@@ -34,6 +34,10 @@ install/terramate:
 install/terramate-ls:
 	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate-ls
 
+.PHONY: generate
+generate:
+	./bin/terramate generate
+
 ## Format go code
 .PHONY: fmt
 fmt:

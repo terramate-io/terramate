@@ -12,14 +12,15 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud/testserver"
+	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 )
 
-func startFakeTMCServer(t *testing.T) string {
+func startFakeTMCServer(t *testing.T, store *cloudstore.Data) string {
 	l, err := net.Listen("tcp", ":0")
 	assert.NoError(t, err)
 
 	fakeserver := &http.Server{
-		Handler: testserver.Router(),
+		Handler: testserver.Router(store),
 		Addr:    l.Addr().String(),
 	}
 
