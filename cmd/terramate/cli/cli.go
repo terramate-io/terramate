@@ -222,6 +222,16 @@ type cliSpec struct {
 				} `cmd:"" help:"show drifts"`
 			} `cmd:"" help:"manage cloud drifts"`
 		} `cmd:"" help:"Terramate Cloud commands"`
+
+		ScriptList struct {
+		} `cmd:"" help:"Show a list of all scripts in the current directory"`
+
+		ScriptTree struct {
+		} `cmd:"" help:"Show a tree of all scripts in the current directory"`
+
+		ScriptInfo struct {
+			Labels []string `arg:"" name:"labels" passthrough:"" help:"Name of the script"`
+		} `cmd:"" help:"Show detailed information about a script"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -575,6 +585,12 @@ func (c *cli) run() {
 		c.cloudInfo()
 	case "experimental cloud drift show":
 		c.cloudDriftShow()
+	case "experimental script-list":
+		c.printScriptList()
+	case "experimental script-tree":
+		c.printScriptTree()
+	case "experimental script-info <labels>":
+		c.printScriptInfo(c.parsedArgs.Experimental.ScriptInfo.Labels)
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
