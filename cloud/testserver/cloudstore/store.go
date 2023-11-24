@@ -82,13 +82,14 @@ type (
 	}
 	// Drift model.
 	Drift struct {
-		UUID       string                    `json:"uuid"`
-		Status     stack.Status              `json:"status"`
-		Details    *cloud.DriftDetails       `json:"details"`
-		Metadata   *cloud.DeploymentMetadata `json:"metadata"`
-		Command    []string                  `json:"command"`
-		StartedAt  *time.Time                `json:"started_at,omitempty"`
-		FinishedAt *time.Time                `json:"finished_at,omitempty"`
+		ID          int                       `json:"id"`
+		StackMetaID string                    `json:"stack_meta_id"`
+		Status      drift.Status              `json:"status"`
+		Details     *cloud.DriftDetails       `json:"details"`
+		Metadata    *cloud.DeploymentMetadata `json:"metadata"`
+		Command     []string                  `json:"command"`
+		StartedAt   *time.Time                `json:"started_at,omitempty"`
+		FinishedAt  *time.Time                `json:"finished_at,omitempty"`
 	}
 )
 
@@ -243,7 +244,7 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int, error) {
 		st.State.DeploymentStatus = deployment.OK
 	}
 	if st.State.Status == 0 {
-		st.State.Status = stack.Unknown
+		st.State.Status = stack.OK
 	}
 	st.State.CreatedAt = &t
 	st.State.UpdatedAt = &t
@@ -277,6 +278,28 @@ func (d *Data) GetDeployment(org *Org, id cloud.UUID) (*Deployment, bool) {
 	return nil, false
 }
 
+// GetStackDrifts returns the drifts of the provided stack.
+func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int) ([]Drift, error) {
+	org, found := d.GetOrg(orguuid)
+	if !found {
+		return nil, errors.E(ErrNotExists, "org uuid %s", orguuid)
+	}
+	st, found := d.GetStack(org, stackID)
+	if !found {
+		return nil, errors.E(ErrNotExists, "stack id %d", stackID)
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	var drifts []Drift
+	for i, drift := range org.Drifts {
+		drift.ID = i // lazy set, then can be unset in HCL
+		if drift.StackMetaID == st.MetaID {
+			drifts = append(drifts, *drift)
+		}
+	}
+	return drifts, nil
+}
+
 // InsertDeployment inserts the given deployment in the data store.
 func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 	org, found := d.GetOrg(orgID)
@@ -288,19 +311,32 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 	if _, exists := org.Deployments[deploy.UUID]; exists {
 		return errors.E(ErrAlreadyExists, "deployment uuid %s", string(deploy.UUID))
 	}
-	copyDeployment := deploy
-	copyDeployment.State.StackStatus = make(map[int]deployment.Status)
-	copyDeployment.State.StackLogs = make(map[int]cloud.DeploymentLogs)
-	copyDeployment.State.StackStatusEvents = make(map[int][]deployment.Status)
+
+	deploy.State.StackStatus = make(map[int]deployment.Status)
+	deploy.State.StackLogs = make(map[int]cloud.DeploymentLogs)
+	deploy.State.StackStatusEvents = make(map[int][]deployment.Status)
 	for _, stackID := range deploy.Stacks {
-		copyDeployment.State.StackStatusEvents[stackID] = append(copyDeployment.State.StackStatusEvents[stackID], deployment.Pending)
+		deploy.State.StackStatusEvents[stackID] = append(deploy.State.StackStatusEvents[stackID], deployment.Pending)
 	}
 	if org.Deployments == nil {
 		org.Deployments = make(map[cloud.UUID]*Deployment)
 	}
-	org.Deployments[deploy.UUID] = &copyDeployment
+	org.Deployments[deploy.UUID] = &deploy
 	d.Orgs[org.Name] = org
 	return nil
+}
+
+// InsertDrift inserts a new drift into the store for the provided org.
+func (d *Data) InsertDrift(orgID cloud.UUID, drift Drift) (int, error) {
+	org, found := d.GetOrg(orgID)
+	if !found {
+		return 0, errors.E(ErrNotExists, "org uuid %s", orgID)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	org.Drifts = append(org.Drifts, &drift)
+	d.Orgs[org.Name] = org
+	return len(org.Drifts) - 1, nil
 }
 
 // SetDeploymentStatus sets the given deployment stack to the given status.
@@ -381,4 +417,13 @@ func (d *Data) GetDeploymentLogs(orgID cloud.UUID, stackMetaID string, deploymen
 		return nil, errors.E("logs range out of bounds")
 	}
 	return logs[fromLine:], nil
+}
+
+// NewState creates a new valid state.
+func NewState() StackState {
+	return StackState{
+		Status:           stack.OK,
+		DeploymentStatus: deployment.OK,
+		DriftStatus:      drift.OK,
+	}
 }

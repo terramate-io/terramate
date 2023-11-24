@@ -4,7 +4,6 @@
 package testserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -24,14 +23,8 @@ func GetUsers(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, _ 
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	data, err := json.Marshal(user)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		write(w, data)
-		return
-	}
 	w.WriteHeader(http.StatusOK)
-	write(w, data)
+	marshalWrite(w, user)
 }
 
 func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, error) {

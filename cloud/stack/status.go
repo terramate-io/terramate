@@ -31,19 +31,21 @@ type (
 
 const (
 	OK           Status = 1 << iota // OK status is used when the stack ran successfully.
-	Unknown                         // Unknown status is used for newly created stacks, which never ran.
 	Drifted                         // Drifted status is used when a stack definition is different from that of the current status.
 	Failed                          // Failed status indicates the deployment of the stack failed.
-	Canceled                        // Canceled indicates the deployment of the stack was canceled.
 	Unrecognized                    // Unrecognized indicates any status returned from TMC but still not recognized by the client.
 	lastStatus   = Unrecognized
 )
 
 const (
 	// UnhealthyFilter status is used for filtering not Ok status.
-	UnhealthyFilter FilterStatus = FilterStatus(Unknown | Drifted | Failed | Canceled | Unrecognized)
+	UnhealthyFilter FilterStatus = FilterStatus(Drifted | Failed)
+
+	// HealthyFilter status is used for filtering healthy statuses. Just [OK] for now.
+	HealthyFilter FilterStatus = FilterStatus(OK)
+
 	// AllFilter filters for any stacks statuses.
-	AllFilter FilterStatus = FilterStatus(OK) | UnhealthyFilter
+	AllFilter FilterStatus = HealthyFilter | UnhealthyFilter
 	// NoFilter disables the filtering for statuses.
 	NoFilter FilterStatus = 0
 )
@@ -82,14 +84,10 @@ func (s *Status) UnmarshalJSON(b []byte) error {
 	switch str {
 	case "ok":
 		*s = OK
-	case "unknown":
-		*s = Unknown
 	case "drifted":
 		*s = Drifted
 	case "failed":
 		*s = Failed
-	case "canceled":
-		*s = Canceled
 	default:
 		*s = Unrecognized
 	}
@@ -99,25 +97,28 @@ func (s *Status) UnmarshalJSON(b []byte) error {
 // String representation of the status.
 func (s Status) String() string {
 	switch s {
-	case Unknown:
-		return "unknown"
 	case OK:
 		return "ok"
 	case Drifted:
 		return "drifted"
 	case Failed:
 		return "failed"
-	case Canceled:
-		return "canceled"
 	default:
 		return "unrecognized (" + strconv.Itoa(int(s)) + ")"
 	}
+}
+
+// Is tells if status matches the provided filter.
+func (s Status) Is(filter FilterStatus) bool {
+	return FilterStatus(s)&filter != 0
 }
 
 // NewStatusFilter creates a new filter for stack statuses.
 func NewStatusFilter(str string) FilterStatus {
 	if str == "unhealthy" {
 		return UnhealthyFilter
+	} else if str == "healthy" {
+		return HealthyFilter
 	}
 
 	return FilterStatus(NewStatus(str))
@@ -131,13 +132,18 @@ func (f FilterStatus) Validate() error {
 	return nil
 }
 
+// Is tells if the filter matches the provided status.
+func (f FilterStatus) Is(status Status) bool {
+	return status.Is(f)
+}
+
 func (f FilterStatus) String() string {
 	if f == UnhealthyFilter {
 		return "unhealthy"
 	}
 	var out bytes.Buffer
 
-	for _, s := range []Status{OK, Drifted, Canceled, Unknown} {
+	for _, s := range []Status{OK, Drifted, Failed} {
 		if Status(f)&s > 0 {
 			if out.Len() > 0 {
 				_, _ = out.WriteRune('|')

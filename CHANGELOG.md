@@ -25,6 +25,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add `terramate.config.experiments` configuration to enable experimental features.
+- Add support for statuses `ok, failed, drifted and healthy` to the `--experimental-status` flag.
 
 ### Fixed
 

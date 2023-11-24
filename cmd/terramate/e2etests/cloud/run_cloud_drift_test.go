@@ -515,7 +515,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 	assert.NoError(t, err)
 
 	if len(expectedDrifts) != len(res) {
-		t.Errorf("expected %d drifts but found %d", len(expectedDrifts), len(res))
+		t.Errorf("expected %d drifts but found %d: %+v", len(expectedDrifts), len(res), res)
 	}
 
 	for i, expected := range expectedDrifts {
