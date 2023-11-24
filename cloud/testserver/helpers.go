@@ -12,7 +12,7 @@ import (
 func write(w io.Writer, data []byte) {
 	_, err := w.Write(data)
 	if err != nil {
-		log.Printf("error: %v", err)
+		panic(err)
 	}
 }
 
@@ -33,8 +33,7 @@ func justClose(c io.Closer) {
 func marshalWrite(w io.Writer, obj interface{}) {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		log.Printf("error: %v", err)
-		return
+		panic(err)
 	}
 	write(w, data)
 }

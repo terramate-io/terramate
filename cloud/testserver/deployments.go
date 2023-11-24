@@ -11,6 +11,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -35,20 +36,22 @@ func GetDeployments(store *cloudstore.Data, w http.ResponseWriter, _ *http.Reque
 	marshalWrite(w, deploymentInfo)
 }
 
-// CreateDeployment is the POST /deployments handler.
-func CreateDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	defer func() { _ = r.Body.Close() }()
-	data, _ := io.ReadAll(r.Body)
-	var rPayload cloud.DeploymentStacksPayloadRequest
-	err := json.Unmarshal(data, &rPayload)
+// PostDeployment is the POST /deployments handler.
+func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+	var rPayload cloud.DeploymentStacksPayloadRequest
+	if err := json.Unmarshal(data, &rPayload); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, errors.E(err, "failed to unmarshal data: %s", data))
 		return
 	}
 
-	err = rPayload.Validate()
-	if err != nil {
+	if err := rPayload.Validate(); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
 		return
@@ -61,7 +64,7 @@ func CreateDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Req
 	for _, st := range rPayload.Stacks {
 		if st.CommitSHA == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`commit_sha is missing`))
+			writeString(w, `commit_sha is missing`)
 			return
 		}
 		stackCommands[st.MetaID] = st.DeploymentCommand
@@ -70,14 +73,25 @@ func CreateDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Req
 	orguuid := cloud.UUID(p.ByName("orguuid"))
 	deployuuid := cloud.UUID(p.ByName("deployuuid"))
 
+	org, found := store.GetOrg(orguuid)
+	if !found {
+		w.WriteHeader(http.StatusNotFound)
+		writeString(w, "org not found")
+		return
+	}
+
 	var stackIDs []int
 	res := cloud.DeploymentStacksResponse{}
 	for _, s := range rPayload.Stacks {
+		state := cloudstore.NewState()
+		gotStack, _, found := store.GetStackByMetaID(org, s.Stack.MetaID)
+		if found {
+			state = gotStack.State
+		}
+		state.DeploymentStatus = deployment.Pending
 		stackid, err := store.UpsertStack(orguuid, cloudstore.Stack{
 			Stack: s.Stack,
-			State: cloudstore.StackState{
-				DeploymentStatus: deployment.Pending,
-			},
+			State: state,
 		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -112,11 +126,9 @@ func CreateDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Req
 
 // PatchDeployment is the PATCH /deployments handler.
 func PatchDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	defer func() { _ = r.Body.Close() }()
 	data, _ := io.ReadAll(r.Body)
 	var updateStacks cloud.UpdateDeploymentStacks
-	err := json.Unmarshal(data, &updateStacks)
-	if err != nil {
+	if err := json.Unmarshal(data, &updateStacks); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, errors.E(err, "failed to unmarshal data: %s", data))
 		return
@@ -138,20 +150,32 @@ func PatchDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Requ
 			writeErr(w, err)
 			return
 		}
-		st, _ := store.GetStack(org, s.StackID)
-		var ok bool
-		st.State.Status, ok = stateTable()[st.State.DriftStatus][st.State.DeploymentStatus]
-		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			writeErr(w, invalidStackStateError(st))
-			return
-		}
-		_, err = store.UpsertStack(org.UUID, st)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			writeErr(w, err)
-			return
+		if s.Status.IsFinalState() {
+			st, ok := store.GetStack(org, s.StackID)
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			var status stack.Status
+			switch s.Status {
+			case deployment.OK:
+				status = stack.OK
+			case deployment.Failed, deployment.Canceled:
+				status = stack.Failed
+			default:
+				panic("unreachable")
+			}
+
+			st.State.Status = status
+			st.State.DeploymentStatus = s.Status
+			_, err = store.UpsertStack(org.UUID, st)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				writeErr(w, err)
+				return
+			}
 		}
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

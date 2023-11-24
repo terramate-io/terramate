@@ -26,20 +26,3 @@ globals "testserver" "memberships" "terramate" {
     status = "active"
   }
 }
-
-# Define your user here!
-#
-# globals "testserver" "users" "i4k" {
-#   display_name = "Tiago Natel"
-#   email        = "tiago.natel@terramate.io"
-#   job_title    = "Software Engineer"
-#   user_uuid    = "ae19dc34-3463-440a-9969-c9d14f4ade41"
-# }
-
-# globals "testserver" "memberships" "terramate" {
-#   i4k = {
-#     user_uuid = global.testserver.users.i4k.user_uuid
-#     role      = "member"
-#     status    = "active"
-#   }
-# }

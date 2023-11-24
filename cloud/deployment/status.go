@@ -47,6 +47,13 @@ func (s Status) Validate() error {
 	return nil
 }
 
+// IsFinalState tells if the status is a final deployment state.
+// The deployment state is a finite state machine where final states can be only
+// OK, Failed or Canceled.
+func (s Status) IsFinalState() bool {
+	return s == OK || s == Failed || s == Canceled
+}
+
 // MarshalJSON implements the Marshaller interface.
 func (s Status) MarshalJSON() ([]byte, error) {
 	if err := s.Validate(); err != nil {

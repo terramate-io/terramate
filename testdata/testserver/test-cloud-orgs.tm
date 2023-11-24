@@ -3,7 +3,7 @@
 
 # You can define multiple organizations in this file.
 #
-# The `name` field of the organizatio MUST match the `global.testserver.orgs.<name>`.
+# The `name` field of the organization MUST match the `global.testserver.orgs.<name>`.
 # Each organization MUST have an unique `uuid`.
 #
 # The required fields are:

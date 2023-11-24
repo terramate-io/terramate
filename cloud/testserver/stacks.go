@@ -25,8 +25,6 @@ func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
 	return map[drift.Status]map[deployment.Status]stack.Status{
 		drift.Unknown: {
 			deployment.OK:       stack.OK,
-			deployment.Pending:  stack.OK,
-			deployment.Running:  stack.OK,
 			deployment.Failed:   stack.Failed,
 			deployment.Canceled: stack.Failed,
 		},
@@ -34,22 +32,16 @@ func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
 			deployment.OK:       stack.OK,
 			deployment.Failed:   stack.OK,
 			deployment.Canceled: stack.OK,
-			deployment.Running:  stack.OK,
-			deployment.Pending:  stack.OK,
 		},
 		drift.Drifted: {
 			deployment.OK:       stack.Drifted,
 			deployment.Failed:   stack.Failed,
 			deployment.Canceled: stack.Failed,
-			deployment.Pending:  stack.Drifted,
-			deployment.Running:  stack.Drifted,
 		},
 		drift.Failed: {
-			deployment.OK:       stack.OK,
-			deployment.Pending:  stack.OK,
-			deployment.Running:  stack.OK,
-			deployment.Canceled: stack.Failed,
-			deployment.Failed:   stack.Failed,
+			deployment.OK:      stack.OK,
+			deployment.Pending: stack.OK,
+			deployment.Running: stack.OK,
 		},
 	}
 }
@@ -58,7 +50,9 @@ func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
 func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	orguuid := cloud.UUID(params.ByName("orguuid"))
 	filterStatusStr := r.FormValue("status")
-	filterStatus := stack.AllFilter
+	repoStr := r.FormValue("repository")
+	metaID := r.FormValue("meta_id")
+	filterStatus := stack.NoFilter
 
 	org, found := store.GetOrg(orguuid)
 	if !found {
@@ -76,6 +70,41 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		filterStatus = stack.UnhealthyFilter
 	}
 
+	var andFilters []func(st cloudstore.Stack) bool
+
+	if filterStatus != stack.NoFilter {
+		andFilters = append(andFilters,
+			func(st cloudstore.Stack) bool {
+				return stack.FilterStatus(st.State.Status)&filterStatus != 0
+			},
+		)
+	}
+
+	if repoStr != "" {
+		andFilters = append(andFilters,
+			func(st cloudstore.Stack) bool {
+				return st.Stack.Repository == repoStr
+			},
+		)
+	}
+
+	if metaID != "" {
+		andFilters = append(andFilters,
+			func(st cloudstore.Stack) bool {
+				return st.Stack.MetaID == metaID
+			},
+		)
+	}
+
+	filter := func(st cloudstore.Stack) bool {
+		for _, f := range andFilters {
+			if !f(st) {
+				return false
+			}
+		}
+		return true
+	}
+
 	stacks := org.Stacks
 	var resp cloud.StacksResponse
 	for id, st := range stacks {
@@ -84,7 +113,8 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 			writeErr(w, invalidStackStateError(st))
 			return
 		}
-		if stack.FilterStatus(st.State.Status)&filterStatus != 0 {
+
+		if filter(st) {
 			resp.Stacks = append(resp.Stacks, cloud.StackResponse{
 				ID:               id,
 				Stack:            st.Stack,
@@ -292,6 +322,41 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetStackDrifts implements the /v1/stacks/:orguuid/:stackid/drifts endpoint.
+func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
+	orguuid := cloud.UUID(params.ByName("orguuid"))
+	stackid, err := strconv.Atoi(params.ByName("stackid"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, errors.E(err, "invalid stackid"))
+		return
+	}
+
+	drifts, err := store.GetStackDrifts(orguuid, stackid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	var res cloud.DriftsStackPayloadResponse
+	for _, drift := range drifts {
+		res.Drifts = append(res.Drifts, cloud.Drift{
+			ID:       drift.ID,
+			Status:   drift.Status,
+			Details:  drift.Details,
+			Metadata: drift.Metadata,
+		})
+	}
+	// return most recent drifts first.
+	sort.Slice(res.Drifts, func(i, j int) bool {
+		return res.Drifts[i].ID > res.Drifts[j].ID
+	})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	marshalWrite(w, res)
 }
 
 func validateStackStatus(s cloudstore.Stack) bool {
