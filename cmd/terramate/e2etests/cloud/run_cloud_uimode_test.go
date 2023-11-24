@@ -4,6 +4,7 @@
 package cloud_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -1034,8 +1035,17 @@ func TestCloudSyncUIMode(t *testing.T) {
 					assert.NoError(t, err)
 					env = append(env, "TMC_API_URL=http://"+listener.Addr().String())
 
-					store := tc.cloudData
-					if store == nil {
+					var store *cloudstore.Data
+					if tc.cloudData != nil {
+						// needs to be copied otherwise the sub-testcases will reuse the same store.
+						// A simple copy will not work because the type embed a mutex.
+						// TODO(i4k): This is a quick fix but inefficient.
+						dataContent, err := tc.cloudData.MarshalJSON()
+						assert.NoError(t, err)
+						var data cloudstore.Data
+						assert.NoError(t, json.Unmarshal(dataContent, &data))
+						store = &data
+					} else {
 						store, err = cloudstore.LoadDatastore(testserverJSONFile)
 						assert.NoError(t, err)
 					}

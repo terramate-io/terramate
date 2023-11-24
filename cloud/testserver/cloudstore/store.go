@@ -37,7 +37,7 @@ type (
 		Members     []Member                   `json:"members"`
 		Stacks      []Stack                    `json:"stacks"`
 		Deployments map[cloud.UUID]*Deployment `json:"deployments"`
-		Drifts      []*Drift                   `json:"drifts"`
+		Drifts      []Drift                    `json:"drifts"`
 	}
 	// Member represents the organization member.
 	Member struct {
@@ -208,15 +208,15 @@ outer:
 }
 
 // GetStackByMetaID returns the given stack.
-func (d *Data) GetStackByMetaID(org Org, id string) (*Stack, int, bool) {
+func (d *Data) GetStackByMetaID(org Org, id string) (Stack, int, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for i, st := range org.Stacks {
 		if st.Stack.MetaID == id {
-			return &st, i, true
+			return st, i, true
 		}
 	}
-	return nil, 0, false
+	return Stack{}, 0, false
 }
 
 // GetStack by id.
@@ -294,7 +294,7 @@ func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int) ([]Drift, error) 
 	for i, drift := range org.Drifts {
 		drift.ID = i // lazy set, then can be unset in HCL
 		if drift.StackMetaID == st.MetaID {
-			drifts = append(drifts, *drift)
+			drifts = append(drifts, drift)
 		}
 	}
 	return drifts, nil
@@ -334,7 +334,7 @@ func (d *Data) InsertDrift(orgID cloud.UUID, drift Drift) (int, error) {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	org.Drifts = append(org.Drifts, &drift)
+	org.Drifts = append(org.Drifts, drift)
 	d.Orgs[org.Name] = org
 	return len(org.Drifts) - 1, nil
 }
