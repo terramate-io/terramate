@@ -19,7 +19,7 @@ func TestStackStatus(t *testing.T) {
 
 	var s stack.Status
 	errtest.Assert(t, s.Validate(), errors.E(stack.ErrInvalidStatus))
-	s = stack.Canceled + 1
+	s = stack.Failed + 1
 	errtest.Assert(t, s.Validate(), errors.E(stack.ErrInvalidStatus))
 
 	type testcase struct {
@@ -29,8 +29,6 @@ func TestStackStatus(t *testing.T) {
 	for _, tc := range []testcase{
 		{str: "ok", want: stack.OK},
 		{str: "drifted", want: stack.Drifted},
-		{str: "canceled", want: stack.Canceled},
-		{str: "unknown", want: stack.Unknown},
 		{str: "okay", want: stack.Unrecognized},
 		{str: "OK", want: stack.Unrecognized},
 		{str: "Ok", want: stack.Unrecognized},

@@ -33,17 +33,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name:       "only unhealthy filter is permitted",
-			layout:     []string{"s:s1:id=s1"},
-			repository: test.TempDir(t),
-			flags:      []string{`--experimental-status=drifted`},
-			want: RunExpected{
-				Status:      1,
-				StderrRegex: "only unhealthy filter allowed",
-			},
-		},
-		{
-			name:       "local repository is not permitted with --experimental-status=unhealthy",
+			name:       "local repository is not permitted with --experimental-status=",
 			layout:     []string{"s:s1:id=s1"},
 			repository: test.TempDir(t),
 			flags:      []string{`--experimental-status=unhealthy`},
@@ -63,7 +53,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 		},
 		{
-			name: "no cloud stacks, asking for unhealthy, return nothing",
+			name: "no cloud stacks, asking for unhealthy stacks: return nothing",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -71,7 +61,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			flags: []string{"--experimental-status=unhealthy"},
 		},
 		{
-			name: "1 cloud stack healthy, other absent, return nothing",
+			name: "1 cloud stack healthy, others absent, asking for unhealthy: return nothing",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -92,7 +82,55 @@ func TestCloudListUnhealthy(t *testing.T) {
 			flags: []string{`--experimental-status=unhealthy`},
 		},
 		{
-			name: "1 cloud stack unhealthy but different repository, return nothing",
+			name: "1 cloud stack healthy, others absent, asking for ok: return ok",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--experimental-status=ok`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack ok, others absent, asking for healthy: return ok",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--experimental-status=healthy`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack failed but different repository, asking for unhealthy: return nothing",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -113,7 +151,31 @@ func TestCloudListUnhealthy(t *testing.T) {
 			flags: []string{`--experimental-status=unhealthy`},
 		},
 		{
-			name: "1 cloud stack unhealthy, other absent, return unhealthy",
+			name: "1 cloud stack drifted, other absent, asking for unhealthy: return drifted",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--experimental-status=unhealthy`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack failed, other absent, asking for failed: return failed",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -127,7 +189,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 					State: cloudstore.StackState{
 						Status:           stack.Failed,
 						DeploymentStatus: deployment.Failed,
-						DriftStatus:      drift.OK,
+						DriftStatus:      drift.Drifted,
 					},
 				},
 			},
@@ -137,7 +199,7 @@ func TestCloudListUnhealthy(t *testing.T) {
 			},
 		},
 		{
-			name: "1 cloud stack unhealthy, other ok, return unhealthy",
+			name: "1 cloud stack failed, other ok, asking for unhealthy: return failed",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",

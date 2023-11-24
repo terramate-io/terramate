@@ -61,13 +61,13 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	if filterStatusStr != "" && filterStatusStr != "unhealthy" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if filterStatusStr == "unhealthy" {
-		filterStatus = stack.UnhealthyFilter
+	if filterStatusStr != "" {
+		filterStatus = stack.NewStatusFilter(filterStatusStr)
+		if filterStatus.Is(stack.Unrecognized) {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E("invalid status: %s", filterStatusStr))
+			return
+		}
 	}
 
 	var andFilters []func(st cloudstore.Stack) bool

@@ -975,7 +975,6 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 				stacks = append(stacks, stack)
 			}
 		}
-
 		report.Stacks = stacks
 	}
 
@@ -1293,8 +1292,8 @@ func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
 	status := cloudstack.NoFilter
 	if strStatus != "" {
 		status = cloudstack.NewStatusFilter(strStatus)
-		if status != cloudstack.UnhealthyFilter {
-			fatal(errors.E("only %s filter allowed", cloudstack.UnhealthyFilter))
+		if status.Is(cloudstack.Unrecognized) {
+			fatal(errors.E("unrecognized stack filter: %s", strStatus))
 		}
 	}
 	return status
