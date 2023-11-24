@@ -90,7 +90,7 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 
 	st, _, found := store.GetStackByMetaID(org, payload.Stack.MetaID)
 	if !found {
-		st = &cloudstore.Stack{
+		st = cloudstore.Stack{
 			Stack: payload.Stack,
 			State: cloudstore.NewState(),
 		}
@@ -118,7 +118,7 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	_, err = store.UpsertStack(cloud.UUID(orguuid), *st)
+	_, err = store.UpsertStack(cloud.UUID(orguuid), st)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, err)
