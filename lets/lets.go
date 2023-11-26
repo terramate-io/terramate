@@ -42,7 +42,7 @@ type (
 	}
 
 	// Map is an evaluated lets map.
-	Map map[string]Value
+	Map map[string]cty.Value
 )
 
 // Load loads all the lets from the hcl blocks.
@@ -111,17 +111,14 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 				continue
 			}
 
-			lets[name] = Value{
-				Origin: expr.Origin,
-				Value:  val,
-			}
+			lets[name] = val
 
 			amountEvaluated++
 
 			delete(pendingExprs, name)
 			delete(pendingExprsErrs, name)
 
-			ctx.SetNamespace("let", lets.Attributes())
+			ctx.SetNamespace("let", lets)
 		}
 
 		if amountEvaluated == 0 {
@@ -143,17 +140,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 // String provides a string representation of the evaluated lets.
 func (lets Map) String() string {
-	return fmt.FormatAttributes(lets.Attributes())
-}
-
-// Attributes returns all the lets attributes, the key in the map
-// is the attribute name with its corresponding value mapped
-func (lets Map) Attributes() map[string]cty.Value {
-	attrcopy := map[string]cty.Value{}
-	for k, v := range lets {
-		attrcopy[k] = v.Value
-	}
-	return attrcopy
+	return fmt.FormatAttributes(lets)
 }
 
 func removeUnset(exprs Exprs) {

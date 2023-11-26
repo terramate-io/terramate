@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -110,6 +111,8 @@ type cliSpec struct {
 	Quiet          bool     `optional:"false" help:"Disable output"`
 	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
 
+	CPUProfiling bool `optional:"true" default:"false" help:"Create a CPU profile file when running"`
+
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
@@ -153,7 +156,9 @@ type cliSpec struct {
 		Command                    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
-	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
+	Generate struct {
+		NoVendor bool `help:"disable vendor handling"`
+	} `cmd:"" help:"Generate terraform code for stacks"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
@@ -322,6 +327,18 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 	if err != nil {
 		fatal(err, "parsing cli args %v", args)
+	}
+
+	if parsedArgs.CPUProfiling {
+		stdfmt.Println("Creating CPU profile...")
+		f, err := os.Create("terramate.prof")
+		if err != nil {
+			fatal(err, "can't create profile output file")
+		}
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			fatal(err, "error when starting CPU profiling")
+		}
 	}
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
@@ -515,6 +532,13 @@ func (c *cli) run() {
 	c.setupFilterTags()
 
 	logger.Debug().Msg("Handle command.")
+
+	// We start the CPU Profiling during the flags parsing, but can't defer
+	// the stop there, as the CLI parsing returns far before the program is
+	// done running. Therefore we schedule it here.
+	if c.parsedArgs.CPUProfiling {
+		defer pprof.StopCPUProfile()
+	}
 
 	switch c.ctx.Command() {
 	case "fmt":
@@ -780,7 +804,16 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate() {
-	report, vendorReport := c.gencodeWithVendor()
+	var (
+		report       generate.Report
+		vendorReport download.Report
+	)
+
+	if c.parsedArgs.Generate.NoVendor {
+		report = generate.Do(c.cfg(), c.vendorDir(), nil)
+	} else {
+		report, vendorReport = c.gencodeWithVendor()
+	}
 
 	c.output.MsgStdOut(report.Full())
 

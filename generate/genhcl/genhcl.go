@@ -17,14 +17,13 @@ import (
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
 
-	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -133,21 +132,17 @@ func (h HCL) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(
-	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	evalctx *eval.Context,
+	hclBlocks []hcl.GenHCLBlock,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
-	hclBlocks, err := loadGenHCLBlocks(root, st.Dir)
-	if err != nil {
-		return nil, errors.E("loading generate_hcl", err)
-	}
+	defer evalctx.DeleteFunction(stdlib.Name("vendor"))
 
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
@@ -158,87 +153,11 @@ func Load(
 			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 		)
 
-		err := lets.Load(hclBlock.Lets, evalctx.Context)
+		hcl, err := evalBlock(name, hclBlock, evalctx)
 		if err != nil {
 			return nil, err
 		}
-
-		condition := true
-		if hclBlock.Condition != nil {
-			value, err := evalctx.Eval(hclBlock.Condition.Expr)
-			if err != nil {
-				return nil, errors.E(ErrConditionEval, err)
-			}
-			if value.Type() != cty.Bool {
-				return nil, errors.E(
-					ErrInvalidConditionType,
-					"condition has type %s but must be boolean",
-					value.Type().FriendlyName(),
-				)
-			}
-			condition = value.True()
-		}
-
-		if !condition {
-			hcls = append(hcls, HCL{
-				label:     name,
-				origin:    hclBlock.Range,
-				condition: condition,
-			})
-
-			continue
-		}
-
-		asserts := make([]config.Assert, len(hclBlock.Asserts))
-		assertsErrs := errors.L()
-		assertFailed := false
-
-		for i, assertCfg := range hclBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
-			if err != nil {
-				assertsErrs.Append(err)
-				continue
-			}
-			asserts[i] = assert
-			if !assert.Assertion && !assert.Warning {
-				assertFailed = true
-			}
-		}
-
-		if err := assertsErrs.AsError(); err != nil {
-			return nil, err
-		}
-
-		if assertFailed {
-			hcls = append(hcls, HCL{
-				label:     name,
-				origin:    hclBlock.Range,
-				condition: condition,
-				asserts:   asserts,
-			})
-			continue
-		}
-
-		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
-
-		gen := hclwrite.NewEmptyFile()
-		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
-		}
-
-		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
-		if err != nil {
-			panic(errors.E(err,
-				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
-			))
-		}
-		hcls = append(hcls, HCL{
-			label:     name,
-			origin:    hclBlock.Range,
-			body:      formatted,
-			condition: condition,
-			asserts:   asserts,
-		})
+		hcls = append(hcls, hcl)
 	}
 
 	sort.SliceStable(hcls, func(i, j int) bool {
@@ -248,38 +167,94 @@ func Load(
 	return hcls, nil
 }
 
+func evalBlock(name string, hclBlock hcl.GenHCLBlock, evalctx *eval.Context) (HCL, error) {
+	defer evalctx.DeleteNamespace("let")
+	err := lets.Load(hclBlock.Lets, evalctx)
+	if err != nil {
+		return HCL{}, err
+	}
+
+	condition := true
+	if hclBlock.Condition != nil {
+		value, err := evalctx.Eval(hclBlock.Condition.Expr)
+		if err != nil {
+			return HCL{}, errors.E(ErrConditionEval, err)
+		}
+		if value.Type() != cty.Bool {
+			return HCL{}, errors.E(
+				ErrInvalidConditionType,
+				"condition has type %s but must be boolean",
+				value.Type().FriendlyName(),
+			)
+		}
+		condition = value.True()
+	}
+
+	if !condition {
+		return HCL{
+			label:     name,
+			origin:    hclBlock.Range,
+			condition: false,
+		}, nil
+	}
+
+	asserts := make([]config.Assert, len(hclBlock.Asserts))
+	assertsErrs := errors.L()
+	assertFailed := false
+
+	for i, assertCfg := range hclBlock.Asserts {
+		assert, err := config.EvalAssert(evalctx, assertCfg)
+		if err != nil {
+			assertsErrs.Append(err)
+			continue
+		}
+		asserts[i] = assert
+		if !assert.Assertion && !assert.Warning {
+			assertFailed = true
+		}
+	}
+
+	if err := assertsErrs.AsError(); err != nil {
+		return HCL{}, err
+	}
+
+	if assertFailed {
+		return HCL{
+			label:     name,
+			origin:    hclBlock.Range,
+			condition: condition,
+			asserts:   asserts,
+		}, nil
+	}
+
+	evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
+
+	gen := hclwrite.NewEmptyFile()
+	if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
+		return HCL{}, errors.E(ErrContentEval, err, "generate_hcl %q", name)
+	}
+
+	formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
+	if err != nil {
+		panic(errors.E(err,
+			"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
+		))
+	}
+	return HCL{
+		label:     name,
+		origin:    hclBlock.Range,
+		body:      formatted,
+		condition: condition,
+		asserts:   asserts,
+	}, nil
+}
+
 type dynBlockAttributes struct {
 	attributes *hclsyntax.Attribute
 	iterator   *hclsyntax.Attribute
 	foreach    *hclsyntax.Attribute
 	labels     *hclsyntax.Attribute
 	condition  *hclsyntax.Attribute
-}
-
-// loadGenHCLBlocks will load all generate_hcl blocks.
-// The returned map maps the name of the block (its label)
-// to the original block and the path (relative to project root) of the config
-// from where it was parsed.
-func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
-	res := []hcl.GenHCLBlock{}
-	cfg, ok := root.Lookup(cfgdir)
-	if ok && !cfg.IsEmptyConfig() {
-		res = append(res, cfg.Node.Generate.HCLs...)
-	}
-
-	parentCfgDir := cfgdir.Dir()
-	if parentCfgDir == cfgdir {
-		return res, nil
-	}
-
-	parentRes, err := loadGenHCLBlocks(root, parentCfgDir)
-	if err != nil {
-		return nil, err
-	}
-
-	res = append(res, parentRes...)
-
-	return res, nil
 }
 
 // copyBody will copy the src body to the given target, evaluating attributes

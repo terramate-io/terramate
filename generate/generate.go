@@ -105,7 +105,9 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 
-		generated, err := loadStackCodeCfgs(root, st.Stack, loadres.Globals, vendorDir, nil)
+		evalctx := stack.NewEvalCtx(root, st.Stack, loadres.Globals)
+		hclBlocks, fileBlocks := LoadGenBlocks(root, st.Dir())
+		generated, err := loadStackCodeCfgs(root, st.Stack, evalctx.Context, hclBlocks, fileBlocks, vendorDir, nil)
 		if err != nil {
 			res.Err = errors.E(err, "while loading configs of stack %s", st.Dir())
 			results[i] = res
@@ -172,11 +174,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // failed on code generation, any failure found is added to the report but does
 // not abort the overall code generation process, so partial results can be
 // obtained and the report needs to be inspected to check.
-func Do(
-	root *config.Root,
-	vendorDir project.Path,
-	vendorRequests chan<- event.VendorRequest,
-) Report {
+func Do(root *config.Root, vendorDir project.Path, vendorRequests chan<- event.VendorRequest) Report {
 	stackReport := forEachStack(root, vendorDir,
 		vendorRequests, doStackGeneration)
 	rootReport := doRootGeneration(root)
@@ -187,7 +185,9 @@ func Do(
 func doStackGeneration(
 	root *config.Root,
 	stack *config.Stack,
-	globals *eval.Object,
+	evalctx *eval.Context,
+	hclBlocks []hcl.GenHCLBlock,
+	fileBlocks []hcl.GenFileBlock,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) dirReport {
@@ -201,7 +201,7 @@ func doStackGeneration(
 
 	logger.Debug().Msg("generating files")
 
-	generated, err := loadStackCodeCfgs(root, stack, globals, vendorDir, vendorRequests)
+	generated, err := loadStackCodeCfgs(root, stack, evalctx, hclBlocks, fileBlocks, vendorDir, vendorRequests)
 	if err != nil {
 		report.err = err
 		return report
@@ -503,15 +503,20 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 
 	logger.Debug().Msg("checking outdated code inside stacks")
 
-	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
+	for _, st := range stacks {
+		globalsReport := globals.ForStack(root, st.Stack)
+		if err := globalsReport.AsError(); err != nil {
+			return nil, err
+		}
+		evalctx := stack.NewEvalCtx(root, st.Stack, globalsReport.Globals)
+		outdated, err := stackOutdated(root, st.Stack, evalctx.Context, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
 		// We want results relative to root
-		stackRelPath := stack.Dir().String()[1:]
+		stackRelPath := st.Dir().String()[1:]
 		for _, file := range outdated {
 			outdatedFiles = append(outdatedFiles,
 				path.Join(stackRelPath, file))
@@ -550,6 +555,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 func stackOutdated(
 	root *config.Root,
 	st *config.Stack,
+	evalctx *eval.Context,
 	vendorDir project.Path,
 ) ([]string, error) {
 	logger := log.With().
@@ -557,13 +563,8 @@ func stackOutdated(
 		Stringer("stack", st).
 		Logger()
 
-	report := globals.ForStack(root, st)
-	if err := report.AsError(); err != nil {
-		return nil, errors.E(err, "checking for outdated code")
-	}
-
-	globals := report.Globals
-	generated, err := loadStackCodeCfgs(root, st, globals, vendorDir, nil)
+	hclBlocks, fileBlocks := LoadGenBlocks(root, st.Dir)
+	generated, err := loadStackCodeCfgs(root, st, evalctx, hclBlocks, fileBlocks, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -740,7 +741,9 @@ func readFile(path string) (string, bool, error) {
 type forEachStackFunc func(
 	*config.Root,
 	*config.Stack,
-	*eval.Object,
+	*eval.Context,
+	[]hcl.GenHCLBlock,
+	[]hcl.GenFileBlock,
 	project.Path,
 	chan<- event.VendorRequest,
 ) dirReport
@@ -766,11 +769,34 @@ func forEachStack(
 			continue
 		}
 
-		stackReport := fn(root, elem.Stack, globalsReport.Globals, vendorDir, vendorRequests)
+		evalctx := stack.NewEvalCtx(root, elem.Stack, globalsReport.Globals)
+		hclBlocks, fileBlocks := LoadGenBlocks(root, elem.Dir())
+		stackReport := fn(root, elem.Stack, evalctx.Context, hclBlocks, fileBlocks, vendorDir, vendorRequests)
 		report.addDirReport(elem.Dir(), stackReport)
 	}
 
 	return report
+}
+
+// LoadGenBlocks loads the generate blocks from the provided cfgdir.
+func LoadGenBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock, []hcl.GenFileBlock) {
+	hclBlocks := []hcl.GenHCLBlock{}
+	fileBlocks := []hcl.GenFileBlock{}
+	cfg, ok := root.Lookup(cfgdir)
+	if ok && !cfg.IsEmptyConfig() {
+		hclBlocks = append(hclBlocks, cfg.Node.Generate.HCLs...)
+		fileBlocks = append(fileBlocks, cfg.Node.Generate.Files...)
+	}
+
+	parentCfgDir := cfgdir.Dir()
+	if parentCfgDir == cfgdir {
+		return hclBlocks, fileBlocks
+	}
+
+	parentHCLBlocks, parentFileBlocks := LoadGenBlocks(root, parentCfgDir)
+	hclBlocks = append(hclBlocks, parentHCLBlocks...)
+	fileBlocks = append(fileBlocks, parentFileBlocks...)
+	return hclBlocks, fileBlocks
 }
 
 func allStackGeneratedFiles(
@@ -1138,7 +1164,7 @@ func checkFileConflict(generated []GenFile) map[string]error {
 	return errsmap
 }
 
-func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]config.Assert, error) {
+func loadAsserts(root *config.Root, st *config.Stack, evalctx *eval.Context) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", root.HostDir()).
@@ -1154,11 +1180,10 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 			Stringer("curdir", curdir).
 			Logger()
 
-		evalctx := stack.NewEvalCtx(root, st, globals)
 		cfg, ok := root.Lookup(curdir)
-		if ok {
+		if ok && len(cfg.Node.Asserts) > 0 {
 			for _, assertCfg := range cfg.Node.Asserts {
-				assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+				assert, err := config.EvalAssert(evalctx, assertCfg)
 				if err != nil {
 					errs.Append(err)
 				} else {
@@ -1184,23 +1209,25 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 func loadStackCodeCfgs(
 	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	evalctx *eval.Context,
+	hclBlocks []hcl.GenHCLBlock,
+	fileBlocks []hcl.GenFileBlock,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
-	asserts, err := loadAsserts(root, st, globals)
+	asserts, err := loadAsserts(root, st, evalctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var genfilesConfigs []GenFile
 
-	genfiles, err := genfile.Load(root, st, globals, vendorDir, vendorRequests)
+	genfiles, err := genfile.Load(st, evalctx, fileBlocks, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(root, st, globals, vendorDir, vendorRequests)
+	genhcls, err := genhcl.Load(st, evalctx, hclBlocks, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}

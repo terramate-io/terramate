@@ -1,7 +1,7 @@
 # Set default shell to bash
 SHELL := /bin/bash -o pipefail -o errexit -o nounset
 VERSION ?= v$(shell cat VERSION)
-GO_BUILD_FLAGS=--ldflags '-extldflags "-static"'
+GO_BUILD_FLAGS=-pgo cmd/terramate/default.pgo --ldflags '-extldflags "-static"'
 BUILD_ENV=CGO_ENABLED=0
 EXEC_SUFFIX=
 

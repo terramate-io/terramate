@@ -11,10 +11,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genfile"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	infotest "github.com/terramate-io/terramate/test/hclutils/info"
@@ -959,7 +961,7 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stack := s.LoadStacks()[0].Stack
+		st := s.LoadStacks()[0].Stack
 
 		for _, cfg := range tcase.configs {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
@@ -973,9 +975,11 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(root, stack)
+		globals := s.LoadStackGlobals(root, st)
 		vendorDir := project.NewPath("/modules")
-		got, err := genfile.Load(root, stack, globals, vendorDir, nil)
+		evalctx := stack.NewEvalCtx(root, st, globals)
+		_, fileblocks := generate.LoadGenBlocks(root, st.Dir)
+		got, err := genfile.Load(st, evalctx.Context, fileblocks, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

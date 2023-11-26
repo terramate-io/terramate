@@ -19,7 +19,6 @@ import (
 
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -118,33 +117,28 @@ func (f File) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(
-	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	evalctx *eval.Context,
+	genFileBlocks []hcl.GenFileBlock,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(root, st.Dir)
-	if err != nil {
-		return nil, errors.E("loading generate_file", err)
-	}
+	defer evalctx.DeleteFunction(stdlib.Name("vendor"))
 
 	var files []File
-
 	for _, genFileBlock := range genFileBlocks {
 		if genFileBlock.Context != StackContext {
 			continue
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
-		file, err := Eval(genFileBlock, evalctx.Context)
+		file, err := Eval(genFileBlock, evalctx)
 		if err != nil {
 			return nil, err
 		}
@@ -160,6 +154,7 @@ func Load(
 
 // Eval the generate_file block.
 func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
+	defer evalctx.DeleteNamespace("let")
 	name := block.Label
 	err := lets.Load(block.Lets, evalctx)
 	if err != nil {
@@ -242,29 +237,4 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 		context:   block.Context,
 		asserts:   asserts,
 	}, nil
-}
-
-// loadGenFileBlocks will load all generate_file blocks.
-// The returned map maps the name of the block (its label)
-// to the original block and the path (relative to project root) of the config
-// from where it was parsed.
-func loadGenFileBlocks(tree *config.Root, cfgdir project.Path) ([]hcl.GenFileBlock, error) {
-	res := []hcl.GenFileBlock{}
-	cfg, ok := tree.Lookup(cfgdir)
-	if ok && !cfg.IsEmptyConfig() {
-		res = append(res, cfg.Node.Generate.Files...)
-	}
-
-	parentCfgDir := cfgdir.Dir()
-	if parentCfgDir == cfgdir {
-		return res, nil
-	}
-
-	parentRes, err := loadGenFileBlocks(tree, parentCfgDir)
-	if err != nil {
-		return nil, err
-	}
-
-	res = append(res, parentRes...)
-	return res, nil
 }

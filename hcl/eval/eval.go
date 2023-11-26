@@ -52,6 +52,11 @@ func (c *Context) SetFunction(name string, fn function.Function) {
 	c.hclctx.Functions[name] = fn
 }
 
+// DeleteFunction deletes the function from the evaluation context.
+func (c *Context) DeleteFunction(name string) {
+	delete(c.hclctx.Functions, name)
+}
+
 // SetEnv sets the given environment on the env namespace of the evaluation context.
 // environ must be on the same format as os.Environ().
 func (c *Context) SetEnv(environ []string) {
