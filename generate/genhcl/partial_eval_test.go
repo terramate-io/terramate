@@ -1747,7 +1747,7 @@ EOT
 			vendorDir := project.NewPath("/modules")
 			evalctx := stack.NewEvalCtx(root, st, globals)
 			hclblocks, _ := generate.LoadGenBlocks(root, st.Dir)
-			got, err := genhcl.Load(st, evalctx.Context, hclblocks, vendorDir, nil)
+			got, err := genhcl.Load(st, evalctx.Context, hclblocks, false, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

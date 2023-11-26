@@ -120,14 +120,16 @@ func Load(
 	st *config.Stack,
 	evalctx *eval.Context,
 	genFileBlocks []hcl.GenFileBlock,
+	evaluateOnce bool,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
 	defer evalctx.DeleteFunction(stdlib.Name("vendor"))
 
+	evaluated := map[string]bool{}
 	var files []File
 	for _, genFileBlock := range genFileBlocks {
-		if genFileBlock.Context != StackContext {
+		if genFileBlock.Context != StackContext || (evaluateOnce && evaluated[genFileBlock.Label]) {
 			continue
 		}
 
@@ -143,6 +145,7 @@ func Load(
 			return nil, err
 		}
 		files = append(files, file)
+		evaluated[file.Label()] = file.condition
 	}
 
 	sort.Slice(files, func(i, j int) bool {

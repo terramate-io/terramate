@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -74,7 +75,8 @@ type LoadResult struct {
 	// if Err is not nil.
 	Dir project.Path
 	// Files is the generated files for this directory.
-	Files []GenFile
+	Files   []GenFile
+	Elapsed time.Duration
 	// Err will be non-nil if loading generated files for a specific dir failed
 	Err error
 }
@@ -89,7 +91,7 @@ type LoadResult struct {
 // If a critical error that fails the loading of all results happens it returns
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
-func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
+func Load(root *config.Root, validate bool, vendorDir project.Path) ([]LoadResult, error) {
 	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
 		return nil, err
@@ -97,23 +99,27 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 	results := make([]LoadResult, len(stacks))
 
 	for i, st := range stacks {
+		start := time.Now()
 		res := LoadResult{Dir: st.Dir()}
 		loadres := globals.ForStack(root, st.Stack)
 		if err := loadres.AsError(); err != nil {
 			res.Err = err
+			res.Elapsed = time.Since(start)
 			results[i] = res
 			continue
 		}
 
 		evalctx := stack.NewEvalCtx(root, st.Stack, loadres.Globals)
 		hclBlocks, fileBlocks := LoadGenBlocks(root, st.Dir())
-		generated, err := loadStackCodeCfgs(root, st.Stack, evalctx.Context, hclBlocks, fileBlocks, vendorDir, nil)
+		generated, err := loadStackCodeCfgs(root, st.Stack, evalctx.Context, hclBlocks, fileBlocks, validate, vendorDir, nil)
 		if err != nil {
 			res.Err = errors.E(err, "while loading configs of stack %s", st.Dir())
+			res.Elapsed = time.Since(start)
 			results[i] = res
 			continue
 		}
 		res.Files = generated
+		res.Elapsed = time.Since(start)
 		results[i] = res
 	}
 
@@ -121,6 +127,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 		if dircfg.IsEmptyConfig() || dircfg.IsStack() {
 			continue
 		}
+		start := time.Now()
 		res := LoadResult{Dir: dircfg.Dir()}
 		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir()))
 
@@ -141,6 +148,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 		}
 		if len(generated) > 0 {
 			res.Files = generated
+			res.Elapsed = time.Since(start)
 			results = append(results, res)
 		}
 	}
@@ -174,8 +182,13 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // failed on code generation, any failure found is added to the report but does
 // not abort the overall code generation process, so partial results can be
 // obtained and the report needs to be inspected to check.
-func Do(root *config.Root, vendorDir project.Path, vendorRequests chan<- event.VendorRequest) Report {
-	stackReport := forEachStack(root, vendorDir,
+func Do(
+	root *config.Root,
+	validate bool,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+) Report {
+	stackReport := forEachStack(root, validate, vendorDir,
 		vendorRequests, doStackGeneration)
 	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
@@ -188,6 +201,7 @@ func doStackGeneration(
 	evalctx *eval.Context,
 	hclBlocks []hcl.GenHCLBlock,
 	fileBlocks []hcl.GenFileBlock,
+	validate bool,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) dirReport {
@@ -201,20 +215,22 @@ func doStackGeneration(
 
 	logger.Debug().Msg("generating files")
 
-	generated, err := loadStackCodeCfgs(root, stack, evalctx, hclBlocks, fileBlocks, vendorDir, vendorRequests)
+	generated, err := loadStackCodeCfgs(root, stack, evalctx, hclBlocks, fileBlocks, validate, vendorDir, vendorRequests)
 	if err != nil {
 		report.err = err
 		return report
 	}
 
-	errsmap := checkFileConflict(generated)
-	if len(errsmap) > 0 {
-		errs := errors.L()
-		for _, err := range errsmap {
-			errs.Append(err)
+	if validate {
+		errsmap := checkFileConflict(generated)
+		if len(errsmap) > 0 {
+			errs := errors.L()
+			for _, err := range errsmap {
+				errs.Append(err)
+			}
+			report.err = errs.AsError()
+			return report
 		}
-		report.err = errs.AsError()
-		return report
 	}
 
 	err = validateStackGeneratedFiles(root, stackpath, generated)
@@ -564,7 +580,7 @@ func stackOutdated(
 		Logger()
 
 	hclBlocks, fileBlocks := LoadGenBlocks(root, st.Dir)
-	generated, err := loadStackCodeCfgs(root, st, evalctx, hclBlocks, fileBlocks, vendorDir, nil)
+	generated, err := loadStackCodeCfgs(root, st, evalctx, hclBlocks, fileBlocks, false, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -744,12 +760,14 @@ type forEachStackFunc func(
 	*eval.Context,
 	[]hcl.GenHCLBlock,
 	[]hcl.GenFileBlock,
+	bool,
 	project.Path,
 	chan<- event.VendorRequest,
 ) dirReport
 
 func forEachStack(
 	root *config.Root,
+	validate bool,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 	fn forEachStackFunc,
@@ -771,7 +789,7 @@ func forEachStack(
 
 		evalctx := stack.NewEvalCtx(root, elem.Stack, globalsReport.Globals)
 		hclBlocks, fileBlocks := LoadGenBlocks(root, elem.Dir())
-		stackReport := fn(root, elem.Stack, evalctx.Context, hclBlocks, fileBlocks, vendorDir, vendorRequests)
+		stackReport := fn(root, elem.Stack, evalctx.Context, hclBlocks, fileBlocks, validate, vendorDir, vendorRequests)
 		report.addDirReport(elem.Dir(), stackReport)
 	}
 
@@ -1212,6 +1230,7 @@ func loadStackCodeCfgs(
 	evalctx *eval.Context,
 	hclBlocks []hcl.GenHCLBlock,
 	fileBlocks []hcl.GenFileBlock,
+	validate bool,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
@@ -1222,12 +1241,12 @@ func loadStackCodeCfgs(
 
 	var genfilesConfigs []GenFile
 
-	genfiles, err := genfile.Load(st, evalctx, fileBlocks, vendorDir, vendorRequests)
+	genfiles, err := genfile.Load(st, evalctx, fileBlocks, !validate, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(st, evalctx, hclBlocks, vendorDir, vendorRequests)
+	genhcls, err := genhcl.Load(st, evalctx, hclBlocks, !validate, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}

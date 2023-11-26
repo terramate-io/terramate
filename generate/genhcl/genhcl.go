@@ -135,14 +135,20 @@ func Load(
 	st *config.Stack,
 	evalctx *eval.Context,
 	hclBlocks []hcl.GenHCLBlock,
+	evaluateOnce bool,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	defer evalctx.DeleteFunction(stdlib.Name("vendor"))
 
+	evaluated := map[string]bool{}
+
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
+		if evaluateOnce && evaluated[name] {
+			continue
+		}
 
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
@@ -157,6 +163,7 @@ func Load(
 		if err != nil {
 			return nil, err
 		}
+		evaluated[name] = hcl.condition
 		hcls = append(hcls, hcl)
 	}
 

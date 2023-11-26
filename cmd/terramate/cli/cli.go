@@ -158,6 +158,7 @@ type cliSpec struct {
 
 	Generate struct {
 		NoVendor bool `help:"disable vendor handling"`
+		Validate bool `help:"validate stuff"`
 	} `cmd:"" help:"Generate terraform code for stacks"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
@@ -180,7 +181,13 @@ type cliSpec struct {
 		Globals struct{} `cmd:"" help:"List globals for all stacks"`
 
 		Generate struct {
-			Debug struct{} `cmd:"" help:"Shows generate debug information"`
+			Debug struct {
+				File struct{} `cmd:"" help:"debug file generation"`
+				Load struct {
+					Validate  bool
+					CountLets bool
+				} `cmd:"" help:"debug load"`
+			} `cmd:"" help:"Shows generate debug information"`
 		} `cmd:"" help:"Experimental generate commands"`
 
 		RunGraph struct {
@@ -568,9 +575,12 @@ func (c *cli) run() {
 	case "experimental globals":
 		c.setupGit()
 		c.printStacksGlobals()
-	case "experimental generate debug":
+	case "experimental generate debug files":
 		c.setupGit()
-		c.generateDebug()
+		c.generateDebugFiles()
+	case "experimental generate debug load":
+		c.setupGit()
+		c.generateDebugLoad()
 	case "experimental metadata":
 		c.setupGit()
 		c.printMetadata()
@@ -810,7 +820,7 @@ func (c *cli) generate() {
 	)
 
 	if c.parsedArgs.Generate.NoVendor {
-		report = generate.Do(c.cfg(), c.vendorDir(), nil)
+		report = generate.Do(c.cfg(), c.parsedArgs.Generate.Validate, c.vendorDir(), nil)
 	} else {
 		report, vendorReport = c.gencodeWithVendor()
 	}
@@ -845,7 +855,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), c.parsedArgs.Generate.Validate, c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
@@ -1513,7 +1523,7 @@ func (c *cli) printRunOrder() {
 	}
 }
 
-func (c *cli) generateDebug() {
+func (c *cli) generateDebugFiles() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
@@ -1529,7 +1539,7 @@ func (c *cli) generateDebug() {
 		selectedStacks[stack.Dir()] = struct{}{}
 	}
 
-	results, err := generate.Load(c.cfg(), c.vendorDir())
+	results, err := generate.Load(c.cfg(), true, c.vendorDir())
 	if err != nil {
 		fatal(err, "generate debug: loading generated code")
 	}
@@ -1558,6 +1568,44 @@ func (c *cli) generateDebug() {
 			c.output.MsgStdOut("%s origin: %v", filepath, file.Range())
 		}
 	}
+}
+
+func (c *cli) generateDebugLoad() {
+	results, err := generate.Load(c.cfg(), c.parsedArgs.Experimental.Generate.Debug.Load.Validate, c.vendorDir())
+	if err != nil {
+		fatal(err, "generate debug: loading generated code")
+	}
+	var totalElapsed time.Duration
+	var totalLets int
+	for _, res := range results {
+		c.output.MsgStdOut("Dir: %s", res.Dir)
+		c.output.MsgStdOut("Elapsed: %s", res.Elapsed)
+		totalElapsed += res.Elapsed
+		if c.parsedArgs.Experimental.Generate.Debug.Load.CountLets {
+			var nlets int
+			fileblocks, hclblocks := generate.LoadGenBlocks(c.cfg(), res.Dir)
+			for _, f := range fileblocks {
+				nlets += len(f.Lets.Attributes)
+			}
+			for _, f := range hclblocks {
+				nlets += len(f.Lets.Attributes)
+			}
+			c.output.MsgStdOut("lets: %d", nlets)
+			totalLets += nlets
+		}
+		for _, file := range res.Files {
+			c.output.MsgStdOut("\t- file: %s", file.Label())
+			c.output.MsgStdOut("\t  cond: %t", file.Condition())
+			c.output.MsgStdOut("\t  origin: %s", file.Range())
+			c.output.MsgStdOut("    asserts: %d", len(file.Asserts()))
+		}
+		c.output.MsgStdOut("")
+	}
+	c.output.MsgStdOut("")
+	if c.parsedArgs.Experimental.Generate.Debug.Load.CountLets {
+		c.output.MsgStdOut("total lets: %d", totalLets)
+	}
+	c.output.MsgStdOut("total elapsed: %s", totalElapsed)
 }
 
 func (c *cli) printStacksGlobals() {
