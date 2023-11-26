@@ -62,7 +62,6 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 	pendingExprs := make(Exprs)
 
 	copyexprs(pendingExprs, letExprs)
-	removeUnset(pendingExprs)
 
 	if !ctx.HasNamespace("let") {
 		ctx.SetNamespace("let", map[string]cty.Value{})
@@ -141,21 +140,6 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 // String provides a string representation of the evaluated lets.
 func (lets Map) String() string {
 	return fmt.FormatAttributes(lets)
-}
-
-func removeUnset(exprs Exprs) {
-	for name, expr := range exprs {
-		traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
-		if diags.HasErrors() {
-			continue
-		}
-		if len(traversal) != 1 {
-			continue
-		}
-		if traversal.RootName() == "unset" {
-			delete(exprs, name)
-		}
-	}
 }
 
 func copyexprs(dst, src Exprs) {
