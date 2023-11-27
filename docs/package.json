@@ -1,17 +1,19 @@
 {
-  "packageManager": "pnpm@8.6.0",
+  "type": "module",
+  "packageManager": "pnpm@8.11.0",
   "scripts": {
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^0.39.7",
-    "eslint": "^8.44.0",
-    "glob": "^10.3.4",
-    "pnpm": "8.6.1",
-    "vitepress": "1.0.0-beta.1"
+    "@antfu/eslint-config": "^1.2.1",
+    "eslint": "^8.54.0",
+    "glob": "^10.3.10",
+    "pnpm": "8.11.0",
+    "vitepress": "1.0.0-rc.31"
   },
   "eslintConfig": {
     "extends": [
