@@ -28,8 +28,11 @@ export default defineConfig({
   // titleTemplate: ':title - Terramate',
   description:
     'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
+  sitemap: {
+    hostname: 'https://terramate.io',
+  },
   cleanUrls: true,
-  transformHead: ({ pageData, siteData }) => {
+  transformHead: async ({ pageData, siteData }) => {
     const head: HeadConfig[] = [
       [
         'link',
@@ -44,7 +47,7 @@ export default defineConfig({
       [
         'script',
         { id: 'register-gtm' },
-        // eslint-disable-next-line @typescript-eslint/quotes
+
         `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-5KZT64L');`,
       ],
       [
@@ -190,7 +193,7 @@ export default defineConfig({
         text: '🔗 Sharing Data',
         collapsed: false,
         items: [
-          { text: 'Overview', link: 'data-sharing/overview'},
+          { text: 'Overview', link: 'data-sharing/overview' },
           { text: 'Globals', link: 'data-sharing/globals' },
           { text: 'Metadata', link: 'data-sharing/metadata' },
           { text: 'Map', link: 'map' },
@@ -211,7 +214,7 @@ export default defineConfig({
         items: [
           {
             text: 'Overview',
-            link: 'functions/index'
+            link: 'functions/index',
           },
           {
             text: 'Terramate specific functions',
@@ -250,7 +253,7 @@ export default defineConfig({
         text: '💻 Commands (CLI)',
         collapsed: false,
         items: [
-          { text: 'Overview', link: 'cmdline/index'},
+          { text: 'Overview', link: 'cmdline/index' },
           { text: 'clone', link: 'cmdline/clone' },
           { text: 'cloud login', link: 'cmdline/cloud-login' },
           { text: 'cloud info', link: 'cmdline/cloud-info' },
