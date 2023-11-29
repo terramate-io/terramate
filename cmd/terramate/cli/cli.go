@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -109,6 +110,8 @@ type cliSpec struct {
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
 	Quiet          bool     `optional:"false" help:"Disable output"`
 	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+
+	CPUProfiling bool `optional:"true" default:"false" help:"Create a CPU profile file when running"`
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
@@ -324,6 +327,18 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		fatal(err, "parsing cli args %v", args)
 	}
 
+	if parsedArgs.CPUProfiling {
+		stdfmt.Println("Creating CPU profile...")
+		f, err := os.Create("terramate.prof")
+		if err != nil {
+			fatal(err, "can't create profile output file")
+		}
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			fatal(err, "error when starting CPU profiling")
+		}
+	}
+
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
 		parsedArgs.LogDestination, stdout, stderr)
 	// If we don't re-create the logger after configuring we get some
@@ -515,6 +530,13 @@ func (c *cli) run() {
 	c.setupFilterTags()
 
 	logger.Debug().Msg("Handle command.")
+
+	// We start the CPU Profiling during the flags parsing, but can't defer
+	// the stop there, as the CLI parsing returns far before the program is
+	// done running. Therefore we schedule it here.
+	if c.parsedArgs.CPUProfiling {
+		defer pprof.StopCPUProfile()
+	}
 
 	switch c.ctx.Command() {
 	case "fmt":

@@ -14,11 +14,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	infotest "github.com/terramate-io/terramate/test/hclutils/info"
@@ -1718,7 +1720,7 @@ func (tcase testcase) run(t *testing.T) {
 		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
-		stack := stacks[0].Stack
+		st := stacks[0].Stack
 
 		for _, cfg := range tcase.configs {
 			filename := cfg.filename
@@ -1729,7 +1731,7 @@ func (tcase testcase) run(t *testing.T) {
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 
-		cfg, err := config.LoadRoot(s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -1737,9 +1739,11 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, stack)
+		globals := s.LoadStackGlobals(root, st)
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(cfg, stack, globals, vendorDir, nil)
+		evalctx := stack.NewEvalCtx(root, st, globals)
+		hclblocks, _ := generate.LoadGenBlocks(root, st.Dir)
+		got, err := genhcl.Load(st, evalctx.Context, hclblocks, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {
