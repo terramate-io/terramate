@@ -224,22 +224,22 @@ export default defineConfig({
               items: [
                 {
                   text: 'tm_ternary',
-                  link: '/cli/functions/terramate-builtin/tm_ternary.md',
+                  link: '/cli/functions/terramate-builtin/tm_ternary',
                 },
                 {
                   text: 'tm_hcl_expression',
-                  link: '/cli/functions/terramate-builtin/tm_hcl_expression.md',
+                  link: '/cli/functions/terramate-builtin/tm_hcl_expression',
                 },
                 {
                   text: 'tm_version_match',
-                  link: '/cli/functions/terramate-builtin/tm_version_match.md',
+                  link: '/cli/functions/terramate-builtin/tm_version_match',
                 },
                 {
                   text: 'Experimental Functions',
                   items: [
                     {
                       text: 'tm_vendor',
-                      link: '/cli/functions/terramate-builtin/tm_vendor.md',
+                      link: '/cli/functions/terramate-builtin/tm_vendor',
                     },
                   ],
                 },
