@@ -4,6 +4,7 @@
 package hclutils
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/terramate-io/terramate/test/hclwrite"
@@ -74,6 +75,23 @@ func GenerateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 // Content is a helper for a "content" block.
 func Content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("content", builders...)
+}
+
+// StackFilter is a helper for a "stack_filter" block.
+func StackFilter(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("stack_filter", builders...)
+}
+
+// ProjectPaths is a helper for adding a "project_paths" attribute.
+func ProjectPaths(paths ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(paths, `","`) + `"]`
+	return hclwrite.Expression("project_paths", expr)
+}
+
+// RepositoryPaths is a helper for adding a "project_paths" attribute.
+func RepositoryPaths(paths ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(paths, `","`) + `"]`
+	return hclwrite.Expression("repository_paths", expr)
 }
 
 // Lets is a helper for a "lets" block.

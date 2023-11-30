@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gobwas/glob"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -67,6 +68,12 @@ type AssertConfig struct {
 	Warning   hcl.Expression
 	Assertion hcl.Expression
 	Message   hcl.Expression
+}
+
+// StackFilterConfig represents Terramate stack_filter configuration block.
+type StackFilterConfig struct {
+	ProjectPaths    glob.Glob
+	RepositoryPaths glob.Glob
 }
 
 // RunConfig represents Terramate run configuration.
@@ -198,6 +205,8 @@ type GenHCLBlock struct {
 	Lets *ast.MergedBlock
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Represents all stack_filter blocks
+	StackFilters []StackFilterConfig
 	// Content block.
 	Content *hclsyntax.Block
 	// Asserts represents all assert blocks
@@ -844,8 +853,9 @@ func IsRootConfig(rootdir string) (bool, error) {
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
 func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	var (
-		content *hclsyntax.Block
-		asserts []AssertConfig
+		content      *hclsyntax.Block
+		asserts      []AssertConfig
+		stackFilters []StackFilterConfig
 	)
 
 	err := validateGenerateHCLBlock(block)
@@ -869,6 +879,13 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 				continue
 			}
 			asserts = append(asserts, assertCfg)
+		case "stack_filter":
+			stackFilterCfg, err := parseStackFilterConfig(subBlock)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			stackFilters = append(stackFilters, stackFilterCfg)
 		case "content":
 			if content != nil {
 				errs.Append(errors.E(subBlock.Range,
@@ -907,12 +924,13 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	return GenHCLBlock{
-		Range:     block.Range,
-		Label:     block.Labels[0],
-		Lets:      lets,
-		Asserts:   asserts,
-		Content:   content,
-		Condition: block.Body.Attributes["condition"],
+		Range:        block.Range,
+		Label:        block.Labels[0],
+		Lets:         lets,
+		Asserts:      asserts,
+		Content:      content,
+		Condition:    block.Body.Attributes["condition"],
+		StackFilters: stackFilters,
 	}, nil
 }
 
@@ -1049,6 +1067,10 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 			},
 			{
 				Type:       "assert",
+				LabelNames: []string{},
+			},
+			{
+				Type:       "stack_filter",
 				LabelNames: []string{},
 			},
 		},
@@ -1327,6 +1349,71 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func parseStackFilterConfig(block *ast.Block) (StackFilterConfig, error) {
+	cfg := StackFilterConfig{}
+	errs := errors.L()
+
+	errs.Append(checkNoLabels(block))
+	errs.Append(checkHasSubBlocks(block))
+
+	for _, attr := range block.Attributes {
+		switch attr.Name {
+		case "project_paths":
+			var err error
+			cfg.ProjectPaths, err = parseStackFilterAttr(attr)
+			errs.Append(err)
+
+		case "repository_paths":
+			var err error
+			cfg.RepositoryPaths, err = parseStackFilterAttr(attr)
+			errs.Append(err)
+
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", block.Type, attr.Name,
+			))
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return StackFilterConfig{}, err
+	}
+
+	return cfg, nil
+}
+
+func parseStackFilterAttr(attr ast.Attribute) (glob.Glob, error) {
+	attrVal, hclerr := attr.Expr.Value(nil)
+	if hclerr != nil {
+		return nil, errors.E(ErrTerramateSchema, hclerr, attr.NameRange, "evaluating %s", attr.Name)
+	}
+
+	r, err := ValueAsStringList(attrVal)
+	if err != nil {
+		return nil, errors.E(ErrTerramateSchema, err, attr.NameRange)
+	}
+
+	if len(r) == 0 {
+		return nil, errors.E(ErrTerramateSchema, attr.NameRange, "%s must not be empty", attr.Name)
+	}
+
+	// Add ** prefix as default.
+	for i, s := range r {
+		if !strings.HasPrefix(s, "*") && !strings.HasPrefix(s, "/") {
+			r[i] = "**/" + s
+		}
+	}
+
+	g, err := glob.Compile(fmt.Sprintf("{%s}", strings.Join(r, ",")), '/')
+	if err != nil {
+		return nil, errors.E(ErrTerramateSchema, err, attr.NameRange,
+			"compiling match pattern for %s", attr.Name)
+	}
+
+	return g, nil
+
 }
 
 func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {

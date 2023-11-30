@@ -309,6 +309,53 @@ Blocks defined at different levels with the same label aren't allowed, resulting
 in failure for the overall code generation process.
 
 
+## Filter-based Code Generation
+
+To only generate HCL code for stacks matching specific criteria, a `stack_filter`
+block can be added within a `generate_hcl` block.
+
+The following filter attributes for path filtering are supported:
+
+* `project_paths`: Match any of the given stack paths relative to the project root.
+* `repository_paths`: Match any of the given stack paths relative to the repository root.
+
+Stack paths support glob-style wildcards:
+* `*` matches any sequence of characters until the next directory separator (`/`).
+* `**` matches any sequence of characters.
+
+Unless a path starts with `*` or `/`, it is implicitly prefixed with `**/`.
+
+If multiple attributes are set per `stack_filter`, _all_ of them must match.
+
+If multiple `stack_filter` blocks are added, at least one must match.
+
+Here's an example:
+
+```hcl
+generate_hcl "file" {
+  stack_filter {
+    project_paths = ["networking/**"]
+  }
+  content {
+    resource "networking_resource" "name" {
+        # ...
+    }
+  }
+}
+```
+This generates a file containing a networking resource only for stacks located within a
+directory named `networking`. The implicitly added prefix `**/` means that this directory
+can be located anywhere in our project. The suffix `/**` means that the stack can be in
+any nested sub-directory of a `networking` directory.
+
+If we change the attribute to `project_paths = ["/networking/*"]`,
+it only matches stacks that are directly in a `networking` directory located at
+the project root level.
+
+If more complex logic is required to decide if a file should be generated,
+see the `condition` attribute described in the next section.
+
+
 ## Conditional Code Generation
 
 Conditional code generation is achieved by the use of the `condition` attribute.

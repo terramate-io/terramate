@@ -9,9 +9,11 @@ import (
 	"path"
 	"sort"
 
+	"github.com/gobwas/glob"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -147,6 +149,34 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
+
+		matchedAnyStackFilter := len(hclBlock.StackFilters) == 0
+		for _, cond := range hclBlock.StackFilters {
+			matched := true
+
+			for n, g := range map[string]glob.Glob{
+				"project path":    cond.ProjectPaths,
+				"repository path": cond.RepositoryPaths,
+			} {
+				if g != nil && !g.Match(st.Dir.String()) {
+					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match filter %v", st.Dir, n, g)
+					matched = false
+					break
+				}
+			}
+
+			matchedAnyStackFilter = matchedAnyStackFilter || matched
+		}
+
+		if !matchedAnyStackFilter {
+			hcls = append(hcls, HCL{
+				label:     name,
+				origin:    hclBlock.Range,
+				condition: false,
+			})
+			continue
+		}
+
 		evalctx := stack.NewEvalCtx(root, st, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
@@ -185,7 +215,6 @@ func Load(
 				origin:    hclBlock.Range,
 				condition: condition,
 			})
-
 			continue
 		}
 
