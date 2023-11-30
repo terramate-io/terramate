@@ -5,7 +5,7 @@
   command = "pnpm docs:build"
 
 [context.production]
-  command = "pnpm docs:build --base='/docs/cli/'"
+  command = "pnpm docs:build --base='/docs/'"
 
 [build]
   publish = ".vitepress/dist"
