@@ -20,6 +20,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/modvendor"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stdlib/tryfunc"
 	"github.com/terramate-io/terramate/tf"
 	"github.com/terramate-io/terramate/versions"
 	"github.com/zclconf/go-cty/cty"
@@ -71,6 +72,8 @@ func Functions(evalctx *eval.Context, basedir string) map[string]function.Functi
 
 	tmfuncs["tm_alltrue"] = AllTrueFunc(evalctx)
 	tmfuncs["tm_anytrue"] = AnyTrueFunc(evalctx)
+	tmfuncs["tm_try"] = tryfunc.TryFunc(evalctx)
+	tmfuncs["tm_can"] = tryfunc.CanFunc(evalctx)
 
 	tmfuncs["tm_version_match"] = VersionMatch()
 	return tmfuncs

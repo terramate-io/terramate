@@ -121,6 +121,13 @@ func (h HCL) String() string {
 		h.Label(), h.Condition(), h.Body(), h.Range().HostPath())
 }
 
+// GenStats contains generation stats
+type GenStats struct {
+	FilesGenerated             int
+	FilesSkippedByPrecondition int
+	FilesSkippedByCondition    int
+}
+
 // Load loads from the file system all generate_hcl for
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading generate_hcl and merging them appropriately.
@@ -138,6 +145,7 @@ func Load(
 	st *config.Stack,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
+	stats *GenStats,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -155,7 +163,27 @@ func Load(
 
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
-		hcl, ok, err := evalBlock(evalctx, hclBlock, st, vendorDir, vendorRequests)
+		condition := true
+		for _, cond := range hclBlock.Preconditions {
+			if cond.StackPath != nil {
+				if !cond.StackPath.Match(st.Dir.String()) {
+					stats.FilesSkippedByPrecondition++
+					condition = false
+					break
+				}
+			}
+		}
+
+		if !condition {
+			hcls = append(hcls, HCL{
+				label:     hclBlock.Label,
+				origin:    hclBlock.Range,
+				condition: condition,
+			})
+			continue
+		}
+
+		hcl, ok, err := evalBlock(evalctx, hclBlock, st, vendorDir, vendorRequests, stats)
 		if err != nil {
 			return nil, err
 		}
@@ -178,6 +206,7 @@ func evalBlock(evalctx *eval.Context,
 	st *config.Stack,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
+	stats *GenStats,
 ) (HCL, bool, error) {
 	name := hclBlock.Label
 	vendorTargetDir := project.NewPath(path.Join(
@@ -212,6 +241,7 @@ func evalBlock(evalctx *eval.Context,
 	}
 
 	if !condition {
+		stats.FilesSkippedByCondition++
 		return HCL{
 			label:     name,
 			origin:    hclBlock.Range,

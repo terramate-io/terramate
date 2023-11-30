@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gobwas/glob"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -66,6 +67,11 @@ type AssertConfig struct {
 	Warning   hcl.Expression
 	Assertion hcl.Expression
 	Message   hcl.Expression
+}
+
+// PreconditionsConfig represents Terramate preconditions configuration block.
+type PreconditionsConfig struct {
+	StackPath glob.Glob
 }
 
 // RunConfig represents Terramate run configuration.
@@ -189,6 +195,8 @@ type GenHCLBlock struct {
 	Lets *ast.MergedBlock
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Represents all preconditions blocks
+	Preconditions []PreconditionsConfig
 	// Content block.
 	Content *hclsyntax.Block
 	// Asserts represents all assert blocks
@@ -809,8 +817,9 @@ func ParseDir(root string, dir string) (Config, error) {
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
 func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	var (
-		content *hclsyntax.Block
-		asserts []AssertConfig
+		content       *hclsyntax.Block
+		asserts       []AssertConfig
+		preconditions []PreconditionsConfig
 	)
 
 	err := validateGenerateHCLBlock(block)
@@ -834,6 +843,13 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 				continue
 			}
 			asserts = append(asserts, assertCfg)
+		case "preconditions":
+			preconditionsCfg, err := parsePreconditionsConfig(subBlock)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			preconditions = append(preconditions, preconditionsCfg)
 		case "content":
 			if content != nil {
 				errs.Append(errors.E(subBlock.Range,
@@ -872,12 +888,13 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	return GenHCLBlock{
-		Range:     block.Range,
-		Label:     block.Labels[0],
-		Lets:      lets,
-		Asserts:   asserts,
-		Content:   content,
-		Condition: block.Body.Attributes["condition"],
+		Range:         block.Range,
+		Label:         block.Labels[0],
+		Lets:          lets,
+		Asserts:       asserts,
+		Content:       content,
+		Condition:     block.Body.Attributes["condition"],
+		Preconditions: preconditions,
 	}, nil
 }
 
@@ -1014,6 +1031,10 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 			},
 			{
 				Type:       "assert",
+				LabelNames: []string{},
+			},
+			{
+				Type:       "preconditions",
 				LabelNames: []string{},
 			},
 		},
@@ -1297,6 +1318,32 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 
 	if err := errs.AsError(); err != nil {
 		return AssertConfig{}, err
+	}
+
+	return cfg, nil
+}
+
+func parsePreconditionsConfig(block *ast.Block) (PreconditionsConfig, error) {
+	cfg := PreconditionsConfig{}
+	errs := errors.L()
+
+	errs.Append(checkNoLabels(block))
+	errs.Append(checkHasSubBlocks(block))
+
+	for _, attr := range block.Attributes {
+		switch attr.Name {
+		case "stack_path":
+			s, _ := attr.Expr.Value(nil)
+			cfg.StackPath, _ = glob.Compile(s.AsString())
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", block.Type, attr.Name,
+			))
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return PreconditionsConfig{}, err
 	}
 
 	return cfg, nil

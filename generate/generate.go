@@ -1263,7 +1263,7 @@ func loadStackCodeCfgs(
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(root, evalctx, st, vendorDir, vendorRequests)
+	genhcls, err := genhcl.Load(root, evalctx, st, vendorDir, vendorRequests, &genhcl.GenStats{})
 	if err != nil {
 		return nil, err
 	}

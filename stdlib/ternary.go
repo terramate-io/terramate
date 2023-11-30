@@ -183,10 +183,13 @@ func evalTernaryBranch(evalctx *eval.Context, arg cty.Value) (cty.Value, error) 
 	closure := customdecode.ExpressionClosureFromVal(arg)
 	bk := evalctx.Hclctx
 	evalctx.Hclctx = closure.EvalContext
+	defer func() {
+		evalctx.Hclctx = bk
+	}()
 	newexpr, err := evalctx.PartialEval(&ast.CloneExpression{
 		Expression: closure.Expression.(hclsyntax.Expression),
 	})
-	evalctx.Hclctx = bk
+
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}

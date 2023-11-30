@@ -2860,6 +2860,34 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global with tm_ternary with different branch types",
+			layout: []string{"s:stacks/projects/test"},
+			configs: []hclconfig{
+				{
+					path: "/stacks/projects/test",
+					add: Globals(
+						Labels("secret"),
+						Expr("project_ids_sublists", `[for stack in terramate.stacks.list : tm_split("/", stack)]`),
+						Expr("project_ids", `tm_distinct(tm_compact([
+    for id_sublist in global.secret.project_ids_sublists : tm_ternary(
+      tm_contains(id_sublist, "projects"),
+      tm_element(id_sublist, tm_index(id_sublist, "projects") + 1),
+      ""
+    )
+  ]))`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/projects/test": Globals(
+					Expr("secret", `{
+						project_ids_sublists = []
+						project_ids = [1, 1, 3]
+					}`),
+				),
+			},
+		},
+		{
 			name:   "global with tm_ternary returning partials",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{

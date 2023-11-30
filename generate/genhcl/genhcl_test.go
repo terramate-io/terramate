@@ -1748,7 +1748,7 @@ func (tcase testcase) run(t *testing.T) {
 		)
 		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
+		got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil, &genhcl.GenStats{})
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

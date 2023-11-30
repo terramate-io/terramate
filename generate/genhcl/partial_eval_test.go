@@ -1545,6 +1545,25 @@ EOT
 			),
 		},
 		{
+			name: "aa",
+			globals: Globals(
+				Labels("secret"),
+				Expr("project_ids_sublists", `[for stack in terramate.stacks.list : tm_split("/", stack)]`),
+			),
+			config: Doc(
+				Expr("project_ids", `tm_distinct(tm_compact([
+					for id_sublist in global.secret.project_ids_sublists : tm_ternary(
+					  tm_contains(id_sublist, "projects"),
+					  tm_element(id_sublist, tm_index(id_sublist, "projects") + 1),
+					  ""
+					)
+					]))`),
+			),
+			want: Doc(
+				Expr("project_ids", `[]`),
+			),
+		},
+		{
 			name: "tm_ternary returning complete result",
 			globals: Globals(
 				Str("a", "val"),
@@ -1753,7 +1772,7 @@ EOT
 			)
 			evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 			vendorDir := project.NewPath("/modules")
-			got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
+			got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil, &genhcl.GenStats{})
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return
