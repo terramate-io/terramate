@@ -69,6 +69,9 @@ func Functions(evalctx *eval.Context, basedir string) map[string]function.Functi
 	// sane ternary
 	tmfuncs["tm_ternary"] = TernaryFunc(evalctx)
 
+	tmfuncs["tm_alltrue"] = AllTrueFunc(evalctx)
+	tmfuncs["tm_anytrue"] = AnyTrueFunc(evalctx)
+
 	tmfuncs["tm_version_match"] = VersionMatch()
 	return tmfuncs
 }

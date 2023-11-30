@@ -32,7 +32,7 @@ type (
 	// Context is the variables evaluator.
 	Context struct {
 		scope  project.Path
-		hclctx *hhcl.EvalContext
+		Hclctx *hhcl.EvalContext
 		ns     namespaces
 
 		evaluators map[string]Resolver
@@ -76,7 +76,7 @@ func New(scope project.Path, evaluators ...Resolver) *Context {
 	}
 	evalctx := &Context{
 		scope:      scope,
-		hclctx:     hclctx,
+		Hclctx:     hclctx,
 		evaluators: map[string]Resolver{},
 		ns:         namespaces{},
 	}
@@ -86,7 +86,7 @@ func New(scope project.Path, evaluators ...Resolver) *Context {
 	}
 
 	unsetVal := cty.CapsuleVal(unset, &struct{}{})
-	evalctx.hclctx.Variables["unset"] = unsetVal
+	evalctx.Hclctx.Variables["unset"] = unsetVal
 
 	return evalctx
 }
@@ -108,14 +108,14 @@ func (c *Context) SetResolver(ev Resolver) {
 			}
 		}
 	} else {
-		c.hclctx.Variables[ev.Name()] = prevalue
+		c.Hclctx.Variables[ev.Name()] = prevalue
 	}
 }
 
 // DeleteResolver removes the resolver.
 func (c *Context) DeleteResolver(name string) {
 	delete(c.evaluators, name)
-	delete(c.hclctx.Variables, name)
+	delete(c.Hclctx.Variables, name)
 }
 
 // Eval the given expr and all of its dependency references (if needed)
@@ -207,7 +207,7 @@ func (c *Context) eval(expr hhcl.Expression, visited map[RefStr]hhcl.Expression)
 		}
 	}
 
-	val, diags := expr.Value(c.hclctx)
+	val, diags := expr.Value(c.Hclctx)
 	if diags.HasErrors() {
 		return cty.NilVal, errors.E(ErrEval, diags)
 	}
@@ -412,28 +412,28 @@ func (ns namespaces) Get(ref Ref) (value, bool) {
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
-	c.hclctx.Variables[name] = cty.ObjectVal(vals)
+	c.Hclctx.Variables[name] = cty.ObjectVal(vals)
 }
 
 // SetFunction sets the function in the context.
 func (c *Context) SetFunction(name string, fn function.Function) {
-	c.hclctx.Functions[name] = fn
+	c.Hclctx.Functions[name] = fn
 }
 
 // SetFunctions sets the functions of the context.
 func (c *Context) SetFunctions(funcs map[string]function.Function) {
-	c.hclctx.Functions = funcs
+	c.Hclctx.Functions = funcs
 }
 
 // DeleteNamespace deletes the namespace name from the context.
 // If name is not in the context, it's a no-op.
 func (c *Context) DeleteNamespace(name string) {
-	delete(c.hclctx.Variables, name)
+	delete(c.Hclctx.Variables, name)
 }
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (c *Context) HasNamespace(name string) bool {
-	_, has := c.hclctx.Variables[name]
+	_, has := c.Hclctx.Variables[name]
 	return has
 }
 
@@ -454,8 +454,8 @@ func (c *Context) Copy() *Context {
 	newctx := &hhcl.EvalContext{
 		Variables: map[string]cty.Value{},
 	}
-	newctx.Functions = c.hclctx.Functions
-	for k, v := range c.hclctx.Variables {
+	newctx.Functions = c.Hclctx.Functions
+	for k, v := range c.Hclctx.Variables {
 		newctx.Variables[k] = v
 	}
 	return NewContextFrom(newctx)
@@ -463,13 +463,13 @@ func (c *Context) Copy() *Context {
 
 // Unwrap returns the internal hhcl.EvalContext.
 func (c *Context) Unwrap() *hhcl.EvalContext {
-	return c.hclctx
+	return c.Hclctx
 }
 
 // NewContextFrom creates a new evaluator from the hashicorp EvalContext.
 func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
-		hclctx: ctx,
+		Hclctx: ctx,
 	}
 }
 

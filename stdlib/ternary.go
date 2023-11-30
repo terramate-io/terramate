@@ -33,15 +33,141 @@ func TernaryFunc(evalctx *eval.Context) function.Function {
 				Type: customdecode.ExpressionClosureType,
 			},
 		},
-		Type: func(args []cty.Value) (cty.Type, error) {
-			v, err := ternary(evalctx, args[0], args[1], args[2])
-			if err != nil {
-				return cty.NilType, err
-			}
-			return v.Type(), nil
-		},
+		Type: function.StaticReturnType(cty.DynamicPseudoType),
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			return ternary(evalctx, args[0], args[1], args[2])
+		},
+	})
+}
+
+func AllTrueFunc(evalctx *eval.Context) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "list",
+				Type: customdecode.ExpressionClosureType,
+			},
+		},
+		Type: function.StaticReturnType(cty.Bool),
+		Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+			if len(args) > 1 {
+				panic("todo: only 1 argument")
+			}
+
+			argClosure := customdecode.ExpressionClosureFromVal(args[0])
+			listExpression, ok := argClosure.Expression.(*hclsyntax.TupleConsExpr)
+			if !ok {
+				v, err := evalctx.Eval(argClosure.Expression)
+				if err != nil {
+					return cty.False, err
+				}
+				if !v.Type().IsTupleType() {
+					return cty.False, errors.E("todo: not a list: %s", v.Type().FriendlyName())
+				}
+				result := true
+				for it := v.ElementIterator(); it.Next(); {
+					_, v := it.Element()
+					if !v.IsKnown() {
+						return cty.UnknownVal(cty.Bool), nil
+					}
+					if v.IsNull() {
+						return cty.False, nil
+					}
+					if !v.Type().Equals(cty.Bool) {
+						return cty.False, errors.E("not a boolean")
+					}
+					result = result && v.True()
+					if !result {
+						return cty.False, nil
+					}
+				}
+				return cty.True, nil
+			}
+
+			result := true
+			for _, expr := range listExpression.Exprs {
+				v, err := evalctx.Eval(expr)
+				if err != nil {
+					return cty.False, errors.E(err, "evaluating tm_alltrue() arguments")
+				}
+				if v.IsNull() {
+					return cty.False, nil
+				}
+				if !v.Type().Equals(cty.Bool) {
+					return cty.False, errors.E("tm_alltrue() argument element is not a bool")
+				}
+				result = result && v.True()
+				if !result {
+					return cty.False, nil
+				}
+			}
+			return cty.True, nil
+		},
+	})
+}
+
+func AnyTrueFunc(evalctx *eval.Context) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "list",
+				Type: customdecode.ExpressionClosureType,
+			},
+		},
+		Type: function.StaticReturnType(cty.Bool),
+		Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+			if len(args) > 1 {
+				panic("todo: only 1 argument")
+			}
+
+			argClosure := customdecode.ExpressionClosureFromVal(args[0])
+			listExpression, ok := argClosure.Expression.(*hclsyntax.TupleConsExpr)
+			if !ok {
+				v, err := evalctx.Eval(argClosure.Expression)
+				if err != nil {
+					return cty.False, err
+				}
+				if !v.Type().IsTupleType() {
+					return cty.False, errors.E("todo: not a list: %s", v.Type().FriendlyName())
+				}
+				result := false
+				for it := v.ElementIterator(); it.Next(); {
+					_, v := it.Element()
+					if !v.IsKnown() {
+						continue
+					}
+					if v.IsNull() {
+						continue
+					}
+					if !v.Type().Equals(cty.Bool) {
+						return cty.False, errors.E("not a boolean")
+					}
+					result = result || v.True()
+					if result {
+						return cty.True, nil
+					}
+				}
+				return cty.False, nil
+			}
+
+			result := false
+			for _, expr := range listExpression.Exprs {
+				v, err := evalctx.Eval(expr)
+				if err != nil {
+					return cty.False, errors.E(err, "evaluating tm_alltrue() arguments")
+				}
+				if v.IsNull() {
+					continue
+				}
+				if !v.Type().Equals(cty.Bool) {
+					return cty.False, errors.E("tm_alltrue() argument element is not a bool")
+				}
+				result = result || v.True()
+				if result {
+					return cty.True, nil
+				}
+			}
+			return cty.False, nil
 		},
 	})
 }
@@ -55,9 +181,12 @@ func ternary(evalctx *eval.Context, cond cty.Value, val1, val2 cty.Value) (cty.V
 
 func evalTernaryBranch(evalctx *eval.Context, arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
+	bk := evalctx.Hclctx
+	evalctx.Hclctx = closure.EvalContext
 	newexpr, err := evalctx.PartialEval(&ast.CloneExpression{
 		Expression: closure.Expression.(hclsyntax.Expression),
 	})
+	evalctx.Hclctx = bk
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
@@ -70,7 +199,6 @@ func evalTernaryBranch(evalctx *eval.Context, arg cty.Value) (cty.Value, error) 
 	if diags.HasErrors() {
 		return cty.NilVal, errors.E(diags, "evaluating tm_ternary branch")
 	}
-
 	return v, nil
 }
 
