@@ -19,7 +19,7 @@ type project struct {
 	rootdir string
 	wd      string
 	isRepo  bool
-	root    config.Root
+	root    *config.Root
 	baseRef string
 	globals *globals.Resolver
 

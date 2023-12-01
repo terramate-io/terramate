@@ -5,6 +5,7 @@ package globals
 
 import (
 	"sort"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/config"
@@ -27,6 +28,7 @@ type Resolver struct {
 	override map[eval.RefStr]eval.Stmt
 	// Scopes is a cache of scoped statements.
 	Scopes map[project.Path]cacheData
+	mu     sync.RWMutex
 }
 
 type cacheData struct {
@@ -63,10 +65,13 @@ func (r *Resolver) LookupRef(scope project.Path, ref eval.Ref) ([]eval.Stmts, er
 }
 
 func (r *Resolver) loadStmtsAt(scope project.Path) (eval.Stmts, *config.Tree, error) {
+	r.mu.RLock()
 	cache, ok := r.Scopes[scope]
 	if ok {
+		r.mu.RUnlock()
 		return cache.stmts, cache.tree, nil
 	}
+	r.mu.RUnlock()
 
 	tree, ok := r.root.Lookup(scope)
 	if !ok {
@@ -153,10 +158,12 @@ func (r *Resolver) loadStmtsAt(scope project.Path) (eval.Stmts, *config.Tree, er
 		return len(stmts[i].LHS.Path) > len(stmts[j].LHS.Path)
 	})
 
+	r.mu.Lock()
 	r.Scopes[tree.Dir()] = cacheData{
 		tree:  tree,
 		stmts: stmts,
 	}
+	r.mu.Unlock()
 
 	return stmts, tree, nil
 }

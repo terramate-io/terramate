@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	resyntax "regexp/syntax"
 
@@ -33,6 +34,7 @@ type regexDataCache struct {
 }
 
 var regexCache map[string]regexDataCache
+var muRegex sync.RWMutex
 
 func init() {
 	regexCache = map[string]regexDataCache{}
@@ -123,6 +125,9 @@ func Regex() function.Function {
 				return cty.DynamicPseudoType, nil
 			}
 
+			muRegex.Lock()
+			defer muRegex.Unlock()
+
 			pattern := args[0].AsString()
 			cache, ok := regexCache[pattern]
 			if ok {
@@ -139,6 +144,9 @@ func Regex() function.Function {
 			if retType == cty.DynamicPseudoType {
 				return cty.DynamicVal, nil
 			}
+
+			muRegex.RLock()
+			defer muRegex.RUnlock()
 
 			pattern := args[0].AsString()
 			cache, ok := regexCache[pattern]

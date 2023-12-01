@@ -477,7 +477,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
-	globalsResolver := globals.NewResolver(&prj.root)
+	globalsResolver := globals.NewResolver(prj.root)
 	prj.globals = globalsResolver
 
 	return &cli{
@@ -1088,7 +1088,7 @@ func (c *cli) initTerraform() {
 		fatal(err, "reloading the configuration")
 	}
 
-	c.prj.root = *root
+	c.prj.root = root
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
@@ -2091,7 +2091,7 @@ func (c *cli) runOnStacks() {
 
 func (c *cli) wd() string                 { return c.prj.wd }
 func (c *cli) rootdir() string            { return c.prj.rootdir }
-func (c *cli) cfg() *config.Root          { return &c.prj.root }
+func (c *cli) cfg() *config.Root          { return c.prj.root }
 func (c *cli) globals() *globals.Resolver { return c.prj.globals }
 func (c *cli) rootNode() hcl.Config       { return c.prj.root.Tree().Node }
 func (c *cli) cred() credential           { return c.cloud.credential }
@@ -2358,7 +2358,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			}
 
 			prj.isRepo = true
-			prj.root = *cfg
+			prj.root = cfg
 			prj.rootdir = rootdir
 			prj.git.wrapper = gw
 
@@ -2371,7 +2371,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	}
 
 	prj.rootdir = rootCfgPath
-	prj.root = *rootcfg
+	prj.root = rootcfg
 	return prj, true, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
@@ -37,6 +38,7 @@ const (
 // configuration for the root directory is expected and not from anywhere else.
 type Root struct {
 	tree Tree
+	mu   sync.Mutex
 
 	lookupCache map[string]*Tree
 
@@ -134,6 +136,8 @@ func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (*Tree, bool) {
+	root.mu.Lock()
+	defer root.mu.Unlock()
 	tree, ok := root.lookupCache[path.String()]
 	if ok {
 		return tree, tree != nil

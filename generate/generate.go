@@ -152,6 +152,11 @@ func Load(root *config.Root, globals *globals.Resolver, vendorDir project.Path) 
 	return results, nil
 }
 
+type report struct {
+	Dir    project.Path
+	Report dirReport
+}
+
 // Do will generate code for the entire configuration.
 //
 // There generation mechanism depend on the generate_* block context attribute:
@@ -185,8 +190,25 @@ func Do(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
-	stackReport := forEachStack(root, globalsResolver, vendorDir,
-		vendorRequests, doStackGeneration)
+	stackReport := Report{}
+	in := make(chan *config.Stack)
+	stacks, err := config.LoadAllStacks(root.Tree())
+	if err != nil {
+		stackReport.BootstrapErr = err
+		return stackReport
+	}
+	out := generate(root, globalsResolver, in, len(stacks), vendorDir, vendorRequests)
+	go func() {
+		for _, elem := range stacks {
+			in <- elem.Stack
+		}
+		close(in)
+	}()
+
+	for r := range out {
+		stackReport.addDirReport(r.Dir, r.Report)
+	}
+
 	rootReport := doRootGeneration(root, globalsResolver)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
@@ -777,58 +799,34 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(
-	*config.Root,
-	*eval.Context,
-	*config.Stack,
-	project.Path,
-	chan<- event.VendorRequest,
-) dirReport
-
-func forEachStack(
-	root *config.Root,
-	globalsResolver *globals.Resolver,
-	vendorDir project.Path,
-	vendorRequests chan<- event.VendorRequest,
-	fn forEachStackFunc,
-) Report {
-	logger := log.With().
-		Str("action", "generate.forEachStack()").
-		Str("root", root.HostDir()).
-		Logger()
-
-	report := Report{}
-
-	logger.Trace().Msg("List stacks.")
-
-	stacks, err := config.LoadAllStacks(root.Tree())
-	if err != nil {
-		report.BootstrapErr = err
-		return report
-	}
-
-	for _, elem := range stacks {
-		logger := logger.With().
-			Stringer("stack", elem).
-			Logger()
-
-		logger.Trace().Msg("Load stack globals.")
-
-		tree := elem.Stack.Tree()
-		evalctx := eval.New(
-			tree.Dir(),
-			runtime.NewResolver(root, elem.Stack),
-			globalsResolver,
-		)
-		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
-
-		logger.Trace().Msg("Calling stack callback.")
-
-		stackReport := fn(root, evalctx, elem.Stack, vendorDir, vendorRequests)
-		report.addDirReport(elem.Dir(), stackReport)
-	}
-
-	return report
+func generate(root *config.Root, globalsResolver *globals.Resolver, stacks chan *config.Stack, length int, vendorDir project.Path, vendorRequests chan<- event.VendorRequest) chan report {
+	out := make(chan report)
+	go func() {
+		done := make(chan struct{})
+		i := 0
+		for st := range stacks {
+			go func(s *config.Stack) {
+				tree := s.Tree()
+				evalctx := eval.New(
+					tree.Dir(),
+					runtime.NewResolver(root, s),
+					globalsResolver,
+				)
+				evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
+				out <- report{
+					Dir:    s.Dir,
+					Report: doStackGeneration(root, evalctx, s, vendorDir, vendorRequests),
+				}
+				i++
+				if i >= length {
+					done <- struct{}{}
+				}
+			}(st)
+		}
+		<-done
+		close(out)
+	}()
+	return out
 }
 
 func allStackGeneratedFiles(
