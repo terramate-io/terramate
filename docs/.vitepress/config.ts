@@ -53,51 +53,34 @@ export default defineConfig({
       [
         'link',
         {
-          rel: 'apple-touch-icon',
-          sizes: '180x180',
-          href: `${siteData.base}favicons/apple-touch-icon.png`,
-        },
-      ],
-      [
-        'link',
-        {
           rel: 'icon',
-          type: 'image/png',
-          sizes: '32x32',
-          href: `${siteData.base}favicons/favicon-32x32.png`,
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'icon',
-          type: 'image/png',
-          sizes: '16x16',
-          href: `${siteData.base}favicons/favicon-16x16.png`,
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'manifest',
-          href: `${siteData.base}favicons/site.webmanifest`,
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'mask-icon',
-          href: `${siteData.base}favicons/safari-pinned-tab.svg`,
-          color: '#3a0839',
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'shortcut icon',
+          sizes: '48x48',
           href: `${siteData.base}favicons/favicon.ico`,
         },
       ],
+      [
+        'link',
+        {
+          rel: 'icon',
+          type: 'image/svg+xml',
+          sizes: 'any',
+          href: `${siteData.base}favicons/favicon.svg`,
+        },
+      ],
+      [
+        'link',
+        {
+          rel: 'apple-touch-icon',
+          href: `${siteData.base}favicons/apple-touch-icon.png`,
+        },
+      ],
+      // [
+      //   'link',
+      //   {
+      //     rel: 'manifest',
+      //     href: `${siteData.base}favicons/site.webmanifest`,
+      //   },
+      // ],
       // ["meta", { name: "msapplication-TileColor", content: "#3a0839" }],
       // [
       //   "meta",
