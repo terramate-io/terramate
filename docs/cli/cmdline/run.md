@@ -53,13 +53,13 @@ terramate run --changed -- terraform init
 Run a command in all stacks that contain changes and specific tags:
 
 ```bash
-terramate run  --changed --tags type:k8s -- kubectl diff
+terramate run  --changed --tags k8s:prd -- kubectl diff
 ```
 
 Run a command in all stacks that don't contain specific tags, with reversed [order of execution](../orchestration/index.md):
 
 ```bash
-terramate run  --reverse --no-tags type:k8s -- terraform apply
+terramate run  --reverse --no-tags k8s -- terraform apply
 ```
 
 Run a command that has its command name and arguments evaluated from an HCL string
