@@ -121,7 +121,8 @@ export default defineConfig({
         text: 'Releases',
         link: 'https://github.com/terramate-io/terramate/releases',
       },
-      { text: '💻 Playground', link: 'https://play.terramate.io/' },
+      { text: 'Playground', link: 'https://play.terramate.io/' },
+      { text: 'Terramate Cloud', link: 'https://terramate.io/' },
     ],
 
     sidebar: {
