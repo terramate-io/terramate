@@ -78,11 +78,10 @@ Nothing to do, generated code is up to date
 
 ## Terramate Code Generation
 
-Let’s make it do something. Append the following to the `mysite/stack.tm.hcl`:
+Let’s make it do something. **Append** the following to the `mysite/stack.tm.hcl`:
 
 ```hcl
 # file: mysite/stack.tm.hcl
-...
 generate_hcl "mysite.tf" {
   content {
     resource "local_file" "mysite" {
@@ -214,7 +213,6 @@ generate_hcl "mysite.tf" {
   content {
     resource "local_file" "mysite" {
       filename = "/tmp/tfmysite/${terramate.stack.path.relative}/index.html"
-...
 ```
 
 To execute Terraform, navigate `"cd"` to `prod/mysite` and `dev/mysite` and run the necessary Terraform commands.
