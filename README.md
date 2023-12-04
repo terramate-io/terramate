@@ -185,9 +185,11 @@ the developer experience and infrastructure to build, scale and observe all your
 - [Terramate Blog](https://blog.terramate.io/)
 - [Terramate VSCode Extension](https://github.com/mineiros-io/vscode-terramate)
 
-## Reporting bugs and contributing code
+## Reporting Bugs, Requesting Features, or Contributing to Terramate
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/terramate-io/terramate/issues/new)
+
+Interested in contributing to Terramate? Check out our [Contribution Guide](https://github.com/terramate-io/terramate/blob/main/CONTRIBUTING.md)
 
 ## License
 
