@@ -68,12 +68,6 @@ func NewManager(root *config.Root, gitBaseRef string) *Manager {
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() (*Report, error) {
-	logger := log.With().
-		Str("action", "Manager.List()").
-		Logger()
-
-	logger.Debug().Msg("List stacks.")
-
 	entries, err := List(m.root.Tree())
 	if err != nil {
 		return nil, err
@@ -141,8 +135,6 @@ func (m *Manager) ListChanged() (*Report, error) {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	logger.Debug().Msg("List changed files.")
-
 	changedFiles, err := m.listChangedFiles(m.root.HostDir(), m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
@@ -202,17 +194,9 @@ func (m *Manager) ListChanged() (*Report, error) {
 			continue
 		}
 
-		logger.Debug().
-			Str("path", dirname).
-			Msg("Try load changed.")
-
 		cfgpath := project.PrjAbsPath(m.root.HostDir(), dirname)
 		stackTree, found := m.root.Lookup(cfgpath)
 		if !found || !stackTree.IsStack() {
-			logger.Debug().
-				Str("path", dirname).
-				Msg("Lookup parent stack.")
-
 			checkdir := cfgpath
 			for checkdir.String() != "/" {
 				checkdir = checkdir.Dir()
@@ -237,8 +221,6 @@ func (m *Manager) ListChanged() (*Report, error) {
 		}
 	}
 
-	logger.Debug().Msg("Get list of all stacks.")
-
 	allstacks, err := List(m.root.Tree())
 	if err != nil {
 		return nil, errors.E(errListChanged, "searching for stacks", err)
@@ -250,10 +232,6 @@ rangeStacks:
 		if _, ok := stackSet[stack.Dir]; ok {
 			continue
 		}
-
-		logger.Debug().
-			Stringer("stack", stack).
-			Msg("Check for changed watch files.")
 
 		if changed, ok := hasChangedWatchedFiles(stack, changedFiles); ok {
 			logger.Debug().
@@ -272,18 +250,10 @@ rangeStacks:
 			continue rangeStacks
 		}
 
-		logger.Debug().
-			Stringer("stack", stack).
-			Msg("Apply function to stack.")
-
 		err := m.filesApply(stack.HostDir(m.root), func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
 			}
-
-			logger.Debug().
-				Stringer("stack", stack).
-				Msg("Get tf file path.")
 
 			tfpath := filepath.Join(stack.HostDir(m.root), file.Name())
 
@@ -416,13 +386,6 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 }
 
 func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (err error) {
-	logger := log.With().
-		Str("action", "filesApply()").
-		Str("path", dir).
-		Logger()
-
-	logger.Debug().Msg("Read dir.")
-
 	f, err := os.Open(dir)
 	if err != nil {
 		return errors.E(err, "opening directory %q", dir)
@@ -442,8 +405,6 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (er
 			continue
 		}
 
-		logger.Debug().Msg("Apply function to file.")
-
 		err := apply(file)
 		if err != nil {
 			return errors.E(err, "applying operation to file %q", file.Name())
@@ -460,10 +421,6 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (er
 func (m *Manager) moduleChanged(
 	mod tf.Module, basedir string, visited map[string]bool,
 ) (changed bool, why string, err error) {
-	logger := log.With().
-		Str("action", "moduleChanged()").
-		Logger()
-
 	if _, ok := visited[mod.Source]; ok {
 		return false, "", nil
 	}
@@ -484,9 +441,6 @@ func (m *Manager) moduleChanged(
 		return false, "", errors.E("\"source\" path %q is not a directory", modPath)
 	}
 
-	logger.Debug().
-		Str("path", modPath).
-		Msg("Get list of changed files.")
 	changedFiles, err := m.listChangedFiles(modPath, m.gitBaseRef)
 	if err != nil {
 		return false, "", errors.E(err,
@@ -500,9 +454,6 @@ func (m *Manager) moduleChanged(
 
 	visited[mod.Source] = true
 
-	logger.Debug().
-		Str("path", modPath).
-		Msg("Apply function to files in path.")
 	err = m.filesApply(modPath, func(file fs.DirEntry) error {
 		if changed {
 			return nil
@@ -606,18 +557,10 @@ func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project
 }
 
 func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
-	logger := log.With().
-		Str("action", "checkRepoIsClean()").
-		Logger()
-
-	logger.Debug().Msg("Get list of untracked files.")
-
 	untracked, err := g.ListUntracked()
 	if err != nil {
 		return RepoChecks{}, errors.E(err, "listing untracked files")
 	}
-
-	logger.Debug().Msg("Get list of uncommitted files in dir.")
 
 	uncommitted, err := g.ListUncommitted()
 	if err != nil {
