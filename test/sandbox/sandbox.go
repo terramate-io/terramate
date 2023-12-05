@@ -31,7 +31,6 @@ import (
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
-	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/stack"
@@ -45,6 +44,7 @@ type S struct {
 	git     *Git
 	rootdir string
 	cfg     *config.Root
+	globals *globals.Resolver
 
 	Env []string
 }
@@ -257,7 +257,7 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root, vendorDir, nil)
+	report := generate.Do(root, globals.NewResolver(root), vendorDir, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
@@ -289,19 +289,6 @@ func (s S) LoadStacks() config.List[*config.SortableStack] {
 	return stacks
 }
 
-// LoadStackGlobals loads globals for specific stack on the sandbox.
-// Fails the caller test if an error is found.
-func (s S) LoadStackGlobals(
-	root *config.Root,
-	st *config.Stack,
-) *eval.Object {
-	s.t.Helper()
-
-	report := globals.ForStack(root, st)
-	assert.NoError(s.t, report.AsError())
-	return report.Globals
-}
-
 // RootDir returns the root directory of the test env. All dirs/files created
 // through the test env will be included inside this dir.
 //
@@ -325,10 +312,22 @@ func (s *S) Config() *config.Root {
 	return cfg
 }
 
+// Globals returns the globals resolver for the sandbox config.
+func (s *S) Globals() *globals.Resolver {
+	s.t.Helper()
+	if s.globals != nil {
+		return s.globals
+	}
+	g := globals.NewResolver(s.Config())
+	s.globals = g
+	return g
+}
+
 // ReloadConfig reloads the sandbox configuration.
 func (s *S) ReloadConfig() *config.Root {
 	s.t.Helper()
 	s.cfg = nil
+	s.globals = nil
 	return s.Config()
 }
 

@@ -719,6 +719,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 		tcase := tc
 
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Helper()
 			t.Parallel()
 			if tcase.skipOn == runtime.GOOS {
 				t.Skipf("skipping on GOOS %q", tcase.skipOn)
@@ -760,7 +761,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			if tcase.vendorDir != "" {
 				vendorDir = project.NewPath(tcase.vendorDir)
 			}
-			report := generate.Do(s.Config(), vendorDir, nil)
+			report := generate.Do(s.Config(), s.Globals(), vendorDir, nil)
 			assertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
@@ -768,7 +769,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				report := generate.Do(s.Config(), vendorDir, nil)
+				report := generate.Do(s.Config(), s.Globals(), vendorDir, nil)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
 				assertEqualReports(t, report, generate.Report{

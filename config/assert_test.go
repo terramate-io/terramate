@@ -13,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
@@ -175,13 +176,15 @@ func TestAssertConfigEval(t *testing.T) {
 		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			hclctx := eval.NewContext(stdlib.Functions(test.TempDir(t)))
+			evalctx := eval.New(project.RootPath)
+			funcs := stdlib.Functions(evalctx, t.TempDir())
+			evalctx.SetFunctions(funcs)
 
 			for k, v := range tcase.namespaces {
-				hclctx.SetNamespace(k, v.asCtyMap())
+				evalctx.SetNamespace(k, v.asCtyMap())
 			}
 
-			got, err := config.EvalAssert(hclctx, tcase.assert)
+			got, err := config.EvalAssert(evalctx, tcase.assert)
 			assert.IsError(t, err, tcase.wantErr)
 			if !equalAsserts(tcase.want, got) {
 				t.Fatalf("got %#v != want %#v", got, tcase.want)

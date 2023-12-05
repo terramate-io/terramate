@@ -8,6 +8,7 @@ import (
 
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/lets"
 	maptest "github.com/terramate-io/terramate/mapexpr/test"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -145,7 +146,7 @@ func TestGenFileLetsMap(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:  "lets with map block with incorrect value",
@@ -167,7 +168,7 @@ func TestGenFileLetsMap(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrEval),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:  "lets with simple map without using element",

@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
 
@@ -298,7 +299,9 @@ func TestScriptEval(t *testing.T) {
 		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			hclctx := eval.NewContext(stdlib.Functions(test.TempDir(t)))
+			scopedir := test.TempDir(t)
+			hclctx := eval.New(project.NewPath("/"))
+			hclctx.SetFunctions(stdlib.Functions(hclctx, scopedir))
 			hclctx.SetNamespace("global", tcase.globals)
 
 			got, err := config.EvalScript(hclctx, tcase.script)

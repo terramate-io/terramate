@@ -4,19 +4,21 @@
 package eval_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestPartialEval(t *testing.T) {
@@ -331,28 +333,23 @@ EOT
 		},
 	} {
 		tc := tc
-		t.Run(tc.expr, func(t *testing.T) {
+		t.Run(firstN(tc.expr, 10), func(t *testing.T) {
 			t.Parallel()
-			ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
-			ctx.SetNamespace("global", map[string]cty.Value{
-				"number": cty.NumberIntVal(10),
-				"string": cty.StringVal("terramate"),
-				"list": cty.ListVal([]cty.Value{
-					cty.NumberIntVal(0),
-					cty.NumberIntVal(1),
-					cty.NumberIntVal(2),
-					cty.NumberIntVal(3),
-				}),
-				"strings": cty.ListVal([]cty.Value{
-					cty.StringVal("terramate"),
-					cty.StringVal("is"),
-					cty.StringVal("fun"),
-				}),
-				"obj": cty.ObjectVal(map[string]cty.Value{
-					"a": cty.NumberIntVal(0),
-					"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
-				}),
-			})
+			s := sandbox.New(t)
+			root, err := config.LoadRoot(s.RootDir())
+			assert.NoError(t, err)
+			predefined := eval.Stmts{}
+			predefined = append(predefined, test.NewStmtFrom(t, "global.string", `"terramate"`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.number", `10`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.list", `[0, 1, 2, 3]`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.strings", `["terramate", "is", "fun"]`)...)
+			predefined = append(predefined, test.NewStmtFrom(t, "global.obj", `{
+				a = 0
+				b = ["terramate"]
+			}`)...)
+			ctx := eval.New(root.Tree().Dir(), globals.NewResolver(root, predefined...))
+			ctx.SetFunctions(stdlib.Functions(ctx, s.RootDir()))
+
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			if diags.HasErrors() {
 				t.Fatalf(diags.Error())
@@ -370,4 +367,15 @@ EOT
 			assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 		})
 	}
+}
+
+func firstN(s string, n int) string {
+	i := 0
+	for j := range s {
+		if i == n {
+			return s[:j]
+		}
+		i++
+	}
+	return s
 }

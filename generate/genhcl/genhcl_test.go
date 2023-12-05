@@ -15,10 +15,13 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/runtime"
+	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	infotest "github.com/terramate-io/terramate/test/hclutils/info"
@@ -1729,7 +1732,7 @@ func (tcase testcase) run(t *testing.T) {
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 
-		cfg, err := config.LoadRoot(s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -1737,9 +1740,15 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, stack)
+		tree, _ := root.Lookup(stack.Dir)
+		evalctx := eval.New(
+			stack.Dir,
+			runtime.NewResolver(root, stack),
+			globals.NewResolver(root),
+		)
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(cfg, stack, globals, vendorDir, nil)
+		got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

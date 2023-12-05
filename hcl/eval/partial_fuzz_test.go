@@ -1,12 +1,11 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build go1.18 && !windows
+//go:build go1.18
 
-package eval
+package eval_test
 
 import (
-	"math/big"
 	"regexp"
 	"strings"
 	"testing"
@@ -14,9 +13,12 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/ast"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/runtime"
+	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func FuzzPartialEval(f *testing.F) {
@@ -51,25 +53,8 @@ EOT`,
 		f.Add(seed)
 	}
 
-	globals := map[string]cty.Value{
-		"str":  cty.StringVal("mineiros.io"),
-		"bool": cty.BoolVal(true),
-		"list": cty.ListVal([]cty.Value{
-			cty.NumberVal(big.NewFloat(1)),
-			cty.NumberVal(big.NewFloat(2)),
-			cty.NumberVal(big.NewFloat(3)),
-		}),
-		"obj": cty.ObjectVal(map[string]cty.Value{
-			"a": cty.StringVal("b"),
-			"b": cty.StringVal("c"),
-			"c": cty.StringVal("d"),
-		}),
-	}
-
-	terramate := map[string]cty.Value{
-		"path": cty.StringVal("/my/project"),
-		"name": cty.StringVal("happy stack"),
-	}
+	s := sandbox.New(f)
+	root := s.Config()
 
 	f.Fuzz(func(t *testing.T, str string) {
 		// WHY? because HCL uses the big.Float library for numbers and then
@@ -91,9 +76,29 @@ EOT`,
 		if diags.HasErrors() {
 			return
 		}
-		ctx := NewContext(map[string]function.Function{})
-		ctx.SetNamespace("global", globals)
-		ctx.SetNamespace("terramate", terramate)
+
+		//resolver := globals.NewResolver(root.Tree())
+
+		globalsStmts := eval.Stmts{
+			test.NewStmt(t, `global.str`, `"mineiros.io"`),
+			test.NewStmt(t, `global.bool`, `true`),
+			test.NewStmt(t, `global.list`, `[1, 2, 3]`),
+		}
+
+		globalsStmts = append(globalsStmts, test.NewStmtFrom(t, `global.obj`, `{
+			a = "b"
+			b = "c"
+			c = "d"
+		}`)...)
+
+		ctx := eval.New(
+			root.Tree().Dir(),
+			runtime.NewResolver(root, nil),
+			globals.NewResolver(
+				root,
+				globalsStmts...,
+			),
+		)
 
 		gotExpr, err := ctx.PartialEval(parsedExpr)
 		if err != nil {
