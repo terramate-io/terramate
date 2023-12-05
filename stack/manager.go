@@ -415,15 +415,24 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	return selectedStacks, nil
 }
 
-func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) error {
+func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (err error) {
 	logger := log.With().
 		Str("action", "filesApply()").
 		Str("path", dir).
 		Logger()
 
-	logger.Debug().
-		Msg("Read dir.")
-	files, err := os.ReadDir(dir)
+	logger.Debug().Msg("Read dir.")
+
+	f, err := os.Open(dir)
+	if err != nil {
+		return errors.E(err, "opening directory %q", dir)
+	}
+
+	defer func() {
+		err = errors.L(err, f.Close()).AsError()
+	}()
+
+	files, err := f.ReadDir(-1)
 	if err != nil {
 		return errors.E(err, "listing files of directory %q", dir)
 	}
@@ -433,8 +442,8 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 			continue
 		}
 
-		logger.Debug().
-			Msg("Apply function to file.")
+		logger.Debug().Msg("Apply function to file.")
+
 		err := apply(file)
 		if err != nil {
 			return errors.E(err, "applying operation to file %q", file.Name())

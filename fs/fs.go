@@ -12,27 +12,29 @@ import (
 
 // ListTerramateFiles returns a list of terramate related files from the
 // directory dir.
-func ListTerramateFiles(dir string) ([]string, error) {
-	dirEntries, err := os.ReadDir(dir)
+func ListTerramateFiles(dir string) (filenames []string, err error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, errors.E(err, "opening directory %s for reading file entries", dir)
+	}
+
+	defer func() {
+		err = errors.L(err, f.Close()).AsError()
+	}()
+
+	dirEntries, err := f.ReadDir(-1)
 	if err != nil {
 		return nil, errors.E(err, "reading dir to list Terramate files")
 	}
 
 	files := []string{}
 
-	for _, dirEntry := range dirEntries {
-		if strings.HasPrefix(dirEntry.Name(), ".") {
+	for _, entry := range dirEntries {
+		fname := entry.Name()
+		if entry.IsDir() || !isTerramateFile(fname) {
 			continue
 		}
-
-		if dirEntry.IsDir() {
-			continue
-		}
-
-		filename := dirEntry.Name()
-		if isTerramateFile(filename) {
-			files = append(files, filename)
-		}
+		files = append(files, fname)
 	}
 
 	return files, nil
@@ -41,7 +43,16 @@ func ListTerramateFiles(dir string) ([]string, error) {
 // ListTerramateDirs lists Terramate dirs, which are any dirs
 // except ones starting with ".".
 func ListTerramateDirs(dir string) ([]string, error) {
-	dirEntries, err := os.ReadDir(dir)
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, errors.E(err, "opening directory %s for reading file entries", dir)
+	}
+
+	defer func() {
+		err = errors.L(err, f.Close()).AsError()
+	}()
+
+	dirEntries, err := f.ReadDir(-1)
 	if err != nil {
 		return nil, errors.E(err, "reading dir to list Terramate dirs")
 	}
@@ -49,21 +60,25 @@ func ListTerramateDirs(dir string) ([]string, error) {
 	dirs := []string{}
 
 	for _, dirEntry := range dirEntries {
-
-		if !dirEntry.IsDir() {
+		fname := dirEntry.Name()
+		if fname[0] == '.' || !dirEntry.IsDir() {
 			continue
 		}
-
-		if strings.HasPrefix(dirEntry.Name(), ".") {
-			continue
-		}
-
-		dirs = append(dirs, dirEntry.Name())
+		dirs = append(dirs, fname)
 	}
-
 	return dirs, nil
 }
 
 func isTerramateFile(filename string) bool {
-	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
+	if len(filename) <= 3 || filename[0] == '.' {
+		return false
+	}
+	switch filename[len(filename)-1] {
+	default:
+		return false
+	case 'l':
+		return strings.HasSuffix(filename, ".tm.hcl")
+	case 'm':
+		return strings.HasSuffix(filename, ".tm")
+	}
 }
