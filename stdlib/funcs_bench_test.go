@@ -27,3 +27,18 @@ func BenchmarkTmTernary(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkTmTry(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	expr, err := ast.ParseExpression(`tm_try(tm_unknown_function(), "result")`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.AsString(); got != "result" {
+			b.Fatalf("unexpected value: %s", got)
+		}
+	}
+}
