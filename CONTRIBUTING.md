@@ -23,8 +23,7 @@ For contributing to Terramate, please follow these steps:
    [contribution quality standards](#contribution-quality-standards)
 3. [Create a pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/)
    against the main branch of the Terramate repository.
-4. Work with your reviewers to address any comments and obtain a
-   minimum of 1 approval.
+4. Work with your reviewers to address any comments and obtain a minimum of 1 approval.
 5. Once the pull request is approved, one of the maintainers will merge it.
 
 ## Contribution Quality Standards
@@ -32,8 +31,10 @@ For contributing to Terramate, please follow these steps:
 Most quality and style standards are enforced automatically during integration
 testing. Your contribution needs to meet the following standards:
 
-- Separate each **logical change** into its own commit.
+- Each contribution must have a single scope: one feature/bugfix/chore per PR
+   - _Exceptions can be accepted if accompanied by good reasoning_
 - Include tests for any new functionality (or bug fix) in your pull request.
 - Document all your public functions.
-- Document your pull requests. Include the reasoning behind each change, and
-  the testing done.
+- When opening the PR, follow the instructions in the description template.
+- If you need an early review, even if not ready, [mark it as Draft](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/changing-the-stage-of-a-pull-request).
+- When ready to be reviewed, squash all commits into a single [signed commit](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) following the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) convention.
