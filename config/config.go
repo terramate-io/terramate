@@ -380,13 +380,14 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 		err = errors.L(err, f.Close()).AsError()
 	}()
 
-	names, err := f.Readdirnames(0)
+	dirEntries, err := f.ReadDir(-1)
 	if err != nil {
 		return nil, errors.E(err, "failed to read files in %s", cfgdir)
 	}
 
-	for _, name := range names {
-		if name == SkipFilename {
+	for _, dirEntry := range dirEntries {
+		fname := dirEntry.Name()
+		if fname == SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return NewTree(cfgdir), nil
 		}
@@ -405,31 +406,20 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 
 		parentTree = tree
 	}
-
-	for _, name := range names {
-		logger = logger.With().
-			Str("filename", name).
-			Logger()
-
-		if Skip(name) {
-			continue
-		}
-		dir := filepath.Join(cfgdir, name)
-		st, err := os.Lstat(dir)
-		if err != nil {
-			return nil, errors.E(err, "failed to stat %s", dir)
-		}
-		if !st.IsDir() {
+	for _, dirEntry := range dirEntries {
+		fname := dirEntry.Name()
+		if Skip(fname) || !dirEntry.IsDir() {
 			continue
 		}
 
+		dir := filepath.Join(cfgdir, fname)
 		node, err := loadTree(parentTree, dir)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
 		}
 
 		node.Parent = parentTree
-		parentTree.Children[name] = node
+		parentTree.Children[fname] = node
 	}
 	return parentTree, nil
 }

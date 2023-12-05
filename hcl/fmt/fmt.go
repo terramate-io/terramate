@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -65,6 +66,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
+	sort.Strings(files)
 
 	results := []FormatResult{}
 	errs := errors.L()
@@ -99,6 +101,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		errs.Append(err)
 		return nil, errors.E(errFormatTree, errs)
 	}
+	sort.Strings(dirs)
 
 	for _, d := range dirs {
 		subres, err := FormatTree(filepath.Join(dir, d))
