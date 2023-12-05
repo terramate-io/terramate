@@ -2841,6 +2841,26 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global with tm_ternary with branches using variables from for-loop",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `[for a in ["a", "b", "c"] : tm_ternary(
+							a == "a",
+							tm_upper(a),
+							"")]`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Expr("val", `["A", "", ""]`),
+				),
+			},
+		},
+		{
 			name:   "global with tm_ternary with different branch types",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
