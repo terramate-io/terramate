@@ -12,9 +12,13 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate/genfile"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/runtime"
+	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	infotest "github.com/terramate-io/terramate/test/hclutils/info"
@@ -105,7 +109,8 @@ stack_path_basename=${terramate.stack.path.basename}
 stack_id=${tm_try(terramate.stack.id, "no-id")}
 stack_name=${terramate.stack.name}
 stack_description=${terramate.stack.description}
-EOT`,
+EOT
+`,
 						)),
 				},
 			},
@@ -139,7 +144,8 @@ stack_description=
 						Expr("content", `<<EOT
 
 stack_id=${terramate.stack.id}
-EOT`,
+EOT
+`,
 						)),
 				},
 			},
@@ -959,13 +965,12 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stack := s.LoadStacks()[0].Stack
 
 		for _, cfg := range tcase.configs {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 		}
 
-		root, err := config.LoadRoot(s.RootDir())
+		_, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -973,9 +978,17 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(root, stack)
+		root := s.ReloadConfig()
+		stack := s.LoadStacks()[0].Stack
+
+		evalctx := eval.New(
+			stack.Dir,
+			runtime.NewResolver(root, stack),
+			globals.NewResolver(root))
+		evalctx.SetFunctions(stdlib.Functions(evalctx, stack.HostDir(root)))
+
 		vendorDir := project.NewPath("/modules")
-		got, err := genfile.Load(root, stack, globals, vendorDir, nil)
+		got, err := genfile.Load(root, evalctx, stack, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

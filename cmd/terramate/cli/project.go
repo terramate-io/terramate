@@ -11,6 +11,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/stack"
 )
@@ -21,6 +22,7 @@ type project struct {
 	isRepo         bool
 	root           config.Root
 	baseRef        string
+	globals        *globals.Resolver
 	normalizedRepo string
 
 	git struct {

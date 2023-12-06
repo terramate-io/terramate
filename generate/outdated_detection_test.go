@@ -1232,7 +1232,7 @@ func TestOutdatedDetection(t *testing.T) {
 					vendorDir = project.NewPath(step.vendorDir)
 				}
 
-				got, err := generate.DetectOutdated(s.Config(), vendorDir)
+				got, err := generate.DetectOutdated(s.Config(), s.Globals(), vendorDir)
 
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
@@ -1244,7 +1244,7 @@ func TestOutdatedDetection(t *testing.T) {
 				t.Log("checking that after generate outdated detection should always return empty")
 
 				s.GenerateWith(s.Config(), vendorDir)
-				got, err = generate.DetectOutdated(s.Config(), vendorDir)
+				got, err = generate.DetectOutdated(s.Config(), s.Globals(), vendorDir)
 				assert.NoError(t, err)
 
 				assertEqualStringList(t, got, []string{})

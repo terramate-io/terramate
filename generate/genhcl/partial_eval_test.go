@@ -13,9 +13,12 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/runtime"
+	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/terramate-io/terramate/test/hclwrite"
@@ -1715,7 +1718,6 @@ EOT
 
 			s := sandbox.NoGit(t, true)
 			stackEntry := s.CreateStack(stackname)
-			stack := stackEntry.Load(s.Config())
 			path := filepath.Join(s.RootDir(), stackname)
 			if tcase.globals == nil {
 				tcase.globals = Globals()
@@ -1741,9 +1743,17 @@ EOT
 
 			assert.NoError(t, err)
 
-			globals := s.LoadStackGlobals(root, stack)
+			stack := stackEntry.Load(root)
+			tree := stack.Tree()
+
+			evalctx := eval.New(
+				stack.Dir,
+				runtime.NewResolver(root, stack),
+				globals.NewResolver(root),
+			)
+			evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
 			vendorDir := project.NewPath("/modules")
-			got, err := genhcl.Load(root, stack, globals, vendorDir, nil)
+			got, err := genhcl.Load(root, evalctx, stack, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

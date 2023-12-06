@@ -8,42 +8,57 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
 )
 
-func setupContext() *eval.Context {
-	ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
-	ctx.SetNamespace("global", map[string]cty.Value{
-		"true":   cty.True,
-		"false":  cty.False,
-		"number": cty.NumberFloatVal(3.141516),
-		"string": cty.StringVal("terramate"),
-		"list": cty.ListVal([]cty.Value{
-			cty.NumberIntVal(0),
-			cty.NumberIntVal(1),
-			cty.NumberIntVal(2),
-			cty.NumberIntVal(3),
+func setupContext(b *testing.B) *eval.Context {
+	s := sandbox.New(b)
+	builtinInfo := eval.Info{
+		Scope: project.NewPath("/"),
+		DefinedAt: info.NewRange(s.RootDir(), hhcl.Range{
+			Start: hhcl.InitialPos,
+			End:   hhcl.InitialPos,
 		}),
-		"strings": cty.ListVal([]cty.Value{
-			cty.StringVal("terramate"),
-			cty.StringVal("is"),
-			cty.StringVal("fun"),
-		}),
-		"obj": cty.ObjectVal(map[string]cty.Value{
-			"a": cty.NumberIntVal(0),
-			"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
-		}),
-	})
+	}
+	ctx := eval.New(
+		s.Config().Tree().Dir(),
+		globals.NewResolver(
+			s.Config(),
+			eval.NewValStmt(eval.NewRef("global", "true"), cty.True, builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "false"), cty.False, builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "number"), cty.NumberFloatVal(3.141516), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "string"), cty.StringVal("terramate"), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "list"), cty.ListVal([]cty.Value{
+				cty.NumberIntVal(0),
+				cty.NumberIntVal(1),
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(3),
+			}), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "strings"), cty.ListVal([]cty.Value{
+				cty.StringVal("terramate"),
+				cty.StringVal("is"),
+				cty.StringVal("fun"),
+			}), builtinInfo),
+			eval.NewValStmt(eval.NewRef("global", "obj"), cty.ObjectVal(map[string]cty.Value{
+				"a": cty.NumberIntVal(0),
+				"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
+			}), builtinInfo),
+		))
+	ctx.SetFunctions(stdlib.Functions(ctx, os.TempDir()))
 	return ctx
 }
 
 func BenchmarkPartialEvalComplex(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`[
 		{
@@ -95,7 +110,7 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -108,13 +123,13 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 
 func BenchmarkPartialEvalSmallString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`"terramate is fun"`)
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -127,13 +142,13 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 
 func BenchmarkPartialEvalHugeString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`"` + strings.Repeat(`terramate is fun\n`, 1000) + `"`)
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -146,13 +161,13 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 
 func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`"` + strings.Repeat(`${global.string} is fun\n`, 1000) + `"`)
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
@@ -165,7 +180,7 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 
 func BenchmarkPartialEvalObject(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`{
 		a = 1
@@ -176,7 +191,7 @@ func BenchmarkPartialEvalObject(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
+		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hhcl.InitialPos)
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}

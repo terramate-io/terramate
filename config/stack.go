@@ -13,7 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -56,6 +55,8 @@ type (
 
 		// IsChanged tells if this is a changed stack.
 		IsChanged bool
+
+		tree *Tree
 	}
 
 	// SortableStack is a wrapper for the Stack which implements the [DirElem] type.
@@ -85,28 +86,31 @@ const (
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
-func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
-	name := cfg.Stack.Name
+func NewStackFromHCL(root string, treecfg *Tree) (*Stack, error) {
+	stackcfg := treecfg.Node.Stack
+	name := stackcfg.Name
 	if name == "" {
-		name = filepath.Base(cfg.AbsDir())
+		name = filepath.Base(treecfg.Dir().String())
 	}
 
-	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
+	watchFiles, err := validateWatchPaths(root, treecfg.HostDir(), stackcfg.Watch)
 	if err != nil {
 		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
 
 	stack := &Stack{
 		Name:        name,
-		ID:          cfg.Stack.ID,
-		Description: cfg.Stack.Description,
-		Tags:        cfg.Stack.Tags,
-		After:       cfg.Stack.After,
-		Before:      cfg.Stack.Before,
-		Wants:       cfg.Stack.Wants,
-		WantedBy:    cfg.Stack.WantedBy,
+		ID:          stackcfg.ID,
+		Description: stackcfg.Description,
+		Tags:        stackcfg.Tags,
+		After:       stackcfg.After,
+		Before:      stackcfg.Before,
+		Wants:       stackcfg.Wants,
+		WantedBy:    stackcfg.WantedBy,
 		Watch:       watchFiles,
-		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
+		Dir:         treecfg.Dir(),
+
+		tree: treecfg,
 	}
 	err = stack.Validate()
 	if err != nil {
@@ -167,6 +171,9 @@ func (s Stack) ValidateSets() error {
 	)
 	return errs.AsError()
 }
+
+// Tree returns the stack node tree.
+func (s Stack) Tree() *Tree { return s.tree }
 
 func validateSet(field string, set []string) error {
 	elems := map[string]struct{}{}
@@ -282,7 +289,7 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 func StacksFromTrees(root string, trees List[*Tree]) (List[*SortableStack], error) {
 	var stacks List[*SortableStack]
 	for _, tree := range trees {
-		s, err := NewStackFromHCL(root, tree.Node)
+		s, err := NewStackFromHCL(root, tree)
 		if err != nil {
 			return List[*SortableStack]{}, err
 		}
@@ -302,7 +309,7 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 	stacksIDs := map[string]*Stack{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := NewStackFromHCL(cfg.RootDir(), stackNode.Node)
+		stack, err := NewStackFromHCL(cfg.RootDir(), stackNode)
 		if err != nil {
 			return List[*SortableStack]{}, err
 		}
@@ -339,7 +346,7 @@ func LoadStack(root *Root, dir project.Path) (*Stack, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %q is not a stack", dir)
 	}
-	return NewStackFromHCL(root.HostDir(), node.Node)
+	return NewStackFromHCL(root.HostDir(), node)
 }
 
 // TryLoadStack tries to load a single stack from dir. It sets found as true in case
@@ -354,7 +361,7 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 		return nil, false, nil
 	}
 
-	s, err := NewStackFromHCL(root.HostDir(), tree.Node)
+	s, err := NewStackFromHCL(root.HostDir(), tree)
 	if err != nil {
 		return nil, true, err
 	}
