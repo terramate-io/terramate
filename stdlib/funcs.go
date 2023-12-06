@@ -67,6 +67,10 @@ func Functions(basedir string) map[string]function.Function {
 	// sane ternary
 	tmfuncs["tm_ternary"] = TernaryFunc()
 
+	// optimized collection functions
+	tmfuncs["tm_alltrue"] = AllTrueFunc()
+	tmfuncs["tm_anytrue"] = AnyTrueFunc()
+
 	// optimized try
 	tmfuncs["tm_try"] = TryFunc()
 
