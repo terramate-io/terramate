@@ -28,7 +28,7 @@ jobs:
         id: benchmark
         run: |
           echo "result<<EOF" >> $GITHUB_OUTPUT
-          echo "$(make bench/check new=${{ github.event.pull_request.head.sha }})" >> $GITHUB_OUTPUT
+          echo "$(make bench/check new=${{ github.event.pull_request.head.sha }} old=${{ github.event.pull_request.base.ref }})" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
       - uses: marocchino/sticky-pull-request-comment@v2
