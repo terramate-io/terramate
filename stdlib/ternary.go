@@ -57,7 +57,7 @@ func evalTernaryBranch(evalctx *eval.Context, arg cty.Value) (cty.Value, error) 
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
 	// some HCL language construct declare variables and pass them down the
-	// context tree, then we need to use the expression own underlying EvalContext when available.
+	// context tree, then we need to use the expression's own underlying EvalContext when available.
 	bk := evalctx.Internal
 	evalctx.Internal = closure.EvalContext
 	newexpr, err := evalctx.PartialEval(&ast.CloneExpression{
