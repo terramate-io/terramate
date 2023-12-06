@@ -13,6 +13,74 @@ import (
 	"github.com/terramate-io/terramate/test"
 )
 
+func BenchmarkTmAllTrueLiteralList(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	expr, err := ast.ParseExpression(`tm_alltrue([
+		false,
+		tm_element(tm_range(0, 100), 0) == 0,
+		tm_length(tm_distinct([for i in tm_range(0, 100): 0*i]))==1,
+	])`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.True(); got {
+			b.Fatalf("unexpected value: %t", got)
+		}
+	}
+}
+
+func BenchmarkTmAllTrueFuncall(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	expr, err := ast.ParseExpression(`tm_alltrue(tm_distinct([for i in tm_range(0, 3) : i == 2 ? true : false]))`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.True(); got {
+			b.Fatalf("unexpected value: %t", got)
+		}
+	}
+}
+
+func BenchmarkTmAnyTrueLiteralList(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	expr, err := ast.ParseExpression(`tm_anytrue([
+		true,
+		tm_element(tm_range(0, 100), 0) != 0,
+		tm_length(tm_distinct([for i in tm_range(0, 100): 2*i]))>1,
+	])`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.True(); !got {
+			b.Fatalf("unexpected value: %t", got)
+		}
+	}
+}
+
+func BenchmarkTmAnyTrueFuncall(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	expr, err := ast.ParseExpression(`tm_anytrue(tm_distinct([for i in tm_range(0, 3) : i == 2 ? true : false]))`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.True(); !got {
+			b.Fatalf("unexpected value: %t", got)
+		}
+	}
+}
+
 func BenchmarkTmTernary(b *testing.B) {
 	b.StopTimer()
 	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
