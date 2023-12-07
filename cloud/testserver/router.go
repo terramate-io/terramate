@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
@@ -55,6 +57,10 @@ func handler(store *cloudstore.Data, fn Handler) httprouter.Handle {
 
 // RouterAdd enables endpoints in an existing router.
 func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[string]bool) {
+	if enabled[cloud.WellKnownCLIPath] {
+		router.GET(cloud.WellKnownCLIPath, handler(store, GetWellKnown))
+	}
+
 	if enabled[cloud.UsersPath] {
 		router.GET(cloud.UsersPath, handler(store, GetUsers))
 	}
@@ -102,10 +108,22 @@ func RouterAddCustoms(router *httprouter.Router, store *cloudstore.Data, custom 
 // EnableAllConfig returns a map that enables all cloud endpoints.
 func EnableAllConfig() map[string]bool {
 	return map[string]bool{
-		cloud.UsersPath:       true,
-		cloud.MembershipsPath: true,
-		cloud.DeploymentsPath: true,
-		cloud.DriftsPath:      true,
-		cloud.StacksPath:      true,
+		cloud.WellKnownCLIPath: true,
+		cloud.UsersPath:        true,
+		cloud.MembershipsPath:  true,
+		cloud.DeploymentsPath:  true,
+		cloud.DriftsPath:       true,
+		cloud.StacksPath:       true,
 	}
+}
+
+// DisableEndpoints the provided path endpoints.
+func DisableEndpoints(paths ...string) map[string]bool {
+	routes := map[string]bool{}
+	for k, v := range EnableAllConfig() {
+		if !slices.Contains(paths, k) {
+			routes[k] = v
+		}
+	}
+	return routes
 }

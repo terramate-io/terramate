@@ -17,9 +17,12 @@ import (
 	"path"
 	"strconv"
 
+	hversion "github.com/apparentlymart/go-versions/versions"
+	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/versions"
 )
 
 // Host of the official Terramate Cloud API.
@@ -29,6 +32,9 @@ const Host = "api.terramate.io"
 const BaseURL = "https://" + Host
 
 const (
+	// WellKnownCLIPath is the well-known base path.
+	WellKnownCLIPath = "/.well-known/cli.json"
+
 	// UsersPath is the users endpoint base path.
 	UsersPath = "/v1/users"
 	// MembershipsPath is the memberships endpoint base path.
@@ -62,6 +68,9 @@ type (
 		// HTTPClient is the HTTP client reused in all connections.
 		// if not set, a new instance of http.Client is created on the first request.
 		HTTPClient *http.Client
+
+		Logger *zerolog.Logger
+		noauth bool
 	}
 
 	// Credential is the interface for the credential providers.
@@ -77,6 +86,25 @@ func init() {
 	if d := os.Getenv("TMC_API_DEBUG"); d == "1" || d == "true" {
 		debugAPIRequests = true
 	}
+}
+
+// CheckVersion checks if current Terramate version can be used to communicate
+// with the cloud.
+func (c *Client) CheckVersion(ctx context.Context) error {
+	client := &Client{
+		BaseURL: c.BaseURL,
+		noauth:  true,
+	}
+	wk, err := Get[WellKnown](ctx, client, WellKnownCLIPath)
+	if err != nil {
+		if c.Logger != nil {
+			c.Logger.Trace().Err(err).Msgf("retrieving %s", WellKnownCLIPath)
+		}
+		return nil
+	}
+	version := hversion.MustParseVersion(terramate.Version())
+	version.Prerelease = ""
+	return versions.Check(version.String(), wk.RequiredVersion, false)
 }
 
 // Users retrieves the user details for the signed in user.
@@ -250,7 +278,7 @@ func Put[T Resource](ctx context.Context, client *Client, payload interface{}, e
 // Request makes a request to the Terramate Cloud using client.
 // The instantiated type gets decoded and return as the entity T,
 func Request[T Resource](ctx context.Context, c *Client, method string, resourceURL string, postBody io.Reader) (entity T, err error) {
-	if c.Credential == nil {
+	if !c.noauth && c.Credential == nil {
 		return entity, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
 	}
 
@@ -317,13 +345,17 @@ func (c *Client) newRequest(ctx context.Context, method string, relativeURL stri
 	if err != nil {
 		return nil, err
 	}
-	token, err := c.Credential.Token()
-	if err != nil {
-		return nil, err
-	}
+
 	req.Header.Add("User-Agent", "terramate/v"+terramate.Version())
-	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", contentType)
+
+	if !c.noauth {
+		token, err := c.Credential.Token()
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Add("Authorization", "Bearer "+token)
+	}
 	return req, nil
 }
 

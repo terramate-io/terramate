@@ -22,9 +22,10 @@ type (
 	// It has public fields but they *SHALL NOT* be directly manipulated
 	// unless for the case of initialiting the data.
 	Data struct {
-		mu    sync.RWMutex
-		Orgs  map[string]Org        `json:"orgs"`
-		Users map[string]cloud.User `json:"users"`
+		mu        sync.RWMutex
+		Orgs      map[string]Org        `json:"orgs"`
+		Users     map[string]cloud.User `json:"users"`
+		WellKnown *cloud.WellKnown      `json:"well_known"`
 	}
 	// Org is the organization model.
 	Org struct {
@@ -126,6 +127,13 @@ func (d *Data) MarshalJSON() ([]byte, error) {
 	ret.Orgs = d.Orgs
 	ret.Users = d.Users
 	return json.Marshal(ret)
+}
+
+// GetWellKnown gets the defined well-known.
+func (d *Data) GetWellKnown() *cloud.WellKnown {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.WellKnown
 }
 
 // GetUser retrieves the user by email from the store.

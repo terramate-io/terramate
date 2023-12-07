@@ -22,6 +22,11 @@ type (
 		Validate() error
 	}
 
+	// WellKnown is the well-known payload for cli.json.
+	WellKnown struct {
+		RequiredVersion string `json:"required_version"`
+	}
+
 	// MemberOrganizations is a list of organizations associated with the member.
 	MemberOrganizations []MemberOrganization
 
@@ -259,6 +264,7 @@ const (
 
 var (
 	// compile-time checks to ensure resource entities implement the Resource iface.
+	_ = Resource(WellKnown{})
 	_ = Resource(User{})
 	_ = Resource(MemberOrganization{})
 	_ = Resource(MemberOrganizations{})
@@ -301,6 +307,14 @@ func (orgs MemberOrganizations) String() string {
 		}
 	}
 	return out.String()
+}
+
+// Validate the well-known payload.
+func (wk WellKnown) Validate() error {
+	if wk.RequiredVersion == "" {
+		return errors.E(`missing "required_version" field`)
+	}
+	return nil
 }
 
 // Validate if the user has the Terramate CLI required fields.
