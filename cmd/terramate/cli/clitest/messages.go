@@ -27,6 +27,9 @@ const (
 	// cloud integration.
 	ErrCloud errors.Kind = "unprocessable cloud feature"
 
+	// ErrCloudCompat is the error thrown when cloud compatibility check failed.
+	ErrCloudCompat errors.Kind = "Terramate Cloud compatibility check"
+
 	// ErrCloudOnboardingIncomplete indicates the onboarding process is incomplete.
 	ErrCloudOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 

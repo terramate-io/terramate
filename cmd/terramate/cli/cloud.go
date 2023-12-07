@@ -531,13 +531,27 @@ func (c *cli) isCloudSync() bool {
 }
 
 func (c *cli) loadCredential() error {
+	cloudURL := cloudBaseURL()
+	clientLogger := log.With().
+		Str("tmc_url", cloudURL).
+		Logger()
+
 	c.cloud = cloudConfig{
 		client: &cloud.Client{
-			BaseURL:    cloudBaseURL(),
+			BaseURL:    cloudURL,
 			IDPKey:     idpkey(),
 			HTTPClient: &c.httpClient,
+			Logger:     &clientLogger,
 		},
 		output: c.output,
+	}
+
+	// checks if this client version can communicate with Terramate Cloud.
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	err := c.cloud.client.CheckVersion(ctx)
+	if err != nil {
+		return errors.E(err, clitest.ErrCloudCompat)
 	}
 
 	probes := c.credentialPrecedence(c.output)
