@@ -196,6 +196,10 @@ export default defineConfig({
           ],
         },
         {
+          text: '📜 Scripts',
+          link: '/cli/scripts/',
+        },
+        {
           text: '🔧 Functions',
           collapsed: false,
           items: [

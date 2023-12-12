@@ -3,8 +3,8 @@ title: Functions
 description: Terramate provides the same built-in functions as Terraform  but prefixed with tm_.
 
 prev:
-  text: 'Generate File'
-  link: '/cli/code-generation/generate-file'
+  text: 'Define and manage workflows with Terramate Scripts'
+  link: '/cli/scripts/'
 
 next:
   text: 'tm_ternary'

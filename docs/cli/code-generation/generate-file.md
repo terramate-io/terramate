@@ -7,8 +7,8 @@ prev:
   link: '/cli/code-generation/generate-hcl'
 
 next:
-  text: 'Functions'
-  link: '/cli/functions/'
+  text: 'Define and manage workflows with Terramate Scripts'
+  link: '/cli/scripts/'
 ---
 
 # File Generation
