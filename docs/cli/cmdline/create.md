@@ -3,8 +3,8 @@ title: terramate create - Command
 description: With the terramate create command you can create a new stack in the current project.
 
 prev:
-  text: 'Cloud Info'
-  link: '/cli/cmdline/cloud-info'
+  text: 'Cloud Login'
+  link: '/cli/cmdline/cloud-login'
 
 next:
   text: 'Eval'
@@ -52,14 +52,13 @@ This is helpful when you want to onboard Terramate in an existing
 Terraform project. `--all-terraform` will create a Terramate configuration
 file in every Terraform directory that contain a `terraform.backend` block or `provider` blocks.
 
-
 ## Options
 
 - `--id=STRING` ID of the stack. Defaults to a random UUIDv4 (Using the default is highly recommended).
 - `--name=STRING` Name of the stack. Defaults to stack dir base name.
 - `--description=STRING` Description of the stack. Defaults to the stack name.
 - `--tags=LIST` Adds tags to the stack. Example: `--tags a --tags b` or `--tags a,b`.
-- `--import=LIST`  Add import block for the given path on the stack. Example: `--import dir/path1 --import dir/path2` or `--import dir/path1,dir/path2`
+- `--import=LIST` Add import block for the given path on the stack. Example: `--import dir/path1 --import dir/path2` or `--import dir/path1,dir/path2`
 - `--after=LIST`, `--before=LIST` Define an explicit [order of execution](../orchestration/index.md#explicit-order-of-execution). LIST can contain relative paths `../path/to/stack` and/or tags `tag:my-tag`. These options can be used multiple times.
 - `--ignore-existing` If the stack already exists do nothing and don't fail.
 - `--all-terraform` Initialize Terramate in all directories containing `terraform.backend` blocks.
