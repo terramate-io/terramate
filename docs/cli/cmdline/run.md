@@ -14,9 +14,10 @@ next:
 # Run
 
 The `run` command executes **any command** in a single or a range of stacks following
-the orchestration [order of execution](../orchestration/index.md). 
+the orchestration [order of execution](../orchestration/index.md).
 
 The `run` command allows you to filter for a specific set of stacks such as:
+
 - changed stacks
 - stacks with or without specific tags
 - stacks in a specific directory
@@ -88,7 +89,7 @@ When using `--eval` the arguments can reference `terramate`, `global` and `tm_` 
 ## Project wide `run` configuration.
 
 The `terramate` block at the project root can be used to customize
-the default exported environment variables in the 
+the default exported environment variables in the
 [terramate.config.run.env](../configuration/project-config.md#the-terramateconfigrunenv-block).
 
 It's also possible to set a different `PATH` environment variable and
@@ -117,4 +118,60 @@ Then if you have the script `bin/create-stack.sh`, you can do:
 
 ```bash
 $ terramate run create-stack.sh
+```
+
+## Terramate Cloud functionality
+
+The run command offers extended functionality for Terramate Cloud users. For these commands to work `terramate` must be successfully authenticated with Terramate Cloud. This can be done locally with the [cloud login](./cloud-login.md) command or by creating a trust relationship with Github. In the latter case, you must export the `GITHUB_TOKEN` in the Github action:
+
+```
+permissions:
+  id-token: write # (necessary for GITHUB_TOKEN to work)
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+```
+
+### Sending deployment data to Terramate Cloud
+
+The `--cloud-sync-deployment` flag will send information about the deployment to Terramate Cloud.
+
+```
+jobs:
+  deploy:
+    name: Deploy
+    ...
+      - name: Apply changes
+        id: apply
+        run: terramate run --changed --cloud-sync-deployment -- terraform apply -input=false -auto-approve
+```
+
+### Detecting Drift
+
+The `run` command supports `--cloud-sync-drift-status` which will set the Terramate Cloud status of any stack to drifted _if the exit code of the command that is run is `2`_ (which for `terraform plan -detailed-exitcode` signals that the plan succeeded and there was a diff). Terramate is also able to send the drifted plan with the `--cloud-sync-terraform-plan-file` option. A typical Github action for drift detection would look something like:
+
+```
+name: Check drift on all stacks once a day
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  drift-detect:
+    name: Check Drift
+
+    permissions:
+      id-token: write # necessary for GITHUB_TOKEN to work
+
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+
+    steps:
+      ...
+      initial setup steps
+      ...
+      - name: Run drift detection
+        id: drift
+        run: |
+          terramate run --cloud-sync-drift-status --cloud-sync-terraform-plan-file=drift.tfplan -- terraform plan -out drift.tfplan -detailed-exitcode
 ```
