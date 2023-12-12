@@ -31,7 +31,3 @@ of adding the given direction to the given timestamp.
 tm_timeadd("2017-11-22T00:00:00Z", "10m")
 2017-11-22T00:10:00Z
 ```
-
-# Related Functions
-
-* [`tm_timecmp`](./tm_timecmp.md) determines an ordering for two timestamps.
