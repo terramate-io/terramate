@@ -24,10 +24,9 @@ const tfFunctionLinks = glob.sync('cli/functions/*.md', { ignore: ignoreFiles })
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: 'Terramate',
+  title: 'Terramate Docs',
   // titleTemplate: ':title - Terramate',
-  description:
-    'Terramate adds powerful capabilities such as code generation, stacks, orchestration, change detection, data sharing and more to Terraform.',
+  description: 'Terramate CLI is an open-source Infrastructure as Code (IaC) orchestration tool for Terraform, OpenTofu, Terragrunt, Kubernetes, Pulumi, AWS Cloud Formation, AWS Cloud Development Kit (CDK), Azure Resource Manager (ARM), Biceps, and others',
   sitemap: {
     hostname: 'https://terramate.io',
   },
