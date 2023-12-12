@@ -263,6 +263,13 @@ export default defineConfig({
             { text: 'version', link: '/cli/cmdline/version' },
           ],
         },
+        {
+          text: '💻 Editor Plugins',
+          collapsed: false,
+          items: [
+            { text: 'Overview', link: '/cli/editor-plugins/index' },
+          ],
+        },
         // {
         //   text: 'Misc',
         //   collapsed: false,
