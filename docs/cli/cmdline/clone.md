@@ -7,8 +7,8 @@ prev:
   link: '/cli/cmdline/'
 
 next:
-  text: 'Cloud Login'
-  link: '/cli/cmdline/cloud-login'
+  text: 'Cloud Drift Show'
+  link: '/cli/cmdline/cloud-drift-show'
 ---
 
 # Clone
