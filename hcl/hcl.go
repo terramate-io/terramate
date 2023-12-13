@@ -1733,6 +1733,14 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				continue
 			}
 
+			if other, found := findScript(config.Scripts, block.Labels); found {
+				errs.Append(
+					errors.E(ErrScriptRedeclared, block.DefRange(),
+						"script with labels %v defined at %q", block.Labels, other.Range.String()),
+				)
+				continue
+			}
+
 			scriptCfg, err := p.parseScriptBlock(block)
 			if err != nil {
 				errs.Append(err)
