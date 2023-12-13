@@ -165,6 +165,44 @@ func TestHCLScript(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple scripts with same labels",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+					  terramate {
+						  config {
+							  experiments = ["scripts"]
+						  }
+					  }
+					`,
+				},
+				{
+					filename: "script.tm",
+					body: `
+					  script "a" "b" {
+						description = "some description"
+						job {
+						  command = ["echo", "hello"]
+						}
+					  }
+					  script "a" "b" {
+						description = "other description"
+						job {
+						  command = ["echo", "other command"]
+						}
+					  }
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrScriptRedeclared,
+						Mkrange("script.tm", Start(8, 8, 136), End(8, 22, 150))),
+				},
+			},
+		},
+		{
 			name: "script with a description attr",
 			input: []cfgfile{
 				{
