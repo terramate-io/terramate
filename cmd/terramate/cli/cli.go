@@ -462,7 +462,17 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	if !foundRoot {
-		log.Fatal().Msg("Project root not found. If you invoke Terramate inside a Git repository, Terramate will automatically assume the top level of your repository as the project root. If you use Terramate in a directory that isn't a Git repository, you must configure the project root by creating a terramate.tm.hcl configuration in the directory you wish to be the top-level of your Terramate project. For details please see https://terramate.io/docs/cli/configuration/project-config#project-configuration.")
+		output.MsgStdErr(`Error: Terramate was unable to detect a project root.
+
+Please ensure you run Terramate inside a Git repository or create a new one here by calling 'git init'.
+
+Using Terramate together with Git is the recommended way.
+
+Alternatively you can create a Terramate config to make the current directory the project root.
+
+Please see https://terramate.io/docs/cli/configuration/project-setup for details.
+`)
+		os.Exit(1)
 	}
 
 	err = prj.setDefaults()
