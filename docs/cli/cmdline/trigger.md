@@ -3,8 +3,8 @@ title: terramate trigger - Command
 description: With the terramate trigger command you can mark a stack to be considered by the change detection.
 
 prev:
-  text: 'Run'
-  link: '/cli/cmdline/run'
+  text: 'Script Tree'
+  link: '/cli/cmdline/script/tree'
 
 next:
   text: 'Vendor Download'
