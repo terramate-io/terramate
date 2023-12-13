@@ -7,16 +7,17 @@ prev:
   link: '/cli/cmdline/run-order'
 
 next:
-  text: 'Trigger'
-  link: '/cli/cmdline/trigger'
+  text: 'Script Info'
+  link: '/cli/cmdline/script-info'
 ---
 
 # Run
 
 The `run` command executes **any command** in a single or a range of stacks following
-the orchestration [order of execution](../orchestration/index.md). 
+the orchestration [order of execution](../orchestration/index.md).
 
 The `run` command allows you to filter for a specific set of stacks such as:
+
 - changed stacks
 - stacks with or without specific tags
 - stacks in a specific directory
@@ -88,7 +89,7 @@ When using `--eval` the arguments can reference `terramate`, `global` and `tm_` 
 ## Project wide `run` configuration.
 
 The `terramate` block at the project root can be used to customize
-the default exported environment variables in the 
+the default exported environment variables in the
 [terramate.config.run.env](../configuration/project-config.md#the-terramateconfigrunenv-block).
 
 It's also possible to set a different `PATH` environment variable and
