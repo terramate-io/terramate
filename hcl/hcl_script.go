@@ -7,12 +7,14 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
+	"golang.org/x/exp/slices"
 )
 
 // Errors returned during the HCL parsing of script block
 const (
 	ErrScriptNoLabels            errors.Kind = "terramate schema error: (script): must provide at least one label"
 	ErrScriptNoDesc              errors.Kind = "terramate schema error: (script): missing description"
+	ErrScriptRedeclared          errors.Kind = "terramate schema error: (script): multiple script blocks with same labels in the same directory"
 	ErrScriptUnrecognizedAttr    errors.Kind = "terramate schema error: (script): unrecognized attribute"
 	ErrScriptUnrecognizedBlock   errors.Kind = "terramate schema error: (script): unrecognized block"
 	ErrScriptNoCmds              errors.Kind = "terramate schema error: (script): missing command or commands"
@@ -110,7 +112,15 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 	}
 
 	return parsedScript, nil
+}
 
+func findScript(scripts []*Script, target []string) (*Script, bool) {
+	for _, script := range scripts {
+		if slices.Equal(script.Labels, target) {
+			return script, true
+		}
+	}
+	return nil, false
 }
 
 func validateScriptJobBlock(block *ast.Block) (*ScriptJob, error) {
