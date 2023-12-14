@@ -1162,7 +1162,7 @@ func assignSet(attr *hcl.Attribute, target *[]string, val cty.Value) error {
 		if _, ok := values[str]; ok {
 			errs.Append(errors.E(ErrTerramateSchema, attr.Expr.Range(),
 				"duplicated entry %q in the index %d of field %q of type set(string)",
-				str, attr.Name))
+				str, index, attr.Name))
 
 			continue
 		}
