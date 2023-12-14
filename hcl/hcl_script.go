@@ -4,6 +4,8 @@
 package hcl
 
 import (
+	"strings"
+
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
@@ -61,6 +63,24 @@ func NewScriptCommand(attr ast.Attribute) *Command {
 func NewScriptCommands(attr ast.Attribute) *Commands {
 	cmds := Commands(attr)
 	return &cmds
+}
+
+// Name returns the formatted script name
+func (sc *Script) Name() string {
+	var b strings.Builder
+	for i, e := range sc.Labels {
+		if i != 0 {
+			_ = b.WriteByte(' ')
+		}
+		if strings.Contains(e, " ") {
+			_ = b.WriteByte('"')
+			_, _ = b.WriteString(e)
+			_ = b.WriteByte('"')
+		} else {
+			_, _ = b.WriteString(e)
+		}
+	}
+	return b.String()
 }
 
 func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
