@@ -52,7 +52,12 @@ func TestScriptInfo(t *testing.T) {
 			stackstr = " (none)"
 		}
 
-		return fmt.Sprintf(`Definition: /%s/script.tm:%s
+		defstr := fmt.Sprintf("%s/script.tm:%s", path, loc)
+		if path != "" {
+			defstr = "/" + defstr
+		}
+
+		return fmt.Sprintf(`Definition: %s
 Description: "%s at /%s"
 Stacks:%s
 Jobs:
@@ -60,9 +65,10 @@ Jobs:
     ["echo","1b"]
   * ["echo","2"]
 
-`, path, loc, name, path, stackstr)
+`, defstr, name, path, stackstr)
 	}
 
+	addStackWithScripts("", []string{"root"})
 	addStackWithScripts("stacks/a", []string{"deploy", "other"})
 	addStackWithScripts("stacks/a/a1", []string{"other2"})
 	addStackWithScripts("stacks/a/a1/a2", []string{"deploy"})
@@ -95,6 +101,20 @@ Jobs:
 			dir:    "",
 			want: RunExpected{
 				Stdout: "",
+			},
+		},
+		{
+			script: "root",
+			dir:    "",
+			want: RunExpected{
+				Stdout: mkExpected("root", "", "1,1-12,5", []string{
+					"/",
+					"/stacks/a",
+					"/stacks/a/a1",
+					"/stacks/a/a1/a2",
+					"/stacks/b",
+					"/stacks/bb",
+				}),
 			},
 		},
 		{
