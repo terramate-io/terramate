@@ -30,6 +30,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `terramate experimental script list` to list scripts visible in current directory.
 - Add `terramate experimental script tree` to show a tree view of scripts visible in current directory.
 - Add `terramate experimental script info <scriptname>` to show details about a script.
+- Add `terramate experimental script run <scriptname>` to run a script in all relevant stacks.
 
 ### Fixed
 

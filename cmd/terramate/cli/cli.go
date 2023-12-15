@@ -229,6 +229,11 @@ type cliSpec struct {
 			Info struct {
 				Labels []string `arg:"" name:"labels" passthrough:"" help:"Name of the script"`
 			} `cmd:"" help:"Show detailed information about a script"`
+			Run struct {
+				NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
+				DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
+				Labels      []string `arg:"" name:"labels" passthrough:"" help:"Script to execute"`
+			} `cmd:"" help:"Run script in stacks"`
 		} `cmd:"" help:"Terramate Script commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -589,6 +594,11 @@ func (c *cli) run() {
 		c.printScriptTree()
 	case "experimental script info <labels>":
 		c.printScriptInfo()
+	case "experimental script run":
+		log.Fatal().Msg("no script specified")
+	case "experimental script run <labels>":
+		c.setupGit()
+		c.runScript()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
 	}
