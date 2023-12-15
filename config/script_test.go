@@ -213,6 +213,52 @@ func TestScriptEval(t *testing.T) {
 			wantErr: errors.E(config.ErrScriptInvalidTypeCommands),
 		},
 		{
+			name: "commands evaluating to empty list",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `[]`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptEmptyCmds),
+		},
+		{
+			name: "commands item evaluating to empty list",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `[
+							["echo", "hello"],
+							[],
+							["echo", "other"]
+						]`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptEmptyCmds),
+		},
+		{
+			name: "command evaluating to empty list",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Command: makeCommand(t, `[]`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptEmptyCmds),
+		},
+		{
 			name: "commands attribute with functions and globals",
 			script: hcl.Script{
 				Labels: labels,
