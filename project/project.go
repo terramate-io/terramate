@@ -65,8 +65,10 @@ func (p Path) HasPrefix(s string) bool {
 }
 
 // HasDirPrefix tests whether p begins with a directory prefix s.
-// s must not end with a trailing "/".
 func (p Path) HasDirPrefix(s string) bool {
+	if s == "/" {
+		return strings.HasPrefix(p.String(), "/")
+	}
 	return s == p.String() || strings.HasPrefix(p.String(), s+"/")
 }
 
