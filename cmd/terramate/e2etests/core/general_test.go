@@ -59,7 +59,7 @@ source = "%s"
 
 	cli := NewCLI(t, s.RootDir())
 	want := stack1.RelPath() + "\n"
-	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: want})
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{IgnoreStderr: true, Stdout: want})
 }
 
 func TestBugModuleMultipleFilesSameDir(t *testing.T) {
@@ -120,7 +120,7 @@ module "mod1" {
 
 	cli := NewCLI(t, s.RootDir())
 	want := stack.RelPath() + "\n"
-	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: want})
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{IgnoreStderr: true, Stdout: want})
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -147,7 +147,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.RelPath() + "\n"
-	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: wantList})
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{IgnoreStderr: true, Stdout: wantList})
 
 	wantRun := mainTfContents
 
@@ -158,7 +158,8 @@ func TestListAndRunChangedStack(t *testing.T) {
 		"cat",
 		mainTfFileName,
 	), RunExpected{
-		Stdout: wantRun,
+		IgnoreStderr: true,
+		Stdout:       wantRun,
 	})
 }
 
@@ -185,7 +186,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: wantList})
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{IgnoreStderr: true, Stdout: wantList})
 
 	wantRun := fmt.Sprintf(
 		"Running on changed stacks:\n[%s] running %s %s %s\n%s\n",
@@ -202,7 +203,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 		HelperPath,
 		"cat",
 		mainTfFileName,
-	), RunExpected{Stdout: wantRun})
+	), RunExpected{IgnoreStderr: true, Stdout: wantRun})
 }
 
 func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
@@ -226,7 +227,8 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	git.Commit("stack changed")
 
 	want := RunExpected{
-		Stdout: stack.RelPath() + "\n",
+		IgnoreStderr: true,
+		Stdout:       stack.RelPath() + "\n",
 	}
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
@@ -248,7 +250,8 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 
 	// main uses HEAD^ as default baseRef.
 	want := RunExpected{
-		Stdout: stack.RelPath() + "\n",
+		IgnoreStderr: true,
+		Stdout:       stack.RelPath() + "\n",
 	}
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
@@ -302,7 +305,8 @@ func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 	}
 
 	wantRes := RunExpected{
-		Stdout: wantStdout,
+		IgnoreStderr: true,
+		Stdout:       wantStdout,
 	}
 
 	AssertRunResult(t, ts.ListChangedStacks(), wantRes)
@@ -355,7 +359,7 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 
 	cli := NewCLI(t, "")
 	help := cli.Run("--help")
-	AssertRunResult(t, cli.Run(), RunExpected{Stdout: help.Stdout})
+	AssertRunResult(t, cli.Run(), RunExpected{IgnoreStderr: true, Stdout: help.Stdout})
 }
 
 func TestFailsIfDefaultRemoteDoesntHaveDefaultBranch(t *testing.T) {

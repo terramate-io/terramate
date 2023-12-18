@@ -896,6 +896,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a:wants=["/stack-a"]`,
 			},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 				),
@@ -908,6 +909,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -921,6 +923,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a`,
 			},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -935,6 +938,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -949,6 +953,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-b",
 				),
@@ -962,6 +967,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -977,6 +983,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -993,6 +1000,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -1012,6 +1020,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -1033,6 +1042,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-b",
 					"/stack-d",
@@ -1059,6 +1069,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -1087,6 +1098,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-b",
 					"/stack-d",
@@ -1124,6 +1136,7 @@ func TestRunWants(t *testing.T) {
 			wd:         "/stack-a",
 			filterTags: []string{"k8s"},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -1145,6 +1158,7 @@ func TestRunWants(t *testing.T) {
 			wd:           "/stack-a",
 			filterNoTags: []string{"infra"},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack-a",
 					"/stack-b",
@@ -1182,6 +1196,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/other-stack",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/other-stack",
 					"/stack",
@@ -1197,6 +1212,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack2",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack1",
 					"/stack2",
@@ -1212,6 +1228,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack2",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack1",
 					"/stack2",
@@ -1229,6 +1246,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack2",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack1",
 					"/stack2",
@@ -1245,6 +1263,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack1",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stack1",
 					"/stack2",
@@ -1261,6 +1280,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all/test/1",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/all/test/1",
 					"/stack",
@@ -1277,6 +1297,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all/2",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/all/2",
 					"/stack",
@@ -1293,6 +1314,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/all/1",
 					"/all/2",
@@ -1311,6 +1333,7 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all/1",
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/all/1",
 					"/all/2",
@@ -1330,6 +1353,7 @@ func TestRunWantedBy(t *testing.T) {
 			wd:         "/all/test/1",
 			filterTags: []string{"prod"},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/all/test/1",
 					"/stack",
@@ -1347,6 +1371,7 @@ func TestRunWantedBy(t *testing.T) {
 			wd:           "/all/test/1",
 			filterNoTags: []string{"dev"},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/all/test/1",
 					"/stack",
@@ -1387,6 +1412,7 @@ func TestRunWantedBy(t *testing.T) {
 			wd:         "/stacks",
 			filterTags: []string{"prod"},
 			want: RunExpected{
+				IgnoreStderr: true,
 				Stdout: nljoin(
 					"/stacks/stack-b",
 				),
@@ -1510,7 +1536,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		HelperPath,
 		"cat",
 		mainTfFileName,
-	), RunExpected{Stdout: wantRun})
+	), RunExpected{IgnoreStderr: true, Stdout: wantRun})
 
 	cli = NewCLI(t, stack.Path())
 	AssertRunResult(t, cli.Run(
@@ -1519,7 +1545,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		HelperPath,
 		"cat",
 		mainTfFileName,
-	), RunExpected{Stdout: wantRun})
+	), RunExpected{IgnoreStderr: true, Stdout: wantRun})
 
 	cli = NewCLI(t, filepath.Join(s.RootDir(), "stack2"))
 	AssertRunResult(t, cli.Run(
@@ -1552,7 +1578,7 @@ func TestRunReverseExecution(t *testing.T) {
 			HelperPath,
 			"cat",
 			testfile,
-		), RunExpected{Stdout: want})
+		), RunExpected{IgnoreStderr: true, Stdout: want})
 
 		AssertRunResult(t, cli.Run(
 			"run",
@@ -1561,7 +1587,7 @@ func TestRunReverseExecution(t *testing.T) {
 			HelperPath,
 			"cat",
 			testfile,
-		), RunExpected{Stdout: want})
+		), RunExpected{IgnoreStderr: true, Stdout: want})
 	}
 	addStack := func(stack string) {
 		s.BuildTree([]string{
@@ -1614,7 +1640,7 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.
 			baseArgs = append(baseArgs, "--tags", filter)
 		}
 		runArgs := append(baseArgs, "run", HelperPath, "cat", testfile)
-		AssertRunResult(t, cli.Run(runArgs...), RunExpected{Stdout: want})
+		AssertRunResult(t, cli.Run(runArgs...), RunExpected{IgnoreStderr: true, Stdout: want})
 
 		runChangedArgs := append(baseArgs, "run",
 			"--changed",
@@ -1623,7 +1649,11 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.
 			testfile,
 		)
 
-		AssertRunResult(t, cli.Run(runChangedArgs...), RunExpected{Stdout: want})
+		AssertRunResult(t, cli.Run(runChangedArgs...),
+			RunExpected{
+				IgnoreStderr: true,
+				Stdout:       want,
+			})
 	}
 
 	assertRun(".", "", nljoin("stack-1", "parent-stack", "stack-2"))
@@ -1668,7 +1698,10 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
-	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: wantList})
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{
+		IgnoreStderr: true,
+		Stdout:       wantList,
+	})
 
 	wantRun := fmt.Sprintf(
 		"%s%s",
@@ -1682,7 +1715,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		HelperPath,
 		"cat",
 		mainTfFileName,
-	), RunExpected{Stdout: wantRun})
+	), RunExpected{IgnoreStderr: true, Stdout: wantRun})
 }
 
 func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
@@ -1749,7 +1782,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			"cat",
 			mainTfFileName,
 		), RunExpected{
-			Stdout: mainTfContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfContents,
 		})
 	})
 
@@ -1771,7 +1805,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			"cat",
 			mainTfFileName,
 		), RunExpected{
-			Stdout: mainTfContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfContents,
 		})
 	})
 
@@ -1803,7 +1838,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			"cat",
 			mainTfFileName,
 		), RunExpected{
-			Stdout: mainTfContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfContents,
 		})
 	})
 }
@@ -1834,6 +1870,7 @@ func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
 		HelperPath,
 		"env",
 	), RunExpected{
+		IgnoreStderr: true,
 		IgnoreStdout: true,
 	})
 
@@ -1913,7 +1950,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			"cat",
 			generateFile,
 		), RunExpected{
-			Stdout: generateFileBody,
+			IgnoreStderr: true,
+			Stdout:       generateFileBody,
 		})
 
 		AssertRunResult(t, tmcli.Run(
@@ -1923,7 +1961,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			"cat",
 			generateFile,
 		), RunExpected{
-			Stdout: generateFileBody,
+			IgnoreStderr: true,
+			Stdout:       generateFileBody,
 		})
 	})
 
@@ -1931,10 +1970,12 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GEN_CODE=true")
 		AssertRunResult(t, tmcli.Run("run", "--changed", HelperPath, "cat", generateFile), RunExpected{
-			Stdout: generateFileBody,
+			IgnoreStderr: true,
+			Stdout:       generateFileBody,
 		})
 		AssertRunResult(t, tmcli.Run("run", HelperPath, "cat", generateFile), RunExpected{
-			Stdout: generateFileBody,
+			IgnoreStderr: true,
+			Stdout:       generateFileBody,
 		})
 	})
 
@@ -1955,10 +1996,12 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		git.Commit("commit root config")
 
 		AssertRunResult(t, tmcli.Run("run", "--changed", HelperPath, "cat", generateFile), RunExpected{
-			Stdout: generateFileBody,
+			IgnoreStderr: true,
+			Stdout:       generateFileBody,
 		})
 		AssertRunResult(t, tmcli.Run("run", HelperPath, "cat", generateFile), RunExpected{
-			Stdout: generateFileBody,
+			IgnoreStderr: true,
+			Stdout:       generateFileBody,
 		})
 	})
 }
@@ -1988,7 +2031,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		HelperPath,
 		"cat",
 		mainTfFileName,
-	), RunExpected{Stdout: mainTfInitialContents})
+	), RunExpected{IgnoreStderr: true, Stdout: mainTfInitialContents})
 
 	AssertRunResult(t, cli.Run(
 		"run",
@@ -1996,7 +2039,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		HelperPath,
 		"cat",
 		mainTfFileName,
-	), RunExpected{Stdout: mainTfInitialContents})
+	), RunExpected{IgnoreStderr: true, Stdout: mainTfInitialContents})
 
 	// make it uncommitted
 	file.Write(mainTfAlteredContents)
@@ -2043,7 +2086,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 			"cat",
 			mainTfFileName,
 		), RunExpected{
-			Stdout: mainTfAlteredContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfAlteredContents,
 		})
 
 		AssertRunResult(t, cli.Run(
@@ -2054,7 +2098,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 			"cat",
 			mainTfFileName,
 		), RunExpected{
-			Stdout: mainTfAlteredContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfAlteredContents,
 		})
 	})
 
@@ -2064,11 +2109,13 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 
 		AssertRunResult(t, cli.Run("run", HelperPath,
 			"cat", mainTfFileName), RunExpected{
-			Stdout: mainTfAlteredContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfAlteredContents,
 		})
 		AssertRunResult(t, cli.Run("--changed", "run", HelperPath,
 			"cat", mainTfFileName), RunExpected{
-			Stdout: mainTfAlteredContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfAlteredContents,
 		})
 	})
 
@@ -2092,12 +2139,14 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 			HelperPath,
 			"cat",
 			mainTfFileName), RunExpected{
-			Stdout: mainTfAlteredContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfAlteredContents,
 		})
 		AssertRunResult(t, cli.Run(
 			"--changed", "run", HelperPath,
 			"cat", mainTfFileName), RunExpected{
-			Stdout: mainTfAlteredContents,
+			IgnoreStderr: true,
+			Stdout:       mainTfAlteredContents,
 		})
 	})
 }
@@ -2126,7 +2175,8 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	AssertRunResult(t, tmcli.Run("run", HelperPath,
 		"cat", testFilename), RunExpected{
-		Stdout: contentsStack1 + contentsStack2,
+		IgnoreStderr: true,
+		Stdout:       contentsStack1 + contentsStack2,
 	})
 
 	stack1.CreateConfig(`
@@ -2177,7 +2227,7 @@ func TestRunLogsUserCommand(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 	cli.LogLevel = "info"
 	AssertRunResult(t, cli.Run("run", HelperPath, "cat", testfile.HostPath()), RunExpected{
-		StderrRegex: `cmd=`,
+		StderrRegex: `Executing command`,
 	})
 }
 
@@ -2242,14 +2292,16 @@ func TestRunNoRecursive(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 	AssertRunResult(t, cli.Run("run", HelperPath,
 		"cat", "file.txt"), RunExpected{
-		Stdout: `parentchild1child2`,
+		IgnoreStderr: true,
+		Stdout:       `parentchild1child2`,
 	})
 
 	cli = NewCLI(t, parent.Path())
 	AssertRunResult(t, cli.Run("run", "--no-recursive", HelperPath,
 		"cat", "file.txt"),
 		RunExpected{
-			Stdout: `parent`,
+			IgnoreStderr: true,
+			Stdout:       `parent`,
 		},
 	)
 
@@ -2257,7 +2309,8 @@ func TestRunNoRecursive(t *testing.T) {
 	AssertRunResult(t, cli.Run("run", "--no-recursive", HelperPath,
 		"cat", "file.txt"),
 		RunExpected{
-			Stdout: `child1`,
+			IgnoreStderr: true,
+			Stdout:       `child1`,
 		},
 	)
 
@@ -2365,7 +2418,8 @@ stack "/stack":
 `, exportedTerramateTest, stackGlobal, stackName, newTerramateOverriden)
 
 		AssertRunResult(t, tm.Run("experimental", "run-env"), RunExpected{
-			Stdout: want})
+			IgnoreStderr: true,
+			Stdout:       want})
 	})
 }
 

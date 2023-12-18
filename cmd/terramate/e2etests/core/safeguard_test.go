@@ -151,7 +151,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			HelperPath,
 			"cat",
 			file.HostPath(),
-		), RunExpected{Stdout: fileContents})
+		), RunExpected{IgnoreStderr: true, Stdout: fileContents})
 	})
 
 	t.Run("disable check_remote safeguard using env vars", func(t *testing.T) {
@@ -160,7 +160,8 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 
 		AssertRunResult(t, tmcli.Run("run", HelperPath,
 			"cat", file.HostPath()), RunExpected{
-			Stdout: fileContents,
+			IgnoreStderr: true,
+			Stdout:       fileContents,
 		})
 	})
 
@@ -216,7 +217,8 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 
 			AssertRunResult(t, tmcli.Run("run", HelperPath,
 				"cat", file.HostPath()), RunExpected{
-				Stdout: fileContents,
+				IgnoreStderr: true,
+				Stdout:       fileContents,
 			})
 		})
 
@@ -245,7 +247,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				HelperPath,
 				"cat",
 				file.HostPath(),
-			), RunExpected{Stdout: fileContents})
+			), RunExpected{IgnoreStderr: true, Stdout: fileContents})
 		})
 }
 
@@ -289,7 +291,8 @@ func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 		"cat",
 		stackFile.HostPath(),
 	), RunExpected{
-		Stdout: fileContents,
+		IgnoreStderr: true,
+		Stdout:       fileContents,
 	})
 }
 

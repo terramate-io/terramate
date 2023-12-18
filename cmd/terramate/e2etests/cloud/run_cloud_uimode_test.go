@@ -77,6 +77,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a deployment",
@@ -86,6 +89,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a drift",
@@ -95,6 +101,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a drift",
@@ -103,6 +112,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"run",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						IgnoreStderr: true,
 					},
 				},
 
@@ -112,8 +124,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
 					},
 				},
 				{
@@ -121,8 +134,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
 					},
 				},
 			},
@@ -239,6 +253,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a deployment",
@@ -248,6 +265,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a drift",
@@ -257,6 +277,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a drift",
@@ -265,6 +288,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"run",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						IgnoreStderr: true,
 					},
 				},
 
@@ -274,8 +300,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
 					},
 				},
 				{
@@ -283,8 +310,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
 					},
 				},
 			},
@@ -796,8 +824,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 				{
@@ -805,8 +834,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 			},
@@ -913,8 +943,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
 					},
 				},
 				{
@@ -922,8 +953,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
 					},
 				},
 			},
@@ -978,6 +1010,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a deployment",
@@ -987,6 +1022,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a drift",
@@ -996,6 +1034,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
+					want: RunExpected{
+						IgnoreStderr: true,
+					},
 				},
 				{
 					name:   "syncing a drift",
@@ -1004,6 +1045,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"run",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						IgnoreStderr: true,
 					},
 				},
 
@@ -1013,8 +1057,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 				{
@@ -1022,8 +1067,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
-						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						IgnoreStderr: true,
+						Status:       0,
+						Stdout:       "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
 					},
 				},
 			},

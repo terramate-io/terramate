@@ -33,7 +33,8 @@ func TestRunEval(t *testing.T) {
 				`%{ for i in tm_range(5) ~} some ${i} %{endfor}`,
 			},
 			want: RunExpected{
-				Stdout: "test ${tm_upper(\"hcl\")} %{ for i in tm_range(5) ~} some ${i} %{endfor}\n",
+				IgnoreStderr: true,
+				Stdout:       "test ${tm_upper(\"hcl\")} %{ for i in tm_range(5) ~} some ${i} %{endfor}\n",
 			},
 		},
 		{
@@ -44,7 +45,8 @@ func TestRunEval(t *testing.T) {
 				`terramate.stack.id`,
 			},
 			want: RunExpected{
-				Stdout: "terramate.stack.id\n",
+				IgnoreStderr: true,
+				Stdout:       "terramate.stack.id\n",
 			},
 		},
 		{
@@ -55,7 +57,8 @@ func TestRunEval(t *testing.T) {
 				`${terramate.stack.id}`,
 			},
 			want: RunExpected{
-				Stdout: "stackid\n",
+				IgnoreStderr: true,
+				Stdout:       "stackid\n",
 			},
 		},
 		{
@@ -67,7 +70,8 @@ func TestRunEval(t *testing.T) {
 				`%{ for i in tm_range(5) ~} some ${i} %{endfor}`,
 			},
 			want: RunExpected{
-				Stdout: "test HCL some 0 some 1 some 2 some 3 some 4 \n",
+				IgnoreStderr: true,
+				Stdout:       "test HCL some 0 some 1 some 2 some 3 some 4 \n",
 			},
 		},
 		{
@@ -79,7 +83,8 @@ func TestRunEval(t *testing.T) {
 				`%%{ for i in tm_range(5) ~} some $${i} %%{endfor}`,
 			},
 			want: RunExpected{
-				Stdout: "test ${tm_upper(\"hcl\")} %{ for i in tm_range(5) ~} some ${i} %{endfor}\n",
+				IgnoreStderr: true,
+				Stdout:       "test ${tm_upper(\"hcl\")} %{ for i in tm_range(5) ~} some ${i} %{endfor}\n",
 			},
 		},
 		{
@@ -108,7 +113,8 @@ func TestRunEval(t *testing.T) {
 				`\"`,
 			},
 			want: RunExpected{
-				Stdout: "\"\n",
+				IgnoreStderr: true,
+				Stdout:       "\"\n",
 			},
 		},
 		{

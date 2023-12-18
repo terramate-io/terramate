@@ -9,12 +9,14 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/render"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
@@ -159,7 +161,9 @@ func (c *cli) runOnStacks() {
 
 	err = c.RunAll(runStacks, isSuccessExit)
 	if err != nil {
-		fatal(err, "one or more commands failed")
+		render.NewText(c.stderr).
+			ErrorWithDetailsln("one or more commands failed", err)
+		os.Exit(1)
 	}
 }
 
@@ -236,7 +240,11 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 
-		logger.Info().Msg("running")
+		if !c.parsedArgs.Quiet {
+			text := render.NewText(c.stderr)
+			text.Println("terramate: Entering stack in " + runContext.Stack.String())
+			text.Println("terramate: Executing command " + strconv.Quote(cmdStr))
+		}
 
 		startTime := time.Now().UTC()
 
@@ -252,7 +260,6 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 			}
 			c.cloudSyncAfter(runContext, res, errors.E(err, ErrRunFailed))
 			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
-			logger.Error().Err(err).Msg("failed to execute")
 			if continueOnError {
 				continue
 			}
@@ -298,9 +305,8 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 				logSyncWait()
 				var err error
 				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
-					err = errors.E(result.err, ErrRunFailed, "running %s (at stack %s)", result.cmd, runContext.Stack.Dir)
+					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, runContext.Stack.Dir)
 					errs.Append(err)
-					logger.Error().Err(err).Msg("failed to execute")
 				}
 
 				res := RunResult{

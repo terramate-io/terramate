@@ -83,6 +83,7 @@ func TestRunLookPathFromStackEnviron(t *testing.T) {
 
 	AssertRunResult(t, tm.Run("run", "--", programName, "echo", "Hello from myscript"),
 		RunExpected{
-			Stdout: "Hello from myscript\n",
+			IgnoreStderr: true,
+			Stdout:       "Hello from myscript\n",
 		})
 }

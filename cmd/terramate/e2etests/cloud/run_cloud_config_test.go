@@ -84,7 +84,8 @@ func TestCloudConfig(t *testing.T) {
 				}`,
 			},
 			want: RunExpected{
-				Status: 0,
+				IgnoreStderr: true,
+				Status:       0,
 			},
 		},
 		{

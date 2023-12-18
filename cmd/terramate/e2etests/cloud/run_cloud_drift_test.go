@@ -226,6 +226,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				run: RunExpected{
+					IgnoreStderr: true,
+				},
 			},
 		},
 		{
@@ -239,8 +242,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			cmd:        []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: RunExpected{
-					Status: 0,
-					Stdout: "/parent/child\n",
+					Status:       0,
+					Stdout:       "/parent/child\n",
+					IgnoreStderr: true,
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
@@ -291,6 +295,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Status: drift.Drifted,
 						},
 					},
+				},
+				run: RunExpected{
+					IgnoreStderr: true,
 				},
 			},
 		},
@@ -378,6 +385,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 			want: want{
 				run: RunExpected{
+					IgnoreStderr: true,
 					StdoutRegexes: []string{
 						`Terraform used the selected providers to generate the following execution`,
 						`local_file.foo will be created`,
@@ -457,6 +465,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Status: drift.Drifted,
 						},
 					},
+				},
+				run: RunExpected{
+					IgnoreStderr: true,
 				},
 			},
 		},

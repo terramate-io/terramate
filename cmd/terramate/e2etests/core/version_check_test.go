@@ -94,6 +94,7 @@ func TestVersionCheck(t *testing.T) {
 			AssertRunResult(t, run(t, cmd, tm.Version()), RunExpected{
 				Status:       0,
 				IgnoreStdout: true,
+				IgnoreStderr: true,
 			})
 		})
 	}
