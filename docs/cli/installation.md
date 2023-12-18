@@ -65,13 +65,14 @@ asdf install terramate latest
 
 To install Terramate using a release binary, follow these steps:
 
-1. Visit the Terramate [download page](https://terramate.io/download) or locate the suitable package for your system on the [Terramate Releases page](https://github.com/terramate-io/terramate/releases).
+1. Visit the [Terramate Releases page](https://github.com/terramate-io/terramate/releases).
 
-2. Download the Terramate package.
+2. Download the appropriate package for your operating system and architecture.
 
-3. Unzip the downloaded package to extract the Terramate binary, which is named `terramate`. You can safely remove any other files in the package without affecting Terramate's functionality.
+3. Decompress the package somewhere in your disk. _Note: all files in the package other than `terramate` and `terramate-ls` can be safely deleted_.
 
-4. Ensure that the `terramate` binary is available on your PATH. The process for this will vary based on your operating system.
+4. Ensure that the `terramate` and `terramate-ls` binaries are available on your PATH. The process 
+for this will vary based on your operating system.
 
 ## Using Docker
 

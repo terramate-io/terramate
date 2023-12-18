@@ -244,6 +244,11 @@ func (tm CLI) Run(args ...string) RunResult {
 	}
 }
 
+// RunScript is a helper for executing `terramate run-script`.
+func (tm CLI) RunScript(args ...string) RunResult {
+	return tm.Run(append([]string{"experimental", "script", "run"}, args...)...)
+}
+
 // StacksRunOrder is a helper for executing `terramate experimental run-order`.
 func (tm CLI) StacksRunOrder(args ...string) RunResult {
 	return tm.Run(append([]string{"experimental", "run-order"}, args...)...)

@@ -18,6 +18,7 @@ const (
 	ErrScriptInvalidTypeDesc     errors.Kind = "invalid type for script.description"
 	ErrScriptInvalidTypeCommand  errors.Kind = "invalid type for script.command"
 	ErrScriptInvalidTypeCommands errors.Kind = "invalid type for script.commands"
+	ErrScriptEmptyCmds           errors.Kind = "job command or commands evaluated to empty list"
 )
 
 // ScriptJob represents an evaluated job block
@@ -110,6 +111,10 @@ func evalScriptJobCommand(evalctx *eval.Context, expr hhcl.Expression, name stri
 			"%s should be a list(string) type", name)
 	}
 
+	if val.LengthInt() == 0 {
+		return nil, errors.E(ErrScriptEmptyCmds, expr.Range())
+	}
+
 	errs := errors.L()
 	evaluatedCommand := []string{}
 
@@ -146,6 +151,10 @@ func evalScriptJobCommands(evalctx *eval.Context, expr hhcl.Expression, name str
 			"%s should be a list(string) type", name)
 	}
 
+	if val.LengthInt() == 0 {
+		return nil, errors.E(ErrScriptEmptyCmds, expr.Range())
+	}
+
 	errs := errors.L()
 	evaluatedCommands := [][]string{}
 
@@ -159,6 +168,10 @@ func evalScriptJobCommands(evalctx *eval.Context, expr hhcl.Expression, name str
 				"field %s must be a list of list(string) but element %d has type %q",
 				name, index, elem.Type().FriendlyName()))
 			continue
+		}
+
+		if elem.LengthInt() == 0 {
+			return nil, errors.E(ErrScriptEmptyCmds, expr.Range(), "commands item %d is empty", index)
 		}
 
 		evaluatedCommand := []string{}

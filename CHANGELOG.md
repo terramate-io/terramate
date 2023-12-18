@@ -26,6 +26,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add `terramate.config.experiments` configuration to enable experimental features.
 - Add support for statuses `ok, failed, drifted and healthy` to the `--experimental-status` flag.
+- Add experimental `script` configuration block.
+- Add `terramate experimental script list` to list scripts visible in current directory.
+- Add `terramate experimental script tree` to show a tree view of scripts visible in current directory.
+- Add `terramate experimental script info <scriptname>` to show details about a script.
+- Add `terramate experimental script run <scriptname>` to run a script in all relevant stacks.
 
 ### Fixed
 
