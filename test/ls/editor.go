@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	tmls "github.com/terramate-io/terramate/ls"
 	"github.com/terramate-io/terramate/test/sandbox"
 	"go.lsp.dev/jsonrpc2"
 	lsp "go.lsp.dev/protocol"
@@ -125,6 +126,15 @@ func (e *Editor) Change(path, content string) {
 		},
 	}, &changeResult)
 	assert.NoError(t, err, "call %q", lsp.MethodTextDocumentDidChange)
+}
+
+// Command invokes the provided command in the LSP server.
+func (e *Editor) Command(cmd lsp.ExecuteCommandParams) (interface{}, error) {
+	t := e.t
+	t.Helper()
+	var cmdResult interface{}
+	_, err := e.call(tmls.MethodExecuteCommand, cmd, &cmdResult)
+	return cmdResult, err
 }
 
 // DefaultInitializeResult is the default server response for the initialization

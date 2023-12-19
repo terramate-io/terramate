@@ -6,8 +6,11 @@ package test
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
 )
 
 // AssertStackImports checks that the given stack has all the wanted import
@@ -44,5 +47,13 @@ checkImports:
 			}
 		}
 		t.Errorf("wanted import %s not found", wantImport)
+	}
+}
+
+// AssertStacks asserts that s1 and s2 are equal.
+func AssertStacks(t testing.TB, got, want config.Stack) {
+	t.Helper()
+	if diff := cmp.Diff(got, want, cmp.AllowUnexported(project.Path{})); diff != "" {
+		t.Fatalf("diff (-got, +want): %s", diff)
 	}
 }
