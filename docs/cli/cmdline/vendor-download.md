@@ -1,19 +1,13 @@
 ---
 title: terramate vendor download - Command
 description: With the terramate vendor download command you can vendor a dependency.
-
-prev:
-  text: 'Trigger'
-  link: '/cli/cmdline/trigger'
-
-next:
-  text: 'Version'
-  link: '/cli/cmdline/version'
 ---
 
 # Vendor Download
 
-**Note:** This is an experimental command that is likely subject to change in the future.
+::: warning
+This is an experimental command and is likely subject to change in the future.
+:::
 
 The `vendor download` command vendors dependencies such as Terraform modules.
 

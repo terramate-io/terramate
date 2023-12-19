@@ -1,22 +1,16 @@
 ---
 title: terramate partial-eval - Command
 description: With the terramate partial-eval command you can partially evaluate a Terramate expression.
-
-prev:
-  text: 'Metadata'
-  link: '/cli/cmdline/metadata'
-
-next:
-  text: 'Run Env'
-  link: '/cli/cmdline/run-env'
 ---
 
 # Partial Eval
 
-**Note:** This is an experimental command that is likely subject to change in the future.
+::: warning
+This is an experimental command and is likely subject to change in the future.
+:::
 
 The `partial-eval` command allows you to fully evaluate a Terramate expression. The difference to [`eval`](./eval.md) is
-that partial eval does not evaluate [functions](../functions/index.md).
+that partial eval does not evaluate [functions](../code-generation/functions/index.md).
 
 ## Usage
 

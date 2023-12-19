@@ -1,14 +1,6 @@
 ---
 title: terramate create - Command
 description: With the terramate create command you can create a new stack in the current project.
-
-prev:
-  text: 'Cloud Login'
-  link: '/cli/cmdline/cloud-login'
-
-next:
-  text: 'Eval'
-  link: '/cli/cmdline/eval'
 ---
 
 # Create
@@ -50,7 +42,7 @@ terramate create --all-terraform
 
 This is helpful when you want to onboard Terramate in an existing
 Terraform project. `--all-terraform` will create a Terramate configuration
-file in every Terraform directory that contain a `terraform.backend` block or `provider` blocks.
+file in every Terraform directory that contains a `terraform.backend` block or `provider` blocks.
 
 ## Options
 
@@ -62,5 +54,5 @@ file in every Terraform directory that contain a `terraform.backend` block or `p
 - `--after=LIST`, `--before=LIST` Define an explicit [order of execution](../orchestration/index.md#explicit-order-of-execution). LIST can contain relative paths `../path/to/stack` and/or tags `tag:my-tag`. These options can be used multiple times.
 - `--ignore-existing` If the stack already exists do nothing and don't fail.
 - `--all-terraform` Initialize Terramate in all directories containing `terraform.backend` blocks.
-- `--ensure-stack-ids` Ensures that every stack has an UUID.
+- `--ensure-stack-ids` Ensures that every stack has a UUID.
 - `--no-generate` Disable code generation for the newly created stack.

@@ -1,14 +1,6 @@
 ---
 title: Terramate Language Server (terramate-ls)
 description: Learn how to use the Language Server
-
-prev:
-  text: 'Editor Plugins'
-  link: '/cli/editor-plugins/index.md'
-
-next:
-  text: 'Guides & Examples'
-  link: '/cli/guides/'
 ---
 
 # Language Server (`terramate-ls`)

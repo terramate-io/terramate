@@ -1,19 +1,13 @@
 ---
 title: terramate metadata - Command
 description: With the terramate metadata command you can see a list of stacks and their metadata.
-
-prev:
-  text: 'List'
-  link: '/cli/cmdline/list'
-
-next:
-  text: 'Partial Eval'
-  link: '/cli/cmdline/partial-eval'
 ---
 
 # Metadata
 
-**Note:** This is an experimental command that is likely subject to change in the future.
+::: warning
+This is an experimental command and is likely subject to change in the future.
+:::
 
 The `metadata` command prints information stacks and their metadata in the current directory recursively. 
 

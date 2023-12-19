@@ -1,14 +1,6 @@
 ---
 title: terramate script info - Command
 description: The script info command gives you information about a script
-
-prev:
-  text: 'Run'
-  link: '/cli/cmdline/run'
-
-next:
-  text: 'Script List'
-  link: '/cli/cmdline/script/list'
 ---
 
 # Script Info

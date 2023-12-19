@@ -1,14 +1,6 @@
 ---
 title: How to Install
-description: You can easily install Terramate with Go or package managers such as brew. You can also run Terramate with Docker by building on top of our pre-configured image.
-
-prev:
-  text: "Introduction"
-  link: "/cli/introduction"
-
-next:
-  text: "Quickstart"
-  link: "/cli/getting-started/"
+description: Learn how to install Terramate with Go or package managers such as brew. You can also run Terramate with Docker by building on top of our pre-configured image.
 ---
 
 # Installation
@@ -16,25 +8,17 @@ next:
 The Terramate project distributes two binaries:
 
 - `terramate`: The CLI tool that we love.
-- `terramate-ls`: The Terramate Language Server.
-
-The _Language Server_ is only needed if you want to integrate some linting in your editor/IDE.
+- `terramate-ls`: The Terramate Language Server to integrate Terramate into your IDE.
 
 ## Using Go
 
-For installing versions greater than `v0.2.18`, please run:
+For installing Terramate with Go, please run:
 
 ```sh
 go install github.com/terramate-io/terramate/cmd/...@<version>
 ```
 
-For older versions, the command below is required (see [this](https://github.com/golang/go/issues/50278#issuecomment-1567386638) issue for the reason):
-
-```sh
-go install github.com/mineiros-io/terramate/cmd/...@<version>
-```
-
-Where `<version>` is any terramate [version tag](https://github.com/terramate-io/terramate/tags),
+Where `<version>` is any Terramate [version tag](https://github.com/terramate-io/terramate/tags),
 or you can just install the **latest** release:
 
 ```sh
@@ -56,12 +40,12 @@ You can install Terramate on macOS using [Homebrew](https://formulae.brew.sh/for
 
 You can install Terramate using [asdf](https://asdf-vm.com/):
 
-```
+```sh
 asdf plugin add terramate
 asdf install terramate latest
 ```
 
-## Using Release Binaries
+## Using release binaries
 
 To install Terramate using a release binary, follow these steps:
 
@@ -69,12 +53,12 @@ To install Terramate using a release binary, follow these steps:
 
 2. Download the appropriate package for your operating system and architecture.
 
-3. Decompress the package somewhere in your disk. _Note: all files in the package other than `terramate` and `terramate-ls` can be safely deleted_.
+3. Decompress the package somewhere on your disk. _Note: all files in the package other than `terramate` and `terramate-ls` can be safely deleted_.
 
-4. Ensure that the `terramate` and `terramate-ls` binaries are available on your PATH. The process 
-for this will vary based on your operating system.
+4. Ensure that the `terramate` and `terramate-ls` binaries are available to your `PATH`.
+The process for this will vary based on your operating system.
 
-## Using Docker
+## Using docker
 
 If you prefer not to install Terramate directly on your host system,
 you can use either [Docker](https://www.docker.com/) or [Podman](https://podman.io/) to run Terramate within a container.
@@ -88,8 +72,11 @@ docker run ghcr.io/terramate-io/terramate
 We also provide container images tagged with specific release versions.
 To view a list of available container image tags, visit this [link](https://github.com/terramate-io/terramate/pkgs/container/terramate/versions).
 
-**Note:** Our image doesn't come with additional dependencies such as Terraform. We recommend building
-your own image by using our image as the base image to install additional dependencies required.
+::: info
+Our image doesn't come with additional dependencies such as Terraform. We recommend
+building your own image by using our image as the base image to install additional
+dependencies required.
+:::
 
 We recommend mounting your Terramate project as a Docker mount volume to use it inside the container.
 Depending on your setup, you should set the correct permissions when running the container.
@@ -100,9 +87,8 @@ docker run -it -u $(id -u ${USER}):$(id -g ${USER}) \
   ghcr.io/terramate-io/terramate:latest -C /some/repo --changed run -- cmd
 ```
 
-## Auto Completion
-
-Terramate supports autocompletion of commands for _bash_, _zsh_ and _fish_. To
+## Auto completion
+Terramate supports the autocompletion of commands for _bash_, _zsh_ and _fish_. To
 install the completion just run the command below and open a new shell session:
 
 ```sh

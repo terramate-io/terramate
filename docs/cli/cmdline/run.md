@@ -1,14 +1,6 @@
 ---
 title: terramate run - Command
 description: With the terramate run command you can execute any command in a single or a list of stacks.
-
-prev:
-  text: 'Run Order'
-  link: '/cli/cmdline/run-order'
-
-next:
-  text: 'Script Info'
-  link: '/cli/cmdline/script/info'
 ---
 
 # Run
@@ -90,7 +82,7 @@ When using `--eval` the arguments can reference `terramate`, `global` and `tm_` 
 
 The `terramate` block at the project root can be used to customize
 the default exported environment variables in the
-[terramate.config.run.env](../configuration/project-config.md#the-terramateconfigrunenv-block).
+[terramate.config.run.env](../projects/configuration.md#the-terramateconfigrunenv-block).
 
 It's also possible to set a different `PATH` environment variable and
 in this case, Terramate will honor it when looking up the program's

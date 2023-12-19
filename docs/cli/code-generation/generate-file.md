@@ -1,47 +1,111 @@
 ---
 title: Generate Files
-description: Learn how to use the Code Generation in Terramate to generate arbitrary text files referencing Terramate defined data.
-
-prev:
-  text: 'Generate HCL'
-  link: '/cli/code-generation/generate-hcl'
-
-next:
-  text: 'Functions'
-  link: '/cli/functions/'
+description: Learn how to use Terramate to generate files such as JSON or YAML.
 ---
 
-# File Generation
+# File Code Generation
 
-Terramate supports the generation of arbitrary text files referencing
-[Terramate defined data](../data-sharing/index.md).
+Terramate supports the generation of arbitrary files such as JSON or YAML referencing data such as
+[Variables](./variables/index.md) and [Metadata](./variables/metadata.md).
 
-File generation is done using `generate_file` blocks in [Terramate configuration files](../configuration/index.md).
+## The `generate_file` block
 
-Each `generate_file` block requires a single label that is the path
-where the generated file will be saved.
-For more details about how code generation use labels check the [Labels Overview](index.md#labels) docs.
+File code generation is done using `generate_file` blocks in Terramate configuration files.
+References to Terramate globals and metadata are evaluated.
 
-The block has an optional **`context`** attribute which overrides the [generation context](index.md#generation-context).
+```hcl
+generate_file "hello_world.json" {
+  content = tm_jsonencode({"hello" = "${global.world}"})
+}
+```
 
-The **`content`** attribute defines the string that will be written on the file.
+The label of the `generate_file` block names the file that will be generated.
+Terramate Variables (`let`, `global`, and `terramate` namespaces) and all [Terramate Functions](./functions/index.md)
+are supported when defining labels. For more details about how code generation uses labels check the [Labels Overview](./index.md#labels) docs.
 
-The value of the **`content`** has access to different Terramate features
-depending on the `context` defined.
 
-For `context=root` it has access to:
+### Argument reference of the `generate_file` block
 
-- Terramate Project Metadata references `terramate.root.*` and `terramate.stacks.*`
-- [Terramate function](../functions/#terramate-functions) calls `tm_*(...)`
-- Expressions using string interpolation `"${}"`
+- `context` *(optional string)* The `context` attributes that override the [generation](./index.md#generation-context) context](index.md#generation-context)
+- `content` *(required string)* The `content` argument defines the string that will be generated as the content of the file.
+  The value of the **`content`** has access to different Terramate features
+  depending on the `context` defined.
 
-and for `context=stack` (the default), it has access to everything that `root`
-have plus the features below:
+  For `context=root` it has access to:
 
-- Terramate Global references `global.*`
-- Terramate Stack Metadata references `terramate.stack.*`
+  - Terramate Project Metadata references `terramate.root.*` and `terramate.stacks.*`
+  - [Terramate function](./functions/index.md) calls `tm_*(...)`
+  - Expressions using string interpolation `"${}"`
 
-The final evaluated value of the **`content`** attribute **must** be a valid string.
+  and for `context=stack` (the default), it has access to everything that `root` has plus the features below:
+
+  - Terramate Global references `global.*`
+  - Terramate Stack Metadata references `terramate.stack.*`
+
+  The final evaluated value of the **`content`** attribute **must** be a valid string.
+
+
+  ```hcl
+  content = <<-EOF
+    Hello World!
+  EOF
+  ```
+
+- `lets` *(optional block)* One or more `lets` blocks can be used to define [temporary variables](./variables/lets.md)
+  that can be used in other arguments within the `generate_file` block and in the `content` block.
+
+  ```hcl
+  lets {
+    temp_a_plus_b = global.a + global.b
+  }
+  ```
+
+- `stack_filter` *(optional block)* Stack filter allow to filter stacks where the code generation should be executed.
+  Currently, only path-based filters are available but tag-based filters are coming soon. Stack filters do neither support
+  Terramate Functions nor Terramate Variables. For advanced filtering of stacks based on additional conditions and complex
+  expressions please use `condition` argument. `stack_filter` blocks have precedence over `conditions` and will be executed
+  first for performance reasons. A stack will only be selected for code generation if any `stack_filter` is `true` and the
+  `condition` is `true` too.
+
+  Each `stack_filter` block supports one or more of the following arguments. When specifying more attributes, all need to
+  be `true` to mark the `stack_filter` block as `true`.
+  - `project_paths` *(optional list of strings)* A list of patterns matched against the absolute project path of the stack.
+  The patterns support globbing but no regular expressions. Any matched path in the list will mark the project path filter as `true`.
+  - `repository_paths` *(optional list of strings)* A list of patterns matched against the absolute repository path of the
+  stack. The patterns support globbing but no regular expressions. Any matched path in the list will mark the repository path filter as `true`.
+
+  ```hcl
+  stack_filter {
+    project_paths = [
+      "/path/to/specific/stack", # match exact path
+      "/path/to/some/stacks/*",  # match stacks in a directory
+      "/path/to/many/stacks/**", # match all stacks within a tree
+    ]
+  }
+  ```
+- `condition` *(optional boolean)* The `condition` attribute supports any expression that renders to a boolean.
+  Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
+  Variables are evaluated with the stack context (see  Lazy Evaluation)
+  If the condition is `true` and any `stack_filter` (if defined) is `true` the stack is selected for generating the code.
+  As evaluating the condition for multiple stacks can be slow, using `stack_filter` for path-based generation is recommended.
+
+  ```hcl
+  condition = tm_anytrue([
+     tm_contains(terramate.stack.tags, "my-tag"), # only render if tag is set
+     tm_try(global.render_stack, false), # only render if `render_stack` is `true`
+  ])
+  ```
+
+- `assert` *(optional block)* One or more `assert` blocks can be used to prevent wrong configurations in code generation
+  assertion can be set to guarantee all preconditions for generating code are satisfied.
+  Each `assert` block supports the following arguments:
+    - `assertion` *(required boolean)* When the boolean expression is `false` the assertion is triggered and the
+    `message` is printed to the user. Terramate Variables (`let`, `global`, and `terramate` namespaces) and all
+    Terramate Functions are supported.
+    - `message` *(required string)* A descriptive message to present to the user to inform about the causes that made an
+    assertion fail. Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
+    - `warning` (optional boolean) When set to `true` the code generation will not fail, but a warning is issued to the user.
+    Default is `false`. Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
 
 ## Generating different file types
 
@@ -53,7 +117,7 @@ generate_file "hello_world.json" {
 }
 ```
 
-### Generating an YAML file
+### Generating a YAML file
 
 ```hcl
 generate_file "hello_world.yml" {
@@ -63,7 +127,7 @@ generate_file "hello_world.yml" {
 
 ### Generating arbitrary text
 
-It is possible ot use [strings and templates](https://www.terraform.io/language/expressions/strings#strings-and-templates) as known form Terraform.
+It is possible to use [strings and templates](https://www.terraform.io/language/expressions/strings#strings-and-templates) as known from Terraform.
 
 ```hcl
 generate_file "hello_world.json" {
@@ -78,47 +142,3 @@ generate_file "hello_world.json" {
   EOT
 }
 ```
-
-## Hierarchical Code Generation
-
-A `generate_file` block can be defined on any level within a projects hierarchy:
-Within a stack or in any parent level up to the root of the projects.
-
-There is no overriding or merging behavior for `generate_file` blocks.
-Blocks defined at different levels with the same label aren't allowed, resulting
-in failure of the overall code generation process.
-
-This behavior might change in future versions of Terramate.
-
-## Conditional Code Generation
-
-Conditional code generation is achieved by the use of the `condition` attribute.
-The `condition` attribute should always evaluate to a boolean.
-
-The file will be generated only if it evaluates to **`true`**.
-
-The default value of the `condition` attribute is `true`.
-
-Any expression that produces a boolean can be used, including references
-to globals and function calls. For example:
-
-```hcl
-generate_file "file" {
-  condition = tm_length(global.list) > 0
-
-  content = "file contents"
-}
-```
-
-Will only generate the file for stacks that the expression
-`tm_length(global.list) > 0` evaluates to true.
-
-Other useful conditions include:
-
-- `tm_can(global.myvariable)` -> generate when `global.myvariable` is set to any value
-- `tm_try(global.myboolean, false)` -> generate when `global.myboolean` exists and is`true`.
-- `tm_try(global.myvariable != null, false)` -> generate when `global.myvariable` is set and not`null`.
-
-When `condition` is `false` the `generate_file` block won't be evaluated, no file will be created, but any existing file with that name will be removed.
-
-So using `condition = false` will ensure a file is deleted e.g. if previously created by Terramate.

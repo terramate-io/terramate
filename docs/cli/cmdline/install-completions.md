@@ -1,14 +1,6 @@
 ---
 title: terramate install-completions - Command
 description: With the terramate install-completions command you can install some handy shell completions for the Terramate CLI.
-
-prev:
-  text: 'Globals'
-  link: '/cli/cmdline/globals'
-
-next:
-  text: 'List'
-  link: '/cli/cmdline/list'
 ---
 
 # Install Completions
