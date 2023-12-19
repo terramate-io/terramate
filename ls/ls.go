@@ -23,6 +23,9 @@ import (
 	"go.lsp.dev/uri"
 )
 
+// MethodExecuteCommand is the LSP method name for invoking server commands.
+const MethodExecuteCommand = "workspace/executeCommand"
+
 // Server is the Language Server.
 type Server struct {
 	conn      jsonrpc2.Conn
@@ -65,6 +68,9 @@ func (s *Server) buildHandlers() {
 		lsp.MethodTextDocumentDidChange:  s.handleDocumentChange,
 		lsp.MethodTextDocumentDidSave:    s.handleDocumentSaved,
 		lsp.MethodTextDocumentCompletion: s.handleCompletion,
+
+		// commands
+		MethodExecuteCommand: s.handleExecuteCommand,
 	}
 }
 
