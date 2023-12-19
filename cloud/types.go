@@ -40,7 +40,7 @@ type (
 
 	// MemberOrganization represents the organization associated with the member.
 	MemberOrganization struct {
-		MemberID    int    `json:"member_id,omitempty"`
+		MemberID    int64  `json:"member_id,omitempty"`
 		Name        string `json:"org_name"`
 		DisplayName string `json:"org_display_name"`
 		Domain      string `json:"org_domain"`
@@ -51,7 +51,7 @@ type (
 
 	// StackResponse represents a stack in the Terramate Cloud.
 	StackResponse struct {
-		ID int `json:"stack_id"`
+		ID int64 `json:"stack_id"`
 		Stack
 		Status           stack.Status      `json:"status"`
 		DeploymentStatus deployment.Status `json:"deployment_status"`
@@ -99,7 +99,7 @@ type (
 
 	// DeploymentStackResponse represents the deployment creation response item.
 	DeploymentStackResponse struct {
-		StackID     int               `json:"stack_id"`
+		StackID     int64             `json:"stack_id"`
 		StackMetaID string            `json:"meta_id"`
 		Status      deployment.Status `json:"status"`
 	}
@@ -120,7 +120,7 @@ type (
 
 	// Drift represents the drift information for a given stack.
 	Drift struct {
-		ID       int                 `json:"id"`
+		ID       int64               `json:"id"`
 		Status   drift.Status        `json:"status"`
 		Details  *DriftDetails       `json:"drift_details,omitempty"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
@@ -229,7 +229,7 @@ type (
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
 	UpdateDeploymentStack struct {
-		StackID int               `json:"stack_id"`
+		StackID int64             `json:"stack_id"`
 		Status  deployment.Status `json:"status"`
 	}
 

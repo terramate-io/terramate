@@ -80,7 +80,7 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var stackIDs []int
+	var stackIDs []int64
 	res := cloud.DeploymentStacksResponse{}
 	for _, s := range rPayload.Stacks {
 		state := cloudstore.NewState()

@@ -45,7 +45,7 @@ type (
 		UserUUID cloud.UUID `json:"user_uuid"`
 		Role     string     `json:"role"`
 		Status   string     `json:"status"`
-		MemberID int        // implicit from the members list position index.
+		MemberID int64      // implicit from the members list position index.
 		Org      *Org       // back-pointer set while retrieving memberships.
 	}
 	// Stack is the stack representation.
@@ -66,7 +66,7 @@ type (
 	// Deployment model.
 	Deployment struct {
 		UUID          cloud.UUID                     `json:"uuid"`
-		Stacks        []int                          `json:"stacks"`
+		Stacks        []int64                        `json:"stacks"`
 		Workdir       string                         `json:"workdir"`
 		StackCommands map[string]string              `json:"stack_commands"`
 		DeploymentURL string                         `json:"deployment_url,omitempty"`
@@ -77,13 +77,13 @@ type (
 	}
 	// DeploymentState is the state of a deployment.
 	DeploymentState struct {
-		StackStatus       map[int]deployment.Status    `json:"stacks_status"`
-		StackStatusEvents map[int][]deployment.Status  `json:"stacks_events"`
-		StackLogs         map[int]cloud.DeploymentLogs `json:"stacks_logs"`
+		StackStatus       map[int64]deployment.Status    `json:"stacks_status"`
+		StackStatusEvents map[int64][]deployment.Status  `json:"stacks_events"`
+		StackLogs         map[int64]cloud.DeploymentLogs `json:"stacks_logs"`
 	}
 	// Drift model.
 	Drift struct {
-		ID          int                       `json:"id"`
+		ID          int64                     `json:"id"`
 		StackMetaID string                    `json:"stack_meta_id"`
 		Status      drift.Status              `json:"status"`
 		Details     *cloud.DriftDetails       `json:"details"`
@@ -216,29 +216,29 @@ outer:
 }
 
 // GetStackByMetaID returns the given stack.
-func (d *Data) GetStackByMetaID(org Org, id string) (Stack, int, bool) {
+func (d *Data) GetStackByMetaID(org Org, id string) (Stack, int64, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for i, st := range org.Stacks {
 		if st.Stack.MetaID == id {
-			return st, i, true
+			return st, int64(i), true
 		}
 	}
 	return Stack{}, 0, false
 }
 
 // GetStack by id.
-func (d *Data) GetStack(org Org, id int) (Stack, bool) {
+func (d *Data) GetStack(org Org, id int64) (Stack, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	if id < 0 || id >= len(org.Stacks) {
+	if id < 0 || id >= int64(len(org.Stacks)) {
 		return Stack{}, false
 	}
 	return org.Stacks[id], true
 }
 
 // UpsertStack inserts or updates the given stack.
-func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int, error) {
+func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int64, error) {
 	org, found := d.GetOrg(orguuid)
 	if !found {
 		return 0, errors.E(ErrNotExists, "org uuid %s", orguuid)
@@ -271,7 +271,7 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int, error) {
 	org = d.Orgs[org.Name]
 	org.Stacks = append(org.Stacks, st)
 	d.Orgs[org.Name] = org
-	return len(org.Stacks) - 1, nil
+	return int64(len(org.Stacks) - 1), nil
 }
 
 // GetDeployment returns the given deployment.
@@ -287,7 +287,7 @@ func (d *Data) GetDeployment(org *Org, id cloud.UUID) (*Deployment, bool) {
 }
 
 // GetStackDrifts returns the drifts of the provided stack.
-func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int) ([]Drift, error) {
+func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int64) ([]Drift, error) {
 	org, found := d.GetOrg(orguuid)
 	if !found {
 		return nil, errors.E(ErrNotExists, "org uuid %s", orguuid)
@@ -300,7 +300,7 @@ func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int) ([]Drift, error) 
 	defer d.mu.RUnlock()
 	var drifts []Drift
 	for i, drift := range org.Drifts {
-		drift.ID = i // lazy set, then can be unset in HCL
+		drift.ID = int64(i) // lazy set, then can be unset in HCL
 		if drift.StackMetaID == st.MetaID {
 			drifts = append(drifts, drift)
 		}
@@ -320,9 +320,9 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 		return errors.E(ErrAlreadyExists, "deployment uuid %s", string(deploy.UUID))
 	}
 
-	deploy.State.StackStatus = make(map[int]deployment.Status)
-	deploy.State.StackLogs = make(map[int]cloud.DeploymentLogs)
-	deploy.State.StackStatusEvents = make(map[int][]deployment.Status)
+	deploy.State.StackStatus = make(map[int64]deployment.Status)
+	deploy.State.StackLogs = make(map[int64]cloud.DeploymentLogs)
+	deploy.State.StackStatusEvents = make(map[int64][]deployment.Status)
 	for _, stackID := range deploy.Stacks {
 		deploy.State.StackStatusEvents[stackID] = append(deploy.State.StackStatusEvents[stackID], deployment.Pending)
 	}
@@ -348,7 +348,7 @@ func (d *Data) InsertDrift(orgID cloud.UUID, drift Drift) (int, error) {
 }
 
 // SetDeploymentStatus sets the given deployment stack to the given status.
-func (d *Data) SetDeploymentStatus(org Org, deploymentID cloud.UUID, stackID int, status deployment.Status) error {
+func (d *Data) SetDeploymentStatus(org Org, deploymentID cloud.UUID, stackID int64, status deployment.Status) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	deployment, exists := org.Deployments[deploymentID]
