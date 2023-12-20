@@ -7,8 +7,8 @@ prev:
   link: '/cli/cmdline/'
 
 next:
-  text: 'Guides & Examples'
-  link: '/cli/guides/'
+  text: 'Language Server'
+  link: '/cli/editor-plugins/language-server.md'
 ---
 
 # Editor Plugins

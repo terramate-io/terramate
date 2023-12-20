@@ -15,13 +15,13 @@ import (
 	"net/http/httputil"
 	"os"
 	"path"
-	"strconv"
 
 	hversion "github.com/apparentlymart/go-versions/versions"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
 	"github.com/terramate-io/terramate/versions"
 )
 
@@ -144,15 +144,15 @@ func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, metaID string
 }
 
 // StackDrifts returns the drifts of the given stack.
-func (c *Client) StackDrifts(ctx context.Context, orgUUID UUID, stackID int, page, perPage int) (DriftsStackPayloadResponse, error) {
-	path := path.Join(StacksPath, string(orgUUID), strconv.Itoa(stackID), "drifts")
+func (c *Client) StackDrifts(ctx context.Context, orgUUID UUID, stackID int64, page, perPage int) (DriftsStackPayloadResponse, error) {
+	path := path.Join(StacksPath, string(orgUUID), strconv.Itoa64(stackID), "drifts")
 	path += fmt.Sprintf("?page=%d&per_page=%d", page, perPage)
 	return Get[DriftsStackPayloadResponse](ctx, c, path)
 }
 
 // DriftDetails retrieves details of the given driftID.
-func (c *Client) DriftDetails(ctx context.Context, orgUUID UUID, stackID int, driftID int) (Drift, error) {
-	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa(stackID), strconv.Itoa(driftID))
+func (c *Client) DriftDetails(ctx context.Context, orgUUID UUID, stackID, driftID int64) (Drift, error) {
+	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa64(stackID), strconv.Itoa64(driftID))
 	return Get[Drift](ctx, c, path)
 }
 
@@ -207,7 +207,7 @@ func (c *Client) CreateStackDrift(
 func (c *Client) SyncDeploymentLogs(
 	ctx context.Context,
 	orgUUID UUID,
-	stackID int,
+	stackID int64,
 	deploymentUUID UUID,
 	logs DeploymentLogs,
 ) error {
@@ -218,7 +218,7 @@ func (c *Client) SyncDeploymentLogs(
 	// Endpoint:/v1/stacks/{org_uuid}/{stack_id}/deployments/{deployment_uuid}/logs
 	_, err = Post[EmptyResponse](
 		ctx, c, logs,
-		StacksPath, string(orgUUID), strconv.Itoa(stackID), "deployments", string(deploymentUUID), "logs",
+		StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", string(deploymentUUID), "logs",
 	)
 	return err
 }

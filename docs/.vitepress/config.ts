@@ -267,6 +267,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Overview', link: '/cli/editor-plugins/index' },
+            { text: 'Language Server', link: '/cli/editor-plugins/language-server' },
           ],
         },
         // {
