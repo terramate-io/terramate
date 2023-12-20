@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -508,10 +509,11 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	res, err := cloud.Request[cloud.DriftStackPayloadRequests](ctx, &cloud.Client{
+	client := &cloud.Client{
 		BaseURL:    "http://" + tmcAddr,
 		Credential: &credential{},
-	}, "GET", cloud.DriftsPath+"/"+string(cloudData.MustOrgByName("terramate").UUID), nil)
+	}
+	res, err := cloud.Request[cloud.DriftStackPayloadRequests](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
 	assert.NoError(t, err)
 
 	if len(expectedDrifts) != len(res) {

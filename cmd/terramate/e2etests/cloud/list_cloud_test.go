@@ -6,6 +6,8 @@ package cloud_test
 import (
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -19,19 +21,21 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
+type listCloudTestcase struct {
+	name       string
+	layout     []string
+	repository string
+	stacks     []cloudstore.Stack
+	flags      []string
+	workingDir string
+	perPage    int
+	want       RunExpected
+}
+
 func TestCloudListUnhealthy(t *testing.T) {
 	t.Parallel()
-	type testcase struct {
-		name       string
-		layout     []string
-		repository string
-		stacks     []cloudstore.Stack
-		flags      []string
-		workingDir string
-		want       RunExpected
-	}
 
-	for _, tc := range []testcase{
+	for _, tc := range []listCloudTestcase{
 		{
 			name:       "local repository is not permitted with --experimental-status=",
 			layout:     []string{"s:s1:id=s1"},
@@ -333,6 +337,9 @@ func TestCloudListUnhealthy(t *testing.T) {
 				Stdout: nljoin("s1", "s2"),
 			},
 		},
+		paginationTestcase(10), // default per_page
+		paginationTestcase(3),
+		paginationTestcase(17),
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -360,11 +367,49 @@ func TestCloudListUnhealthy(t *testing.T) {
 			}
 			env := RemoveEnv(os.Environ(), "CI")
 			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+			if tc.perPage != 0 {
+				env = append(env, "TMC_API_PAGESIZE="+strconv.Itoa(tc.perPage))
+			}
 			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
 			args := []string{"list"}
 			args = append(args, tc.flags...)
 			result := cli.Run(args...)
 			AssertRunResult(t, result, tc.want)
 		})
+	}
+}
+
+func paginationTestcase(perPage int) listCloudTestcase {
+	const nstacks = 100
+
+	var layout []string
+	var stacks []cloudstore.Stack
+	var names []string
+	for i := 1; i <= nstacks; i++ {
+		stackname := "s" + strconv.Itoa(i)
+		names = append(names, stackname)
+		layout = append(layout, "stack:"+stackname+":id="+stackname)
+		stacks = append(stacks, cloudstore.Stack{
+			Stack: cloud.Stack{
+				MetaID:     stackname,
+				Repository: "github.com/terramate-io/terramate",
+			},
+			State: cloudstore.StackState{
+				Status:           stack.Failed,
+				DeploymentStatus: deployment.Failed,
+				DriftStatus:      drift.OK,
+			},
+		})
+	}
+	sort.Strings(names)
+	return listCloudTestcase{
+		name:    "paginated case",
+		layout:  layout,
+		stacks:  stacks,
+		perPage: perPage,
+		flags:   []string{`--experimental-status=unhealthy`},
+		want: RunExpected{
+			Stdout: nljoin(names...),
+		},
 	}
 }

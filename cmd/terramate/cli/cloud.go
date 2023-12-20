@@ -273,7 +273,7 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 
 	// stack is drifted
-	driftsResp, err := c.cloud.client.StackDrifts(ctx, c.cloud.run.orgUUID, stackResp.ID, 1, 1)
+	driftsResp, err := c.cloud.client.StackLastDrift(ctx, c.cloud.run.orgUUID, stackResp.ID)
 	if err != nil {
 		fatal(err)
 	}

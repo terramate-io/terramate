@@ -995,7 +995,7 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 		}
 
 		cloudStacksMap := map[string]bool{}
-		for _, stack := range cloudStacks.Stacks {
+		for _, stack := range cloudStacks {
 			if stack.Repository == repository {
 				cloudStacksMap[stack.MetaID] = true
 			}
