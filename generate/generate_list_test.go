@@ -168,13 +168,19 @@ func TestGeneratedFilesListing(t *testing.T) {
 			},
 		},
 		{
-			name: "ignores dot dirs and files",
+			// https://github.com/terramate-io/terramate/issues/1260
+			// dotfiles should not be ignored if not inside a .tmskip
+			name: "regression test: should not ignore dotdirs and dotfiles",
 			layout: []string{
 				genfile(".name.tf"),
 				genfile(".dir/1.tf"),
 				genfile(".dir/2.tf"),
 			},
-			want: []string{},
+			want: []string{
+				".name.tf",
+				".dir/1.tf",
+				".dir/2.tf",
+			},
 		},
 	}
 
