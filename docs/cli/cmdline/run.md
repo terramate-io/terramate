@@ -7,8 +7,8 @@ prev:
   link: '/cli/cmdline/run-order'
 
 next:
-  text: 'Trigger'
-  link: '/cli/cmdline/trigger'
+  text: 'Script Info'
+  link: '/cli/cmdline/script/info'
 ---
 
 # Run
