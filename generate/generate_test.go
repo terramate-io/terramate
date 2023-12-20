@@ -123,6 +123,144 @@ func TestGenerateIgnore(t *testing.T) {
 				},
 			},
 		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1260
+			// dotfiles should not be ignored if not inside a .tmskip
+			name: "regression test: dot files snould not be skipped when scanning files",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".directory/file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".directory/.file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".directory/.file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".directory/file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels("/.root-file"),
+						Expr("context", "root"),
+						Str("content", "root context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels("/.directory/root-file"),
+						Expr("context", "root"),
+						Str("content", "root context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels("/.directory/.root-file"),
+						Expr("context", "root"),
+						Str("content", "root context"),
+						Bool("condition", true),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"/.root-file":            stringer("root context"),
+						"/.directory/.root-file": stringer("root context"),
+						"/.directory/root-file":  stringer("root context"),
+					},
+				},
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						".file":                stringer("stack context"),
+						".directory/.file":     stringer("stack context"),
+						".directory/file":      stringer("stack context"),
+						".file.hcl":            stringer(`data = "data"`),
+						".directory/.file.hcl": stringer(`data = "data"`),
+						".directory/file.hcl":  stringer(`data = "data"`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{".root-file"},
+					},
+					{
+						Dir: project.NewPath("/.directory"),
+						Created: []string{
+							".root-file",
+							"root-file",
+						},
+					},
+					{
+						Dir: project.NewPath("/stack"),
+						Created: []string{
+							".directory/.file",
+							".directory/.file.hcl",
+							".directory/file",
+							".directory/file.hcl",
+							".file",
+							".file.hcl",
+						},
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -744,12 +882,12 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				t.Helper()
 
 				for _, wantDesc := range tcase.want {
-					stackRelPath := wantDesc.dir[1:]
-					stack := s.StackEntry(stackRelPath)
+					dirRelPath := wantDesc.dir[1:]
+					dirEntry := s.DirEntry(dirRelPath)
 
-					for name, wantFiles := range wantDesc.files {
-						want := wantFiles.String()
-						got := stack.ReadFile(name)
+					for name, wantContent := range wantDesc.files {
+						want := wantContent.String()
+						got := dirEntry.ReadFile(name)
 
 						test.AssertGenCodeEquals(t, got, want)
 					}
