@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"strconv"
+
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -19,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
 )
 
 func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
@@ -116,7 +117,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 
 		if filter(st) {
 			resp.Stacks = append(resp.Stacks, cloud.StackResponse{
-				ID:               id,
+				ID:               int64(id),
 				Stack:            st.Stack,
 				Status:           st.State.Status,
 				DeploymentStatus: st.State.DeploymentStatus,
@@ -177,7 +178,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	stackid, err := strconv.Atoi(stackIDStr)
+	stackid, err := strconv.Atoi64(stackIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
@@ -190,7 +191,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 		return
 	}
 	stacks := org.Stacks
-	if stackid < 0 || stackid >= len(stacks) {
+	if stackid < 0 || stackid >= int64(len(stacks)) {
 		w.WriteHeader(http.StatusNotFound)
 		writeErr(w, errors.E("stack not found"))
 		return
@@ -233,13 +234,13 @@ func GetDeploymentLogsEvents(store *cloudstore.Data, w http.ResponseWriter, _ *h
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	stackid, err := strconv.Atoi(stackIDStr)
+	stackid, err := strconv.Atoi64(stackIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
 	}
 	stacks := org.Stacks
-	if stackid < 0 || stackid >= len(stacks) {
+	if stackid < 0 || stackid >= int64(len(stacks)) {
 		w.WriteHeader(http.StatusNotFound)
 		writeErr(w, errors.E("stack not found"))
 		return
@@ -277,7 +278,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	stackid, err := strconv.Atoi(stackIDStr)
+	stackid, err := strconv.Atoi64(stackIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
@@ -292,7 +293,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 	}
 
 	stacks := org.Stacks
-	if stackid < 0 || stackid >= len(stacks) {
+	if stackid < 0 || stackid >= int64(len(stacks)) {
 		w.WriteHeader(http.StatusNotFound)
 		writeErr(w, errors.E("stack not found"))
 		return
@@ -327,7 +328,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 // GetStackDrifts implements the /v1/stacks/:orguuid/:stackid/drifts endpoint.
 func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
 	orguuid := cloud.UUID(params.ByName("orguuid"))
-	stackid, err := strconv.Atoi(params.ByName("stackid"))
+	stackid, err := strconv.Atoi64(params.ByName("stackid"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, errors.E(err, "invalid stackid"))
