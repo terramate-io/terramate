@@ -39,6 +39,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		runflags   []string
 		skipIDGen  bool
 		workingDir string
+		env        []string
+		cloudData  *cloudstore.Data
 		cmd        []string
 		want       want
 	}
@@ -158,6 +160,114 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:     "setting TM_CLOUD_ORGANIZATION",
+			layout:   []string{"s:stack"},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env:      []string{"TM_CLOUD_ORGANIZATION=terramate"},
+			cloudData: &cloudstore.Data{
+				Orgs: map[string]cloudstore.Org{
+					"terramate": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Name:        "terramate",
+						DisplayName: "Terramate",
+						Domain:      "terramate.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+					"mineiros": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeaf0001",
+						Name:        "mineiros",
+						DisplayName: "Mineiros",
+						Domain:      "mineiros.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+				},
+				Users: map[string]cloud.User{
+					"batman": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Email:       "batman@terramate.io",
+						DisplayName: "Batman",
+						JobTitle:    "Entrepreneur",
+					},
+				},
+			},
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					Stdout: "/stack\n",
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name:     "organization is case insensitive",
+			layout:   []string{"s:stack"},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env:      []string{"TM_CLOUD_ORGANIZATION=TerraMate"},
+			cloudData: &cloudstore.Data{
+				Orgs: map[string]cloudstore.Org{
+					"terramate": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Name:        "terramate",
+						DisplayName: "Terramate",
+						Domain:      "terramate.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+					"mineiros": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeaf0001",
+						Name:        "mineiros",
+						DisplayName: "Mineiros",
+						Domain:      "mineiros.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+				},
+				Users: map[string]cloud.User{
+					"batman": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Email:       "batman@terramate.io",
+						DisplayName: "Batman",
+						JobTitle:    "Entrepreneur",
+					},
+				},
+			},
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					Stdout: "/stack\n",
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
 			name: "only stacks inside working dir are synced",
 			layout: []string{
 				"s:parent",
@@ -201,8 +311,12 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
+			cloudData := tc.cloudData
+			if cloudData == nil {
+				var err error
+				cloudData, err = cloudstore.LoadDatastore(testserverJSONFile)
+				assert.NoError(t, err)
+			}
 			addr := startFakeTMCServer(t, cloudData)
 
 			s := sandbox.New(t)
@@ -232,6 +346,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 
 			env := RemoveEnv(os.Environ(), "CI")
 			env = append(env, "TMC_API_URL=http://"+addr)
+			env = append(env, tc.env...)
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 
 			uuid, err := uuid.NewRandom()

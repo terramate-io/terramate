@@ -148,7 +148,7 @@ func (c *cli) setupCloudConfig() error {
 	if useOrgName != "" {
 		var useOrgUUID cloud.UUID
 		for _, org := range orgs {
-			if org.Name == useOrgName {
+			if strings.EqualFold(org.Name, useOrgName) {
 				if org.Status != "active" && org.Status != "trusted" {
 					logger.Error().
 						Msgf("You are not yet an active member of organization %s. Please accept the invitation first.", useOrgName)
