@@ -42,7 +42,7 @@ type cloudConfig struct {
 		runUUID cloud.UUID
 		orgUUID cloud.UUID
 
-		meta2id       map[string]int
+		meta2id       map[string]int64
 		reviewRequest *cloud.DeploymentReviewRequest
 		metadata      *cloud.DeploymentMetadata
 	}
@@ -107,7 +107,7 @@ func (c *cli) checkCloudSync() {
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.cloud.run.meta2id = make(map[string]int)
+		c.cloud.run.meta2id = make(map[string]int64)
 		uuid, err := generateRunID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)
