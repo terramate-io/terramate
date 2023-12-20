@@ -35,6 +35,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - fix(generate): blocks with context=root were ignored if defined in stacks.
+- fix(generate): dot files were ignored while detecting existent files.
 
 ## 0.4.3
 
