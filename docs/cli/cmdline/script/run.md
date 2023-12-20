@@ -13,7 +13,7 @@ next:
 
 # Script Run
 
-**Note:** This is an experimental command that is likely subject to change in the future.
+**Note:** This is an upcoming experimental feature that is subject to change in the future. To use it now, you must enable the project config option `terramate.config.experiments = ["scripts"]`
 
 The `script run LABEL...` command will run a Terramate script over a set of stacks. The `LABEL` (one or more) needs to exactly match the labels defined in the `script` block:
 
