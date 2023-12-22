@@ -13,7 +13,7 @@ next:
 
 # Script Info
 
-**Note:** This is an experimental command that is likely subject to change in the future.
+**Note:** This is an upcoming experimental feature that is subject to change in the future. To use it now, you must enable the project config option `terramate.config.experiments = ["scripts"]`
 
 The `script info LABEL...` command lists details about all script definitions matching the given LABELs (see [script run](./run) command for details about matching labels). The information provided by `script info` includes:
 
