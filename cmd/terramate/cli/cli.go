@@ -497,6 +497,10 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
+	if parsedArgs.Changed && !prj.hasCommits() {
+		log.Fatal().Msg("flag --changed provided but repository has no commits")
+	}
+
 	uimode := HumanMode
 	if val := os.Getenv("CI"); envVarIsSet(val) {
 		uimode = AutomationMode
@@ -615,17 +619,18 @@ func (c *cli) run() {
 }
 
 func (c *cli) setupGit() {
-	if c.prj.isRepo && c.parsedArgs.Changed {
+	if !c.parsedArgs.Changed || !c.prj.isGitFeaturesEnabled() {
+		return
+	}
 
-		if err := c.prj.checkDefaultRemote(); err != nil {
-			fatal(err, "checking git default remote")
-		}
+	if err := c.prj.checkDefaultRemote(); err != nil {
+		fatal(err, "checking git default remote")
+	}
 
-		if c.parsedArgs.GitChangeBase != "" {
-			c.prj.baseRef = c.parsedArgs.GitChangeBase
-		} else {
-			c.prj.baseRef = c.prj.defaultBaseRef()
-		}
+	if c.parsedArgs.GitChangeBase != "" {
+		c.prj.baseRef = c.parsedArgs.GitChangeBase
+	} else {
+		c.prj.baseRef = c.prj.defaultBaseRef()
 	}
 }
 
@@ -867,7 +872,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 }
 
 func (c *cli) checkGitUntracked() bool {
-	if c.parsedArgs.DisableCheckGitUntracked {
+	if !c.prj.isGitFeaturesEnabled() || c.parsedArgs.DisableCheckGitUntracked {
 		return false
 	}
 
@@ -888,7 +893,7 @@ func (c *cli) checkGitUntracked() bool {
 }
 
 func (c *cli) checkGitUncommited() bool {
-	if c.parsedArgs.DisableCheckGitUncommitted {
+	if !c.prj.isGitFeaturesEnabled() || c.parsedArgs.DisableCheckGitUncommitted {
 		return false
 	}
 
@@ -949,7 +954,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 		Bool("is_enabled", c.gitSafeguardRemoteEnabled()).
 		Logger()
 
-	if !c.prj.isRepo || !c.gitSafeguardRemoteEnabled() {
+	if !c.gitSafeguardRemoteEnabled() {
 		logger.Debug().Msg("Safeguard default-branch-is-reachable is disabled.")
 		return
 	}
@@ -1874,7 +1879,7 @@ func (c *cli) checkOutdatedGeneratedCode() {
 }
 
 func (c *cli) gitSafeguardRemoteEnabled() bool {
-	if c.parsedArgs.Run.DisableCheckGitRemote {
+	if !c.prj.isGitFeaturesEnabled() || c.parsedArgs.Run.DisableCheckGitRemote {
 		return false
 	}
 
@@ -2108,10 +2113,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	gw, err := newGit(wd, false)
 	if err == nil {
-
 		gitdir, err := gw.Root()
 		if err == nil {
-
 			gitabs := gitdir
 			if !filepath.IsAbs(gitabs) {
 				gitabs = filepath.Join(wd, gitdir)
