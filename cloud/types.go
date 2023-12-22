@@ -49,8 +49,8 @@ type (
 		Status      string `json:"status"`
 	}
 
-	// StackResponse represents a stack in the Terramate Cloud.
-	StackResponse struct {
+	// StackObject represents a stack object in the Terramate Cloud.
+	StackObject struct {
 		ID int64 `json:"stack_id"`
 		Stack
 		Status           stack.Status      `json:"status"`
@@ -83,7 +83,8 @@ type (
 
 	// StacksResponse represents the stacks object response.
 	StacksResponse struct {
-		Stacks []StackResponse `json:"stacks"`
+		Stacks     []StackObject   `json:"stacks"`
+		Pagination PaginatedResult `json:"paginated_result"`
 	}
 
 	// DeploymentStackRequest represents the stack object of the request payload
@@ -131,7 +132,8 @@ type (
 
 	// DriftsStackPayloadResponse is the payload returned when listing stack drifts.
 	DriftsStackPayloadResponse struct {
-		Drifts Drifts `json:"drifts"`
+		Drifts     Drifts          `json:"drifts"`
+		Pagination PaginatedResult `json:"paginated_result"`
 	}
 
 	// DriftStackPayloadRequest is the payload for the drift sync.
@@ -252,6 +254,13 @@ type (
 		Message   string     `json:"message"`
 	}
 
+	// PaginatedResult represents the pagination object.
+	PaginatedResult struct {
+		Total   int64 `json:"total"`
+		Page    int64 `json:"page"`
+		PerPage int64 `json:"per_page"`
+	}
+
 	// UUID represents an UUID string.
 	UUID string
 )
@@ -268,7 +277,7 @@ var (
 	_ = Resource(User{})
 	_ = Resource(MemberOrganization{})
 	_ = Resource(MemberOrganizations{})
-	_ = Resource(StackResponse{})
+	_ = Resource(StackObject{})
 	_ = Resource(StacksResponse{})
 	_ = Resource(DeploymentStackRequest{})
 	_ = Resource(DeploymentStackRequests{})
@@ -345,7 +354,7 @@ func (org MemberOrganization) Validate() error {
 }
 
 // Validate the stack entity.
-func (stack StackResponse) Validate() error {
+func (stack StackObject) Validate() error {
 	if stack.MetaID == "" {
 		return errors.E(`missing "meta_id" field`)
 	}
@@ -363,7 +372,7 @@ func (stacksResp StacksResponse) Validate() error {
 			return err
 		}
 	}
-	return nil
+	return stacksResp.Pagination.Validate()
 }
 
 // Validate the deployment stack request.
@@ -445,7 +454,12 @@ func (d DriftStackPayloadRequest) Validate() error {
 func (ds DriftStackPayloadRequests) Validate() error { return validateResourceList(ds...) }
 
 // Validate the drifts list response payload.
-func (ds DriftsStackPayloadResponse) Validate() error { return validateResourceList(ds.Drifts...) }
+func (ds DriftsStackPayloadResponse) Validate() error {
+	if err := ds.Pagination.Validate(); err != nil {
+		return err
+	}
+	return validateResourceList(ds.Drifts...)
+}
 
 // Validate the drift details.
 func (ds DriftDetails) Validate() error {
@@ -536,6 +550,14 @@ func validateResourceList[T Resource](resources ...T) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// Validate the "paginate_result" field.
+func (p PaginatedResult) Validate() error {
+	if p.Page == 0 {
+		return errors.E(`field "paginated_result.page" is zero or absent`)
 	}
 	return nil
 }
