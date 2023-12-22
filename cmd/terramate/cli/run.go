@@ -99,6 +99,7 @@ func (c *cli) runOnStacks() {
 		config.ReverseStacks(orderedStacks)
 	}
 
+	stdErrWriter := render.NewText(c.stderr)
 	var runStacks []ExecContext
 	for _, st := range orderedStacks {
 		run := ExecContext{
@@ -106,7 +107,11 @@ func (c *cli) runOnStacks() {
 			Cmd:   c.parsedArgs.Run.Command,
 		}
 		if c.parsedArgs.Run.Eval {
-			run.Cmd = c.evalRunArgs(run.Stack, run.Cmd)
+			run.Cmd, err = c.evalRunArgs(run.Stack, run.Cmd)
+			if err != nil {
+				stdErrWriter.ErrorWithDetailsln("unable to evaluate command", err)
+				os.Exit(1)
+			}
 		}
 		runStacks = append(runStacks, run)
 	}
@@ -147,8 +152,7 @@ func (c *cli) runOnStacks() {
 
 	err = c.RunAll(runStacks, isSuccessExit)
 	if err != nil {
-		render.NewText(c.stderr).
-			ErrorWithDetailsln("one or more commands failed", err)
+		stdErrWriter.ErrorWithDetailsln("one or more commands failed", err)
 		os.Exit(1)
 	}
 }

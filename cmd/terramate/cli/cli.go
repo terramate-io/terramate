@@ -1700,26 +1700,29 @@ func (c *cli) partialEval() {
 	}
 }
 
-func (c *cli) evalRunArgs(st *config.Stack, cmd []string) []string {
+func (c *cli) evalRunArgs(st *config.Stack, cmd []string) ([]string, error) {
 	ctx := c.setupEvalContext(st, map[string]string{})
 	var newargs []string
 	for _, arg := range cmd {
 		exprStr := `"` + arg + `"`
 		expr, err := ast.ParseExpression(exprStr, "<cmd arg>")
 		if err != nil {
-			fatal(err, "parsing %s", exprStr)
+			return nil, errors.E(err, "parsing %s", exprStr)
+			// fatal(err, "parsing %s", exprStr)
 		}
 		val, err := ctx.Eval(expr)
 		if err != nil {
-			fatal(err, "eval %q", exprStr)
+			// fatal(err, "eval %q", exprStr)
+			return nil, errors.E(err, "eval %q", exprStr)
 		}
 		if !val.Type().Equals(cty.String) {
-			fatal(errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName()))
+			// fatal(errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName()))
+			return nil, errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName())
 		}
 
 		newargs = append(newargs, val.AsString())
 	}
-	return newargs
+	return newargs, nil
 }
 
 func (c *cli) getConfigValue() {

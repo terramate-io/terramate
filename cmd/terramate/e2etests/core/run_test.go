@@ -2006,6 +2006,60 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 }
 
+func TestRunOutput(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		name    string
+		runArgs []string
+		want    RunExpected
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "run without eval",
+			runArgs: []string{HelperPath, "echo", "hello"},
+			want: RunExpected{
+				Stderr: "terramate: Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: Executing command "%s echo hello"`, HelperPath) + "\n",
+				Stdout: "hello\n",
+			},
+		},
+		{
+			name:    "run with eval",
+			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			want: RunExpected{
+				Stderr: "terramate: Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: Executing command "%s echo stack"`, HelperPath) + "\n",
+				Stdout: "stack\n",
+			},
+		},
+		{
+			name:    "run with eval with error",
+			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.abcabc}"},
+			want: RunExpected{
+				Stderr: "Error: unable to evaluate command" + "\n" +
+					`-> <cmd arg>:1,19-26: eval expression: eval "\"${terramate.stack.abcabc}\"": This object does not have an attribute named "abcabc"` + ".\n",
+				Stdout: "",
+				Status: 1,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			_ = s.CreateStack("stack")
+			git := s.Git()
+			git.CommitAll("first commit")
+			cli := NewCLI(t, s.RootDir())
+			AssertRunResult(t,
+				cli.Run(append([]string{"run"}, tc.runArgs...)...),
+				tc.want,
+			)
+		})
+	}
+
+}
+
 func TestRunDryRun(t *testing.T) {
 	t.Parallel()
 
