@@ -2006,6 +2006,50 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 }
 
+func TestRunDryRun(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		name    string
+		runArgs []string
+		want    RunExpected
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "dryrun without eval",
+			runArgs: []string{"--dry-run", HelperPath, "echo", "hello"},
+			want: RunExpected{
+				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo hello"`, HelperPath) + "\n",
+				Stdout: "",
+			},
+		},
+		{
+			name:    "dryrun with eval",
+			runArgs: []string{"--dry-run", "--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			want: RunExpected{
+				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo stack"`, HelperPath) + "\n",
+				Stdout: "",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			_ = s.CreateStack("stack")
+			git := s.Git()
+			git.CommitAll("first commit")
+			cli := NewCLI(t, s.RootDir())
+			AssertRunResult(t,
+				cli.Run(append([]string{"run"}, tc.runArgs...)...),
+				tc.want,
+			)
+		})
+	}
+
+}
+
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	t.Parallel()
 
@@ -2073,6 +2117,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		"cat",
 		mainTfFileName,
 	), RunExpected{
+		IgnoreStderr: true,
 		IgnoreStdout: true,
 	})
 

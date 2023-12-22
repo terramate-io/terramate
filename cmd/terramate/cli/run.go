@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -96,21 +97,6 @@ func (c *cli) runOnStacks() {
 
 	if c.parsedArgs.Run.Reverse {
 		config.ReverseStacks(orderedStacks)
-	}
-
-	if c.parsedArgs.Run.DryRun {
-		if len(orderedStacks) > 0 {
-			c.output.MsgStdOut("The stacks will be executed using order below:")
-
-			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.Dir().String())
-				c.output.MsgStdOut("\t%d. %s (%s)", i, s.Name, stackdir)
-			}
-		} else {
-			c.output.MsgStdOut("No stacks will be executed.")
-		}
-
-		return
 	}
 
 	var runStacks []ExecContext
@@ -218,6 +204,21 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 			c.cloudSyncCancelStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
+
+		if !c.parsedArgs.Quiet {
+			text := render.NewText(c.stderr)
+			prefix := "terramate:"
+			if c.parsedArgs.Run.DryRun {
+				prefix = fmt.Sprintf("%s (dry-run)", prefix)
+			}
+			text.Println(prefix + " Entering stack in " + runContext.Stack.String())
+			text.Println(prefix + " Executing command " + strconv.Quote(cmdStr))
+		}
+
+		if c.parsedArgs.Run.DryRun {
+			return nil
+		}
+
 		cmd := exec.Command(cmdPath, runContext.Cmd[1:]...)
 		cmd.Dir = runContext.Stack.HostDir(c.cfg())
 		cmd.Env = environ
@@ -239,12 +240,6 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		cmd.Stdin = c.stdin
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
-
-		if !c.parsedArgs.Quiet {
-			text := render.NewText(c.stderr)
-			text.Println("terramate: Entering stack in " + runContext.Stack.String())
-			text.Println("terramate: Executing command " + strconv.Quote(cmdStr))
-		}
 
 		startTime := time.Now().UTC()
 
