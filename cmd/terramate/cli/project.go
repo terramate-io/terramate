@@ -78,6 +78,15 @@ func (p *project) localDefaultBranchCommit() string {
 	return val
 }
 
+func (p *project) isGitFeaturesEnabled() bool {
+	return p.isRepo && p.hasCommits()
+}
+
+func (p *project) hasCommits() bool {
+	_, err := p.git.wrapper.RevParse("HEAD")
+	return err == nil
+}
+
 func (p *project) headCommit() string {
 	if p.git.headCommit != "" {
 		return p.git.headCommit
