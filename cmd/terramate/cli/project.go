@@ -29,6 +29,10 @@ type project struct {
 		localDefaultBranchCommit  string
 		remoteDefaultBranchCommit string
 
+		baseRefConfigured bool
+		remoteConfigured  bool
+		branchConfigured  bool
+
 		repoChecks stack.RepoChecks
 	}
 }
@@ -79,11 +83,16 @@ func (p *project) localDefaultBranchCommit() string {
 }
 
 func (p *project) isGitFeaturesEnabled() bool {
-	return p.isRepo && p.hasCommits()
+	return p.isRepo && p.hasCommit()
+}
+
+func (p *project) hasCommit() bool {
+	_, err := p.git.wrapper.RevParse("HEAD")
+	return err == nil
 }
 
 func (p *project) hasCommits() bool {
-	_, err := p.git.wrapper.RevParse("HEAD")
+	_, err := p.git.wrapper.RevParse("HEAD^")
 	return err == nil
 }
 
@@ -156,6 +165,19 @@ func (p *project) defaultBaseRef() string {
 	return p.defaultBranchRef()
 }
 
+// defaultLocalBaseRef returns the baseRef in case there's no remote setup.
+func (p *project) defaultLocalBaseRef() string {
+	git := p.gitcfg()
+	if p.isDefaultBranch() {
+		_, err := p.git.wrapper.RevParse(git.DefaultBranchBaseRef)
+		if err == nil {
+			return git.DefaultBranchBaseRef
+		}
+	}
+
+	return git.DefaultBranch
+}
+
 func (p project) defaultBranchRef() string {
 	git := p.gitcfg()
 	return git.DefaultRemote + "/" + git.DefaultBranch
@@ -190,15 +212,18 @@ func (p *project) setDefaults() error {
 
 	gitOpt := cfg.Terramate.Config.Git
 
-	if gitOpt.DefaultBranchBaseRef == "" {
+	p.git.baseRefConfigured = gitOpt.DefaultBranchBaseRef != ""
+	if !p.git.baseRefConfigured {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
 	}
 
-	if gitOpt.DefaultBranch == "" {
+	p.git.branchConfigured = gitOpt.DefaultBranch != ""
+	if !p.git.branchConfigured {
 		gitOpt.DefaultBranch = defaultBranch
 	}
 
-	if gitOpt.DefaultRemote == "" {
+	p.git.remoteConfigured = gitOpt.DefaultRemote != ""
+	if !p.git.remoteConfigured {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 
