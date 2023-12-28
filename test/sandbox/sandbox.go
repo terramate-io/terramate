@@ -486,9 +486,9 @@ func (de DirEntry) Chmod(relpath string, mode stdfs.FileMode) {
 // ReadFile will read a file inside this dir entry with the given name.
 // It will fail the test if the file doesn't exist, since it assumes an
 // expectation on the file being there.
-func (de DirEntry) ReadFile(name string) string {
+func (de DirEntry) ReadFile(name string) []byte {
 	de.t.Helper()
-	return string(test.ReadFile(de.t, de.abspath, name))
+	return test.ReadFile(de.t, de.abspath, name)
 }
 
 // RemoveFile will delete a file inside this dir entry with the given name.

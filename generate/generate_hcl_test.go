@@ -1692,7 +1692,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	})
 }
 
-func TestGenerateHCLCleanupOldFilesDONTIgnoreDotDirs(t *testing.T) {
+func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.NoGit(t, true)
@@ -1701,12 +1701,7 @@ func TestGenerateHCLCleanupOldFilesDONTIgnoreDotDirs(t *testing.T) {
 	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
 	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.Header)
 
-	assertEqualReports(t, s.Generate(), generate.Report{
-		Successes: []generate.Result{
-			{Dir: project.NewPath("/.another"), Deleted: []string{"test.tf"}},
-			{Dir: project.NewPath("/.terramate"), Deleted: []string{"test.tf"}},
-		},
-	})
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
