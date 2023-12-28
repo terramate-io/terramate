@@ -497,8 +497,12 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
-	if parsedArgs.Changed && !prj.hasCommits() {
+	if parsedArgs.Changed && !prj.hasCommit() {
 		log.Fatal().Msg("flag --changed provided but repository has no commits")
+	}
+
+	if parsedArgs.Changed && !prj.hasCommits() {
+		log.Fatal().Msg("flag --changed requires a repository with at least two commits")
 	}
 
 	uimode := HumanMode
@@ -623,12 +627,20 @@ func (c *cli) setupGit() {
 		return
 	}
 
+	remoteCheckFailed := false
+
 	if err := c.prj.checkDefaultRemote(); err != nil {
-		fatal(err, "checking git default remote")
+		if c.prj.git.remoteConfigured {
+			fatal(err, "checking git default remote")
+		} else {
+			remoteCheckFailed = true
+		}
 	}
 
 	if c.parsedArgs.GitChangeBase != "" {
 		c.prj.baseRef = c.parsedArgs.GitChangeBase
+	} else if remoteCheckFailed {
+		c.prj.baseRef = c.prj.defaultLocalBaseRef()
 	} else {
 		c.prj.baseRef = c.prj.defaultBaseRef()
 	}
