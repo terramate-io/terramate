@@ -19,4 +19,4 @@ Shows a list of all uniquely-named scripts that can be executed with `script run
 
 ## Usage
 
-`terramate experimental script list`
+`terramate script list`

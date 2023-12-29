@@ -30,14 +30,14 @@ This information is always relative to the current directory (or the value of `-
 
 ## Usage
 
-`terramate experimental script info LABEL...`
+`terramate script info LABEL...`
 
 ## Examples
 
 Show information about a script called "deploy" defined at /scripts.tm.hcl
 
 ```bash
-$ terramate experimental script info deploy
+$ terramate script info deploy
 Definition: /scripts.tm.hcl:1,1-8,2
 Description: dummy deploy
 Stacks:

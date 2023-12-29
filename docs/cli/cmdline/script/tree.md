@@ -19,12 +19,12 @@ Shows a tree-view of all scripts relative to the current directory (or a specifi
 
 ## Usage
 
-`terramate experimental script tree`
+`terramate script tree`
 
 ## Example
 
 ```bash
-$ terramate experimental script tree
+$ terramate script tree
 /
 │ * deploy: "deploy the infra"
 ├── dev
