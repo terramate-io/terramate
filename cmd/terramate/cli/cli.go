@@ -155,6 +155,19 @@ type cliSpec struct {
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
 
+	Script struct {
+		List struct{} `cmd:"" help:"Show a list of all scripts in the current directory"`
+		Tree struct{} `cmd:"" help:"Show a tree of all scripts in the current directory"`
+		Info struct {
+			Labels []string `arg:"" name:"labels" passthrough:"" help:"Name of the script"`
+		} `cmd:"" help:"Show detailed information about a script"`
+		Run struct {
+			NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
+			DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
+			Labels      []string `arg:"" name:"labels" passthrough:"" help:"Script to execute"`
+		} `cmd:"" help:"Run script in stacks"`
+	} `cmd:"" help:"Terramate Script commands"`
+
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
@@ -222,19 +235,6 @@ type cliSpec struct {
 				} `cmd:"" help:"show drifts"`
 			} `cmd:"" help:"manage cloud drifts"`
 		} `cmd:"" help:"Terramate Cloud commands"`
-
-		Script struct {
-			List struct{} `cmd:"" help:"Show a list of all scripts in the current directory"`
-			Tree struct{} `cmd:"" help:"Show a tree of all scripts in the current directory"`
-			Info struct {
-				Labels []string `arg:"" name:"labels" passthrough:"" help:"Name of the script"`
-			} `cmd:"" help:"Show detailed information about a script"`
-			Run struct {
-				NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
-				DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
-				Labels      []string `arg:"" name:"labels" passthrough:"" help:"Script to execute"`
-			} `cmd:"" help:"Run script in stacks"`
-		} `cmd:"" help:"Terramate Script commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -606,15 +606,15 @@ func (c *cli) run() {
 		c.cloudInfo()
 	case "experimental cloud drift show":
 		c.cloudDriftShow()
-	case "experimental script list":
+	case "script list":
 		c.printScriptList()
-	case "experimental script tree":
+	case "script tree":
 		c.printScriptTree()
-	case "experimental script info <labels>":
+	case "script info <labels>":
 		c.printScriptInfo()
-	case "experimental script run":
+	case "script run":
 		log.Fatal().Msg("no script specified")
-	case "experimental script run <labels>":
+	case "script run <labels>":
 		c.setupGit()
 		c.runScript()
 	default:
