@@ -32,30 +32,30 @@ The script will run on all stacks under the current working directory where:
 
 ## Usage
 
-`terramate experimental script run [options] SCRIPT-LABEL...`
+`terramate script run [options] SCRIPT-LABEL...`
 
 ## Examples
 
 Run a script called "deploy" on all stacks where it is available:
 
 ```bash
-terramate experimental script run deploy
+terramate script run deploy
 ```
 
 Run a script called "deploy" on all changed stacks where it is available:
 
 ```bash
-terramate experimental script run --changed deploy
+terramate script run --changed deploy
 ```
 
 Do a dry run of running the deploy script:
 
 ```bash
-terramate experimental script run --dry-run deploy
+terramate script run --dry-run deploy
 ```
 
 Run a script called "deploy" in a specific stack without recursing into subdirectories:
 
 ```bash
-terramate -C path/to/stack experimental script run --no-recursive deploy
+terramate -C path/to/stack script run --no-recursive deploy
 ```

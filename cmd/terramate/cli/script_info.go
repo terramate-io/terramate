@@ -15,7 +15,7 @@ import (
 )
 
 func (c *cli) printScriptInfo() {
-	labels := c.parsedArgs.Experimental.Script.Info.Labels
+	labels := c.parsedArgs.Script.Info.Labels
 
 	stacks, err := c.computeSelectedStacks(false)
 	if err != nil {

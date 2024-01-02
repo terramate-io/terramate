@@ -145,6 +145,6 @@ func TestScriptList(t *testing.T) {
 		}
 
 		cli := NewCLI(t, wd)
-		AssertRunResult(t, cli.Run("experimental", "script", "list"), tc.want)
+		AssertRunResult(t, cli.Run("script", "list"), tc.want)
 	}
 }

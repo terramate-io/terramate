@@ -197,7 +197,7 @@ Jobs:
 			}
 
 			cli := NewCLI(t, wd)
-			AssertRunResult(t, cli.Run("experimental", "script", "info", "--", tc.script), tc.want)
+			AssertRunResult(t, cli.Run("script", "info", "--", tc.script), tc.want)
 		})
 
 	}

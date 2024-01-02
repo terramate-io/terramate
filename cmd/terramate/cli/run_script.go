@@ -32,7 +32,7 @@ func (c *cli) runScript() {
 	c.checkOutdatedGeneratedCode()
 
 	var stacks config.List[*config.SortableStack]
-	if c.parsedArgs.Experimental.Script.Run.NoRecursive {
+	if c.parsedArgs.Script.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			logger.Fatal().Err(err).Msg("failed to load stack in current directory")
@@ -52,16 +52,16 @@ func (c *cli) runScript() {
 	}
 
 	// search for the script and prepare a list of script/stack entries
-	m := newScriptsMatcher(c.parsedArgs.Experimental.Script.Run.Labels)
+	m := newScriptsMatcher(c.parsedArgs.Script.Run.Labels)
 	m.Search(c.cfg(), stacks)
 
 	if len(m.Results) == 0 {
 		c.output.MsgStdErr(color.RedString("script not found: ") +
-			strings.Join(c.parsedArgs.Experimental.Script.Run.Labels, " "))
+			strings.Join(c.parsedArgs.Script.Run.Labels, " "))
 		os.Exit(1)
 	}
 
-	if c.parsedArgs.Experimental.Script.Run.DryRun {
+	if c.parsedArgs.Script.Run.DryRun {
 		c.output.MsgStdErr("This is a dry run, commands will not be executed.")
 	}
 
@@ -107,7 +107,7 @@ func (c *cli) runScript() {
 }
 
 func (c *cli) executeCommand(cmd []string, wd string, env []string) error {
-	if c.parsedArgs.Experimental.Script.Run.DryRun {
+	if c.parsedArgs.Script.Run.DryRun {
 		return nil
 	}
 
