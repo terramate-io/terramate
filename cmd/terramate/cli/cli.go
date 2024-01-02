@@ -302,7 +302,8 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		kong.Description("A tool for managing terraform stacks"),
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
-			Compact: true,
+			Compact:             true,
+			NoExpandSubcommands: true,
 		}),
 		kong.Exit(func(status int) {
 			// Avoid kong aborting entire process since we designed CLI as lib
