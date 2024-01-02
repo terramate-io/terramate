@@ -924,6 +924,51 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 	}
 }
 
+func TestHCLParserGenerateStackFilters(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name: "invalid project_paths list",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_hcl "test.tf" {
+							stack_filter { project_paths = "*" }
+							content { foo = "bar" }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "invalid project_paths list element",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_hcl "test.tf" {
+							stack_filter { project_paths = ["blah", 1] }
+							content { foo = "bar" }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+	} {
+		testParser(t, tc)
+	}
+}
+
 func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 	tcases := []testcase{
 		{

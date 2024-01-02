@@ -1340,6 +1340,453 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 	assert.EqualStrings(t, manualTfCode, actualTfCode, "tf code altered by generate")
 }
 
+func TestGenerateHCLStackFilters(t *testing.T) {
+	t.Parallel()
+
+	testCodeGeneration(t, []testcase{
+		{
+			name: "no matching pattern",
+			layout: []string{
+				"s:staecks/stack-1",
+				"s:staecks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/staecks",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("stacks/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+		},
+		{
+			name: "one matching pattern",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:staecks/stack-2",
+				"s:stack/stack-3",
+				"s:stackss/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("stacks/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple matching patterns",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:staecks/stack-2",
+				"s:stack/stack-3",
+				"s:staecks/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("stacks/*", "staecks/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+				{
+					dir: "/staecks/stack-2",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+				{
+					dir: "/staecks/stack-4",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/staecks/stack-2"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/staecks/stack-4"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "AND multiple attributes",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("not_generated"),
+						StackFilter(
+							ProjectPaths("stack-1"),
+							RepositoryPaths("stack-2"),
+						),
+						Content(),
+					),
+				},
+			},
+		},
+		{
+			name: "OR multiple blocks",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("generated"),
+						StackFilter(
+							ProjectPaths("stack-1"),
+						),
+						StackFilter(
+							RepositoryPaths("stack-2"),
+						),
+						Content(Expr("foo", "bar")),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack-1",
+					files: map[string]fmt.Stringer{
+						"generated": Doc(Expr("foo", "bar")),
+					},
+				},
+				{
+					dir: "/stack-2",
+					files: map[string]fmt.Stringer{
+						"generated": Doc(Expr("foo", "bar")),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack-1"),
+						Created: []string{"generated"},
+					},
+					{
+						Dir:     project.NewPath("/stack-2"),
+						Created: []string{"generated"},
+					},
+				},
+			},
+		},
+		{
+			name: "glob patterns",
+			layout: []string{
+				"s:aws/stacks/dev",
+				"s:aws/stacks/dev/substack",
+				"s:aws/stacks/prod",
+				"s:gcp/stacks/dev",
+				"s:gcp/stacks/prod",
+				"s:gcp/stacks/prod/substack",
+				"s:dev",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_match1"),
+						StackFilter(
+							ProjectPaths("prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_match2"),
+						StackFilter(
+							ProjectPaths("**/prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_prod_match1"),
+						StackFilter(
+							ProjectPaths("*/prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_substack_match1"),
+						StackFilter(
+							ProjectPaths("**/prod/*"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_substack_match2"),
+						StackFilter(
+							ProjectPaths("**/prod/**"),
+						),
+						Content(),
+					),
+				},
+
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("aws_prod_match1"),
+						StackFilter(
+							ProjectPaths("aws/**/prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_aws_substack_match1"),
+						StackFilter(
+							ProjectPaths("aws/*/substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("aws_substack_match1"),
+						StackFilter(
+							ProjectPaths("aws/**/substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("substack_match1"),
+						StackFilter(
+							ProjectPaths("substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_substack_match1"),
+						StackFilter(
+							ProjectPaths("/substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("root_dev_match1"),
+						StackFilter(
+							ProjectPaths("/dev"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("all_aws_match1"),
+						StackFilter(
+							ProjectPaths("aws/**"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_aws_match1"),
+						StackFilter(
+							ProjectPaths("aws/*"),
+						),
+						Content(),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/aws/stacks/dev",
+					files: map[string]fmt.Stringer{
+						"all_aws_match1": Doc(),
+					},
+				},
+				{
+					dir: "/aws/stacks/dev/substack",
+					files: map[string]fmt.Stringer{
+						"all_aws_match1":      Doc(),
+						"aws_substack_match1": Doc(),
+						"substack_match1":     Doc(),
+					},
+				},
+				{
+					dir: "/aws/stacks/prod",
+					files: map[string]fmt.Stringer{
+						"all_aws_match1":  Doc(),
+						"aws_prod_match1": Doc(),
+						"prod_match1":     Doc(),
+						"prod_match2":     Doc(),
+					},
+				},
+				{
+					dir: "/dev",
+					files: map[string]fmt.Stringer{
+						"root_dev_match1": Doc(),
+					},
+				},
+				{
+					dir: "/gcp/stacks/prod",
+					files: map[string]fmt.Stringer{
+						"prod_match1": Doc(),
+						"prod_match2": Doc(),
+					},
+				},
+				{
+					dir: "/gcp/stacks/prod/substack",
+					files: map[string]fmt.Stringer{
+						"prod_substack_match1": Doc(),
+						"prod_substack_match2": Doc(),
+						"substack_match1":      Doc(),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: project.NewPath("/aws/stacks/dev"),
+						Created: []string{
+							"all_aws_match1",
+						},
+					},
+					{
+						Dir: project.NewPath("/aws/stacks/dev/substack"),
+						Created: []string{
+							"all_aws_match1",
+							"aws_substack_match1",
+							"substack_match1",
+						},
+					},
+					{
+						Dir: project.NewPath("/aws/stacks/prod"),
+						Created: []string{
+							"all_aws_match1",
+							"aws_prod_match1",
+							"prod_match1",
+							"prod_match2",
+						},
+					},
+					{
+						Dir: project.NewPath("/dev"),
+						Created: []string{
+							"root_dev_match1",
+						},
+					},
+					{
+						Dir: project.NewPath("/gcp/stacks/prod"),
+						Created: []string{
+							"prod_match1",
+							"prod_match2",
+						},
+					},
+					{
+						Dir: project.NewPath("/gcp/stacks/prod/substack"),
+						Created: []string{
+							"prod_substack_match1",
+							"prod_substack_match2",
+							"substack_match1",
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
 func TestGenerateHCLOverwriting(t *testing.T) {
 	t.Parallel()
 
