@@ -39,6 +39,34 @@ const (
 	StackBlockType = "stack"
 )
 
+// OptionalCheck is a bool that can also have no configured value.
+type OptionalCheck int
+
+const (
+	// CheckIsUnset means no value was specified.
+	CheckIsUnset OptionalCheck = iota
+	// CheckIsFalse means the check is disabled.
+	CheckIsFalse
+	// CheckIsTrue means the check is enabled.
+	CheckIsTrue
+)
+
+// ValueOr returns if an OptionalCheck is enabled, or the given default if its unset.
+func (v OptionalCheck) ValueOr(def bool) bool {
+	if v == CheckIsUnset {
+		return def
+	}
+	return v == CheckIsTrue
+}
+
+// ToOptionalCheck creates an OptionalCheck value from a bool.
+func ToOptionalCheck(v bool) OptionalCheck {
+	if v {
+		return CheckIsTrue
+	}
+	return CheckIsFalse
+}
+
 // Config represents a Terramate configuration.
 type Config struct {
 	Terramate *Terramate
@@ -109,7 +137,7 @@ type GitConfig struct {
 	CheckUncommitted bool
 
 	// CheckRemote enables checking if local default branch is updated with remote.
-	CheckRemote bool
+	CheckRemote OptionalCheck
 }
 
 // CloudConfig represents Terramate cloud configuration.
@@ -277,7 +305,6 @@ func NewGitConfig() *GitConfig {
 	return &GitConfig{
 		CheckUntracked:   true,
 		CheckUncommitted: true,
-		CheckRemote:      true,
 	}
 }
 
@@ -1677,7 +1704,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 				))
 				continue
 			}
-			git.CheckRemote = value.True()
+			git.CheckRemote = ToOptionalCheck(value.True())
 
 		default:
 			errs.Append(errors.E(

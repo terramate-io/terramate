@@ -498,10 +498,6 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
-	if parsedArgs.Changed && !prj.hasCommit() {
-		log.Fatal().Msg("flag --changed provided but repository has no commits")
-	}
-
 	if parsedArgs.Changed && !prj.hasCommits() {
 		log.Fatal().Msg("flag --changed requires a repository with at least two commits")
 	}
@@ -1905,11 +1901,17 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 	cfg := c.rootNode()
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
-		cfg.Terramate.Config.Git != nil {
-		return cfg.Terramate.Config.Git.CheckRemote
+		cfg.Terramate.Config.Git != nil &&
+		cfg.Terramate.Config.Git.CheckRemote != hcl.CheckIsUnset {
+		return cfg.Terramate.Config.Git.CheckRemote.ValueOr(true)
 	}
 
-	return true
+	if c.prj.git.remoteConfigured {
+		return true
+	}
+
+	hasRemotes, _ := c.prj.git.wrapper.HasRemotes()
+	return hasRemotes
 }
 
 func (c *cli) wd() string           { return c.prj.wd }

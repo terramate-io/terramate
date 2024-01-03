@@ -249,6 +249,16 @@ func (git *Git) RemoteAdd(name string, url string) error {
 	return err
 }
 
+// HasRemotes returns if a there are any remotes configured.
+func (git *Git) HasRemotes() (bool, error) {
+	res, err := git.exec("config", "--get-regexp", "remote\\.")
+	if err != nil {
+		return false, err
+	}
+
+	return res != "", nil
+}
+
 // Remotes returns a list of all configured remotes and their respective branches.
 // The result slice is ordered lexicographically by the remote name.
 //
