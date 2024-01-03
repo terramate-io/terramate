@@ -989,24 +989,24 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 	if status != cloudstack.NoFilter {
 		err := c.setupCloudConfig()
 		if err != nil {
-			fatal(err)
+			return nil, err
 		}
 
 		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err != nil {
-			fatal(err, "failed to retrieve repository URL but it's needed for checking unhealthy stacks")
+			return nil, errors.E("failed to retrieve repository URL but it's needed for filtering stacks", err)
 		}
 
 		repository := cloud.NormalizeGitURI(repoURL)
 		if repository == "local" {
-			fatal(err, "unhealthy status filter does not work with filesystem based remotes: %s", repoURL)
+			return nil, errors.E("%s status filter does not work with filesystem based remotes: %s", status.String(), repoURL)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
 		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, status)
 		if err != nil {
-			fatal(err)
+			return nil, err
 		}
 
 		cloudStacksMap := map[string]bool{}
@@ -1306,7 +1306,7 @@ func (c *cli) format() {
 
 func (c *cli) printStacks() {
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
-		log.Fatal().Msg("the --why flag must be used together with --changed")
+		c.fatal("Invalid args", errors.E("the --why flag must be used together with --changed"))
 	}
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
@@ -1314,7 +1314,7 @@ func (c *cli) printStacks() {
 	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, status)
 	if err != nil {
-		fatal(err, "listing stacks")
+		c.fatal("Unable to list stacks", err)
 	}
 
 	c.gitFileSafeguards(false)

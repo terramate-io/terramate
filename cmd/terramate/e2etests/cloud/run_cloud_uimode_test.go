@@ -859,8 +859,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`Warning: Pending invitation`,
+							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
 							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
@@ -875,8 +876,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`Warning: Pending invitation`,
+							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -892,8 +894,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`Warning: Pending invitation`,
+							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
 							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
@@ -908,8 +911,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`Warning: Pending invitation`,
+							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
 							clitest.CloudDisablingMessage,
 						},
 					},
