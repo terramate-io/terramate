@@ -1037,11 +1037,14 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 
 func (c *cli) scanCreate() {
 	if c.parsedArgs.Create.EnsureStackIds && c.parsedArgs.Create.AllTerraform {
-		fatal(errors.E("--all-terraform conflicts with --ensure-stack-ids"))
+		c.fatal("Invalid args", errors.E("--all-terraform conflicts with --ensure-stack-ids"))
 	}
 
 	if !c.parsedArgs.Create.AllTerraform && !c.parsedArgs.Create.EnsureStackIds {
-		fatal(errors.E("terramate create requires a path or --all-terraform or --ensure-stack-ids"))
+		c.fatal(
+			"Invalid args",
+			errors.E("terramate create requires a path or --all-terraform or --ensure-stack-ids"),
+		)
 	}
 
 	var flagname string
@@ -1060,10 +1063,20 @@ func (c *cli) scanCreate() {
 		len(c.parsedArgs.Create.Before) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
 
-		fatal(errors.E(
-			"The %s flag is incompatible with path and the flags: --id, --name, --description, --after, --before, --import and --ignore-existing",
-			flagname,
-		))
+		c.fatal(
+			"Invalid args",
+			errors.E(
+				"%s is incompatible with path and the flags: "+
+					"--id,"+
+					" --name, "+
+					"--description, "+
+					"--after, "+
+					"--before, "+
+					"--import, "+
+					" --ignore-existing",
+				flagname,
+			),
+		)
 	}
 
 	if c.parsedArgs.Create.AllTerraform {
@@ -1242,11 +1255,10 @@ func (c *cli) createStack() {
 				Logger()
 		}
 
-		errlog.Fatal(logger, err, "can't create stack")
+		c.fatal("Cannot create stack", err)
 	}
 
-	log.Info().Msgf("created stack %s", stackSpec.Dir)
-	c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
+	printer.Stdout.Successln("Created stack " + stackSpec.Dir.String())
 
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
@@ -1255,17 +1267,16 @@ func (c *cli) createStack() {
 
 	err = c.prj.root.LoadSubTree(stackSpec.Dir)
 	if err != nil {
-		fatal(err, "loading newly created stack")
+		c.fatal("Unable to load new stack", err)
 	}
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
-		c.output.MsgStdOut("Code generation failed")
-		c.output.MsgStdOut(report.Minimal())
+		printer.Stdout.ErrorWithDetailsln("Code generation failed", stdfmt.Errorf(report.Minimal()))
 	}
 
 	if vendorReport.HasFailures() {
-		c.output.MsgStdOut(vendorReport.String())
+		printer.Stdout.ErrorWithDetailsln("Code generation failed", stdfmt.Errorf(vendorReport.String()))
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
