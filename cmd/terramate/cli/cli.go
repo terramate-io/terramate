@@ -1720,7 +1720,7 @@ func (c *cli) partialEval() {
 		if err != nil {
 			fatal(err, "partial eval %q", exprStr)
 		}
-		c.output.MsgStdOut(string(hclwrite.Format(ast.TokensForExpression(newexpr).Bytes())))
+		c.output.MsgStdOut("%s", string(hclwrite.Format(ast.TokensForExpression(newexpr).Bytes())))
 	}
 }
 
@@ -1794,7 +1794,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 		}
 	}
 
-	c.output.MsgStdOut(string(data))
+	c.output.MsgStdOut("%s", string(data))
 }
 
 func (c *cli) detectEvalContext(overrideGlobals map[string]string) *eval.Context {
