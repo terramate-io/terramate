@@ -147,6 +147,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		tmcli, file, _ := setup(t)
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-check-git-remote",
 			HelperPath,
 			"cat",
@@ -158,7 +159,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		tmcli, file, _ := setup(t, testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=true")
 
-		AssertRunResult(t, tmcli.Run("run", HelperPath,
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
 			"cat", file.HostPath()), RunExpected{
 			Stdout: fileContents,
 		})
@@ -214,7 +215,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			git.Add(rootConfig)
 			git.Commit("commit root config")
 
-			AssertRunResult(t, tmcli.Run("run", HelperPath,
+			AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
 				"cat", file.HostPath()), RunExpected{
 				Stdout: fileContents,
 			})
@@ -241,6 +242,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 
 			AssertRunResult(t, tmcli.Run(
 				"run",
+				"--quiet",
 				"--disable-check-git-remote",
 				HelperPath,
 				"cat",
@@ -284,6 +286,7 @@ func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 	})
 	AssertRunResult(t, tm.Run(
 		"run",
+		"--quiet",
 		"--disable-check-git-remote",
 		HelperPath,
 		"cat",

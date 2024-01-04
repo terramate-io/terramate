@@ -6,9 +6,11 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
@@ -96,21 +99,6 @@ func (c *cli) runOnStacks() {
 		config.ReverseStacks(orderedStacks)
 	}
 
-	if c.parsedArgs.Run.DryRun {
-		if len(orderedStacks) > 0 {
-			c.output.MsgStdOut("The stacks will be executed using order below:")
-
-			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.Dir().String())
-				c.output.MsgStdOut("\t%d. %s (%s)", i, s.Name, stackdir)
-			}
-		} else {
-			c.output.MsgStdOut("No stacks will be executed.")
-		}
-
-		return
-	}
-
 	var runStacks []ExecContext
 	for _, st := range orderedStacks {
 		run := ExecContext{
@@ -118,7 +106,10 @@ func (c *cli) runOnStacks() {
 			Cmd:   c.parsedArgs.Run.Command,
 		}
 		if c.parsedArgs.Run.Eval {
-			run.Cmd = c.evalRunArgs(run.Stack, run.Cmd)
+			run.Cmd, err = c.evalRunArgs(run.Stack, run.Cmd)
+			if err != nil {
+				c.fatal("unable to evaluate command", err)
+			}
 		}
 		runStacks = append(runStacks, run)
 	}
@@ -159,7 +150,7 @@ func (c *cli) runOnStacks() {
 
 	err = c.RunAll(runStacks, isSuccessExit)
 	if err != nil {
-		fatal(err, "one or more commands failed")
+		c.fatal("one or more commands failed", err)
 	}
 }
 
@@ -194,6 +185,11 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 
 	continueOnError := c.parsedArgs.Run.ContinueOnError
 	results := startCmdConsumer(cmds)
+	printPrefix := "terramate:"
+	if c.parsedArgs.Run.DryRun {
+		printPrefix = fmt.Sprintf("%s (dry-run)", printPrefix)
+	}
+
 	for i, runContext := range runStacks {
 		cmdStr := strings.Join(runContext.Cmd, " ")
 		logger := log.With().
@@ -214,6 +210,16 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 			c.cloudSyncCancelStacks(runStacks[i+1:])
 			return errs.AsError()
 		}
+
+		if !c.parsedArgs.Quiet {
+			printer.Stderr.Println(printPrefix + " Entering stack in " + runContext.Stack.String())
+			printer.Stderr.Println(printPrefix + " Executing command " + strconv.Quote(cmdStr))
+		}
+
+		if c.parsedArgs.Run.DryRun {
+			continue
+		}
+
 		cmd := exec.Command(cmdPath, runContext.Cmd[1:]...)
 		cmd.Dir = runContext.Stack.HostDir(c.cfg())
 		cmd.Env = environ
@@ -236,8 +242,6 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 
-		logger.Info().Msg("running")
-
 		startTime := time.Now().UTC()
 
 		if err := cmd.Start(); err != nil {
@@ -252,7 +256,6 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 			}
 			c.cloudSyncAfter(runContext, res, errors.E(err, ErrRunFailed))
 			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
-			logger.Error().Err(err).Msg("failed to execute")
 			if continueOnError {
 				continue
 			}
@@ -298,9 +301,8 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 				logSyncWait()
 				var err error
 				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
-					err = errors.E(result.err, ErrRunFailed, "running %s (at stack %s)", result.cmd, runContext.Stack.Dir)
+					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, runContext.Stack.Dir)
 					errs.Append(err)
-					logger.Error().Err(err).Msg("failed to execute")
 				}
 
 				res := RunResult{

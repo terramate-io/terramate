@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
@@ -308,10 +309,6 @@ rangeStacks:
 
 // AddWantedOf returns all wanted stacks from the given stacks.
 func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
-	logger := log.With().
-		Str("action", "manager.AddWantedOf").
-		Logger()
-
 	wantsDag := dag.New()
 	allstacks, err := config.LoadAllStacks(m.root.Tree())
 	if err != nil {
@@ -340,14 +337,15 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	reason, err := wantsDag.Validate()
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			logger.Warn().
-				Str("reason", reason).
-				Err(err).
-				Msg("The stack selection clauses (wants/wanted_by) have cycles (ignored).")
+			printer.Stderr.WarnWithDetailsln(
+				"Stack selection clauses (wants/wanted_by) have cycles",
+				errors.E(reason, err),
+			)
 		} else {
-			logger.Warn().
-				Err(err).
-				Msg("The stack selection clauses (wants/wanted_by) have errors (ignored)")
+			printer.Stderr.WarnWithDetailsln(
+				"Stack selection clauses (wants/wanted_by) have errors",
+				err,
+			)
 		}
 	}
 

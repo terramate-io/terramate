@@ -63,6 +63,16 @@ func (p *Printer) ErrorWithDetailsln(title string, err error) {
 	}
 }
 
+// WarnWithDetailsln is similar to ErrorWithDetailsln but prints a warning
+// instead
+func (p *Printer) WarnWithDetailsln(title string, err error) {
+	p.Warnln(title)
+
+	for _, item := range toStrings(err) {
+		fmt.Fprintln(p.w, boldYellow(">"), item)
+	}
+}
+
 // Errorln prints a message with a "Error:" prefix. The prefix is prinited in
 // the boldRed style.
 func (p *Printer) Errorln(title string) {
