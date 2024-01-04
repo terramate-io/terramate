@@ -6,6 +6,7 @@ package printer
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/terramate-io/terramate/errors"
@@ -16,6 +17,13 @@ var (
 	boldYellow = color.New(color.Bold, color.FgYellow).Sprint
 	boldRed    = color.New(color.Bold, color.FgRed).Sprint
 	boldGreen  = color.New(color.Bold, color.FgGreen).Sprint
+)
+
+var (
+	// Stderr is the default stderr printer
+	Stderr = NewPrinter(os.Stderr)
+	// Stdout is the default stdout printer
+	Stdout = NewPrinter(os.Stdout)
 )
 
 // Printer encapuslates an io.Writer
