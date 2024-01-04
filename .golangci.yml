@@ -6,6 +6,8 @@ linters:
     - revive
     - misspell
     - gofmt
+    - bodyclose
+    - exportloopref
 issues:
   # So we can detect exported/undocumented symbols
   # https://github.com/golangci/golangci-lint/issues/2114
