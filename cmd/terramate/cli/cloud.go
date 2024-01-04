@@ -405,6 +405,14 @@ func (c *cli) detectCloudMetadata() {
 			CommitSHA:   pull.Head.SHA,
 		}
 
+		for _, l := range pull.Labels {
+			reviewRequest.Labels = append(reviewRequest.Labels, cloud.Label{
+				Name:        l.Name,
+				Color:       l.Color,
+				Description: l.Description,
+			})
+		}
+
 		c.cloud.run.reviewRequest = reviewRequest
 
 	} else {

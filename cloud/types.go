@@ -220,13 +220,21 @@ type (
 
 	// DeploymentReviewRequest is the review_request object.
 	DeploymentReviewRequest struct {
-		Platform    string `json:"platform"`
-		Repository  string `json:"repository"`
-		CommitSHA   string `json:"commit_sha"`
-		Number      int    `json:"number"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		URL         string `json:"url"`
+		Platform    string  `json:"platform"`
+		Repository  string  `json:"repository"`
+		CommitSHA   string  `json:"commit_sha"`
+		Number      int     `json:"number"`
+		Title       string  `json:"title"`
+		Description string  `json:"description"`
+		URL         string  `json:"url"`
+		Labels      []Label `json:"labels,omitempty"`
+	}
+
+	// Label of a review request.
+	Label struct {
+		Name        string `json:"name"`
+		Color       string `json:"color,omitempty"`
+		Description string `json:"description,omitempty"`
 	}
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
@@ -287,6 +295,7 @@ var (
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
 	_ = Resource(DeploymentReviewRequest{})
+	_ = Resource(Label{})
 	_ = Resource(Drifts{})
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
@@ -513,6 +522,14 @@ func (d DeploymentStackResponse) Validate() error {
 func (rr DeploymentReviewRequest) Validate() error {
 	if rr.Repository == "" {
 		return errors.E(`missing "repository" field`)
+	}
+	return validateResourceList(rr.Labels...)
+}
+
+// Validate the label.
+func (l Label) Validate() error {
+	if l.Name == "" {
+		return errors.E(`missing "name" field`)
 	}
 	return nil
 }

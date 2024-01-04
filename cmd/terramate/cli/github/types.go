@@ -23,8 +23,16 @@ type (
 		MergeCommitSHA string  `json:"merge_commit_sha,omitempty"`
 		Head           RefInfo `json:"head"`
 		Base           RefInfo `json:"base"`
+		Labels         []Label `json:"labels"`
 
 		// rest of the fields aren't important for the cli.
+	}
+
+	// Label of the issue or pull request.
+	Label struct {
+		Name        string `json:"name"`
+		Color       string `json:"color"`
+		Description string `json:"description,omitempty"`
 	}
 
 	// Commit holds information of a specific commit.
