@@ -257,6 +257,20 @@ func TestExpEval(t *testing.T) {
 				Stdout: addnl(`"AAA"`),
 			},
 		},
+		{
+			// issue: https://github.com/terramate-io/terramate/issues/1327
+			name: "regression check: globals containing percents",
+			overrideGlobals: map[string]string{
+				"x": `"E%2BkKhZA%3D"`,
+			},
+			expr: `global.x`,
+			wantEval: RunExpected{
+				Stdout: addnl(`E%2BkKhZA%3D`),
+			},
+			wantPartial: RunExpected{
+				Stdout: addnl(`"E%2BkKhZA%3D"`),
+			},
+		},
 	}
 
 	for _, tcase := range testcases {

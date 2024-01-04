@@ -35,6 +35,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - fix(generate): blocks with context=root were ignored if defined in stacks.
+- fix: experimental eval/partial-eval/get-config-value wrongly interprets the output as a formatter.
 
 ## 0.4.3
 
