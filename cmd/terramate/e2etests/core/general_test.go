@@ -153,6 +153,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -198,6 +199,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -269,9 +271,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	git.Push("main")
 
 	AssertRunResult(t, cli.ListChangedStacks("--git-change-base", "origin/main"),
-		RunExpected{
-			IgnoreStderr: true,
-		},
+		RunExpected{},
 	)
 }
 

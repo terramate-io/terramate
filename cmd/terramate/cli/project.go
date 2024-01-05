@@ -242,6 +242,7 @@ func (p project) checkDefaultRemote() error {
 
 	for _, remote := range remotes {
 		if remote.Name == gitcfg.DefaultRemote {
+			remote := remote
 			defRemote = &remote
 			break
 		}

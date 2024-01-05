@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/run/dag"
 )
 
@@ -162,13 +163,15 @@ func BuildDAG(
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
-				log.Warn().
-					Err(err).
-					Msgf("building dag: failed to stat %s path %s - ignoring", fieldname, abspath)
+				printer.Stderr.WarnWithDetailsln(
+					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
+					err,
+				)
 			} else if !st.IsDir() {
-				log.Warn().
-					Msgf("building dag: stack.%s path %s is not a directory - ignoring",
-						fieldname, pathstr)
+				printer.Stderr.WarnWithDetailsln(
+					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
+					errors.E("Path %s is not a directory", pathstr),
+				)
 			} else {
 				uniqPaths[pathstr] = struct{}{}
 			}

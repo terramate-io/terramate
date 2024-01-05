@@ -133,7 +133,7 @@ func TestRunEval(t *testing.T) {
 			}
 			s.BuildTree(tc.layout)
 			tmCli := NewCLI(t, s.RootDir())
-			cmd := []string{`run`}
+			cmd := []string{"run", "--quiet"}
 			if tc.eval {
 				cmd = append(cmd, `--eval`)
 			}

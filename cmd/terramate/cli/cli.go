@@ -34,6 +34,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/versions"
 
 	"github.com/terramate-io/terramate/stack/trigger"
@@ -271,7 +272,7 @@ type cli struct {
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
-	output     out.O
+	output     out.O // Deprecated: use printer.Stdout/Stderr
 	exit       bool
 	prj        project
 	httpClient http.Client
@@ -988,24 +989,24 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 	if status != cloudstack.NoFilter {
 		err := c.setupCloudConfig()
 		if err != nil {
-			fatal(err)
+			return nil, err
 		}
 
 		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
 		if err != nil {
-			fatal(err, "failed to retrieve repository URL but it's needed for checking unhealthy stacks")
+			return nil, errors.E("failed to retrieve repository URL but it's needed for filtering stacks", err)
 		}
 
 		repository := cloud.NormalizeGitURI(repoURL)
 		if repository == "local" {
-			fatal(err, "unhealthy status filter does not work with filesystem based remotes: %s", repoURL)
+			return nil, errors.E("%s status filter does not work with filesystem based remotes: %s", status.String(), repoURL)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
 		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, status)
 		if err != nil {
-			fatal(err)
+			return nil, err
 		}
 
 		cloudStacksMap := map[string]bool{}
@@ -1036,11 +1037,14 @@ func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.F
 
 func (c *cli) scanCreate() {
 	if c.parsedArgs.Create.EnsureStackIds && c.parsedArgs.Create.AllTerraform {
-		fatal(errors.E("--all-terraform conflicts with --ensure-stack-ids"))
+		c.fatal("Invalid args", errors.E("--all-terraform conflicts with --ensure-stack-ids"))
 	}
 
 	if !c.parsedArgs.Create.AllTerraform && !c.parsedArgs.Create.EnsureStackIds {
-		fatal(errors.E("terramate create requires a path or --all-terraform or --ensure-stack-ids"))
+		c.fatal(
+			"Invalid args",
+			errors.E("terramate create requires a path or --all-terraform or --ensure-stack-ids"),
+		)
 	}
 
 	var flagname string
@@ -1059,10 +1063,20 @@ func (c *cli) scanCreate() {
 		len(c.parsedArgs.Create.Before) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
 
-		fatal(errors.E(
-			"The %s flag is incompatible with path and the flags: --id, --name, --description, --after, --before, --import and --ignore-existing",
-			flagname,
-		))
+		c.fatal(
+			"Invalid args",
+			errors.E(
+				"%s is incompatible with path and the flags: "+
+					"--id,"+
+					" --name, "+
+					"--description, "+
+					"--after, "+
+					"--before, "+
+					"--import, "+
+					" --ignore-existing",
+				flagname,
+			),
+		)
 	}
 
 	if c.parsedArgs.Create.AllTerraform {
@@ -1241,11 +1255,10 @@ func (c *cli) createStack() {
 				Logger()
 		}
 
-		errlog.Fatal(logger, err, "can't create stack")
+		c.fatal("Cannot create stack", err)
 	}
 
-	log.Info().Msgf("created stack %s", stackSpec.Dir)
-	c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
+	printer.Stdout.Successln("Created stack " + stackSpec.Dir.String())
 
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
@@ -1254,17 +1267,16 @@ func (c *cli) createStack() {
 
 	err = c.prj.root.LoadSubTree(stackSpec.Dir)
 	if err != nil {
-		fatal(err, "loading newly created stack")
+		c.fatal("Unable to load new stack", err)
 	}
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
-		c.output.MsgStdOut("Code generation failed")
-		c.output.MsgStdOut(report.Minimal())
+		printer.Stdout.ErrorWithDetailsln("Code generation failed", stdfmt.Errorf(report.Minimal()))
 	}
 
 	if vendorReport.HasFailures() {
-		c.output.MsgStdOut(vendorReport.String())
+		printer.Stdout.ErrorWithDetailsln("Code generation failed", stdfmt.Errorf(vendorReport.String()))
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
@@ -1305,7 +1317,7 @@ func (c *cli) format() {
 
 func (c *cli) printStacks() {
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
-		log.Fatal().Msg("the --why flag must be used together with --changed")
+		c.fatal("Invalid args", errors.E("the --why flag must be used together with --changed"))
 	}
 
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
@@ -1313,7 +1325,7 @@ func (c *cli) printStacks() {
 	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, status)
 	if err != nil {
-		fatal(err, "listing stacks")
+		c.fatal("Unable to list stacks", err)
 	}
 
 	c.gitFileSafeguards(false)
@@ -1524,7 +1536,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	for _, s := range orderedStacks {
-		c.output.MsgStdOut(s.Dir().String())
+		printer.Stdout.Println(s.Dir().String())
 	}
 }
 
@@ -1724,26 +1736,26 @@ func (c *cli) partialEval() {
 	}
 }
 
-func (c *cli) evalRunArgs(st *config.Stack, cmd []string) []string {
+func (c *cli) evalRunArgs(st *config.Stack, cmd []string) ([]string, error) {
 	ctx := c.setupEvalContext(st, map[string]string{})
 	var newargs []string
 	for _, arg := range cmd {
 		exprStr := `"` + arg + `"`
 		expr, err := ast.ParseExpression(exprStr, "<cmd arg>")
 		if err != nil {
-			fatal(err, "parsing %s", exprStr)
+			return nil, errors.E(err, "parsing %s", exprStr)
 		}
 		val, err := ctx.Eval(expr)
 		if err != nil {
-			fatal(err, "eval %q", exprStr)
+			return nil, errors.E(err, "eval %s", exprStr)
 		}
 		if !val.Type().Equals(cty.String) {
-			fatal(errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName()))
+			return nil, errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName())
 		}
 
 		newargs = append(newargs, val.AsString())
 	}
-	return newargs
+	return newargs, nil
 }
 
 func (c *cli) getConfigValue() {
@@ -2201,6 +2213,12 @@ func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer
 	}
 }
 
+// Deprecated: use c.fatal
 func fatal(err error, args ...any) {
 	errlog.Fatal(log.Logger, err, args...)
+}
+
+func (c *cli) fatal(title string, err error) {
+	printer.Stderr.ErrorWithDetailsln(title, err)
+	os.Exit(1)
 }
