@@ -27,7 +27,7 @@ func TestVersionCheck(t *testing.T) {
 		"experimental run-graph": "experimental run-graph",
 		"generate":               "generate",
 		"list":                   "list",
-		"run":                    fmt.Sprintf("run %s cat %s", HelperPath, stack.DefaultFilename),
+		"run":                    fmt.Sprintf("run --quiet %s cat %s", HelperPath, stack.DefaultFilename),
 	}
 	uncheckedCmds := map[string]string{
 		"help":            "--help",

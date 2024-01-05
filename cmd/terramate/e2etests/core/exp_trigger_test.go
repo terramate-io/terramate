@@ -206,6 +206,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -219,6 +220,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",

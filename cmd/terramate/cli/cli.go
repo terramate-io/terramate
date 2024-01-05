@@ -34,6 +34,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/versions"
 
 	"github.com/terramate-io/terramate/stack/trigger"
@@ -271,7 +272,7 @@ type cli struct {
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
-	output     out.O
+	output     out.O // Deprecated: use printer.Stdout/Stderr
 	exit       bool
 	prj        project
 	httpClient http.Client
@@ -1524,7 +1525,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	for _, s := range orderedStacks {
-		c.output.MsgStdOut(s.Dir().String())
+		printer.Stdout.Println(s.Dir().String())
 	}
 }
 
@@ -1724,26 +1725,26 @@ func (c *cli) partialEval() {
 	}
 }
 
-func (c *cli) evalRunArgs(st *config.Stack, cmd []string) []string {
+func (c *cli) evalRunArgs(st *config.Stack, cmd []string) ([]string, error) {
 	ctx := c.setupEvalContext(st, map[string]string{})
 	var newargs []string
 	for _, arg := range cmd {
 		exprStr := `"` + arg + `"`
 		expr, err := ast.ParseExpression(exprStr, "<cmd arg>")
 		if err != nil {
-			fatal(err, "parsing %s", exprStr)
+			return nil, errors.E(err, "parsing %s", exprStr)
 		}
 		val, err := ctx.Eval(expr)
 		if err != nil {
-			fatal(err, "eval %q", exprStr)
+			return nil, errors.E(err, "eval %s", exprStr)
 		}
 		if !val.Type().Equals(cty.String) {
-			fatal(errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName()))
+			return nil, errors.E("cmd line evaluates to type %s but only string is permitted", val.Type().FriendlyName())
 		}
 
 		newargs = append(newargs, val.AsString())
 	}
-	return newargs
+	return newargs, nil
 }
 
 func (c *cli) getConfigValue() {
@@ -2201,6 +2202,12 @@ func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer
 	}
 }
 
+// Deprecated: use c.fatal
 func fatal(err error, args ...any) {
 	errlog.Fatal(log.Logger, err, args...)
+}
+
+func (c *cli) fatal(title string, err error) {
+	printer.Stderr.ErrorWithDetailsln(title, err)
+	os.Exit(1)
 }

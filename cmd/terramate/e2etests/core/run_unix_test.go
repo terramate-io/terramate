@@ -81,7 +81,7 @@ func TestRunLookPathFromStackEnviron(t *testing.T) {
 
 	tm := NewCLI(t, s.RootDir())
 
-	AssertRunResult(t, tm.Run("run", "--", programName, "echo", "Hello from myscript"),
+	AssertRunResult(t, tm.Run("run", "--quiet", "--", programName, "echo", "Hello from myscript"),
 		RunExpected{
 			Stdout: "Hello from myscript\n",
 		})

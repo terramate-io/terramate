@@ -180,6 +180,7 @@ func TestCloudConfig(t *testing.T) {
 
 			cmd := []string{
 				"run",
+				"--quiet",
 				"--cloud-sync-deployment",
 				"--", HelperPath, "true",
 			}

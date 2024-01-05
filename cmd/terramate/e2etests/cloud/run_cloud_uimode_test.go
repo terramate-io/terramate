@@ -74,6 +74,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
@@ -83,6 +84,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
@@ -92,6 +94,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
@@ -101,6 +104,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
@@ -236,6 +240,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
@@ -245,6 +250,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
@@ -254,6 +260,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
@@ -263,6 +270,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
@@ -975,6 +983,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
@@ -984,6 +993,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-deployment",
 						"--", HelperPath, "true",
 					},
@@ -993,6 +1003,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
@@ -1002,6 +1013,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
+						"--quiet",
 						"--cloud-sync-drift-status",
 						"--", HelperPath, "true",
 					},
