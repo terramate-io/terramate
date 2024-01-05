@@ -134,9 +134,12 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			cmd:      []string{HelperPath, "cat", "test.txt"},
 			want: want{
 				run: RunExpected{
-					Status:       1,
-					Stdout:       "test",
-					IgnoreStderr: true,
+					Status: 1,
+					Stdout: "test",
+					StderrRegexes: []string{
+						"Error: one or more commands failed",
+						"execution failed",
+					},
 				},
 				events: eventsResponse{
 					"s1": []string{"pending", "running", "failed"},
@@ -354,7 +357,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			runid := uuid.String()
 			cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-			runflags := []string{"run", "--cloud-sync-deployment"}
+			runflags := []string{"run", "--quiet", "--cloud-sync-deployment"}
 			runflags = append(runflags, tc.runflags...)
 			runflags = append(runflags, "--")
 			runflags = append(runflags, tc.cmd...)

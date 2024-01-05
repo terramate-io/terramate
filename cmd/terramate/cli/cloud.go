@@ -24,6 +24,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
 )
 
@@ -131,13 +132,9 @@ func (c *cli) cloudOrgName() string {
 }
 
 func (c *cli) setupCloudConfig() error {
-	logger := log.With().
-		Str("action", "cli.setupCloudConfig").
-		Logger()
-
 	err := c.loadCredential()
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to load the cloud credentials")
+		printer.Stderr.ErrorWithDetailsln("failed to load the cloud credentials", err)
 		return cloudError()
 	}
 
@@ -150,8 +147,13 @@ func (c *cli) setupCloudConfig() error {
 		for _, org := range orgs {
 			if strings.EqualFold(org.Name, useOrgName) {
 				if org.Status != "active" && org.Status != "trusted" {
-					logger.Error().
-						Msgf("You are not yet an active member of organization %s. Please accept the invitation first.", useOrgName)
+					printer.Stderr.ErrorWithDetailsln(
+						"Invalid membership status",
+						errors.E(
+							"You are not yet an active member of organization %s. Please accept the invitation first.",
+							useOrgName,
+						),
+					)
 
 					return cloudError()
 				}
@@ -162,11 +164,14 @@ func (c *cli) setupCloudConfig() error {
 		}
 
 		if useOrgUUID == "" {
-			logger.Error().
-				Msgf("You are not a member of organization %q or the organization does not exist. Available organizations: %s",
+			printer.Stderr.ErrorWithDetailsln(
+				"Invalid membership status",
+				errors.E(
+					"You are not a member of organization %q or the organization does not exist. Available organizations: %s",
 					useOrgName,
 					orgs,
-				)
+				),
+			)
 
 			return cloudError()
 		}
@@ -183,18 +188,28 @@ func (c *cli) setupCloudConfig() error {
 			}
 		}
 		if len(activeOrgs) == 0 {
-			logger.Error().Msgf(clitest.CloudNoMembershipMessage)
+			printer.Stderr.Errorln(clitest.CloudNoMembershipMessage)
 
 			if len(invitedOrgs) > 0 {
-				logger.Warn().Msgf("You have pending invitation for the following organizations: %s", invitedOrgs)
+				printer.Stderr.WarnWithDetailsln(
+					"Pending invitation",
+					errors.E(
+						"You have pending invitation for the following organizations: %s",
+						invitedOrgs,
+					),
+				)
 			}
 
 			return errors.E(clitest.ErrCloudOnboardingIncomplete)
 		}
 		if len(activeOrgs) > 1 {
-			logger.Error().
-				Msgf("Please set TM_CLOUD_ORGANIZATION environment variable or terramate.config.cloud.organization configuration attribute to a specific available organization: %s", activeOrgs)
-
+			printer.Stderr.ErrorWithDetailsln(
+				"Invalid cloud configuration",
+				errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
+					"terramate.config.cloud.organization configuration attribute to a specific available organization: %s",
+					activeOrgs,
+				),
+			)
 			return cloudError()
 		}
 

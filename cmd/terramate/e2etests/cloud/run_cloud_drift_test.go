@@ -491,7 +491,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			env = append(env, "TMC_API_URL=http://"+addr)
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.PrependToPath(filepath.Dir(TerraformTestPath))
-			runflags := []string{"run", "--cloud-sync-drift-status"}
+			runflags := []string{"run", "--quiet", "--cloud-sync-drift-status"}
 			runflags = append(runflags, tc.runflags...)
 			runflags = append(runflags, "--")
 			runflags = append(runflags, tc.cmd...)
