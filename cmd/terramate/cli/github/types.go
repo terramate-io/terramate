@@ -42,7 +42,7 @@ type (
 			Author    GitMetadata
 			Committer GitMetadata
 			Message   string
-		}
+		} `json:"commit"`
 		Author       User
 		Committer    User
 		Verification struct {
