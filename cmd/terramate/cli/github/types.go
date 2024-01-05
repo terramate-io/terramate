@@ -28,6 +28,16 @@ type (
 		// rest of the fields aren't important for the cli.
 	}
 
+	// Review represents the review information.
+	Review struct {
+		User              User      `json:"user"`
+		Body              string    `json:"body,omitempty"`
+		State             string    `json:"state,omitempty"`
+		SubmittedAt       time.Time `json:"submitted_at,omitempty"`
+		AuthorAssociation string    `json:"author_association,omitempty"`
+		CommitID          string    `json:"commit_id,omitempty"`
+	}
+
 	// Label of the issue or pull request.
 	Label struct {
 		Name        string `json:"name"`
@@ -85,4 +95,7 @@ type (
 
 	// Pulls represents a list of pull objects.
 	Pulls []Pull
+
+	// Reviews is a list of review objects.
+	Reviews []Review
 )

@@ -413,6 +413,20 @@ func (c *cli) detectCloudMetadata() {
 			})
 		}
 
+		reviews, err := getGithubPullReviews(&ghClient, ghRepo, pull.Number)
+		if err != nil {
+			logger.Warn().
+				Err(err).
+				Msg("failed to retrieve PR reviews")
+		}
+
+		for _, review := range reviews {
+			reviewRequest.Reviewers = append(reviewRequest.Reviewers, cloud.Reviewer{
+				Login:     review.User.Login,
+				AvatarURL: review.User.AvatarURL,
+			})
+		}
+
 		c.cloud.run.reviewRequest = reviewRequest
 
 	} else {
@@ -445,16 +459,18 @@ func getGithubCommit(ghClient *github.Client, repo string, commitName string) (*
 	return commit, nil
 }
 
-func getGithubPR(ghClient *github.Client, repo string, commitName string) ([]github.Pull, error) {
+func getGithubPR(ghClient *github.Client, repo string, commitName string) (github.Pulls, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	pulls, err := ghClient.PullsForCommit(ctx, repo, commitName)
-	if err != nil {
-		return nil, err
-	}
+	return ghClient.PullsForCommit(ctx, repo, commitName)
+}
 
-	return pulls, nil
+func getGithubPullReviews(ghClient *github.Client, repo string, pullNumber int) (github.Reviews, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	return ghClient.PullReviews(ctx, repo, pullNumber)
 }
 
 func setDefaultGitMetadata(md *cloud.DeploymentMetadata, commit *git.CommitMetadata) {
