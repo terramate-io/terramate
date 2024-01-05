@@ -221,6 +221,7 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to start authentication process")
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -312,6 +313,7 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleErr(w, errors.E(err, "failed to start authentication process"))
 		return
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err = io.ReadAll(resp.Body)
 	if err != nil {
