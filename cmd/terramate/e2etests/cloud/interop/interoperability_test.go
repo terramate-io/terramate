@@ -41,7 +41,7 @@ func TestInteropDrift(t *testing.T) {
 	AssertRunResult(t, tmcli.Run("list"), RunExpected{
 		Stdout: nljoin("."),
 	})
-	// inititialize the providers
+	// initialize the providers
 	AssertRunResult(t,
 		tmcli.Run("run", "--", TerraformTestPath, "init"),
 		RunExpected{

@@ -220,14 +220,15 @@ type (
 
 	// DeploymentReviewRequest is the review_request object.
 	DeploymentReviewRequest struct {
-		Platform    string  `json:"platform"`
-		Repository  string  `json:"repository"`
-		CommitSHA   string  `json:"commit_sha"`
-		Number      int     `json:"number"`
-		Title       string  `json:"title"`
-		Description string  `json:"description"`
-		URL         string  `json:"url"`
-		Labels      []Label `json:"labels,omitempty"`
+		Platform    string    `json:"platform"`
+		Repository  string    `json:"repository"`
+		CommitSHA   string    `json:"commit_sha"`
+		Number      int       `json:"number"`
+		Title       string    `json:"title"`
+		Description string    `json:"description"`
+		URL         string    `json:"url"`
+		Labels      []Label   `json:"labels,omitempty"`
+		Reviewers   Reviewers `json:"reviewers,omitempty"`
 	}
 
 	// Label of a review request.
@@ -236,6 +237,15 @@ type (
 		Color       string `json:"color,omitempty"`
 		Description string `json:"description,omitempty"`
 	}
+
+	// Reviewer is the user's reviewer of a Pull/Merge Request.
+	Reviewer struct {
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url,omitempty"`
+	}
+
+	// Reviewers is a list of reviewers.
+	Reviewers []Reviewer
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
 	UpdateDeploymentStack struct {
@@ -295,6 +305,8 @@ var (
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
 	_ = Resource(DeploymentReviewRequest{})
+	_ = Resource(Reviewer{})
+	_ = Resource(Reviewers{})
 	_ = Resource(Label{})
 	_ = Resource(Drifts{})
 	_ = Resource(DriftStackPayloadRequest{})
@@ -533,6 +545,17 @@ func (l Label) Validate() error {
 	}
 	return nil
 }
+
+// Validate the reviewer.
+func (r Reviewer) Validate() error {
+	if r.Login == "" {
+		return errors.E(`missing "login" field`)
+	}
+	return nil
+}
+
+// Validate the reviewers list.
+func (rs Reviewers) Validate() error { return validateResourceList(rs...) }
 
 // Validate the UpdateDeploymentStack object.
 func (d UpdateDeploymentStack) Validate() error {
