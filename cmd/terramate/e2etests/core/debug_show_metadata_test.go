@@ -236,7 +236,7 @@ stack "/stack":
 			s.BuildTree(tc.layout)
 
 			cli := NewCLI(t, project.AbsPath(s.RootDir(), tc.wd))
-			AssertRunResult(t, cli.Run("experimental", "metadata"), tc.want)
+			AssertRunResult(t, cli.Run("debug", "show", "metadata"), tc.want)
 		})
 	}
 }

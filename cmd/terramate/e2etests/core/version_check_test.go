@@ -21,10 +21,10 @@ func TestVersionCheck(t *testing.T) {
 	t.Parallel()
 
 	checkedCmds := map[string]string{
-		"experimental metadata":  "experimental metadata",
-		"experimental globals":   "experimental globals",
+		"debug show metadata":    "debug show metadata",
+		"debug show globals":     "debug show globals",
 		"experimental run-order": "experimental run-order",
-		"experimental run-graph": "experimental run-graph",
+		"debug render run-graph": "debug render run-graph",
 		"generate":               "generate",
 		"list":                   "list",
 		"run":                    fmt.Sprintf("run --quiet %s cat %s", HelperPath, stack.DefaultFilename),

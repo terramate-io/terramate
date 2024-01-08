@@ -253,7 +253,7 @@ stack "/stacks/stack-name":
 				}
 
 				ts := NewCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
-				AssertRunResult(t, ts.Run("experimental", "globals"), tcase.want)
+				AssertRunResult(t, ts.Run("debug", "show", "globals"), tcase.want)
 			}
 		})
 	}
