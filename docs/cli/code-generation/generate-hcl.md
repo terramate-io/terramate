@@ -11,7 +11,8 @@ referencing data such as [Variables](./variables/index.md) and [Metadata](./vari
 ## The `generate_hcl` block
 
 HCL code generation is done using `generate_hcl` blocks in Terramate configuration files.
-References to Terramate globals and metadata are evaluated, but any other reference is just transported to the generated code (partial evaluation).
+References to Terramate globals and metadata are evaluated, but any other reference is just transported to the generated code
+(For details, please see [partial evaluation](./index.md#partial-evaluation)).
 
 ```hcl
 # example.tm.hcl
@@ -23,7 +24,7 @@ generate_hcl "backend.tf" {
 ```
 
 The label of the `generate_hcl` block names the file that will be generated within a stack.
-Terramate Variables (`let`, `global`, and `terramate` namespaces) and all [Terramate Functions](./functions/index.md)
+[Terramate Variables](./variables/index.md) (`let`, `global`, and `terramate` namespaces) and all [Terramate Functions](./functions/index.md)
 are supported when defining labels. For more details about how code generation uses labels check the [Labels Overview](./index.md#labels) docs.
 
 ### Argument reference of the `generate_hcl` block
@@ -61,7 +62,7 @@ are supported when defining labels. For more details about how code generation u
   :::
 
 - `stack_filter` *(optional block)* Stack filter allow to filter stacks where the code generation should be executed.
-Currently, only path-based filters are available but tag-based filters are coming soon. Stack filters do neither support
+Currently, only path-based filters are available but tag-based filters are coming soon. Stack filters support neither
 Terramate Functions nor Terramate Variables. For advanced filtering of stacks based on additional conditions and complex
 expressions please use `condition` argument. `stack_filter` blocks have precedence over `conditions` and will be executed
 first for performance reasons. A stack will only be selected for code generation if any `stack_filter` is `true` and the
