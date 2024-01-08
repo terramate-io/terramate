@@ -1,186 +1,125 @@
 ---
-title: HCL Code Generation
-description: Learn how to use the Code Generation in Terramate to generate HCL files that reference Terramate defined data.
-
-prev:
-  text: 'Code Generation Overview'
-  link: '/cli//code-generation/'
-
-next:
-  text: 'Generate File'
-  link: '/cli/code-generation/generate-file'
+title: Terraform, OpenTofu and HCL Code Generation
+description: Learn how to use Terramate to generate Terraform and OpenTofu configurations.
 ---
 
 # HCL Code Generation
 
-Terramate supports the generation of arbitrary HCL code referencing
-[Terramate defined data](../data-sharing/index.md).
+Terramate supports the generation of arbitrary HCL code such as Terraform, OpenTofu and other HCL configurations,
+referencing data such as [Variables](./variables/index.md) and [Metadata](./variables/metadata.md).
 
-The generated code can then be composed/referenced by any Terraform code
-inside a stack (or any other tool that uses HCL, like [Packer](https://www.packer.io/)).
+## The `generate_hcl` block
 
-HCL code generation is done using `generate_hcl`
-blocks in [Terramate configuration files](../configuration/index.md).
-
-The code may include:
-
-* Blocks, sub blocks, etc
-* Attributes initialized by literals
-* Terramate Global references
-* Terramate Metadata references
-* Expressions using interpolation, functions, etc
-* Dynamic blocks using the `tm_dynamic` block type
-
-Anything you can do in Terraform can be generated using a `generate_hcl`
-block. References to Terramate globals and metadata are evaluated, but any
-other reference is just transported to the generated code (partial evaluation).
-
-Each `generate_hcl` block requires a single label that is the path
-where the generated file will be saved.
-For more details about how code generation use labels check the [Labels Overview](index.md#labels)) docs.
-
-Inside the `generate_hcl` block a `content` block is required.
-All code inside `content` is going to be used to generate the final HCL code.
-Any [tm_dynamic](##tm-dynamic) block inside the `content` block is going to be evaluated and
-expanded in the final HCL code.
-
-Now lets jump to some examples. Lets generate backend and provider configurations
-for all stacks inside a project.
-
-Given these globals defined on the root of the project:
+HCL code generation is done using `generate_hcl` blocks in Terramate configuration files.
+References to Terramate globals and metadata are evaluated, but any other reference is just transported to the generated code (partial evaluation).
 
 ```hcl
-globals {
-  backend_data = "backend_data"
-  provider_data = "provider_data"
-  provider_version = "0.6.6"
-  terraform_version = "1.1.3"
-}
-```
-
-We can define the generation of a backend configuration for all
-stacks by defining a `generate_hcl` block in the root of the project:
-
-```hcl
+# example.tm.hcl
 generate_hcl "backend.tf" {
   content {
-    backend "local" {
-      param = global.backend_data
-    }
+    backend "local" {}
   }
 }
 ```
 
-Which will generate code for all stacks, creating a file named `backend.tf` on each stack:
+The label of the `generate_hcl` block names the file that will be generated within a stack.
+Terramate Variables (`let`, `global`, and `terramate` namespaces) and all [Terramate Functions](./functions/index.md)
+are supported when defining labels. For more details about how code generation uses labels check the [Labels Overview](./index.md#labels) docs.
 
-```hcl
-backend "local" {
-  param = "backend_data"
-}
-```
+### Argument reference of the `generate_hcl` block
 
-To generate provider/terraform configuration for all stacks we can add
-in the root configuration:
+- `content` *(required block)* The `content` block defines the HCL code that will be generated as file content. 
+  It supports block definitions, attributes and expressions. Terramate Variables and Terramate Functions can be used and will be interpolated during code generation. 
 
-```hcl
-generate_hcl "provider.tf" {
-
+  The following variable namespaces are available within the `content` block:
+  - [`terramate`](./variables/metadata.md)
+  - [`global`](./variables/globals.md)
+  - [`let`](./variables/lets.md)
+  
+  ```hcl
   content {
-    provider "name" {
-      param = global.provider_data
-    }
-
-    terraform {
-      required_providers {
-        name = {
-          source  = "integrations/name"
-          version = global.provider_version
-        }
-      }
-    }
-
-    terraform {
-      required_version = global.terraform_version
-    }
-
+    backend "local" {}
   }
+  ```
 
-}
-```
+  In addition, the special block [`tm_dynamic`](#the-tm_dynamic-block) is available to generate dynamic content.
+  Any references to functions, variables or blocks that Terramate is unaware of will be rendered as-is.
+  See [partial code generation](#partial-evaluation) for details.
 
-Which will generate code for all stacks, creating a file named `provider.tf` on each stack:
-
-```hcl
-provider "name" {
-  param = "provider_data"
-}
-
-terraform {
-  required_providers {
-    name = {
-      source  = "integrations/name"
-      version = "0.6.6"
-    }
+- `lets` *(optional block)* One or more [`lets`](./variables/lets.md) blocks can be used to define [Lets variables](./variables/lets.md)
+  that can be used in other arguments within the `generate_hcl` block and in the `content` block and are only available 
+  inside the current `generate_hcl` block.
+  
+  ```hcl
+  lets {
+    temp_a_plus_b = global.a + global.b
   }
-}
+  ```
+  
+  ::: tip
+  Use Lets over Global variables whenever you want to provide computed variables available inside the current `generate_hcl` block only.
+  :::
 
-terraform {
-  required_version = "1.1.3"
-}
-```
+- `stack_filter` *(optional block)* Stack filter allow to filter stacks where the code generation should be executed.
+Currently, only path-based filters are available but tag-based filters are coming soon. Stack filters do neither support
+Terramate Functions nor Terramate Variables. For advanced filtering of stacks based on additional conditions and complex
+expressions please use `condition` argument. `stack_filter` blocks have precedence over `conditions` and will be executed
+first for performance reasons. A stack will only be selected for code generation if any `stack_filter` is `true` and the
+`condition` is `true` too.
 
-## tm_dynamic block
+  Each `stack_filter` block supports one or more of the following arguments. When specifying more attributes, all need to be
+  `true` to mark the `stack_filter` block as `true`.
+    - `project_paths` *(optional list of strings)* A list of patterns matched against the absolute project path of the stack.
+    The patterns support globbing but no regular expressions. Any matched path in the list will mark the project path filter as `true`.
+    - `repository_paths` *(optional list of strings)* A list of patterns matched against the absolute repository path of the stack.
+    The patterns support globbing but no regular expressions. Any matched path in the list will mark the repository path filter as `true`.
 
-The `tm_dynamic` is a special block type that can only be used inside the
-`content` block of the `generate_hcl` block.
-It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks)
-but supports partial evaluation of the expanded code.
-
-The generate block's attributes can be provided by a `content` block, an
-`attributes` attribute, or even both if they don't conflict.
-When using the `content` block, additional sub-blocks can be generated and
-nested `tm_dynamic` blocks can be defined.
-
-Example using the `content` block:
-
-```hcl
-globals {
-  values = ["a", "b", "c"]
-}
-
-generate_hcl "file.tf" {
-  content {
-    tm_dynamic "block" {
-      for_each = global.values
-      iterator = value
-
-      content {
-        attr = "index: ${value.key}, value: ${value.value}"
-        attr2 = not_evaluated.attr
-      }
+    ```hcl
+    stack_filter {
+      project_paths = [
+        "/path/to/specific/stack", # match exact path
+        "/path/to/some/stacks/*",  # match stacks in a directory
+        "/path/to/many/stacks/**", # match all stacks within a tree
+      ]
     }
+    ```
+
+- `condition` *(optional boolean)* The `condition` attribute supports any expression that renders to a boolean.
+Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
+Variables are evaluated with the stack context. For details, please see [Lazy Evaluation](./index.md#lazy-evaluation).
+If the condition is `true` and any `stack_filter` (if defined) is `true` the stack is selected for generating the code.
+As evaluating the condition for multiple stacks can be slow, using `stack_filter` for path-based generation is recommended.
+
+  ```hcl
+  condition = tm_anytrue([
+     tm_contains(terramate.stack.tags, "my-tag"), # only render if tag is set
+     tm_try(global.render_stack, false),          # only render if `render_stack` is `true`
+  ])
+  ```
+
+- `assert` *(optional block)* One or more `assert` blocks can be used to prevent wrong configurations in code generation
+assertion can be set to guarantee all preconditions for generating code are satisfied.
+Each `assert` block supports the following arguments:
+  - `assertion` *(required boolean)* When the boolean expression is `false` the assertion is triggered and the `message`
+  is printed to the user. Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
+  - `message` *(required string)* A descriptive message to present to the user to inform about the causes that made an assertion fail.
+  Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
+    - `warning` *(optional boolean)* When set to `true` the code generation will not fail, but a warning is issued to the user.
+    Default is `false`. Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported.
+  ```hcl
+  assert {
+    assertion = tm_can(global.is_enabled)
+    message   = "'global.is_enabled' needs to be set to either true or false"
   }
-}
-```
+  ```
+    
+<!-- ### Complete Example -->
+    
+## The `tm_dynamic` block
 
-Which generates a `file.tf` file like this:
-
-```hcl
-block {
-  attr = "index: 0, value: a"
-  attr2 = not_evaluated.attr
-}
-
-block {
-  attr = "index: 1, value: b"
-  attr2 = not_evaluated.attr
-}
-
-block {
-  attr = "index: 2, value: c"
-  attr2 = not_evaluated.attr
-}
-```
+::: info
+The `tm_dynamic` block is only supported within the `content` block of a `generate_hcl` block.
+:::
 
 Additionally, a `labels` attribute can be provided for generating the block's
 labels. Example:
@@ -297,18 +236,6 @@ generate_hcl "file.tf" {
 
 And if `global.values` is undefined the block is just ignored.
 
-## Hierarchical Code Generation
-
-HCL code generation can be defined anywhere inside a project, from a specific
-stack, which defines code generation only for the specific stack, to parent dirs
-or even the project root, which then has the potential to affect code generation
-to multiple or all stacks (as seen in the previous example).
-
-There is no overriding or merging behavior for `generate_hcl` blocks.
-Blocks defined at different levels with the same label aren't allowed, resulting
-in failure for the overall code generation process.
-
-
 ## Filter-based Code Generation
 
 To only generate HCL code for stacks matching specific criteria, a `stack_filter`
@@ -383,6 +310,29 @@ Will only generate the file for stacks that the expression
 
 When `condition` is false the `content` block won't be evaluated.
 
+- A single label is required to define the type of the block to be dynamically generated. If the block needs to specify
+any labels the `labels` argument can be used to populate any number of labels.
+- `labels` **(optional list of string)** Define any number of labels the block shall be generated with.
+Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported when defining labels.
+In addition, the `iterator` namespace is available which defaults to the label of the block being generated but can be renamed by using the `iterator` argument.
+- `content` **(optional block)** The `content` block is optional when `attributes` are defined. It supports the same features
+as the `generate_hcl.content` block. Terramate Variables (`let`, `global`, and `terramate` namespaces) and all
+Terramate Functions are supported when defining labels. In addition, the `iterator` namespace is available which
+defaults to the label of the block being generated but can be renamed by using the `iterator` argument.
+- `attributes` **(optional map)** The `attributes` argument specifies a map of attributes that shall be rendered inside the
+generated block. Those `attributes` are merged with attributes and blocks defined in the `content` block, but they can not
+conflict, meaning any given attribute can either defined in `attributes` or `content` but not in both.
+Terramate Variables (`let`, `global`, and `terramate` namespaces) and all Terramate Functions are supported when defining labels.
+In addition, the `iterator` namespace is available which defaults to the label of the block being generated but can be
+renamed by using the `iterator` argument.
+- `for_each` **(optional list or map of any type)** The `for_each` argument provides the complex list of values to iterate over.
+In each iteration, the `iterator` will be populated with a `value` of the current element. The element is accessible using
+the `iterator` namespace and defaults to the label of the block being generated. The value can be accessed with the `value` field.
+- `iterator` **(optional string)** The `iterator` sets the name of a temporary variable namespace that represents the current
+element of the complex value defined in `for_each`. If omitted, the name of the variable defaults to the label of the `dynamic` block.
+- `condition` **(optional boolean)** Instead of using the `for_each` the `condition` argument can be used for triggering
+generating the block based on an expression. Terramate Variables (`let`, `global`, and `terramate` namespaces) and
+all Terramate Functions are supported when defining labels.
 
 ## Partial Evaluation
 
@@ -390,7 +340,7 @@ A partial evaluation strategy is used when generating HCL code.
 This means that you can generate code with unknown references/function calls
 and those will be copied verbatim to the generated code.
 
-Lets assume we have a single global as Terramate data:
+Let's assume we have a single global as Terramate data:
 
 ```hcl
 globals {
@@ -398,8 +348,8 @@ globals {
 }
 ```
 
-And we want to mix this Terramate references with Terraform
-references, like locals/vars/outputs/etc.
+And we want to mix those Terramate references with Terraform
+references, like locals, vars, outputs, etc.
 All we have to do is define our `generate_hcl` block like this:
 
 
@@ -459,7 +409,7 @@ resource "myresource" "name" {
 }
 ```
 
-If one of the parameters of a unknown function call is a Terramate
+If one of the parameters of an unknown function call is a Terramate
 reference the value of the Terramate reference will be replaced on the
 function call.
 
@@ -489,6 +439,6 @@ generate_hcl "main.tf" {
 }
 ```
 
-Currently there is no partial evaluation of `for` expressions.
+Currently, there is no partial evaluation of `for` expressions.
 Referencing Terramate data inside a `for` expression will result
 in an error (`for` expressions with unknown references are copied as is).

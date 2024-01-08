@@ -1,14 +1,6 @@
 ---
 title: Editor Plugins
 description: Learn how to use the terramate plugins for various text editors.
-
-prev:
-  text: 'Commands (CLI)'
-  link: '/cli/cmdline/'
-
-next:
-  text: 'Language Server'
-  link: '/cli/editor-plugins/language-server.md'
 ---
 
 # Editor Plugins

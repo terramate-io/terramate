@@ -1,14 +1,6 @@
 ---
 title: Configure Terramate
 description: Learn about the different configuration options in Terramate ranging from avoiding duplication by leveraging powerful code generation to flexible orchestration.
-
-prev:
-  text: 'Functions'
-  link: '/cli/functions/'
-
-next:
-  text: 'Project Setup'
-  link: '/cli/configuration/project-setup'
 ---
 
 # Terramate Configuration Overview
@@ -97,7 +89,7 @@ block definitions can be split into several blocks, with each one defining a par
 the whole. The exceptions to this are the [generate](../code-generation/index.md) and
 `import` blocks.
 
-The [globals](../data-sharing/index.md) block extends the merging to the hierarchy of globals.
+The [globals](../code-generation/variables/globals.md) block extends the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
 
@@ -151,7 +143,7 @@ The terramate configuration is defined by the following top-level blocks:
 
 ## terramate block schema
 
-For detailed information about this block, see the [Project Configuration](./project-config.md#project-configuration) docs.
+For detailed information about this block, see the [Project Configuration](../projects/configuration.md#project-configuration) docs.
 
 The `terramate` block has no labels, supports [merging](#config-merging) and has
 the following schema:
@@ -196,7 +188,7 @@ The `terramate.config.run` block has no labels and has the following schema:
 The `terramate.config.run.env` block has no labels and it allows arbitrary
 attributes. Each attribute **must** evaluate to a string.
 
-More details can be found [here](./project-config.md#the-terramateconfigrunenv-block).
+More details can be found [here](../projects/configuration.md#the-terramateconfigrunenv-block).
 
 ## stack block schema
 
@@ -230,7 +222,7 @@ can be defined multiple times and has the following schema:
 The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of
 [map](#map-block) blocks.
 
-For more information about `globals`, see the [Sharing Data](../data-sharing/index.md#globals) documentation.
+For more information about `globals`, see the [Globals](../code-generation/variables/globals.md) documentation.
 
 ## map block schema
 

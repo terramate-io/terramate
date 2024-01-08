@@ -1,14 +1,6 @@
 ---
 title: terramate version - Command
 description: With the terramate version command you can see your current and the latest Terramate version.
-
-prev:
-  text: 'Vendor Download'
-  link: '/cli/cmdline/vendor-download'
-
-next:
-  text: 'Guides & Examples'
-  link: '/cli/guides/'
 ---
 
 # Version

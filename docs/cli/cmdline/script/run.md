@@ -1,14 +1,6 @@
 ---
 title: terramate script run - Command
 description: With the terramate
-
-prev:
-  text: 'Script List'
-  link: '/cli/cmdline/script/list'
-
-next:
-  text: 'Script Tree'
-  link: '/cli/cmdline/script/tree'
 ---
 
 # Script Run

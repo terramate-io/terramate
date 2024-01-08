@@ -1,14 +1,6 @@
 ---
 title: terramate generate - Command
 description: With the terramate generate command Terramate will generate all files.
-
-prev:
-  text: 'Fmt'
-  link: '/cli/cmdline/fmt'
-
-next:
-  text: 'Get Config Value'
-  link: '/cli/cmdline/get-config-value'
 ---
 
 # Generate

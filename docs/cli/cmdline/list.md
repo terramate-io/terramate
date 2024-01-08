@@ -1,14 +1,6 @@
 ---
 title: terramate list - Command
 description: With the terramate list command you can list all stacks in the current directory recursively.
-
-prev:
-  text: 'Install Completions'
-  link: '/cli/cmdline/install-completions'
-
-next:
-  text: 'Metadata'
-  link: '/cli/cmdline/metadata'
 ---
 
 # List

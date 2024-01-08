@@ -1,19 +1,13 @@
 ---
 title: terramate run-order - Command
 description: With the terramate run-order command you can view the order of execution of all stacks.
-
-prev:
-  text: 'Run Graph'
-  link: '/cli/cmdline/run-graph'
-
-next:
-  text: 'Run'
-  link: '/cli/cmdline/run'
 ---
 
 # Run Order
 
-**Note:** This is an experimental command and likely subject to changes in the future.
+::: warning
+This is an experimental command and is likely subject to change in the future.
+:::
 
 The `run-order` command returns a list that describes the [order of execution](../orchestration/index.md)
 of all stacks in the current directory. 

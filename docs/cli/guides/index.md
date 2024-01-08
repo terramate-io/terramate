@@ -1,14 +1,6 @@
 ---
 title: Guides and Examples
 description: Learn about the various use cases and features of Terramate with straightforward and easy to apply guides and examples.
-
-prev:
-  text: "version"
-  link: "/cli/cmdline/version"
-
-next:
-  text: "Introduction"
-  link: "/cli/introduction"
 ---
 
 # Guides and Examples

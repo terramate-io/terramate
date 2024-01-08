@@ -1,14 +1,6 @@
 ---
 title: Upgrade and Security Bulletin Checks
 description: The Terramate CLI commands interacts with the Terramate Checkpoint service to check for the availability of new versions and for critical security bulletins about the current version.
-
-prev:
-  text: 'Project Configuration'
-  link: '/cli/configuration/project-config'
-
-next:
-  text: 'Command Line Interface (CLI)'
-  link: '/cli/cmdline/'
 ---
 
 # Upgrade and Security Bulletin Checks

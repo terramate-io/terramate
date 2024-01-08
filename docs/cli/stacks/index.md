@@ -1,207 +1,138 @@
 ---
-title: Stacks
-description: Terramate stacks allow you to adopt a modular approach by breaking your IaC into smaller and isolated units to simplify resource creation and management, allowing you to focus on building and deploying the application.
-
-prev:
-  text: 'Getting Started'
-  link: '/cli/getting-started/'
-
-next:
-  text: 'Orchestration'
-  link: '/cli/orchestration/'
+title: An Introduction to Stacks
+description: Learn how stacks help you efficiently build and manage infrastructure as code projects at any scale with technologies such as Terraform.
 ---
 
-# Stack Configuration
+# About stacks
 
-When working with Infrastructure as Code (IaC), adopting a modular approach is highly recommended. This approach breaks the entire IaC into smaller, isolated **stacks**, enabling code and infrastructure component reuse. 
+A modular approach is recommended when working with Infrastructure as Code (IaC). This approach breaks the entire infrastructure code and state into **smaller** and **isolated** units, often referred to as ***stacks.***
 
-Additionally, it enhances infrastructure management across multiple stacks and facilitates testing and deploying changes in a controlled manner, minimizing unintended consequences.
+## What are stacks?
 
-The Terramate stack is a powerful feature that allows you to manage complex deployments.
+A stack is a collection of infrastructure resources that you *configure, provision* and *manage* as a unit.
 
+You can think about a stack as a combination of:
 
-## What is a Stack?
+- **Infrastructure code** which declares a set of infrastructure assets and their configuration.
+Terraform code (`.tf` files) and Cloud Formation (`.json` files) templates are examples of infrastructure code.
+- **State** that describes the status of the assets according to the *latest deployment* (e.g., Terraform state,
+Pulumi state, etc. - can be either stored locally or in a remote location)
+- **Configuration** to *configure* the infrastructure assets and stack behavior (e.g., Variables, Stack Configuration, etc.)
 
-A stack is a collection of related resources managed as a single unit. When defining a stack, you specify all included resources, such as networks, virtual machines, and storage. 
-Stacks simplify resource creation and management, allowing you to focus on building and deploying the application.
+Using stacks to break up your infrastructure code into manageable pieces is considered an industry standard and
+provides the following benefits:
 
+**✅ Reduce run times significantly** by selectively targeting only the required stacks for execution (e.g., only the
+stacks that have changed in the last PR). Stacks also enable the possibility of parallel execution.
 
-## A Terramate stack is:
+✅ **Limit the blast radius risk** by grouping IaC-managed assets in logical units such as environments, business units,
+regions or services isolated from each other.
 
-- A directory inside your project
-- Contains one or more Terramate configuration files
-- Includes a configuration file with a stack{} block
+✅ **Separate management responsibilities across team boundaries** by assigning and managing the ownership of stacks to
+users and teams.
 
-The `stack{}` block distinguishes a stack from other directories in Terramate. By default, it doesn't require any attributes but can be used to describe the stack and orchestrate its execution.
+✅ **Remove sequential and blocking operations** by enabling parallel development and execution of independent stacks.
 
-Stack configurations related to orchestration can be found [here](../orchestration/index.md). 
+## What are Terramate Stacks?
 
+Terramate Stacks are Infrastructure as Code agnostic stacks and improve the **developer experience**, **productivity**
+and **scalability** in Infrastructure as Code projects of any scale.
 
-## Why use Stacks?
+You can use Terramate Stacks to manage IaC technologies such as Terraform, OpenTofu, Terragrunt, Kubernetes, AWS Cloud
+Formation, AWS Cloud Development Kit  (CDK), Bicep, and others.
 
-Stacks offer several benefits:
+::: info
+Some IaC technologies, such as AWS Cloud Development Kit (CDK), offer native implementations of stacks, while others don’t.
+It’s important to understand that Terramate integrates seamlessly with those approaches.
+E.g., Terramate can be used to manage Terraform workspaces and CDK Stacks.
+:::
 
-1. Manage multiple resources as one unit, allowing you to build and deploy the entire infrastructure efficiently and quickly with a single command.
+Most of the time, Terramate projects manage *dozens*, *hundreds*, or even *thousands* of stacks. This is possible
+because Terramate CLI provides a neat set of features that allow you to create and manage stacks efficiently at any
+scale:
 
-2. Easily manage dependencies between resources. For example, you can specify a virtual machine that depends on a virtual network, and Terramate CLI will be used to manage the resource's creation or deletion.
+👉 Stacks can be **created**, **cloned**, and **compared** with a single command.
 
-3. Simplify infrastructure management as code. Defining the entire infrastructure using Terraform configuration files makes version control and change management more accessible.
+👉 Stacks can be **orchestrated and targeted** for operations, which allows the execution of any command
+(e.g., `terraform apply`) over a filtered selection of stacks.
 
+👉 The **change detection** allows the execution of only the stacks that contain changes.
 
-## Creating a Stack:
+👉 The **order of execution** of stacks can be configured explicitly in addition to the default order of execution.
 
-To create a stack using Terramate, follow these steps:
+👉 You can **generate code** in stacks. E.g. you can generate the Terraform backend configuration for all Terraform stacks
+or a Kubernetes manifest to create a secret for all Kubernetes stacks that follow certain criteria.
 
-1. Define the included resources in a Terraform configuration file. This file should contain all resources you want to manage as part of the stack.
+👉 Stacks can be used to **manage ownership** by leveraging concepts such as
+[CODEOWNERS](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).
 
-2. Use the following command to create the resources:
+👉 Stacks allow you to implement **multi-IaC** and **multi-step** scenarios.
+
+👉 Since stacks always manage native infrastructure code, they **integrate all third-party tooling** seamlessly.
+
+Stacks can be created with the [create](../cmdline/create.md) command, which creates a directory and a configuration file
+`stack.tm.hcl` used to configure the metadata (`name`, `description`, `id`, `tags`, etc.),
+[orchestration](../orchestration/index.md#order-of-execution) and [change detection behavior]() of the stack.
 
 ```hcl
-terramate create
-```
-Running this command creates creates the `stack.tm.hcl` file containing the stack block.
-
-
-# Properties
-
-Each stack has a set of properties that can be accessed and used while building your IaC. 
-
-Some of these properties include:
-
-## stack.id (string)(optional)
-
-The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
-The ID can't be bigger than 64 bytes, **it's case insensitive** and
-**must** be unique on the whole project.
-
-There is no default value determined for the stack ID, but when users use
-the [create](../cmdline/create.md) command to create new stacks or the [clone](../cmdline/clone.md)
-command to clone stacks, the ID will default to a [random UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier#:~:text=Version%204%20(random)%5Bedit%5D).
-
-```hcl
+# stack.tm.hcl
 stack {
-  id = "some_id_that_must_be_unique"
-}
-```
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Configure the metadata of a stack
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  name        = "Terraform Example Stack"
+  description = "An awesome stack for demo purposes"
+  id          = "780c4a63-79c2-4725-81f0-06d7c0435426"
 
-## stack.name (string)(optional)
-
-The stack name can be any string and defaults to the stack directory base name.
-
-```hcl
-stack {
-  name = "My Awesome Stack Name"
-}
-```
-
-## stack.description (string)(optional)
-
-The stack description can be any string and defaults to an empty string.
-
-```hcl
-stack {
-  description = "My Awesome Stack Description"
-}
-```
-
-## stack.tags (set(string))(optional)
-
-The tags must be a unique set of strings, where each tag must adhere to the following rules:
-
-- It must start with a lowercase ASCII alphabetic character (`[a-z]`).
-- It must end with a lowercase ASCII alphanumeric character (`[0-9a-z]`).
-- It must have only lowercase ASCII alphanumeric, `_` and `-` characters (`[0-9a-z_-]`).
-
-```hcl
-stack {
   tags = [
-    "aws",
-    "vpc",
-    "bastion",
+    "terraform",
+    "prd",
+    "service-abc"
   ]
-}
-```
 
-## stack.watch (list)(optional)
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Optionally the orchestration behavior can be configured 
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The list of files that must be watched for changes in the
-[change detection](../change-detection/index.md).
+  # Ensures that the current stack is executed before the following stacks
+  before = [
+    "../stack-a",
+    "../stack-b",
+  ]
 
-```hcl
-stack {
+  # Ensures that the current stack is executed after the following stacks
+  after = [
+    "../stack-c",
+  ]
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Optionally the trigger behavior can be configured 
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  # If any of the configured files changed, this stack will be marked as changed in the change detection.
   watch = [
     "/policies/mypolicy.json"
   ]
-}
-```
 
-The configuration above will mark the stack as changed whenever
-the file `/policies/mypolicy.json` changes.
-
-## stack.after (set(string))(optional)
-
-The `after` defines the list of stacks which this stack must run after.
-It accepts project absolute paths (like `/other/stack`), paths relative to
-the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md).
-
-```hcl
-stack {
-  after = [
-    "tag:prod:networking",
-    "/prod/apps/auth"
-  ]
-}
-```
-
-The stack above will run after all stacks tagged with `prod` **and** `networking` and after `/prod/apps/auth` stack.
-
-See [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
-
-## stack.before (set(string))(optional)
-
-Defines the list of stacks that this stack must run `before`. It accepts project absolute paths (like `/other/stack`), paths relative to the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](../tag-filter.md). See  [orchestration docs](../orchestration/index.md#stacks-ordering) for details.
-
-## stack.wants (set(string))(optional)
-
-This attribute defines the list of stacks that must be selected 
-whenever this stack is selected to be executed.
-
-```hcl
-stack {
+  # Forces the execution of a list of stacks whenever the current stack is executed
+  # even if those don't contain any changes
   wants = [
-    "/other/stack"
+    "../stack-d",
   ]
-}
-```
 
-When the stack defined above is selected to be executed, the list
-of stacks defined in its `wants` set are also selected.
-
-Suppose you need to run just a subset of the project's stacks, 
-you can do so by `cd` (change directory) into a child directory.
-In that case, when executing `terramate run` only the stacks visible
-from that directory are going to be executed, but if any of the
-selected stacks have a `wants` clause for selecting additional stacks,
-not present in the subset, then they will also be included in the
-final execution set.
-
-## stack.wanted_by (set(string))(optional)
-
-This attribute defines the list of stacks that are wanted by
-this stack, which means the stacks in the list will select this
-stack whenever they are selected for execution.
-
-```
-stack {
+  # Ensures that the current stack always gets executed when a list of configured
+  # stacks are executed even if the current stack doesn't contain any changes
   wanted_by = [
-    "/other/stack-1",
-    "/other/stack-2",
+    "../stack-e",
   ]
 }
 ```
 
-When using the configuration above, whenever `/other/stack-1` or
-`/other/stack-2` is selected to be executed, then Terramate will
-also select the current stack.
-This option works in the same way as if both `/other/stack-1` and 
-`/other/stack-2` had a `stack.wants` attribute targeting this stack.
+For an overview of all stacks configuration options available, please see the docs in
+[stacks configuration](configuration.md).
+
+## Summary
+
+Stacks are a useful abstraction in Infrastructure as Code that allows us to define small units of assets. A stack consists
+of infrastructure code, state and configuration. The Terramate concept of stacks includes the inheritance of configuration
+over the filesystem hierarchy and the ability to orchestrate commands in a targeted set of stacks.

@@ -1,26 +1,20 @@
 ---
 title: terramate clone - Command
-description: With the terramate command you can easily clone stacks.
-
-prev:
-  text: 'Command Line Interface (CLI)'
-  link: '/cli/cmdline/'
-
-next:
-  text: 'Cloud Drift Show'
-  link: '/cli/cmdline/cloud-drift-show'
+description: With the clone command you can easily clone stacks.
 ---
 
 # Clone
 
-**Note:** This is an experimental command and is likely subject to change in the future.
+::: warning
+This is an experimental command and is likely subject to change in the future.
+:::
 
-The `clone` command clones stacks from a source to a target directory. Terramate will recursively copy the stack
+The `clone` command clones stacks and nested stacks from a source to a target directory. Terramate will recursively copy the stack
 files and directories, and automatically update the `stack.id` with generated UUIDs for the cloned stacks.
 
 The source directory can be a stack itself, or it can contain stacks in sub-directories.
 
-The flag `--skip-child-stacks` can be set to change this behaviour, so stacks in sub-directories will be ignored;
+The flag `--skip-child-stacks` can be set to change this behavior, so stacks in sub-directories will be ignored;
 in this case, the source directory itself must be a stack.
 
 ## Usage

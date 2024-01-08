@@ -1,14 +1,6 @@
 ---
 title: terramate fmt - Command
 description: With the terramate fmt command you can rewrite Terramate configuration files to a canonical format.
-
-prev:
-  text: 'Eval'
-  link: '/cli/cmdline/eval'
-
-next:
-  text: 'Generate'
-  link: '/cli/cmdline/generate'
 ---
 
 # Fmt

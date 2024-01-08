@@ -1,14 +1,6 @@
 ---
 title: terramate script tree - Command
 description: The script tree command shows a tree of all scripts
-
-prev:
-  text: 'Script Run'
-  link: '/cli/cmdline/script/run'
-
-next:
-  text: 'Trigger'
-  link: '/cli/cmdline/trigger'
 ---
 
 # Script Tree

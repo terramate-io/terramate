@@ -1,19 +1,11 @@
 ---
 title: Quickstart
 description: Learn about the basic concepts such as stacks in Terramate and how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
-
-prev:
-  text: "Installation"
-  link: "/cli/installation"
-
-next:
-  text: "About Stacks"
-  link: "/cli/about-stacks"
 ---
 
 # Quickstart
 
-This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/terramate-io/terramate), and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
+This tutorial aims to introduce you to the basic concepts of [Terramate](https://github.com/terramate-io/terramate) and demonstrate how a filesystem-oriented code generator can improve the management of your Terraform code efficiently.
 
 To follow this tutorial, you will need local installations of [Terramate](../installation.md), [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli), and [Git](https://git-scm.com/downloads).
 
@@ -103,7 +95,9 @@ Simply navigate to the directory, and execute `terraform init` and `terraform ap
 
 ### Generate Dynamic Code with Terramate Globals
 
-To **create dynamic content**, Terramate uses variables called [Globals](../data-sharing/index.md#globals). These variables can be defined in any Terramate file within a `globals {}` block. Each directory inherits all Globals from its parent directory, and any Globals with the same name will be overwritten. There are no complicated precedence rules. Subdirectories will overwrite parent directory Globals if they share the same name.
+To **create dynamic content**, Terramate uses variables called [Globals](../code-generation/variables/globals.md).
+These variables can be defined in any Terramate file within a `globals {}` block. Each directory inherits all Globals from its parent directory,
+and any Globals with the same name will be overwritten. There are no complicated precedence rules. Subdirectories will overwrite parent directory Globals if they share the same name.
 
 First, define a global variable called `title` in the root directory. Create a file named `globals.tm.hcl` and add the following content:
 

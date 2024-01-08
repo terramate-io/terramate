@@ -1,14 +1,6 @@
 ---
 title: Command Line Interface (CLI)
 description: Terramate has a rich command-line interface, supporting verbosity levels, logging levels, multiple sub-commands, autocompletion and more.
-
-prev:
-  text: 'Upgrade Check'
-  link: '/cli/configuration/upgrade-check'
-
-next:
-  text: 'Clone'
-  link: '/cli/cmdline/clone'
 ---
 
 # Command Line Interface (CLI)
@@ -22,7 +14,7 @@ All sub-commands support the `--help` flag as well for specific details.
 
 ## Options
 
-- `-h, --help`                         Show context-sensitive help..
+- `-h, --help`                         Show context-sensitive help.
 - `-C, --chdir=STRING`                 Sets working directory.
 - `-B, --git-change-base=STRING`       Git base ref for computing changes.
 - `-v, --verbose=0`                    Increase verboseness of output.
