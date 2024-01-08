@@ -19,6 +19,12 @@ List all stacks in the current directory recursively:
 terramate list
 ```
 
+List all stacks in the current directory sorted by order of execution:
+
+```bash
+terramate list --run-order
+```
+
 Explicitly change the working directory:
 
 ```bash

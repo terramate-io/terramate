@@ -141,7 +141,7 @@ to its default behavior with the [`before`](./stacks/configuration.md#stackbefor
 :::
 
 If you want to understand and debug the order of execution of stacks in your Terramate project, the
-[run-order](./cmdline/run-order.md) command will come in handy.
+[list --run-order](./cmdline/list.md) command will come in handy.
 
 ## Git integration and change detection
 

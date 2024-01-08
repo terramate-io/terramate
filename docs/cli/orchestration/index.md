@@ -29,6 +29,6 @@ The default order of execution can be altered in a stack's configuration. For de
 [configuring the order of execution](../stacks/configuration.md#configuring-the-order-of-execution).
 
 ::: tip
-You can use the [run-order](../cmdline/run-order.md)
+You can use the [list --run-order](../cmdline/list.md)
 command to understand the order of execution of your stacks.
 :::
