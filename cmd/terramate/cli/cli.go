@@ -171,6 +171,22 @@ type cliSpec struct {
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
+	Debug struct {
+		Show struct {
+			Metadata        struct{} `cmd:"" help:"Shows metadata available on the project"`
+			Globals         struct{} `cmd:"" help:"List globals for all stacks"`
+			GenerateOrigins struct {
+			} `cmd:"" help:"Show generate debug information"`
+			RuntimeEnv struct{} `cmd:"" help:"List run environment variables for all stacks"`
+		} `cmd:"" help:"Show information available in the project"`
+		Render struct {
+			RunGraph struct {
+				Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
+				Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
+			} `cmd:"" help:"Generate a graph of the execution order"`
+		} `cmd:"" help:"Render information about a project"`
+	} `cmd:"" help:"Terramate debugging commands"`
+
 	Experimental struct {
 		Clone struct {
 			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
@@ -184,24 +200,9 @@ type cliSpec struct {
 			ExperimentalStatus string `help:"Filter by status"`
 		} `cmd:"" help:"Triggers a stack"`
 
-		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
-
-		Globals struct{} `cmd:"" help:"List globals for all stacks"`
-
-		Generate struct {
-			Debug struct{} `cmd:"" help:"Shows generate debug information"`
-		} `cmd:"" help:"Experimental generate commands"`
-
-		RunGraph struct {
-			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
-		} `cmd:"" help:"Generate a graph of the execution order"`
-
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
 		} `cmd:"" help:"Show the topological ordering of the stacks"`
-
-		RunEnv struct{} `cmd:"" help:"List run environment variables for all stacks"`
 
 		Vendor struct {
 			Download struct {
@@ -570,24 +571,24 @@ func (c *cli) run() {
 		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
-	case "experimental globals":
+	case "debug show globals":
 		c.setupGit()
 		c.printStacksGlobals()
-	case "experimental generate debug":
+	case "debug show generate-origins":
 		c.setupGit()
 		c.generateDebug()
-	case "experimental metadata":
+	case "debug show metadata":
 		c.setupGit()
 		c.printMetadata()
-	case "experimental run-graph":
+	case "debug render run-graph":
 		c.setupGit()
 		c.generateGraph()
 	case "experimental run-order":
 		c.setupGit()
 		c.printRunOrder()
-	case "experimental run-env":
+	case "debug show runtime-env":
 		c.setupGit()
-		c.printRunEnv()
+		c.printRuntimeEnv()
 	case "experimental eval":
 		log.Fatal().Msg("no expression specified")
 	case "experimental eval <expr>":
@@ -1359,7 +1360,7 @@ func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
 	return status
 }
 
-func (c *cli) printRunEnv() {
+func (c *cli) printRuntimeEnv() {
 	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
@@ -1388,7 +1389,7 @@ func (c *cli) generateGraph() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	switch c.parsedArgs.Experimental.RunGraph.Label {
+	switch c.parsedArgs.Debug.Render.RunGraph.Label {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
 
@@ -1445,7 +1446,7 @@ func (c *cli) generateGraph() {
 
 	logger.Debug().
 		Msg("Set output of graph.")
-	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
+	outFile := c.parsedArgs.Debug.Render.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
 

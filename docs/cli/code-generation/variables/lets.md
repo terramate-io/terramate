@@ -33,7 +33,7 @@ Example:
 generate_file "file.json" {
   lets {
     # let.json is available in the current generate_file block only
-    json = tm_jsonencode({"hello"="world"})
+    json = tm_jsonencode({ "hello" = "world" })
   }
 
   content = let.json

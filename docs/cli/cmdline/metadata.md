@@ -5,26 +5,22 @@ description: With the terramate metadata command you can see a list of stacks an
 
 # Metadata
 
-::: warning
-This is an experimental command and is likely subject to change in the future.
-:::
-
-The `metadata` command prints information stacks and their metadata in the current directory recursively. 
+The `metadata` command prints information stacks and their metadata in the current directory recursively.
 
 ## Usage
 
-`terramate experimental metadata`
+`terramate debug show metadata`
 
 ## Examples
 
 List all stacks and their metadata in the current directory recursively:
 
 ```bash
-terramate experimental metadata
+terramate debug show metadata
 ```
 
 Explicitly change the working directory:
 
 ```bash
-terramate experimental metadata --chdir path/to/directory
+terramate debug show metadata --chdir path/to/directory
 ```

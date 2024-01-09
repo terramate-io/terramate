@@ -20,9 +20,10 @@ terramate {
   required_version = "~> 0.4.3"
 
   config {
-  # config options
+    # config options
   }
 }
+
 ```
 
 
@@ -80,8 +81,8 @@ terramate {
   config {
     git {
       # Git configuration
-      default_remote    = "origin"
-      default_branch    = "main"
+      default_remote = "origin"
+      default_branch = "main"
 
       # Safeguard
       check_untracked   = false

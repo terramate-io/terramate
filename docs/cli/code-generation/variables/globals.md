@@ -67,14 +67,17 @@ some use cases. To set a specific value of a key within a `map` without redefini
 globals <variable> [key] [key] ... {
   <key> = <expression>
 } 
+```
 
-# example:
-global "mymap" "nested" {
+Example:
+
+```hcl
+globals "mymap" "nested" {
   key = "value"      # set global.mymap.nested.key = "value"
 }
 
 # equal initial definition without labels:
-global {
+globals {
   mymap = {          # set global.mymap = { nested = { key = "value" } }
     nested = {       # set global.mymap.nested = { key = "value" }
       key = "value"  # set global.mymap.nested.key = "value"
