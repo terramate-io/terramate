@@ -20,9 +20,10 @@ terramate {
   required_version = "~> 0.4.3"
 
   config {
-  # config options
+    # config options
   }
 }
+
 ```
 
 
@@ -80,8 +81,8 @@ terramate {
   config {
     git {
       # Git configuration
-      default_remote    = "origin"
-      default_branch    = "main"
+      default_remote = "origin"
+      default_branch = "main"
 
       # Safeguard
       check_untracked   = false
@@ -96,6 +97,31 @@ terramate {
 
 Configuration for the `terramate run` command can be set in the
 `terramate.config.run` block.
+
+#### Disable code generation check
+
+By default, `terramate run` will check that all generated code is up to date and throw an error if not:
+
+```sh
+ERR outdated code found action=checkOutdatedGeneratedCode() filename=stg/ec2/_provider.tf
+FTL please run: 'terramate generate' to update generated code error="outdated generated code detected" action=checkOutdatedGeneratedCode()
+```
+
+If you want to disable this default safe-guard, you can set `check_gen_code = false` in the `terramate.config.run` block.
+
+```hcl
+terramate {
+  config {
+    run {
+      check_gen_code = false
+    }
+  }
+}
+```
+
+::: tip
+This check ensures that it's not possible to accidentally run against outdated code and we discourage disabling it.
+:::
 
 #### The `terramate.config.run.env` Block
 

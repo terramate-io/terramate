@@ -156,7 +156,7 @@ func TestGenerateDebug(t *testing.T) {
 			}
 
 			ts := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			AssertRunResult(t, ts.Run("experimental", "generate", "debug"), tc.want)
+			AssertRunResult(t, ts.Run("debug", "show", "generate-origins"), tc.want)
 		})
 	}
 }
@@ -200,18 +200,18 @@ func TestGenerateDebugWithChanged(t *testing.T) {
 /stack-1/file.txt origin: /config.tm:1,1-3,2
 `
 	ts := NewCLI(t, s.RootDir())
-	AssertRunResult(t, ts.Run("experimental", "generate", "debug", "--changed"), RunExpected{
+	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{
 		Stdout: want,
 	})
 
 	ts = NewCLI(t, filepath.Join(s.RootDir(), "stack-1"))
-	AssertRunResult(t, ts.Run("experimental", "generate", "debug", "--changed"), RunExpected{
+	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{
 		Stdout: want,
 	})
 
 	ts = NewCLI(t, filepath.Join(s.RootDir(), "stack-2"))
-	AssertRunResult(t, ts.Run("experimental", "generate", "debug", "--changed"), RunExpected{})
+	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{})
 
 	ts = NewCLI(t, filepath.Join(s.RootDir(), "no-stack"))
-	AssertRunResult(t, ts.Run("experimental", "generate", "debug", "--changed"), RunExpected{})
+	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{})
 }

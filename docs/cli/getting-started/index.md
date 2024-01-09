@@ -278,10 +278,10 @@ globals {
 }
 ```
 
-To view how globals are evaluated in each stack, run the experimental command `terramate experimental globals`:
+To view how globals are evaluated in each stack, run the experimental command `terramate debug show globals`:
 
 ```bash
-$ terramate experimental globals
+$ terramate debug show globals
 stack "/dev/mysite":
         env   = "dev"
         title = "THIS IS DEV"
