@@ -139,12 +139,12 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'About Stacks', link: '/cli/stacks/' },
-            { text: 'Nesting Stacks', link: '/cli/stacks/nesting' },
             { text: 'Create Stacks', link: '/cli/stacks/create' },
-            { text: 'Clone Stacks', link: '/cli/stacks/clone' },
-            { text: 'Delete Stacks', link: '/cli/stacks/delete' },
             { text: 'Configure Stacks', link: '/cli/stacks/configuration' },
+            { text: 'Clone Stacks', link: '/cli/stacks/clone' },
             { text: 'Manage Stacks', link: '/cli/stacks/manage' },
+            { text: 'Delete Stacks', link: '/cli/stacks/delete' },
+            { text: 'Nesting Stacks', link: '/cli/stacks/nesting' },
           ],
         },
         {
