@@ -715,10 +715,9 @@ export default defineConfig({
         //   text: '🤓 Run Terramate in CI/CD',
         //   collapsed: false,
         //   items: [
-        //     { text: 'Terramate Cloud', link: '/cli/automation/terramate-cloud' },
         //     { text: 'GitHub Actions', link: '/cli/automation/github-actions' },
-        //     { text: 'BitBucket Pipelines', link: '/cli/automation/bitbucket' },
         //     { text: 'GitLab CI/CD', link: '/cli/automation/gitlab' },
+        //     { text: 'BitBucket Pipelines', link: '/cli/automation/bitbucket' },
         //   ],
         // },
 
