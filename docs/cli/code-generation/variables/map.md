@@ -64,14 +64,14 @@ Take a look at the `global.orders` list declared below:
 ```hcl
 globals {
   orders = [
-    {name = "Morpheus", product = "sunglass", price = 100.5},
-    {name = "Trinity",  product = "cape",     price = 82.30},
-    {name = "Trinity",  product = "necklace", price = 25.0},
-    {name = "Trinity",  product = "sunglass", price = 100.5},
-    {name = "Anderson", product = "ollydbg",  price = 30},
-    {name = "Morpheus", product = "boot",     price = 65},
-    {name = "Anderson", product = "cape",     price = 82.30},
-    {name = "Morpheus", product = "sunglass", price = 145.50},
+    { name = "Morpheus", product = "sunglass", price = 100.5 },
+    { name = "Trinity", product = "cape", price = 82.30 },
+    { name = "Trinity", product = "necklace", price = 25.0 },
+    { name = "Trinity", product = "sunglass", price = 100.5 },
+    { name = "Anderson", product = "ollydbg", price = 30 },
+    { name = "Morpheus", product = "boot", price = 65 },
+    { name = "Anderson", product = "cape", price = 82.30 },
+    { name = "Morpheus", product = "sunglass", price = 145.50 },
   ]
 }
 ```
