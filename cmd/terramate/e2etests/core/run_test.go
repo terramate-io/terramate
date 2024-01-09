@@ -2505,7 +2505,7 @@ stack "/stack":
 	TERRAMATE_OVERRIDDEN=%s
 `, exportedTerramateTest, stackGlobal, stackName, newTerramateOverriden)
 
-		AssertRunResult(t, tm.Run("experimental", "run-env"), RunExpected{
+		AssertRunResult(t, tm.Run("debug", "show", "runtime-env"), RunExpected{
 			IgnoreStderr: true,
 			Stdout:       want})
 	})

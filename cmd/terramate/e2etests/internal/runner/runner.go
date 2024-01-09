@@ -256,7 +256,7 @@ func (tm CLI) StacksRunOrder(args ...string) RunResult {
 
 // StacksRunGraph is a helper for executing `terramate experimental run-graph`.
 func (tm CLI) StacksRunGraph(args ...string) RunResult {
-	return tm.Run(append([]string{"experimental", "run-graph"}, args...)...)
+	return tm.Run(append([]string{"debug", "render", "run-graph"}, args...)...)
 }
 
 // ListStacks is a helper for executinh `terramate list`.
