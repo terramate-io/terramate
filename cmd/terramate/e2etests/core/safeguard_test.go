@@ -28,14 +28,14 @@ func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 
 	cmds := []string{
-		"experimental metadata",
-		"experimental globals",
+		"debug show metadata",
+		"debug show globals",
 		"experimental run-order",
-		"experimental run-graph",
+		"debug render run-graph",
 		"experimental eval 1+1",
 		"experimental partial-eval 1+1",
 		"experimental get-config-value global",
-		"experimental generate debug",
+		"debug show generate-origins",
 		"create stack-2",
 		"generate",
 		"list",
