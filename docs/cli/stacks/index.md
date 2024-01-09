@@ -108,7 +108,7 @@ stack {
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Optionally the trigger behavior can be configured 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
+
   # If any of the configured files changed, this stack will be marked as changed in the change detection.
   watch = [
     "/policies/mypolicy.json"

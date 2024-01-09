@@ -200,11 +200,11 @@ Terramate CLI allows us to generate all kinds of code and files using its built-
 
 ```hcl
 generate_file "hello_world.json" {
-  content = tm_jsonencode({"hello" = "world"})
+  content = tm_jsonencode({ "hello" = "world" })
 }
 
 generate_file "hello_world.yml" {
-  content = tm_yamlencode({"hello" = "world"})
+  content = tm_yamlencode({ "hello" = "world" })
 }
 ```
 

@@ -97,13 +97,14 @@ using the `watch` property in the configuration of a stack.
 
 ```hcl
 stack {
-  name        = "Some Application"
-  tags        = ["kubernetes"]
-  id          = "f2b426b2-f614-4fa5-8f12-af78e5dcc13e"
-  watch       = [
+  name = "Some Application"
+  tags = ["kubernetes"]
+  id   = "f2b426b2-f614-4fa5-8f12-af78e5dcc13e"
+  watch = [
     "/path/to/file",
   ]
 }
+
 ```
 
 ### Changing the run scope and order
