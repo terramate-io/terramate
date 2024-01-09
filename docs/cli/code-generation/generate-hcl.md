@@ -134,10 +134,10 @@ generate_hcl "file.tf" {
     tm_dynamic "block" {
       for_each = global.values
       iterator = value
-      labels = ["some", "labels", value.value]
+      labels   = ["some", "labels", value.value]
 
       content {
-        key = value.key
+        key   = value.key
         value = value.value
       }
     }
@@ -181,7 +181,7 @@ generate_hcl "file.tf" {
       iterator = value
 
       attributes = {
-        attr = "index: ${value.key}, value: ${value.value}"
+        attr  = "index: ${value.key}, value: ${value.value}"
         attr2 = not_evaluated.attr
       }
     }
@@ -221,12 +221,12 @@ is false, so it is safe to use it like this:
 generate_hcl "file.tf" {
   content {
     tm_dynamic "block" {
-      for_each = global.values
+      for_each  = global.values
       condition = tm_can(global.values)
-      iterator = value
+      iterator  = value
 
       attributes = {
-        attr = "index: ${value.key}, value: ${value.value}"
+        attr  = "index: ${value.key}, value: ${value.value}"
         attr2 = not_evaluated.attr
       }
     }
@@ -265,7 +265,7 @@ generate_hcl "file" {
   }
   content {
     resource "networking_resource" "name" {
-        # ...
+      # ...
     }
   }
 }
@@ -419,8 +419,8 @@ This:
 generate_hcl "main.tf" {
   content {
     resource "myresource" "name" {
-      data  = upper(global.terramate_data)
-      name  = upper(local.name)
+      data = upper(global.terramate_data)
+      name = upper(local.name)
     }
   }
 }
