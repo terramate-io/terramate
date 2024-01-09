@@ -163,12 +163,12 @@ func BuildDAG(
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
-				printer.Stderr.WarnWithDetailsln(
+				printer.Stderr.WarnWithDetails(
 					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
 					err,
 				)
 			} else if !st.IsDir() {
-				printer.Stderr.WarnWithDetailsln(
+				printer.Stderr.WarnWithDetails(
 					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
 					errors.E("Path %s is not a directory", pathstr),
 				)

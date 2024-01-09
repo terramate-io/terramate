@@ -134,7 +134,7 @@ func (c *cli) cloudOrgName() string {
 func (c *cli) setupCloudConfig() error {
 	err := c.loadCredential()
 	if err != nil {
-		printer.Stderr.ErrorWithDetailsln("failed to load the cloud credentials", err)
+		printer.Stderr.ErrorWithDetails("failed to load the cloud credentials", err)
 		return cloudError()
 	}
 
@@ -147,7 +147,7 @@ func (c *cli) setupCloudConfig() error {
 		for _, org := range orgs {
 			if strings.EqualFold(org.Name, useOrgName) {
 				if org.Status != "active" && org.Status != "trusted" {
-					printer.Stderr.ErrorWithDetailsln(
+					printer.Stderr.ErrorWithDetails(
 						"Invalid membership status",
 						errors.E(
 							"You are not yet an active member of organization %s. Please accept the invitation first.",
@@ -164,7 +164,7 @@ func (c *cli) setupCloudConfig() error {
 		}
 
 		if useOrgUUID == "" {
-			printer.Stderr.ErrorWithDetailsln(
+			printer.Stderr.ErrorWithDetails(
 				"Invalid membership status",
 				errors.E(
 					"You are not a member of organization %q or the organization does not exist. Available organizations: %s",
@@ -188,10 +188,10 @@ func (c *cli) setupCloudConfig() error {
 			}
 		}
 		if len(activeOrgs) == 0 {
-			printer.Stderr.Errorln(clitest.CloudNoMembershipMessage)
+			printer.Stderr.Error(clitest.CloudNoMembershipMessage)
 
 			if len(invitedOrgs) > 0 {
-				printer.Stderr.WarnWithDetailsln(
+				printer.Stderr.WarnWithDetails(
 					"Pending invitation",
 					errors.E(
 						"You have pending invitation for the following organizations: %s",
@@ -203,7 +203,7 @@ func (c *cli) setupCloudConfig() error {
 			return errors.E(clitest.ErrCloudOnboardingIncomplete)
 		}
 		if len(activeOrgs) > 1 {
-			printer.Stderr.ErrorWithDetailsln(
+			printer.Stderr.ErrorWithDetails(
 				"Invalid cloud configuration",
 				errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
 					"terramate.config.cloud.organization configuration attribute to a specific available organization: %s",

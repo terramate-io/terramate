@@ -17,8 +17,8 @@ import (
 func ExampleNewPrinter() {
 	p := NewPrinter(os.Stdout)
 	p.Println("Doing something")
-	p.Warnln("doing something fishy")
-	p.ErrorWithDetailsln(
+	p.Warn("doing something fishy")
+	p.ErrorWithDetails(
 		"failed to find fish",
 		stderrors.New("error 1"),
 	)
@@ -35,8 +35,8 @@ func TestPrinter(t *testing.T) {
 	p.Println("Start to do something")
 	p.Println("doing 1")
 	p.Println("doing 2")
-	p.Warnln("Something is not perfect, but continuing")
-	p.Successln("Finished doing something")
+	p.Warn("Something is not perfect, but continuing")
+	p.Success("Finished doing something")
 
 	want := `Start to do something
 doing 1
@@ -53,7 +53,7 @@ func TestPrinterSimple(t *testing.T) {
 	buf := new(strings.Builder)
 	p := NewPrinter(buf)
 	p.Println("Start to do something")
-	p.ErrorWithDetailsln(
+	p.ErrorWithDetails(
 		"Wrong state of things",
 		stderrors.New("details of the error here"))
 
@@ -128,7 +128,7 @@ func TestPrinterErrorWithDetails(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			buf := new(strings.Builder)
 			p := NewPrinter(buf)
-			p.ErrorWithDetailsln(tc.msg, tc.err)
+			p.ErrorWithDetails(tc.msg, tc.err)
 
 			got := buf.String()
 			if tc.want != got {

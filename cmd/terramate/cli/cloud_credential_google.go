@@ -624,15 +624,15 @@ func (g *googleCredential) info(selectedOrgName string) {
 	}
 
 	if selectedOrgName == "" && len(g.orgs) > 1 {
-		printer.Stderr.Warnln("User is member of multiple organizations but none was selected")
+		printer.Stderr.Warn("User is member of multiple organizations but none was selected")
 	}
 
 	if g.user.DisplayName == "" {
-		printer.Stderr.Warnln("On-boarding is incomplete. Please visit cloud.terramate.io to complete on-boarding.")
+		printer.Stderr.Warn("On-boarding is incomplete. Please visit cloud.terramate.io to complete on-boarding.")
 	}
 
 	if len(g.orgs) == 0 {
-		printer.Stderr.Warnln("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warn("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
 }
 

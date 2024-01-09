@@ -317,12 +317,12 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	reason, err := wantsDag.Validate()
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			printer.Stderr.WarnWithDetailsln(
+			printer.Stderr.WarnWithDetails(
 				"Stack selection clauses (wants/wanted_by) have cycles",
 				errors.E(reason, err),
 			)
 		} else {
-			printer.Stderr.WarnWithDetailsln(
+			printer.Stderr.WarnWithDetails(
 				"Stack selection clauses (wants/wanted_by) have errors",
 				err,
 			)

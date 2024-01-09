@@ -165,7 +165,7 @@ func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, erro
 
 func (c *cli) checkScriptEnabled() {
 	if !c.cfg().HasExperiment("scripts") {
-		printer.Stderr.Errorln(`The "scripts" feature is not enabled`)
+		printer.Stderr.Error(`The "scripts" feature is not enabled`)
 		printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute.`)
 		printer.Stderr.Println(`Example:
 

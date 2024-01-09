@@ -42,45 +42,45 @@ func (p *Printer) Println(msg string) {
 	fmt.Fprintln(p.w, msg)
 }
 
-// Warnln prints a message with a "Warning:" prefix. The prefix is printed in
+// Warn prints a message with a "Warning:" prefix. The prefix is printed in
 // the boldYellow style.
-func (p *Printer) Warnln(title string) {
+func (p *Printer) Warn(title string) {
 	fmt.Fprintln(p.w, boldYellow("Warning:"), bold(title))
 }
 
-// ErrorWithDetailsln prints an error with a title and the underlying error. If
+// ErrorWithDetails prints an error with a title and the underlying error. If
 // the error contains multiple error items, each error is printed with a `->`
 // prefix.
 // e.g.:
 // Error: parsing failed
 // -> somefile.tm:8,3-7: terramate schema error: unrecognized attribute
 // -> somefile.tm:9,4-7: terramate schema error: unrecognized block
-func (p *Printer) ErrorWithDetailsln(title string, err error) {
-	p.Errorln(title)
+func (p *Printer) ErrorWithDetails(title string, err error) {
+	p.Error(title)
 
 	for _, item := range toStrings(err) {
 		fmt.Fprintln(p.w, boldRed(">"), item)
 	}
 }
 
-// WarnWithDetailsln is similar to ErrorWithDetailsln but prints a warning
+// WarnWithDetails is similar to ErrorWithDetailsln but prints a warning
 // instead
-func (p *Printer) WarnWithDetailsln(title string, err error) {
-	p.Warnln(title)
+func (p *Printer) WarnWithDetails(title string, err error) {
+	p.Warn(title)
 
 	for _, item := range toStrings(err) {
 		fmt.Fprintln(p.w, boldYellow(">"), item)
 	}
 }
 
-// Errorln prints a message with a "Error:" prefix. The prefix is prinited in
+// Error prints a message with a "Error:" prefix. The prefix is prinited in
 // the boldRed style.
-func (p *Printer) Errorln(title string) {
+func (p *Printer) Error(title string) {
 	fmt.Fprintln(p.w, boldRed("Error:"), bold(title))
 }
 
-// Successln prints a message in the boldGreen style
-func (p *Printer) Successln(msg string) {
+// Success prints a message in the boldGreen style
+func (p *Printer) Success(msg string) {
 	fmt.Fprintln(p.w, boldGreen(msg))
 }
 
