@@ -182,14 +182,8 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Overview', link: '/cli/code-generation/' },
-            {
-              text: 'Strategies',
-              collapsed: true,
-              items: [
-                { text: 'Generate HCL', link: '/cli/code-generation/generate-hcl' },
-                { text: 'Generate File', link: '/cli/code-generation/generate-file' },
-              ],
-            },
+            { text: 'Generate HCL', link: '/cli/code-generation/generate-hcl' },
+            { text: 'Generate File', link: '/cli/code-generation/generate-file' },
             {
               text: 'Variables',
               collapsed: true,
