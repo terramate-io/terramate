@@ -13,7 +13,7 @@ export default defineConfig({
   // titleTemplate: ':title - Terramate',
   description: 'Terramate CLI is an open-source Infrastructure as Code (IaC) orchestration tool for Terraform, OpenTofu, Terragrunt, Kubernetes, Pulumi, AWS Cloud Formation, AWS Cloud Development Kit (CDK), Azure Resource Manager (ARM), Biceps, and others',
   sitemap: {
-    hostname: 'https://terramate.io',
+    hostname: 'https://terramate.io/docs/',
   },
   cleanUrls: true,
   transformHead: async ({ pageData, siteData }) => {
