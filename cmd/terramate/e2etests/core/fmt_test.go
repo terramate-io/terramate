@@ -94,6 +94,14 @@ name = "name"
 		assertWantedFilesContents(t, unformattedHCL)
 	})
 
+	t.Run("--detailed-exit-code returns status=2 when used on unformatted files", func(t *testing.T) {
+		AssertRunResult(t, cli.Run("fmt", "--detailed-exit-code"), RunExpected{
+			Status: 2,
+			Stdout: wantedFilesStr,
+		})
+		assertWantedFilesContents(t, unformattedHCL)
+	})
+
 	t.Run("checking fails with unformatted files on subdirs", func(t *testing.T) {
 		subdir := filepath.Join(s.RootDir(), "another-stacks")
 		cli := NewCLI(t, subdir)
@@ -118,6 +126,18 @@ name = "name"
 	t.Run("checking succeeds when all files are formatted", func(t *testing.T) {
 		AssertRunResult(t, cli.Run("fmt", "--check"), RunExpected{})
 		assertWantedFilesContents(t, formattedHCL)
+	})
+
+	t.Run("--detailed-exit-code returns status=0 when all files are formatted", func(t *testing.T) {
+		AssertRunResult(t, cli.Run("fmt", "--detailed-exit-code"), RunExpected{})
+		assertWantedFilesContents(t, formattedHCL)
+	})
+
+	t.Run("--check and --detailed-exit-code conflict", func(t *testing.T) {
+		AssertRunResult(t, cli.Run("fmt", "--detailed-exit-code", "--check"), RunExpected{
+			Status:      1,
+			StderrRegex: "--check conflicts with --detailed-exit-code",
+		})
 	})
 
 	t.Run("formatting succeeds when all files are formatted", func(t *testing.T) {
