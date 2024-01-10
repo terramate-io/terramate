@@ -395,7 +395,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 							},
 							Status: drift.Drifted,
-							Details: &cloud.DriftDetails{
+							Details: &cloud.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
@@ -415,7 +415,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 							},
 							Status: drift.Drifted,
-							Details: &cloud.DriftDetails{
+							Details: &cloud.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},

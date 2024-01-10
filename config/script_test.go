@@ -354,7 +354,7 @@ func TestScriptEval(t *testing.T) {
 						  [
 							["echo", "hello", {
 								cloud_sync_deployment = false
-								cloud_sync_terraform_plan = "plan_a"
+								cloud_sync_terraform_plan_file = "plan_a"
 							}],
 						  ]
 						`),
@@ -363,7 +363,7 @@ func TestScriptEval(t *testing.T) {
 						Command: makeCommand(t, `
 							["echo", "hello", {
 								cloud_sync_deployment = true
-								cloud_sync_terraform_plan = "plan_b"
+								cloud_sync_terraform_plan_file = "plan_b"
 							}]
 						`),
 					},
@@ -466,7 +466,7 @@ func TestScriptEval(t *testing.T) {
 							  [
 								["echo", "hello", {
 									cloud_sync_deployment = true
-									cloud_sync_terraform_plan = "plan_a"
+									cloud_sync_terraform_plan_file = "plan_a"
 								}],
 							  ]
 							`),
@@ -475,7 +475,7 @@ func TestScriptEval(t *testing.T) {
 						Command: makeCommand(t, `
 								["echo", "hello", {
 									cloud_sync_deployment = true
-									cloud_sync_terraform_plan = "plan_a"
+									cloud_sync_terraform_plan_file = "plan_a"
 								}]
 							`),
 					},

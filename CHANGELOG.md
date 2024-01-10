@@ -33,6 +33,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `terramate experimental trigger --experimental-status=` -> `terramate experimental trigger --cloud-status=`
   - `terramate list --experimental-status=` -> `terramate list --cloud-status=`
 - Add `list --run-order` flag to list stacks in the order they would be executed.
+- Add support for deployment syncing to script commands.
 
 ## 0.4.4
 

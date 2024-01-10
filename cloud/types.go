@@ -74,8 +74,8 @@ type (
 		MetaTags        []string `json:"meta_tags,omitempty"`
 	}
 
-	// DriftDetails represents the details of a drift.
-	DriftDetails struct {
+	// ChangesetDetails represents the details of a drift.
+	ChangesetDetails struct {
 		Provisioner    string `json:"provisioner"`
 		ChangesetASCII string `json:"changeset_ascii,omitempty"`
 		ChangesetJSON  string `json:"changeset_json,omitempty"`
@@ -123,7 +123,7 @@ type (
 	Drift struct {
 		ID       int64               `json:"id"`
 		Status   drift.Status        `json:"status"`
-		Details  *DriftDetails       `json:"drift_details,omitempty"`
+		Details  *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
 	}
 
@@ -140,7 +140,7 @@ type (
 	DriftStackPayloadRequest struct {
 		Stack      Stack               `json:"stack"`
 		Status     drift.Status        `json:"drift_status"`
-		Details    *DriftDetails       `json:"drift_details,omitempty"`
+		Details    *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata   *DeploymentMetadata `json:"metadata,omitempty"`
 		StartedAt  *time.Time          `json:"started_at,omitempty"`
 		FinishedAt *time.Time          `json:"finished_at,omitempty"`
@@ -251,6 +251,7 @@ type (
 	UpdateDeploymentStack struct {
 		StackID int64             `json:"stack_id"`
 		Status  deployment.Status `json:"status"`
+		Details *ChangesetDetails `json:"changeset_details,omitempty"`
 	}
 
 	// UpdateDeploymentStacks is the request payload for updating the deployment status.
@@ -311,7 +312,7 @@ var (
 	_ = Resource(Drifts{})
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
-	_ = Resource(DriftDetails{})
+	_ = Resource(ChangesetDetails{})
 	_ = Resource(DeploymentLogs{})
 	_ = Resource(DeploymentLog{})
 	_ = Resource(EmptyResponse(""))
@@ -471,7 +472,7 @@ func (ds DriftsStackPayloadResponse) Validate() error {
 }
 
 // Validate the drift details.
-func (ds DriftDetails) Validate() error {
+func (ds ChangesetDetails) Validate() error {
 	if ds.Provisioner == "" && ds.ChangesetASCII == "" && ds.ChangesetJSON == "" {
 		// TODO: backend returns the `details` object even if it was not synchronized.
 		return nil
