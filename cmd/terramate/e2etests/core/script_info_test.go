@@ -100,7 +100,8 @@ Jobs:
 			script: "not_found",
 			dir:    "",
 			want: RunExpected{
-				Stdout: "",
+				StderrRegex: "script not found",
+				Status:      1,
 			},
 		},
 		{

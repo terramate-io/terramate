@@ -33,6 +33,17 @@ func TestRunScript(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
+			name: "aborts if scripts are not enabled",
+			layout: []string{
+				"s:stack-a",
+			},
+			runScript: []string{"somescript"},
+			want: RunExpected{
+				StderrRegex: " feature is not enabled",
+				Status:      1,
+			},
+		},
+		{
 			name: "script defined in stack should run successfully",
 			layout: []string{
 				terramateConfig,

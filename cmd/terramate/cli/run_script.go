@@ -17,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/stdlib"
@@ -52,12 +53,12 @@ func (c *cli) runScript() {
 	}
 
 	// search for the script and prepare a list of script/stack entries
-	m := newScriptsMatcher(c.parsedArgs.Script.Run.Labels)
+	m := newScriptsMatcher(c.parsedArgs.Script.Run.Cmds)
 	m.Search(c.cfg(), stacks)
 
 	if len(m.Results) == 0 {
 		c.output.MsgStdErr(color.RedString("script not found: ") +
-			strings.Join(c.parsedArgs.Script.Run.Labels, " "))
+			strings.Join(c.parsedArgs.Script.Run.Cmds, " "))
 		os.Exit(1)
 	}
 
@@ -160,4 +161,19 @@ func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, erro
 	evalctx.SetEnv(os.Environ())
 
 	return evalctx, nil
+}
+
+func (c *cli) checkScriptEnabled() {
+	if !c.cfg().HasExperiment("scripts") {
+		printer.Stderr.Errorln(`The "scripts" feature is not enabled`)
+		printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute.`)
+		printer.Stderr.Println(`Example:
+
+terramate {
+  config {
+    experiments = ["scripts"]
+  }
+}`)
+		os.Exit(1)
+	}
 }

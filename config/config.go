@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config/filter"
@@ -450,6 +452,15 @@ func NewTree(cfgdir string) *Tree {
 		dir:      cfgdir,
 		Children: make(map[string]*Tree),
 	}
+}
+
+// HasExperiment returns true if the given experiment name is set.
+func (root *Root) HasExperiment(name string) bool {
+	if root.tree.Node.Terramate == nil || root.tree.Node.Terramate.Config == nil {
+		return false
+	}
+
+	return slices.Contains(root.tree.Node.Terramate.Config.Experiments, name)
 }
 
 // Skip returns true if the given file/dir name should be ignored by Terramate.

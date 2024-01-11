@@ -4,8 +4,11 @@
 package cli
 
 import (
+	"os"
 	"sort"
+	"strings"
 
+	"github.com/fatih/color"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
@@ -15,7 +18,7 @@ import (
 )
 
 func (c *cli) printScriptInfo() {
-	labels := c.parsedArgs.Script.Info.Labels
+	labels := c.parsedArgs.Script.Info.Cmds
 
 	stacks, err := c.computeSelectedStacks(false)
 	if err != nil {
@@ -24,6 +27,12 @@ func (c *cli) printScriptInfo() {
 
 	m := newScriptsMatcher(labels)
 	m.Search(c.cfg(), stacks)
+
+	if len(m.Results) == 0 {
+		c.output.MsgStdErr(color.RedString("script not found: ") +
+			strings.Join(c.parsedArgs.Script.Info.Cmds, " "))
+		os.Exit(1)
+	}
 
 	for _, x := range m.Results {
 		c.output.MsgStdOut("Definition: %v", x.ScriptCfg.Range)
