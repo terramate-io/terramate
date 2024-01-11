@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/config/tag"
@@ -35,6 +36,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
 	"github.com/terramate-io/terramate/printer"
+	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/versions"
 
 	"github.com/terramate-io/terramate/stack/trigger"
@@ -111,8 +113,7 @@ type cliSpec struct {
 	Quiet          bool     `optional:"false" help:"Disable output"`
 	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
 
-	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
-	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
+	deprecatedGlobalSafeguardsCliSpec
 
 	DisableCheckpoint          bool `optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
 	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
@@ -144,17 +145,18 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		CloudSyncDeployment        bool     `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
-		CloudSyncDriftStatus       bool     `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
-		CloudSyncTerraformPlanFile string   `default:"" help:"Enable sync of Terraform plan file"`
-		DisableCheckGenCode        bool     `default:"false" help:"Disable outdated generated code check"`
-		DisableCheckGitRemote      bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
-		ContinueOnError            bool     `default:"false" help:"Continue executing in other stacks in case of error"`
-		NoRecursive                bool     `default:"false" help:"Do not recurse into child stacks"`
-		DryRun                     bool     `default:"false" help:"Plan the execution but do not execute it"`
-		Reverse                    bool     `default:"false" help:"Reverse the order of execution"`
-		Eval                       bool     `default:"false" help:"Evaluate command line arguments as HCL strings"`
-		Command                    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
+		CloudSyncDeployment        bool   `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
+		CloudSyncDriftStatus       bool   `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
+		CloudSyncTerraformPlanFile string `default:"" help:"Enable sync of Terraform plan file"`
+		ContinueOnError            bool   `default:"false" help:"Continue executing in other stacks in case of error"`
+		NoRecursive                bool   `default:"false" help:"Do not recurse into child stacks"`
+		DryRun                     bool   `default:"false" help:"Plan the execution but do not execute it"`
+		Reverse                    bool   `default:"false" help:"Reverse the order of execution"`
+		Eval                       bool   `default:"false" help:"Evaluate command line arguments as HCL strings"`
+
+		runSafeguardsCliSpec
+
+		Command []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
@@ -171,6 +173,8 @@ type cliSpec struct {
 			NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
 			DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
 			Cmds        []string `arg:"" optional:"true" passthrough:"" help:"Script to execute"`
+
+			runSafeguardsCliSpec
 		} `cmd:"" help:"Run script in stacks"`
 	} `cmd:"" help:"Terramate Script commands"`
 
@@ -254,6 +258,29 @@ type cliSpec struct {
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
+type runSafeguardsCliSpec struct {
+	// Note: The `name` and `short` are being used to define the -X flag without longer version.
+	DisableSafeguardsAll bool               `default:"false" name:"disable-safeguards=all" short:"X" help:"Disable all safeguards"`
+	DisableSafeguards    safeguard.Keywords `env:"TM_DISABLE_SAFEGUARDS" enum:"git,all,none,git-untracked,git-uncommitted,outdated-code,git-out-of-sync" help:"Disable safeguards: {list of available KEYWORDS including groups}"`
+
+	DeprecatedDisableCheckGenCode   bool `hidden:"" default:"false" name:"disable-check-gen-code" env:"TM_DISABLE_CHECK_GEN_CODE" help:"Disable outdated generated code check"`
+	DeprecatedDisableCheckGitRemote bool `hidden:"" default:"false" name:"disable-check-git-remote" env:"TM_DISABLE_CHECK_GIT_REMOTE" help:"Disable checking if local default branch is updated with remote"`
+}
+
+type deprecatedGlobalSafeguardsCliSpec struct {
+	DeprecatedDisableCheckGitUntracked   bool `hidden:"true" optional:"true" name:"disable-check-git-untracked" default:"false" env:"TM_DISABLE_CHECK_GIT_UNTRACKED" help:"Disable git check for untracked files"`
+	DeprecatedDisableCheckGitUncommitted bool `hidden:"true" optional:"true" name:"disable-check-git-uncommitted" default:"false" env:"TM_DISABLE_CHECK_GIT_UNCOMMITTED" help:"Disable git check for uncommitted files"`
+}
+
+type safeguards struct {
+	DisableCheckGitUntracked          bool
+	DisableCheckGitUncommitted        bool
+	DisableCheckGitRemote             bool
+	DisableCheckGenerateOutdatedCheck bool
+
+	reEnabled bool
+}
+
 // Exec will execute terramate with the provided flags defined on args.
 // Only flags should be on the args slice.
 //
@@ -293,6 +320,8 @@ type cli struct {
 	httpClient http.Client
 	cloud      cloudConfig
 	uimode     UIMode
+
+	safeguards safeguards
 
 	checkpointResults chan *checkpoint.CheckResponse
 
@@ -576,6 +605,7 @@ func (c *cli) run() {
 		log.Fatal().Msg("no command specified")
 	case "run <cmd>":
 		c.setupGit()
+		c.setupSafeguards(c.parsedArgs.Run.runSafeguardsCliSpec)
 		c.runOnStacks()
 	case "generate":
 		c.generate()
@@ -643,9 +673,47 @@ func (c *cli) run() {
 	case "script run <cmds>":
 		c.checkScriptEnabled()
 		c.setupGit()
+		c.setupSafeguards(c.parsedArgs.Script.Run.runSafeguardsCliSpec)
 		c.runScript()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
+	}
+}
+
+func (c *cli) setupSafeguards(run runSafeguardsCliSpec) {
+	global := c.parsedArgs.deprecatedGlobalSafeguardsCliSpec
+
+	// handle deprecated flags as --disable-safeguards
+	if global.DeprecatedDisableCheckGitUncommitted {
+		run.DisableSafeguards = append(run.DisableSafeguards, "git-uncommitted")
+	}
+	if global.DeprecatedDisableCheckGitUntracked {
+		run.DisableSafeguards = append(run.DisableSafeguards, "git-untracked")
+	}
+	if run.DeprecatedDisableCheckGitRemote {
+		run.DisableSafeguards = append(run.DisableSafeguards, "git-out-of-sync")
+	}
+	if run.DeprecatedDisableCheckGenCode {
+		run.DisableSafeguards = append(run.DisableSafeguards, "outdated-code")
+	}
+	if run.DisableSafeguardsAll {
+		run.DisableSafeguards = append(run.DisableSafeguards, "all")
+	}
+
+	if run.DisableSafeguards.Has(safeguard.All) && run.DisableSafeguards.Has(safeguard.None) {
+		c.fatal("Disabling safeguards",
+			errors.E(clitest.ErrSafeguardKeywordValidation,
+				`the safeguards keywords "all" and "none" are incompatible`),
+		)
+	}
+
+	c.safeguards.DisableCheckGitUncommitted = run.DisableSafeguards.Has(safeguard.GitUncommitted, safeguard.All, safeguard.Git)
+	c.safeguards.DisableCheckGitUntracked = run.DisableSafeguards.Has(safeguard.GitUntracked, safeguard.All, safeguard.Git)
+	c.safeguards.DisableCheckGitRemote = run.DisableSafeguards.Has(safeguard.GitOutOfSync, safeguard.All, safeguard.Git)
+	c.safeguards.DisableCheckGenerateOutdatedCheck = run.DisableSafeguards.Has(safeguard.Outdated, safeguard.All)
+	if run.DisableSafeguards.Has("none") {
+		c.safeguards = safeguards{}
+		c.safeguards.reEnabled = true
 	}
 }
 
@@ -932,45 +1000,35 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 }
 
 func (c *cli) checkGitUntracked() bool {
-	if !c.prj.isGitFeaturesEnabled() || c.parsedArgs.DisableCheckGitUntracked {
+	if !c.prj.isGitFeaturesEnabled() || c.safeguards.DisableCheckGitUntracked {
 		return false
 	}
 
-	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNTRACKED"); ok {
-		if envVarIsSet(disableCheck) {
-			return false
-		}
+	if c.safeguards.reEnabled {
+		return !c.safeguards.DisableCheckGitUntracked
 	}
 
 	cfg := c.rootNode()
-	if cfg.Terramate != nil &&
-		cfg.Terramate.Config != nil &&
-		cfg.Terramate.Config.Git != nil {
-		return cfg.Terramate.Config.Git.CheckUntracked
+	if cfg.Terramate == nil || cfg.Terramate.Config == nil {
+		return true
 	}
-
-	return true
+	return !cfg.Terramate.Config.HasSafeguardDisabled(safeguard.GitUntracked)
 }
 
 func (c *cli) checkGitUncommited() bool {
-	if !c.prj.isGitFeaturesEnabled() || c.parsedArgs.DisableCheckGitUncommitted {
+	if !c.prj.isGitFeaturesEnabled() || c.safeguards.DisableCheckGitUncommitted {
 		return false
 	}
 
-	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNCOMMITTED"); ok {
-		if envVarIsSet(disableCheck) {
-			return false
-		}
+	if c.safeguards.reEnabled {
+		return !c.safeguards.DisableCheckGitUncommitted
 	}
 
 	cfg := c.rootNode()
-	if cfg.Terramate != nil &&
-		cfg.Terramate.Config != nil &&
-		cfg.Terramate.Config.Git != nil {
-		return cfg.Terramate.Config.Git.CheckUncommitted
+	if cfg.Terramate == nil || cfg.Terramate.Config == nil {
+		return true
 	}
-
-	return true
+	return !cfg.Terramate.Config.HasSafeguardDisabled(safeguard.GitUncommitted)
 }
 
 func debugFiles(files []string, msg string) {
@@ -1762,24 +1820,20 @@ func (c *cli) printMetadata() {
 }
 
 func (c *cli) checkGenCode() bool {
-	if c.parsedArgs.Run.DisableCheckGenCode {
+	if c.safeguards.DisableCheckGenerateOutdatedCheck {
 		return false
 	}
 
-	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GEN_CODE"); ok {
-		if envVarIsSet(disableCheck) {
-			return false
-		}
+	if c.safeguards.reEnabled {
+		return !c.safeguards.DisableCheckGenerateOutdatedCheck
 	}
 
 	cfg := c.rootNode()
-	if cfg.Terramate != nil &&
-		cfg.Terramate.Config != nil &&
-		cfg.Terramate.Config.Run != nil {
-		return cfg.Terramate.Config.Run.CheckGenCode
+	if cfg.Terramate == nil || cfg.Terramate.Config == nil {
+		return true
 	}
+	return !cfg.Terramate.Config.HasSafeguardDisabled(safeguard.Outdated)
 
-	return true
 }
 
 func (c *cli) ensureStackID() {
@@ -1996,22 +2050,21 @@ func (c *cli) checkOutdatedGeneratedCode() {
 }
 
 func (c *cli) gitSafeguardRemoteEnabled() bool {
-	if !c.prj.isGitFeaturesEnabled() || c.parsedArgs.Run.DisableCheckGitRemote {
+	if !c.prj.isGitFeaturesEnabled() || c.safeguards.DisableCheckGitRemote {
 		return false
 	}
 
-	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_REMOTE"); ok {
-		if envVarIsSet(disableCheck) {
-			return false
-		}
+	if c.safeguards.reEnabled {
+		return !c.safeguards.DisableCheckGitRemote
 	}
 
 	cfg := c.rootNode()
-	if cfg.Terramate != nil &&
-		cfg.Terramate.Config != nil &&
-		cfg.Terramate.Config.Git != nil &&
-		cfg.Terramate.Config.Git.CheckRemote != hcl.CheckIsUnset {
-		return cfg.Terramate.Config.Git.CheckRemote.ValueOr(true)
+	if cfg.Terramate == nil || cfg.Terramate.Config == nil {
+		return true
+	}
+	isDisabled := cfg.Terramate.Config.HasSafeguardDisabled(safeguard.GitOutOfSync)
+	if isDisabled {
+		return false
 	}
 
 	if c.prj.git.remoteConfigured {

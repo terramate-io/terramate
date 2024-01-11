@@ -34,6 +34,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `terramate list --experimental-status=` -> `terramate list --cloud-status=`
 - Add `list --run-order` flag to list stacks in the order they would be executed.
 - Add support for deployment syncing to script commands.
+- Add `disable_safeguards` configuration option and CLI flag.
 
 ## 0.4.4
 

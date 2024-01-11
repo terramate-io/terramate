@@ -8,10 +8,113 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test/sandbox"
 	"go.lsp.dev/uri"
 )
+
+func TestSafeguardsUsages(t *testing.T) {
+	t.Parallel()
+
+	setup := func(t *testing.T, fileContent string, env ...string) (CLI, sandbox.FileEntry, sandbox.S) {
+		t.Helper()
+		s := sandbox.New(t)
+
+		stack := s.CreateStack("stack")
+		someFile := stack.CreateFile("main.tf", fileContent)
+
+		git := s.Git()
+		git.CommitAll("all")
+
+		// make the "untracked" file.
+		_ = stack.CreateFile("untracked.tf", "# something")
+
+		// make it out of sync
+		setupLocalMainBranchBehindOriginMain(git, func() {
+			stack.CreateFile("some-new-file", "testing")
+		})
+
+		return NewCLI(t, s.RootDir(), env...), someFile, s
+	}
+
+	t.Run("multiple keywords can be provided to --disable-safeguards=<options>", func(t *testing.T) {
+		const fileContents = "# something"
+		tmcli, file, _ := setup(t, fileContents)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=git-untracked,git-out-of-sync",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{Stdout: fileContents})
+	})
+
+	t.Run("--disable-safeguards=<options> can be provided multiple times", func(t *testing.T) {
+		const fileContents = "# something"
+		tmcli, file, _ := setup(t, fileContents)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=git-untracked",
+			"--disable-safeguards=git-out-of-sync",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{Stdout: fileContents})
+	})
+
+	t.Run("-X conflicts with --disable-safeguards=none", func(t *testing.T) {
+		const fileContents = "# something"
+		tmcli, file, _ := setup(t, fileContents)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=none",
+			"-X",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{
+			Status:      1,
+			StderrRegex: string(clitest.ErrSafeguardKeywordValidation),
+		})
+	})
+
+	t.Run("--disable-safeguards=none,all conflicts", func(t *testing.T) {
+		const fileContents = "# something"
+		tmcli, file, _ := setup(t, fileContents)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=all,none",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{
+			Status:      1,
+			StderrRegex: string(clitest.ErrSafeguardKeywordValidation),
+		})
+	})
+
+	t.Run("TM_DISABLE_SAFEGUARDS=none,all conflicts", func(t *testing.T) {
+		const fileContents = "# something"
+		tmcli, file, _ := setup(t, fileContents)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "M_DISABLE_SAFEGUARDS=none,all")
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=all,none",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{
+			Status:      1,
+			StderrRegex: string(clitest.ErrSafeguardKeywordValidation),
+		})
+	})
+}
 
 func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 	t.Parallel()
@@ -136,11 +239,10 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			HelperPath,
 			"cat",
 			file.HostPath(),
-		),
-			RunExpected{
-				Status:      1,
-				StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
-			})
+		), RunExpected{
+			Status:      1,
+			StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+		})
 	})
 
 	t.Run("disable check_remote safeguard using --disable-check-git-remote", func(t *testing.T) {
@@ -155,7 +257,43 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		), RunExpected{Stdout: fileContents})
 	})
 
-	t.Run("disable check_remote safeguard using env vars", func(t *testing.T) {
+	t.Run("disable check_remote safeguard using --disable-safeguards=git-out-of-sync", func(t *testing.T) {
+		tmcli, file, _ := setup(t)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=git-out-of-sync",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{Stdout: fileContents})
+	})
+
+	t.Run("disable check_remote safeguard using --disable-safeguards=git", func(t *testing.T) {
+		tmcli, file, _ := setup(t)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=git",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{Stdout: fileContents})
+	})
+
+	t.Run("disable check_remote safeguard using -X", func(t *testing.T) {
+		tmcli, file, _ := setup(t)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"-X",
+			HelperPath,
+			"cat",
+			file.HostPath(),
+		), RunExpected{Stdout: fileContents})
+	})
+
+	t.Run("disable check_remote safeguard using env=true", func(t *testing.T) {
 		tmcli, file, _ := setup(t, testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=true")
 
@@ -165,7 +303,37 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		})
 	})
 
-	t.Run("make sure terramate.config.git.check_remote=true still checks",
+	t.Run("disable check_remote safeguard using env=1", func(t *testing.T) {
+		tmcli, file, _ := setup(t, testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=1")
+
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
+			"cat", file.HostPath()), RunExpected{
+			Stdout: fileContents,
+		})
+	})
+
+	t.Run("disable check_remote safeguard using env TM_DISABLE_SAFEGUARDS=git-out-of-sync", func(t *testing.T) {
+		tmcli, file, _ := setup(t, testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=git-out-of-sync")
+
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
+			"cat", file.HostPath()), RunExpected{
+			Stdout: fileContents,
+		})
+	})
+
+	t.Run("disable check_remote safeguard using env TM_DISABLE_SAFEGUARDS=git", func(t *testing.T) {
+		tmcli, file, _ := setup(t, testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=git")
+
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
+			"cat", file.HostPath()), RunExpected{
+			Stdout: fileContents,
+		})
+	})
+
+	t.Run("safeguard explicitly enabled by config terramate.config.git.check_remote=true",
 		func(t *testing.T) {
 			tmcli, file, s := setup(t)
 
@@ -221,6 +389,122 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			})
 		})
 
+	t.Run("disable check_remote safeguard using terramate.config.disable_safeguards",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
+
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    disable_safeguards = ["git-out-of-sync"]
+			  }
+			}
+		`)
+
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
+
+			AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
+				"cat", file.HostPath()), RunExpected{
+				Stdout: fileContents,
+			})
+		})
+
+	t.Run("safeguards re-enabled by --disable-safeguards=none",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
+
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_remote = false
+			    }
+			  }
+			}
+		`)
+
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
+
+			AssertRunResult(t, tmcli.Run(
+				"run",
+				"--disable-safeguards=none",
+				HelperPath,
+				"cat",
+				file.HostPath(),
+			),
+				RunExpected{
+					Status:      1,
+					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+				})
+		})
+
+	t.Run("re-enabled from config.disable_safegaurds by --disable-safeguards=none",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
+
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    disable_safeguards = ["git-out-of-sync"]
+			  }
+			}
+		`)
+
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
+
+			AssertRunResult(t, tmcli.Run(
+				"run",
+				"--disable-safeguards=none",
+				HelperPath,
+				"cat",
+				file.HostPath(),
+			), RunExpected{
+				Status:      1,
+				StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+			})
+		})
+
+	t.Run("safeguards re-enabled by TM_DISABLE_SAFEGUARDS=none",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
+			tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=none")
+
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_remote = false
+			    }
+			  }
+			}
+		`)
+
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
+
+			AssertRunResult(t, tmcli.Run(
+				"run",
+				HelperPath,
+				"cat",
+				file.HostPath(),
+			),
+				RunExpected{
+					Status:      1,
+					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+				})
+		})
+
 	t.Run("make sure --disable-git-check-remote has precedence over config file",
 		func(t *testing.T) {
 			tmcli, file, s := setup(t)
@@ -244,6 +528,35 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"run",
 				"--quiet",
 				"--disable-check-git-remote",
+				HelperPath,
+				"cat",
+				file.HostPath(),
+			), RunExpected{Stdout: fileContents})
+		})
+
+	t.Run("make sure --disable-safeguards=git-out-of-sync has precedence over config file",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
+
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_remote = true
+			    }
+			  }
+			}
+		`)
+
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
+
+			AssertRunResult(t, tmcli.Run(
+				"run",
+				"--quiet",
+				"--disable-safeguards=git-out-of-sync",
 				HelperPath,
 				"cat",
 				file.HostPath(),
