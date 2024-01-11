@@ -770,9 +770,8 @@ func (c *cli) triggerStackByFilter() {
 		fatal(errors.E("trigger command expects either a stack path or the --experimental-status flag"))
 	}
 
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	status := parseStatusFilter(c.parsedArgs.Experimental.Trigger.ExperimentalStatus)
-	stacksReport, err := c.listStacks(mgr, false, status)
+	stacksReport, err := c.listStacks(false, status)
 	if err != nil {
 		fatal(err)
 	}
@@ -983,14 +982,16 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 }
 
-func (c *cli) listStacks(mgr *stack.Manager, isChanged bool, status cloudstack.FilterStatus) (*stack.Report, error) {
+func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack.Report, error) {
 	var (
 		err    error
 		report *stack.Report
 	)
 
+	mgr := c.stackManager()
+
 	if isChanged {
-		report, err = mgr.ListChanged()
+		report, err = mgr.ListChanged(c.baseRef())
 	} else {
 		report, err = mgr.List()
 	}
@@ -1329,10 +1330,8 @@ func (c *cli) printStacks() {
 		c.fatal("Invalid args", errors.E("the --why flag must be used together with --changed"))
 	}
 
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-
 	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed, status)
+	report, err := c.listStacks(c.parsedArgs.Changed, status)
 	if err != nil {
 		c.fatal("Unable to list stacks", err)
 	}
@@ -1369,8 +1368,7 @@ func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
 }
 
 func (c *cli) printRuntimeEnv() {
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "listing stacks")
 	}
@@ -1597,8 +1595,7 @@ func (c *cli) generateDebug() {
 }
 
 func (c *cli) printStacksGlobals() {
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "listing stacks globals: listing stacks")
 	}
@@ -1631,8 +1628,7 @@ func (c *cli) printMetadata() {
 		Str("action", "cli.printMetadata()").
 		Logger()
 
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "loading metadata: listing stacks")
 	}
@@ -1695,8 +1691,7 @@ func (c *cli) checkGenCode() bool {
 }
 
 func (c *cli) ensureStackID() {
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-	report, err := c.listStacks(mgr, false, cloudstack.NoFilter)
+	report, err := c.listStacks(false, cloudstack.NoFilter)
 	if err != nil {
 		fatal(err, "listing stacks")
 	}
@@ -1935,20 +1930,20 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 	return hasRemotes
 }
 
-func (c *cli) wd() string           { return c.prj.wd }
-func (c *cli) rootdir() string      { return c.prj.rootdir }
-func (c *cli) cfg() *config.Root    { return &c.prj.root }
-func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
-func (c *cli) cred() credential     { return c.cloud.client.Credential.(credential) }
+func (c *cli) wd() string                   { return c.prj.wd }
+func (c *cli) rootdir() string              { return c.prj.rootdir }
+func (c *cli) cfg() *config.Root            { return &c.prj.root }
+func (c *cli) baseRef() string              { return c.prj.baseRef }
+func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
+func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
+func (c *cli) cred() credential             { return c.cloud.client.Credential.(credential) }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
 func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.SortableStack], error) {
-	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
-
-	report, err := c.listStacks(mgr, c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -1961,7 +1956,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 		stacks[i] = e.Stack.Sortable()
 	}
 
-	stacks, err = mgr.AddWantedOf(stacks)
+	stacks, err = c.stackManager().AddWantedOf(stacks)
 	if err != nil {
 		return nil, errors.E(err, "adding wanted stacks")
 	}
@@ -2118,10 +2113,7 @@ func (c *cli) setupFilterTags() {
 	}
 }
 
-func newGit(basedir string, checkrepo bool) (*git.Git, error) {
-	log.Debug().
-		Str("action", "newGit()").
-		Msg("Create new git wrapper providing config.")
+func newGit(basedir string) (*git.Git, error) {
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
 		Env:        os.Environ(),
@@ -2129,11 +2121,6 @@ func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if checkrepo && !g.IsRepository() {
-		return nil, errors.E("dir %q is not a git repository", basedir)
-	}
-
 	return g, nil
 }
 
@@ -2147,7 +2134,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		return project{}, false, err
 	}
 
-	gw, err := newGit(wd, false)
+	gw, err := newGit(wd)
 	if err == nil {
 		gitdir, err := gw.Root()
 		if err == nil {
@@ -2174,10 +2161,15 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 				return project{}, false, err
 			}
 
+			gw = gw.With().WorkingDir(rootdir).Wrapper()
+
 			prj.isRepo = true
 			prj.root = *cfg
 			prj.rootdir = rootdir
 			prj.git.wrapper = gw
+
+			mgr := stack.NewGitAwareManager(&prj.root, gw)
+			prj.stackManager = mgr
 
 			return prj, true, nil
 		}
@@ -2189,6 +2181,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	prj.rootdir = rootCfgPath
 	prj.root = *rootcfg
+	prj.stackManager = stack.NewManager(&prj.root)
 	return prj, true, nil
 }
 

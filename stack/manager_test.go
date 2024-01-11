@@ -147,9 +147,10 @@ func TestListChangedStacks(t *testing.T) {
 			repo := tc.repobuilder(t)
 			root, err := config.LoadRoot(repo.Dir)
 			assert.NoError(t, err)
-			m := stack.NewManager(root, tc.baseRef)
+			g := test.NewGitWrapper(t, repo.Dir, []string{})
+			m := stack.NewGitAwareManager(root, g)
 
-			report, err := m.ListChanged()
+			report, err := m.ListChanged(tc.baseRef)
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
 			changedStacks := report.Stacks
@@ -169,7 +170,7 @@ func TestListChangedStackReason(t *testing.T) {
 	repo := singleNotMergedCommitBranch(t)
 
 	m := newManager(t, repo.Dir)
-	report, err := m.ListChanged()
+	report, err := m.ListChanged(defaultBranch)
 	assert.NoError(t, err, "unexpected error")
 
 	changed := report.Stacks
@@ -180,7 +181,7 @@ func TestListChangedStackReason(t *testing.T) {
 	repo = singleStackDependentModuleChangedRepo(t)
 
 	m = newManager(t, repo.Dir)
-	report, err = m.ListChanged()
+	report, err = m.ListChanged(defaultBranch)
 	assert.NoError(t, err, "unexpected error")
 
 	changed = report.Stacks
@@ -551,7 +552,8 @@ module "module2" {
 func newManager(t *testing.T, basedir string) *stack.Manager {
 	root, err := config.LoadRoot(basedir)
 	assert.NoError(t, err)
-	return stack.NewManager(root, defaultBranch)
+	g := test.NewGitWrapper(t, basedir, []string{})
+	return stack.NewGitAwareManager(root, g)
 }
 
 func createStack(t *testing.T, root *config.Root, absdir string) {
