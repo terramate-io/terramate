@@ -147,7 +147,8 @@ func TestListChangedStacks(t *testing.T) {
 			repo := tc.repobuilder(t)
 			root, err := config.LoadRoot(repo.Dir)
 			assert.NoError(t, err)
-			m := stack.NewManager(root, tc.baseRef)
+			g := test.NewGitWrapper(t, repo.Dir, []string{})
+			m := stack.NewGitManager(root, g, tc.baseRef)
 
 			report, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
@@ -551,7 +552,8 @@ module "module2" {
 func newManager(t *testing.T, basedir string) *stack.Manager {
 	root, err := config.LoadRoot(basedir)
 	assert.NoError(t, err)
-	return stack.NewManager(root, defaultBranch)
+	g := test.NewGitWrapper(t, basedir, []string{})
+	return stack.NewGitManager(root, g, defaultBranch)
 }
 
 func createStack(t *testing.T, root *config.Root, absdir string) {

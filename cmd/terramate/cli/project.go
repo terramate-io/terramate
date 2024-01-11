@@ -21,6 +21,7 @@ type project struct {
 	isRepo         bool
 	root           config.Root
 	baseRef        string
+	mgr            *stack.Manager
 	normalizedRepo string
 
 	git struct {
