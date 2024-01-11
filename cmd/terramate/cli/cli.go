@@ -160,12 +160,12 @@ type cliSpec struct {
 		List struct{} `cmd:"" help:"Show a list of all scripts in the current directory"`
 		Tree struct{} `cmd:"" help:"Show a tree of all scripts in the current directory"`
 		Info struct {
-			Labels []string `arg:"" name:"labels" passthrough:"" help:"Name of the script"`
+			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info"`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
 			NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
 			DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
-			Labels      []string `arg:"" name:"labels" passthrough:"" help:"Script to execute"`
+			Cmds        []string `arg:"" optional:"true" passthrough:"" help:"Script to execute"`
 		} `cmd:"" help:"Run script in stacks"`
 	} `cmd:"" help:"Terramate Script commands"`
 
@@ -606,14 +606,22 @@ func (c *cli) run() {
 	case "experimental cloud drift show":
 		c.cloudDriftShow()
 	case "script list":
+		c.checkScriptEnabled()
 		c.printScriptList()
 	case "script tree":
+		c.checkScriptEnabled()
 		c.printScriptTree()
-	case "script info <labels>":
+	case "script info":
+		c.checkScriptEnabled()
+		log.Fatal().Msg("no script specified")
+	case "script info <cmds>":
+		c.checkScriptEnabled()
 		c.printScriptInfo()
 	case "script run":
+		c.checkScriptEnabled()
 		log.Fatal().Msg("no script specified")
-	case "script run <labels>":
+	case "script run <cmds>":
+		c.checkScriptEnabled()
 		c.setupGit()
 		c.runScript()
 	default:
