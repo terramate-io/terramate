@@ -27,10 +27,8 @@ import (
 type (
 	// Manager is the terramate stacks manager.
 	Manager struct {
-		root       *config.Root // whole config
-		gitBaseRef string       // gitBaseRef is the git ref where we compare changes.
-
-		outerGit *git.Git
+		root *config.Root // whole config
+		git  *git.Git
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -57,12 +55,18 @@ type (
 const errList errors.Kind = "listing stacks error"
 const errListChanged errors.Kind = "listing changed stacks error"
 
-// NewManager creates a new stack manager.The root is the project root config
-// and and gitBaseRef is the git reference to compare for changes.
-func NewManager(root *config.Root, gitBaseRef string) *Manager {
+// NewManager creates a new stack manager.
+func NewManager(root *config.Root) *Manager {
 	return &Manager{
-		root:       root,
-		gitBaseRef: gitBaseRef,
+		root: root,
+	}
+}
+
+// NewGitAwareManager returns a stack manager that supports change detection.
+func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
+	return &Manager{
+		root: root,
+		git:  git,
 	}
 }
 
@@ -78,22 +82,14 @@ func (m *Manager) List() (*Report, error) {
 		Stacks: entries,
 	}
 
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.HostDir(),
-	})
-	if err != nil {
-		return nil, errors.E(errList, err)
-	}
-
-	if !g.IsRepository() {
+	if m.git == nil || !m.git.IsRepository() {
 		return report, nil
 	}
 
-	report.Checks, err = checkRepoIsClean(g)
+	report.Checks, err = checkRepoIsClean(m.git)
 	if err != nil {
 		return nil, errors.E(errList, err)
 	}
-
 	return report, nil
 }
 
@@ -102,28 +98,12 @@ func (m *Manager) List() (*Report, error) {
 // system in place and that you are working on a branch that is not main.
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
-func (m *Manager) ListChanged() (*Report, error) {
+func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
 		Logger()
 
-	gOuter, err := m.globalGit()
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
-	}
-
-	globalArgs := setupInheritedGitConfigArgs(gOuter)
-
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.HostDir(),
-		GlobalArgs: globalArgs,
-	})
-
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
-	}
-
-	if !g.IsRepository() {
+	if !m.git.IsRepository() {
 		return nil, errors.E(
 			errListChanged,
 			"the path \"%s\" is not a git repository",
@@ -131,12 +111,12 @@ func (m *Manager) ListChanged() (*Report, error) {
 		)
 	}
 
-	checks, err := checkRepoIsClean(g)
+	checks, err := checkRepoIsClean(m.git)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	changedFiles, err := m.listChangedFiles(m.root.HostDir(), m.gitBaseRef)
+	changedFiles, err := m.listChangedFiles(m.root.HostDir(), gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -264,7 +244,7 @@ rangeStacks:
 			}
 
 			for _, mod := range modules {
-				changed, why, err := m.moduleChanged(mod, stack.HostDir(m.root), make(map[string]bool))
+				changed, why, err := m.moduleChanged(mod, stack.HostDir(m.root), gitBaseRef, make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}
@@ -417,7 +397,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (er
 // called recursively. The visited keep track of the modules already parsed to
 // avoid infinite loops.
 func (m *Manager) moduleChanged(
-	mod tf.Module, basedir string, visited map[string]bool,
+	mod tf.Module, basedir string, gitBaseRef string, visited map[string]bool,
 ) (changed bool, why string, err error) {
 	if _, ok := visited[mod.Source]; ok {
 		return false, "", nil
@@ -439,7 +419,7 @@ func (m *Manager) moduleChanged(
 		return false, "", errors.E("\"source\" path %q is not a directory", modPath)
 	}
 
-	changedFiles, err := m.listChangedFiles(modPath, m.gitBaseRef)
+	changedFiles, err := m.listChangedFiles(modPath, gitBaseRef)
 	if err != nil {
 		return false, "", errors.E(err,
 			"listing changes in the module %q",
@@ -468,7 +448,7 @@ func (m *Manager) moduleChanged(
 		for _, mod2 := range modules {
 			var reason string
 
-			changed, reason, err = m.moduleChanged(mod2, modPath, visited)
+			changed, reason, err = m.moduleChanged(mod2, modPath, gitBaseRef, visited)
 			if err != nil {
 				return err
 			}
@@ -500,27 +480,14 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 		return nil, errors.E("is not a directory")
 	}
 
-	gOuter, err := m.globalGit()
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
-	}
+	dirWrapper := m.git.With().WorkingDir(dir).Wrapper()
 
-	globalArgs := setupInheritedGitConfigArgs(gOuter)
-
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: dir,
-		GlobalArgs: globalArgs,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	baseRef, err := g.RevParse(gitBaseRef)
+	baseRef, err := dirWrapper.RevParse(gitBaseRef)
 	if err != nil {
 		return nil, errors.E(err, "getting revision %q", gitBaseRef)
 	}
 
-	headRef, err := g.RevParse("HEAD")
+	headRef, err := dirWrapper.RevParse("HEAD")
 	if err != nil {
 		return nil, errors.E(err, "getting HEAD revision")
 	}
@@ -529,18 +496,7 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 		return []string{}, nil
 	}
 
-	return g.DiffNames(baseRef, headRef)
-}
-
-func (m *Manager) globalGit() (*git.Git, error) {
-	var err error
-	if m.outerGit == nil {
-		m.outerGit, err = git.WithConfig(git.Config{
-			WorkingDir: m.root.HostDir(),
-			Env:        os.Environ(),
-		})
-	}
-	return m.outerGit, err
+	return dirWrapper.DiffNames(baseRef, headRef)
 }
 
 func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
@@ -569,24 +525,6 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 		UntrackedFiles:   untracked,
 		UncommittedFiles: uncommitted,
 	}, nil
-}
-
-// setupInheritedGitConfigArgs detects git config values that have to be passed
-// on to the git wrapper used for diff-tree
-func setupInheritedGitConfigArgs(git *git.Git) []string {
-	logger := log.With().
-		Str("action", "setupInheritedGitConfigArgs").
-		Logger()
-
-	var r []string
-
-	safeDirs, err := git.GetConfigValue("safe.directory")
-	if err == nil && safeDirs != "" {
-		logger.Debug().Msgf("detected safe.directory = %s", safeDirs)
-		r = append(r, "-c", fmt.Sprintf("safe.directory=%s", safeDirs))
-	}
-
-	return r
 }
 
 // EntrySlice implements the Sort interface.

@@ -22,6 +22,7 @@ type project struct {
 	root           config.Root
 	baseRef        string
 	normalizedRepo string
+	stackManager   *stack.Manager
 
 	git struct {
 		wrapper                   *git.Git
