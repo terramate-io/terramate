@@ -179,12 +179,6 @@ type cliSpec struct {
 			} `cmd:"" help:"Show generate debug information"`
 			RuntimeEnv struct{} `cmd:"" help:"List run environment variables for all stacks"`
 		} `cmd:"" help:"Show information available in the project"`
-		Render struct {
-			RunGraph struct {
-				Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
-				Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
-			} `cmd:"" help:"Generate a graph of the execution order"`
-		} `cmd:"" help:"Render information about a project"`
 	} `cmd:"" help:"Terramate debugging commands"`
 
 	Experimental struct {
@@ -199,6 +193,11 @@ type cliSpec struct {
 			Reason             string `default:"" name:"reason" help:"Reason for the stack being triggered"`
 			ExperimentalStatus string `help:"Filter by status"`
 		} `cmd:"" help:"Triggers a stack"`
+
+		RunGraph struct {
+			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
+		} `cmd:"" help:"Generate a graph of the execution order"`
 
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
@@ -580,7 +579,7 @@ func (c *cli) run() {
 	case "debug show metadata":
 		c.setupGit()
 		c.printMetadata()
-	case "debug render run-graph":
+	case "experimental run-graph":
 		c.setupGit()
 		c.generateGraph()
 	case "experimental run-order":
@@ -1397,7 +1396,7 @@ func (c *cli) generateGraph() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	switch c.parsedArgs.Debug.Render.RunGraph.Label {
+	switch c.parsedArgs.Experimental.RunGraph.Label {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
 
@@ -1454,7 +1453,7 @@ func (c *cli) generateGraph() {
 
 	logger.Debug().
 		Msg("Set output of graph.")
-	outFile := c.parsedArgs.Debug.Render.RunGraph.Outfile
+	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
 
