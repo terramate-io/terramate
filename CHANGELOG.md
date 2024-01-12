@@ -32,11 +32,18 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `terramate script info <scriptname>` to show details about a script.
 - Add `terramate script run <scriptname>` to run a script in all relevant stacks.
 - Add `stack_filter` block to `generate_hcl` for path-based conditional generation.
+- Promote experimental commands
+  - `terramate debug show metadata`
+  - `terramate debug show globals`
+  - `terramate debug show generate-origins`
+  - `terramate debug show runtime-env`
+- Improvements in the output of `list`, `run` and `create` commands.
 
 ### Fixed
 
 - fix(generate): blocks with context=root were ignored if defined in stacks.
 - fix: experimental eval/partial-eval/get-config-value wrongly interprets the output as a formatter.
+- fix: change detector cannot read user's git config
 
 ## 0.4.3
 
