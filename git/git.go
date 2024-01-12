@@ -50,7 +50,7 @@ type (
 
 	// Git is the wrapper object.
 	Git struct {
-		config Config
+		options Options
 	}
 
 	// Ref is a git reference.
@@ -109,9 +109,8 @@ type remoteSorter []Remote
 
 // WithConfig creates a new git wrapper by providing the config.
 func WithConfig(cfg Config) (*Git, error) {
-	git := &Git{
-		config: cfg,
-	}
+	git := &Git{}
+	git.options.config = cfg
 
 	err := git.applyDefaults()
 	if err != nil {
@@ -130,9 +129,17 @@ func WithConfig(cfg Config) (*Git, error) {
 	return git, nil
 }
 
-func (git *Git) applyDefaults() error {
-	cfg := &git.config
+// With returns a copy of the wrapper options.
+// Use opt.Wrapper() to get a new [Git] wrapper with the new options applied.
+func (git *Git) With() *Options {
+	copied := git.options
+	copy(copied.config.Env, git.options.config.Env)
+	copy(copied.config.GlobalArgs, git.options.config.GlobalArgs)
+	return &copied
+}
 
+func (git *Git) applyDefaults() error {
+	cfg := git.cfg()
 	if cfg.ProgramPath == "" {
 		programPath, err := exec.LookPath("git")
 		if err != nil {
@@ -150,13 +157,11 @@ func (git *Git) applyDefaults() error {
 
 		cfg.WorkingDir = wd
 	}
-
 	return nil
 }
 
 func (git *Git) validate() error {
-	cfg := git.config
-
+	cfg := git.cfg()
 	_, err := os.Stat(cfg.ProgramPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat git program path \"%s\": %w: %v",
@@ -172,13 +177,13 @@ func (git *Git) validate() error {
 
 // Version of the git program.
 func (git *Git) Version() (string, error) {
+	cfg := git.cfg()
 	logger := log.With().
 		Str("action", "Version()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", cfg.WorkingDir).
 		Logger()
 
-	logger.Debug().
-		Msg("Get git version.")
+	logger.Debug().Msg("Get git version.")
 	out, err := git.exec("version")
 	if err != nil {
 		return "", err
@@ -190,7 +195,6 @@ func (git *Git) Version() (string, error) {
 	if strings.HasPrefix(out, expected) {
 		return out[len(expected):], nil
 	}
-
 	return "", fmt.Errorf("unexpected \"git version\" output: %q", out)
 }
 
@@ -199,7 +203,8 @@ func (git *Git) Version() (string, error) {
 // store revisions.
 // Beware: Init is a porcelain method.
 func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
-	if !git.config.AllowPorcelain {
+	cfg := git.cfg()
+	if !cfg.AllowPorcelain {
 		return fmt.Errorf("Init: %w", ErrDenyPorcelain)
 	}
 
@@ -218,23 +223,25 @@ func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 		return err
 	}
 
-	bkwd := git.config.WorkingDir
+	// TODO(i4k): code below is not thread-safe
+
+	bkwd := cfg.WorkingDir
 
 	defer func() {
-		git.config.WorkingDir = bkwd
+		cfg.WorkingDir = bkwd
 	}()
 
-	git.config.WorkingDir = dir
+	cfg.WorkingDir = dir
 
-	if git.config.Username != "" {
-		_, err = git.exec("config", "--local", "user.name", git.config.Username)
+	if cfg.Username != "" {
+		_, err = git.exec("config", "--local", "user.name", cfg.Username)
 		if err != nil {
 			return err
 		}
 	}
 
-	if git.config.Email != "" {
-		_, err = git.exec("config", "--local", "user.email", git.config.Email)
+	if cfg.Email != "" {
+		_, err = git.exec("config", "--local", "user.email", cfg.Email)
 		if err != nil {
 			return err
 		}
@@ -345,13 +352,14 @@ func (git *Git) LogSummary(revs ...string) ([]LogLine, error) {
 // Add files to current staged index.
 // Beware: Add is a porcelain method.
 func (git *Git) Add(files ...string) error {
-	if !git.config.AllowPorcelain {
+	cfg := git.cfg()
+	if !cfg.AllowPorcelain {
 		return fmt.Errorf("Add: %w", ErrDenyPorcelain)
 	}
 
 	log.Debug().
 		Str("action", "Add()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", cfg.WorkingDir).
 		Msg("Add file to current staged index.")
 	_, err := git.exec("add", files...)
 	return err
@@ -360,7 +368,8 @@ func (git *Git) Add(files ...string) error {
 // Clone will clone the given repo inside the given dir.
 // Beware: Clone is a porcelain method.
 func (git *Git) Clone(repoURL, dir string) error {
-	if !git.config.AllowPorcelain {
+	cfg := git.cfg()
+	if !cfg.AllowPorcelain {
 		return fmt.Errorf("Clone: %w", ErrDenyPorcelain)
 	}
 	_, err := git.exec("clone", repoURL, dir)
@@ -371,12 +380,9 @@ func (git *Git) Clone(repoURL, dir string) error {
 // The args are extra flags and/or arguments to git commit command line.
 // Beware: Commit is a porcelain method.
 func (git *Git) Commit(msg string, args ...string) error {
-	logger := log.With().
-		Str("action", "Commit()").
-		Str("workingDir", git.config.WorkingDir).
-		Logger()
+	cfg := git.cfg()
 
-	if !git.config.AllowPorcelain {
+	if !cfg.AllowPorcelain {
 		return fmt.Errorf("Commit: %w", ErrDenyPorcelain)
 	}
 
@@ -392,8 +398,6 @@ func (git *Git) Commit(msg string, args ...string) error {
 
 	vargs = append(vargs, args...)
 
-	logger.Debug().
-		Msg("Commit with args.")
 	_, err := git.exec("commit", vargs...)
 	return err
 }
@@ -409,13 +413,13 @@ func (git *Git) RevParse(rev string) (string, error) {
 // for the given remote and reference. This will make use of the network
 // to fetch data from the remote configured on the git repo.
 func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
+	cfg := git.cfg()
 	logger := log.With().
 		Str("action", "FetchRemoteRev()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", cfg.WorkingDir).
 		Logger()
 
-	logger.Debug().
-		Msg("List references in remote repository.")
+	logger.Debug().Msg("List references in remote repository.")
 	output, err := git.exec("ls-remote", remote, ref)
 	if err != nil {
 		return Ref{}, fmt.Errorf(
@@ -448,7 +452,7 @@ func (git *Git) MergeBase(commit1, commit2 string) (string, error) {
 // Status returns the git status of the current branch.
 // Beware: Status is a porcelain method.
 func (git *Git) Status() (string, error) {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return "", fmt.Errorf("Status: %w", ErrDenyPorcelain)
 	}
 
@@ -498,7 +502,7 @@ func (git *Git) NewBranch(name string) error {
 
 	log.Debug().
 		Str("action", "NewBranch()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", git.cfg().WorkingDir).
 		Str("reference", name).
 		Msg("Create new branch.")
 	_, err = git.exec("update-ref", "refs/heads/"+name, "HEAD")
@@ -514,7 +518,7 @@ func (git *Git) DeleteBranch(name string) error {
 
 	log.Debug().
 		Str("action", "DeleteBranch()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", git.cfg().WorkingDir).
 		Str("reference", name).
 		Msg("Delete branch.")
 	_, err = git.exec("update-ref", "-d", "refs/heads/"+name)
@@ -526,7 +530,7 @@ func (git *Git) DeleteBranch(name string) error {
 // the new branch before changing into it.
 // Beware: Checkout is a porcelain method.
 func (git *Git) Checkout(rev string, create bool) error {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return fmt.Errorf("checkout: %w", ErrDenyPorcelain)
 	}
 
@@ -539,7 +543,7 @@ func (git *Git) Checkout(rev string, create bool) error {
 
 	log.Debug().
 		Str("action", "Checkout()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", git.cfg().WorkingDir).
 		Str("reference", rev).
 		Msg("Checkout.")
 	_, err := git.exec("checkout", rev)
@@ -549,13 +553,13 @@ func (git *Git) Checkout(rev string, create bool) error {
 // Merge branch into current branch using the non fast-forward strategy.
 // Beware: Merge is a porcelain method.
 func (git *Git) Merge(branch string) error {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return fmt.Errorf("Merge: %w", ErrDenyPorcelain)
 	}
 
 	log.Debug().
 		Str("action", "Merge()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", git.cfg().WorkingDir).
 		Str("reference", branch).
 		Msg("Merge.")
 	_, err := git.exec("merge", "--no-ff", branch)
@@ -564,30 +568,18 @@ func (git *Git) Merge(branch string) error {
 
 // Push changes from branch onto remote.
 func (git *Git) Push(remote, branch string) error {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return fmt.Errorf("Push: %w", ErrDenyPorcelain)
 	}
-
-	log.Debug().
-		Str("action", "Push()").
-		Str("workingDir", git.config.WorkingDir).
-		Str("reference", fmt.Sprintf("from `%s` to `%s`", branch, remote)).
-		Msg("Git push.")
 	_, err := git.exec("push", remote, branch)
 	return err
 }
 
 // Pull changes from remote into branch
 func (git *Git) Pull(remote, branch string) error {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return fmt.Errorf("Pull: %w", ErrDenyPorcelain)
 	}
-
-	log.Debug().
-		Str("action", "Pull()").
-		Str("workingDir", git.config.WorkingDir).
-		Str("reference", fmt.Sprintf("from `%s` to `%s`", remote, branch)).
-		Msg("Git pull.")
 	_, err := git.exec("pull", remote, branch)
 	return err
 }
@@ -605,7 +597,7 @@ func (git *Git) ListUntracked(dirs ...string) ([]string, error) {
 
 	log.Debug().
 		Str("action", "ListUntracked()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", git.cfg().WorkingDir).
 		Msg("List untracked files.")
 	out, err := git.exec("ls-files", args...)
 	if err != nil {
@@ -629,7 +621,7 @@ func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
 
 	log.Debug().
 		Str("action", "ListUncommitted()").
-		Str("workingDir", git.config.WorkingDir).
+		Str("workingDir", git.cfg().WorkingDir).
 		Msg("List uncommitted files.")
 	out, err := git.exec("ls-files", args...)
 	if err != nil {
@@ -702,7 +694,7 @@ func (git *Git) IsRepository() bool {
 // AddSubmodule adds the submodule name from url into this repository.
 // For security reasons, this method should only be used in tests.
 func (git *Git) AddSubmodule(name string, url string) (string, error) {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return "", fmt.Errorf("AddSubmodule: %w", ErrDenyPorcelain)
 	}
 	return git.exec("-c", "protocol.file.allow=always", "submodule", "add", url, name)
@@ -711,7 +703,7 @@ func (git *Git) AddSubmodule(name string, url string) (string, error) {
 // Exec executes any provided git command. We don't allow Exec if AllowPorcelain
 // is set to false.
 func (git *Git) Exec(command string, args ...string) (string, error) {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return "", fmt.Errorf("Exec: %w", ErrDenyPorcelain)
 	}
 	return git.exec(command, args...)
@@ -724,7 +716,7 @@ func (git *Git) CurrentBranch() (string, error) {
 
 // SetRemoteURL sets the remote url.
 func (git *Git) SetRemoteURL(remote, url string) error {
-	if !git.config.AllowPorcelain {
+	if !git.cfg().AllowPorcelain {
 		return fmt.Errorf("SetRemoteURL: %w", ErrDenyPorcelain)
 	}
 	_, err := git.exec("remote", "set-url", remote, url)
@@ -746,26 +738,26 @@ func (git *Git) GetConfigValue(key string) (string, error) {
 }
 
 func (git *Git) exec(command string, args ...string) (string, error) {
+	cfg := git.cfg()
 	cmd := exec.Cmd{
-		Path: git.config.ProgramPath,
-		Args: []string{git.config.ProgramPath},
-		Dir:  git.config.WorkingDir,
+		Path: cfg.ProgramPath,
+		Args: []string{cfg.ProgramPath},
+		Dir:  cfg.WorkingDir,
 		Env:  []string{},
 	}
 
-	cmd.Args = append(cmd.Args, git.config.GlobalArgs...)
+	cmd.Args = append(cmd.Args, cfg.GlobalArgs...)
 	cmd.Args = append(cmd.Args, command)
-
 	cmd.Args = append(cmd.Args, args...)
 
 	// nil and empty slice behave differently on exec.Cmd.
 	// nil defaults to use parent env, empty means actually empty.
 	// we want nil and empty to behave the same (no env).
-	if git.config.Env != nil {
-		cmd.Env = git.config.Env
+	if cfg.Env != nil {
+		cmd.Env = cfg.Env
 	}
 
-	if git.config.Isolated {
+	if cfg.Isolated {
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_SYSTEM=/dev/null")
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_GLOBAL=/dev/null")
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=1") // back-compat
@@ -780,13 +772,13 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		if errors.As(err, &exitError) {
 			stderr = exitError.Stderr
 		}
-
 		return "", NewCmdError(cmd.String(), stdout, stderr)
 	}
-
 	out := strings.TrimSpace(string(stdout))
 	return out, nil
 }
+
+func (git *Git) cfg() *Config { return &git.options.config }
 
 // Error string representation.
 func (e Error) Error() string {
