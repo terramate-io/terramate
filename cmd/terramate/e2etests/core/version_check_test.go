@@ -24,7 +24,7 @@ func TestVersionCheck(t *testing.T) {
 		"debug show metadata":    "debug show metadata",
 		"debug show globals":     "debug show globals",
 		"experimental run-order": "experimental run-order",
-		"debug render run-graph": "debug render run-graph",
+		"experimental run-graph": "experimental run-graph",
 		"generate":               "generate",
 		"list":                   "list",
 		"run":                    fmt.Sprintf("run --quiet %s cat %s", HelperPath, stack.DefaultFilename),
