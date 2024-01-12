@@ -5,6 +5,11 @@ description: With the terramate run-graph command you can print a graph describi
 
 # Run Graph
 
+::: warning
+This is an experimental command and is likely subject to change in the future.
+:::
+
+
 The `run-graph` command prints a graph describing the [order of execution](../orchestration/index.md) of your stacks.
 
 ## Usage
@@ -16,5 +21,5 @@ The `run-graph` command prints a graph describing the [order of execution](../or
 Print the graph for all stacks in the current directory recursively:
 
 ```bash
-terramate debug render run-graph
+terramate experimental run-graph
 ```

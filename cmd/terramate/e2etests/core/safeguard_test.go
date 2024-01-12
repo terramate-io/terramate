@@ -31,7 +31,7 @@ func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 		"debug show metadata",
 		"debug show globals",
 		"experimental run-order",
-		"debug render run-graph",
+		"experimental run-graph",
 		"experimental eval 1+1",
 		"experimental partial-eval 1+1",
 		"experimental get-config-value global",
