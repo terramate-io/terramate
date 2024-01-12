@@ -14,7 +14,7 @@ The `run-graph` command prints a graph describing the [order of execution](../or
 
 ## Usage
 
-`terramate debug render run-graph`
+`terramate experimental run-graph`
 
 ## Examples
 
