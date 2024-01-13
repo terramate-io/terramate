@@ -9,7 +9,23 @@ description: With the terramate eval command you can fully evaluate a Terramate 
 This is an experimental command and is likely subject to change in the future.
 :::
 
-The `eval` command allows you to fully evaluate a Terramate expression.
+The `eval` command allows you to fully evaluate a Terramate expression provided in the arguments.
+
+For security reasons, the filesystem related functions are disabled for now. 
+Below is the list of functions that **cannot be used** in this command:
+
+- tm_abspath,
+- tm_file
+- tm_fileexists
+- tm_fileset
+- tm_filebase64
+- tm_filebase64sha256
+- tm_filebase64sha512
+- tm_filemd5
+- tm_filesha1
+- tm_filesha256
+- tm_filesha512
+- tm_templatefile
 
 ## Usage
 
