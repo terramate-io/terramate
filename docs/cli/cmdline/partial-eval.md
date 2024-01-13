@@ -9,8 +9,25 @@ description: With the terramate partial-eval command you can partially evaluate 
 This is an experimental command and is likely subject to change in the future.
 :::
 
-The `partial-eval` command allows you to fully evaluate a Terramate expression. The difference to [`eval`](./eval.md) is
-that partial eval does not evaluate [functions](../code-generation/functions/index.md).
+The `partial-eval` command allows you to partial evaluate a Terramate expression. The difference to [`eval`](./eval.md) is that only the Terramate variables and Terramate functions are evaluated, all
+the rest is left in the expression as is.
+
+Similarly to [experimental eval](./eval.md), for security reasons the `partial-eval` **does not** 
+support **filesystem related** [functions](../code-generation/functions/index.md).
+Below is the list of functions **not available** in this command:
+
+- tm_abspath,
+- tm_file
+- tm_fileexists
+- tm_fileset
+- tm_filebase64
+- tm_filebase64sha256
+- tm_filebase64sha512
+- tm_filemd5
+- tm_filesha1
+- tm_filesha256
+- tm_filesha512
+- tm_templatefile
 
 ## Usage
 
@@ -21,5 +38,6 @@ that partial eval does not evaluate [functions](../code-generation/functions/ind
 Evaluate an expression that returns the uppercase version of the current stack name: 
 
 ```bash
-terramate experimental eval 'tm_upper(terramate.stack.name)'
+terramate experimental partial-eval '"${var.variable} ${tm_upper(terramate.stack.name)}"'
+"${var.variable} MY STACK"
 ```
