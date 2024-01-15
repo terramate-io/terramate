@@ -7,24 +7,33 @@ description: With the terramate
 
 **Note:** This is an upcoming experimental feature that is subject to change in the future. To use it now, you must enable the project config option `terramate.config.experiments = ["scripts"]`
 
-The `script run LABEL...` command will run a Terramate script over a set of stacks. The `LABEL` (one or more) needs to exactly match the labels defined in the `script` block:
+The `script run CMD` command will run a Terramate script over a set of stacks. `CMD` needs to exactly match the label defined in the `script` block. For example:
 
 ```
-script "label1" "label2" {
+script "mycommand" {
   ...
 }
 ```
 
-The above script could therefore be called with `script run label1 label2`.
+The above script could therefore be run with `script run mycommand`.
 
 The script will run on all stacks under the current working directory where:
 
 - the script is available (scripts follow the same inheritance rules as globals)
 - any filters match. `script run` currently supports `--changed` and `--tags` filters.
 
+It's also possible to define commands that consist of multiple keywords to create a multi-level command structure, i.e. `command subcommand ...`:
+
+```
+script "command" "subcommand" {
+  ...
+}
+```
+The above can be run with `script run command subcommand`.
+
 ## Usage
 
-`terramate script run [options] SCRIPT-LABEL...`
+`terramate script run [options] CMD...`
 
 ## Examples
 
