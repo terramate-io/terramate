@@ -87,7 +87,7 @@ func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, e
 			}
 			rootTree := NewTree(fromdir)
 			rootTree.Node = cfg
-			_, err = loadTree(rootTree, fromdir)
+			_, err = loadTree(rootTree, fromdir, nil)
 			if err != nil {
 				return nil, fromdir, true, err
 			}
@@ -274,7 +274,7 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	}
 	root := NewTree(rootdir)
 	root.Node = cfg
-	return loadTree(root, cfgdir)
+	return loadTree(root, cfgdir, nil)
 }
 
 // HostDir is the node absolute directory in the host.
@@ -367,7 +367,7 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
+func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
 		Str("dir", cfgdir).
@@ -395,10 +395,14 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 		}
 	}
 
+	if parentTree != nil && rootcfg == nil {
+		rootcfg = &parentTree.Root().Tree().Node
+	}
+
 	if cfgdir != parentTree.RootDir() {
 		tree := NewTree(cfgdir)
-		root := parentTree.Root()
-		cfg, err := hcl.ParseDir(parentTree.RootDir(), cfgdir, root.Tree().Node.Experiments()...)
+
+		cfg, err := hcl.ParseDir(parentTree.RootDir(), cfgdir, rootcfg.Experiments()...)
 		if err != nil {
 			return nil, err
 		}
@@ -415,7 +419,7 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 		}
 
 		dir := filepath.Join(cfgdir, fname)
-		node, err := loadTree(parentTree, dir)
+		node, err := loadTree(parentTree, dir, rootcfg)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
 		}
