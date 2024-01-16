@@ -59,7 +59,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 		"job_title": ""
 	}`
 
-	const fatalErr = `FTL ` + string(clitest.ErrCloud)
+	const fatalErr = string(clitest.ErrCloud)
 
 	versionNoPrerelease := versions.MustParseVersion(terramate.Version())
 	versionNoPrerelease.Prerelease = ""
@@ -117,7 +117,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 				{
@@ -126,7 +126,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 			},
@@ -283,7 +283,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 				{
@@ -292,7 +292,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 			},
@@ -377,7 +377,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL failed to load credentials: ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`failed to load credentials`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -388,7 +389,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL failed to load credentials: ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`failed to load credentials`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -481,8 +483,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + string(cloud.ErrUnexpectedResponseBody),
-							`FTL failed to load credentials`,
+							string(cloud.ErrUnexpectedResponseBody),
+							`failed to load credentials`,
 						},
 					},
 				},
@@ -493,8 +495,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + string(cloud.ErrUnexpectedResponseBody),
-							`FTL failed to load credentials`,
+							string(cloud.ErrUnexpectedResponseBody),
+							`failed to load credentials`,
 						},
 					},
 				},
@@ -566,8 +568,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + regexp.QuoteMeta(string(cloud.ErrNotFound)),
-							`FTL failed to load credentials`,
+							regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							`failed to load credentials`,
 						},
 					},
 				},
@@ -578,8 +580,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + regexp.QuoteMeta(string(cloud.ErrNotFound)),
-							`FTL failed to load credentials`,
+							regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							`failed to load credentials`,
 						},
 					},
 				},
@@ -613,7 +615,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							clitest.CloudNoMembershipMessage,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -645,7 +647,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							clitest.CloudNoMembershipMessage,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -675,7 +677,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
-							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
 					},
 				},
@@ -687,7 +689,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
-							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
 					},
 				},
@@ -805,7 +807,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 				{
@@ -814,7 +819,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 			},
@@ -860,9 +868,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`Warning: Pending invitation`,
-							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -877,8 +884,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`Warning: Pending invitation`,
-							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -895,9 +901,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`Warning: Pending invitation`,
-							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -912,8 +917,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`Warning: Pending invitation`,
-							`You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -926,7 +930,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 				{
@@ -935,7 +942,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 			},
@@ -1030,7 +1040,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 				{
@@ -1039,7 +1052,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"experimental", "cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 			},
@@ -1140,7 +1156,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL ` + string(clitest.ErrCloudStacksWithoutID),
+							string(clitest.ErrCloudStacksWithoutID),
 						},
 					},
 				},
@@ -1170,7 +1186,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL ` + string(clitest.ErrCloudStacksWithoutID),
+							string(clitest.ErrCloudStacksWithoutID),
 						},
 					},
 				},

@@ -60,7 +60,7 @@ type credential interface {
 	// private interface
 
 	organizations() cloud.MemberOrganizations
-	info()
+	info(selectedOrgName string)
 }
 
 type keyValue struct {
@@ -246,9 +246,10 @@ func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
 func (c *cli) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
-		fatal(err, "failed to load credentials")
+		c.fatal("failed to load credentials", err)
 	}
-	c.cred().info()
+	c.cred().info(c.cloudOrgName())
+
 	// verbose info
 	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
