@@ -203,7 +203,8 @@ type cliSpec struct {
 		Trigger struct {
 			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
 			Reason             string `default:"" name:"reason" help:"Reason for the stack being triggered"`
-			ExperimentalStatus string `help:"Filter by status"`
+			ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
+			CloudStatus        string `help:"Filter by status"`
 		} `cmd:"" help:"Triggers a stack"`
 
 		RunGraph struct {
@@ -788,11 +789,22 @@ func hasVendorDirConfig(cfg hcl.Config) bool {
 }
 
 func (c *cli) triggerStackByFilter() {
-	if c.parsedArgs.Experimental.Trigger.ExperimentalStatus == "" {
-		fatal(errors.E("trigger command expects either a stack path or the --experimental-status flag"))
+	expStatus := c.parsedArgs.Experimental.Trigger.ExperimentalStatus
+	cloudStatus := c.parsedArgs.Experimental.Trigger.CloudStatus
+	if expStatus != "" && cloudStatus != "" {
+		fatal(errors.E("--experimental-status and --cloud-status cannot be used together"))
 	}
 
-	status := parseStatusFilter(c.parsedArgs.Experimental.Trigger.ExperimentalStatus)
+	statusStr := expStatus
+	if cloudStatus != "" {
+		statusStr = cloudStatus
+	}
+
+	if statusStr == "" {
+		fatal(errors.E("trigger command expects either a stack path or the --cloud-status flag"))
+	}
+
+	status := parseStatusFilter(statusStr)
 	stacksReport, err := c.listStacks(false, status)
 	if err != nil {
 		fatal(err)

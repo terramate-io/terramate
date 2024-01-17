@@ -14,7 +14,7 @@ The `trigger` command forcibly marks a stack as "changed" even if it doesn't con
 which should then be committed. `terramate run` will then execute commands against any stacks that have been triggered
 in the last commit (as well as any other changed stacks).
 
-The trigger mechanism has various use cases. It may be that a previous CI/CD run failed or that you have detected drift between the code and the actual state. For those using Terramate Cloud, the additional `--experimental-status=<status>` argument can be used to trigger stacks that are in one of the following states:
+The trigger mechanism has various use cases. It may be that a previous CI/CD run failed or that you have detected drift between the code and the actual state. For those using Terramate Cloud, the additional `--cloud-status=<status>` argument can be used to trigger stacks that are in one of the following states:
 
 | Status      | Meaning                                                                  |
 | ----------- | ------------------------------------------------------------------------ |
@@ -39,5 +39,5 @@ terramate experimental trigger /path/to/stack
 Create triggers for all stacks that have drifted
 
 ```bash
-terramate experimental trigger --experimental-status=drifted
+terramate experimental trigger --cloud-status=drifted
 ```
