@@ -114,7 +114,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
@@ -123,7 +123,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
@@ -207,7 +207,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -218,7 +218,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -280,7 +280,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
@@ -289,7 +289,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
@@ -373,7 +373,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -385,7 +385,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -479,7 +479,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -491,7 +491,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -564,7 +564,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -576,7 +576,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
@@ -672,7 +672,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
@@ -684,7 +684,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
@@ -804,7 +804,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
@@ -816,7 +816,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
@@ -927,7 +927,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
@@ -939,7 +939,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
@@ -1037,7 +1037,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
@@ -1049,7 +1049,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",

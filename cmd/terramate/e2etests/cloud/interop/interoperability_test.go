@@ -67,7 +67,7 @@ func TestInteropDrift(t *testing.T) {
 	)
 	// Check if there are no drift details
 	AssertRunResult(t,
-		tmcli.Run("experimental", "cloud", "drift", "show"), RunExpected{
+		tmcli.Run("cloud", "drift", "show"), RunExpected{
 			StderrRegex: "Stack .*? is drifted, but no details are available",
 			Status:      1,
 		},
@@ -92,7 +92,7 @@ func TestInteropDrift(t *testing.T) {
 	)
 	// Check the drift details
 	AssertRunResult(t,
-		tmcli.Run("experimental", "cloud", "drift", "show"), RunExpected{
+		tmcli.Run("cloud", "drift", "show"), RunExpected{
 			StdoutRegexes: []string{
 				"hello world", // content of the file
 				"local_file",  // name of the resource
@@ -105,7 +105,7 @@ func TestInteropDrift(t *testing.T) {
 	AssertRun(t, tmcli.Run("run", "--cloud-sync-drift-status", "--", HelperPath, "exit", "0"))
 	AssertRun(t, tmcli.Run("list", "--experimental-status=unhealthy"))
 	AssertRunResult(t,
-		tmcli.Run("experimental", "cloud", "drift", "show"),
+		tmcli.Run("cloud", "drift", "show"),
 		RunExpected{
 			StdoutRegex: "Stack .*? is not drifted",
 			Status:      0,

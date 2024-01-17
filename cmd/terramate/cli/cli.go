@@ -184,6 +184,15 @@ type cliSpec struct {
 		} `cmd:"" help:"Show information available in the project"`
 	} `cmd:"" help:"Terramate debugging commands"`
 
+	Cloud struct {
+		Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
+		Info  struct{} `cmd:"" help:"cloud information status"`
+		Drift struct {
+			Show struct {
+			} `cmd:"" help:"show drifts"`
+		} `cmd:"" help:"manage cloud drifts"`
+	} `cmd:"" help:"Terramate Cloud commands"`
+
 	Experimental struct {
 		Clone struct {
 			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
@@ -238,7 +247,7 @@ type cliSpec struct {
 				Show struct {
 				} `cmd:"" help:"show drifts"`
 			} `cmd:"" help:"manage cloud drifts"`
-		} `cmd:"" help:"Terramate Cloud commands"`
+		} `cmd:"" hidden:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -436,7 +445,14 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 			fatal(err, "installing shell completions")
 		}
 		return &cli{exit: true}
-	case "experimental cloud login":
+	case "experimental cloud login": // Deprecated: use cloud login
+		err := googleLogin(output, idpkey(), clicfg)
+		if err != nil {
+			fatal(err, "authentication failed")
+		}
+		output.MsgStdOut("authenticated successfully")
+		return &cli{exit: true}
+	case "cloud login":
 		err := googleLogin(output, idpkey(), clicfg)
 		if err != nil {
 			fatal(err, "authentication failed")
@@ -603,9 +619,13 @@ func (c *cli) run() {
 		log.Fatal().Msg("no variable specified")
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
-	case "experimental cloud info":
+	case "experimental cloud info": // Deprecated
 		c.cloudInfo()
-	case "experimental cloud drift show":
+	case "experimental cloud drift show": // Deprecated
+		c.cloudDriftShow()
+	case "cloud info":
+		c.cloudInfo()
+	case "cloud drift show":
 		c.cloudDriftShow()
 	case "script list":
 		c.checkScriptEnabled()
