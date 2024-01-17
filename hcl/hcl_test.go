@@ -927,7 +927,26 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 func TestHCLParserGenerateStackFilters(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name: "invalid project_paths list",
+			name: "generate_file - invalid project_paths list",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_file "test.tf" {
+							stack_filter { project_paths = "*" }
+							content = "foo"
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_hcl - invalid project_paths list",
 			input: []cfgfile{
 				{
 					filename: "gen.tm",
@@ -946,7 +965,26 @@ func TestHCLParserGenerateStackFilters(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid project_paths list element",
+			name: "generate_file - invalid project_paths list element",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_file "test.tf" {
+							stack_filter { project_paths = ["blah", 1] }
+							content = "foo"
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_hcl - invalid project_paths list element",
 			input: []cfgfile{
 				{
 					filename: "gen.tm",
@@ -954,6 +992,26 @@ func TestHCLParserGenerateStackFilters(t *testing.T) {
 						generate_hcl "test.tf" {
 							stack_filter { project_paths = ["blah", 1] }
 							content { foo = "bar" }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file - invalid context",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_file "test.tf" {
+							context = root
+							stack_filter { project_paths = ["blah"] }
+							content = "foo"
 						}
 					`,
 				},
