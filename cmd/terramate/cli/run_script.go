@@ -91,14 +91,14 @@ func (c *cli) runScript() {
 			for jobNum, j := range evalScript.Jobs {
 				c.output.MsgStdOut("")
 				for cmdNum, cmd := range j.Commands() {
-					printCommand(c.stderr, cmd, st.Dir().String(), jobNum, cmdNum)
+					printCommand(c.stderr, cmd.Args, st.Dir().String(), jobNum, cmdNum)
 
 					env, err := run.LoadEnv(c.cfg(), st.Stack)
 					if err != nil {
 						logger.Fatal().Err(err).Msg("failed to load env")
 					}
 
-					if err := c.executeCommand(cmd, st.Dir().HostPath(c.rootdir()), newEnvironFrom(env)); err != nil {
+					if err := c.executeCommand(cmd.Args, st.Dir().HostPath(c.rootdir()), newEnvironFrom(env)); err != nil {
 						logger.Fatal().Err(err).Msg("unable to execute command")
 					}
 				}

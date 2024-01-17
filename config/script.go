@@ -4,6 +4,9 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -19,12 +22,25 @@ const (
 	ErrScriptInvalidTypeCommand  errors.Kind = "invalid type for script.command"
 	ErrScriptInvalidTypeCommands errors.Kind = "invalid type for script.commands"
 	ErrScriptEmptyCmds           errors.Kind = "job command or commands evaluated to empty list"
+	ErrScriptInvalidCmdOptions   errors.Kind = "invalid options for script command"
 )
+
+// ScriptCmdOptions represents optional parameters for a script command
+type ScriptCmdOptions struct {
+	CloudSyncDeployment    bool
+	CloudSyncTerraformPlan string
+}
+
+// ScriptCmd represents an evaluated script command
+type ScriptCmd struct {
+	Args    []string
+	Options *ScriptCmdOptions
+}
 
 // ScriptJob represents an evaluated job block
 type ScriptJob struct {
-	Cmd  []string
-	Cmds [][]string
+	Cmd  *ScriptCmd
+	Cmds []*ScriptCmd
 }
 
 // Script represents an evaluated script block
@@ -39,9 +55,9 @@ type Script struct {
 // care about which command attr was set e.g. command or commands. This method
 // returns a list of commands irrespective of whether they were set through
 // job.command or job.commands
-func (es ScriptJob) Commands() [][]string {
+func (es ScriptJob) Commands() []*ScriptCmd {
 	if es.Cmd != nil {
-		return [][]string{es.Cmd}
+		return []*ScriptCmd{es.Cmd}
 	}
 	return es.Cmds
 }
@@ -52,6 +68,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		Range:  script.Range,
 		Labels: script.Labels,
 	}
+
 	errs := errors.L()
 
 	desc, err := evalScriptDesc(evalctx, script.Description.Expr, "script.description")
@@ -63,7 +80,14 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		evaluatedJob := ScriptJob{}
 
 		if job.Command != nil {
-			command, err := evalScriptJobCommand(evalctx, job.Command.Expr, "command")
+			expr := job.Command.Expr
+			v, err := evalctx.Eval(expr)
+			if err != nil {
+				errs.Append(errors.E(ErrScriptSchema, expr.Range(), err, "evaluating command"))
+				continue
+			}
+
+			command, err := unmarshalScriptJobCommand(v, expr)
 			if err != nil {
 				errs.Append(err)
 				continue
@@ -72,7 +96,14 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		}
 
 		if job.Commands != nil {
-			commands, err := evalScriptJobCommands(evalctx, job.Commands.Expr, "commands")
+			expr := job.Commands.Expr
+			v, err := evalctx.Eval(expr)
+			if err != nil {
+				errs.Append(errors.E(ErrScriptSchema, expr.Range(), err, "evaluating commands"))
+				continue
+			}
+
+			commands, err := unmarshalScriptJobCommands(v, expr)
 			if err != nil {
 				errs.Append(err)
 				continue
@@ -81,6 +112,22 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		}
 
 		evaluatedScript.Jobs = append(evaluatedScript.Jobs, evaluatedJob)
+	}
+
+	// Validate option constraints
+	var cmdsWithCloudSyncDeployment []string
+	for jobIdx, job := range evaluatedScript.Jobs {
+		for cmdIdx, cmd := range job.Commands() {
+			if cmd.Options != nil && cmd.Options.CloudSyncDeployment {
+				cmdsWithCloudSyncDeployment = append(cmdsWithCloudSyncDeployment, fmt.Sprintf("job:%d.%d", jobIdx, cmdIdx))
+			}
+		}
+	}
+	if len(cmdsWithCloudSyncDeployment) > 1 {
+		errs.Append(errors.E(ErrScriptInvalidCmdOptions,
+			"only a single command per script may have 'cloud_sync_deployment' enabled, but was enabled by: %v",
+			strings.Join(cmdsWithCloudSyncDeployment, " "),
+		))
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -99,94 +146,39 @@ func evalScriptDesc(evalctx *eval.Context, expr hhcl.Expression, name string) (s
 	return desc, nil
 }
 
-func evalScriptJobCommand(evalctx *eval.Context, expr hhcl.Expression, name string) ([]string, error) {
-	val, err := evalctx.Eval(expr)
-	if err != nil {
-		return nil, errors.E(ErrScriptSchema, expr.Range(),
-			err, "evaluating %s", name)
+func unmarshalScriptJobCommands(cmdList cty.Value, expr hhcl.Expression) ([]*ScriptCmd, error) {
+	if !cmdList.Type().IsTupleType() {
+		return nil, errors.E(ErrScriptInvalidTypeCommands, expr.Range(), "commands should be a list")
 	}
 
-	if !val.Type().IsTupleType() {
-		return nil, errors.E(ErrScriptInvalidTypeCommand, expr.Range(),
-			"%s should be a list(string) type", name)
-	}
-
-	if val.LengthInt() == 0 {
+	if cmdList.LengthInt() == 0 {
 		return nil, errors.E(ErrScriptEmptyCmds, expr.Range())
 	}
 
 	errs := errors.L()
-	evaluatedCommand := []string{}
+	evaluatedCommands := []*ScriptCmd{}
 
 	index := -1
-	it := val.ElementIterator()
-	for it.Next() {
-		index++
-		_, elem := it.Element()
-		if elem.Type() != cty.String {
-			errs.Append(errors.E(ErrScriptInvalidTypeCommand, expr.Range(),
-				"field %s must be a list(string) but element %d has type %q",
-				name, index, elem.Type().FriendlyName()))
-			continue
-		}
-		evaluatedCommand = append(evaluatedCommand, elem.AsString())
-	}
-
-	if err := errs.AsError(); err != nil {
-		return nil, err
-	}
-
-	return evaluatedCommand, nil
-}
-
-func evalScriptJobCommands(evalctx *eval.Context, expr hhcl.Expression, name string) ([][]string, error) {
-	val, err := evalctx.Eval(expr)
-	if err != nil {
-		return nil, errors.E(ErrScriptSchema, expr.Range(),
-			err, "evaluating %s", name)
-	}
-
-	if !val.Type().IsTupleType() {
-		return nil, errors.E(ErrScriptInvalidTypeCommands, expr.Range(),
-			"%s should be a list(string) type", name)
-	}
-
-	if val.LengthInt() == 0 {
-		return nil, errors.E(ErrScriptEmptyCmds, expr.Range())
-	}
-
-	errs := errors.L()
-	evaluatedCommands := [][]string{}
-
-	index := -1
-	it := val.ElementIterator()
+	it := cmdList.ElementIterator()
 	for it.Next() {
 		index++
 		_, elem := it.Element()
 		if !elem.Type().IsTupleType() {
 			errs.Append(errors.E(ErrScriptInvalidTypeCommands, expr.Range(),
-				"field %s must be a list of list(string) but element %d has type %q",
-				name, index, elem.Type().FriendlyName()))
+				"commands must be a list of list, but element %d has type %q",
+				index, elem.Type().FriendlyName()))
 			continue
 		}
 
 		if elem.LengthInt() == 0 {
-			return nil, errors.E(ErrScriptEmptyCmds, expr.Range(), "commands item %d is empty", index)
+			errs.Append(errors.E(ErrScriptEmptyCmds, expr.Range(), "commands item %d is empty", index))
+			continue
 		}
 
-		evaluatedCommand := []string{}
-		indexCommand := -1
-		itCommand := elem.ElementIterator()
-		for itCommand.Next() {
-			indexCommand++
-			_, elem := itCommand.Element()
-			if elem.Type() != cty.String {
-				errs.Append(errors.E(ErrScriptInvalidTypeCommands, expr.Range(),
-					"field %s must be a string but element %d has type %q",
-					name, indexCommand, elem.Type().FriendlyName()))
-				continue
-			}
-			evaluatedCommand = append(evaluatedCommand, elem.AsString())
+		evaluatedCommand, err := unmarshalScriptJobCommand(elem, expr)
+		if err != nil {
+			errs.Append(err)
+			continue
 		}
 
 		evaluatedCommands = append(evaluatedCommands, evaluatedCommand)
@@ -197,4 +189,97 @@ func evalScriptJobCommands(evalctx *eval.Context, expr hhcl.Expression, name str
 	}
 
 	return evaluatedCommands, nil
+}
+
+func unmarshalScriptJobCommand(cmdValues cty.Value, expr hhcl.Expression) (*ScriptCmd, error) {
+	if !cmdValues.Type().IsTupleType() {
+		return nil, errors.E(ErrScriptInvalidTypeCommand, expr.Range(), "command must be a list")
+	}
+
+	if cmdValues.LengthInt() == 0 {
+		return nil, errors.E(ErrScriptEmptyCmds, expr.Range())
+	}
+
+	errs := errors.L()
+	r := &ScriptCmd{}
+
+	index := 0
+	lastIndex := cmdValues.LengthInt() - 1
+
+	it := cmdValues.ElementIterator()
+	for it.Next() {
+		_, elem := it.Element()
+		if elem.Type() == cty.String {
+			r.Args = append(r.Args, elem.AsString())
+		} else if index == lastIndex {
+			if elem.Type().IsObjectType() {
+				var err error
+				r.Options, err = unmarshalScriptCommandOptions(elem, expr)
+				errs.Append(err)
+			} else {
+				errs.Append(errors.E(ErrScriptInvalidTypeCommand, expr.Range(),
+					"command options must be an object, but last element has type %s",
+					elem.Type().FriendlyName()))
+			}
+		} else {
+			errs.Append(errors.E(ErrScriptInvalidTypeCommand, expr.Range(),
+				"command must be a list(string), but element %d has type %s",
+				index, elem.Type().FriendlyName()))
+		}
+
+		index++
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*ScriptCmdOptions, error) {
+	r := &ScriptCmdOptions{}
+	it := obj.ElementIterator()
+
+	errs := errors.L()
+
+	for it.Next() {
+		k, v := it.Element()
+
+		if k.Type() != cty.String {
+			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+				"command option key must be a string, but has type %s",
+				k.Type().FriendlyName()))
+			continue
+		}
+
+		switch ks := k.AsString(); ks {
+		case "cloud_sync_deployment":
+			if v.Type() != cty.Bool {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a bool, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			r.CloudSyncDeployment = v.True()
+
+		case "cloud_sync_terraform_plan":
+			if v.Type() != cty.String {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a string, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			r.CloudSyncTerraformPlan = v.AsString()
+
+		default:
+			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(), "unknown command option: %s", ks))
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }

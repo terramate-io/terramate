@@ -146,7 +146,9 @@ func TestScriptEval(t *testing.T) {
 				Description: "some description",
 				Jobs: []config.ScriptJob{
 					{
-						Cmd: []string{"echo", "HELLO TERRAMATE"},
+						Cmd: &config.ScriptCmd{
+							Args: []string{"echo", "HELLO TERRAMATE"},
+						},
 					},
 				},
 			},
@@ -171,7 +173,9 @@ func TestScriptEval(t *testing.T) {
 				Description: "some description",
 				Jobs: []config.ScriptJob{
 					{
-						Cmd: []string{"ls", "--version"},
+						Cmd: &config.ScriptCmd{
+							Args: []string{"ls", "--version"},
+						},
 					},
 				},
 			},
@@ -283,9 +287,9 @@ func TestScriptEval(t *testing.T) {
 				Description: "some description",
 				Jobs: []config.ScriptJob{
 					{
-						Cmds: [][]string{
-							{"echo", "HELLO TERRAMATE"},
-							{"stat", "."},
+						Cmds: []*config.ScriptCmd{
+							{Args: []string{"echo", "HELLO TERRAMATE"}},
+							{Args: []string{"stat", "."}},
 						},
 					},
 				},
@@ -324,19 +328,160 @@ func TestScriptEval(t *testing.T) {
 				Description: "some description",
 				Jobs: []config.ScriptJob{
 					{
-						Cmds: [][]string{
-							{"echo", "HELLO TERRAMATE"},
-							{"stat", "."},
+						Cmds: []*config.ScriptCmd{
+							{Args: []string{"echo", "HELLO TERRAMATE"}},
+							{Args: []string{"stat", "."}},
 						},
 					},
 					{
-						Cmds: [][]string{
-							{"echo", "HELLO TERRAMATE"},
-							{"ls", "-l"},
+						Cmds: []*config.ScriptCmd{
+							{Args: []string{"echo", "HELLO TERRAMATE"}},
+							{Args: []string{"ls", "-l"}},
 						},
 					},
 				},
 			},
+		},
+		{
+			name: "command options",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_deployment = false
+								cloud_sync_terraform_plan = "plan_a"
+							}],
+						  ]
+						`),
+					},
+					{
+						Command: makeCommand(t, `
+							["echo", "hello", {
+								cloud_sync_deployment = true
+								cloud_sync_terraform_plan = "plan_b"
+							}]
+						`),
+					},
+				},
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some description",
+				Jobs: []config.ScriptJob{
+					{
+						Cmds: []*config.ScriptCmd{
+							{
+								Args: []string{"echo", "hello"},
+								Options: &config.ScriptCmdOptions{
+									CloudSyncDeployment:    false,
+									CloudSyncTerraformPlan: "plan_a",
+								},
+							},
+						},
+					},
+					{
+						Cmd: &config.ScriptCmd{
+							Args: []string{"echo", "hello"},
+							Options: &config.ScriptCmdOptions{
+								CloudSyncDeployment:    true,
+								CloudSyncTerraformPlan: "plan_b",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "invalid command option",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_deploymenttttttt = false
+							}],
+						  ]
+						`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
+		},
+		{
+			name: "invalid command options object",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", ["list"]],
+						  ]
+						`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptInvalidTypeCommand),
+		},
+		{
+			name: "invalid command option type",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_deployment = "false"
+							}],
+						  ]
+						`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
+		},
+		{
+			name: "multiple cloud_sync_deployments",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+							  [
+								["echo", "hello", {
+									cloud_sync_deployment = true
+									cloud_sync_terraform_plan = "plan_a"
+								}],
+							  ]
+							`),
+					},
+					{
+						Command: makeCommand(t, `
+								["echo", "hello", {
+									cloud_sync_deployment = true
+									cloud_sync_terraform_plan = "plan_a"
+								}]
+							`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
 		},
 	}
 
