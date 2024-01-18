@@ -1478,6 +1478,46 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 			},
 		},
 		{
+			name: "escaped pattern",
+			layout: []string{
+				"s:st{a}ck\\s/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("st{a}ck\\\\s/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/st{a}ck\\s/stack-1",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/st{a}ck\\s/stack-1"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
 			name: "AND multiple attributes",
 			layout: []string{
 				"s:stack-1",
@@ -1780,6 +1820,72 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 							"prod_substack_match2",
 							"substack_match1",
 						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestGenerateHCLStackFiltersSC11177(t *testing.T) {
+	t.Parallel()
+
+	testCodeGeneration(t, []testcase{
+		{
+			name: "bug-sc11177",
+			layout: []string{
+				"s:stacks/project-factory/factory-1/custom-roles/role-1",
+				"s:stackss/project-factory/factory-2/custom-roles/role-2",
+				"s:stacksss/project-factory/factory-3/custom-roles/role-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths(
+								"**/project-factory/*/custom-roles/*",
+								"**/projects/*/landing-zone/custom-roles/*",
+							),
+						),
+						Content(),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/project-factory/factory-1/custom-roles/role-1",
+					files: map[string]fmt.Stringer{
+						"test": Doc(),
+					},
+				},
+				{
+					dir: "/stackss/project-factory/factory-2/custom-roles/role-2",
+					files: map[string]fmt.Stringer{
+						"test": Doc(),
+					},
+				},
+				{
+					dir: "/stacksss/project-factory/factory-3/custom-roles/role-3",
+					files: map[string]fmt.Stringer{
+						"test": Doc(),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/project-factory/factory-1/custom-roles/role-1"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/stackss/project-factory/factory-2/custom-roles/role-2"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/stacksss/project-factory/factory-3/custom-roles/role-3"),
+						Created: []string{"test"},
 					},
 				},
 			},

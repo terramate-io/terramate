@@ -100,8 +100,8 @@ type AssertConfig struct {
 
 // StackFilterConfig represents Terramate stack_filter configuration block.
 type StackFilterConfig struct {
-	ProjectPaths    glob.Glob
-	RepositoryPaths glob.Glob
+	ProjectPaths    []glob.Glob
+	RepositoryPaths []glob.Glob
 }
 
 // RunConfig represents Terramate run configuration.
@@ -1411,7 +1411,7 @@ func parseStackFilterConfig(block *ast.Block) (StackFilterConfig, error) {
 	return cfg, nil
 }
 
-func parseStackFilterAttr(attr ast.Attribute) (glob.Glob, error) {
+func parseStackFilterAttr(attr ast.Attribute) ([]glob.Glob, error) {
 	attrVal, hclerr := attr.Expr.Value(nil)
 	if hclerr != nil {
 		return nil, errors.E(ErrTerramateSchema, hclerr, attr.NameRange, "evaluating %s", attr.Name)
@@ -1426,20 +1426,28 @@ func parseStackFilterAttr(attr ast.Attribute) (glob.Glob, error) {
 		return nil, errors.E(ErrTerramateSchema, attr.NameRange, "%s must not be empty", attr.Name)
 	}
 
-	// Add ** prefix as default.
-	for i, s := range r {
+	var globs []glob.Glob
+
+	for _, s := range r {
+		// Add ** prefix as default.
 		if !strings.HasPrefix(s, "*") && !strings.HasPrefix(s, "/") {
-			r[i] = "**/" + s
+			s = "**/" + s
 		}
+
+		for _, escaped := range []string{`\`, `{`, `}`} {
+			s = strings.ReplaceAll(s, escaped, `\`+escaped)
+		}
+
+		g, err := glob.Compile(s, '/')
+		if err != nil {
+			return nil, errors.E(ErrTerramateSchema, err, attr.NameRange,
+				"compiling match pattern for %s", attr.Name)
+		}
+
+		globs = append(globs, g)
 	}
 
-	g, err := glob.Compile(fmt.Sprintf("{%s}", strings.Join(r, ",")), '/')
-	if err != nil {
-		return nil, errors.E(ErrTerramateSchema, err, attr.NameRange,
-			"compiling match pattern for %s", attr.Name)
-	}
-
-	return g, nil
+	return globs, nil
 
 }
 

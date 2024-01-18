@@ -154,12 +154,12 @@ func Load(
 		for _, cond := range hclBlock.StackFilters {
 			matched := true
 
-			for n, g := range map[string]glob.Glob{
+			for n, globs := range map[string][]glob.Glob{
 				"project path":    cond.ProjectPaths,
 				"repository path": cond.RepositoryPaths,
 			} {
-				if g != nil && !g.Match(st.Dir.String()) {
-					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match filter %v", st.Dir, n, g)
+				if globs != nil && !matchAnyGlob(globs, st.Dir.String()) {
+					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match any filter in %v", st.Dir, n, globs)
 					matched = false
 					break
 				}
@@ -275,6 +275,15 @@ func Load(
 	})
 
 	return hcls, nil
+}
+
+func matchAnyGlob(globs []glob.Glob, s string) bool {
+	for _, g := range globs {
+		if g.Match(s) {
+			return true
+		}
+	}
+	return false
 }
 
 type dynBlockAttributes struct {
