@@ -158,7 +158,7 @@ func Load(
 				"project path":    cond.ProjectPaths,
 				"repository path": cond.RepositoryPaths,
 			} {
-				if globs != nil && !matchAnyGlob(globs, st.Dir.String()) {
+				if globs != nil && !hcl.MatchAnyGlob(globs, st.Dir.String()) {
 					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match any filter in %v", st.Dir, n, globs)
 					matched = false
 					break
@@ -275,15 +275,6 @@ func Load(
 	})
 
 	return hcls, nil
-}
-
-func matchAnyGlob(globs []glob.Glob, s string) bool {
-	for _, g := range globs {
-		if g.Match(s) {
-			return true
-		}
-	}
-	return false
 }
 
 type dynBlockAttributes struct {
