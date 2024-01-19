@@ -20,9 +20,16 @@ Format all files in the current directory recursively:
 terramate fmt
 ```
 
-Change working directory and list unformatted files only:
+Format all files and return status code = 2 if files were formatted:
 
 ```bash
+terramate fmt --detailed-exit-code
+```
+
+(DEPRECATED) Change working directory and list unformatted files only:
+
+```bash
+# deprecated
 terramate fmt --check --chdir format/in/this/directory
 ```
 
