@@ -155,7 +155,9 @@ type cliSpec struct {
 		Command                    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
-	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
+	Generate struct {
+		DetailedExitCode bool `default:"false" help:"Return detailed exit code (0 = ok, 1 = errors, 2 = no errors but changes were made"`
+	} `cmd:"" help:"Generate terraform code for stacks"`
 
 	Script struct {
 		List struct{} `cmd:"" help:"Show a list of all scripts in the current directory"`
@@ -843,13 +845,24 @@ func (c *cli) generate() {
 
 	vendorReport.RemoveIgnoredByKind(download.ErrAlreadyVendored)
 
+	exitCode := 0
+
 	if !vendorReport.IsEmpty() {
 		c.output.MsgStdOut(vendorReport.String())
+
+	}
+
+	if c.parsedArgs.Generate.DetailedExitCode {
+		if len(report.Successes) > 0 || !vendorReport.IsEmpty() {
+			exitCode = 2
+		}
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
-		os.Exit(1)
+		exitCode = 1
 	}
+
+	os.Exit(exitCode)
 }
 
 // gencodeWithVendor will generate code for the whole project providing automatic
