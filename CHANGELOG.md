@@ -25,6 +25,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add support for `stack_filter` in `generate_file` blocks.
+- Promote cloud commands
+  - `terramate experimental cloud login` -> `terramate cloud login`
+  - `terramate experimental cloud info` -> `terramate cloud info`
+  - `terramate experimental cloud drift show` -> `terramate cloud drift show`
+- Promote `--experimental-status` flag to `--cloud-status` flag
+  - `terramate experimental trigger --experimental-status=` -> `terramate experimental trigger --cloud-status=`
+  - `terramate list --experimental-status=` -> `terramate list --cloud-status=`
 
 ## 0.4.4
 

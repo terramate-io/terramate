@@ -138,7 +138,8 @@ type cliSpec struct {
 
 	List struct {
 		Why                bool   `help:"Shows the reason why the stack has changed"`
-		ExperimentalStatus string `help:"Filter by status"`
+		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
+		CloudStatus        string `help:"Filter by status"`
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
@@ -184,6 +185,15 @@ type cliSpec struct {
 		} `cmd:"" help:"Show information available in the project"`
 	} `cmd:"" help:"Terramate debugging commands"`
 
+	Cloud struct {
+		Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
+		Info  struct{} `cmd:"" help:"cloud information status"`
+		Drift struct {
+			Show struct {
+			} `cmd:"" help:"show drifts"`
+		} `cmd:"" help:"manage cloud drifts"`
+	} `cmd:"" help:"Terramate Cloud commands"`
+
 	Experimental struct {
 		Clone struct {
 			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
@@ -194,7 +204,8 @@ type cliSpec struct {
 		Trigger struct {
 			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
 			Reason             string `default:"" name:"reason" help:"Reason for the stack being triggered"`
-			ExperimentalStatus string `help:"Filter by status"`
+			ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
+			CloudStatus        string `help:"Filter by status"`
 		} `cmd:"" help:"Triggers a stack"`
 
 		RunGraph struct {
@@ -238,7 +249,7 @@ type cliSpec struct {
 				Show struct {
 				} `cmd:"" help:"show drifts"`
 			} `cmd:"" help:"manage cloud drifts"`
-		} `cmd:"" help:"Terramate Cloud commands"`
+		} `cmd:"" hidden:"" help:"Terramate Cloud commands"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -436,7 +447,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 			fatal(err, "installing shell completions")
 		}
 		return &cli{exit: true}
-	case "experimental cloud login":
+	case "experimental cloud login": // Deprecated: use cloud login
+		fallthrough
+	case "cloud login":
 		err := googleLogin(output, idpkey(), clicfg)
 		if err != nil {
 			fatal(err, "authentication failed")
@@ -603,9 +616,13 @@ func (c *cli) run() {
 		log.Fatal().Msg("no variable specified")
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
-	case "experimental cloud info":
+	case "experimental cloud info": // Deprecated
+		fallthrough
+	case "cloud info":
 		c.cloudInfo()
-	case "experimental cloud drift show":
+	case "experimental cloud drift show": // Deprecated
+		fallthrough
+	case "cloud drift show":
 		c.cloudDriftShow()
 	case "script list":
 		c.checkScriptEnabled()
@@ -768,11 +785,22 @@ func hasVendorDirConfig(cfg hcl.Config) bool {
 }
 
 func (c *cli) triggerStackByFilter() {
-	if c.parsedArgs.Experimental.Trigger.ExperimentalStatus == "" {
-		fatal(errors.E("trigger command expects either a stack path or the --experimental-status flag"))
+	expStatus := c.parsedArgs.Experimental.Trigger.ExperimentalStatus
+	cloudStatus := c.parsedArgs.Experimental.Trigger.CloudStatus
+	if expStatus != "" && cloudStatus != "" {
+		fatal(errors.E("--experimental-status and --cloud-status cannot be used together"))
 	}
 
-	status := parseStatusFilter(c.parsedArgs.Experimental.Trigger.ExperimentalStatus)
+	statusStr := expStatus
+	if cloudStatus != "" {
+		statusStr = cloudStatus
+	}
+
+	if statusStr == "" {
+		fatal(errors.E("trigger command expects either a stack path or the --cloud-status flag"))
+	}
+
+	status := parseStatusFilter(statusStr)
 	stacksReport, err := c.listStacks(false, status)
 	if err != nil {
 		fatal(err)
@@ -1350,7 +1378,18 @@ func (c *cli) printStacks() {
 		c.fatal("Invalid args", errors.E("the --why flag must be used together with --changed"))
 	}
 
-	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
+	expStatus := c.parsedArgs.List.ExperimentalStatus
+	cloudStatus := c.parsedArgs.List.CloudStatus
+	if expStatus != "" && cloudStatus != "" {
+		c.fatal("Invalid args", errors.E("--experimental-status and --cloud-status cannot be used together"))
+	}
+
+	statusStr := expStatus
+	if cloudStatus != "" {
+		statusStr = cloudStatus
+	}
+
+	status := parseStatusFilter(statusStr)
 	report, err := c.listStacks(c.parsedArgs.Changed, status)
 	if err != nil {
 		c.fatal("Unable to list stacks", err)

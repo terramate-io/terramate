@@ -28,12 +28,12 @@ func TestInteropSyncDeployment(t *testing.T) {
 		},
 	)
 	AssertRunResult(t,
-		tmcli.Run("list", "--experimental-status=unhealthy"), RunExpected{
+		tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
 			Stdout: nljoin("."),
 		},
 	)
 	AssertRun(t, tmcli.Run("run", "--cloud-sync-deployment", "--", HelperPath, "true"))
-	AssertRun(t, tmcli.Run("list", "--experimental-status=unhealthy"))
+	AssertRun(t, tmcli.Run("list", "--cloud-status=unhealthy"))
 }
 
 func TestInteropDrift(t *testing.T) {
@@ -61,13 +61,13 @@ func TestInteropDrift(t *testing.T) {
 		},
 	)
 	AssertRunResult(t,
-		tmcli.Run("list", "--experimental-status=unhealthy"), RunExpected{
+		tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
 			Stdout: nljoin("."),
 		},
 	)
 	// Check if there are no drift details
 	AssertRunResult(t,
-		tmcli.Run("experimental", "cloud", "drift", "show"), RunExpected{
+		tmcli.Run("cloud", "drift", "show"), RunExpected{
 			StderrRegex: "Stack .*? is drifted, but no details are available",
 			Status:      1,
 		},
@@ -86,13 +86,13 @@ func TestInteropDrift(t *testing.T) {
 		},
 	)
 	AssertRunResult(t,
-		tmcli.Run("list", "--experimental-status=unhealthy"), RunExpected{
+		tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
 			Stdout: nljoin("."),
 		},
 	)
 	// Check the drift details
 	AssertRunResult(t,
-		tmcli.Run("experimental", "cloud", "drift", "show"), RunExpected{
+		tmcli.Run("cloud", "drift", "show"), RunExpected{
 			StdoutRegexes: []string{
 				"hello world", // content of the file
 				"local_file",  // name of the resource
@@ -103,9 +103,9 @@ func TestInteropDrift(t *testing.T) {
 
 	// check reseting the drift status to OK
 	AssertRun(t, tmcli.Run("run", "--cloud-sync-drift-status", "--", HelperPath, "exit", "0"))
-	AssertRun(t, tmcli.Run("list", "--experimental-status=unhealthy"))
+	AssertRun(t, tmcli.Run("list", "--cloud-status=unhealthy"))
 	AssertRunResult(t,
-		tmcli.Run("experimental", "cloud", "drift", "show"),
+		tmcli.Run("cloud", "drift", "show"),
 		RunExpected{
 			StdoutRegex: "Stack .*? is not drifted",
 			Status:      0,
