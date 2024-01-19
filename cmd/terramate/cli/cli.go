@@ -132,7 +132,8 @@ type cliSpec struct {
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
-		Check bool `help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
+		Check            bool `hidden:"" help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
+		DetailedExitCode bool `help:"Return an appropriate exit code (0 = ok, 1 = error, 2 = no error but changes were made)"`
 	} `cmd:"" help:"Format all files inside dir recursively"`
 
 	List struct {
@@ -154,7 +155,9 @@ type cliSpec struct {
 		Command                    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
-	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
+	Generate struct {
+		DetailedExitCode bool `default:"false" help:"Return detailed exit code (0 = ok, 1 = errors, 2 = no errors but changes were made"`
+	} `cmd:"" help:"Generate terraform code for stacks"`
 
 	Script struct {
 		List struct{} `cmd:"" help:"Show a list of all scripts in the current directory"`
@@ -842,13 +845,24 @@ func (c *cli) generate() {
 
 	vendorReport.RemoveIgnoredByKind(download.ErrAlreadyVendored)
 
+	exitCode := 0
+
 	if !vendorReport.IsEmpty() {
 		c.output.MsgStdOut(vendorReport.String())
+
+	}
+
+	if c.parsedArgs.Generate.DetailedExitCode {
+		if len(report.Successes) > 0 || !vendorReport.IsEmpty() {
+			exitCode = 2
+		}
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
-		os.Exit(1)
+		exitCode = 1
 	}
+
+	os.Exit(exitCode)
 }
 
 // gencodeWithVendor will generate code for the whole project providing automatic
@@ -1297,9 +1311,13 @@ func (c *cli) createStack() {
 }
 
 func (c *cli) format() {
+	if c.parsedArgs.Fmt.Check && c.parsedArgs.Fmt.DetailedExitCode {
+		c.fatal("Invalid args", errors.E("--check conflicts with --detailed-exit-code"))
+	}
+
 	results, err := fmt.FormatTree(c.wd())
 	if err != nil {
-		fatal(err, "formatting files")
+		c.fatal("formatting files", err)
 	}
 
 	for _, res := range results {
@@ -1307,11 +1325,14 @@ func (c *cli) format() {
 		c.output.MsgStdOut(path)
 	}
 
-	if c.parsedArgs.Fmt.Check {
-		if len(results) > 0 {
+	if len(results) > 0 {
+		if c.parsedArgs.Fmt.Check {
 			os.Exit(1)
 		}
-		return
+
+		if c.parsedArgs.Fmt.DetailedExitCode {
+			os.Exit(2)
+		}
 	}
 
 	errs := errors.L()
