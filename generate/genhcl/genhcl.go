@@ -154,12 +154,12 @@ func Load(
 		for _, cond := range hclBlock.StackFilters {
 			matched := true
 
-			for n, g := range map[string]glob.Glob{
+			for n, globs := range map[string][]glob.Glob{
 				"project path":    cond.ProjectPaths,
 				"repository path": cond.RepositoryPaths,
 			} {
-				if g != nil && !g.Match(st.Dir.String()) {
-					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match filter %v", st.Dir, n, g)
+				if globs != nil && !hcl.MatchAnyGlob(globs, st.Dir.String()) {
+					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match any filter in %v", st.Dir, n, globs)
 					matched = false
 					break
 				}

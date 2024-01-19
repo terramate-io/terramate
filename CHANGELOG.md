@@ -24,6 +24,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add support for `stack_filter` in `generate_file` blocks.
+
+## 0.4.4
+
+### Added
+
 - Add `terramate.config.experiments` configuration to enable experimental features.
 - Add support for statuses `ok, failed, drifted and healthy` to the `--experimental-status` flag.
 - Add experimental `script` configuration block.
