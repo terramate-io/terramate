@@ -140,6 +140,7 @@ type cliSpec struct {
 		Why                bool   `help:"Shows the reason why the stack has changed"`
 		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
 		CloudStatus        string `help:"Filter by status"`
+		RunOrder           bool   `default:"false" help:"Sort stacks by order of execution"`
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
@@ -215,7 +216,7 @@ type cliSpec struct {
 
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
-		} `cmd:"" help:"Show the topological ordering of the stacks"`
+		} `hidden:"" cmd:"" help:"Show the topological ordering of the stacks"`
 
 		Vendor struct {
 			Download struct {
@@ -600,7 +601,7 @@ func (c *cli) run() {
 		c.generateGraph()
 	case "experimental run-order":
 		c.setupGit()
-		c.printRunOrder()
+		c.printRunOrder(false)
 	case "debug show runtime-env":
 		c.setupGit()
 		c.printRuntimeEnv()
@@ -1394,23 +1395,43 @@ func (c *cli) printStacks() {
 	if err != nil {
 		c.fatal("Unable to list stacks", err)
 	}
-
 	c.gitFileSafeguards(false)
 
-	for _, entry := range c.filterStacks(report.Stacks) {
-		stack := entry.Stack
+	c.printStacksList(report.Stacks, c.parsedArgs.List.Why, c.parsedArgs.List.RunOrder)
+}
 
-		log.Debug().Msgf("printing stack %s", stack.Dir)
+func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) {
+	filteredStacks := c.filterStacks(allStacks)
 
-		stackRepr, ok := c.friendlyFmtDir(stack.Dir.String())
+	reasons := map[string]string{}
+	stacks := make(config.List[*config.SortableStack], len(filteredStacks))
+	for i, entry := range filteredStacks {
+		stacks[i] = entry.Stack.Sortable()
+		reasons[entry.Stack.ID] = entry.Reason
+	}
+
+	if runOrder {
+		var failReason string
+		var err error
+		stacks, failReason, err = run.Sort(c.cfg(), stacks)
+		if err != nil {
+			c.fatal("Invalid stack configuration", errors.E(err, failReason))
+		}
+	}
+
+	for _, s := range stacks {
+		dir := s.Dir().String()
+		friendlyDir, ok := c.friendlyFmtDir(dir)
 		if !ok {
+			printer.Stderr.Errorln(stdfmt.Sprintf("Unable to format stack dir %s", dir))
+			printer.Stdout.Println(dir)
 			continue
 		}
 
-		if c.parsedArgs.List.Why {
-			c.output.MsgStdOut("%s - %s", stackRepr, entry.Reason)
+		if why {
+			printer.Stdout.Println(stdfmt.Sprintf("%s - %s", friendlyDir, reasons[s.ID]))
 		} else {
-			c.output.MsgStdOut(stackRepr)
+			printer.Stdout.Println(friendlyDir)
 		}
 	}
 }
@@ -1580,7 +1601,7 @@ func generateDot(
 	}
 }
 
-func (c *cli) printRunOrder() {
+func (c *cli) printRunOrder(friendlyFmt bool) {
 	logger := log.With().
 		Str("action", "printRunOrder()").
 		Str("workingDir", c.wd()).
@@ -1595,14 +1616,26 @@ func (c *cli) printRunOrder() {
 	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(err, "cycle detected on run order: %s", reason)
+			c.fatal("Invalid stack configuration", errors.E(err, reason))
 		} else {
-			fatal(err, "failed to plan execution")
+			c.fatal("Failed to plan execution", err)
 		}
 	}
 
 	for _, s := range orderedStacks {
-		printer.Stdout.Println(s.Dir().String())
+		dir := s.Dir().String()
+		if !friendlyFmt {
+			printer.Stdout.Println(dir)
+			continue
+		}
+
+		friendlyDir, ok := c.friendlyFmtDir(dir)
+		if !ok {
+			printer.Stderr.Errorln(stdfmt.Sprintf("Unable to format stack dir %s", dir))
+			printer.Stdout.Println(dir)
+			continue
+		}
+		printer.Stdout.Println(friendlyDir)
 	}
 }
 

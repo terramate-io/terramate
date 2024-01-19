@@ -32,6 +32,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Promote `--experimental-status` flag to `--cloud-status` flag
   - `terramate experimental trigger --experimental-status=` -> `terramate experimental trigger --cloud-status=`
   - `terramate list --experimental-status=` -> `terramate list --cloud-status=`
+- Add `list --run-order` flag to list stacks in the order they would be executed.
 
 ## 0.4.4
 

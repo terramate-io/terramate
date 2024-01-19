@@ -20,7 +20,7 @@ terramate run <cmd>
 ```
 
 ::: tip
-The [`run-order`](../cmdline/run-order.md) command returns a list that describes the order of execution of your stacks.
+The [`list --run-order`](../cmdline/list.md) command returns a list that describes the order of execution of your stacks.
 :::
 
 ## Run commands in a subset of stacks using filter
