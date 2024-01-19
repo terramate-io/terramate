@@ -10,3 +10,12 @@ The `generate` command generates files for all code generation strategies. For a
 ## Usage
 
 `terramate generate`
+
+
+## Examples
+
+Generate files and return status code = 2 when files were touched:
+
+```bash
+terramate generate --detailed-exit-code
+```
