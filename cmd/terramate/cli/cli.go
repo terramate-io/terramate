@@ -138,7 +138,8 @@ type cliSpec struct {
 
 	List struct {
 		Why                bool   `help:"Shows the reason why the stack has changed"`
-		ExperimentalStatus string `help:"Filter by status"`
+		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
+		CloudStatus        string `help:"Filter by status"`
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
@@ -447,12 +448,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		}
 		return &cli{exit: true}
 	case "experimental cloud login": // Deprecated: use cloud login
-		err := googleLogin(output, idpkey(), clicfg)
-		if err != nil {
-			fatal(err, "authentication failed")
-		}
-		output.MsgStdOut("authenticated successfully")
-		return &cli{exit: true}
+		fallthrough
 	case "cloud login":
 		err := googleLogin(output, idpkey(), clicfg)
 		if err != nil {
@@ -621,11 +617,11 @@ func (c *cli) run() {
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
 	case "experimental cloud info": // Deprecated
-		c.cloudInfo()
-	case "experimental cloud drift show": // Deprecated
-		c.cloudDriftShow()
+		fallthrough
 	case "cloud info":
 		c.cloudInfo()
+	case "experimental cloud drift show": // Deprecated
+		fallthrough
 	case "cloud drift show":
 		c.cloudDriftShow()
 	case "script list":
@@ -1382,7 +1378,18 @@ func (c *cli) printStacks() {
 		c.fatal("Invalid args", errors.E("the --why flag must be used together with --changed"))
 	}
 
-	status := parseStatusFilter(c.parsedArgs.List.ExperimentalStatus)
+	expStatus := c.parsedArgs.List.ExperimentalStatus
+	cloudStatus := c.parsedArgs.List.CloudStatus
+	if expStatus != "" && cloudStatus != "" {
+		c.fatal("Invalid args", errors.E("--experimental-status and --cloud-status cannot be used together"))
+	}
+
+	statusStr := expStatus
+	if cloudStatus != "" {
+		statusStr = cloudStatus
+	}
+
+	status := parseStatusFilter(statusStr)
 	report, err := c.listStacks(c.parsedArgs.Changed, status)
 	if err != nil {
 		c.fatal("Unable to list stacks", err)

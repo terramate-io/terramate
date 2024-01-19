@@ -28,12 +28,12 @@ func TestInteropSyncDeployment(t *testing.T) {
 		},
 	)
 	AssertRunResult(t,
-		tmcli.Run("list", "--experimental-status=unhealthy"), RunExpected{
+		tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
 			Stdout: nljoin("."),
 		},
 	)
 	AssertRun(t, tmcli.Run("run", "--cloud-sync-deployment", "--", HelperPath, "true"))
-	AssertRun(t, tmcli.Run("list", "--experimental-status=unhealthy"))
+	AssertRun(t, tmcli.Run("list", "--cloud-status=unhealthy"))
 }
 
 func TestInteropDrift(t *testing.T) {
@@ -61,7 +61,7 @@ func TestInteropDrift(t *testing.T) {
 		},
 	)
 	AssertRunResult(t,
-		tmcli.Run("list", "--experimental-status=unhealthy"), RunExpected{
+		tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
 			Stdout: nljoin("."),
 		},
 	)
@@ -86,7 +86,7 @@ func TestInteropDrift(t *testing.T) {
 		},
 	)
 	AssertRunResult(t,
-		tmcli.Run("list", "--experimental-status=unhealthy"), RunExpected{
+		tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
 			Stdout: nljoin("."),
 		},
 	)
@@ -103,7 +103,7 @@ func TestInteropDrift(t *testing.T) {
 
 	// check reseting the drift status to OK
 	AssertRun(t, tmcli.Run("run", "--cloud-sync-drift-status", "--", HelperPath, "exit", "0"))
-	AssertRun(t, tmcli.Run("list", "--experimental-status=unhealthy"))
+	AssertRun(t, tmcli.Run("list", "--cloud-status=unhealthy"))
 	AssertRunResult(t,
 		tmcli.Run("cloud", "drift", "show"),
 		RunExpected{

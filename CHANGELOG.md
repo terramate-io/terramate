@@ -31,6 +31,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `terramate experimental cloud drift show` -> `terramate cloud drift show`
 - Promote `--experimental-status` flag to `--cloud-status` flag
   - `terramate experimental trigger --experimental-status=` -> `terramate experimental trigger --cloud-status=`
+  - `terramate list --experimental-status=` -> `terramate list --cloud-status=`
 
 ## 0.4.4
 

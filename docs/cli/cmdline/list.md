@@ -5,7 +5,7 @@ description: With the terramate list command you can list all stacks in the curr
 
 # List
 
-The `list` command lists all Terramate stacks in the current directory recursively. These can be additionally filtered based on Terramate Cloud status with the `--experimental-status=<status>` filter (valid statuses are documented on the [trigger page](./trigger.md))
+The `list` command lists all Terramate stacks in the current directory recursively. These can be additionally filtered based on Terramate Cloud status with the `--cloud-status=<status>` filter (valid statuses are documented on the [trigger page](./trigger.md))
 
 ## Usage
 
@@ -28,5 +28,5 @@ terramate list --chdir path/to/directory
 List all stacks below the current directory that have a "drifted" status on Terramate Cloud
 
 ```bash
-terramate list --experimental-status=drifted
+terramate list --cloud-status=drifted
 ```
