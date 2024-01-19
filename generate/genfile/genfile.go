@@ -9,6 +9,7 @@ import (
 	"path"
 	"sort"
 
+	"github.com/gobwas/glob"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -17,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
 
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
@@ -137,7 +139,36 @@ func Load(
 		}
 
 		name := genFileBlock.Label
+
+		matchedAnyStackFilter := len(genFileBlock.StackFilters) == 0
+		for _, cond := range genFileBlock.StackFilters {
+			matched := true
+
+			for n, globs := range map[string][]glob.Glob{
+				"project path":    cond.ProjectPaths,
+				"repository path": cond.RepositoryPaths,
+			} {
+				if globs != nil && !hcl.MatchAnyGlob(globs, st.Dir.String()) {
+					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match any filter in %v", st.Dir, n, globs)
+					matched = false
+					break
+				}
+			}
+
+			matchedAnyStackFilter = matchedAnyStackFilter || matched
+		}
+
+		if !matchedAnyStackFilter {
+			files = append(files, File{
+				label:     name,
+				origin:    genFileBlock.Range,
+				condition: false,
+			})
+			continue
+		}
+
 		evalctx := stack.NewEvalCtx(root, st, globals)
+
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))

@@ -436,9 +436,18 @@ func (c *cli) detectCloudMetadata() {
 				Msg("failed to retrieve PR reviews")
 		}
 
+		uniqueReviewers := make(map[string]struct{})
+
 		for _, review := range reviews {
+			login := review.User.Login
+
+			if _, found := uniqueReviewers[login]; found {
+				continue
+			}
+			uniqueReviewers[login] = struct{}{}
+
 			reviewRequest.Reviewers = append(reviewRequest.Reviewers, cloud.Reviewer{
-				Login:     review.User.Login,
+				Login:     login,
 				AvatarURL: review.User.AvatarURL,
 			})
 		}
