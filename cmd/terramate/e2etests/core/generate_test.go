@@ -40,10 +40,11 @@ func TestGenerate(t *testing.T) {
 		}
 
 		testcase struct {
-			name   string
-			layout []string
-			files  []file
-			want   want
+			name             string
+			layout           []string
+			files            []file
+			detailedExitCode bool
+			want             want
 		}
 	)
 
@@ -86,6 +87,19 @@ func TestGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "stacks with no codegen and --detailed-exit-code",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			detailedExitCode: true,
+			want: want{
+				run: RunExpected{
+					Stdout: noCodegenMsg,
+				},
+			},
+		},
+		{
 			name: "generate file and hcl",
 			layout: []string{
 				"s:stack",
@@ -119,6 +133,48 @@ Successes:
 
 Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
 `,
+				},
+				files: []file{
+					{
+						path: p("/stack/file.hcl"),
+						body: Doc(
+							Str("a", "hi"),
+						),
+					},
+					{
+						path: p("/stack/file.txt"),
+						body: str("hi"),
+					},
+				},
+			},
+		},
+		{
+			name: "generate file and hcl with --detailed-exit-code",
+			layout: []string{
+				"s:stack",
+			},
+			detailedExitCode: true,
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Str("a", "hi"),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Str("content", "hi"),
+						),
+					),
+				},
+			},
+			want: want{
+				run: RunExpected{
+					IgnoreStdout: true,
+					Status:       2,
 				},
 				files: []file{
 					{
@@ -293,7 +349,11 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 			}
 
 			tmcli := NewCLI(t, s.RootDir())
-			res := tmcli.Run("generate")
+			args := []string{"generate"}
+			if tcase.detailedExitCode {
+				args = append(args, "--detailed-exit-code")
+			}
+			res := tmcli.Run(args...)
 			AssertRunResult(t, res, tcase.want.run)
 
 			for _, wantFile := range tcase.want.files {

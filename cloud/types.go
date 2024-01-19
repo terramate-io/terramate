@@ -4,8 +4,8 @@
 package cloud
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -317,26 +317,14 @@ var (
 	_ = Resource(EmptyResponse(""))
 )
 
-// String representation of the list of organization associated with the user.
+// String is a human readable list of organizations associated with a user.
 func (orgs MemberOrganizations) String() string {
-	var out bytes.Buffer
-
-	write := func(s string) {
-		// only possible error is OutOfMemory which panics already
-		_, _ = out.Write([]byte(s))
+	str := make([]string, len(orgs))
+	for i, org := range orgs {
+		str[i] = fmt.Sprintf("%s (%s)", org.DisplayName, org.Name)
 	}
 
-	if len(orgs) == 0 {
-		write("none")
-	} else {
-		for i, org := range orgs {
-			write(org.Name)
-			if i+1 < len(orgs) {
-				write(", ")
-			}
-		}
-	}
-	return out.String()
+	return strings.Join(str, ", ")
 }
 
 // Validate the well-known payload.
