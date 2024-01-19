@@ -100,8 +100,18 @@ type AssertConfig struct {
 
 // StackFilterConfig represents Terramate stack_filter configuration block.
 type StackFilterConfig struct {
-	ProjectPaths    glob.Glob
-	RepositoryPaths glob.Glob
+	ProjectPaths    []glob.Glob
+	RepositoryPaths []glob.Glob
+}
+
+// MatchAnyGlob is a helper function to test if s matches any of the given patterns.
+func MatchAnyGlob(globs []glob.Glob, s string) bool {
+	for _, g := range globs {
+		if g.Match(s) {
+			return true
+		}
+	}
+	return false
 }
 
 // RunConfig represents Terramate run configuration.
@@ -251,6 +261,8 @@ type GenFileBlock struct {
 	Lets *ast.MergedBlock
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Represents all stack_filter blocks
+	StackFilters []StackFilterConfig
 	// Content attribute of the block
 	Content *hclsyntax.Attribute
 	// Context of the generation (stack by default).
@@ -970,12 +982,24 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 	}
 
 	var asserts []AssertConfig
+	var stackFilters []StackFilterConfig
 
 	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
 		"lets": (*RawConfig).mergeLabeledBlock,
 	})
 
 	errs := errors.L()
+
+	context := "stack"
+	if contextAttr, ok := block.Body.Attributes["context"]; ok {
+		context = hcl.ExprAsKeyword(contextAttr.Expr)
+		if context != "stack" && context != "root" {
+			errs.Append(errors.E(contextAttr.Expr.Range(),
+				"generate_file.context supported values are \"stack\" and \"root\""+
+					" but given %q", context))
+		}
+	}
+
 	for _, subBlock := range block.Blocks {
 		switch subBlock.Type {
 		case "lets":
@@ -987,19 +1011,21 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 				continue
 			}
 			asserts = append(asserts, assertCfg)
+		case "stack_filter":
+			if context != "stack" {
+				errs.Append(errors.E(ErrTerramateSchema, subBlock.Range,
+					"stack_filter is only supported with context = \"stack\""))
+				continue
+			}
+			stackFilterCfg, err := parseStackFilterConfig(subBlock)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			stackFilters = append(stackFilters, stackFilterCfg)
 		default:
 			// already validated but sanity checks...
 			panic(errors.E(errors.ErrInternal, "unexpected block type %s", subBlock.Type))
-		}
-	}
-
-	context := "stack"
-	if contextAttr, ok := block.Body.Attributes["context"]; ok {
-		context = hcl.ExprAsKeyword(contextAttr.Expr)
-		if context != "stack" && context != "root" {
-			errs.Append(errors.E(contextAttr.Expr.Range(),
-				"generate_file.context supported values are \"stack\" and \"root\""+
-					" but given %q", context))
 		}
 	}
 
@@ -1022,13 +1048,14 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 	}
 
 	return GenFileBlock{
-		Range:     block.Range,
-		Label:     block.Labels[0],
-		Lets:      lets,
-		Asserts:   asserts,
-		Content:   block.Body.Attributes["content"],
-		Condition: block.Body.Attributes["condition"],
-		Context:   context,
+		Range:        block.Range,
+		Label:        block.Labels[0],
+		Lets:         lets,
+		Asserts:      asserts,
+		StackFilters: stackFilters,
+		Content:      block.Body.Attributes["content"],
+		Condition:    block.Body.Attributes["condition"],
+		Context:      context,
 	}, nil
 }
 
@@ -1162,6 +1189,10 @@ func validateGenerateFileBlock(block *ast.Block) error {
 			},
 			{
 				Type:       "assert",
+				LabelNames: []string{},
+			},
+			{
+				Type:       "stack_filter",
 				LabelNames: []string{},
 			},
 		},
@@ -1411,7 +1442,7 @@ func parseStackFilterConfig(block *ast.Block) (StackFilterConfig, error) {
 	return cfg, nil
 }
 
-func parseStackFilterAttr(attr ast.Attribute) (glob.Glob, error) {
+func parseStackFilterAttr(attr ast.Attribute) ([]glob.Glob, error) {
 	attrVal, hclerr := attr.Expr.Value(nil)
 	if hclerr != nil {
 		return nil, errors.E(ErrTerramateSchema, hclerr, attr.NameRange, "evaluating %s", attr.Name)
@@ -1426,20 +1457,28 @@ func parseStackFilterAttr(attr ast.Attribute) (glob.Glob, error) {
 		return nil, errors.E(ErrTerramateSchema, attr.NameRange, "%s must not be empty", attr.Name)
 	}
 
-	// Add ** prefix as default.
-	for i, s := range r {
+	var globs []glob.Glob
+
+	for _, s := range r {
+		// Add ** prefix as default.
 		if !strings.HasPrefix(s, "*") && !strings.HasPrefix(s, "/") {
-			r[i] = "**/" + s
+			s = "**/" + s
 		}
+
+		for _, escaped := range []string{`\`, `{`, `}`} {
+			s = strings.ReplaceAll(s, escaped, `\`+escaped)
+		}
+
+		g, err := glob.Compile(s, '/')
+		if err != nil {
+			return nil, errors.E(ErrTerramateSchema, err, attr.NameRange,
+				"compiling match pattern for %s", attr.Name)
+		}
+
+		globs = append(globs, g)
 	}
 
-	g, err := glob.Compile(fmt.Sprintf("{%s}", strings.Join(r, ",")), '/')
-	if err != nil {
-		return nil, errors.E(ErrTerramateSchema, err, attr.NameRange,
-			"compiling match pattern for %s", attr.Name)
-	}
-
-	return g, nil
+	return globs, nil
 
 }
 

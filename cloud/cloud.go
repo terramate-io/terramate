@@ -329,7 +329,7 @@ func Request[T Resource](ctx context.Context, c *Client, method string, url url.
 	}
 
 	if debugAPIRequests {
-		data, _ := httputil.DumpRequestOut(req, true)
+		data, _ := dumpRequest(req)
 		fmt.Printf(">>> %s\n\n", data)
 	}
 
@@ -424,6 +424,16 @@ func (c *Client) URL(path string, queries ...url.Values) url.URL {
 	}
 	u.RawQuery = query.Encode()
 	return *u
+}
+
+// dumpRequest returns a string representation of the request with the
+// Authorization header redacted.
+func dumpRequest(req *http.Request) ([]byte, error) {
+	reqCopy := req.Clone(req.Context())
+
+	reqCopy.Header.Set("Authorization", "REDACTED")
+
+	return httputil.DumpRequestOut(reqCopy, true)
 }
 
 const contentType = "application/json"
