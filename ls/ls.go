@@ -362,12 +362,12 @@ func listFiles(fromFile string) ([]string, error) {
 // is handled separately because it can be unsaved.
 func (s *Server) checkFiles(files []string, currentFile string, currentContent string) error {
 	dir := filepath.Dir(currentFile)
-	_, rootdir, found, _ := config.TryLoadConfig(dir)
+	root, rootdir, found, _ := config.TryLoadConfig(dir)
 	if !found {
 		rootdir = s.workspace
 	}
 
-	parser, err := hcl.NewTerramateParser(rootdir, dir)
+	parser, err := hcl.NewTerramateParser(rootdir, dir, root.Tree().Node.Experiments()...)
 	if err != nil {
 		return errors.E(err, "failed to create terramate parser")
 	}
