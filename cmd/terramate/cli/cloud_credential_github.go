@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 )
 
 const githubOIDCProviderName = "GitHub Actions OIDC"
@@ -190,24 +192,29 @@ func (g *githubOIDC) fetchDetails() error {
 	return nil
 }
 
-func (g *githubOIDC) info() {
+func (g *githubOIDC) info(selectedOrgName string) {
 	if len(g.orgs) > 0 && g.orgs[0].Status == "trusted" {
-		g.output.MsgStdOut("status: signed in")
+		printer.Stdout.Println("status: signed in")
 	} else {
-		g.output.MsgStdOut("status: untrusted")
+		printer.Stdout.Println("status: untrusted")
 	}
 
-	g.output.MsgStdOut("provider: %s", g.Name())
+	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
 
 	for _, kv := range g.DisplayClaims() {
-		g.output.MsgStdOut("%s: %s", kv.key, kv.value)
+		printer.Stdout.Println(fmt.Sprintf("%s: %s", kv.key, kv.value))
 	}
 
 	if len(g.orgs) > 0 {
-		g.output.MsgStdOut("organizations: %s", g.orgs)
+		printer.Stdout.Println(fmt.Sprintf("organizations: %s", g.orgs))
 	}
+
+	if selectedOrgName == "" && len(g.orgs) > 1 {
+		printer.Stderr.Warnln("User is member of multiple organizations but none was selected")
+	}
+
 	if len(g.orgs) == 0 {
-		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warnln("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
 }
 

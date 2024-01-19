@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	stdjson "encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"math/rand"
@@ -27,6 +28,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 )
 
 const (
@@ -605,28 +607,32 @@ func (g *googleCredential) fetchDetails() error {
 }
 
 // info display the credential details.
-func (g *googleCredential) info() {
-	g.output.MsgStdOut("status: signed in")
-	g.output.MsgStdOut("provider: %s", g.Name())
+func (g *googleCredential) info(selectedOrgName string) {
+	printer.Stdout.Println("status: signed in")
+	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
 
 	if g.user.DisplayName != "" {
-		g.output.MsgStdOut("user: %s", g.user.DisplayName)
+		printer.Stdout.Println(fmt.Sprintf("user: %s", g.user.DisplayName))
 	}
 
 	for _, kv := range g.DisplayClaims() {
-		g.output.MsgStdOut("%s: %s", kv.key, kv.value)
+		printer.Stdout.Println(fmt.Sprintf("%s: %s", kv.key, kv.value))
 	}
 
 	if len(g.orgs) > 0 {
-		g.output.MsgStdOut("organizations: %s", g.orgs)
+		printer.Stdout.Println(fmt.Sprintf("organizations: %s", g.orgs))
+	}
+
+	if selectedOrgName == "" && len(g.orgs) > 1 {
+		printer.Stderr.Warnln("User is member of multiple organizations but none was selected")
 	}
 
 	if g.user.DisplayName == "" {
-		g.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramate.io to complete on-boarding.")
+		printer.Stderr.Warnln("On-boarding is incomplete. Please visit cloud.terramate.io to complete on-boarding.")
 	}
 
 	if len(g.orgs) == 0 {
-		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warnln("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
 }
 
