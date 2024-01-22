@@ -39,13 +39,13 @@ terramate run -- sh -c '
 
 The example above first executes all listed commands in the first stack before moving on to the next stack.
 
-Terramate Scripts allow you to configure sequences of commands and executing them in a single call, e.g.
+Terramate Scripts allow you to configure sequences of commands and execute them in a single call, e.g.
 `terramate script run`. You do not need to remember the sequence and can not forget a command, no matter if you run the
 script in CI/CD or on your local machine.
 
 ::: info
 Terramate Scripts is a new and experimental feature that might still be subject to changes in the future.
-To use this feature it needs to enabled explicitly in your Terramate config by adding it to `experiments`.
+To use this feature it needs to be enabled explicitly in your Terramate config by adding it to `experiments`.
 
 ```hcl
 # terramate.tm.hcl
@@ -62,8 +62,7 @@ To use this feature it needs to enabled explicitly in your Terramate config by a
 
 ## Defining scripts
 
-A script in Terramate CLI is defined in a script block placed in any Terramate configuration file on any level of your
-projects hierarchy. The `script` block has has the following syntax:
+A script in Terramate CLI is defined in a script block placed in any Terramate configuration file on any level of your project hierarchy. The `script` block has the following syntax:
 
 ```hcl
 script "command" "subcommand" { # any level of subcommands is supported
@@ -77,7 +76,7 @@ script "command" "subcommand" { # any level of subcommands is supported
 }
 ```
 
-- The list of labels of the `script` block define the arguments you need to
+- The list of labels of the `script` block defines the arguments you need to
 provide to the `terramate script run` command in order to execute the script:
 `terramate script run command subcommand`. You can define any number of labels.
 - Attributes and Blocks Reference of the `script` block
@@ -87,7 +86,7 @@ provide to the `terramate script run` command in order to execute the script:
       
       Each job can have the following attributes:
       
-      - `commands` *(required)* - A list of commands. Each item is a list has the form `[ command, arg1, arg2, ...]`
+      - `commands` *(required)* - A list of commands. Each item is a list that has the form `[ command, arg1, arg2, ...]`
       that will be executed accordingly. Terramate Functions and variable interpolation of the following namespaces
       is supported: `global`, `terramate`, and `env`
 
@@ -95,7 +94,7 @@ To run a Terraform deployment a script can be defined as:
 
 ```hcl
 script "deploy" {
-  description = "Run a Terraform deloyment"
+  description = "Run a Terraform deployment"
   job {
     commands = [
       ["terraform", "init"],
@@ -133,14 +132,14 @@ A script can be run on stacks within its scope.
 
 <img src="../assets/orchestration/scripts-scope.svg" width="600px" alt="Shows an example by highlighting the scope of a script named" />
 
-Which stacks are selected further depends on additional criteria. Most importantly, the directory  `terramate script run`
+Which stacks are selected further depends on additional criteria. Most importantly, the directory `terramate script run`
 is executed from, limits the selected stacks to those contained within. This works just like `terramate run`.
 
 A useful property of scripts is that they allow multiple definitions with the same name at different locations, yet all
 can be run with a single `terramate script run` invocation. For example, as shown in in **Figure B**,
 `terramate script run cmd` at the root level will run each of the two script definitions on stacks within their respective scopes.
 
-As shown in **Figure C**, a script that is re-defined in a sub-directory overriding its the previous definition will only
+As shown in **Figure C**, a script that is re-defined in a sub-directory overriding its previous definition will only
 be executed in stacks contained within the sub-directory, while the other stacks execute the original definition of the script.
 
 This behavior enables scenarios where a single `terramate script run deploy` could execute different scripts for
@@ -149,7 +148,7 @@ different parts of the infrastructure, based on directory grouping.
 ### Visibility
 
 To be able to call a script, it needs to be visible to the current working directory.
-Script are generally visible within their scope, as defined in the last section, but additionally they are also visible
+Scripts are generally visible within their scope, as defined in the last section, but additionally, they are also visible
 to all their parent directories. This enables us to call a script from the project root without knowing where it is
 actually defined as also shown in **Figure D**.
 
