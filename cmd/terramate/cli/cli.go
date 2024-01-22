@@ -1310,7 +1310,7 @@ func (c *cli) createStack() {
 		c.fatal("Cannot create stack", err)
 	}
 
-	printer.Stdout.Successln("Created stack " + stackSpec.Dir.String())
+	printer.Stdout.Success("Created stack " + stackSpec.Dir.String())
 
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
@@ -1324,11 +1324,11 @@ func (c *cli) createStack() {
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
-		printer.Stdout.ErrorWithDetailsln("Code generation failed", stdfmt.Errorf(report.Minimal()))
+		printer.Stdout.ErrorWithDetails("Code generation failed", stdfmt.Errorf(report.Minimal()))
 	}
 
 	if vendorReport.HasFailures() {
-		printer.Stdout.ErrorWithDetailsln("Code generation failed", stdfmt.Errorf(vendorReport.String()))
+		printer.Stdout.ErrorWithDetails("Code generation failed", stdfmt.Errorf(vendorReport.String()))
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
@@ -1423,7 +1423,7 @@ func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) 
 		dir := s.Dir().String()
 		friendlyDir, ok := c.friendlyFmtDir(dir)
 		if !ok {
-			printer.Stderr.Errorln(stdfmt.Sprintf("Unable to format stack dir %s", dir))
+			printer.Stderr.Error(stdfmt.Sprintf("Unable to format stack dir %s", dir))
 			printer.Stdout.Println(dir)
 			continue
 		}
@@ -1631,7 +1631,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 
 		friendlyDir, ok := c.friendlyFmtDir(dir)
 		if !ok {
-			printer.Stderr.Errorln(stdfmt.Sprintf("Unable to format stack dir %s", dir))
+			printer.Stderr.Error(stdfmt.Sprintf("Unable to format stack dir %s", dir))
 			printer.Stdout.Println(dir)
 			continue
 		}
@@ -2313,6 +2313,6 @@ func fatal(err error, args ...any) {
 }
 
 func (c *cli) fatal(title string, err error) {
-	printer.Stderr.ErrorWithDetailsln(title, err)
+	printer.Stderr.ErrorWithDetails(title, err)
 	os.Exit(1)
 }

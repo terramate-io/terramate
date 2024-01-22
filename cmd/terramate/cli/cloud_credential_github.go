@@ -210,11 +210,11 @@ func (g *githubOIDC) info(selectedOrgName string) {
 	}
 
 	if selectedOrgName == "" && len(g.orgs) > 1 {
-		printer.Stderr.Warnln("User is member of multiple organizations but none was selected")
+		printer.Stderr.Warn("User is member of multiple organizations but none was selected")
 	}
 
 	if len(g.orgs) == 0 {
-		printer.Stderr.Warnln("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warn("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
 }
 
