@@ -67,9 +67,9 @@ func TestRunScript(t *testing.T) {
 			runScript: []string{"somescript"},
 			want: RunExpected{
 				StderrRegexes: []string{
-					"Found somescript defined at /stack-a/script.tm:.* having 2 job\\(s\\)",
-					"/stack-a \\(job:0.0\\)> echo hello",
-					"/stack-a \\(job:1.0\\)> echo some message",
+					"Script 0 at /stack-a/script.tm:.* having 2 job\\(s\\)",
+					"/stack-a \\(script:0 job:0.0\\)> echo hello",
+					"/stack-a \\(script:0 job:1.0\\)> echo some message",
 				},
 				StdoutRegexes: []string{
 					"hello",
@@ -126,9 +126,9 @@ func TestRunScript(t *testing.T) {
 			runScript: []string{"somescript"},
 			want: RunExpected{
 				StderrRegexes: []string{
-					"Found somescript defined at /stack-a/script.tm:.* having 1 job\\(s\\)",
-					"/stack-a \\(job:0.0\\)> echo some message",
-					"/stack-a/child \\(job:0.0\\)> echo some message",
+					"Script 0 at /stack-a/script.tm:.* having 1 job\\(s\\)",
+					"/stack-a \\(script:0 job:0.0\\)> echo some message",
+					"/stack-a/child \\(script:0 job:0.0\\)> echo some message",
 				},
 				StdoutRegexes: []string{
 					"some message",
@@ -157,8 +157,8 @@ func TestRunScript(t *testing.T) {
 			runScript: []string{"--tags=kubernetes", "somescript"},
 			want: RunExpected{
 				Stdout: `some message`,
-				Stderr: "Found somescript defined at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
-					"/stack-a/child (job:0.0)> echo some message\n",
+				Stderr: "Script 0 at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
+					"/stack-a/child (script:0 job:0.0)> echo some message\n",
 				FlattenStdout: true,
 			},
 		},
@@ -184,8 +184,8 @@ func TestRunScript(t *testing.T) {
 			runScript: []string{"--no-tags=terraform", "somescript"},
 			want: RunExpected{
 				Stdout: `some message`,
-				Stderr: "Found somescript defined at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
-					"/stack-a/child (job:0.0)> echo some message\n",
+				Stderr: "Script 0 at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
+					"/stack-a/child (script:0 job:0.0)> echo some message\n",
 				FlattenStdout: true,
 			},
 		},
@@ -212,8 +212,8 @@ func TestRunScript(t *testing.T) {
 			runScript: []string{"--no-recursive", "somescript"},
 			want: RunExpected{
 				Stdout: `some message`,
-				Stderr: "Found somescript defined at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
-					"/stack-a (job:0.0)> echo some message\n",
+				Stderr: "Script 0 at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
+					"/stack-a (script:0 job:0.0)> echo some message\n",
 				FlattenStdout: true,
 			},
 		},
@@ -238,10 +238,10 @@ func TestRunScript(t *testing.T) {
 			},
 			runScript: []string{"--dry-run", "somescript"},
 			want: RunExpected{
-				Stdout: "\n",
+				Stdout: "",
 				Stderr: "This is a dry run, commands will not be executed.\n" +
-					"Found somescript defined at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
-					"/stack-a (job:0.0)> echo some message\n",
+					"Script 0 at /stack-a/script.tm:2,5-7,6 having 1 job(s)\n" +
+					"/stack-a (script:0 job:0.0)> echo some message\n",
 			},
 		},
 	} {
@@ -319,12 +319,11 @@ func TestRunScriptOnChangedStacks(t *testing.T) {
 
 	// run-script should execute the script on both stacks
 	AssertRunResult(t, cli.RunScript("--changed", "somescript"), RunExpected{
-		Stdout: "\n" +
-			"hello stack\n\n" +
+		Stdout: "hello stack\n" +
 			"hello child\n",
-		Stderr: "Found somescript defined at /stack/script.tm:2,5-7,6 having 1 job(s)\n" +
-			"/stack (job:0.0)> echo hello stack\n" +
-			"/stack/child (job:0.0)> echo hello child\n",
+		Stderr: "Script 0 at /stack/script.tm:2,5-7,6 having 1 job(s)\n" +
+			"/stack (script:0 job:0.0)> echo hello stack\n" +
+			"/stack/child (script:0 job:0.0)> echo hello child\n",
 	})
 
 	// when a stack is changed and committed
@@ -337,10 +336,9 @@ func TestRunScriptOnChangedStacks(t *testing.T) {
 	// run-script --changed should execute the script only on that stack
 	AssertRunResult(t, cli.RunScript("--changed", "somescript"),
 		RunExpected{
-			Stdout: "\n" +
-				"hello stack\n",
-			Stderr: "Found somescript defined at /stack/script.tm:2,5-7,6 having 1 job(s)\n" +
-				"/stack (job:0.0)> echo hello stack\n",
+			Stdout: "hello stack\n",
+			Stderr: "Script 0 at /stack/script.tm:2,5-7,6 having 1 job(s)\n" +
+				"/stack (script:0 job:0.0)> echo hello stack\n",
 		})
 
 }

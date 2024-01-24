@@ -89,8 +89,11 @@ provide to the `terramate script run` command in order to execute the script:
       - `commands` *(required)* - A list of commands. Each item is a list that has the form `[ command, arg1, arg2, ...]`
       that will be executed accordingly. Terramate Functions and variable interpolation of the following namespaces
       is supported: `global`, `terramate`, and `env`
+      Optionally, the last item of the argument list can be an object containing Terramate-specific options for this command.
+      In this case, the form is extended to `[ command, arg1, arg2, ..., {option1: value1, option2: value2} ]`.
+      See below for a list of supported command options.
 
-To run a Terraform deployment a script can be defined as:
+To run a Terraform deployment, a script can be defined as:
 
 ```hcl
 script "deploy" {
@@ -105,6 +108,12 @@ script "deploy" {
   }
 }
 ```
+
+### Command options
+
+- `cloud_sync_deployment` *(optional boolean)* Send information about the deployment to Terramate Cloud. See [Sending deployment data to Terramate Cloud](../cmdline/run.md#sending-deployment-data-to-terramate-cloud). Only one command per script may have this option set to true.
+- `cloud_sync_terraform_plan_file` *(optional string)* Sync a Terraform plan file to Terramate Cloud with the deployment. This option is only used
+when `cloud_sync_deployment` is set to true.
 
 ## Running Scripts
 

@@ -9,17 +9,15 @@ import (
 	"os"
 	"strings"
 
-	"os/exec"
-
 	"github.com/fatih/color"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/stdlib"
 )
 
@@ -66,13 +64,15 @@ func (c *cli) runScript() {
 		c.output.MsgStdErr("This is a dry run, commands will not be executed.")
 	}
 
-	for _, result := range m.Results {
+	var runs []runContext
+
+	for scriptIdx, result := range m.Results {
 		if len(result.Stacks) == 0 {
 			continue
 		}
 
-		c.output.MsgStdErr("Found %s defined at %s having %s job(s)",
-			color.GreenString(result.ScriptCfg.Name()),
+		c.output.MsgStdErr("Script %s at %s having %s job(s)",
+			color.GreenString(fmt.Sprintf("%d", scriptIdx)),
 			color.BlueString(result.ScriptCfg.Range.String()),
 			color.BlueString(fmt.Sprintf("%d", len(result.ScriptCfg.Jobs))),
 		)
@@ -88,63 +88,95 @@ func (c *cli) runScript() {
 				logger.Fatal().Err(err).Msg("failed to eval script")
 			}
 
-			for jobNum, j := range evalScript.Jobs {
-				c.output.MsgStdOut("")
-				for cmdNum, cmd := range j.Commands() {
-					printCommand(c.stderr, cmd.Args, st.Dir().String(), jobNum, cmdNum)
-
-					env, err := run.LoadEnv(c.cfg(), st.Stack)
-					if err != nil {
-						logger.Fatal().Err(err).Msg("failed to load env")
+			for jobIdx, job := range evalScript.Jobs {
+				for cmdIdx, cmd := range job.Commands() {
+					exc := runContext{
+						Stack:        st.Stack,
+						Cmd:          cmd.Args,
+						ScriptIdx:    scriptIdx,
+						ScriptJobIdx: jobIdx,
+						ScriptCmdIdx: cmdIdx,
 					}
 
-					if err := c.executeCommand(cmd.Args, st.Dir().HostPath(c.rootdir()), newEnvironFrom(env)); err != nil {
-						logger.Fatal().Err(err).Msg("unable to execute command")
+					if cmd.Options != nil {
+						exc.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
+						exc.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
 					}
+
+					runs = append(runs, exc)
 				}
 			}
 		}
 	}
+
+	c.prepareScriptCloudDeploymentSync(runs)
+
+	isSuccessExit := func(exitCode int) bool {
+		return exitCode == 0
+	}
+
+	err := c.runAll(runs, isSuccessExit, runAllOptions{
+		Quiet:           c.parsedArgs.Quiet,
+		DryRun:          c.parsedArgs.Script.Run.DryRun,
+		ScriptRun:       true,
+		ContinueOnError: false,
+	})
+	if err != nil {
+		c.fatal("one or more commands failed", err)
+	}
 }
 
-func (c *cli) executeCommand(cmd []string, wd string, env []string) error {
+func (c *cli) prepareScriptCloudDeploymentSync(runStacks []runContext) {
 	if c.parsedArgs.Script.Run.DryRun {
-		return nil
+		return
 	}
 
-	newCmd, err := makeCommand(cmd, wd, env, c.stdout, c.stderr)
-	if err != nil {
-		return errors.E(err, "failed to prepare command")
+	var deployRuns []runContext
+	for _, exc := range runStacks {
+		if exc.CloudSyncDeployment {
+			deployRuns = append(deployRuns, exc)
+		}
 	}
 
-	if err := newCmd.Run(); err != nil {
-		return errors.E(err, "failed to execute command")
+	if len(deployRuns) == 0 {
+		return
 	}
 
-	return nil
+	if !c.prj.isRepo {
+		fatal(errors.E("cloud features require a git repository"))
+	}
+
+	err := c.setupCloudConfig()
+	c.handleCriticalError(err)
+
+	if c.cloud.disabled {
+		return
+	}
+
+	c.cloud.run.meta2id = make(map[string]int64)
+	uuid, err := generateRunID()
+	c.handleCriticalError(err)
+	c.cloud.run.runUUID = cloud.UUID(uuid)
+
+	c.detectCloudMetadata()
+
+	sortableDeployStacks := make([]*config.SortableStack, len(deployRuns))
+	for i, e := range deployRuns {
+		sortableDeployStacks[i] = &config.SortableStack{Stack: e.Stack}
+	}
+	c.ensureAllStackHaveIDs(sortableDeployStacks)
+
+	c.createCloudDeployment(deployRuns)
 }
 
-func makeCommand(command []string, dir string, env []string, stdout, stderr io.Writer) (*exec.Cmd, error) {
-	cmdPath, err := run.LookPath(command[0], env)
-	if err != nil {
-		return nil, errors.E(err, "%s: command not found", command[0])
-	}
-
-	runCmd := exec.Command(cmdPath, command[1:]...)
-	runCmd.Dir = dir
-	runCmd.Env = env
-	runCmd.Stdout = stdout
-	runCmd.Stderr = stderr
-
-	return runCmd, nil
-}
-
-// printCommand pretty prints the cmd and attaches a "prompt" style prefix to it
+// printScriptCommand pretty prints the cmd and attaches a "prompt" style prefix to it
 // for example:
-// /somestack (job:0.0)> echo hello
-func printCommand(w io.Writer, cmd []string, wd string, jobNum, cmdNum int) {
-	prompt := color.GreenString(fmt.Sprintf("%s (job:%d.%d)>", wd, jobNum, cmdNum))
-	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(cmd, " ")))
+// /somestack (script:0 job:0.0)> echo hello
+func printScriptCommand(w io.Writer, run runContext) {
+	prompt := color.GreenString(fmt.Sprintf("%s (script:%d job:%d.%d)>",
+		run.Stack.Dir.String(),
+		run.ScriptIdx, run.ScriptJobIdx, run.ScriptCmdIdx))
+	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
 }
 
 func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, error) {

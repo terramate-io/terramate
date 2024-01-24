@@ -13,11 +13,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
 )
 
-func (c *cli) createCloudDeployment(runStacks []ExecContext) {
+func (c *cli) createCloudDeployment(runs []runContext) {
 	logger := log.With().
 		Logger()
 
@@ -72,7 +73,7 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 		Metadata:      c.cloud.run.metadata,
 	}
 
-	for _, run := range runStacks {
+	for _, run := range runs {
 		tags := run.Stack.Tags
 		if tags == nil {
 			tags = []string{}
@@ -102,10 +103,10 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 		return
 	}
 
-	if len(res) != len(runStacks) {
+	if len(res) != len(runs) {
 		logger.Error().
 			Msgf("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-				len(res), len(runStacks))
+				len(res), len(runs))
 
 		c.disableCloudFeatures(cloudError())
 		return
@@ -124,7 +125,7 @@ func (c *cli) createCloudDeployment(runStacks []ExecContext) {
 	}
 }
 
-func (c *cli) cloudSyncDeployment(runContext ExecContext, err error) {
+func (c *cli) cloudSyncDeployment(run runContext, err error) {
 	var status deployment.Status
 	switch {
 	case err == nil:
@@ -137,11 +138,11 @@ func (c *cli) cloudSyncDeployment(runContext ExecContext, err error) {
 		panic(errors.E(errors.ErrInternal, "unexpected run status"))
 	}
 
-	c.doCloudSyncDeployment(runContext, status)
+	c.doCloudSyncDeployment(run, status)
 }
 
-func (c *cli) doCloudSyncDeployment(runContext ExecContext, status deployment.Status) {
-	st := runContext.Stack
+func (c *cli) doCloudSyncDeployment(run runContext, status deployment.Status) {
+	st := run.Stack
 	logger := log.With().
 		Str("organization", string(c.cloud.run.orgUUID)).
 		Str("stack", st.RelPath()).
@@ -154,11 +155,22 @@ func (c *cli) doCloudSyncDeployment(runContext ExecContext, status deployment.St
 		return
 	}
 
+	var details *cloud.ChangesetDetails
+
+	if planfile := run.CloudSyncTerraformPlanFile; planfile != "" {
+		var err error
+		details, err = c.getTerraformChangeset(run, planfile)
+		if err != nil {
+			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
+		}
+	}
+
 	payload := cloud.UpdateDeploymentStacks{
 		Stacks: []cloud.UpdateDeploymentStack{
 			{
 				StackID: stackID,
 				Status:  status,
+				Details: details,
 			},
 		},
 	}

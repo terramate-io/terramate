@@ -86,7 +86,7 @@ type (
 		ID          int64                     `json:"id"`
 		StackMetaID string                    `json:"stack_meta_id"`
 		Status      drift.Status              `json:"status"`
-		Details     *cloud.DriftDetails       `json:"details"`
+		Details     *cloud.ChangesetDetails   `json:"details"`
 		Metadata    *cloud.DeploymentMetadata `json:"metadata"`
 		Command     []string                  `json:"command"`
 		StartedAt   *time.Time                `json:"started_at,omitempty"`

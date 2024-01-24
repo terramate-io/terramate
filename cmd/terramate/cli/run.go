@@ -21,7 +21,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/run"
+	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
 )
 
@@ -37,14 +37,22 @@ const (
 	ErrRunCommandNotFound errors.Kind = "command not found"
 )
 
-// ExecContext declares an stack execution context.
-type ExecContext struct {
+// runContext declares a stack run context.
+type runContext struct {
 	Stack *config.Stack
 	Cmd   []string
+
+	ScriptIdx    int
+	ScriptJobIdx int
+	ScriptCmdIdx int
+
+	CloudSyncDeployment        bool
+	CloudSyncDriftStatus       bool
+	CloudSyncTerraformPlanFile string
 }
 
-// RunResult contains exit code and duration of a completed run.
-type RunResult struct {
+// runResult contains exit code and duration of a completed run.
+type runResult struct {
 	ExitCode   int
 	StartedAt  *time.Time
 	FinishedAt *time.Time
@@ -86,7 +94,7 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
-	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
+	orderedStacks, reason, err := runutil.Sort(c.cfg(), stacks)
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			fatal(err, "cycle detected: %s", reason)
@@ -97,21 +105,6 @@ func (c *cli) runOnStacks() {
 
 	if c.parsedArgs.Run.Reverse {
 		config.ReverseStacks(orderedStacks)
-	}
-
-	var runStacks []ExecContext
-	for _, st := range orderedStacks {
-		run := ExecContext{
-			Stack: st.Stack,
-			Cmd:   c.parsedArgs.Run.Command,
-		}
-		if c.parsedArgs.Run.Eval {
-			run.Cmd, err = c.evalRunArgs(run.Stack, run.Cmd)
-			if err != nil {
-				c.fatal("unable to evaluate command", err)
-			}
-		}
-		runStacks = append(runStacks, run)
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
@@ -138,8 +131,26 @@ func (c *cli) runOnStacks() {
 		return exitCode == 0
 	}
 
+	var runs []runContext
+	for _, st := range orderedStacks {
+		run := runContext{
+			Stack:                      st.Stack,
+			Cmd:                        c.parsedArgs.Run.Command,
+			CloudSyncDeployment:        c.parsedArgs.Run.CloudSyncDeployment,
+			CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
+			CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
+		}
+		if c.parsedArgs.Run.Eval {
+			run.Cmd, err = c.evalRunArgs(run.Stack, run.Cmd)
+			if err != nil {
+				c.fatal("unable to evaluate command", err)
+			}
+		}
+		runs = append(runs, run)
+	}
+
 	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.createCloudDeployment(runStacks)
+		c.createCloudDeployment(runs)
 	}
 
 	if c.parsedArgs.Run.CloudSyncDriftStatus {
@@ -148,13 +159,26 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
-	err = c.RunAll(runStacks, isSuccessExit)
+	err = c.runAll(runs, isSuccessExit, runAllOptions{
+		Quiet:           c.parsedArgs.Quiet,
+		DryRun:          c.parsedArgs.Run.DryRun,
+		ScriptRun:       false,
+		ContinueOnError: c.parsedArgs.Run.ContinueOnError,
+	})
 	if err != nil {
 		c.fatal("one or more commands failed", err)
 	}
 }
 
-// RunAll will execute the list of RunStack definitions. A RunStack defines the
+// RunAllOptions define named flags for RunAll
+type runAllOptions struct {
+	Quiet           bool
+	DryRun          bool
+	ScriptRun       bool
+	ContinueOnError bool
+}
+
+// runAll will execute the list of RunStack definitions. A RunStack defines the
 // stack and its command to be executed. The isSuccessCode is a predicate used
 // to decide if the command is considered a successful run or not.
 // During the execution of this function the default behavior
@@ -165,12 +189,16 @@ func (c *cli) runOnStacks() {
 // stacks.
 // If SIGINT is sent 3x then Terramate will send a SIGKILL to the currently
 // running process and abort the execution of all subsequent stacks.
-func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) bool) error {
+func (c *cli) runAll(
+	runs []runContext,
+	isSuccessCode func(exitCode int) bool,
+	opts runAllOptions,
+) error {
 	errs := errors.L()
 
 	// we load/check the env of all stacks beforehand then no stack is executed
 	// if the environment is not correct for all of them.
-	stackEnvs, err := c.loadAllStackEnvs(runStacks)
+	stackEnvs, err := c.loadAllStackEnvs(runs)
 	if err != nil {
 		return err
 	}
@@ -183,54 +211,58 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
 
-	continueOnError := c.parsedArgs.Run.ContinueOnError
+	continueOnError := opts.ContinueOnError
 	results := startCmdConsumer(cmds)
 	printPrefix := "terramate:"
-	if c.parsedArgs.Run.DryRun {
+	if !opts.ScriptRun && opts.DryRun {
 		printPrefix = fmt.Sprintf("%s (dry-run)", printPrefix)
 	}
 
-	for i, runContext := range runStacks {
-		cmdStr := strings.Join(runContext.Cmd, " ")
+	for i, run := range runs {
+		cmdStr := strings.Join(run.Cmd, " ")
 		logger := log.With().
 			Str("cmd", cmdStr).
-			Stringer("stack", runContext.Stack).
+			Stringer("stack", run.Stack).
 			Logger()
 
-		c.cloudSyncBefore(runContext, cmdStr)
+		if opts.ScriptRun {
+			printScriptCommand(c.stderr, run)
+		}
 
-		environ := newEnvironFrom(stackEnvs[runContext.Stack.Dir])
-		cmdPath, err := run.LookPath(runContext.Cmd[0], environ)
+		c.cloudSyncBefore(run)
+
+		environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
+		cmdPath, err := runutil.LookPath(run.Cmd[0], environ)
 		if err != nil {
-			c.cloudSyncAfter(runContext, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
-			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, runContext.Stack.Dir))
+			c.cloudSyncAfter(run, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
+			errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 			if continueOnError {
 				continue
 			}
-			c.cloudSyncCancelStacks(runStacks[i+1:])
+			c.cloudSyncCancelStacks(runs[i+1:])
 			return errs.AsError()
 		}
 
-		if !c.parsedArgs.Quiet {
-			printer.Stderr.Println(printPrefix + " Entering stack in " + runContext.Stack.String())
+		if !opts.Quiet && !opts.ScriptRun {
+			printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
 			printer.Stderr.Println(printPrefix + " Executing command " + strconv.Quote(cmdStr))
 		}
 
-		if c.parsedArgs.Run.DryRun {
+		if opts.DryRun {
 			continue
 		}
 
-		cmd := exec.Command(cmdPath, runContext.Cmd[1:]...)
-		cmd.Dir = runContext.Stack.HostDir(c.cfg())
+		cmd := exec.Command(cmdPath, run.Cmd[1:]...)
+		cmd.Dir = run.Stack.HostDir(c.cfg())
 		cmd.Env = environ
 
 		stdout := c.stdout
 		stderr := c.stderr
 
 		logSyncWait := func() {}
-		if c.cloudEnabled() && c.parsedArgs.Run.CloudSyncDeployment {
+		if c.cloudEnabled() && run.CloudSyncDeployment {
 			logSyncer := cloud.NewLogSyncer(func(logs cloud.DeploymentLogs) {
-				c.syncLogs(&logger, runContext, logs)
+				c.syncLogs(&logger, run, logs)
 			})
 			stdout = logSyncer.NewBuffer(cloud.StdoutLogChannel, c.stdout)
 			stderr = logSyncer.NewBuffer(cloud.StderrLogChannel, c.stderr)
@@ -249,17 +281,17 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 
 			logSyncWait()
 
-			res := RunResult{
+			res := runResult{
 				ExitCode:   -1,
 				StartedAt:  &startTime,
 				FinishedAt: &endTime,
 			}
-			c.cloudSyncAfter(runContext, res, errors.E(err, ErrRunFailed))
-			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, runContext.Stack.Dir))
+			c.cloudSyncAfter(run, res, errors.E(err, ErrRunFailed))
+			errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
 			if continueOnError {
 				continue
 			}
-			c.cloudSyncCancelStacks(runStacks[i+1:])
+			c.cloudSyncCancelStacks(runs[i+1:])
 			return errs.AsError()
 		}
 
@@ -288,24 +320,24 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 
 					logSyncWait()
 
-					res := RunResult{
+					res := runResult{
 						ExitCode:   -1,
 						StartedAt:  &startTime,
 						FinishedAt: &endTime,
 					}
-					c.cloudSyncAfter(runContext, res, errors.E(ErrRunCanceled))
-					c.cloudSyncCancelStacks(runStacks[i+1:])
+					c.cloudSyncAfter(run, res, errors.E(ErrRunCanceled))
+					c.cloudSyncCancelStacks(runs[i+1:])
 					return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
 				}
 			case result := <-results:
 				logSyncWait()
 				var err error
 				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
-					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, runContext.Stack.Dir)
+					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, run.Stack.Dir)
 					errs.Append(err)
 				}
 
-				res := RunResult{
+				res := runResult{
 					ExitCode:   result.cmd.ProcessState.ExitCode(),
 					StartedAt:  &startTime,
 					FinishedAt: result.finishedAt,
@@ -320,7 +352,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 				}
 				logMsg.Msg("command execution finished")
 
-				c.cloudSyncAfter(runContext, res, err)
+				c.cloudSyncAfter(run, res, err)
 				cmdIsRunning = false
 			}
 		}
@@ -329,7 +361,7 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 		if interruptions > 0 || (err != nil && !continueOnError) {
 			logger.Info().Msg("interrupting execution of further stacks")
 
-			c.cloudSyncCancelStacks(runStacks[i+1:])
+			c.cloudSyncCancelStacks(runs[i+1:])
 			return errs.AsError()
 		}
 	}
@@ -337,12 +369,12 @@ func (c *cli) RunAll(runStacks []ExecContext, isSuccessCode func(exitCode int) b
 	return errs.AsError()
 }
 
-func (c *cli) syncLogs(logger *zerolog.Logger, runContext ExecContext, logs cloud.DeploymentLogs) {
+func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.DeploymentLogs) {
 	data, _ := json.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	stackID := c.cloud.run.meta2id[runContext.Stack.ID]
+	stackID := c.cloud.run.meta2id[run.Stack.ID]
 	err := c.cloud.client.SyncDeploymentLogs(
 		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs,
 	)
@@ -382,13 +414,13 @@ func newEnvironFrom(stackEnviron []string) []string {
 	return environ
 }
 
-func (c *cli) loadAllStackEnvs(runStacks []ExecContext) (map[prj.Path]run.EnvVars, error) {
+func (c *cli) loadAllStackEnvs(runs []runContext) (map[prj.Path]runutil.EnvVars, error) {
 	errs := errors.L()
-	stackEnvs := map[prj.Path]run.EnvVars{}
-	for _, elem := range runStacks {
-		env, err := run.LoadEnv(c.cfg(), elem.Stack)
+	stackEnvs := map[prj.Path]runutil.EnvVars{}
+	for _, run := range runs {
+		env, err := runutil.LoadEnv(c.cfg(), run.Stack)
 		errs.Append(err)
-		stackEnvs[elem.Stack.Dir] = env
+		stackEnvs[run.Stack.Dir] = env
 	}
 
 	if errs.AsError() != nil {

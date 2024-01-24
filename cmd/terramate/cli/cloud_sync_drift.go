@@ -21,14 +21,14 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err error) {
-	st := runContext.Stack
+func (c *cli) cloudSyncDriftStatus(run runContext, res runResult, err error) {
+	st := run.Stack
 
 	logger := log.With().
 		Str("action", "cloudSyncDriftStatus").
 		Stringer("stack", st.Dir).
 		Int("exit_code", res.ExitCode).
-		Strs("command", runContext.Cmd).
+		Strs("command", run.Cmd).
 		Err(err).
 		Logger()
 
@@ -46,11 +46,11 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 		return
 	}
 
-	var driftDetails *cloud.DriftDetails
+	var driftDetails *cloud.ChangesetDetails
 
 	if planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile; planfile != "" {
 		var err error
-		driftDetails, err = c.getTerraformDriftDetails(runContext, planfile)
+		driftDetails, err = c.getTerraformChangeset(run, planfile)
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
@@ -78,7 +78,7 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 		Metadata:   c.cloud.run.metadata,
 		StartedAt:  res.StartedAt,
 		FinishedAt: res.FinishedAt,
-		Command:    runContext.Cmd,
+		Command:    run.Cmd,
 	})
 
 	if err != nil {
@@ -88,30 +88,30 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 	}
 }
 
-func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) (*cloud.DriftDetails, error) {
+func (c *cli) getTerraformChangeset(run runContext, planfile string) (*cloud.ChangesetDetails, error) {
 	logger := log.With().
-		Str("action", "getTerraformDriftDetails").
+		Str("action", "getTerraformChangeset").
 		Str("planfile", planfile).
-		Stringer("stack", runContext.Stack.Dir).
+		Stringer("stack", run.Stack.Dir).
 		Logger()
 
 	if filepath.IsAbs(planfile) {
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
-	absPlanFilePath := filepath.Join(runContext.Stack.HostDir(c.cfg()), planfile)
+	absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
 	_, err := os.Lstat(absPlanFilePath)
 	if err != nil {
 		return nil, errors.E(err, "checking plan file")
 	}
 
-	renderedPlan, err := c.runTerraformShow(runContext, planfile, "-no-color")
+	renderedPlan, err := c.runTerraformShow(run, planfile, "-no-color")
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to synchronize the ASCII plan output")
 	}
 
 	var newJSONPlanData []byte
-	jsonPlanData, err := c.runTerraformShow(runContext, planfile, "-no-color", "-json")
+	jsonPlanData, err := c.runTerraformShow(run, planfile, "-no-color", "-json")
 	if err == nil {
 		newJSONPlanData, err = sanitizeJSONPlan([]byte(jsonPlanData))
 		if err != nil {
@@ -125,7 +125,7 @@ func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) 
 		return nil, nil
 	}
 
-	return &cloud.DriftDetails{
+	return &cloud.ChangesetDetails{
 		Provisioner:    "terraform",
 		ChangesetASCII: renderedPlan,
 		ChangesetJSON:  string(newJSONPlanData),
@@ -155,7 +155,7 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 	return newJSONPlanData, nil
 }
 
-func (c *cli) runTerraformShow(runContext ExecContext, planfile string, flags ...string) (string, error) {
+func (c *cli) runTerraformShow(run runContext, planfile string, flags ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
 	args := []string{
@@ -169,14 +169,14 @@ func (c *cli) runTerraformShow(runContext ExecContext, planfile string, flags ..
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "terraform", args...)
-	cmd.Dir = runContext.Stack.Dir.HostPath(c.rootdir())
+	cmd.Dir = run.Stack.Dir.HostPath(c.rootdir())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	logger := log.With().
 		Str("action", "runTerraformShow").
 		Str("planfile", planfile).
-		Stringer("stack", runContext.Stack.Dir).
+		Stringer("stack", run.Stack.Dir).
 		Str("command", cmd.String()).
 		Logger()
 

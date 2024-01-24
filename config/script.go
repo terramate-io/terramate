@@ -263,7 +263,7 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 			}
 			r.CloudSyncDeployment = v.True()
 
-		case "cloud_sync_terraform_plan":
+		case "cloud_sync_terraform_plan_file":
 			if v.Type() != cty.String {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
 					"command option '%s' must be a string, but has type %s",

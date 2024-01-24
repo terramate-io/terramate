@@ -218,28 +218,33 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) cloudSyncBefore(run ExecContext, _ string) {
-	if !c.cloudEnabled() || !c.parsedArgs.Run.CloudSyncDeployment {
-		return
-	}
-	c.doCloudSyncDeployment(run, deployment.Running)
-}
-
-func (c *cli) cloudSyncAfter(runContext ExecContext, res RunResult, err error) {
-	if !c.cloudEnabled() || !c.isCloudSync() {
+func (c *cli) cloudSyncBefore(run runContext) {
+	if !c.cloudEnabled() {
 		return
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.cloudSyncDeployment(runContext, err)
-	} else {
-		c.cloudSyncDriftStatus(runContext, res, err)
+	if run.CloudSyncDeployment {
+		c.doCloudSyncDeployment(run, deployment.Running)
 	}
 }
 
-func (c *cli) cloudSyncCancelStacks(stacks []ExecContext) {
-	for _, run := range stacks {
-		c.cloudSyncAfter(run, RunResult{ExitCode: -1}, errors.E(ErrRunCanceled))
+func (c *cli) cloudSyncAfter(run runContext, res runResult, err error) {
+	if !c.cloudEnabled() {
+		return
+	}
+
+	if run.CloudSyncDeployment {
+		c.cloudSyncDeployment(run, err)
+	}
+
+	if run.CloudSyncDriftStatus {
+		c.cloudSyncDriftStatus(run, res, err)
+	}
+}
+
+func (c *cli) cloudSyncCancelStacks(runs []runContext) {
+	for _, run := range runs {
+		c.cloudSyncAfter(run, runResult{ExitCode: -1}, errors.E(ErrRunCanceled))
 	}
 }
 
@@ -573,10 +578,6 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.Pull) {
 	md.GithubPullRequestAuthorLogin = pull.User.Login
 	md.GithubPullRequestAuthorAvatarURL = pull.User.AvatarURL
 	md.GithubPullRequestAuthorGravatarID = pull.User.GravatarID
-}
-
-func (c *cli) isCloudSync() bool {
-	return c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
 }
 
 func (c *cli) loadCredential() error {
