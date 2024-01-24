@@ -111,12 +111,10 @@ func (c *cli) runOnStacks() {
 		fatal(errors.E("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"))
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
-		fatal(errors.E("--cloud-sync-terraform-plan-file can only be used with --cloud-sync-drift-status"))
-	}
+	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
 
-	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !c.parsedArgs.Run.CloudSyncDriftStatus {
-		fatal(errors.E("--cloud-sync-terraform-plan-file should be used with --cloud-sync-drift-status flag"))
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
+		fatal(errors.E("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status"))
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
