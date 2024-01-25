@@ -13,13 +13,14 @@ import (
 	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/go-github/v58/github"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
+
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -32,6 +33,13 @@ const (
 	defaultCloudTimeout  = 60 * time.Second
 	defaultGoogleTimeout = defaultCloudTimeout
 	defaultGithubTimeout = defaultCloudTimeout
+)
+
+const githubDomain = "github.com"
+
+const (
+	githubErrNotFound            errors.Kind = "resource not found (HTTP Status: 404)"
+	githubErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
 )
 
 type cloudConfig struct {
@@ -362,7 +370,7 @@ func (c *cli) detectCloudMetadata() {
 		return
 	}
 
-	if r.Host != github.Domain {
+	if r.Host != githubDomain {
 		return
 	}
 
@@ -374,19 +382,16 @@ func (c *cli) detectCloudMetadata() {
 		Str("github_repository", ghRepo).
 		Logger()
 
+	githubClient := github.NewClient(&c.httpClient)
+
 	ghToken, tokenSource := auth.TokenForHost(r.Host)
 
 	if ghToken != "" {
 		logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
+		githubClient = githubClient.WithAuthToken(ghToken)
 	}
 
-	ghClient := github.Client{
-		BaseURL:    os.Getenv("GITHUB_API_URL"),
-		HTTPClient: &c.httpClient,
-		Token:      ghToken,
-	}
-
-	if ghCommit, err := getGithubCommit(&ghClient, ghRepo, headCommit); err == nil {
+	if ghCommit, err := getGithubCommit(githubClient, r.Owner, r.Name, headCommit); err == nil {
 		setGithubCommitMetadata(md, ghCommit)
 	} else {
 		logger.Warn().
@@ -394,79 +399,54 @@ func (c *cli) detectCloudMetadata() {
 			Msg("failed to retrieve commit information from GitHub API")
 	}
 
-	if pulls, err := getGithubPR(&ghClient, ghRepo, headCommit); err == nil {
-		if len(pulls) == 0 {
+	if pull, found, err := getGithubPR(githubClient, r.Owner, r.Name, headCommit); err == nil {
+		if !found {
 			logger.Warn().
 				Msg("no pull request associated with HEAD commit")
 
 			return
 		}
 
-		for _, pull := range pulls {
-			logger.Debug().
-				Str("pull_request_url", pull.HTMLURL).
-				Msg("found pull request")
-		}
-
-		pull := pulls[0]
-
-		setGithubPRMetadata(md, &pull)
-
 		logger.Debug().
-			Str("pull_request_url", pull.HTMLURL).
+			Str("pull_request_url", pull.GetHTMLURL()).
 			Msg("using pull request url")
 
-		reviewRequest := &cloud.DeploymentReviewRequest{
-			Platform:    "github",
-			Repository:  c.prj.prettyRepo(),
-			URL:         pull.HTMLURL,
-			Number:      pull.Number,
-			Title:       pull.Title,
-			Description: pull.Body,
-			CommitSHA:   pull.Head.SHA,
-		}
+		setGithubPRMetadata(md, pull)
 
-		for _, l := range pull.Labels {
-			reviewRequest.Labels = append(reviewRequest.Labels, cloud.Label{
-				Name:        l.Name,
-				Color:       l.Color,
-				Description: l.Description,
-			})
-		}
-
-		reviews, err := getGithubPullReviews(&ghClient, ghRepo, pull.Number)
+		reviews, err := listGithubPullReviews(githubClient, r.Owner, r.Name, pull.GetNumber())
 		if err != nil {
 			logger.Warn().
 				Err(err).
 				Msg("failed to retrieve PR reviews")
 		}
 
-		uniqueReviewers := make(map[string]struct{})
-
-		for _, review := range reviews {
-			login := review.User.Login
-
-			if _, found := uniqueReviewers[login]; found {
-				continue
-			}
-			uniqueReviewers[login] = struct{}{}
-
-			reviewRequest.Reviewers = append(reviewRequest.Reviewers, cloud.Reviewer{
-				Login:     login,
-				AvatarURL: review.User.AvatarURL,
-			})
+		checks, err := listGithubChecks(githubClient, r.Owner, r.Name, headCommit)
+		if err != nil {
+			logger.Warn().
+				Err(err).
+				Msg("failed to retrieve PR reviews")
 		}
 
-		c.cloud.run.reviewRequest = reviewRequest
+		merged := false
+		if pull.GetState() == "closed" {
+			merged, err = isGithubPRMerged(githubClient, r.Owner, r.Name, pull.GetNumber())
+			if err != nil {
+				logger.Warn().
+					Err(err).
+					Msg("failed to retrieve PR merged status")
+			}
+		}
+
+		c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged)
 
 	} else {
-		if errors.IsKind(err, github.ErrNotFound) {
+		if errors.IsKind(err, githubErrNotFound) {
 			if ghToken == "" {
 				logger.Warn().Msg("The GITHUB_TOKEN environment variable needs to be exported for private repositories.")
 			} else {
 				logger.Warn().Msg("The provided GitHub token does not have permission to read this repository or it does not exists.")
 			}
-		} else if errors.IsKind(err, github.ErrUnprocessableEntity) {
+		} else if errors.IsKind(err, githubErrUnprocessableEntity) {
 			logger.Warn().
 				Msg("The HEAD commit cannot be found in the remote. Did you forget to push?")
 		} else {
@@ -477,30 +457,87 @@ func (c *cli) detectCloudMetadata() {
 	}
 }
 
-func getGithubCommit(ghClient *github.Client, repo string, commitName string) (*github.Commit, error) {
+func getGithubCommit(ghClient *github.Client, owner, repo, commit string) (*github.RepositoryCommit, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	commit, err := ghClient.Commit(ctx, repo, commitName)
+	rcommit, _, err := ghClient.Repositories.GetCommit(ctx, owner, repo, commit, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return commit, nil
+	return rcommit, nil
 }
 
-func getGithubPR(ghClient *github.Client, repo string, commitName string) (github.Pulls, error) {
+// returns nil, nil if there was no PR associated with commit
+func getGithubPR(ghClient *github.Client, owner, repo, commit string) (*github.PullRequest, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	return ghClient.PullsForCommit(ctx, repo, commitName)
+	opt := &github.ListOptions{PerPage: 1}
+
+	pulls, _, err := ghClient.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, commit, opt)
+	if err != nil {
+		return nil, true, err
+	}
+	if len(pulls) == 0 {
+		return nil, false, nil
+	}
+
+	return pulls[0], true, nil
+
 }
 
-func getGithubPullReviews(ghClient *github.Client, repo string, pullNumber int) (github.Reviews, error) {
+func isGithubPRMerged(ghClient *github.Client, owner, repo string, pullNumber int) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	return ghClient.PullReviews(ctx, repo, pullNumber)
+	isMerged, _, err := ghClient.PullRequests.IsMerged(ctx, owner, repo, pullNumber)
+	return isMerged, err
+}
+
+func listGithubPullReviews(ghClient *github.Client, owner, repo string, pullNumber int) ([]*github.PullRequestReview, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	opt := &github.ListOptions{PerPage: 100}
+
+	var allReviews []*github.PullRequestReview
+	for {
+		reviews, resp, err := ghClient.PullRequests.ListReviews(ctx, owner, repo, pullNumber, nil)
+		if err != nil {
+			return nil, err
+		}
+		allReviews = append(allReviews, reviews...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allReviews, nil
+}
+
+func listGithubChecks(ghClient *github.Client, owner, repo string, commit string) ([]*github.CheckRun, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	opt := &github.ListOptions{PerPage: 100}
+
+	var allChecks []*github.CheckRun
+	for {
+		checksResponse, resp, err := ghClient.Checks.ListCheckRunsForRef(ctx, owner, repo, commit, nil)
+		if err != nil {
+			return nil, err
+		}
+		allChecks = append(allChecks, checksResponse.CheckRuns...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allChecks, nil
 }
 
 func setDefaultGitMetadata(md *cloud.DeploymentMetadata, commit *git.CommitMetadata) {
@@ -520,64 +557,134 @@ func setGithubActionsMetadata(md *cloud.DeploymentMetadata) {
 	md.GithubActionsWorkflowRef = os.Getenv("GITHUB_WORKFLOW_REF")
 }
 
-func setGithubCommitMetadata(md *cloud.DeploymentMetadata, commit *github.Commit) {
-	isVerified := commit.Verification.Verified
+func setGithubCommitMetadata(md *cloud.DeploymentMetadata, commit *github.RepositoryCommit) {
+	isVerified := commit.Commit.GetVerification().GetVerified()
 
 	md.GithubCommitVerified = &isVerified
-	md.GithubCommitVerifiedReason = commit.Verification.Reason
+	md.GithubCommitVerifiedReason = commit.Commit.GetVerification().GetReason()
 
-	message := commit.Commit.Message
+	message := commit.GetCommit().GetMessage()
 	messageParts := strings.Split(message, "\n")
 	md.GithubCommitTitle = messageParts[0]
 	if len(messageParts) > 1 {
 		md.GithubCommitDescription = strings.TrimSpace(strings.Join(messageParts[1:], "\n"))
 	}
 
-	md.GithubCommitAuthorLogin = commit.Author.Login
-	md.GithubCommitAuthorAvatarURL = commit.Author.AvatarURL
-	md.GithubCommitAuthorGravatarID = commit.Author.GravatarID
+	md.GithubCommitAuthorLogin = commit.GetAuthor().GetLogin()
+	md.GithubCommitAuthorAvatarURL = commit.GetAuthor().GetAvatarURL()
+	md.GithubCommitAuthorGravatarID = commit.GetAuthor().GetGravatarID()
 
-	md.GithubCommitAuthorGitName = commit.Commit.Author.Name
-	md.GithubCommitAuthorGitEmail = commit.Commit.Author.Email
-	md.GithubCommitAuthorGitDate = commit.Commit.Author.Date
+	md.GithubCommitAuthorGitName = commit.GetCommit().GetAuthor().GetName()
+	md.GithubCommitAuthorGitEmail = commit.GetCommit().GetAuthor().GetEmail()
+	authorDate := commit.GetCommit().GetAuthor().GetDate()
+	md.GithubCommitAuthorGitDate = authorDate.GetTime()
 
-	md.GithubCommitCommitterLogin = commit.Committer.Login
-	md.GithubCommitCommitterAvatarURL = commit.Committer.AvatarURL
-	md.GithubCommitCommitterGravatarID = commit.Committer.GravatarID
+	md.GithubCommitCommitterLogin = commit.GetCommitter().GetLogin()
+	md.GithubCommitCommitterAvatarURL = commit.GetCommitter().GetAvatarURL()
+	md.GithubCommitCommitterGravatarID = commit.GetCommitter().GetGravatarID()
 
-	md.GithubCommitCommitterGitName = commit.Commit.Committer.Name
-	md.GithubCommitCommitterGitEmail = commit.Commit.Committer.Email
-	md.GithubCommitCommitterGitDate = commit.Commit.Committer.Date
+	md.GithubCommitCommitterGitName = commit.GetCommit().GetCommitter().GetName()
+	md.GithubCommitCommitterGitEmail = commit.GetCommit().GetCommitter().GetEmail()
+	commiterDate := commit.GetCommit().GetCommitter().GetDate()
+	md.GithubCommitCommitterGitDate = commiterDate.GetTime()
 }
 
-func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.Pull) {
-	md.GithubPullRequestURL = pull.HTMLURL
-	md.GithubPullRequestNumber = pull.Number
-	md.GithubPullRequestTitle = pull.Title
-	md.GithubPullRequestDescription = pull.Body
-	md.GithubPullRequestState = pull.State
-	md.GithubPullRequestMergeCommitSHA = pull.MergeCommitSHA
-	md.GithubPullRequestHeadLabel = pull.Head.Label
-	md.GithubPullRequestHeadRef = pull.Head.Ref
-	md.GithubPullRequestHeadSHA = pull.Head.SHA
-	md.GithubPullRequestHeadAuthorLogin = pull.Head.User.Login
-	md.GithubPullRequestHeadAuthorAvatarURL = pull.Head.User.AvatarURL
-	md.GithubPullRequestHeadAuthorGravatarID = pull.Head.User.GravatarID
-	md.GithubPullRequestCreatedAt = pull.CreatedAt
-	md.GithubPullRequestUpdatedAt = pull.UpdatedAt
-	md.GithubPullRequestClosedAt = pull.ClosedAt
-	md.GithubPullRequestMergedAt = pull.MergedAt
+func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest) {
+	md.GithubPullRequestURL = pull.GetHTMLURL()
+	md.GithubPullRequestNumber = pull.GetNumber()
+	md.GithubPullRequestTitle = pull.GetTitle()
+	md.GithubPullRequestDescription = pull.GetBody()
+	md.GithubPullRequestState = pull.GetState()
+	md.GithubPullRequestMergeCommitSHA = pull.GetMergeCommitSHA()
+	md.GithubPullRequestHeadLabel = pull.GetHead().GetLabel()
+	md.GithubPullRequestHeadRef = pull.GetHead().GetRef()
+	md.GithubPullRequestHeadSHA = pull.GetHead().GetSHA()
+	md.GithubPullRequestHeadAuthorLogin = pull.GetHead().GetUser().GetLogin()
+	md.GithubPullRequestHeadAuthorAvatarURL = pull.GetHead().GetUser().GetAvatarURL()
+	md.GithubPullRequestHeadAuthorGravatarID = pull.GetHead().GetUser().GetGravatarID()
+	createdAt := pull.GetCreatedAt()
+	updatedAt := pull.GetUpdatedAt()
+	md.GithubPullRequestCreatedAt = createdAt.GetTime()
+	md.GithubPullRequestUpdatedAt = updatedAt.GetTime()
+	md.GithubPullRequestClosedAt = pull.ClosedAt.GetTime()
+	md.GithubPullRequestMergedAt = pull.MergedAt.GetTime()
 
-	md.GithubPullRequestBaseLabel = pull.Base.Label
-	md.GithubPullRequestBaseRef = pull.Base.Ref
-	md.GithubPullRequestBaseSHA = pull.Base.SHA
-	md.GithubPullRequestBaseAuthorLogin = pull.Base.User.Login
-	md.GithubPullRequestBaseAuthorAvatarURL = pull.Base.User.AvatarURL
-	md.GithubPullRequestBaseAuthorGravatarID = pull.Base.User.GravatarID
+	md.GithubPullRequestBaseLabel = pull.GetBase().GetLabel()
+	md.GithubPullRequestBaseRef = pull.GetBase().GetRef()
+	md.GithubPullRequestBaseSHA = pull.GetBase().GetSHA()
+	md.GithubPullRequestBaseAuthorLogin = pull.GetBase().GetUser().GetLogin()
+	md.GithubPullRequestBaseAuthorAvatarURL = pull.GetBase().GetUser().GetAvatarURL()
+	md.GithubPullRequestBaseAuthorGravatarID = pull.GetBase().GetUser().GetGravatarID()
 
-	md.GithubPullRequestAuthorLogin = pull.User.Login
-	md.GithubPullRequestAuthorAvatarURL = pull.User.AvatarURL
-	md.GithubPullRequestAuthorGravatarID = pull.User.GravatarID
+	md.GithubPullRequestAuthorLogin = pull.GetUser().GetLogin()
+	md.GithubPullRequestAuthorAvatarURL = pull.GetUser().GetAvatarURL()
+	md.GithubPullRequestAuthorGravatarID = pull.GetUser().GetGravatarID()
+}
+
+func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool) *cloud.DeploymentReviewRequest {
+	rr := &cloud.DeploymentReviewRequest{
+		Platform:       "github",
+		Repository:     c.prj.prettyRepo(),
+		URL:            pull.GetHTMLURL(),
+		Number:         pull.GetNumber(),
+		Title:          pull.GetTitle(),
+		Description:    pull.GetBody(),
+		CommitSHA:      pull.GetHead().GetSHA(),
+		Draft:          pull.GetDraft(),
+		ReviewRequired: len(pull.RequestedReviewers)+len(pull.RequestedTeams) > 0,
+	}
+
+	if pull.GetState() == "closed" {
+		if merged {
+			rr.Status = "merged"
+		} else {
+			rr.Status = "closed"
+		}
+	} else {
+		rr.Status = "open"
+	}
+
+	for _, l := range pull.Labels {
+		rr.Labels = append(rr.Labels, cloud.Label{
+			Name:        l.GetName(),
+			Color:       l.GetColor(),
+			Description: l.GetDescription(),
+		})
+	}
+
+	uniqueReviewers := make(map[string]struct{})
+
+	for _, review := range reviews {
+		if review.GetState() == "CHANGES_REQUESTED" {
+			rr.ChangesRequestedCount++
+		} else if review.GetState() == "APPROVED" {
+			rr.ApprovedCount++
+		}
+
+		login := review.GetUser().GetLogin()
+
+		if _, found := uniqueReviewers[login]; found {
+			continue
+		}
+		uniqueReviewers[login] = struct{}{}
+
+		rr.Reviewers = append(rr.Reviewers, cloud.Reviewer{
+			Login:     login,
+			AvatarURL: review.GetUser().GetAvatarURL(),
+		})
+	}
+
+	rr.ChecksTotalCount = len(checks)
+	for _, check := range checks {
+		switch check.GetConclusion() {
+		case "success":
+			rr.ChecksSuccessCount++
+		case "failure":
+			rr.ChecksFailureCount++
+		}
+	}
+
+	return rr
 }
 
 func (c *cli) loadCredential() error {

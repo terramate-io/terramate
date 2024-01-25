@@ -13,7 +13,8 @@ require (
 	github.com/go-test/deep v1.1.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
+	github.com/google/go-github/v58 v58.0.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/hc-install v0.6.1
 	github.com/hashicorp/hcl/v2 v2.14.1
@@ -40,6 +41,7 @@ require (
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
