@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	. "github.com/terramate-io/terramate/test/hclutils"
@@ -428,6 +429,166 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							Experiments: []string{"scripts", "awesome-feature"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with wrong type",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = 1
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 31, 68))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with wrong item type",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["A", 1, "B"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 43, 80))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with duplicates",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["A", "B", "A"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 45, 82))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards conflicts with deprecated configs",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["git-untracked"]
+
+								git {
+                                  check_untracked = false
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(7, 53, 152), End(7, 58, 157))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with invalid values",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["non-existent"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 46, 83))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with empty set",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = []
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							DisableSafeguards: safeguard.Keywords{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with correct values",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["git", "outdated-code"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							DisableSafeguards: safeguard.Keywords{
+								safeguard.Git,
+								safeguard.Outdated,
+							},
 						},
 					},
 				},

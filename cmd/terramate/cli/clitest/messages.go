@@ -41,4 +41,7 @@ const (
 
 	// ErrCloudInvalidTerraformPlanFilePath indicates the plan file is not valid.
 	ErrCloudInvalidTerraformPlanFilePath errors.Kind = "invalid plan file path"
+
+	// ErrSafeguardKeywordValidation indicates the safeguard keywords validation failed.
+	ErrSafeguardKeywordValidation errors.Kind = "failed to validate safeguard keywords"
 )

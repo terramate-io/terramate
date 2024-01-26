@@ -5,8 +5,7 @@ description: Learn about the various safeguards provided by Terramate CLI that h
 
 # Safeguards
 
-Terramate CLI has a number of safeguards when executing commands with `terramate run`, to ensure that the code you're running
-against is *exactly what you intended*.
+Terramate CLI has a number of safeguards when executing commands with `terramate run`, to ensure that the code you're running against is *exactly what you intended*.
 
 ## Git checks
 
@@ -33,8 +32,51 @@ We also recommend using git hooks (e.g. [pre-commit](https://pre-commit.com/)) t
 ## Disabling checks
 
 Safeguards are enabled per default and help you to keep your environment safe, but if required
-they *can* be disabled either via environment variable or via the [project configuration](../projects/configuration.md).
-Environment variables always take precedence over project config.
+they *can* be disabled via CLI flags, environment variables or using the [project configuration](../projects/configuration.md).
+Environment variables and CLI flags always take precedence over project config.
+
+The `terramate.config.disable_safeguards` supports a list of check keywords to be disabled.
+Below is a list of supported values:
+
+| Check name | Description |
+| --- | --- |
+| all | Disable all checks |
+| git | Disable all git related checks |
+| git-untracked | Disable the check for untracked files |
+| git-uncommitted | Disable the check for uncommitted files |
+| git-out-of-sync | Disable the check for git remote out of sync |
+| outdated-code | Disable the check for outdated code |
+
+The keywords above can be used together in the environment variable `TM_DISABLE_SAFEGUARDS`,
+in the `terramate.config.disable_safeguards` or provided in the command line in
+the `--disable-safeguards=<options>`. Examples:
+
+Using environment variable:
+```
+TM_DISABLE_SAFEGUARDS=git-untracked,git-uncommitted terramate run -- <cmd>
+```
+
+Using cli flag:
+
+```
+terramate run --disable-safeguards=git-untracked,git-uncommitted -- <cmd>
+```
+
+Using the configuration file:
+
+```hcl
+# terramate.tm
+terramate {
+  config {
+    disable_safeguards = ["git-untracked", "git-uncommitted"]
+  }
+}
+```
+
+### Deprecated config and environment variables
+
+The list of attributes and correspondent environment variable listed below are
+deprecated and can be removed in future versions of Terramate.
 
 | Project configuration setting | Environment variable |
 | --- | --- |
@@ -43,7 +85,7 @@ Environment variables always take precedence over project config.
 | `terramate.config.git.check_uncommitted = false` | `TM_DISABLE_CHECK_GIT_UNCOMMITTED=true` |
 | `terramate.config.run.check_gen_code = false` | `TM_DISABLE_CHECK_GEN_CODE=true` |
 
-### Example of a project config disabling all checks
+#### Example of a project config disabling all checks
 
 ```hcl
 # terramate.tm.hcl

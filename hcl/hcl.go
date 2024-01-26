@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
@@ -158,10 +159,11 @@ type CloudConfig struct {
 
 // RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
-	Git         *GitConfig
-	Run         *RunConfig
-	Cloud       *CloudConfig
-	Experiments []string
+	Git               *GitConfig
+	Run               *RunConfig
+	Cloud             *CloudConfig
+	Experiments       []string
+	DisableSafeguards safeguard.Keywords
 }
 
 // ManifestDesc represents a parsed manifest description.
@@ -317,6 +319,13 @@ func NewGitConfig() *GitConfig {
 	return &GitConfig{
 		CheckUntracked:   true,
 		CheckUncommitted: true,
+	}
+}
+
+// NewRunConfig creates a new run configuration.
+func NewRunConfig() *RunConfig {
+	return &RunConfig{
+		CheckGenCode: true,
 	}
 }
 
@@ -1570,42 +1579,56 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 	errs := errors.L()
 
 	for _, attr := range block.Attributes.SortedList() {
-		if attr.Name != "experiments" {
+		switch attr.Name {
+		default:
 			errs.Append(errors.E(attr.NameRange,
 				"unrecognized attribute terramate.config.%s", attr.Name,
 			))
 			continue
-		}
-		val, diags := attr.Expr.Value(nil)
-		if diags.HasErrors() {
-			errs.Append(errors.E(diags, attr.Expr.Range(),
-				"evaluating terramate.config.experiments attribute"))
-			continue
-		}
+		case "experiments":
+			val, diags := attr.Expr.Value(nil)
+			if diags.HasErrors() {
+				errs.Append(errors.E(diags, attr.Expr.Range(),
+					"evaluating terramate.config.experiments attribute"))
+				continue
+			}
 
-		if err := assignSet(attr.Attribute, &cfg.Experiments, val); err != nil {
-			errs.Append(err)
-			continue
+			if err := assignSet(attr.Attribute, &cfg.Experiments, val); err != nil {
+				errs.Append(err)
+				continue
+			}
+			p.Experiments = cfg.Experiments
+		case "disable_safeguards":
+			val, diags := attr.Expr.Value(nil)
+			if diags.HasErrors() {
+				errs.Append(errors.E(diags, attr.Expr.Range(),
+					"evaluating terramate.config.disable_safeguards attribute"))
+				continue
+			}
+
+			keywordStrings := []string{}
+			if err := assignSet(attr.Attribute, &keywordStrings, val); err != nil {
+				errs.Append(err)
+				continue
+			}
+			var err error
+			cfg.DisableSafeguards, err = safeguard.FromStrings(keywordStrings)
+			if err != nil {
+				errs.Append(errors.E(ErrTerramateSchema, attr.Expr.Range(), err))
+			}
 		}
-		p.Experiments = cfg.Experiments
 	}
 
 	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run", "cloud"))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
-		cfg.Git = NewGitConfig()
-
-		errs.Append(parseGitConfig(cfg.Git, gitBlock))
+		errs.Append(parseGitConfig(cfg, gitBlock))
 	}
 
 	runBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("run")]
 	if ok {
-		cfg.Run = &RunConfig{
-			CheckGenCode: true,
-		}
-
-		errs.Append(parseRunConfig(cfg.Run, runBlock))
+		errs.Append(parseRunConfig(cfg, runBlock))
 	}
 
 	cloudBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("cloud")]
@@ -1618,7 +1641,11 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 	return errs.AsError()
 }
 
-func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
+func parseRunConfig(cfg *RootConfig, runBlock *ast.MergedBlock) error {
+	cfg.Run = &RunConfig{
+		CheckGenCode: true,
+	}
+	runCfg := cfg.Run
 	errs := errors.L()
 	for _, attr := range runBlock.Attributes.SortedList() {
 		value, diags := attr.Expr.Value(nil)
@@ -1632,6 +1659,12 @@ func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
 
 		switch attr.Name {
 		case "check_gen_code":
+			if len(cfg.DisableSafeguards) > 0 {
+				errs.AppendWrap(ErrTerramateSchema, attrErr(attr,
+					"terramate.config.run.check_gen_code conflicts with terramate.config.disable_safeguards",
+				))
+				continue
+			}
 			if value.Type() != cty.Bool {
 				errs.Append(attrErr(attr,
 					"terramate.config.run.check_gen_code is not a bool but %q",
@@ -1668,10 +1701,13 @@ func parseRunEnv(runEnv *RunEnv, envBlock *ast.MergedBlock) error {
 	return errs.AsError()
 }
 
-func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
+func parseGitConfig(cfg *RootConfig, gitBlock *ast.MergedBlock) error {
 	errs := errors.L()
 
 	errs.AppendWrap(ErrTerramateSchema, gitBlock.ValidateSubBlocks())
+
+	cfg.Git = NewGitConfig()
+	git := cfg.Git
 
 	for _, attr := range gitBlock.Attributes.SortedList() {
 		value, diags := attr.Expr.Value(nil)
@@ -1718,6 +1754,10 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DefaultBranchBaseRef = value.AsString()
 
 		case "check_untracked":
+			if err := checkSafeguardConfigConflict(cfg, attr); err != nil {
+				errs.AppendWrap(ErrTerramateSchema, err)
+				continue
+			}
 			if value.Type() != cty.Bool {
 				errs.Append(attrErr(attr,
 					"terramate.config.git.check_untracked is not a boolean but %q",
@@ -1725,8 +1765,13 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 				))
 				continue
 			}
+
 			git.CheckUntracked = value.True()
 		case "check_uncommitted":
+			if err := checkSafeguardConfigConflict(cfg, attr); err != nil {
+				errs.AppendWrap(ErrTerramateSchema, err)
+				continue
+			}
 			if value.Type() != cty.Bool {
 				errs.Append(attrErr(attr,
 					"terramate.config.git.check_uncommitted is not a boolean but %q",
@@ -1736,6 +1781,10 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			}
 			git.CheckUncommitted = value.True()
 		case "check_remote":
+			if err := checkSafeguardConfigConflict(cfg, attr); err != nil {
+				errs.AppendWrap(ErrTerramateSchema, err)
+				continue
+			}
 			if value.Type() != cty.Bool {
 				errs.Append(attrErr(attr,
 					"terramate.config.git.check_remote is not a boolean but %q",
@@ -1754,6 +1803,16 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 		}
 	}
 	return errs.AsError()
+}
+
+func checkSafeguardConfigConflict(cfg *RootConfig, attr ast.Attribute) error {
+	if len(cfg.DisableSafeguards) > 0 {
+		return attrErr(attr,
+			"terramate.config.git.%s conflicts with terramate.config.disable_safeguards",
+			attr.Name,
+		)
+	}
+	return nil
 }
 
 func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
@@ -2114,6 +2173,39 @@ func (p *TerramateParser) parseTerramateBlock(block *ast.MergedBlock) (Terramate
 		return Terramate{}, err
 	}
 	return tm, nil
+}
+
+// HasSafeguardDisabled checks if the configuration (including the deprecated) has
+// the given keyword disabled.
+func (r *RootConfig) HasSafeguardDisabled(keyword safeguard.Keyword) bool {
+	git := r.Git
+	if git == nil {
+		git = NewGitConfig()
+	}
+	run := r.Run
+	if run == nil {
+		run = NewRunConfig()
+	}
+	if r.DisableSafeguards.Has("all") {
+		return true
+	}
+	if r.DisableSafeguards.Has("none") {
+		return false
+	}
+	switch keyword {
+	case safeguard.All:
+		return true
+	case safeguard.GitUntracked:
+		return !git.CheckUntracked || r.DisableSafeguards.Has(keyword, safeguard.Git)
+	case safeguard.GitUncommitted:
+		return !git.CheckUncommitted || r.DisableSafeguards.Has(keyword, safeguard.Git)
+	case safeguard.GitOutOfSync:
+		return !git.CheckRemote.ValueOr(true) || r.DisableSafeguards.Has(keyword, safeguard.Git)
+	case safeguard.Outdated:
+		return !run.CheckGenCode || r.DisableSafeguards.Has(keyword)
+	default:
+		panic(errors.E(errors.ErrInternal, "keyword not supported"))
+	}
 }
 
 func hclAttrErr(attr *hcl.Attribute, msg string, args ...interface{}) error {
