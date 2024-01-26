@@ -110,9 +110,87 @@ export default defineConfig({
     ],
 
     sidebar: {
+      '/cloud': [
+        {
+          text: '👋 Terramate Cloud',
+          collapsed: false,
+          items: [
+            { text: 'Introduction', link: '' },
+            { text: 'Frequently Asked Questions', link: '' },
+            { text: 'Data Safety & Security', link: '' },
+            { text: 'Product Updates ', link: '' },
+            { text: 'Roadmap', link: '' },
+          ],
+        },
+        {
+          text: '🏃🏽‍♂️ Getting Started',
+          collapsed: false,
+          items: [
+            { text: 'Create an account', link: '/cli/introduction' },
+            { text: 'Create an account', link: '/cli/introduction' },
+          ],
+        },
+        {
+          text: '📊 Product Features',
+          items: [
+          {
+            text: 'Dashboard',
+            collapsed: false,
+            items: [
+              { text: 'Introduction', link: '/cli/introduction' },
+            ],
+          },
+          {
+            text: 'Deployments',
+            collapsed: false,
+            items: [
+              // { text: 'Introduction', link: '/cli/introduction' },
+            ],
+          },
+          {
+            text: 'Stacks',
+            collapsed: false,
+            items: [
+              // { text: 'Introduction', link: '/cli/introduction' },
+            ],
+          },
+          {
+            text: 'Drift Management',
+            collapsed: false,
+            items: [
+              // { text: 'Introduction', link: '/cli/introduction' },
+            ],
+          },
+          {
+            text: 'Notifications',
+            collapsed: false,
+            items: [
+              // { text: 'Introduction', link: '/cli/introduction' },
+            ],
+          },
+              // { text: 'Introduction', link: '/cli/introduction' },
+          ],
+        },
+        {
+          text: '🏠 Organization',
+          collapsed: false,
+          items: [
+            { text: 'Settings', link: '/cloud/organization/' },
+            { text: 'User Management', link: '/cli/introduction' },
+            { text: 'General Settings', link: '/cli/introduction' },
+          ],
+        },
+        {
+          text: '👟 Profile',
+          collapsed: false,
+          items: [
+            // { text: 'Introduction', link: '/cli/introduction' },
+          ],
+        },
+      ],
       // This sidebar gets displayed when a user
       // is on `cli` directory.
-      '/': [
+      '/cli': [
         {
           text: '👋 Terramate CLI',
           collapsed: false,
