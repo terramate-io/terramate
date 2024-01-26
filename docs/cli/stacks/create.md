@@ -10,24 +10,23 @@ description: Learn how to create and manage Infrastructure as Code agnostic stac
 Stacks can be created using the [create](../cmdline/create.md) command, e.g.:
 
 ```sh
-terramate create <directory>
+terramate create [options] <directory>
 ```
 
 By default, this will create a directory with a `stack.tm.hcl` file that contains the configuration for your stack,
 which comes with some default properties:
 
 ```sh
-terramate create mystack
+terramate create stacks/vpc --name "Main VPC" --description "Stack to manage the main VPC"
 ```
 
 ```hcl
-# ./mystack/stack.tm.hcl
+# ./stacks/vpc/stack.tm.hcl
 stack {
-  name        = "mystack"
-  description = "mystack"
+  name        = "My first stack"
+  description = "Stack to manage the main VPC"
   id          = "3271f37c-0e08-4b59-b205-1ee61082ff26"
 }
-
 ```
 
 - `name`: name of the stack, defaults to the basename of the directory
