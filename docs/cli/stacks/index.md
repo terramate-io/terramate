@@ -3,6 +3,8 @@ title: An Introduction to Stacks
 description: Learn how stacks help you efficiently build and manage infrastructure as code projects at any scale with technologies such as Terraform.
 ---
 
+Before diving into the details of stacks, we recommend reading an insightful article on the CNCF blog by Tim Davis: ["Why you should break down your Terraform into stacks"](https://www.cncf.io/blog/2023/12/18/why-you-should-break-down-your-terraform-into-stacks/). This article provides valuable insights into the challenges commonly faced in Terraform projects and illustrates the role of Terramate in creating effective stack-based solutions. It's a good starting point for grasping the broader context and significance of using stacks in managing large-scale infrastructure.
+
 # About stacks
 
 A modular approach is recommended when working with Infrastructure as Code (IaC). This approach breaks the entire infrastructure code and state into **smaller** and **isolated** units, often referred to as ***stacks.***
