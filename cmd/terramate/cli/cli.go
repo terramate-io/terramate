@@ -261,7 +261,7 @@ type cliSpec struct {
 type runSafeguardsCliSpec struct {
 	// Note: The `name` and `short` are being used to define the -X flag without longer version.
 	DisableSafeguardsAll bool               `default:"false" name:"disable-safeguards=all" short:"X" help:"Disable all safeguards"`
-	DisableSafeguards    safeguard.Keywords `env:"TM_DISABLE_SAFEGUARDS" enum:"git,all,none,git-untracked,git-uncommitted,outdated-code,git-out-of-sync" help:"Disable safeguards: {list of available KEYWORDS including groups}"`
+	DisableSafeguards    safeguard.Keywords `env:"TM_DISABLE_SAFEGUARDS" enum:"git,all,none,git-untracked,git-uncommitted,outdated-code,git-out-of-sync" help:"Disable safeguards: {all,none,git,git-untracked,git-uncommitted,outdated-code,git-out-of-sync}"`
 
 	DeprecatedDisableCheckGenCode   bool `hidden:"" default:"false" name:"disable-check-gen-code" env:"TM_DISABLE_CHECK_GEN_CODE" help:"Disable outdated generated code check"`
 	DeprecatedDisableCheckGitRemote bool `hidden:"" default:"false" name:"disable-check-git-remote" env:"TM_DISABLE_CHECK_GIT_REMOTE" help:"Disable checking if local default branch is updated with remote"`
