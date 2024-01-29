@@ -35,7 +35,7 @@ Safeguards are enabled per default and help you to keep your environment safe, b
 they *can* be disabled via CLI flags, environment variables or using the [project configuration](../projects/configuration.md).
 Environment variables and CLI flags always take precedence over project config.
 
-The `terramate.config.disable_safeguards` supports a list of check keywords to be disabled.
+The `terramate.config.disable_safeguards` (added in v0.4.5) supports a list of check keywords to be disabled.
 Below is a list of supported values:
 
 | Check name | Description |
@@ -76,7 +76,7 @@ terramate {
 ### Deprecated config and environment variables
 
 The list of attributes and correspondent environment variable listed below are
-deprecated and can be removed in future versions of Terramate.
+deprecated (from v0.4.5 onwards) and will be removed in future versions of Terramate.
 
 | Project configuration setting | Environment variable |
 | --- | --- |

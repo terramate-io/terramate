@@ -85,9 +85,9 @@ terramate {
       default_branch = "main"
 
       # Safeguard
-      check_untracked   = false
-      check_uncommitted = false
-      check_remote      = false
+      check_untracked   = false # Deprecated as of v0.4.5 (use terramate.config.disable_safeguards instead)
+      check_uncommitted = false # Deprecated as of v0.4.5 (use terramate.config.disable_safeguards instead)
+      check_remote      = false # Deprecated as of v0.4.5 (use terramate.config.disable_safeguards instead)
     }
   }
 }
@@ -113,7 +113,7 @@ If you want to disable this default safe-guard, you can set `check_gen_code = fa
 terramate {
   config {
     run {
-      check_gen_code = false
+      check_gen_code = false # Deprecated as of v0.4.5 (use terramate.config.disable_safeguards instead)
     }
   }
 }
