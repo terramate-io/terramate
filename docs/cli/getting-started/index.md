@@ -353,6 +353,16 @@ This example will show:
 - You can use plain Terraform config in any stack and do not need to use Terramate’s [Code Generation](../code-generation/index.md).
 - Running only on changed stacks can save us time running and reviewing.
 
+```sh
+cat <<EOF >stacks/second/null.tf
+resource "null_resource" "quickstart" {
+}
+EOF
+
+git add stacks/second/null.tf
+git commit -m "Add a null resource"
+```
+
 Applying the changes will need a sequence of re-initializing Terraform, and running `terraform apply` in the changed stacks.
 As we only added the resource to the `second` stack, we can leverage Terramate’s [Change Detection](../change-detection/index.md)
 to run in the changed stack only too.
