@@ -36,6 +36,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for deployment syncing to script commands.
 - Add `disable_safeguards` configuration option and CLI flag.
 
+## Fixed
+
+- Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
+
 ## 0.4.4
 
 ### Added
