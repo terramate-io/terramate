@@ -864,7 +864,25 @@ func TestCLIRunOrder(t *testing.T) {
 				s := s
 				t.Run("run on sandbox", func(t *testing.T) {
 					t.Parallel()
-					s.BuildTree(tc.layout)
+					copiedLayout := make([]string, len(tc.layout))
+					copy(copiedLayout, tc.layout)
+					if runtime.GOOS != "windows" {
+						copiedLayout = append(copiedLayout,
+
+							fmt.Sprintf(`file:script.tm:
+terramate {
+	config {
+		experiments = ["scripts"]
+	}
+}
+script "cmd" {
+	description = "test"
+	job {
+		command = ["%s", "stack-abs-path", "%s"]
+	}
+}`, HelperPath, s.RootDir()))
+					}
+					s.BuildTree(copiedLayout)
 
 					wd := s.RootDir()
 					if tc.workingDir != "" {
@@ -881,6 +899,28 @@ func TestCLIRunOrder(t *testing.T) {
 
 					cli := NewCLI(t, wd)
 					AssertRunResult(t, cli.StacksRunOrder(filterArgs...), tc.want)
+					runArgs := []string{
+						"--quiet", "run", "-X", // disable all safeguards
+					}
+					runArgs = append(runArgs, filterArgs...)
+					runArgs = append(runArgs, "--", HelperPath, "stack-abs-path", s.RootDir())
+					AssertRunResult(t, cli.Run(runArgs...), tc.want)
+
+					if runtime.GOOS != "windows" {
+						runScriptArgs := []string{
+							"--quiet",
+						}
+						runScriptArgs = append(runScriptArgs, filterArgs...)
+						runScriptArgs = append(runScriptArgs, "script", "run", "-X", "cmd") // disable all safeguards)
+						AssertRunResult(t, cli.Run(runScriptArgs...), RunExpected{
+							Status:        tc.want.Status,
+							IgnoreStderr:  true,
+							Stdout:        tc.want.Stdout,
+							IgnoreStdout:  tc.want.IgnoreStdout,
+							StdoutRegex:   tc.want.StdoutRegex,
+							StdoutRegexes: tc.want.StdoutRegexes,
+						})
+					}
 				})
 			}
 		})
@@ -1466,7 +1506,25 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 		s := s
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s.BuildTree(tc.layout)
+			copiedLayout := make([]string, len(tc.layout))
+			copy(copiedLayout, tc.layout)
+			if runtime.GOOS != "windows" {
+				copiedLayout = append(copiedLayout,
+
+					fmt.Sprintf(`file:script.tm:
+terramate {
+	config {
+		experiments = ["scripts"]
+	}
+}
+script "cmd" {
+	description = "test"
+	job {
+		command = ["%s", "stack-abs-path", "%s"]
+	}
+}`, HelperPath, s.RootDir()))
+			}
+			s.BuildTree(copiedLayout)
 
 			var baseArgs []string
 			for _, filter := range tc.filterTags {
@@ -1487,8 +1545,19 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			runArgs := append(baseArgs, "run", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
+			copiedBaseArgs := make([]string, len(baseArgs))
+			copy(copiedBaseArgs, baseArgs)
+			runArgs := append(copiedBaseArgs, "run", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
 			AssertRunResult(t, cli.Run(runArgs...), tc.want)
+
+			if runtime.GOOS != "windows" {
+				scriptArgs := append(copiedBaseArgs, "script", "run", "cmd")
+				AssertRunResult(t, cli.Run(scriptArgs...), RunExpected{
+					Stdout:       tc.want.Stdout,
+					IgnoreStderr: true,
+					Status:       tc.want.Status,
+				})
+			}
 		})
 	}
 }

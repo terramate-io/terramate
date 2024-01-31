@@ -18,6 +18,8 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
+	runutil "github.com/terramate-io/terramate/run"
+	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/stdlib"
 )
 
@@ -109,13 +111,31 @@ func (c *cli) runScript() {
 		}
 	}
 
-	c.prepareScriptCloudDeploymentSync(runs)
+	orderedStacks, reason, err := runutil.Sort(c.cfg(), stacks)
+	if err != nil {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
+			fatal(err, "cycle detected: %s", reason)
+		} else {
+			fatal(err, "failed to plan execution")
+		}
+	}
+
+	var orderedRuns []runContext
+	for _, st := range orderedStacks {
+		for _, r := range runs {
+			if r.Stack.Dir.String() == st.Dir().String() {
+				orderedRuns = append(orderedRuns, r)
+			}
+		}
+	}
+
+	c.prepareScriptCloudDeploymentSync(orderedRuns)
 
 	isSuccessExit := func(exitCode int) bool {
 		return exitCode == 0
 	}
 
-	err := c.runAll(runs, isSuccessExit, runAllOptions{
+	err = c.runAll(orderedRuns, isSuccessExit, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
