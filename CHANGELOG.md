@@ -39,6 +39,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ## Fixed
 
 - Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
+- Stack ordering not respected in the `script run`.
 
 ## 0.4.4
 

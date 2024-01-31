@@ -558,7 +558,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				run: RunExpected{
 					Status:       0,
 					IgnoreStderr: true,
-					Stdout:       "s1\ns3\ns2\n",
+					Stdout:       "s1\ns2\ns3\n",
 				},
 				events: eventsResponse{
 					"s1": []string{"pending", "running", "ok"},
