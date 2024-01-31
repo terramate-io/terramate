@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -59,23 +58,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				run: RunExpected{
 					Status:      1,
 					StderrRegex: string(clitest.ErrCloudStacksWithoutID),
-				},
-			},
-		},
-		{
-			name: "using --cloud-sync-terraform-plan-file with deployment sync -- fails",
-			layout: []string{
-				"s:s1",
-				`f:s1/out.tfplan:{}`,
-			},
-			runflags: []string{
-				`--cloud-sync-terraform-plan-file=out.tfplan`,
-			},
-			cmd: []string{HelperPath, "echo", "ok"},
-			want: want{
-				run: RunExpected{
-					Status:      1,
-					StderrRegex: regexp.QuoteMeta(`--cloud-sync-terraform-plan-file can only be used with --cloud-sync-drift-status`),
 				},
 			},
 		},
@@ -310,6 +292,52 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "skip missing plan",
+			layout:   []string{"s:stack"},
+			runflags: []string{`--eval`, `--cloud-sync-terraform-plan-file=out.tfplan`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					Stdout: "/stack\n",
+					StderrRegexes: []string{
+						clitest.CloudSkippingTerraformPlanSync,
+					},
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "multiple stacks with plans",
+			layout: []string{
+				"s:s1",
+				"s:s2",
+				"copy:s1:testdata/cloud-sync-drift-plan-file",
+				"copy:s2:testdata/cloud-sync-drift-plan-file",
+				"run:s1:terraform init",
+				"run:s1:terraform plan -no-color -out=out.tfplan",
+				"run:s2:terraform init",
+				"run:s2:terraform plan -no-color -out=out.tfplan",
+			},
+			runflags: []string{`--eval`, `--cloud-sync-terraform-plan-file=out.tfplan`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env: []string{
+				`TF_VAR_content=my secret`,
+			},
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					Stdout: "/s1\n/s2\n",
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "running", "ok"},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -345,6 +373,10 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				genIdsLayout = tc.layout
 			}
 
+			// needed for invoking `terraform ...` commands in the sandbox
+			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
+			s.Env = append(s.Env, tc.env...)
+
 			s.BuildTree(genIdsLayout)
 			s.Git().CommitAll("all stacks committed")
 
@@ -352,6 +384,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			env = append(env, "TMC_API_URL=http://"+addr)
 			env = append(env, tc.env...)
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+			cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
 			uuid, err := uuid.NewRandom()
 			assert.NoError(t, err)
