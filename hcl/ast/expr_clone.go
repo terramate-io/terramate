@@ -29,10 +29,6 @@ func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 		return expr
 	}
 	switch e := expr.(type) {
-	case *CloneExpression:
-		return &CloneExpression{
-			Expression: CloneExpr(e.Expression),
-		}
 	case *hclsyntax.LiteralValueExpr:
 		return &hclsyntax.LiteralValueExpr{
 			Val:      e.Val,
