@@ -94,7 +94,8 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
-	orderedStacks, reason, err := runutil.Sort(c.cfg(), stacks)
+	reason, err := runutil.Sort(c.cfg(), stacks,
+		func(s *config.SortableStack) *config.Stack { return s.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			fatal(err, "cycle detected: %s", reason)
@@ -104,7 +105,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	if c.parsedArgs.Run.Reverse {
-		config.ReverseStacks(orderedStacks)
+		config.ReverseStacks(stacks)
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
@@ -121,7 +122,7 @@ func (c *cli) runOnStacks() {
 		if !c.prj.isRepo {
 			fatal(errors.E("cloud features requires a git repository"))
 		}
-		c.ensureAllStackHaveIDs(orderedStacks)
+		c.ensureAllStackHaveIDs(stacks)
 		c.detectCloudMetadata()
 	}
 
@@ -130,7 +131,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	var runs []runContext
-	for _, st := range orderedStacks {
+	for _, st := range stacks {
 		run := runContext{
 			Stack:                      st.Stack,
 			Cmd:                        c.parsedArgs.Run.Command,
