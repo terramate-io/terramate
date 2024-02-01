@@ -41,6 +41,12 @@ test: test/helper build
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
 
+## graph2png
+.PHONY: graph2png
+graph2png:
+	./bin/terramate experimental run-graph | dot -Tpng > graph.png
+	@echo "check the image: graph.png"
+
 ## test if terramate works with CI git environment.
 .PHONY: test/ci
 test/ci: build
