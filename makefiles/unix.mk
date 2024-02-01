@@ -51,6 +51,11 @@ test/ci: build
 mod/check:
 	@./hack/mod-check
 
+## check if VERSION file contains a valid semantic version
+.PHONY: version/check
+version/check:
+	@./hack/version-check
+
 ## creates a new release tag
 .PHONY: release/tag
 release/tag: VERSION?=v$(shell cat VERSION)
