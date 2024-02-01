@@ -88,7 +88,7 @@ func (c *cli) disableCloudFeatures(err error) {
 func (c *cli) handleCriticalError(err error) {
 	if err != nil {
 		if c.uimode == HumanMode {
-			fatal(err)
+			fatal("aborting", err)
 		}
 
 		c.disableCloudFeatures(err)
@@ -251,7 +251,7 @@ func (c *cli) cloudSyncCancelStacks(runs []runContext) {
 func (c *cli) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
-		c.fatal("failed to load credentials", err)
+		fatal("failed to load credentials", err)
 	}
 	c.cred().info(c.cloudOrgName())
 
@@ -262,27 +262,27 @@ func (c *cli) cloudInfo() {
 func (c *cli) cloudDriftShow() {
 	err := c.setupCloudConfig()
 	if err != nil {
-		fatal(err)
+		fatal("unable to setup cloud configuration", err)
 	}
 	st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 	if err != nil {
-		fatal(err, "loading stack in current directory")
+		fatal("loading stack in current directory", err)
 	}
 	if !found {
-		fatal(errors.E("No stack selected. Please enter a stack to show a potential drift."))
+		fatal("No stack selected. Please enter a stack to show a potential drift.", nil)
 	}
 	if st.ID == "" {
-		fatal(errors.E("The stack must have an ID for using TMC features"))
+		fatal("The stack must have an ID for using TMC features", nil)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
 	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), st.ID)
 	if err != nil {
-		fatal(err)
+		fatal("unable to fetch stack", err)
 	}
 	if !found {
-		fatal(errors.E("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String()))
+		fatal(sprintf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String()), nil)
 	}
 
 	if stackResp.Status != stack.Drifted && stackResp.DriftStatus != drift.Drifted {
@@ -296,10 +296,10 @@ func (c *cli) cloudDriftShow() {
 	// stack is drifted
 	driftsResp, err := c.cloud.client.StackLastDrift(ctx, c.cloud.run.orgUUID, stackResp.ID)
 	if err != nil {
-		fatal(err)
+		fatal("unable to fetch drift", err)
 	}
 	if len(driftsResp.Drifts) == 0 {
-		fatal(errors.E("Stack %s is drifted, but no details are available.", st.Dir.String()))
+		fatal(sprintf("Stack %s is drifted, but no details are available.", st.Dir.String()), nil)
 	}
 	driftData := driftsResp.Drifts[0]
 
@@ -307,10 +307,10 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 	driftData, err = c.cloud.client.DriftDetails(ctx, c.cloud.run.orgUUID, stackResp.ID, driftData.ID)
 	if err != nil {
-		fatal(err)
+		fatal("unable to fetch drift details", err)
 	}
 	if driftData.Status != drift.Drifted || driftData.Details == nil || driftData.Details.Provisioner == "" {
-		fatal(errors.E("Stack %s is drifted, but no details are available.", st.Dir.String()))
+		fatal(sprintf("Stack %s is drifted, but no details are available.", st.Dir.String()), nil)
 	}
 	c.output.MsgStdOutV("drift provisioner: %s", driftData.Details.Provisioner)
 	c.output.MsgStdOut(driftData.Details.ChangesetASCII)
