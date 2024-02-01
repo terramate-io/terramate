@@ -154,6 +154,65 @@ func TestScriptEval(t *testing.T) {
 			},
 		},
 		{
+			name: "command attribute with list type",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Command: makeCommand(t, `true ? tm_concat(["echo"], ["something"]) : []`),
+					},
+				},
+			},
+			globals: map[string]cty.Value{
+				"some_string_var": cty.StringVal("terramate"),
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some description",
+				Jobs: []config.ScriptJob{
+					{
+						Cmd: &config.ScriptCmd{
+							Args: []string{"echo", "something"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "commands attribute with list type",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `true ? tm_concat([["echo", "something"]], [["echo", "other", "thing"]]) : []`),
+					},
+				},
+			},
+			globals: map[string]cty.Value{
+				"some_string_var": cty.StringVal("terramate"),
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some description",
+				Jobs: []config.ScriptJob{
+					{
+						Cmds: []*config.ScriptCmd{
+							{
+								Args: []string{"echo", "something"},
+							},
+							{
+								Args: []string{"echo", "other", "thing"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "command with first item interpolated",
 			script: hcl.Script{
 				Labels: labels,

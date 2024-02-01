@@ -147,8 +147,9 @@ func evalScriptDesc(evalctx *eval.Context, expr hhcl.Expression, name string) (s
 }
 
 func unmarshalScriptJobCommands(cmdList cty.Value, expr hhcl.Expression) ([]*ScriptCmd, error) {
-	if !cmdList.Type().IsTupleType() {
-		return nil, errors.E(ErrScriptInvalidTypeCommands, expr.Range(), "commands should be a list")
+	if !cmdList.Type().IsTupleType() && !cmdList.Type().IsListType() {
+		return nil, errors.E(ErrScriptInvalidTypeCommands,
+			expr.Range(), "commands should be a list but got %s", cmdList.Type().FriendlyName())
 	}
 
 	if cmdList.LengthInt() == 0 {
@@ -163,7 +164,7 @@ func unmarshalScriptJobCommands(cmdList cty.Value, expr hhcl.Expression) ([]*Scr
 	for it.Next() {
 		index++
 		_, elem := it.Element()
-		if !elem.Type().IsTupleType() {
+		if !elem.Type().IsTupleType() && !elem.Type().IsListType() {
 			errs.Append(errors.E(ErrScriptInvalidTypeCommands, expr.Range(),
 				"commands must be a list of list, but element %d has type %q",
 				index, elem.Type().FriendlyName()))
@@ -192,8 +193,9 @@ func unmarshalScriptJobCommands(cmdList cty.Value, expr hhcl.Expression) ([]*Scr
 }
 
 func unmarshalScriptJobCommand(cmdValues cty.Value, expr hhcl.Expression) (*ScriptCmd, error) {
-	if !cmdValues.Type().IsTupleType() {
-		return nil, errors.E(ErrScriptInvalidTypeCommand, expr.Range(), "command must be a list")
+	if !cmdValues.Type().IsTupleType() && !cmdValues.Type().IsListType() {
+		return nil, errors.E(ErrScriptInvalidTypeCommand, expr.Range(), "command must be a list but got %s",
+			cmdValues.Type().FriendlyName())
 	}
 
 	if cmdValues.LengthInt() == 0 {
