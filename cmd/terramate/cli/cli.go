@@ -1471,7 +1471,8 @@ func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) 
 	if runOrder {
 		var failReason string
 		var err error
-		stacks, failReason, err = run.Sort(c.cfg(), stacks)
+		failReason, err = run.Sort(c.cfg(), stacks,
+			func(s *config.SortableStack) *config.Stack { return s.Stack })
 		if err != nil {
 			c.fatal("Invalid stack configuration", errors.E(err, failReason))
 		}
@@ -1671,7 +1672,8 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 	}
 
 	logger.Debug().Msg("Get run order.")
-	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
+	reason, err := run.Sort(c.cfg(), stacks,
+		func(s *config.SortableStack) *config.Stack { return s.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			c.fatal("Invalid stack configuration", errors.E(err, reason))
@@ -1680,7 +1682,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		}
 	}
 
-	for _, s := range orderedStacks {
+	for _, s := range stacks {
 		dir := s.Dir().String()
 		if !friendlyFmt {
 			printer.Stdout.Println(dir)
