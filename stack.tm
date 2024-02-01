@@ -8,4 +8,5 @@ stack {
   tags = [
     "golang",
   ]
+  after = ["tag:e2e"]
 }

@@ -41,6 +41,14 @@ test: test/helper build
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
 
+## test/script run tests throught script run
+.PHONY: test/script
+tempdir=$(shell ./bin/helper tempdir)
+test/script: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate script run --tags golang -- test
+	./bin/helper rm $(tempdir)
+
 ## test if terramate works with CI git environment.
 .PHONY: test/ci
 test/ci: build

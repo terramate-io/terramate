@@ -1,8 +1,12 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-generate_file "/cmd/terramate/e2etests/cloud/testdata/cloud.data.json" {
-  context = root
+generate_file "testdata/cloud.data.json" {
+  stack_filter {
+    project_paths = [
+      "/cmd/terramate/e2etests/cloud"
+    ]
+  }
 
   lets {
     version = tm_trimspace(tm_file("${terramate.root.path.fs.absolute}/VERSION"))

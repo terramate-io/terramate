@@ -6,31 +6,6 @@ on:
   pull_request:
 
 jobs:
-  checks:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
-          fetch-depth: 0
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.20'
-
-      - name: Configure asdf and plugins needed
-        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
-
-      - name: checking go mod tidyness
-        run: terramate run --tags golang --changed -- make mod/check
-
-      - name: linting code
-        run: terramate run --tags golang --changed -- make lint
-
-      - name: checking license on source code
-        run: terramate run --tags golang --changed -- make license/check
-
   build_test:
     name: Build and Test
     runs-on: ${{ matrix.os }}
@@ -56,14 +31,8 @@ jobs:
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
 
-      - name: make generate
-        run: terramate generate
-
-      - name: make test
-        run: terramate run --tags golang --changed -- make test
-
-      - name: make build
-        run: terramate run --tags golang --changed -- make build
+      - name: check and test all
+        run: terramate script run --changed --tags=golang -- test all
 
       - name: check cloud info
         run: terramate run --tags golang --changed -- ./bin/terramate -vv experimental cloud info
@@ -112,7 +81,6 @@ jobs:
 
   ci:
     needs:
-      - checks
       - build_test
       - gh_integration_test
     runs-on: ubuntu-20.04
