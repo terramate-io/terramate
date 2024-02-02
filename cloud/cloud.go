@@ -89,7 +89,7 @@ var (
 )
 
 func init() {
-	if d := os.Getenv("TMC_API_DEBUG"); d == "1" || d == "true" {
+	if d := os.Getenv("TMC_API_DEBUG"); d == "1" || d == "true" || d == "TRUE" {
 		debugAPIRequests = true
 	}
 	if sizeStr := os.Getenv("TMC_API_PAGESIZE"); sizeStr != "" {

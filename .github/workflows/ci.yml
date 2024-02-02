@@ -21,8 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
@@ -38,7 +37,7 @@ jobs:
         run: make build
 
       - name: check and test all
-        run: ./bin/terramate script run --changed --tags=golang -- test all
+        run: ./bin/terramate script run --changed --git-change-base=i4k-add-internal-script --tags=golang -- test all
 
       - name: check cloud info
         run: ./bin/terramate run --tags golang --no-recursive -- ./bin/terramate -vv experimental cloud info
