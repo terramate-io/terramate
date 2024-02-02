@@ -1,15 +1,6 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-globals {
-  is_root = terramate.stack.path.absolute == "/"
-}
-
-# Defines the "tm script run -- test" command.
-globals "cmd" "test" {
-  command = ["go", "test", "-race", "-count=1"]
-}
-
 # Defines the "tm script run -- test all" command.
 globals "cmd" "test" "all" {
   root_commands = [
@@ -38,12 +29,29 @@ script "test" {
   }
 }
 
-script "project" "create" "stack" {
-  description = "Creates missing Go stacks"
+script "create" "stack" {
+  description = <<-EOF
+    Creates a new stack.
+
+    Usage: 
+      TAGS=golang,mytag STACK_PATH=./stackdir terramate script run -- create stack
+
+  EOF
   job {
     # hack until we dont support context=root
     command = (global.is_root ?
       ["terramate", "create", "--tags", env.TAGS, env.STACK_PATH] :
     ["true"])
   }
+}
+
+# Command variables
+
+globals {
+  is_root = terramate.stack.path.absolute == "/"
+}
+
+# Defines the "tm script run -- test" command.
+globals "cmd" "test" {
+  command = ["go", "test", "-race", "-count=1"]
 }

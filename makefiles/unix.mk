@@ -46,7 +46,7 @@ test: test/helper build
 tempdir=$(shell ./bin/helper tempdir)
 test/script: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
-	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate script run --tags golang -- test
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate script run --changed --tags=golang -- test
 	./bin/helper rm $(tempdir)
 
 ## test if terramate works with CI git environment.
