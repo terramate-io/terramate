@@ -3,7 +3,7 @@
 
 name: ci-experimental
 on:
-  pull_request:
+  push:
     paths-ignore:
       - 'docs/**'
       - 'makefiles/**'
@@ -24,10 +24,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
-          fetch-depth: 0
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
