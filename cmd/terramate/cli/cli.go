@@ -1558,24 +1558,21 @@ func (c *cli) generateGraph() {
 	dotGraph := dot.NewGraph(dot.Directed)
 	graph := dag.New()
 
-	visited := dag.Visited{}
-	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[dag.ID(e.Stack.Dir.String())]; ok {
-			continue
-		}
+	stacks := c.filterStacksByWorkingDir(entries)
+	graph, err = run.BuildDAG(
+		c.cfg(),
+		stacks,
+		func(s stack.Entry) *config.Stack {
+			return s.Stack
+		},
+		"before",
+		func(s config.Stack) []string { return s.Before },
+		"after",
+		func(s config.Stack) []string { return s.After },
+	)
 
-		if err := run.BuildDAG(
-			graph,
-			c.cfg(),
-			e.Stack,
-			"before",
-			func(s config.Stack) []string { return s.Before },
-			"after",
-			func(s config.Stack) []string { return s.After },
-			visited,
-		); err != nil {
-			fatal(err, "building order tree")
-		}
+	if err != nil {
+		fatal(err)
 	}
 
 	for _, id := range graph.IDs() {

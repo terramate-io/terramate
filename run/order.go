@@ -18,28 +18,19 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// Sort computes the final execution order for the given list of stacks.
-// In the case of multiple possible orders, it returns the lexicographic sorted
-// path.
-func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.Stack) (string, error) {
+func BuildDAG[S ~[]E, E any](
+	root *config.Root,
+	items S,
+	getStack func(E) *config.Stack,
+	descendantsName string,
+	getDescendants func(config.Stack) []string,
+	ancestorsName string,
+	getAncestors func(config.Stack) []string,
+) (*dag.DAG, error) {
 	d := dag.New()
-
-	logger := log.With().
-		Str("action", "run.Sort()").
-		Str("root", root.HostDir()).
-		Logger()
-
 	isParentStack := func(s1, s2 *config.Stack) bool {
-		return s1.Dir.HasPrefix(s2.Dir.String() + "/")
+		return s2.Dir.String() == "/" || s1.Dir.HasPrefix(s2.Dir.String()+"/")
 	}
-
-	getStackDir := func(s E) string {
-		return getStack(s).Dir.String()
-	}
-
-	slices.SortFunc(items, func(a, b E) int {
-		return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
-	})
 
 	for _, a := range items {
 		for _, b := range items {
@@ -48,8 +39,6 @@ func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.St
 			}
 
 			if isParentStack(getStack(a), getStack(b)) {
-				logger.Debug().Msgf("stack %q runs before %q since it is its parent", getStackDir(a), getStackDir(b))
-
 				getStack(b).AppendBefore(getStack(a).Dir.String())
 			}
 		}
@@ -61,30 +50,53 @@ func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.St
 			continue
 		}
 
-		logger.Debug().
-			Stringer("stack", getStack(elem).Dir).
-			Msg("Build DAG.")
-
-		err := BuildDAG(
+		err := buildStackEdges(
 			d,
 			root,
 			getStack(elem),
-			"before",
-			func(s config.Stack) []string { return s.Before },
-			"after",
-			func(s config.Stack) []string { return s.After },
+			descendantsName,
+			getDescendants,
+			ancestorsName,
+			getAncestors,
 			visited,
 		)
 
 		if err != nil {
-			return "", err
+			return nil, err
 		}
+	}
+	return d, nil
+}
+
+// Sort computes the final execution order for the given list of stacks.
+// In the case of multiple possible orders, it returns the lexicographic sorted
+// path.
+func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.Stack) (string, error) {
+	getStackDir := func(s E) string {
+		return getStack(s).Dir.String()
+	}
+
+	d, err := BuildDAG(
+		root,
+		items,
+		getStack,
+		"before",
+		func(s config.Stack) []string { return s.Before },
+		"after",
+		func(s config.Stack) []string { return s.After },
+	)
+	if err != nil {
+		return "failed to build DAG", err
 	}
 
 	reason, err := d.Validate()
 	if err != nil {
 		return reason, err
 	}
+
+	slices.SortFunc(items, func(a, b E) int {
+		return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
+	})
 
 	order := d.Order()
 	orderLookup := make(map[string]int, len(order))
@@ -113,8 +125,8 @@ func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.St
 	return "", nil
 }
 
-// BuildDAG builds a run order DAG for the given stack.
-func BuildDAG(
+// buildStackEdges builds DAG edges for the given stack.
+func buildStackEdges(
 	d *dag.DAG,
 	root *config.Root,
 	s *config.Stack,
@@ -228,7 +240,7 @@ func BuildDAG(
 			continue
 		}
 
-		err = BuildDAG(d, root, elem.Stack, descendantsName, getDescendants,
+		err = buildStackEdges(d, root, elem.Stack, descendantsName, getDescendants,
 			ancestorsName, getAncestors, visited)
 		if err != nil {
 			return errors.E(err, "stack %q: failed to build DAG", elem)

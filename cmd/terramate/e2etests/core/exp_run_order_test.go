@@ -62,6 +62,22 @@ func TestOrderGraphAfter(t *testing.T) {
 			},
 		},
 		{
+			name: "stack after anotherstack using filesystem order",
+			layout: []string{
+				`s:stack`,
+				`s:stack/anotherstack`,
+			},
+			want: RunExpected{
+				Stdout: `
+				digraph  {
+					n2[label="anotherstack"];
+					n1[label="stack"];
+					n2->n1;
+				}`,
+				FlattenStdout: true,
+			},
+		},
+		{
 			name: "stack after anotherstack (root path)",
 			layout: []string{
 				`s:stack:after=["/anotherstack"]`,

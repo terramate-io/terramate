@@ -289,29 +289,26 @@ rangeStacks:
 
 // AddWantedOf returns all wanted stacks from the given stacks.
 func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
-	wantsDag := dag.New()
 	allstacks, err := config.LoadAllStacks(m.root.Tree())
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
 	}
 
-	visited := dag.Visited{}
 	sort.Sort(allstacks)
-	for _, elem := range allstacks {
-		err := run.BuildDAG(
-			wantsDag,
-			m.root,
-			elem.Stack,
-			"wanted_by",
-			func(s config.Stack) []string { return s.WantedBy },
-			"wants",
-			func(s config.Stack) []string { return s.Wants },
-			visited,
-		)
+	wantsDag, err := run.BuildDAG(
+		m.root,
+		allstacks,
+		func(s *config.SortableStack) *config.Stack {
+			return s.Stack
+		},
+		"wanted_by",
+		func(s config.Stack) []string { return s.WantedBy },
+		"wants",
+		func(s config.Stack) []string { return s.Wants },
+	)
 
-		if err != nil {
-			return nil, errors.E(err, "building wants DAG")
-		}
+	if err != nil {
+		return nil, errors.E(err, "building wants DAG")
 	}
 
 	reason, err := wantsDag.Validate()
@@ -330,7 +327,7 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	}
 
 	var selectedStacks config.List[*config.SortableStack]
-	visited = dag.Visited{}
+	visited := dag.Visited{}
 	addStack := func(s *config.Stack) {
 		if _, ok := visited[dag.ID(s.Dir.String())]; ok {
 			return
