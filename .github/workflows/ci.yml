@@ -28,17 +28,14 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Configure asdf and plugins needed
-        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
-
       - name: build
-        run: terramate run --changed --tags=golang -- make build
+        run: make build
 
       - name: check and test all
         run: ./bin/terramate script run --changed --tags=golang -- test all
 
       - name: check cloud info
-        run: terramate run --tags golang --no-recursive -- ./bin/terramate -vv experimental cloud info
+        run: ./bin/terramate run --tags golang --no-recursive -- ./bin/terramate -vv experimental cloud info
 
   gh_integration_test:
     name: GHA Integration Test
@@ -59,7 +56,7 @@ jobs:
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
 
       - name: make test/ci
-        run: terramate run --tags golang --changed -- make test/ci
+        run: ./bin/terramate run --tags golang --changed -- make test/ci
 
   release_dry_run:
     name: Release Dry Run
