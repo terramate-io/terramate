@@ -92,7 +92,7 @@ func (c *cli) runScript() {
 
 			for jobIdx, job := range evalScript.Jobs {
 				for cmdIdx, cmd := range job.Commands() {
-					exc := runContext{
+					run := runContext{
 						Stack:        st.Stack,
 						Cmd:          cmd.Args,
 						ScriptIdx:    scriptIdx,
@@ -101,17 +101,18 @@ func (c *cli) runScript() {
 					}
 
 					if cmd.Options != nil {
-						exc.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
-						exc.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
+						run.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
+						run.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
 					}
 
-					runs = append(runs, exc)
+					runs = append(runs, run)
 				}
 			}
 		}
 	}
 
-	orderedStacks, reason, err := runutil.Sort(c.cfg(), stacks)
+	reason, err := runutil.Sort(c.cfg(), runs,
+		func(run runContext) *config.Stack { return run.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			fatal(err, "cycle detected: %s", reason)
@@ -120,22 +121,13 @@ func (c *cli) runScript() {
 		}
 	}
 
-	var orderedRuns []runContext
-	for _, st := range orderedStacks {
-		for _, r := range runs {
-			if r.Stack.Dir.String() == st.Dir().String() {
-				orderedRuns = append(orderedRuns, r)
-			}
-		}
-	}
-
-	c.prepareScriptCloudDeploymentSync(orderedRuns)
+	c.prepareScriptCloudDeploymentSync(runs)
 
 	isSuccessExit := func(exitCode int) bool {
 		return exitCode == 0
 	}
 
-	err = c.runAll(orderedRuns, isSuccessExit, runAllOptions{
+	err = c.runAll(runs, isSuccessExit, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
