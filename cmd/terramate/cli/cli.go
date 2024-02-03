@@ -1556,10 +1556,9 @@ func (c *cli) generateGraph() {
 	logger.Debug().Msg("Create new graph.")
 
 	dotGraph := dot.NewGraph(dot.Directed)
-	graph := dag.New()
 
 	stacks := c.filterStacksByWorkingDir(entries)
-	graph, err = run.BuildDAG(
+	graph, err := run.BuildDAG(
 		c.cfg(),
 		stacks,
 		func(s stack.Entry) *config.Stack {
@@ -1591,10 +1590,8 @@ func (c *cli) generateGraph() {
 	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
-
 		out = c.stdout
 	} else {
-
 		f, err := os.Create(outFile)
 		if err != nil {
 			logger := log.With().
@@ -1632,6 +1629,7 @@ func generateDot(
 	getLabel func(s *config.Stack) string,
 ) {
 	parent := dotGraph.Node(getLabel(stackval))
+	//stdfmt.Printf("ancestors of %s: %v\n", id, graph.AncestorsOf(id))
 	for _, childid := range graph.AncestorsOf(id) {
 		val, err := graph.Node(childid)
 		if err != nil {
