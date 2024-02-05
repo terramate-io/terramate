@@ -4,9 +4,6 @@
 name: ci
 on:
   pull_request:
-    paths-ignore:
-      - '*.md'
-      - 'VERSION'
 
 jobs:
   checks:
