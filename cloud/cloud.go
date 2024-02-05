@@ -431,6 +431,14 @@ func (c *Client) URL(path string, queries ...url.Values) url.URL {
 func dumpRequest(req *http.Request) ([]byte, error) {
 	reqCopy := req.Clone(req.Context())
 
+	var err error
+	if req.GetBody != nil {
+		reqCopy.Body, err = req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	reqCopy.Header.Set("Authorization", "REDACTED")
 
 	return httputil.DumpRequestOut(reqCopy, true)
