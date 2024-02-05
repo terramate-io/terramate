@@ -1,0 +1,37 @@
+# Copyright 2023 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+name: release-dryrun
+on:
+  pull_request:
+    paths:
+      - 'VERSION'
+      - 'Makefile'
+      - 'makefiles/**'
+      - '.goreleaser.yaml'
+      - 'hack/release/Dockerfile'
+
+jobs:
+  release_dry_run:
+    name: Release Dry Run
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          fetch-depth: 0
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Configure asdf and plugins needed
+        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+
+      - name: check semver in VERSION
+        run: make version/check
+
+      - name: release dry run
+        run: terramate run --tags golang --changed -- make release/dry-run
