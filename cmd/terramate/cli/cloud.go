@@ -51,9 +51,11 @@ type cloudConfig struct {
 		runUUID cloud.UUID
 		orgUUID cloud.UUID
 
-		meta2id       map[string]int64
-		reviewRequest *cloud.DeploymentReviewRequest
-		metadata      *cloud.DeploymentMetadata
+		meta2id                     map[string]int64
+		stackPreviews               map[string]string
+		reviewRequest               *cloud.DeploymentReviewRequest
+		metadata                    *cloud.DeploymentMetadata
+		technology, technologyLayer string
 	}
 }
 
@@ -104,7 +106,7 @@ func (c *cli) handleCriticalError(err error) {
 }
 
 func (c *cli) checkCloudSync() {
-	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus {
+	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus && !c.parsedArgs.Run.CloudSyncPreview {
 		return
 	}
 
@@ -120,6 +122,10 @@ func (c *cli) checkCloudSync() {
 		uuid, err := generateRunID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)
+	}
+
+	if c.parsedArgs.Run.CloudSyncPreview {
+		c.cloud.run.stackPreviews = make(map[string]string)
 	}
 }
 

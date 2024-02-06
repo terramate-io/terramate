@@ -17,6 +17,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/previews"
+	cloudstack "github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -48,6 +51,7 @@ type runContext struct {
 
 	CloudSyncDeployment        bool
 	CloudSyncDriftStatus       bool
+	CloudSyncPreview           bool
 	CloudSyncTerraformPlanFile string
 }
 
@@ -82,7 +86,7 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
+		stacks, err = c.computeSelectedStacks(true, true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
 		if err != nil {
 			fatal("computing selected stacks", err)
 		}
@@ -106,13 +110,17 @@ func (c *cli) runOnStacks() {
 		fatal(sprintf("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"), nil)
 	}
 
-	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
-
-	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
-		fatal(sprintf("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status"), nil)
+	if c.parsedArgs.Run.CloudSyncPreview && (c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus) {
+		fatal("cannot use --cloud-sync-preview with --cloud-sync-deployment or --cloud-sync-drift-status", nil)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
+	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview
+
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
+		fatal("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status or --cloud-sync-preview", nil)
+	}
+
+	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview {
 		if !c.prj.isRepo {
 			fatal("cloud features requires a git repository", nil)
 		}
@@ -131,6 +139,7 @@ func (c *cli) runOnStacks() {
 			Cmd:                        c.parsedArgs.Run.Command,
 			CloudSyncDeployment:        c.parsedArgs.Run.CloudSyncDeployment,
 			CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
+			CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 			CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
 		}
 		if c.parsedArgs.Run.Eval {
@@ -150,6 +159,10 @@ func (c *cli) runOnStacks() {
 		isSuccessExit = func(exitCode int) bool {
 			return exitCode == 0 || exitCode == 2
 		}
+	}
+
+	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
+		c.cloud.run.stackPreviews = c.createCloudPreview(runs)
 	}
 
 	err = c.runAll(runs, isSuccessExit, runAllOptions{
@@ -420,4 +433,65 @@ func (c *cli) loadAllStackEnvs(runs []runContext) (map[prj.Path]runutil.EnvVars,
 		return nil, errs.AsError()
 	}
 	return stackEnvs, nil
+}
+
+func (c *cli) createCloudPreview(runs []runContext) map[string]string {
+	previewRuns := make([]previews.RunContext, len(runs))
+	for i, run := range runs {
+		previewRuns[i] = previews.RunContext{
+			Stack: run.Stack,
+			Cmd:   run.Cmd,
+		}
+	}
+
+	affectedStacks, err := c.computeSelectedStacks(false, true, cloudstack.NoFilter)
+	if err != nil {
+		fatal("computing affected stacks", err)
+	}
+
+	affectedStacksMap := map[string]*config.Stack{}
+	for _, st := range affectedStacks {
+		affectedStacksMap[st.Stack.ID] = st.Stack
+	}
+
+	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
+	if !ok {
+		fatal("env var GITHUB_EVENT_PATH not found, not generating previews", nil)
+	}
+
+	prUpdatedAt := time.Now().UTC().Unix()
+	if eventPRUpdatedAt := github.GetEventPRUpdatedAt(githubEventPath); eventPRUpdatedAt != nil {
+		prUpdatedAt = eventPRUpdatedAt.Unix()
+	}
+
+	technology := "other"
+	technologyLayer := "default"
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
+		technology = "terraform"
+		technologyLayer = "default"
+	}
+
+	createdPreview, err := previews.CreatePreview(
+		c.cloud.client,
+		defaultCloudTimeout,
+		previews.CreatePreviewOpts{
+			Runs:            previewRuns,
+			AffectedStacks:  affectedStacksMap,
+			OrgUUID:         c.cloud.run.orgUUID,
+			UpdatedAt:       prUpdatedAt,
+			Technology:      technology,
+			TechnologyLayer: technologyLayer,
+			Repository:      c.prj.prettyRepo(),
+			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
+			ReviewRequest:   c.cloud.run.reviewRequest,
+			Metadata:        c.cloud.run.metadata,
+		},
+	)
+	if err != nil {
+		fatal("unable to create cloud preview", err)
+	}
+
+	printer.Stderr.Success(fmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
+
+	return createdPreview.StackPreviewsByMetaID
 }

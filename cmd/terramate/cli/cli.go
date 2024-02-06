@@ -149,6 +149,7 @@ type cliSpec struct {
 		CloudStatus                string `help:"Filter by status. Example: --cloud-status=unhealthy"`
 		CloudSyncDeployment        bool   `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
 		CloudSyncDriftStatus       bool   `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
+		CloudSyncPreview           bool   `default:"false" help:"Enable synchronization of review request previews to Terramate Cloud"`
 		CloudSyncTerraformPlanFile string `default:"" help:"Enable sync of Terraform plan file"`
 		ContinueOnError            bool   `default:"false" help:"Continue executing in other stacks in case of error"`
 		NoRecursive                bool   `default:"false" help:"Do not recurse into child stacks"`
@@ -1698,7 +1699,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(true, false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("computing selected stacks", err)
 	}
@@ -1735,7 +1736,7 @@ func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(true, false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("generate debug: selecting stacks", err)
 	}
@@ -2112,7 +2113,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
+func (c *cli) computeSelectedStacks(filterStacks bool, ensureCleanRepo bool, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
 	report, err := c.listStacks(c.parsedArgs.Changed, cloudStatus)
 	if err != nil {
 		return nil, err
@@ -2120,7 +2121,10 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool, cloudStatus cloudstack
 
 	c.gitFileSafeguards(ensureCleanRepo)
 
-	entries := c.filterStacks(report.Stacks)
+	entries := report.Stacks
+	if filterStacks {
+		entries = c.filterStacks(report.Stacks)
+	}
 	stacks := make(config.List[*config.SortableStack], len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack.Sortable()

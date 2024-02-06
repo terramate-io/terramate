@@ -15,6 +15,19 @@ import (
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
 )
 
+func TestInteropCloudSyncPreview(t *testing.T) {
+	tmcli := NewInteropCLI(t, datapath(t, "testdata/interop-stacks/empty"))
+	AssertRunResult(t,
+		tmcli.Run("run", "--quiet", "--cloud-sync-preview", "--", HelperPath, "true"),
+		RunExpected{
+			Status: 0,
+			StderrRegexes: []string{
+				"Preview created",
+			},
+		},
+	)
+}
+
 func TestInteropSyncDeployment(t *testing.T) {
 	tmcli := NewInteropCLI(t, datapath(t, "testdata/interop-stacks/empty"))
 	AssertRunResult(t, tmcli.Run("list"), RunExpected{
