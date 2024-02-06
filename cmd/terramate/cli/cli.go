@@ -115,8 +115,9 @@ type cliSpec struct {
 
 	deprecatedGlobalSafeguardsCliSpec
 
-	DisableCheckpoint          bool `optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
-	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
+	// DEPRECATED
+	DisableCheckpoint          bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
+	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature"`
 
 	Create struct {
 		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`

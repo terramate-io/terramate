@@ -5,9 +5,8 @@ generate_file "/cmd/terramate/e2etests/cloud/testdata/cloud.data.json" {
   context = root
 
   lets {
-    version = tm_trimspace(tm_file("${terramate.root.path.fs.absolute}/VERSION"))
     well_known = {
-      required_version = "= ${tm_replace(let.version, "/-.*/", "")}"
+      required_version = "> 0.4.3"
     }
   }
 
