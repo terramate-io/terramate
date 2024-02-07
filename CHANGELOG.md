@@ -20,6 +20,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
 ## 0.4.5
 
 ### Added
@@ -38,7 +40,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `--detailed-exit-code` to fmt command
 - Add `--detailed-exit-code` to generate command
 
-## Fixed
+### Fixed
 
 - Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
 - Stack ordering not respected in the `script run`.
