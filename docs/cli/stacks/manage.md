@@ -19,7 +19,7 @@ terramate create --ensure-stack-ids
 ## List stacks
 
 The list command lists all Terramate stacks in the current directory recursively.
-These can be additionally filtered based on Terramate Cloud status with the `--experimental-status=<status>`
+These can be additionally filtered based on Terramate Cloud status with the `--cloud-status=<status>`
 filter (valid statuses are documented on the [trigger page](../cmdline/trigger.md)).
 
 ### Examples
