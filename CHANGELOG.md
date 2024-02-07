@@ -37,6 +37,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `list --run-order` flag to list stacks in the order they would be executed.
 - Add support for deployment syncing to script commands.
 - Add `disable_safeguards` configuration option and CLI flag.
+- Add `--detailed-exit-code` to fmt command
+- Add `--detailed-exit-code` to generate command
 
 ### Fixed
 
