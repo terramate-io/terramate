@@ -40,6 +40,7 @@ and [Orchestration](../orchestration/index.md) features of Terramate.
 You will need the following tooling installed:
 
 - A recent version of the `git` command line tool
+  - Terramate assumes `main` to be the default branch. Any other branch can be set using the [`terramate.config.git.default_branch`](../projects/configuration.md) configuration option.
 - A recent version of [Terraform](https://developer.hashicorp.com/terraform/install)
 - Terramate CLI version [0.4.4](https://github.com/terramate-io/terramate/releases/) or above (for details on how to
 install Terramate CLI, please see the [installation guide](../installation.md))
