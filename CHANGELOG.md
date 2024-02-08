@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `terramate.config.generate.hcl_magic_header_comment_style` option for setting the generated comment style.
+
 ## 0.4.5
 
 ### Added

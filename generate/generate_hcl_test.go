@@ -2230,7 +2230,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 
 	// Creates a file with a generated header inside the symlinked directory.
 	// It should never return in the report.
-	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
+	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.DefaultHeader())
 
 	root, err := config.LoadRoot(rootEntry.Path())
 	assert.NoError(t, err)
@@ -2251,8 +2251,8 @@ func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	s := sandbox.NoGit(t, true)
 
 	// Creates a file with a generated header inside dot dirs.
-	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
-	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.Header)
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.DefaultHeader())
 
 	assertEqualReports(t, s.Generate(), generate.Report{})
 }
