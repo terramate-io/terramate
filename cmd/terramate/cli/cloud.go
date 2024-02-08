@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	stdjson "encoding/json"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -483,7 +484,8 @@ func (c *cli) detectCloudMetadata() {
 		return
 	}
 
-	if r.Host != githubDomain {
+	githubAPIURL := os.Getenv("TM_GITHUB_API_URL")
+	if r.Host != githubDomain && githubAPIURL == "" {
 		return
 	}
 
@@ -491,11 +493,17 @@ func (c *cli) detectCloudMetadata() {
 
 	ghRepo := r.Owner + "/" + r.Name
 
-	logger = logger.With().
-		Str("github_repository", ghRepo).
-		Logger()
+	logger = logger.With().Str("github_repository", ghRepo).Logger()
 
 	githubClient := github.NewClient(&c.httpClient)
+	if githubAPIURL != "" {
+		githubBaseURL, err := url.Parse(githubAPIURL)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to parse github api url")
+			return
+		}
+		githubClient.BaseURL = githubBaseURL
+	}
 
 	ghToken, tokenSource := auth.TokenForHost(r.Host)
 
@@ -524,6 +532,7 @@ func (c *cli) detectCloudMetadata() {
 
 	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, r.Owner, r.Name, prNumber, headCommit)
 	if err != nil {
+
 		logger.Debug().Err(err).
 			Int("number", prNumber).
 			Msg("failed to retrieve pull_request")
