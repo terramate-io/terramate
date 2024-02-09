@@ -63,6 +63,13 @@ func (p *Printer) ErrorWithDetails(title string, err error) {
 	}
 }
 
+// Fatal prints an error with a title and the underlying error and calls
+// os.Exit(1).
+func (p *Printer) Fatal(title string, err error) {
+	p.ErrorWithDetails(title, err)
+	os.Exit(1)
+}
+
 // WarnWithDetails is similar to ErrorWithDetailsln but prints a warning
 // instead
 func (p *Printer) WarnWithDetails(title string, err error) {
@@ -73,7 +80,7 @@ func (p *Printer) WarnWithDetails(title string, err error) {
 	}
 }
 
-// Error prints a message with a "Error:" prefix. The prefix is prinited in
+// Error prints a message with a "Error:" prefix. The prefix is printed in
 // the boldRed style.
 func (p *Printer) Error(title string) {
 	fmt.Fprintln(p.w, boldRed("Error:"), bold(title))
