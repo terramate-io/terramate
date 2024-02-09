@@ -133,8 +133,9 @@ type cliSpec struct {
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
-		Check            bool `hidden:"" help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
-		DetailedExitCode bool `help:"Return an appropriate exit code (0 = ok, 1 = error, 2 = no error but changes were made)"`
+		Files            []string `arg:"" optional:"true" predictor:"file" help:"files to be formatted"`
+		Check            bool     `hidden:"" help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
+		DetailedExitCode bool     `help:"Return an appropriate exit code (0 = ok, 1 = error, 2 = no error but changes were made)"`
 	} `cmd:"" help:"Format all files inside dir recursively"`
 
 	List struct {
@@ -594,6 +595,8 @@ func (c *cli) run() {
 
 	switch c.ctx.Command() {
 	case "fmt":
+		c.format()
+	case "fmt <files>":
 		c.format()
 	case "create <path>":
 		c.createStack()
@@ -1403,9 +1406,45 @@ func (c *cli) format() {
 		fatal("Invalid args", errors.E("--check conflicts with --detailed-exit-code"))
 	}
 
-	results, err := fmt.FormatTree(c.wd())
-	if err != nil {
-		fatal("formatting files", err)
+	var results []fmt.FormatResult
+	switch len(c.parsedArgs.Fmt.Files) {
+	case 0:
+		var err error
+		results, err = fmt.FormatTree(c.wd())
+		if err != nil {
+			fatal(sprintf("formatting directory %s", c.wd()), err)
+		}
+	case 1:
+		if c.parsedArgs.Fmt.Files[0] == "-" {
+			content, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				fatal("reading stdin", err)
+			}
+			original := string(content)
+			formatted, err := fmt.Format(original, "<stdin>")
+			if err != nil {
+				fatal("formatting stdin", err)
+			}
+
+			if c.parsedArgs.Fmt.Check {
+				var status int
+				if formatted != original {
+					status = 1
+				}
+				os.Exit(status)
+			}
+
+			stdfmt.Print(formatted)
+			return
+		}
+
+		fallthrough
+	default:
+		var err error
+		results, err = fmt.FormatFiles(c.wd(), c.parsedArgs.Fmt.Files)
+		if err != nil {
+			fatal("formatting files", err)
+		}
 	}
 
 	for _, res := range results {
