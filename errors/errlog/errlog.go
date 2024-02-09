@@ -7,21 +7,11 @@ package errlog
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/errors"
 )
-
-// Fatal logs the error as a Fatal if the error is not nil.
-func Fatal(logger zerolog.Logger, err error, args ...any) {
-	logerrs(logger, zerolog.FatalLevel, zerolog.ErrorLevel, err, args)
-	// zerolog does not call os.Exit if you pass the fatal level
-	// with WithLevel, it only aborts when calling the Fatal() method.
-	// So we need to ensure the exit 1 here.
-	os.Exit(1)
-}
 
 // Warn logs the error as a warning if the error is not nil.
 func Warn(logger zerolog.Logger, err error, args ...any) {

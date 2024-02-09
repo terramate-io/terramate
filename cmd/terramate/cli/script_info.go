@@ -22,7 +22,7 @@ func (c *cli) printScriptInfo() {
 
 	stacks, err := c.computeSelectedStacks(false)
 	if err != nil {
-		fatal(err, "computing selected stacks")
+		fatal("computing selected stacks", err)
 	}
 
 	m := newScriptsMatcher(labels)

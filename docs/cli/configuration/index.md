@@ -176,6 +176,14 @@ The `terramate.config.git` block has no labels and has the following schema:
 | check\_uncommitted | boolean | (DEPRECATED) Enable check of uncommitted files | true
 | check\_remote | boolean | (DEPRECATED) Enable checking if local main is updated with remote | true
 
+## terramate.config.generate block schema
+
+The `terramate.config.generate` block has no labels and has the following schema:
+
+| name             |      type      | description | default |
+|------------------|----------------|-------------|---------|
+| hcl\_magic\_header\_comment\_style | string | The comment style used in `generate_hcl`` blocks | "//"
+
 ## terramate.config.run block schema
 
 The `terramate.config.run` block has no labels and has the following schema:

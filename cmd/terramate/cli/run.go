@@ -59,15 +59,10 @@ type runResult struct {
 }
 
 func (c *cli) runOnStacks() {
-	logger := log.With().
-		Str("action", "cli.runOnStacks()").
-		Str("workingDir", c.wd()).
-		Logger()
-
 	c.gitSafeguardDefaultBranchIsReachable()
 
 	if len(c.parsedArgs.Run.Command) == 0 {
-		logger.Fatal().Msgf("run expects a cmd")
+		fatal("run expects a cmd", nil)
 	}
 
 	c.checkOutdatedGeneratedCode()
@@ -77,12 +72,11 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatal(err, "loading stack in current directory")
+			fatal("loading stack in current directory", err)
 		}
 
 		if !found {
-			logger.Fatal().
-				Msg("--no-recursive provided but no stack found in the current directory")
+			fatal("--no-recursive provided but no stack found in the current directory", nil)
 		}
 
 		stacks = append(stacks, st.Sortable())
@@ -90,7 +84,7 @@ func (c *cli) runOnStacks() {
 		var err error
 		stacks, err = c.computeSelectedStacks(true)
 		if err != nil {
-			fatal(err, "computing selected stacks")
+			fatal("computing selected stacks", err)
 		}
 	}
 
@@ -98,9 +92,9 @@ func (c *cli) runOnStacks() {
 		func(s *config.SortableStack) *config.Stack { return s.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(err, "cycle detected: %s", reason)
+			fatal(sprintf("cycle detected: %s", reason), err)
 		} else {
-			fatal(err, "failed to plan execution")
+			fatal("failed to plan execution", err)
 		}
 	}
 
@@ -109,18 +103,18 @@ func (c *cli) runOnStacks() {
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
-		fatal(errors.E("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"))
+		fatal(sprintf("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"), nil)
 	}
 
 	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
 
 	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
-		fatal(errors.E("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status"))
+		fatal(sprintf("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status"), nil)
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
 		if !c.prj.isRepo {
-			fatal(errors.E("cloud features requires a git repository"))
+			fatal("cloud features requires a git repository", nil)
 		}
 		c.ensureAllStackHaveIDs(stacks)
 		c.detectCloudMetadata()
@@ -142,7 +136,7 @@ func (c *cli) runOnStacks() {
 		if c.parsedArgs.Run.Eval {
 			run.Cmd, err = c.evalRunArgs(run.Stack, run.Cmd)
 			if err != nil {
-				c.fatal("unable to evaluate command", err)
+				fatal("unable to evaluate command", err)
 			}
 		}
 		runs = append(runs, run)
@@ -165,7 +159,7 @@ func (c *cli) runOnStacks() {
 		ContinueOnError: c.parsedArgs.Run.ContinueOnError,
 	})
 	if err != nil {
-		c.fatal("one or more commands failed", err)
+		fatal("one or more commands failed", err)
 	}
 }
 

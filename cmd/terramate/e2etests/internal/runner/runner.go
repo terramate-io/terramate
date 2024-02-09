@@ -244,6 +244,23 @@ func (tm CLI) Run(args ...string) RunResult {
 	}
 }
 
+// RunWithStdin runs the CLI but uses the provided string as stdin.
+func (tm CLI) RunWithStdin(stdin string, args ...string) RunResult {
+	t := tm.t
+	t.Helper()
+
+	cmd := tm.NewCmd(args...)
+	cmd.Stdin.b.WriteString(stdin)
+	_ = cmd.Run()
+
+	return RunResult{
+		Cmd:    strings.Join(args, " "),
+		Stdout: cmd.Stdout.String(),
+		Stderr: cmd.Stderr.String(),
+		Status: cmd.ExitCode(),
+	}
+}
+
 // RunScript is a helper for executing `terramate run-script`.
 func (tm CLI) RunScript(args ...string) RunResult {
 	return tm.Run(append([]string{"script", "run"}, args...)...)

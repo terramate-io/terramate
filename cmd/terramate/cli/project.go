@@ -68,15 +68,11 @@ func (p *project) localDefaultBranchCommit() string {
 	if p.git.localDefaultBranchCommit != "" {
 		return p.git.localDefaultBranchCommit
 	}
-	logger := log.With().
-		Str("action", "localDefaultBranchCommit()").
-		Logger()
-
 	gitcfg := p.gitcfg()
 	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
 	val, err := p.git.wrapper.RevParse(refName)
 	if err != nil {
-		logger.Fatal().Err(err).Send()
+		fatal("unable to git rev-parse", err)
 	}
 
 	p.git.localDefaultBranchCommit = val
@@ -102,13 +98,9 @@ func (p *project) headCommit() string {
 		return p.git.headCommit
 	}
 
-	logger := log.With().
-		Str("action", "headCommit()").
-		Logger()
-
 	val, err := p.git.wrapper.RevParse("HEAD")
 	if err != nil {
-		logger.Fatal().Err(err).Send()
+		fatal("unable to git rev-parse", err)
 	}
 
 	p.git.headCommit = val
@@ -120,18 +112,14 @@ func (p *project) remoteDefaultCommit() string {
 		return p.git.remoteDefaultBranchCommit
 	}
 
-	logger := log.With().
-		Str("action", "remoteDefaultCommit()").
-		Logger()
-
 	gitcfg := p.gitcfg()
 	remoteRef, err := p.git.wrapper.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
-		logger.Fatal().Err(
+		fatal("unable to fetch remote commit",
 			fmt.Errorf("fetching remote commit of %s/%s: %v",
 				gitcfg.DefaultRemote, gitcfg.DefaultBranch,
 				err,
-			)).Send()
+			))
 	}
 
 	p.git.remoteDefaultBranchCommit = remoteRef.CommitID
