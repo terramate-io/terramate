@@ -151,6 +151,11 @@ type GitConfig struct {
 	CheckRemote OptionalCheck
 }
 
+// GenerateRootConfig represents the AST node for the `terramate.config.generate` block.
+type GenerateRootConfig struct {
+	HCLMagicHeaderCommentStyle *string
+}
+
 // CloudConfig represents Terramate cloud configuration.
 type CloudConfig struct {
 	// Organization is the name of the cloud organization
@@ -160,6 +165,7 @@ type CloudConfig struct {
 // RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
 	Git               *GitConfig
+	Generate          *GenerateRootConfig
 	Run               *RunConfig
 	Cloud             *CloudConfig
 	Experiments       []string
@@ -1619,7 +1625,7 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run", "cloud"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "run", "cloud"))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
@@ -1636,6 +1642,13 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		cfg.Cloud = &CloudConfig{}
 
 		errs.Append(parseCloudConfig(cfg.Cloud, cloudBlock))
+	}
+
+	generateBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("generate")]
+	if ok {
+		cfg.Generate = &GenerateRootConfig{}
+
+		errs.Append(parseGenerateRootConfig(cfg.Generate, generateBlock))
 	}
 
 	return errs.AsError()
@@ -1688,6 +1701,53 @@ func parseRunConfig(cfg *RootConfig, runBlock *ast.MergedBlock) error {
 		errs.Append(parseRunEnv(runCfg.Env, block))
 	}
 
+	return errs.AsError()
+}
+
+func parseGenerateRootConfig(cfg *GenerateRootConfig, generateBlock *ast.MergedBlock) error {
+	errs := errors.L()
+
+	errs.AppendWrap(ErrTerramateSchema, generateBlock.ValidateSubBlocks())
+
+	for _, attr := range generateBlock.Attributes.SortedList() {
+		value, diags := attr.Expr.Value(nil)
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags,
+				"failed to evaluate terramate.config.generate.%s attribute", attr.Name,
+			))
+			continue
+		}
+
+		switch attr.Name {
+		case "hcl_magic_header_comment_style":
+			if value.Type() != cty.String {
+				errs.Append(attrErr(attr,
+					"terramate.config.generate.hcl_magic_header_comment_style is not a string but %q",
+					value.Type().FriendlyName(),
+				))
+
+				continue
+			}
+
+			str := value.AsString()
+			if str != "//" && str != "#" {
+				errs.Append(attrErr(attr,
+					"terramate.config.generate.hcl_magic_header_comment_style must be either `//` or `#` but %q was given",
+					str,
+				))
+				continue
+			}
+
+			cfg.HCLMagicHeaderCommentStyle = &str
+
+		default:
+			errs.Append(errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.generate.%s",
+				attr.Name,
+			))
+		}
+	}
 	return errs.AsError()
 }
 

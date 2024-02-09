@@ -93,10 +93,29 @@ terramate {
 }
 ```
 
+### The `terramate.config.generate` block
+
+The `terramate.config.generate` block can be used to configure the code generate feature.
+For now, only the `hcl_magic_header_comment_style` attribute is supported and it can be used to
+define which HCL comment style must be used by Terramate when generating HCL files.
+Example below:
+
+```
+terramate {
+  config {
+    generate {
+      hcl_magic_header_comment_style = "#"
+    }
+  }
+}
+```
+
+The config above will make Terramate generate files using `#` as comment style.
+The only valid options are `//` and `#`.
+
 ### The `terramate.config.run` Block
 
-Configuration for the `terramate run` command can be set in the
-`terramate.config.run` block.
+Configuration for the `terramate run` command can be set in the `terramate.config.run` block.
 
 #### Disable code generation check
 

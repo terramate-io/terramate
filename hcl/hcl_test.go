@@ -600,6 +600,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 }
 
 func TestHCLParserRootConfig(t *testing.T) {
+	ptr := func(s string) *string { return &s }
 	for _, tc := range []testcase{
 		{
 			name: "no config returns empty config",
@@ -907,6 +908,62 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "terramate.config.generate.hcl_magic_header_comment_style = //",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									hcl_magic_header_comment_style = "//"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Generate: &hcl.GenerateRootConfig{
+								HCLMagicHeaderCommentStyle: ptr("//"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate.hcl_magic_header_comment_style = #",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									hcl_magic_header_comment_style = "#"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Generate: &hcl.GenerateRootConfig{
+								HCLMagicHeaderCommentStyle: ptr("#"),
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
@@ -1077,6 +1134,52 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 						Mkrange("cfg1.tm", Start(9, 6, 108), End(9, 10, 112))),
 					errors.E(hcl.ErrTerramateSchema,
 						Mkrange("cfg2.tm", Start(4, 9, 48), End(4, 23, 62))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate..hcl_magic_header_comment_style is not string -- fail",
+			input: []cfgfile{
+				{
+					filename: "tm.tm",
+					body: `
+					terramate {
+						config {
+							generate {
+								hcl_magic_header_comment_style = 1
+							}
+						}
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("tm.tm", Start(5, 42, 92), End(5, 43, 93))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate..hcl_magic_header_comment_style with unknown value",
+			input: []cfgfile{
+				{
+					filename: "tm.tm",
+					body: `
+					terramate {
+						config {
+							generate {
+								hcl_magic_header_comment_style = "/*"
+							}
+						}
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("tm.tm", Start(5, 42, 92), End(5, 46, 96))),
 				},
 			},
 		},
