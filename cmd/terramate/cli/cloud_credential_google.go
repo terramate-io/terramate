@@ -405,7 +405,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 func endpointURL(endpoint string, idpKey string) *url.URL {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		fatal(err, "failed to parse endpoint URL for createAuthURI")
+		fatal("failed to parse endpoint URL for createAuthURI", err)
 	}
 
 	q := u.Query()
