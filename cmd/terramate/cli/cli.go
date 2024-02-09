@@ -114,8 +114,9 @@ type cliSpec struct {
 
 	deprecatedGlobalSafeguardsCliSpec
 
-	DisableCheckpoint          bool `optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
-	DisableCheckpointSignature bool `optional:"true" default:"false" help:"Disable checkpoint signature"`
+	// DEPRECATED
+	DisableCheckpoint          bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
+	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature"`
 
 	Create struct {
 		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
@@ -1471,7 +1472,8 @@ func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) 
 	if runOrder {
 		var failReason string
 		var err error
-		stacks, failReason, err = run.Sort(c.cfg(), stacks)
+		failReason, err = run.Sort(c.cfg(), stacks,
+			func(s *config.SortableStack) *config.Stack { return s.Stack })
 		if err != nil {
 			fatal("Invalid stack configuration", errors.E(err, failReason))
 		}
@@ -1661,7 +1663,8 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 	}
 
 	logger.Debug().Msg("Get run order.")
-	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
+	reason, err := run.Sort(c.cfg(), stacks,
+		func(s *config.SortableStack) *config.Stack { return s.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			fatal("Invalid stack configuration", errors.E(err, reason))
@@ -1670,7 +1673,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		}
 	}
 
-	for _, s := range orderedStacks {
+	for _, s := range stacks {
 		dir := s.Dir().String()
 		if !friendlyFmt {
 			printer.Stdout.Println(dir)

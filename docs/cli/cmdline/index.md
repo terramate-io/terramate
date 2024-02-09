@@ -29,8 +29,6 @@ All sub-commands support the `--help` flag as well for specific details.
 
 <!-- - `--disable-check-git-untracked`      Disable git check for untracked files. -->
 <!-- - `--disable-check-git-uncommitted`    Disable git check for uncommitted files. -->
-<!-- - `--disable-checkpoint`               Disable checkpoint checks for updates. -->
-<!-- - `--disable-checkpoint-signature`     Disable checkpoint signature. -->
 
 ## Auto Completions
 

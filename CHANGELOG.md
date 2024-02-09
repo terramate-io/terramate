@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## 0.4.5
+
 ### Added
 
 - Add support for `stack_filter` in `generate_file` blocks.
@@ -35,11 +37,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `list --run-order` flag to list stacks in the order they would be executed.
 - Add support for deployment syncing to script commands.
 - Add `disable_safeguards` configuration option and CLI flag.
+- Add `--detailed-exit-code` to fmt command
+- Add `--detailed-exit-code` to generate command
 
-## Fixed
+### Fixed
 
 - Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
 - Stack ordering not respected in the `script run`.
+- Fix `script.job.command[s]` not handling (typed) lists.
 
 ## 0.4.4
 
