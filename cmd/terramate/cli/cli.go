@@ -141,11 +141,12 @@ type cliSpec struct {
 	List struct {
 		Why                bool   `help:"Shows the reason why the stack has changed"`
 		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
-		CloudStatus        string `help:"Filter by status"`
+		CloudStatus        string `help:"Filter by status. Example: --cloud-status=unhealthy"`
 		RunOrder           bool   `default:"false" help:"Sort stacks by order of execution"`
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
+		CloudStatus                string `help:"Filter by status. Example: --cloud-status=unhealthy"`
 		CloudSyncDeployment        bool   `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
 		CloudSyncDriftStatus       bool   `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
 		CloudSyncTerraformPlanFile string `default:"" help:"Enable sync of Terraform plan file"`
@@ -171,6 +172,7 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info"`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
+			CloudStatus string   `help:"Filter by status. Example: --cloud-status=unhealthy"`
 			NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
 			DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
 			Cmds        []string `arg:"" optional:"true" passthrough:"" help:"Script to execute"`
@@ -211,7 +213,7 @@ type cliSpec struct {
 			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
 			Reason             string `default:"" name:"reason" help:"Reason for the stack being triggered"`
 			ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
-			CloudStatus        string `help:"Filter by status"`
+			CloudStatus        string `help:"Filter by status. Example: --cloud-status=unhealthy"`
 		} `cmd:"" help:"Triggers a stack"`
 
 		RunGraph struct {
@@ -1696,7 +1698,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(false)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("computing selected stacks", err)
 	}
@@ -1733,7 +1735,7 @@ func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(false)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("generate debug: selecting stacks", err)
 	}
@@ -2110,8 +2112,8 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.SortableStack], error) {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudStatus)
 	if err != nil {
 		return nil, err
 	}

@@ -60,3 +60,9 @@ Run a script called "deploy" in a specific stack without recursing into subdirec
 ```bash
 terramate -C path/to/stack script run --no-recursive deploy
 ```
+
+Run a script in all stacks with an specific Terramate Cloud status:
+
+```bash
+terramate script run --cloud-status=unhealthy deploy
+```
