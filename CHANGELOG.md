@@ -27,6 +27,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `terramate.config.generate.hcl_magic_header_comment_style` option for setting the generated comment style.
 - Add support for formatting specific files and stdin (`terramate fmt [file...]` or `terramate fmt -`).
 
+### Fixed
+
+- Fix language server panic when root directory contain errors.
+
 ## 0.4.5
 
 ### Added

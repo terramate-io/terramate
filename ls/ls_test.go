@@ -43,6 +43,35 @@ func TestDocumentOpen(t *testing.T) {
 		params.URI.Filename())
 }
 
+func TestDocumentRegressionErrorLoadingRootConfig(t *testing.T) {
+	t.Parallel()
+	f := lstest.Setup(t)
+
+	file := f.Sandbox.RootEntry().CreateFile("test.tm", "attr = 1")
+	f.Editor.CheckInitialize(f.Sandbox.RootDir())
+	f.Editor.Open("test.tm")
+
+	// root.config.tm diagnostic
+	r := <-f.Editor.Requests
+	assert.EqualStrings(t, "textDocument/publishDiagnostics", r.Method(),
+		"unexpected notification request")
+
+	var params lsp.PublishDiagnosticsParams
+	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
+	assert.EqualInts(t, 0, len(params.Diagnostics))
+	assert.EqualStrings(t, filepath.Join(f.Sandbox.RootDir(), "root.config.tm"), params.URI.Filename())
+
+	// test.tm diagnostic
+	r = <-f.Editor.Requests
+	assert.EqualStrings(t, "textDocument/publishDiagnostics", r.Method(),
+		"unexpected notification request")
+
+	params = lsp.PublishDiagnosticsParams{}
+	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
+	assert.EqualInts(t, 1, len(params.Diagnostics))
+	assert.EqualStrings(t, file.Path(), params.URI.Filename())
+}
+
 func TestDocumentChange(t *testing.T) {
 	t.Skip("not ready")
 
