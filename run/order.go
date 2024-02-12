@@ -195,12 +195,12 @@ func BuildDAG(
 		return err
 	}
 
-	ancestorStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir, ancestorPaths...))
+	ancestorStacks, err := config.StacksFromTrees(root.StacksByPaths(s.Dir, ancestorPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, ancestorsName)
 	}
-	descendantStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir, descendantPaths...))
+	descendantStacks, err := config.StacksFromTrees(root.StacksByPaths(s.Dir, descendantPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, descendantsName)
