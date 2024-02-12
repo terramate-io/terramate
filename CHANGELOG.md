@@ -30,6 +30,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix language server panic when root directory contain errors.
+- (**BREAKING CHANGE**) Fix the execution order when using `tag:` filter in `after/before` in conjunction with implicit filesystem order. Please check the `terramate list --run-order` after
+upgrading.
 
 ## 0.4.5
 
