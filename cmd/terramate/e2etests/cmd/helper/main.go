@@ -59,6 +59,8 @@ func main() {
 		tempDir()
 	case "stack-abs-path":
 		stackAbsPath(os.Args[2])
+	case "stack-rel-path":
+		stackRelPath(os.Args[2])
 	case "tf-plan-sanitize":
 		tfPlanSanitize(os.Args[2])
 	default:
@@ -129,6 +131,14 @@ func stackAbsPath(base string) {
 	rel, err := filepath.Rel(base, cwd)
 	checkerr(err)
 	fmt.Println("/" + filepath.ToSlash(rel))
+}
+
+func stackRelPath(base string) {
+	cwd, err := os.Getwd()
+	checkerr(err)
+	rel, err := filepath.Rel(base, cwd)
+	checkerr(err)
+	fmt.Println(filepath.ToSlash(rel))
 }
 
 func tfPlanSanitize(fname string) {

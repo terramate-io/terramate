@@ -26,6 +26,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add `terramate.config.generate.hcl_magic_header_comment_style` option for setting the generated comment style.
 - Add support for formatting specific files and stdin (`terramate fmt [file...]` or `terramate fmt -`).
+- Add `--cloud-status=status` flag to both `terramate run` and `terramate script run`.
 
 ### Fixed
 

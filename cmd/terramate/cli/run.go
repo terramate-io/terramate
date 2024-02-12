@@ -82,7 +82,7 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true)
+		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
 		if err != nil {
 			fatal("computing selected stacks", err)
 		}

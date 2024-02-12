@@ -40,7 +40,7 @@ func (c *cli) runScript() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true)
+		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Script.Run.CloudStatus))
 		if err != nil {
 			fatal("failed to compute selected stacks", err)
 		}

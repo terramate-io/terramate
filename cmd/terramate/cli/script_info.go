@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -20,7 +21,7 @@ import (
 func (c *cli) printScriptInfo() {
 	labels := c.parsedArgs.Script.Info.Cmds
 
-	stacks, err := c.computeSelectedStacks(false)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("computing selected stacks", err)
 	}
