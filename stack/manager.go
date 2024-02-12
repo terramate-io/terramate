@@ -289,7 +289,7 @@ rangeStacks:
 
 // AddWantedOf returns all wanted stacks from the given stacks.
 func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
-	wantsDag := dag.New()
+	wantsDag := dag.New[*config.Stack]()
 	allstacks, err := config.LoadAllStacks(m.root.Tree())
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
@@ -347,8 +347,7 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 
 	for len(pending) > 0 {
 		id := pending[0]
-		node, _ := wantsDag.Node(id)
-		s := node.(*config.Stack)
+		s, _ := wantsDag.Node(id)
 
 		addStack(s)
 		pending = pending[1:]

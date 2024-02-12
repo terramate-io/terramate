@@ -20,7 +20,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) getTerraformChangeset(run runContext, planfile string) (*cloud.ChangesetDetails, error) {
+func (c *cli) getTerraformChangeset(run stackCloudRun, planfile string) (*cloud.ChangesetDetails, error) {
 	logger := log.With().
 		Str("action", "getTerraformChangeset").
 		Str("planfile", planfile).
@@ -87,7 +87,7 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 	return newJSONPlanData, nil
 }
 
-func (c *cli) runTerraformShow(run runContext, planfile string, flags ...string) (string, error) {
+func (c *cli) runTerraformShow(run stackCloudRun, planfile string, flags ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
 	args := []string{

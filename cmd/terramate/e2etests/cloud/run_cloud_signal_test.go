@@ -56,7 +56,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 		},
 		{
 			name:    "canceled subsequent stacks",
-			layout:  []string{"s:s1", "s:s2"},
+			layout:  []string{"s:s1", "s:s1/s2"},
 			runMode: SleepRun,
 			want: want{
 				run: RunExpected{
@@ -65,62 +65,76 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 					IgnoreStderr: true,
 				},
 				events: eventsResponse{
-					"s1": []string{"pending", "running", "failed"},
-					"s2": []string{"pending", "canceled"},
+					"s1":    []string{"pending", "running", "failed"},
+					"s1/s2": []string{"pending", "canceled"},
 				},
 			},
 		},
 	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
-			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
-			addr := startFakeTMCServer(t, cloudData)
-
-			s := sandbox.New(t)
-			var genIdsLayout []string
-			ids := []string{}
-			if !tc.skipIDGen {
-				for _, layout := range tc.layout {
-					if layout[0] == 's' {
-						if strings.Contains(layout, "id=") {
-							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-						}
-						id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-						if len(id) > 64 {
-							id = id[:64]
-						}
-						ids = append(ids, id)
-						layout += ":id=" + id
-					}
-					genIdsLayout = append(genIdsLayout, layout)
-				}
-			} else {
-				genIdsLayout = tc.layout
+		for _, isParallel := range []bool{false, true} {
+			tc := tc
+			isParallel := isParallel
+			name := tc.name
+			if isParallel {
+				name += "-parallel"
 			}
 
-			s.BuildTree(genIdsLayout)
-			s.Git().CommitAll("all stacks committed")
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, "TMC_API_URL=http://"+addr)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-			uuid, err := uuid.NewRandom()
-			assert.NoError(t, err)
-			runid := uuid.String()
-			cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				assert.NoError(t, err)
+				addr := startFakeTMCServer(t, cloudData)
 
-			runflags := []string{"--cloud-sync-deployment"}
-			runflags = append(runflags, tc.runflags...)
+				s := sandbox.New(t)
+				var genIdsLayout []string
+				ids := []string{}
+				if !tc.skipIDGen {
+					for _, layout := range tc.layout {
+						if layout[0] == 's' {
+							if strings.Contains(layout, "id=") {
+								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
+							}
+							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
+							if len(id) > 64 {
+								id = id[:64]
+							}
+							ids = append(ids, id)
+							layout += ":id=" + id
+						}
+						genIdsLayout = append(genIdsLayout, layout)
+					}
+				} else {
+					genIdsLayout = tc.layout
+				}
 
-			fixture := cli.NewRunFixture(tc.runMode, s.RootDir(), runflags...)
-			fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
-			result := fixture.Run()
-			AssertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, cloudData, runid, ids, tc.want.events)
-		})
+				s.BuildTree(genIdsLayout)
+				s.Git().CommitAll("all stacks committed")
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, "TMC_API_URL=http://"+addr)
+
+				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				uuid, err := uuid.NewRandom()
+				assert.NoError(t, err)
+				runid := uuid.String()
+				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+
+				runflags := []string{"--cloud-sync-deployment"}
+				if isParallel {
+					runflags = append(runflags, "--parallel")
+					tc.want.run.IgnoreStdout = true
+					tc.want.run.IgnoreStderr = true
+				}
+				runflags = append(runflags, tc.runflags...)
+
+				fixture := cli.NewRunFixture(tc.runMode, s.RootDir(), runflags...)
+				fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
+				result := fixture.Run()
+				AssertRunResult(t, result, tc.want.run)
+				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+			})
+		}
 	}
 }
 
@@ -155,7 +169,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 		},
 		{
 			name:    "skipped subsequent stacks",
-			layout:  []string{"s:s1:id=s1", "s:s2:id=s2"},
+			layout:  []string{"s:s1:id=s1", "s:s1/s2:id=s2"},
 			runMode: SleepRun,
 			want: want{
 				run: RunExpected{
@@ -180,31 +194,43 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
-			addr := startFakeTMCServer(t, cloudData)
+		for _, isParallel := range []bool{false, true} {
+			tc := tc
+			isParallel := isParallel
+			name := tc.name
+			if isParallel {
+				name += "-parallel"
+			}
+			t.Run(name, func(t *testing.T) {
+				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				assert.NoError(t, err)
+				addr := startFakeTMCServer(t, cloudData)
 
-			s := sandbox.New(t)
+				s := sandbox.New(t)
 
-			s.BuildTree(tc.layout)
-			s.Git().CommitAll("all stacks committed")
+				s.BuildTree(tc.layout)
+				s.Git().CommitAll("all stacks committed")
 
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, "TMC_API_URL=http://"+addr)
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, "TMC_API_URL=http://"+addr)
 
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-			runflags := []string{"--cloud-sync-drift-status"}
-			runflags = append(runflags, tc.runflags...)
+				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				runflags := []string{"--cloud-sync-drift-status"}
+				if isParallel {
+					runflags = append(runflags, "--parallel")
+					tc.want.run.IgnoreStdout = true
+					tc.want.run.IgnoreStderr = true
+				}
+				runflags = append(runflags, tc.runflags...)
 
-			fixture := cli.NewRunFixture(tc.runMode, s.RootDir(), runflags...)
-			fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
-			minStartTime := time.Now().UTC()
-			result := fixture.Run()
-			maxEndTime := time.Now().UTC()
-			AssertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
-		})
+				fixture := cli.NewRunFixture(tc.runMode, s.RootDir(), runflags...)
+				fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
+				minStartTime := time.Now().UTC()
+				result := fixture.Run()
+				maxEndTime := time.Now().UTC()
+				AssertRunResult(t, result, tc.want.run)
+				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
+			})
+		}
 	}
 }
