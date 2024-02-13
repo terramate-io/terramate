@@ -220,15 +220,23 @@ type (
 
 	// DeploymentReviewRequest is the review_request object.
 	DeploymentReviewRequest struct {
-		Platform    string    `json:"platform"`
-		Repository  string    `json:"repository"`
-		CommitSHA   string    `json:"commit_sha"`
-		Number      int       `json:"number"`
-		Title       string    `json:"title"`
-		Description string    `json:"description"`
-		URL         string    `json:"url"`
-		Labels      []Label   `json:"labels,omitempty"`
-		Reviewers   Reviewers `json:"reviewers,omitempty"`
+		Platform              string    `json:"platform"`
+		Repository            string    `json:"repository"`
+		CommitSHA             string    `json:"commit_sha"`
+		Number                int       `json:"number"`
+		Title                 string    `json:"title"`
+		Description           string    `json:"description"`
+		URL                   string    `json:"url"`
+		Labels                []Label   `json:"labels,omitempty"`
+		Reviewers             Reviewers `json:"reviewers,omitempty"`
+		Status                string    `json:"status"`
+		Draft                 bool      `json:"draft,omitempty"`
+		ReviewRequired        bool      `json:"review_required,omitempty"`
+		ChangesRequestedCount int       `json:"changes_requested_count"`
+		ApprovedCount         int       `json:"approved_count"`
+		ChecksTotalCount      int       `json:"checks_total_count"`
+		ChecksFailureCount    int       `json:"checks_failure_count"`
+		ChecksSuccessCount    int       `json:"checks_success_count"`
 	}
 
 	// Label of a review request.

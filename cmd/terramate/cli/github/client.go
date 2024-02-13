@@ -7,12 +7,8 @@ package github
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 
 	"github.com/terramate-io/terramate/errors"
 )
@@ -56,81 +52,6 @@ type (
 	}
 )
 
-// PullsForCommit returns a list of pull request objects associated with the
-// given commit SHA.
-func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) (pulls Pulls, err error) {
-	if err := validateRepo(repository); err != nil {
-		return nil, err
-	}
-
-	url := fmt.Sprintf("%s/repos/%s/commits/%s/pulls", c.baseURL(), repository, commit)
-	data, err := c.doGet(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, &pulls)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling pull list")
-	}
-	return pulls, nil
-}
-
-// Commit retrieves information about an specific commit in the GitHub API.
-func (c *Client) Commit(ctx context.Context, repository, sha string) (*Commit, error) {
-	if err := validateRepo(repository); err != nil {
-		return nil, err
-	}
-	url := fmt.Sprintf("%s/repos/%s/commits/%s", c.baseURL(), repository, sha)
-	data, err := c.doGet(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	var commit Commit
-	err = json.Unmarshal(data, &commit)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling commit info")
-	}
-	return &commit, nil
-}
-
-// PullReviews returns the list of reviews of the given pull request number.
-func (c *Client) PullReviews(ctx context.Context, repository string, nr int) (Reviews, error) {
-	if err := validateRepo(repository); err != nil {
-		return nil, err
-	}
-	const perPage = 100
-	urlStr := fmt.Sprintf("%s/repos/%s/pulls/%d/reviews", c.baseURL(), repository, nr)
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
-	query := url.Values{}
-	query.Set("per_page", strconv.Itoa(perPage))
-
-	nextPage := 1
-	var reviews Reviews
-	for {
-		query.Set("page", strconv.Itoa(nextPage))
-		u.RawQuery = query.Encode()
-		data, err := c.doGet(ctx, u.String())
-		if err != nil {
-			return nil, err
-		}
-		var reviewsPage Reviews
-		err = json.Unmarshal(data, &reviewsPage)
-		if err != nil {
-			return nil, errors.E(err, "unmarshaling reviews")
-		}
-		reviews = append(reviews, reviewsPage...)
-		if len(reviewsPage) < perPage {
-			break
-		}
-		nextPage++
-	}
-	return reviews, nil
-}
-
 // OIDCToken requests a new OIDC token.
 func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", cfg.ReqURL, nil)
@@ -156,17 +77,6 @@ func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err
 	}
 
 	return tokresp.Value, nil
-}
-
-func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, errors.E(err, "creating pulls request")
-	}
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
-	return c.doGetWithReq(req)
 }
 
 func (c *Client) doGetWithReq(req *http.Request) ([]byte, error) {
@@ -199,23 +109,9 @@ func (c *Client) doGetWithReq(req *http.Request) ([]byte, error) {
 	return data, nil
 }
 
-func (c *Client) baseURL() string {
-	if c.BaseURL == "" {
-		c.BaseURL = APIBaseURL
-	}
-	return c.BaseURL
-}
-
 func (c *Client) httpClient() *http.Client {
 	if c.HTTPClient == nil {
 		c.HTTPClient = &http.Client{}
 	}
 	return c.HTTPClient
-}
-
-func validateRepo(repository string) error {
-	if !strings.Contains(repository, "/") {
-		return errors.E("expects a valid Github repository of format <owner>/<name>")
-	}
-	return nil
 }
