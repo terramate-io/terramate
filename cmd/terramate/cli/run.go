@@ -113,6 +113,10 @@ func (c *cli) runOnStacks() {
 		fatal("cannot use --cloud-sync-preview with --cloud-sync-deployment or --cloud-sync-drift-status", nil)
 	}
 
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile == "" && c.parsedArgs.Run.CloudSyncPreview {
+		fatal("--cloud-sync-preview requires --cloud-sync-terraform-plan-file", nil)
+	}
+
 	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview
 
 	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
@@ -154,7 +158,8 @@ func (c *cli) runOnStacks() {
 		c.createCloudDeployment(runs)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDriftStatus {
+	if c.parsedArgs.Run.CloudSyncDriftStatus ||
+		(c.parsedArgs.Run.CloudSyncPreview && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "") {
 		isSuccessExit = func(exitCode int) bool {
 			return exitCode == 0 || exitCode == 2
 		}
@@ -453,16 +458,18 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
-	prUpdatedAt := time.Now().UTC().Unix()
 	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
-	if ok {
-		eventPRUpdatedAt := github.GetEventPRUpdatedAt(githubEventPath)
-		if eventPRUpdatedAt != nil {
-			prUpdatedAt = eventPRUpdatedAt.Unix()
-		}
-	} else {
-		printer.Stderr.Warn(
-			sprintf("env var GITHUB_EVENT_PATH not found, using %d as updated_at", prUpdatedAt))
+	if !ok {
+		printer.Stderr.Warn("missing env var GITHUB_EVENT_PATH")
+		c.disableCloudFeatures(cloudError())
+		return map[string]string{}
+	}
+
+	eventPRUpdatedAt, err := github.GetEventPRUpdatedAt(githubEventPath)
+	if err != nil {
+		printer.Stderr.Warn("unable to parse PR updated_at from GITHUB_EVENT_PATH")
+		c.disableCloudFeatures(cloudError())
+		return map[string]string{}
 	}
 
 	technology := "other"
@@ -472,13 +479,15 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		technologyLayer = "default"
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
 	createdPreview, err := c.cloud.client.CreatePreview(
-		defaultCloudTimeout,
+		ctx,
 		cloud.CreatePreviewOpts{
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
-			UpdatedAt:       prUpdatedAt,
+			UpdatedAt:       eventPRUpdatedAt.Unix(),
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),

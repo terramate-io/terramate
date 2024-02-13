@@ -37,7 +37,7 @@ const (
 	ErrCloudStacksWithoutID errors.Kind = "all the cloud sync features requires that selected stacks contain an ID field"
 
 	// ErrCloudTerraformPlanFile indicates there was an error gathering the plan file details.
-	ErrCloudTerraformPlanFile errors.Kind = "failed to gather drift details from plan file"
+	ErrCloudTerraformPlanFile errors.Kind = "failed to gather details from plan file"
 
 	// ErrCloudInvalidTerraformPlanFilePath indicates the plan file is not valid.
 	ErrCloudInvalidTerraformPlanFilePath errors.Kind = "invalid plan file path"

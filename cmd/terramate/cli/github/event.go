@@ -7,25 +7,18 @@ import (
 	"encoding/json"
 	"os"
 	"time"
-
-	"github.com/terramate-io/terramate/printer"
 )
 
 // GetEventPRUpdatedAt returns the updated_at field from the file at `eventPath`.
 // The file is expected to be a JSON file containing the GitHub event for a pull
 // request.
-func GetEventPRUpdatedAt(eventPath string) *time.Time {
+func GetEventPRUpdatedAt(eventPath string) (*time.Time, error) {
 	event, err := getEventFromPath(eventPath)
 	if err != nil {
-		printer.Stderr.WarnWithDetails("unable to read github event", err)
-		return nil
+		return nil, err
 	}
 
-	if event != nil {
-		return event.PullRequest.UpdatedAt
-	}
-
-	return nil
+	return event.PullRequest.UpdatedAt, nil
 }
 
 type event struct {

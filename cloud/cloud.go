@@ -44,8 +44,6 @@ const (
 	MembershipsPath = "/v1/memberships"
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
-	// PreviewsPath is the previews endpoints base path.
-	PreviewsPath = "/v1/previews"
 	// DriftsPath is the drifts endpoint base path.
 	DriftsPath = "/v1/drifts"
 	// StacksPath is the stacks endpoint base path.
@@ -224,22 +222,6 @@ func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID UUID, deplo
 		c.URL(path.Join(DeploymentsPath, string(orgUUID), string(deploymentUUID), "stacks")),
 	)
 	return err
-}
-
-// createPreview creates a new preview for an organization
-func (c *Client) createPreview(
-	ctx context.Context,
-	orgUUID UUID,
-	payload CreatePreviewPayloadRequest,
-) (CreatePreviewResponse, error) {
-	if err := payload.Validate(); err != nil {
-		return CreatePreviewResponse{}, errors.E(err, "invalid payload")
-	}
-
-	return Post[CreatePreviewResponse](
-		ctx, c, payload,
-		c.URL(path.Join(PreviewsPath, string(orgUUID))),
-	)
 }
 
 // CreateStackDrift pushes a new drift status for the given stack.
