@@ -113,6 +113,10 @@ func (c *cli) runOnStacks() {
 		fatal("cannot use --cloud-sync-preview with --cloud-sync-deployment or --cloud-sync-drift-status", nil)
 	}
 
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile == "" && c.parsedArgs.Run.CloudSyncPreview {
+		fatal("--cloud-sync-preview requires --cloud-sync-terraform-plan-file", nil)
+	}
+
 	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview
 
 	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
@@ -154,7 +158,8 @@ func (c *cli) runOnStacks() {
 		c.createCloudDeployment(runs)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDriftStatus {
+	if c.parsedArgs.Run.CloudSyncDriftStatus ||
+		(c.parsedArgs.Run.CloudSyncPreview && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "") {
 		isSuccessExit = func(exitCode int) bool {
 			return exitCode == 0 || exitCode == 2
 		}

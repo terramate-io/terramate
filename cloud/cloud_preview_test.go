@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -41,9 +44,11 @@ func TestCreatePreview(t *testing.T) {
 			orgUUID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 			numRunContexts: 0,
 			want: want{
-				numStacksReturned:   0,
-				httpEndpointsCalled: []string{},
-				err:                 errors.E("no affected stacks or runs provided"),
+				numStacksReturned: 0,
+				httpEndpointsCalled: []string{
+					"POST /v1/previews/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+				},
+				err: nil,
 			},
 		},
 		{
@@ -105,13 +110,67 @@ func TestCreatePreview(t *testing.T) {
 
 			createdPreview, err := client.CreatePreview(time.Second*2, opts)
 			if err != tc.want.err {
-				assert.EqualStrings(t, tc.want.err.Error(), err.Error(),
+				assert.EqualErrs(t, tc.want.err, err,
 					"unexpected error")
 				return
 			}
 
 			assert.EqualInts(t, len(createdPreview.StackPreviewsByMetaID), tc.want.numStacksReturned,
 				"unexpected number of stacks returned")
+			assert.EqualInts(t, len(testTransport.receivedReqs), len(tc.want.httpEndpointsCalled),
+				"unexpected number of HTTP requests")
+
+			if diff := cmp.Diff(testTransport.httpEndpointsCalled(), tc.want.httpEndpointsCalled); diff != "" {
+				t.Errorf("unexpected HTTP reqs: %s", diff)
+			}
+		})
+	}
+}
+
+func TestUpdateStackPreview(t *testing.T) {
+	type want struct {
+		httpEndpointsCalled []string
+		err                 error
+	}
+	type testcase struct {
+		name           string
+		orgUUID        string
+		stackPreviewID string
+		status         preview.StackStatus
+		want           want
+	}
+
+	testcases := []testcase{
+		{
+			name:           "stack preview status running",
+			orgUUID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+			stackPreviewID: "123",
+			status:         "running",
+			want: want{
+				httpEndpointsCalled: []string{
+					"PATCH /v1/stack_previews/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/123",
+				},
+				err: nil,
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			testTransport := &previewTransport{}
+			client := &cloud.Client{
+				Credential: credential(),
+				HTTPClient: &http.Client{Transport: testTransport},
+			}
+
+			opts := cloud.UpdateStackPreviewOpts{
+				OrgUUID:        cloud.UUID(tc.orgUUID),
+				StackPreviewID: tc.stackPreviewID,
+				Status:         tc.status,
+			}
+
+			err := client.UpdateStackPreview(time.Second*2, opts)
+			assert.EqualErrs(t, tc.want.err, err, "unexpected error")
 			assert.EqualInts(t, len(testTransport.receivedReqs), len(tc.want.httpEndpointsCalled),
 				"unexpected number of HTTP requests")
 
@@ -163,20 +222,47 @@ type previewTransport struct {
 func (f *previewTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	f.receivedReqs = append(f.receivedReqs, req)
 
+	endpoint := req.Method + " " + req.URL.Path
+	switch {
+	case strings.HasPrefix(endpoint, "POST /v1/previews"):
+		return createPreviewsHandler(req)
+	case strings.HasPrefix(endpoint, "PATCH /v1/stack_previews"):
+		return updateStackPreviewsHandler(req)
+	default:
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+		}, nil
+	}
+
+}
+
+// updateStackPreviewsHandler is a handler for the PATCH /v1/stack_previews endpoint.
+func updateStackPreviewsHandler(req *http.Request) (*http.Response, error) {
+	var reqParsed cloud.UpdateStackPreviewPayloadRequest
+	if err := json.NewDecoder(req.Body).Decode(&reqParsed); err != nil {
+		return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+	}
+
+	validStatuses := []string{"running", "changed", "unchanged", "failed", "canceled"}
+	if !slices.Contains(validStatuses, reqParsed.Status) {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+		}, nil
+	}
+
+	return &http.Response{
+		StatusCode: http.StatusNoContent,
+	}, nil
+}
+
+// createPreviewsHandler is a handler for the POST /v1/previews endpoint.
+func createPreviewsHandler(req *http.Request) (*http.Response, error) {
 	var reqParsed cloud.CreatePreviewPayloadRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqParsed); err != nil {
 		return &http.Response{StatusCode: http.StatusInternalServerError}, nil
 	}
 
-	type previewResp struct {
-		PreviewID string `json:"preview_id"`
-		Stacks    []struct {
-			MetaID         string `json:"meta_id"`
-			StackPreviewID string `json:"stack_preview_id"`
-		} `json:"stacks"`
-	}
-
-	resp := previewResp{PreviewID: "1"}
+	resp := cloud.CreatePreviewResponse{PreviewID: "1", Stacks: []cloud.ResponsePreviewStack{}}
 	for i, s := range reqParsed.Stacks {
 		resp.Stacks = append(resp.Stacks, cloud.ResponsePreviewStack{
 			MetaID:         s.MetaID,

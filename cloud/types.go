@@ -326,6 +326,7 @@ var (
 	_ = Resource(CommandLog{})
 	_ = Resource(CreatePreviewPayloadRequest{})
 	_ = Resource(CreatePreviewResponse{})
+	_ = Resource(UpdateStackPreviewPayloadRequest{})
 	_ = Resource(EmptyResponse(""))
 )
 

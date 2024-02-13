@@ -3,7 +3,10 @@
 
 package cloud
 
-import "github.com/terramate-io/terramate/errors"
+import (
+	"github.com/terramate-io/terramate/cloud/preview"
+	"github.com/terramate-io/terramate/errors"
+)
 
 type (
 	// PreviewStacks is a list of stack objects for the request payload
@@ -14,8 +17,8 @@ type (
 	PreviewStack struct {
 		Stack
 
-		PreviewStatus string   `json:"preview_status"`
-		Cmd           []string `json:"cmd"`
+		PreviewStatus preview.StackStatus `json:"preview_status"`
+		Cmd           []string            `json:"cmd"`
 	}
 	// CreatePreviewPayloadRequest is the request payload for the creation of
 	// stack deployments.
@@ -42,7 +45,35 @@ type (
 		PreviewID string                `json:"preview_id"`
 		Stacks    ResponsePreviewStacks `json:"stacks"`
 	}
+
+	// UpdateStackPreviewPayloadRequest is the request payload for the update of
+	// stack previews.
+	UpdateStackPreviewPayloadRequest struct {
+		Status           string            `json:"status"`
+		ChangesetDetails *ChangesetDetails `json:"changeset_details,omitempty"`
+	}
 )
+
+// Validate the UpdateStackPreviewPayloadRequest object.
+func (r UpdateStackPreviewPayloadRequest) Validate() error {
+	errs := errors.L()
+	if r.Status == "" {
+		errs.Append(errors.E("status is required"))
+	}
+
+	if r.ChangesetDetails != nil {
+		if r.ChangesetDetails.Provisioner == "" {
+			errs.Append(errors.E("provisioner is required"))
+		}
+		if r.ChangesetDetails.ChangesetASCII == "" {
+			errs.Append(errors.E("changeset_ascii is required"))
+		}
+		if r.ChangesetDetails.ChangesetJSON == "" {
+			errs.Append(errors.E("changeset_json is required"))
+		}
+	}
+	return errs.AsError()
+}
 
 // Validate the ResponsePreviewStacks object.
 func (s ResponsePreviewStacks) Validate() error {
