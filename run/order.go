@@ -4,6 +4,7 @@
 package run
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path"
@@ -37,7 +38,7 @@ func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.St
 		return getStack(s).Dir.String()
 	}
 
-	slices.SortFunc(items, func(a, b E) int {
+	slices.SortStableFunc(items, func(a, b E) int {
 		return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
 	})
 
@@ -97,17 +98,8 @@ func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.St
 		orderLookup[s.Dir.String()] = idx
 	}
 
-	slices.SortFunc(items, func(a, b E) int {
-		// TODO: Replace with cmp.Compare once we upgrade Go version.
-		i := orderLookup[getStackDir(a)]
-		j := orderLookup[getStackDir(b)]
-		if i == j {
-			return 0
-		} else if i < j {
-			return -1
-		} else {
-			return 1
-		}
+	slices.SortStableFunc(items, func(a, b E) int {
+		return cmp.Compare(orderLookup[getStackDir(a)], orderLookup[getStackDir(b)])
 	})
 
 	return "", nil
