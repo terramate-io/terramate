@@ -357,7 +357,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 
 	justClose(r.Body)
 
-	var logs cloud.DeploymentLogs
+	var logs cloud.CommandLogs
 	err = json.Unmarshal(bodyData, &logs)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)

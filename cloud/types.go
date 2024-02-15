@@ -267,14 +267,14 @@ type (
 		Stacks []UpdateDeploymentStack `json:"stacks"`
 	}
 
-	// DeploymentLogs represents a batch of log messages.
-	DeploymentLogs []*DeploymentLog
+	// CommandLogs represents a batch of log messages.
+	CommandLogs []*CommandLog
 
 	// LogChannel is an enum-like type for the output channels supported.
 	LogChannel int
 
-	// DeploymentLog represents a single log message.
-	DeploymentLog struct {
+	// CommandLog represents a single log message.
+	CommandLog struct {
 		Line      int64      `json:"log_line"`
 		Timestamp *time.Time `json:"timestamp"`
 		Channel   LogChannel `json:"channel"`
@@ -321,8 +321,8 @@ var (
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
 	_ = Resource(ChangesetDetails{})
-	_ = Resource(DeploymentLogs{})
-	_ = Resource(DeploymentLog{})
+	_ = Resource(CommandLogs{})
+	_ = Resource(CommandLog{})
 	_ = Resource(EmptyResponse(""))
 )
 
@@ -568,8 +568,8 @@ func (ds UpdateDeploymentStacks) Validate() error { return validateResourceList(
 // Validate the list of deployment stacks response.
 func (ds DeploymentStacksResponse) Validate() error { return validateResourceList(ds...) }
 
-// Validate a deployment log.
-func (l DeploymentLog) Validate() error {
+// Validate a command log.
+func (l CommandLog) Validate() error {
 	if l.Channel == unknownLogChannel {
 		return errors.E(`missing "channel" field`)
 	}
@@ -579,8 +579,8 @@ func (l DeploymentLog) Validate() error {
 	return nil
 }
 
-// Validate a list of deployment logs.
-func (ls DeploymentLogs) Validate() error { return validateResourceList(ls...) }
+// Validate a list of command logs.
+func (ls CommandLogs) Validate() error { return validateResourceList(ls...) }
 func validateResourceList[T Resource](resources ...T) error {
 	for _, resource := range resources {
 		err := resource.Validate()

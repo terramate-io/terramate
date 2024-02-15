@@ -77,9 +77,9 @@ type (
 	}
 	// DeploymentState is the state of a deployment.
 	DeploymentState struct {
-		StackStatus       map[int64]deployment.Status    `json:"stacks_status"`
-		StackStatusEvents map[int64][]deployment.Status  `json:"stacks_events"`
-		StackLogs         map[int64]cloud.DeploymentLogs `json:"stacks_logs"`
+		StackStatus       map[int64]deployment.Status   `json:"stacks_status"`
+		StackStatusEvents map[int64][]deployment.Status `json:"stacks_events"`
+		StackLogs         map[int64]cloud.CommandLogs   `json:"stacks_logs"`
 	}
 	// Drift model.
 	Drift struct {
@@ -321,7 +321,7 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 	}
 
 	deploy.State.StackStatus = make(map[int64]deployment.Status)
-	deploy.State.StackLogs = make(map[int64]cloud.DeploymentLogs)
+	deploy.State.StackLogs = make(map[int64]cloud.CommandLogs)
 	deploy.State.StackStatusEvents = make(map[int64][]deployment.Status)
 	for _, stackID := range deploy.Stacks {
 		deploy.State.StackStatusEvents[stackID] = append(deploy.State.StackStatusEvents[stackID], deployment.Pending)
@@ -384,7 +384,7 @@ func (d *Data) InsertDeploymentLogs(
 	orgID cloud.UUID,
 	stackMetaID string,
 	deploymentID cloud.UUID,
-	logs cloud.DeploymentLogs,
+	logs cloud.CommandLogs,
 ) error {
 	org, found := d.GetOrg(orgID)
 	if !found {
@@ -405,7 +405,7 @@ func (d *Data) InsertDeploymentLogs(
 }
 
 // GetDeploymentLogs returns the logs of the given deployment.
-func (d *Data) GetDeploymentLogs(orgID cloud.UUID, stackMetaID string, deploymentID cloud.UUID, fromLine int) (cloud.DeploymentLogs, error) {
+func (d *Data) GetDeploymentLogs(orgID cloud.UUID, stackMetaID string, deploymentID cloud.UUID, fromLine int) (cloud.CommandLogs, error) {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return nil, errors.E(ErrNotExists, "org uuid %s", orgID)

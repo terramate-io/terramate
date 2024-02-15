@@ -242,13 +242,13 @@ func (c *Client) CreateStackDrift(
 	)
 }
 
-// SyncDeploymentLogs sends a batch of deployment logs to Terramate Cloud.
-func (c *Client) SyncDeploymentLogs(
+// SyncCommandLogs sends a batch of command logs to Terramate Cloud.
+func (c *Client) SyncCommandLogs(
 	ctx context.Context,
 	orgUUID UUID,
 	stackID int64,
 	deploymentUUID UUID,
-	logs DeploymentLogs,
+	logs CommandLogs,
 ) error {
 	err := logs.Validate()
 	if err != nil {
