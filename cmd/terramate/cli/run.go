@@ -270,7 +270,7 @@ func (c *cli) runAll(
 		stderr := c.stderr
 
 		logSyncWait := func() {}
-		if c.cloudEnabled() && run.CloudSyncDeployment {
+		if c.cloudEnabled() && (run.CloudSyncDeployment || run.CloudSyncPreview) {
 			logSyncer := cloud.NewLogSyncer(func(logs cloud.CommandLogs) {
 				c.syncLogs(&logger, run, logs)
 			})
@@ -385,8 +385,9 @@ func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.Comman
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 	stackID := c.cloud.run.meta2id[run.Stack.ID]
+	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
 	err := c.cloud.client.SyncCommandLogs(
-		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs,
+		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs, stackPreviewID,
 	)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to sync logs")

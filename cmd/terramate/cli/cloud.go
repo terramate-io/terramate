@@ -52,7 +52,8 @@ type cloudConfig struct {
 		runUUID cloud.UUID
 		orgUUID cloud.UUID
 
-		meta2id                     map[string]int64
+		meta2id map[string]int64
+		// stackPreviews is a map of stack.ID to stackPreview.ID
 		stackPreviews               map[string]string
 		reviewRequest               *cloud.ReviewRequest
 		metadata                    *cloud.DeploymentMetadata
