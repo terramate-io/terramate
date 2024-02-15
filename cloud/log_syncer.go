@@ -17,9 +17,9 @@ import (
 type (
 	// LogSyncer is the log syncer controller type.
 	LogSyncer struct {
-		pending  DeploymentLogs
+		pending  CommandLogs
 		fds      []io.Closer
-		in       chan *DeploymentLog
+		in       chan *CommandLog
 		syncfn   Syncer
 		wg       sync.WaitGroup
 		shutdown chan struct{}
@@ -29,7 +29,7 @@ type (
 	}
 
 	// Syncer is the actual synchronizer callback.
-	Syncer func(l DeploymentLogs)
+	Syncer func(l CommandLogs)
 )
 
 // DefaultLogBatchSize is the default batch size.
@@ -50,7 +50,7 @@ func NewLogSyncerWith(
 	syncInterval time.Duration,
 ) *LogSyncer {
 	l := &LogSyncer{
-		in:       make(chan *DeploymentLog, batchSize),
+		in:       make(chan *CommandLog, batchSize),
 		syncfn:   syncfn,
 		shutdown: make(chan struct{}),
 
@@ -99,7 +99,7 @@ func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
 				}
 
 				t := time.Now().UTC()
-				s.in <- &DeploymentLog{
+				s.in <- &CommandLog{
 					Channel:   channel,
 					Line:      linenum,
 					Message:   string(dropCRLN([]byte(line))),
@@ -166,7 +166,7 @@ func (s *LogSyncer) syncAll() {
 	}
 }
 
-func (s *LogSyncer) enqueue(l *DeploymentLog) {
+func (s *LogSyncer) enqueue(l *CommandLog) {
 	s.pending = append(s.pending, l)
 	if len(s.pending) >= s.batchSize {
 		s.syncAll()

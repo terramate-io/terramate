@@ -254,7 +254,7 @@ func (c *cli) runAll(
 
 		logSyncWait := func() {}
 		if c.cloudEnabled() && run.CloudSyncDeployment {
-			logSyncer := cloud.NewLogSyncer(func(logs cloud.DeploymentLogs) {
+			logSyncer := cloud.NewLogSyncer(func(logs cloud.CommandLogs) {
 				c.syncLogs(&logger, run, logs)
 			})
 			stdout = logSyncer.NewBuffer(cloud.StdoutLogChannel, c.stdout)
@@ -362,13 +362,13 @@ func (c *cli) runAll(
 	return errs.AsError()
 }
 
-func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.DeploymentLogs) {
+func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.CommandLogs) {
 	data, _ := json.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 	stackID := c.cloud.run.meta2id[run.Stack.ID]
-	err := c.cloud.client.SyncDeploymentLogs(
+	err := c.cloud.client.SyncCommandLogs(
 		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs,
 	)
 	if err != nil {
