@@ -1667,29 +1667,31 @@ func generateDot(
 	stackval *config.Stack,
 	getLabel func(s *config.Stack) string,
 ) {
-	parent := dotGraph.Node(getLabel(stackval))
-	for _, childid := range graph.AncestorsOf(id) {
-		val, err := graph.Node(childid)
+	descendant := dotGraph.Node(getLabel(stackval))
+	for _, ancestor := range graph.AncestorsOf(id) {
+		val, err := graph.Node(ancestor)
 		if err != nil {
 			fatal("generating dot file", err)
 		}
 		s := val.(*config.Stack)
-		n := dotGraph.Node(getLabel(s))
+		ancestorNode := dotGraph.Node(getLabel(s))
 
-		edges := dotGraph.FindEdges(parent, n)
+		// we invert the graph here.
+
+		edges := dotGraph.FindEdges(ancestorNode, descendant)
 		if len(edges) == 0 {
-			edge := dotGraph.Edge(parent, n)
-			if graph.HasCycle(childid) {
+			edge := dotGraph.Edge(ancestorNode, descendant)
+			if graph.HasCycle(ancestor) {
 				edge.Attr("color", "red")
 				continue
 			}
 		}
 
-		if graph.HasCycle(childid) {
+		if graph.HasCycle(ancestor) {
 			continue
 		}
 
-		generateDot(dotGraph, graph, childid, s, getLabel)
+		generateDot(dotGraph, graph, ancestor, s, getLabel)
 	}
 }
 
