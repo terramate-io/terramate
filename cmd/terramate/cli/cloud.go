@@ -53,7 +53,7 @@ type cloudConfig struct {
 
 		meta2id                     map[string]int64
 		stackPreviews               map[string]string
-		reviewRequest               *cloud.DeploymentReviewRequest
+		reviewRequest               *cloud.ReviewRequest
 		metadata                    *cloud.DeploymentMetadata
 		technology, technologyLayer string
 	}
@@ -627,8 +627,8 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 	md.GithubPullRequestAuthorGravatarID = pull.GetUser().GetGravatarID()
 }
 
-func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool) *cloud.DeploymentReviewRequest {
-	rr := &cloud.DeploymentReviewRequest{
+func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool) *cloud.ReviewRequest {
+	rr := &cloud.ReviewRequest{
 		Platform:       "github",
 		Repository:     c.prj.prettyRepo(),
 		URL:            pull.GetHTMLURL(),

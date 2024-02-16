@@ -12,25 +12,20 @@ type (
 	// PreviewStack represents the stack object of the request payload
 	// type for the creation of stack deployments.
 	PreviewStack struct {
-		PreviewStatus   string   `json:"preview_status"`
-		Repository      string   `json:"repository"`
-		Path            string   `json:"path"`
-		MetaID          string   `json:"meta_id"`
-		MetaName        string   `json:"meta_name"`
-		MetaDescription string   `json:"meta_description"`
-		MetaTags        []string `json:"meta_tags"`
-		DefaultBranch   string   `json:"default_branch"`
-		Cmd             []string `json:"cmd"`
+		Stack
+
+		PreviewStatus string   `json:"preview_status"`
+		Cmd           []string `json:"cmd"`
 	}
 	// CreatePreviewPayloadRequest is the request payload for the creation of
 	// stack deployments.
 	CreatePreviewPayloadRequest struct {
-		UpdatedAt       int64                    `json:"updated_at"`
-		Technology      string                   `json:"technology"`
-		TechnologyLayer string                   `json:"technology_layer"`
-		ReviewRequest   *DeploymentReviewRequest `json:"review_request,omitempty"`
-		Metadata        *DeploymentMetadata      `json:"metadata,omitempty"`
-		Stacks          PreviewStacks            `json:"stacks"`
+		UpdatedAt       int64               `json:"updated_at"`
+		Technology      string              `json:"technology"`
+		TechnologyLayer string              `json:"technology_layer"`
+		ReviewRequest   *ReviewRequest      `json:"review_request,omitempty"`
+		Metadata        *DeploymentMetadata `json:"metadata,omitempty"`
+		Stacks          PreviewStacks       `json:"stacks"`
 	}
 
 	// ResponsePreviewStacks is a list of stack objects in the response payload
@@ -55,10 +50,10 @@ func (s ResponsePreviewStacks) Validate() error {
 
 	for i, stack := range s {
 		if stack.MetaID == "" {
-			errs.Append(errors.E("meta_id is required for stack[%d]", i))
+			errs.Append(errors.E(`missing "meta_id" field for stack[%d]`, i))
 		}
 		if stack.StackPreviewID == "" {
-			errs.Append(errors.E("stack_preview_id is required for stack[%d]", i))
+			errs.Append(errors.E(`missing "stack_preview_id" field for stack[%d]`, i))
 		}
 	}
 
@@ -70,22 +65,13 @@ func (s PreviewStacks) Validate() error {
 	errs := errors.L()
 	for i, stack := range s {
 		if stack.PreviewStatus == "" {
-			errs.Append(errors.E("preview_status is required for stack[%d]", i))
-		}
-		if stack.Repository == "" {
-			errs.Append(errors.E("repository is required for stack[%d]", i))
-		}
-		if stack.Path == "" {
-			errs.Append(errors.E("path is required for stack[%d]", i))
-		}
-		if stack.DefaultBranch == "" {
-			errs.Append(errors.E("default_branch is required for stack[%d]", i))
-		}
-		if stack.MetaID == "" {
-			errs.Append(errors.E("meta_id is required required for stack[%d]", i))
+			errs.Append(errors.E(`missing "preview_status" field for stack[%d]`, i))
 		}
 		if stack.Cmd == nil {
-			errs.Append(errors.E("cmd is required for stack[%d]", i))
+			errs.Append(errors.E(`missing "cmd" field for stack[%d]`, i))
+		}
+		if err := stack.Stack.Validate(); err != nil {
+			errs.Append(errors.E(err, "invalid attributes for stack[%d]", i))
 		}
 	}
 
@@ -96,23 +82,23 @@ func (s PreviewStacks) Validate() error {
 func (r CreatePreviewPayloadRequest) Validate() error {
 	errs := errors.L()
 	if r.Technology == "" {
-		errs.Append(errors.E("technology is required"))
+		errs.Append(errors.E(`missing "technology" field`))
 	}
 	if r.TechnologyLayer == "" {
-		errs.Append(errors.E("technology_layer is required"))
+		errs.Append(errors.E(`missing "technology_layer" field`))
 	}
 	if r.UpdatedAt == 0 {
-		errs.Append(errors.E("updated_at is required"))
+		errs.Append(errors.E(`missing "updated_at" field`))
 	}
 	if r.Stacks == nil {
-		errs.Append(errors.E("stacks is required"))
+		errs.Append(errors.E(`missing "stacks" field`))
 	} else {
 		if err := r.Stacks.Validate(); err != nil {
 			errs.Append(err)
 		}
 	}
 	if r.ReviewRequest == nil {
-		errs.Append(errors.E("review_request is required"))
+		errs.Append(errors.E(`missing "review_request" field`))
 	} else {
 		if err := r.ReviewRequest.Validate(); err != nil {
 			errs.Append(err)
@@ -127,11 +113,11 @@ func (r CreatePreviewResponse) Validate() error {
 	errs := errors.L()
 
 	if r.PreviewID == "" {
-		errs.Append(errors.E("preview_id is required"))
+		errs.Append(errors.E(`missing "preview_id" field`))
 	}
 
 	if r.Stacks == nil {
-		errs.Append(errors.E("stacks is required"))
+		errs.Append(errors.E(`missing "stacks" field`))
 	} else {
 		if err := r.Stacks.Validate(); err != nil {
 			errs.Append(err)
