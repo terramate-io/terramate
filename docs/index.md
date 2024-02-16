@@ -15,7 +15,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /getting-started/
+      link: /cli/getting-started/
     - theme: alt
       text: View on GitHub
       link: https://github.com/terramate-io/terramate

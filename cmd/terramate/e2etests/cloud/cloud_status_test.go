@@ -4,6 +4,7 @@
 package cloud_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,10 +19,11 @@ import (
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
-type listCloudTestcase struct {
+type cloudStatusTestcase struct {
 	name       string
 	layout     []string
 	repository string
@@ -32,10 +34,10 @@ type listCloudTestcase struct {
 	want       RunExpected
 }
 
-func TestCloudListUnhealthy(t *testing.T) {
+func TestCloudStatus(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []listCloudTestcase{
+	for _, tc := range []cloudStatusTestcase{
 		{
 			name:       "local repository is not permitted with --cloud-status=",
 			layout:     []string{"s:s1:id=s1"},
@@ -350,6 +352,26 @@ func TestCloudListUnhealthy(t *testing.T) {
 			addr := startFakeTMCServer(t, store)
 
 			s := sandbox.New(t)
+			tc.layout = append(tc.layout,
+				"f:command.tm:"+Doc(
+					Block("terramate",
+						Block("config",
+							Expr("experiments", `["scripts"]`),
+						),
+					),
+					Block("script",
+						Labels("test"),
+						Str("description", "test"),
+						Block("job",
+							// tm_chomp is needed because Windows paths are not valid HCL strings.
+							Expr("command", fmt.Sprintf(`["%s", "stack-rel-path", "${tm_chomp(<<-EOF
+								%s
+							EOF
+							)}"]`, HelperPathAsHCL, s.RootDir())),
+						),
+					),
+				).String(),
+			)
 			s.BuildTree(tc.layout)
 			repository := tc.repository
 			if repository == "" {
@@ -370,16 +392,38 @@ func TestCloudListUnhealthy(t *testing.T) {
 			if tc.perPage != 0 {
 				env = append(env, "TMC_API_PAGESIZE="+strconv.Itoa(tc.perPage))
 			}
-			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
-			args := []string{"list"}
-			args = append(args, tc.flags...)
-			result := cli.Run(args...)
-			AssertRunResult(t, result, tc.want)
+			t.Run(tc.name+"/list", func(t *testing.T) {
+				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				args := []string{"list"}
+				args = append(args, tc.flags...)
+				result := cli.Run(args...)
+				AssertRunResult(t, result, tc.want)
+			})
+
+			t.Run(tc.name+"/run", func(t *testing.T) {
+				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				args := []string{"run", "-X", "--quiet"}
+				args = append(args, tc.flags...)
+				args = append(args, HelperPath, "stack-rel-path", s.RootDir())
+				result := cli.Run(args...)
+				AssertRunResult(t, result, tc.want)
+			})
+
+			t.Run(tc.name+"/script-run", func(t *testing.T) {
+				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				args := []string{"script", "run", "-X", "--quiet"}
+				args = append(args, tc.flags...)
+				args = append(args, "test")
+				result := cli.Run(args...)
+				want := tc.want
+				want.IgnoreStderr = true
+				AssertRunResult(t, result, want)
+			})
 		})
 	}
 }
 
-func paginationTestcase(perPage int) listCloudTestcase {
+func paginationTestcase(perPage int) cloudStatusTestcase {
 	const nstacks = 100
 
 	var layout []string
@@ -402,7 +446,7 @@ func paginationTestcase(perPage int) listCloudTestcase {
 		})
 	}
 	sort.Strings(names)
-	return listCloudTestcase{
+	return cloudStatusTestcase{
 		name:    "paginated case",
 		layout:  layout,
 		stacks:  stacks,

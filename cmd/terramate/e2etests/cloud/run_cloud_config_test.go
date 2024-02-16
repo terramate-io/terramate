@@ -29,7 +29,7 @@ func TestCloudConfig(t *testing.T) {
 		customEnv map[string]string
 	}
 
-	const fatalErr = `FTL ` + string(clitest.ErrCloud)
+	const fatalErr = string(clitest.ErrCloud)
 
 	for _, tc := range []testcase{
 		{

@@ -194,3 +194,216 @@ name = "name"
 		assertWantedFilesContents(t, formattedHCL)
 	})
 }
+
+func TestFmtFiles(t *testing.T) {
+	type want struct {
+		layout []string
+		res    RunExpected
+	}
+	type testcase struct {
+		name     string
+		layout   []string
+		files    []string
+		check    bool
+		stdin    string
+		absPaths bool
+		want     want
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:  "non-existent file",
+			files: []string{"non-existent.tm"},
+			want: want{
+				res: RunExpected{
+					StderrRegex: string(fmt.ErrReadFile),
+					Status:      1,
+				},
+			},
+		},
+		{
+			name: "single file",
+			layout: []string{
+				`f:example.tm:terramate {
+					    config{}
+						}`,
+			},
+			files: []string{"example.tm"},
+			want: want{
+				res: RunExpected{
+					Stdout: nljoin("example.tm"),
+				},
+				layout: []string{
+					`f:example.tm:terramate {
+  config {}
+}`,
+				},
+			},
+		},
+		{
+			name: "multiple files",
+			layout: []string{
+				`f:example1.tm:terramate {
+					    config{}
+						}`,
+				`f:example2.tm:terramate {
+							config{}
+							}`,
+			},
+			files: []string{"example1.tm", "example2.tm"},
+			want: want{
+				res: RunExpected{
+					Stdout: nljoin("example1.tm", "example2.tm"),
+				},
+				layout: []string{
+					`f:example1.tm:terramate {
+  config {}
+}`,
+					`f:example2.tm:terramate {
+  config {}
+}`,
+				},
+			},
+		},
+		{
+			name: "multiple files with --check",
+			layout: []string{
+				`f:example1.tm:terramate {
+					    config{}
+						}`,
+				`f:example2.tm:terramate {
+							config{}
+							}`,
+			},
+			files: []string{"example1.tm", "example2.tm"},
+			check: true,
+			want: want{
+				res: RunExpected{
+					Stdout: nljoin("example1.tm", "example2.tm"),
+					Status: 1,
+				},
+			},
+		},
+		{
+			name: "multiple files with absolute path",
+			layout: []string{
+				`f:example1.tm:terramate {
+					    config{}
+						}`,
+				`f:example2.tm:terramate {
+							config{}
+							}`,
+			},
+			absPaths: true,
+			files:    []string{"example1.tm", "example2.tm"},
+			want: want{
+				res: RunExpected{
+					Stdout: nljoin("example1.tm", "example2.tm"),
+				},
+				layout: []string{
+					`f:example1.tm:terramate {
+  config {}
+}`,
+					`f:example2.tm:terramate {
+  config {}
+}`,
+				},
+			},
+		},
+		{
+			name:  "format stdin",
+			files: []string{"-"},
+			stdin: `stack {
+name="name"
+  description = "desc"
+			}`,
+			want: want{
+				res: RunExpected{
+					Stdout: `stack {
+  name        = "name"
+  description = "desc"
+}`,
+				},
+			},
+		},
+		{
+			name:  "format stdin with multiple blocks",
+			files: []string{"-"},
+			stdin: `stack {
+name="name"
+  description = "desc"
+			}
+			
+			
+			
+			generate_file    "a.txt" {
+				content = "a"
+			}
+			
+			
+`,
+			want: want{
+				res: RunExpected{
+					Stdout: `stack {
+  name        = "name"
+  description = "desc"
+}
+
+
+
+generate_file "a.txt" {
+  content = "a"
+}
+
+
+`,
+				},
+			},
+		},
+		{
+			name:  "format stdin without content",
+			files: []string{"-"},
+		},
+		{
+			name:  "format stdin with --check",
+			files: []string{"-"},
+			stdin: `stack {
+name="name"
+  description = "desc"
+			}`,
+			check: true,
+			want: want{
+				res: RunExpected{
+					Status: 1,
+				},
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := sandbox.NoGit(t, true)
+			s.BuildTree(tc.layout)
+			cli := NewCLI(t, s.RootDir())
+			files := tc.files
+			if tc.absPaths {
+				for i, f := range files {
+					files[i] = filepath.Join(s.RootDir(), f)
+				}
+			}
+			args := []string{"fmt"}
+			if tc.check {
+				args = append(args, "--check")
+			}
+			args = append(args, files...)
+			var result RunResult
+			if len(files) == 1 && files[0] == "-" {
+				result = cli.RunWithStdin(tc.stdin, args...)
+			} else {
+				result = cli.Run(args...)
+			}
+			AssertRunResult(t, result, tc.want.res)
+			s.AssertTree(tc.want.layout)
+		})
+	}
+}

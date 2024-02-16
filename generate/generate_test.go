@@ -571,7 +571,7 @@ func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
 
 	s := sandbox.NoGit(t, true)
 	dir := s.RootEntry().CreateDir("dir")
-	file := dir.CreateFile("file.hcl", genhcl.Header)
+	file := dir.CreateFile("file.hcl", genhcl.DefaultHeader())
 	file.Chmod(0)
 	defer file.Chmod(0755)
 

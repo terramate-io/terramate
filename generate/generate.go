@@ -249,7 +249,7 @@ func doStackGeneration(
 		oldFileBody, oldExists := allFiles[filename]
 
 		if !oldExists || oldFileBody != body {
-			err := writeGeneratedCode(path, file)
+			err := writeGeneratedCode(root, path, file)
 			if err != nil {
 				report.err = errors.E(err, "saving file %q", filename)
 				return report
@@ -476,7 +476,7 @@ processSubdirs:
 				return nil, errors.E(err, "checking if file is generated %q", file)
 			}
 
-			if hasGenHCLHeader(string(data)) {
+			if hasGenHCLHeader(genhcl.CommentStyleFromConfig(root.Tree()), string(data)) {
 				genfiles = append(genfiles, filepath.ToSlash(
 					filepath.Join(relSubdir, entry.Name())))
 			}
@@ -666,14 +666,14 @@ func updateOutdatedFiles(
 	return nil
 }
 
-func writeGeneratedCode(target string, genfile GenFile) error {
+func writeGeneratedCode(root *config.Root, target string, genfile GenFile) error {
 	body := genfile.Header() + genfile.Body()
 
 	if genfile.Header() != "" {
 		// WHY: some file generation strategies don't provide
 		// headers, like generate_file, so we can't detect
 		// if we are overwriting a Terramate generated file.
-		if err := checkFileCanBeOverwritten(target); err != nil {
+		if err := checkFileCanBeOverwritten(root, target); err != nil {
 			return err
 		}
 	}
@@ -685,8 +685,8 @@ func writeGeneratedCode(target string, genfile GenFile) error {
 	return os.WriteFile(target, []byte(body), 0666)
 }
 
-func checkFileCanBeOverwritten(path string) error {
-	_, _, err := readGeneratedFile(path)
+func checkFileCanBeOverwritten(root *config.Root, path string) error {
+	_, _, err := readGeneratedFile(root, path)
 	return err
 }
 
@@ -697,7 +697,7 @@ func checkFileCanBeOverwritten(path string) error {
 // The returned boolean indicates if the file exists, so the contents of
 // the file + true is returned if a file is found, but if no file is found
 // it will return an empty string and false indicating that the file doesn't exist.
-func readGeneratedFile(path string) (string, bool, error) {
+func readGeneratedFile(root *config.Root, path string) (string, bool, error) {
 	data, found, err := readFile(path)
 	if err != nil {
 		return "", false, err
@@ -707,7 +707,7 @@ func readGeneratedFile(path string) (string, bool, error) {
 		return "", false, nil
 	}
 
-	if hasGenHCLHeader(data) {
+	if hasGenHCLHeader(genhcl.CommentStyleFromConfig(root.Tree()), data) {
 		return data, true, nil
 	}
 
@@ -911,7 +911,7 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 				Bool("fileChanged", body != diskContent).
 				Msg("writing file")
 
-			err := writeGeneratedCode(abspath, genfile)
+			err := writeGeneratedCode(root, abspath, genfile)
 			if err != nil {
 				dirReport.err = errors.E(err, "saving file %s", label)
 				report.addDirReport(dir, dirReport)
@@ -948,10 +948,10 @@ func genBlockLogger(logger zerolog.Logger, blockname, label, context string) zer
 		Logger()
 }
 
-func hasGenHCLHeader(code string) bool {
+func hasGenHCLHeader(commentStyle genhcl.CommentStyle, code string) bool {
 	// When changing headers we need to support old ones (or break).
 	// For now keeping them here, to avoid breaks.
-	for _, header := range []string{genhcl.Header, genhcl.HeaderV0} {
+	for _, header := range []string{genhcl.Header(commentStyle), genhcl.HeaderV0} {
 		if strings.HasPrefix(code, header) {
 			return true
 		}

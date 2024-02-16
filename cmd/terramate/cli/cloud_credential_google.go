@@ -148,13 +148,13 @@ func startServer(
 		}
 	}()
 
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	var ln net.Listener
 	const maxretry = 5
 	var retry int
 	for retry = 0; retry < maxretry; retry++ {
-		addr := "127.0.0.1:" + strconv.Itoa(minPort+rand.Intn(maxPort-minPort))
+		addr := "127.0.0.1:" + strconv.Itoa(minPort+rng.Intn(maxPort-minPort))
 		s.Addr = addr
 
 		ln, err = net.Listen("tcp", addr)
@@ -405,7 +405,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 func endpointURL(endpoint string, idpKey string) *url.URL {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		fatal(err, "failed to parse endpoint URL for createAuthURI")
+		fatal("failed to parse endpoint URL for createAuthURI", err)
 	}
 
 	q := u.Query()

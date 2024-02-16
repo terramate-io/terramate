@@ -24,6 +24,20 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `terramate.config.generate.hcl_magic_header_comment_style` option for setting the generated comment style.
+- Add support for formatting specific files and stdin (`terramate fmt [file...]` or `terramate fmt -`).
+- Add `--cloud-status=status` flag to both `terramate run` and `terramate script run`.
+
+### Fixed
+
+- Fix language server panic when root directory contain errors.
+- (**BREAKING CHANGE**) Fix the execution order when using `tag:` filter in `after/before` in conjunction with implicit filesystem order. Please check the `terramate list --run-order` after
+upgrading.
+
+## 0.4.5
+
+### Added
+
 - Add support for `stack_filter` in `generate_file` blocks.
 - Promote cloud commands
   - `terramate experimental cloud login` -> `terramate cloud login`
@@ -35,8 +49,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `list --run-order` flag to list stacks in the order they would be executed.
 - Add support for deployment syncing to script commands.
 - Add `disable_safeguards` configuration option and CLI flag.
+- Add `--detailed-exit-code` to fmt command
+- Add `--detailed-exit-code` to generate command
 
-## Fixed
+### Fixed
 
 - Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
 - Stack ordering not respected in the `script run`.

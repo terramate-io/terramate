@@ -56,6 +56,8 @@ type Tree struct {
 	// Parent is the parent node or nil if none.
 	Parent *Tree
 
+	stack *Stack
+
 	dir string
 }
 
@@ -306,6 +308,18 @@ func (tree *Tree) Root() *Root {
 // IsStack tells if the node is a stack.
 func (tree *Tree) IsStack() bool {
 	return tree.Node.Stack != nil
+}
+
+// Stack returns the stack object.
+func (tree *Tree) Stack() (*Stack, error) {
+	if tree.stack == nil {
+		s, err := LoadStack(tree.Root(), tree.Dir())
+		if err != nil {
+			return nil, err
+		}
+		tree.stack = s
+	}
+	return tree.stack, nil
 }
 
 // Stacks returns the stack nodes from the tree.

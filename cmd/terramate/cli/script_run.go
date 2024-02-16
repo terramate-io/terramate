@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -24,11 +23,6 @@ import (
 )
 
 func (c *cli) runScript() {
-	logger := log.With().
-		Str("action", "cli.runScript()").
-		Str("workingDir", c.wd()).
-		Logger()
-
 	c.gitSafeguardDefaultBranchIsReachable()
 	c.checkOutdatedGeneratedCode()
 
@@ -36,19 +30,19 @@ func (c *cli) runScript() {
 	if c.parsedArgs.Script.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			logger.Fatal().Err(err).Msg("failed to load stack in current directory")
+			fatal("failed to load stack in current directory", err)
 		}
 
 		if !found {
-			logger.Fatal().Msg("--no-recursive provided but no stack found in the current directory")
+			fatal("--no-recursive provided but no stack found in the current directory", nil)
 		}
 
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true)
+		stacks, err = c.computeSelectedStacks(true, true, parseStatusFilter(c.parsedArgs.Script.Run.CloudStatus))
 		if err != nil {
-			logger.Fatal().Err(err).Msg("failed to compute selected stacks")
+			fatal("failed to compute selected stacks", err)
 		}
 	}
 
@@ -82,17 +76,17 @@ func (c *cli) runScript() {
 		for _, st := range result.Stacks {
 			ectx, err := scriptEvalContext(c.cfg(), st.Stack)
 			if err != nil {
-				logger.Fatal().Err(err).Msg("failed to get context")
+				fatal("failed to get context", err)
 			}
 
 			evalScript, err := config.EvalScript(ectx, *result.ScriptCfg)
 			if err != nil {
-				logger.Fatal().Err(err).Msg("failed to eval script")
+				fatal("failed to eval script", err)
 			}
 
 			for jobIdx, job := range evalScript.Jobs {
 				for cmdIdx, cmd := range job.Commands() {
-					exc := runContext{
+					run := runContext{
 						Stack:        st.Stack,
 						Cmd:          cmd.Args,
 						ScriptIdx:    scriptIdx,
@@ -101,48 +95,40 @@ func (c *cli) runScript() {
 					}
 
 					if cmd.Options != nil {
-						exc.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
-						exc.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
+						run.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
+						run.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
 					}
 
-					runs = append(runs, exc)
+					runs = append(runs, run)
 				}
 			}
 		}
 	}
 
-	orderedStacks, reason, err := runutil.Sort(c.cfg(), stacks)
+	reason, err := runutil.Sort(c.cfg(), runs,
+		func(run runContext) *config.Stack { return run.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(err, "cycle detected: %s", reason)
+			fatal(sprintf("cycle detected: %s", reason), err)
 		} else {
-			fatal(err, "failed to plan execution")
+			fatal("failed to plan execution", err)
 		}
 	}
 
-	var orderedRuns []runContext
-	for _, st := range orderedStacks {
-		for _, r := range runs {
-			if r.Stack.Dir.String() == st.Dir().String() {
-				orderedRuns = append(orderedRuns, r)
-			}
-		}
-	}
-
-	c.prepareScriptCloudDeploymentSync(orderedRuns)
+	c.prepareScriptCloudDeploymentSync(runs)
 
 	isSuccessExit := func(exitCode int) bool {
 		return exitCode == 0
 	}
 
-	err = c.runAll(orderedRuns, isSuccessExit, runAllOptions{
+	err = c.runAll(runs, isSuccessExit, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
 		ContinueOnError: false,
 	})
 	if err != nil {
-		c.fatal("one or more commands failed", err)
+		fatal("one or more commands failed", err)
 	}
 }
 
@@ -163,7 +149,7 @@ func (c *cli) prepareScriptCloudDeploymentSync(runStacks []runContext) {
 	}
 
 	if !c.prj.isRepo {
-		fatal(errors.E("cloud features require a git repository"))
+		fatal("cloud features require a git repository", nil)
 	}
 
 	err := c.setupCloudConfig()

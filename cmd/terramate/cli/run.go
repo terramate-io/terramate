@@ -17,6 +17,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/previews"
+	cloudstack "github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -48,6 +51,7 @@ type runContext struct {
 
 	CloudSyncDeployment        bool
 	CloudSyncDriftStatus       bool
+	CloudSyncPreview           bool
 	CloudSyncTerraformPlanFile string
 }
 
@@ -59,15 +63,10 @@ type runResult struct {
 }
 
 func (c *cli) runOnStacks() {
-	logger := log.With().
-		Str("action", "cli.runOnStacks()").
-		Str("workingDir", c.wd()).
-		Logger()
-
 	c.gitSafeguardDefaultBranchIsReachable()
 
 	if len(c.parsedArgs.Run.Command) == 0 {
-		logger.Fatal().Msgf("run expects a cmd")
+		fatal("run expects a cmd", nil)
 	}
 
 	c.checkOutdatedGeneratedCode()
@@ -77,51 +76,55 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatal(err, "loading stack in current directory")
+			fatal("loading stack in current directory", err)
 		}
 
 		if !found {
-			logger.Fatal().
-				Msg("--no-recursive provided but no stack found in the current directory")
+			fatal("--no-recursive provided but no stack found in the current directory", nil)
 		}
 
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true)
+		stacks, err = c.computeSelectedStacks(true, true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
 		if err != nil {
-			fatal(err, "computing selected stacks")
+			fatal("computing selected stacks", err)
 		}
 	}
 
-	orderedStacks, reason, err := runutil.Sort(c.cfg(), stacks)
+	reason, err := runutil.Sort(c.cfg(), stacks,
+		func(s *config.SortableStack) *config.Stack { return s.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(err, "cycle detected: %s", reason)
+			fatal(sprintf("cycle detected: %s", reason), err)
 		} else {
-			fatal(err, "failed to plan execution")
+			fatal("failed to plan execution", err)
 		}
 	}
 
 	if c.parsedArgs.Run.Reverse {
-		config.ReverseStacks(orderedStacks)
+		config.ReverseStacks(stacks)
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
-		fatal(errors.E("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"))
+		fatal(sprintf("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"), nil)
 	}
 
-	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus
+	if c.parsedArgs.Run.CloudSyncPreview && (c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus) {
+		fatal("cannot use --cloud-sync-preview with --cloud-sync-deployment or --cloud-sync-drift-status", nil)
+	}
+
+	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview
 
 	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
-		fatal(errors.E("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status"))
+		fatal("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status or --cloud-sync-preview", nil)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus {
+	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview {
 		if !c.prj.isRepo {
-			fatal(errors.E("cloud features requires a git repository"))
+			fatal("cloud features requires a git repository", nil)
 		}
-		c.ensureAllStackHaveIDs(orderedStacks)
+		c.ensureAllStackHaveIDs(stacks)
 		c.detectCloudMetadata()
 	}
 
@@ -130,18 +133,19 @@ func (c *cli) runOnStacks() {
 	}
 
 	var runs []runContext
-	for _, st := range orderedStacks {
+	for _, st := range stacks {
 		run := runContext{
 			Stack:                      st.Stack,
 			Cmd:                        c.parsedArgs.Run.Command,
 			CloudSyncDeployment:        c.parsedArgs.Run.CloudSyncDeployment,
 			CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
+			CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 			CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
 		}
 		if c.parsedArgs.Run.Eval {
 			run.Cmd, err = c.evalRunArgs(run.Stack, run.Cmd)
 			if err != nil {
-				c.fatal("unable to evaluate command", err)
+				fatal("unable to evaluate command", err)
 			}
 		}
 		runs = append(runs, run)
@@ -157,6 +161,10 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
+	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
+		c.cloud.run.stackPreviews = c.createCloudPreview(runs)
+	}
+
 	err = c.runAll(runs, isSuccessExit, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Run.DryRun,
@@ -164,7 +172,7 @@ func (c *cli) runOnStacks() {
 		ContinueOnError: c.parsedArgs.Run.ContinueOnError,
 	})
 	if err != nil {
-		c.fatal("one or more commands failed", err)
+		fatal("one or more commands failed", err)
 	}
 }
 
@@ -259,7 +267,7 @@ func (c *cli) runAll(
 
 		logSyncWait := func() {}
 		if c.cloudEnabled() && run.CloudSyncDeployment {
-			logSyncer := cloud.NewLogSyncer(func(logs cloud.DeploymentLogs) {
+			logSyncer := cloud.NewLogSyncer(func(logs cloud.CommandLogs) {
 				c.syncLogs(&logger, run, logs)
 			})
 			stdout = logSyncer.NewBuffer(cloud.StdoutLogChannel, c.stdout)
@@ -367,13 +375,13 @@ func (c *cli) runAll(
 	return errs.AsError()
 }
 
-func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.DeploymentLogs) {
+func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.CommandLogs) {
 	data, _ := json.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 	stackID := c.cloud.run.meta2id[run.Stack.ID]
-	err := c.cloud.client.SyncDeploymentLogs(
+	err := c.cloud.client.SyncCommandLogs(
 		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs,
 	)
 	if err != nil {
@@ -425,4 +433,65 @@ func (c *cli) loadAllStackEnvs(runs []runContext) (map[prj.Path]runutil.EnvVars,
 		return nil, errs.AsError()
 	}
 	return stackEnvs, nil
+}
+
+func (c *cli) createCloudPreview(runs []runContext) map[string]string {
+	previewRuns := make([]previews.RunContext, len(runs))
+	for i, run := range runs {
+		previewRuns[i] = previews.RunContext{
+			Stack: run.Stack,
+			Cmd:   run.Cmd,
+		}
+	}
+
+	affectedStacks, err := c.computeSelectedStacks(false, true, cloudstack.NoFilter)
+	if err != nil {
+		fatal("computing affected stacks", err)
+	}
+
+	affectedStacksMap := map[string]*config.Stack{}
+	for _, st := range affectedStacks {
+		affectedStacksMap[st.Stack.ID] = st.Stack
+	}
+
+	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
+	if !ok {
+		fatal("env var GITHUB_EVENT_PATH not found, not generating previews", nil)
+	}
+
+	prUpdatedAt := time.Now().UTC().Unix()
+	if eventPRUpdatedAt := github.GetEventPRUpdatedAt(githubEventPath); eventPRUpdatedAt != nil {
+		prUpdatedAt = eventPRUpdatedAt.Unix()
+	}
+
+	technology := "other"
+	technologyLayer := "default"
+	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
+		technology = "terraform"
+		technologyLayer = "default"
+	}
+
+	createdPreview, err := previews.CreatePreview(
+		c.cloud.client,
+		defaultCloudTimeout,
+		previews.CreatePreviewOpts{
+			Runs:            previewRuns,
+			AffectedStacks:  affectedStacksMap,
+			OrgUUID:         c.cloud.run.orgUUID,
+			UpdatedAt:       prUpdatedAt,
+			Technology:      technology,
+			TechnologyLayer: technologyLayer,
+			Repository:      c.prj.prettyRepo(),
+			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
+			ReviewRequest:   c.cloud.run.reviewRequest,
+			Metadata:        c.cloud.run.metadata,
+		},
+	)
+	if err != nil {
+		fatal("unable to create cloud preview", err)
+	}
+
+	printer.Stderr.Success(fmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
+
+	return createdPreview.StackPreviewsByMetaID
 }

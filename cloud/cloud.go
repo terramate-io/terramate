@@ -44,6 +44,8 @@ const (
 	MembershipsPath = "/v1/memberships"
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
+	// PreviewsPath is the previews endpoints base path.
+	PreviewsPath = "/v1/previews"
 	// DriftsPath is the drifts endpoint base path.
 	DriftsPath = "/v1/drifts"
 	// StacksPath is the stacks endpoint base path.
@@ -224,6 +226,22 @@ func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID UUID, deplo
 	return err
 }
 
+// CreatePreview creates a new preview for an organization
+func (c *Client) CreatePreview(
+	ctx context.Context,
+	orgUUID UUID,
+	payload CreatePreviewPayloadRequest,
+) (CreatePreviewResponse, error) {
+	if err := payload.Validate(); err != nil {
+		return CreatePreviewResponse{}, errors.E(err, "invalid payload")
+	}
+
+	return Post[CreatePreviewResponse](
+		ctx, c, payload,
+		c.URL(path.Join(PreviewsPath, string(orgUUID))),
+	)
+}
+
 // CreateStackDrift pushes a new drift status for the given stack.
 func (c *Client) CreateStackDrift(
 	ctx context.Context,
@@ -242,13 +260,13 @@ func (c *Client) CreateStackDrift(
 	)
 }
 
-// SyncDeploymentLogs sends a batch of deployment logs to Terramate Cloud.
-func (c *Client) SyncDeploymentLogs(
+// SyncCommandLogs sends a batch of command logs to Terramate Cloud.
+func (c *Client) SyncCommandLogs(
 	ctx context.Context,
 	orgUUID UUID,
 	stackID int64,
 	deploymentUUID UUID,
-	logs DeploymentLogs,
+	logs CommandLogs,
 ) error {
 	err := logs.Validate()
 	if err != nil {
@@ -354,11 +372,11 @@ func Request[T Resource](ctx context.Context, c *Client, method string, url url.
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return entity, errors.E(ErrNotFound, "%s %s", method, url)
+		return entity, errors.E(ErrNotFound, "%s %s", method, url.String())
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", url, resp.Status, data)
+		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", url.String(), resp.Status, data)
 	}
 
 	if resp.StatusCode == http.StatusNoContent {
@@ -430,6 +448,14 @@ func (c *Client) URL(path string, queries ...url.Values) url.URL {
 // Authorization header redacted.
 func dumpRequest(req *http.Request) ([]byte, error) {
 	reqCopy := req.Clone(req.Context())
+
+	var err error
+	if req.GetBody != nil {
+		reqCopy.Body, err = req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	reqCopy.Header.Set("Authorization", "REDACTED")
 
