@@ -74,7 +74,7 @@ type (
 		MetaTags        []string `json:"meta_tags,omitempty"`
 	}
 
-	// ChangesetDetails represents the details of a drift.
+	// ChangesetDetails represents the details of a changeset (e.g. the terraform plan).
 	ChangesetDetails struct {
 		Provisioner    string `json:"provisioner"`
 		ChangesetASCII string `json:"changeset_ascii,omitempty"`
@@ -113,10 +113,10 @@ type (
 
 	// DeploymentStacksPayloadRequest is the request payload for the creation of stack deployments.
 	DeploymentStacksPayloadRequest struct {
-		ReviewRequest *DeploymentReviewRequest `json:"review_request,omitempty"`
-		Stacks        DeploymentStackRequests  `json:"stacks"`
-		Workdir       project.Path             `json:"workdir"`
-		Metadata      *DeploymentMetadata      `json:"metadata,omitempty"`
+		ReviewRequest *ReviewRequest          `json:"review_request,omitempty"`
+		Stacks        DeploymentStackRequests `json:"stacks"`
+		Workdir       project.Path            `json:"workdir"`
+		Metadata      *DeploymentMetadata     `json:"metadata,omitempty"`
 	}
 
 	// Drift represents the drift information for a given stack.
@@ -218,8 +218,8 @@ type (
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
 	}
 
-	// DeploymentReviewRequest is the review_request object.
-	DeploymentReviewRequest struct {
+	// ReviewRequest is the review_request object.
+	ReviewRequest struct {
 		Platform              string     `json:"platform"`
 		Repository            string     `json:"repository"`
 		CommitSHA             string     `json:"commit_sha"`
@@ -314,7 +314,7 @@ var (
 	_ = Resource(DeploymentStacksResponse{})
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
-	_ = Resource(DeploymentReviewRequest{})
+	_ = Resource(ReviewRequest{})
 	_ = Resource(Reviewer{})
 	_ = Resource(Reviewers{})
 	_ = Resource(Label{})
@@ -531,7 +531,7 @@ func (d DeploymentStackResponse) Validate() error {
 }
 
 // Validate the DeploymentReviewRequest object.
-func (rr DeploymentReviewRequest) Validate() error {
+func (rr ReviewRequest) Validate() error {
 	if rr.Repository == "" {
 		return errors.E(`missing "repository" field`)
 	}

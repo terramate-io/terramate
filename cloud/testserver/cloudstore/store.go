@@ -65,15 +65,15 @@ type (
 	}
 	// Deployment model.
 	Deployment struct {
-		UUID          cloud.UUID                     `json:"uuid"`
-		Stacks        []int64                        `json:"stacks"`
-		Workdir       string                         `json:"workdir"`
-		StackCommands map[string]string              `json:"stack_commands"`
-		DeploymentURL string                         `json:"deployment_url,omitempty"`
-		Status        deployment.Status              `json:"status"`
-		Metadata      *cloud.DeploymentMetadata      `json:"metadata"`
-		ReviewRequest *cloud.DeploymentReviewRequest `json:"review_request"`
-		State         DeploymentState                `json:"state"`
+		UUID          cloud.UUID                `json:"uuid"`
+		Stacks        []int64                   `json:"stacks"`
+		Workdir       string                    `json:"workdir"`
+		StackCommands map[string]string         `json:"stack_commands"`
+		DeploymentURL string                    `json:"deployment_url,omitempty"`
+		Status        deployment.Status         `json:"status"`
+		Metadata      *cloud.DeploymentMetadata `json:"metadata"`
+		ReviewRequest *cloud.ReviewRequest      `json:"review_request"`
+		State         DeploymentState           `json:"state"`
 	}
 	// DeploymentState is the state of a deployment.
 	DeploymentState struct {

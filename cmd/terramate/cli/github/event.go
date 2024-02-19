@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+
+	"github.com/terramate-io/terramate/printer"
 )
 
 // GetEventPRUpdatedAt returns the updated_at field from the file at `eventPath`.
@@ -15,6 +17,7 @@ import (
 func GetEventPRUpdatedAt(eventPath string) *time.Time {
 	event, err := getEventFromPath(eventPath)
 	if err != nil {
+		printer.Stderr.WarnWithDetails("unable to read github event", err)
 		return nil
 	}
 

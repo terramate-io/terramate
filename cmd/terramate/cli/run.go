@@ -17,7 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/previews"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/config"
@@ -436,9 +435,9 @@ func (c *cli) loadAllStackEnvs(runs []runContext) (map[prj.Path]runutil.EnvVars,
 }
 
 func (c *cli) createCloudPreview(runs []runContext) map[string]string {
-	previewRuns := make([]previews.RunContext, len(runs))
+	previewRuns := make([]cloud.RunContext, len(runs))
 	for i, run := range runs {
-		previewRuns[i] = previews.RunContext{
+		previewRuns[i] = cloud.RunContext{
 			Stack: run.Stack,
 			Cmd:   run.Cmd,
 		}
@@ -454,14 +453,16 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
-	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
-	if !ok {
-		fatal("env var GITHUB_EVENT_PATH not found, not generating previews", nil)
-	}
-
 	prUpdatedAt := time.Now().UTC().Unix()
-	if eventPRUpdatedAt := github.GetEventPRUpdatedAt(githubEventPath); eventPRUpdatedAt != nil {
-		prUpdatedAt = eventPRUpdatedAt.Unix()
+	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
+	if ok {
+		eventPRUpdatedAt := github.GetEventPRUpdatedAt(githubEventPath)
+		if eventPRUpdatedAt != nil {
+			prUpdatedAt = eventPRUpdatedAt.Unix()
+		}
+	} else {
+		printer.Stderr.Warn(
+			sprintf("env var GITHUB_EVENT_PATH not found, using %d as updated_at", prUpdatedAt))
 	}
 
 	technology := "other"
@@ -471,10 +472,9 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		technologyLayer = "default"
 	}
 
-	createdPreview, err := previews.CreatePreview(
-		c.cloud.client,
+	createdPreview, err := c.cloud.client.CreatePreview(
 		defaultCloudTimeout,
-		previews.CreatePreviewOpts{
+		cloud.CreatePreviewOpts{
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
@@ -488,7 +488,9 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		},
 	)
 	if err != nil {
-		fatal("unable to create cloud preview", err)
+		printer.Stderr.WarnWithDetails("unable to create preview", err)
+		c.disableCloudFeatures(cloudError())
+		return map[string]string{}
 	}
 
 	printer.Stderr.Success(fmt.Sprintf("Preview created (id: %s)", createdPreview.ID))

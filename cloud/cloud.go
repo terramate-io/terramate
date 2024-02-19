@@ -226,8 +226,8 @@ func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID UUID, deplo
 	return err
 }
 
-// CreatePreview creates a new preview for an organization
-func (c *Client) CreatePreview(
+// createPreview creates a new preview for an organization
+func (c *Client) createPreview(
 	ctx context.Context,
 	orgUUID UUID,
 	payload CreatePreviewPayloadRequest,
