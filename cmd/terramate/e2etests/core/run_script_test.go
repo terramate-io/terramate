@@ -244,6 +244,49 @@ func TestRunScript(t *testing.T) {
 					"/stack-a (script:0 job:0.0)> echo some message\n",
 			},
 		},
+		{
+			name: "complex before/after keeps script commands in order",
+			layout: []string{
+				terramateConfig,
+				`s:stacks/management/stack-a:after=["../stack-b"]`,
+				`s:stacks/management/stack-b`,
+				`s:stacks/management/stack-c:after=["../stack-a"]`,
+				`s:stacks/network/stack-a:after=["../../operations/stack-a"]`,
+				`s:stacks/network/stack-b`,
+				`s:stacks/operations/stack-a:after=["../../management/stack-c"]`,
+				`s:stacks/operations/stack-b`,
+				`f:script.tm:
+				script "drift" {
+					description = "some description"
+					job {
+					  commands = [
+						  ["echo", "cmd-1"],
+						  ["echo", "cmd-2"],
+					  ]
+					}
+				}`,
+			},
+			runScript: []string{"drift"},
+			want: RunExpected{
+				Stdout: `cmd-1cmd-2cmd-1cmd-2cmd-1cmd-2cmd-1cmd-2cmd-1cmd-2cmd-1cmd-2cmd-1cmd-2`,
+				Stderr: "Script 0 at /script.tm:2,5-10,6 having 1 job(s)\n" +
+					"/stacks/management/stack-b (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/management/stack-b (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/management/stack-a (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/management/stack-a (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/management/stack-c (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/management/stack-c (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/operations/stack-a (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/operations/stack-a (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/network/stack-a (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/network/stack-a (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/network/stack-b (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/network/stack-b (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/operations/stack-b (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/operations/stack-b (script:0 job:0.1)> echo cmd-2\n",
+				FlattenStdout: true,
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
