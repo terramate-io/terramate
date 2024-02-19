@@ -9,7 +9,7 @@ require (
 	github.com/cli/safeexec v1.0.0
 	github.com/emicklei/dot v0.16.0
 	github.com/fatih/color v1.16.0
-	github.com/go-git/go-git/v5 v5.9.0
+	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-test/deep v1.1.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -37,7 +37,6 @@ require (
 
 require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
-	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
@@ -73,8 +72,8 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/rs/zerolog v1.28.0
 	github.com/zclconf/go-cty-yaml v1.0.2 // indirect
-	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/net v0.15.0 // indirect
-	golang.org/x/sys v0.14.0
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/sys v0.15.0
+	golang.org/x/text v0.14.0 // indirect
 )
