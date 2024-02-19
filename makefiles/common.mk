@@ -19,6 +19,11 @@ build/terramate:
 build/terramate-ls:
 	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/terramate-ls$(EXEC_SUFFIX) ./cmd/terramate-ls
 
+## Build tgdeps
+.PHONY: build/tgdeps
+build/tgdeps:
+	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/tgdeps$(EXEC_SUFFIX) ./cmd/tgdeps
+
 ## Install terramate tools on the host
 .PHONY: install
 install: install/terramate install/terramate-ls
@@ -33,6 +38,11 @@ install/terramate:
 .PHONY: install/terramate-ls
 install/terramate-ls:
 	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate-ls
+
+## Install tgdeps
+.PHONY: install/tgdeps
+install/tgdeps:
+	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/tgdeps
 
 .PHONY: generate
 generate:
