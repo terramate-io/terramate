@@ -28,12 +28,13 @@ func TestGetEventFromPath(t *testing.T) {
 }
 
 func TestGetEventPRUpdatedAt(t *testing.T) {
-	if updatedAt := GetEventPRUpdatedAt(validGithubEventPath); updatedAt == nil {
-		t.Fatal("updatedAt is nil, expected not nil")
+	updatedAt, err := GetEventPRUpdatedAt(validGithubEventPath)
+	if err != nil {
+		t.Fatalf("error is not nil, expected nil")
 	}
 
 	const wantUpdatedAt = "2024-02-09 12:38:32 +0000 UTC"
-	if updatedAt := GetEventPRUpdatedAt(validGithubEventPath); updatedAt.String() != wantUpdatedAt {
+	if updatedAt.String() != wantUpdatedAt {
 		t.Errorf("updatedAt is not equal to wantUpdatedAt, got: %s", updatedAt.String())
 	}
 }

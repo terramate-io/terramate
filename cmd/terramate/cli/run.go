@@ -459,16 +459,18 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
-	prUpdatedAt := time.Now().UTC().Unix()
 	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
-	if ok {
-		eventPRUpdatedAt := github.GetEventPRUpdatedAt(githubEventPath)
-		if eventPRUpdatedAt != nil {
-			prUpdatedAt = eventPRUpdatedAt.Unix()
-		}
-	} else {
-		printer.Stderr.Warn(
-			sprintf("env var GITHUB_EVENT_PATH not found, using %d as updated_at", prUpdatedAt))
+	if !ok {
+		printer.Stderr.Warn("missing env var GITHUB_EVENT_PATH")
+		c.disableCloudFeatures(cloudError())
+		return map[string]string{}
+	}
+
+	eventPRUpdatedAt, err := github.GetEventPRUpdatedAt(githubEventPath)
+	if err != nil {
+		printer.Stderr.Warn("unable to parse PR updated_at from GITHUB_EVENT_PATH")
+		c.disableCloudFeatures(cloudError())
+		return map[string]string{}
 	}
 
 	technology := "other"
@@ -484,7 +486,7 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
-			UpdatedAt:       prUpdatedAt,
+			UpdatedAt:       eventPRUpdatedAt.Unix(),
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),
