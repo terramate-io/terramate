@@ -286,7 +286,6 @@ func (c *cli) doPreviewBefore(run runContext) {
 			preview.StackStatusRunning,
 		))
 	}
-
 }
 
 func (c *cli) doPreviewAfter(run runContext, res runResult) {

@@ -311,19 +311,20 @@ func Exec(
 }
 
 type cli struct {
-	version    string
-	ctx        *kong.Context
-	parsedArgs *cliSpec
-	clicfg     cliconfig.Config
-	stdin      io.Reader
-	stdout     io.Writer
-	stderr     io.Writer
-	output     out.O // Deprecated: use printer.Stdout/Stderr
-	exit       bool
-	prj        project
-	httpClient http.Client
-	cloud      cloudConfig
-	uimode     UIMode
+	version        string
+	ctx            *kong.Context
+	parsedArgs     *cliSpec
+	clicfg         cliconfig.Config
+	stdin          io.Reader
+	stdout         io.Writer
+	stderr         io.Writer
+	output         out.O // Deprecated: use printer.Stdout/Stderr
+	exit           bool
+	prj            project
+	httpClient     http.Client
+	cloud          cloudConfig
+	uimode         UIMode
+	affectedStacks []stack.Entry
 
 	safeguards safeguards
 
@@ -1103,6 +1104,12 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 		report, err = mgr.List()
 	}
 
+	if report != nil {
+		// memoize the list of affected stacks so they can be retrieved later
+		// without computing the list again
+		c.affectedStacks = report.Stacks
+	}
+
 	if status != cloudstack.NoFilter {
 		err := c.setupCloudConfig()
 		if err != nil {
@@ -1701,7 +1708,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(true, false, cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("computing selected stacks", err)
 	}
@@ -1738,7 +1745,7 @@ func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(true, false, cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
 	if err != nil {
 		fatal("generate debug: selecting stacks", err)
 	}
@@ -2115,7 +2122,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(filterStacks bool, ensureCleanRepo bool, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
 	report, err := c.listStacks(c.parsedArgs.Changed, cloudStatus)
 	if err != nil {
 		return nil, err
@@ -2123,10 +2130,7 @@ func (c *cli) computeSelectedStacks(filterStacks bool, ensureCleanRepo bool, clo
 
 	c.gitFileSafeguards(ensureCleanRepo)
 
-	entries := report.Stacks
-	if filterStacks {
-		entries = c.filterStacks(report.Stacks)
-	}
+	entries := c.filterStacks(report.Stacks)
 	stacks := make(config.List[*config.SortableStack], len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack.Sortable()
