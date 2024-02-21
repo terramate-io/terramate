@@ -468,7 +468,7 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 
 	eventPRUpdatedAt, err := github.GetEventPRUpdatedAt(githubEventPath)
 	if err != nil {
-		printer.Stderr.Warn("unable to parse PR updated_at from GITHUB_EVENT_PATH")
+		printer.Stderr.WarnWithDetails("unable to parse PR updated_at from GITHUB_EVENT_PATH", err)
 		c.disableCloudFeatures(cloudError())
 		return map[string]string{}
 	}
