@@ -25,8 +25,8 @@ the configuration:
 locals {
   raw_value = yamldecode(file("${path.module}/example.yaml"))
   normalized_value = {
-    name   = tostring(try(local.raw_value.name, null))
-    groups = try(local.raw_value.groups, [])
+    name   = tostring(tm_try(local.raw_value.name, null))
+    groups = tm_try(local.raw_value.groups, [])
   }
 }
 ```
@@ -44,7 +44,7 @@ variable "example" {
 }
 
 locals {
-  example = try(
+  example = tm_try(
     [tostring(var.example)],
     tolist(var.example),
   )
@@ -58,11 +58,11 @@ assume that `local.example` is always a list.
 
 This second example contains two expressions that can both potentially fail.
 For example, if `var.example` were set to `{}` then it could be converted to
-neither a string nor a list. If `try` exhausts all of the given expressions
+neither a string nor a list. If `tm_try` exhausts all of the given expressions
 without any succeeding, it will return an error describing all of the problems
 it encountered.
 
-We strongly suggest using `try` only in special local values whose expressions
+We strongly suggest using `tm_try` only in special local values whose expressions
 perform normalization, so that the error handling is confined to a single
 location in the module and the rest of the module can just use straightforward
 references to the normalized structure and thus be more readable for future

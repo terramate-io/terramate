@@ -25,7 +25,7 @@ tm_coalescelist([], ["c", "d"])
 ]
 ```
 
-To perform the `coalescelist` operation with a list of lists, use the `...`
+To perform the `tm_coalescelist` operation with a list of lists, use the `...`
 symbol to expand the outer list as arguments:
 
 ```sh

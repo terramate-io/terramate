@@ -20,7 +20,7 @@ This function is useful for inserting a multi-line string into an
 already-indented context in another string:
 
 ```sh
-tm_"  items: ${indent(2, "[\n  foo,\n  bar,\n]\n")}"
+tm_indent(2, "  items: ${"[\n  foo,\n  bar,\n]\n"}")
   items: [
     foo,
     bar,

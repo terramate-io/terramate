@@ -26,7 +26,7 @@ toset([
 ### Set Difference (Symmetric Difference)
 
 ```sh
-tm_setunion(setsubtract(["a", "b", "c"], ["a", "c", "d"]), setsubtract(["a", "c", "d"], ["a", "b", "c"]))
+tm_setunion(tm_setsubtract(["a", "b", "c"], ["a", "c", "d"]), tm_setsubtract(["a", "c", "d"], ["a", "b", "c"]))
 toset([
   "b",
   "d",
