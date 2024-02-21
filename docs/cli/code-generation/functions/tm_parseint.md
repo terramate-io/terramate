@@ -17,7 +17,7 @@ Bases 37 and higher use lowercase latin letters and then uppercase latin
 letters.
 
 If the given string contains any non-digit characters or digit characters that
-are too large for the given base then `parseint` will produce an error.
+are too large for the given base then `tm_parseint` will produce an error.
 
 ## Examples
 

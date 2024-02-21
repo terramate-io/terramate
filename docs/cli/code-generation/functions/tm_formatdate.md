@@ -5,7 +5,7 @@ description: The tm_formatdate function converts a timestamp into a different ti
 
 # `tm_formatdate` Function
 
-`formatdate` converts a timestamp into a different time format.
+`tm_formatdate` converts a timestamp into a different time format.
 
 ```hcl
 tm_formatdate(spec, timestamp)
@@ -13,7 +13,7 @@ tm_formatdate(spec, timestamp)
 
 In the Terraform language, timestamps are conventionally represented as
 strings using [RFC 3339](https://tools.ietf.org/html/rfc3339)
-"Date and Time format" syntax. `formatdate` requires the `timestamp` argument
+"Date and Time format" syntax. `tm_formatdate` requires the `timestamp` argument
 to be a string conforming to this syntax.
 
 ## Examples

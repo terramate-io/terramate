@@ -17,7 +17,7 @@ tm_regexall(pattern, string)
 
 `tm_regexall` is a variant of [`tm_regex`](./tm_regex.md) and uses the same pattern
 syntax. For any given input to `tm_regex`, `tm_regexall` returns a list of whatever
-type `regex` would've returned, with one element per match. That is:
+type `tm_regex` would've returned, with one element per match. That is:
 
 - If the pattern has no capture groups at all, the result is a list of
   strings.

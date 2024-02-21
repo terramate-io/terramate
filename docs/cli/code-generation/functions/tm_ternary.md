@@ -9,7 +9,7 @@ description: |
 
 This function is a replacement for HCL ternary operator `a ? b : c`. It circumvent
 some limitations, like both expressions of the ternary producing values of the
-same type. The `tm_tm_ternary` function is not even limited to returning actual
+same type. The `tm_ternary` function is not even limited to returning actual
 values, it can also return expressions. Only the first boolean parameter must
 be fully evaluated. If it is true, the first expression is returned, if it is
 false the second expression is returned.

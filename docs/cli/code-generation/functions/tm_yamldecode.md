@@ -34,7 +34,7 @@ usually need to worry about exactly what type is produced for a given value,
 and can just use the result in an intuitive way.
 
 Note though that the mapping above is ambiguous -- several different source
-types map to the same target type -- and so round-tripping through `yamldecode`
+types map to the same target type -- and so round-tripping through `tm_yamldecode`
 and then `yamlencode` cannot produce an identical result.
 
 YAML is a complex language and it supports a number of possibilities that the
@@ -43,7 +43,7 @@ supports only a subset of YAML 1.2, with restrictions including the following:
 
 - Although aliases to earlier anchors are supported, cyclic data structures
   (where a reference to a collection appears inside that collection) are not.
-  If `yamldecode` detects such a structure then it will return an error.
+  If `tm_yamldecode` detects such a structure then it will return an error.
 
 - Only the type tags shown in the above table (or equivalent alternative
   representations of those same tags) are supported. Any other tags will
