@@ -17,7 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -25,6 +24,7 @@ import (
 	prj "github.com/terramate-io/terramate/project"
 	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
+	"github.com/terramate-io/terramate/stack"
 )
 
 const (
@@ -85,7 +85,7 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true, true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
+		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
 		if err != nil {
 			fatal("computing selected stacks", err)
 		}
@@ -449,13 +449,8 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 		}
 	}
 
-	affectedStacks, err := c.computeSelectedStacks(false, true, cloudstack.NoFilter)
-	if err != nil {
-		fatal("computing affected stacks", err)
-	}
-
 	affectedStacksMap := map[string]*config.Stack{}
-	for _, st := range affectedStacks {
+	for _, st := range c.getAffectedStacks() {
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
@@ -506,4 +501,33 @@ func (c *cli) createCloudPreview(runs []runContext) map[string]string {
 	printer.Stderr.Success(fmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
 
 	return createdPreview.StackPreviewsByMetaID
+}
+
+// getAffectedStacks returns the list of stacks affected by the current command.
+// c.affectedStacks is expected to be already set, if not it will be computed
+// and cached.
+func (c *cli) getAffectedStacks() []stack.Entry {
+	if c.affectedStacks != nil {
+		return c.affectedStacks
+	}
+
+	mgr := c.stackManager()
+
+	var report *stack.Report
+	var err error
+	if c.parsedArgs.Changed {
+		report, err = mgr.ListChanged(c.baseRef())
+		if err != nil {
+			fatal("listing changed stacks", err)
+		}
+
+	} else {
+		report, err = mgr.List()
+		if err != nil {
+			fatal("listing stacks", err)
+		}
+	}
+
+	c.affectedStacks = report.Stacks
+	return c.affectedStacks
 }
