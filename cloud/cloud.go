@@ -249,18 +249,23 @@ func (c *Client) SyncCommandLogs(
 	stackID int64,
 	deploymentUUID UUID,
 	logs CommandLogs,
+	stackPreviewID string,
 ) error {
 	err := logs.Validate()
 	if err != nil {
 		return errors.E(err, "failed to prepare the request")
 	}
-	// Endpoint:/v1/stacks/{org_uuid}/{stack_id}/deployments/{deployment_uuid}/logs
-	_, err = Post[EmptyResponse](
-		ctx, c, logs,
-		c.URL(path.Join(
-			StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", string(deploymentUUID), "logs",
-		)),
-	)
+
+	url := c.URL(path.Join(
+		StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", string(deploymentUUID), "logs",
+	))
+
+	// if the command logs are for a stack preview, use the stack preview url.
+	if stackPreviewID != "" {
+		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), stackPreviewID, "logs"))
+	}
+
+	_, err = Post[EmptyResponse](ctx, c, logs, url)
 	return err
 }
 
