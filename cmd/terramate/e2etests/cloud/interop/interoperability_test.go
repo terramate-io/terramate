@@ -16,14 +16,39 @@ import (
 )
 
 func TestInteropCloudSyncPreview(t *testing.T) {
-	tmcli := NewInteropCLI(t, datapath(t, "testdata/interop-stacks/empty"))
+	if _, set := os.LookupEnv("CI"); !set {
+		t.Skip("This test is only meant to be run in CI, skipping")
+	}
+
+	tmcli := NewInteropCLI(t, datapath(t, "testdata/interop-stacks/basic-terraform"))
 	AssertRunResult(t,
-		tmcli.Run("run", "--quiet", "--cloud-sync-preview", "--", HelperPath, "true"),
+		tmcli.Run("run", "--quiet",
+			"--",
+			TerraformTestPath,
+			"init",
+		),
+		RunExpected{
+			Status:       0,
+			IgnoreStdout: true,
+			IgnoreStderr: true,
+		},
+	)
+	AssertRunResult(t,
+		tmcli.Run("run", "--quiet",
+			"--cloud-sync-preview",
+			"--cloud-sync-terraform-plan-file=out.plan",
+			"--",
+			TerraformTestPath,
+			"plan",
+			"-out=out.plan",
+			"--detailed-exitcode",
+		),
 		RunExpected{
 			Status: 0,
 			StderrRegexes: []string{
 				"Preview created",
 			},
+			IgnoreStdout: true,
 		},
 	)
 }

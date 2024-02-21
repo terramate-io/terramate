@@ -5,12 +5,19 @@ package cloud
 
 import (
 	"context"
+	"path"
 	"strings"
-	"time"
 
 	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+)
+
+const (
+	// PreviewsPath is the previews endpoints base path.
+	PreviewsPath = "/v1/previews"
+	// StackPreviewsPath is the stack previews endpoint base path.
+	StackPreviewsPath = "/v1/stack_previews"
 )
 
 // RunContext is the context for a run
@@ -33,21 +40,41 @@ type CreatePreviewOpts struct {
 	Metadata        *DeploymentMetadata
 }
 
-// CreatedPreview is the result of the CreatePreview function
+// CreatedPreview is the result of CreatePreview
 type CreatedPreview struct {
 	ID                    string
 	StackPreviewsByMetaID map[string]string
 }
 
-// CreateStackPreviewOpts is the options for the CreateStackPreview function
-type CreateStackPreviewOpts struct {
+// UpdateStackPreviewOpts is the options for UpdateStackPreview
+type UpdateStackPreviewOpts struct {
 	OrgUUID          UUID
 	StackPreviewID   string
+	Status           preview.StackStatus
 	ChangesetDetails *ChangesetDetails
 }
 
+// UpdateStackPreview updates a stack preview in the cloud.
+func (c *Client) UpdateStackPreview(ctx context.Context, opts UpdateStackPreviewOpts) error {
+	if err := opts.validate(); err != nil {
+		return err
+	}
+	payload := UpdateStackPreviewPayloadRequest{
+		Status: opts.Status.String(),
+	}
+	if opts.ChangesetDetails != nil {
+		payload.ChangesetDetails = &ChangesetDetails{
+			Provisioner:    opts.ChangesetDetails.Provisioner,
+			ChangesetASCII: opts.ChangesetDetails.ChangesetASCII,
+			ChangesetJSON:  opts.ChangesetDetails.ChangesetJSON,
+		}
+	}
+
+	return c.updateStackPreview(ctx, opts.OrgUUID, opts.StackPreviewID, payload)
+}
+
 // CreatePreview creates a new preview in the cloud
-func (c *Client) CreatePreview(timeout time.Duration, opts CreatePreviewOpts) (*CreatedPreview, error) {
+func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*CreatedPreview, error) {
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
@@ -70,7 +97,7 @@ func (c *Client) CreatePreview(timeout time.Duration, opts CreatePreviewOpts) (*
 	// previewStacksMap, use the preview status and cmd from there
 	for _, affectedStack := range opts.AffectedStacks {
 		stack := PreviewStack{
-			PreviewStatus: preview.StatusAffected,
+			PreviewStatus: preview.StackStatusAffected,
 			Cmd:           []string{},
 			Stack: Stack{
 				Repository:      opts.Repository,
@@ -84,14 +111,11 @@ func (c *Client) CreatePreview(timeout time.Duration, opts CreatePreviewOpts) (*
 		}
 
 		if previewStack, found := previewStacksMap[affectedStack.ID]; found {
-			stack.PreviewStatus = preview.StatusPending
+			stack.PreviewStatus = preview.StackStatusPending
 			stack.Cmd = previewStack.Cmd
 		}
 		payload.Stacks = append(payload.Stacks, stack)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 
 	res, err := c.createPreview(ctx, opts.OrgUUID, payload)
 	if err != nil {
@@ -119,15 +143,69 @@ func (c *Client) CreatePreview(timeout time.Duration, opts CreatePreviewOpts) (*
 	}, nil
 }
 
+// createPreview creates a new preview for an organization
+func (c *Client) createPreview(
+	ctx context.Context,
+	orgUUID UUID,
+	payload CreatePreviewPayloadRequest,
+) (CreatePreviewResponse, error) {
+	if err := payload.Validate(); err != nil {
+		return CreatePreviewResponse{}, errors.E(err, "invalid payload")
+	}
+
+	return Post[CreatePreviewResponse](
+		ctx, c, payload,
+		c.URL(path.Join(PreviewsPath, string(orgUUID))),
+	)
+}
+
+// updateStackPreview updates a stack preview for an organization
+func (c *Client) updateStackPreview(
+	ctx context.Context,
+	orgUUID UUID,
+	stackPreviewID string,
+	payload UpdateStackPreviewPayloadRequest,
+) error {
+	if err := payload.Validate(); err != nil {
+		return errors.E(err, "invalid payload")
+	}
+
+	// Endpoint: /v1/stack_previews/{org_uuid}/{stack_preview_id}
+	_, err := Patch[EmptyResponse](
+		ctx, c, payload,
+		c.URL(path.Join(StackPreviewsPath, string(orgUUID), stackPreviewID)),
+	)
+	return err
+}
+
 func (o CreatePreviewOpts) validate() error {
 	errs := errors.L()
 
-	if len(o.AffectedStacks) == 0 || len(o.Runs) == 0 {
-		errs.Append(errors.E("no affected stacks or runs provided"))
+	if string(o.OrgUUID) == "" {
+		errs.Append(errors.E("org uuid is empty"))
+	}
+
+	return errs.AsError()
+}
+
+func (o UpdateStackPreviewOpts) validate() error {
+	errs := errors.L()
+	if o.StackPreviewID == "" {
+		errs.Append(errors.E("stack preview id is empty"))
 	}
 
 	if string(o.OrgUUID) == "" {
 		errs.Append(errors.E("org uuid is empty"))
+	}
+
+	if err := o.Status.Validate(); err != nil {
+		errs.Append(err)
+	}
+
+	if o.ChangesetDetails != nil {
+		if err := o.ChangesetDetails.Validate(); err != nil {
+			errs.Append(err)
+		}
 	}
 
 	return errs.AsError()

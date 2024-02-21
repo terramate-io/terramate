@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 
@@ -240,6 +241,10 @@ func (c *cli) cloudSyncBefore(run runContext) {
 	if run.CloudSyncDeployment {
 		c.doCloudSyncDeployment(run, deployment.Running)
 	}
+
+	if run.CloudSyncPreview {
+		c.doPreviewBefore(run)
+	}
 }
 
 func (c *cli) cloudSyncAfter(run runContext, res runResult, err error) {
@@ -253,6 +258,80 @@ func (c *cli) cloudSyncAfter(run runContext, res runResult, err error) {
 
 	if run.CloudSyncDriftStatus {
 		c.cloudSyncDriftStatus(run, res, err)
+	}
+
+	if run.CloudSyncPreview {
+		c.doPreviewAfter(run, res)
+	}
+}
+
+func (c *cli) doPreviewBefore(run runContext) {
+	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	if err := c.cloud.client.UpdateStackPreview(ctx,
+		cloud.UpdateStackPreviewOpts{
+			OrgUUID:          c.cloud.run.orgUUID,
+			StackPreviewID:   stackPreviewID,
+			Status:           preview.StackStatusRunning,
+			ChangesetDetails: nil,
+		}); err != nil {
+		printer.Stderr.ErrorWithDetails("failed to update stack preview", err)
+		return
+	}
+	if !c.parsedArgs.Quiet {
+		printer.Stderr.Println(sprintf("terramate: stack:'%s' preview_status:%s",
+			run.Stack.Name,
+			preview.StackStatusRunning,
+		))
+	}
+
+}
+
+func (c *cli) doPreviewAfter(run runContext, res runResult) {
+	planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile
+
+	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
+	var previewChangeset *cloud.ChangesetDetails
+	if planfile != "" {
+		changeset, err := c.getTerraformChangeset(run, planfile)
+		if err != nil || changeset == nil {
+			printer.Stderr.WarnWithDetails(
+				sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()),
+				err)
+		}
+		if changeset != nil {
+			previewChangeset = &cloud.ChangesetDetails{
+				Provisioner:    changeset.Provisioner,
+				ChangesetASCII: changeset.ChangesetASCII,
+				ChangesetJSON:  changeset.ChangesetJSON,
+			}
+		}
+	}
+
+	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	if err := c.cloud.client.UpdateStackPreview(ctx,
+		cloud.UpdateStackPreviewOpts{
+			OrgUUID:          c.cloud.run.orgUUID,
+			StackPreviewID:   stackPreviewID,
+			Status:           previewStatus,
+			ChangesetDetails: previewChangeset,
+		}); err != nil {
+		printer.Stderr.ErrorWithDetails("failed to create stack preview", err)
+		return
+	}
+
+	if !c.parsedArgs.Quiet {
+		msg := sprintf("terramate: stack:'%s' preview_status:%s",
+			run.Stack.Dir.String(),
+			previewStatus.String(),
+		)
+		if previewChangeset != nil {
+			msg = sprintf("%s (with changeset)", msg)
+		}
+		printer.Stderr.Println(msg)
 	}
 }
 
