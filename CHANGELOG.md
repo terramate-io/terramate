@@ -22,83 +22,125 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### BREAKING CHANGES
+
+> [!IMPORTANT]
+> When using nested stacks and tags in `before` and `after` the order of execution was wrong.
+> This is now fixed but but can lead to a change in the order of execution in some rare cases.
+> Please check the `terramate list --run-order` after upgrading to ensure you run stacks in the correct order.
+
 ### Added
 
-- Add `terramate.config.generate.hcl_magic_header_comment_style` option for setting the generated comment style.
-- Add support for formatting specific files and stdin (`terramate fmt [file...]` or `terramate fmt -`).
-- Add `--cloud-status=status` flag to both `terramate run` and `terramate script run`.
-- Add `--cloud-sync-preview` flag to `terramate run` to sync the preview to Terramate Cloud.
+- Add `terramate.config.generate.hcl_magic_header_comment_style` option to change the comment style for magic headers to `#` instead of `//`
+- Add support for formatting single files or stdin with `terramate fmt`
+- Add support for `--cloud-status` filter to `terramate run`
+- Add support for `--cloud-status` filter to `terramate script run`
+- Add support to synchronize previews to Terramate Cloud via new `terramate run --cloud-sync-preview`
 
 ### Fixed
 
-- Fix language server panic when root directory contain errors.
-- (**BREAKING CHANGE**) Fix the execution order when using `tag:` filter in `after/before` in conjunction with implicit filesystem order. Please check the `terramate list --run-order` after
-upgrading.
+- Fix a panic in language server with a project caontaining errors on root directory
+- Fix the execution order when using `tag` filter in `after/before` in conjunction with implicit order for nested stacks. (BREAKING CHANGE)
 
 ## 0.4.5
 
 ### Added
 
-- Add support for `stack_filter` in `generate_file` blocks.
+- Add support for `stack_filter` blocks in `generate_file` blocks
+- Add `list --run-order` flag to list stacks in the order of execution
+- Add support for `terramate` in linting, pre-commit and test environments
+
+  - Add `--detailed-exit-code` to `terramate fmt` and `terramate generate` commands:
+
+    - An exit code of `0` represents successful execution and no changes made
+    - An exit code of `1` represents the error state, something went wrong
+    - An exit code of `2` represents successful execution but changes were made
+
+### Changed
+
+- Refactor Safeguard
+
+  - Add `disable_safeguards` configuration and `--disable-safeguards` CLI option with possible values
+    - `all` Disable ALL safeguards (use with care)
+    - `none` Enable ALL safeguards
+    - `git` Disable all git related safeguards:
+      - `git-untracked` Disable Safeguard that checks for untracked files
+      - `git-uncommitted` Disable Safeguard that checks for uncomitted files
+      - `git-out-of-sync` Disable Safeguard that checks for being in sync with remote git
+    - `outdated-code` Disable Safeguard that checks for outdated code
+
 - Promote cloud commands
-  - `terramate experimental cloud login` -> `terramate cloud login`
-  - `terramate experimental cloud info` -> `terramate cloud info`
-  - `terramate experimental cloud drift show` -> `terramate cloud drift show`
-- Promote `--experimental-status` flag to `--cloud-status` flag
-  - `terramate experimental trigger --experimental-status=` -> `terramate experimental trigger --cloud-status=`
-  - `terramate list --experimental-status=` -> `terramate list --cloud-status=`
-- Add `list --run-order` flag to list stacks in the order they would be executed.
-- Add support for deployment syncing to script commands.
-- Add `disable_safeguards` configuration option and CLI flag.
-- Add `--detailed-exit-code` to fmt command
-- Add `--detailed-exit-code` to generate command
+
+  - `terramate cloud login`
+  - `terramate cloud info`
+  - `terramate cloud drift show`
+
+- Improve support for synchronization of deployments to Terramate Cloud
+
+  - Add `cloud_sync_deployment` flag to Terramate Scripts Commands
+  - Add `cloud_sync_terraform_plan_file` flag to Terramate Scripts Commands when synchronizing deployments.
+  - Add `--cloud-sync-terraform-plan-file` support to `terramate run` when synchronizing deployments.
+
+- Promote `--experimental-status` flag to `--cloud-status` flag in
+
+  - `terramate experimental trigger`
+  - `terramate list`
 
 ### Fixed
 
-- Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
-- Stack ordering not respected in the `script run`.
-- Fix `script.job.command[s]` not handling (typed) lists.
+- Fix a performance issue in `tm_dynamic.attributes` configuration
+- Fix order of execution in `terramate script run`
+- Fix a type issue when assigning lists to `script.job.command[s]`
+
+### Deprecated
+
+- Old safeguard configuration options are now considered deprecated and will issue a warning when used in upcoming releases.
 
 ## 0.4.4
 
 ### Added
 
-- Add `terramate.config.experiments` configuration to enable experimental features.
-- Add support for statuses `ok, failed, drifted and healthy` to the `--experimental-status` flag.
-- Add experimental `script` configuration block.
-- Add `terramate script list` to list scripts visible in current directory.
-- Add `terramate script tree` to show a tree view of scripts visible in current directory.
-- Add `terramate script info <scriptname>` to show details about a script.
-- Add `terramate script run <scriptname>` to run a script in all relevant stacks.
+- Add `terramate.config.experiments` configuration to enable experimental features
+- Add support for statuses `ok`, `failed`, `drifted`, and `healthy` to the `--experimental-status` flag
+- Add experimental `script` configuration block
+
+  - Add `terramate script list` to list scripts visible in current directory
+  - Add `terramate script tree` to show a tree view of scripts visible in current directory
+  - Add `terramate script info <scriptname>` to show details about a script
+  - Add `terramate script run <scriptname>` to run a script in all relevant stacks
+
 - Add `stack_filter` block to `generate_hcl` for path-based conditional generation.
+
 - Promote experimental commands
+
   - `terramate debug show metadata`
   - `terramate debug show globals`
   - `terramate debug show generate-origins`
   - `terramate debug show runtime-env`
+
 - Improvements in the output of `list`, `run` and `create` commands.
 
 ### Fixed
 
-- fix(generate): blocks with context=root were ignored if defined in stacks.
-- fix: experimental eval/partial-eval/get-config-value wrongly interprets the output as a formatter.
-- fix: change detector cannot read user's git config
+- Fix an issue where `generate_file` blocks with `context=root` were ignored when defined in stacks
+- Fix `experimental eval/partial-eval/get-config-value` to not interpret the output as a formatter
+- Fix an issue where change detector cannot read global/user git config
 
 ## 0.4.3
 
 ### Added
 
-- Add `--cloud-sync-terraform-plan-file=<plan>` flag for synchronizing the plan
-file in rendered ASCII and JSON (sensitive information removed).
+- Add `--cloud-sync-terraform-plan-file` flag for synchronizing the plan
+  file in rendered ASCII and JSON (sensitive information removed).
 - Add configuration attribute `terramate.config.cloud.organization` to select which cloud organization to use when syncing with Terramate Cloud.
 - Add sync of logs to _Terramate Cloud_ when using `--cloud-sync-deployment` flag.
 - Add `terramate experimental cloud drift show` for retrieving drift details from Terramate Cloud.
 - Add support for cloning nested stacks to `terramate experimental clone`. It can also be used to clone directories that
-are not stacks themselves, but contain stacks in sub-directories.
+  are not stacks themselves, but contain stacks in sub-directories.
 
-### Fixed
+### Changed
 
-- Missing file ranges in the parsing errors of some stack block attributes.
+- Improve diagnostic messages on various errors
 
 ## 0.4.2
 
@@ -117,10 +159,9 @@ are not stacks themselves, but contain stacks in sub-directories.
 ### Added
 
 - Add support for globs in the `import.source` attribute to import multiple files at once.
-- Add support for listing *unhealthy* stacks with `terramate list --experimental-status=unhealthy`.
-- Add support for triggering *unhealthy* stacks with `terramate experimental  trigger --experimental-status=unhealthy`.
-- Add support for evaluating `terramate run` arguments with the `--eval`
-flag.
+- Add support for listing `unhealthy` stacks with `terramate list --experimental-status=unhealthy`.
+- Add support for triggering `unhealthy` stacks with `terramate experimental  trigger --experimental-status=unhealthy`.
+- Add support for evaluating `terramate run` arguments with the `--eval` flag.
 
 ### Fixed
 
