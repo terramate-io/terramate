@@ -6,6 +6,7 @@
 package interop_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +21,9 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 		t.Skip("This test is only meant to be run in CI, skipping")
 	}
 
-	tmcli := NewInteropCLI(t, datapath(t, "testdata/interop-stacks/basic-terraform"))
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("GITHUB_EVENT_PATH=%s", datapath(t, "testdata/event_pull_request.json")))
+	tmcli := NewInteropCLI(t, datapath(t, "testdata/interop-stacks/basic-terraform"), env...)
 	AssertRunResult(t,
 		tmcli.Run("run", "--quiet",
 			"--",
