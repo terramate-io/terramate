@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	stackpkg "github.com/terramate-io/terramate/stack"
 	lstest "github.com/terramate-io/terramate/test/ls"
+	"go.lsp.dev/jsonrpc2"
 	lsp "go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 )
@@ -51,25 +53,37 @@ func TestDocumentRegressionErrorLoadingRootConfig(t *testing.T) {
 	f.Editor.CheckInitialize(f.Sandbox.RootDir())
 	f.Editor.Open("test.tm")
 
+	type reqParams struct {
+		req jsonrpc2.Request
+		p   lsp.PublishDiagnosticsParams
+	}
+
+	var reqs []reqParams
+
+	// two files: root.config.tm and test.tm
+	for i := 0; i < 2; i++ {
+		r := <-f.Editor.Requests
+		p := lsp.PublishDiagnosticsParams{}
+		assert.NoError(t, json.Unmarshal(r.Params(), &p), "unmarshaling params")
+		reqs = append(reqs, reqParams{req: r, p: p})
+	}
+
+	sort.Slice(reqs, func(i, j int) bool {
+		return reqs[i].p.URI.Filename() < reqs[j].p.URI.Filename()
+	})
+
 	// root.config.tm diagnostic
-	r := <-f.Editor.Requests
-	assert.EqualStrings(t, "textDocument/publishDiagnostics", r.Method(),
+	rp := reqs[0]
+	assert.EqualStrings(t, "textDocument/publishDiagnostics", rp.req.Method(),
 		"unexpected notification request")
+	assert.EqualInts(t, 0, len(rp.p.Diagnostics), "got diagnostics for file %v: %v", rp.p.URI.Filename(), rp.p.Diagnostics)
+	assert.EqualStrings(t, filepath.Join(f.Sandbox.RootDir(), "root.config.tm"), rp.p.URI.Filename())
 
-	var params lsp.PublishDiagnosticsParams
-	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
-	assert.EqualInts(t, 0, len(params.Diagnostics))
-	assert.EqualStrings(t, filepath.Join(f.Sandbox.RootDir(), "root.config.tm"), params.URI.Filename())
-
-	// test.tm diagnostic
-	r = <-f.Editor.Requests
-	assert.EqualStrings(t, "textDocument/publishDiagnostics", r.Method(),
+	rp = reqs[1]
+	assert.EqualStrings(t, "textDocument/publishDiagnostics", rp.req.Method(),
 		"unexpected notification request")
-
-	params = lsp.PublishDiagnosticsParams{}
-	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
-	assert.EqualInts(t, 1, len(params.Diagnostics))
-	assert.EqualStrings(t, file.Path(), params.URI.Filename())
+	assert.EqualInts(t, 1, len(rp.p.Diagnostics), "got diagnostics for file %v: %v", rp.p.URI.Filename(), rp.p.Diagnostics)
+	assert.EqualStrings(t, file.Path(), rp.p.URI.Filename())
 }
 
 func TestDocumentChange(t *testing.T) {
