@@ -12,18 +12,22 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/zclconf/go-cty/cty"
 )
 
 // Errors for indicating invalid script schema
 const (
 	ErrScriptSchema              errors.Kind = "script config has an invalid schema"
-	ErrScriptInvalidTypeDesc     errors.Kind = "invalid type for script.description"
+	ErrScriptInvalidType         errors.Kind = "invalid type for script field"
 	ErrScriptInvalidTypeCommand  errors.Kind = "invalid type for script.command"
 	ErrScriptInvalidTypeCommands errors.Kind = "invalid type for script.commands"
 	ErrScriptEmptyCmds           errors.Kind = "job command or commands evaluated to empty list"
 	ErrScriptInvalidCmdOptions   errors.Kind = "invalid options for script command"
 )
+
+// MaxScriptNameRunes defines the maximum number of runes allowed for a script name.
+const MaxScriptNameRunes = 128
 
 // ScriptCmdOptions represents optional parameters for a script command
 type ScriptCmdOptions struct {
@@ -47,6 +51,7 @@ type ScriptJob struct {
 type Script struct {
 	Range       info.Range
 	Labels      []string
+	Name        string
 	Description string
 	Jobs        []ScriptJob
 }
@@ -70,10 +75,21 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 	}
 
 	errs := errors.L()
+	if script.Name != nil {
+		name, err := evalScriptStringField(evalctx, script.Name.Expr, "script.name")
+		errs.Append(err)
+		if len(name) > MaxScriptNameRunes {
+			name = name[:MaxScriptNameRunes]
 
-	desc, err := evalScriptDesc(evalctx, script.Description.Expr, "script.description")
+			printer.Stderr.Warn(
+				fmt.Sprintf("`script.name` exceeds the maximum allowed characters (%d): field truncated", MaxScriptNameRunes),
+			)
+		}
+		evaluatedScript.Name = name
+	}
+
+	desc, err := evalScriptStringField(evalctx, script.Description.Expr, "script.description")
 	errs.Append(err)
-
 	evaluatedScript.Description = desc
 
 	for _, job := range script.Jobs {
@@ -137,13 +153,12 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 	return evaluatedScript, nil
 }
 
-func evalScriptDesc(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
-	desc, err := evalString(evalctx, expr, name)
+func evalScriptStringField(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
+	f, err := evalString(evalctx, expr, name)
 	if err != nil {
-		return "", errors.E(ErrScriptInvalidTypeDesc, expr.Range(), err)
+		return "", errors.E(ErrScriptInvalidType, expr.Range(), err)
 	}
-
-	return desc, nil
+	return f, nil
 }
 
 func unmarshalScriptJobCommands(cmdList cty.Value, expr hhcl.Expression) ([]*ScriptCmd, error) {

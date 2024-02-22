@@ -75,15 +75,19 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 	}
 
 	for _, sc := range node.Scripts {
-		desc := formatScriptDescription(sc)
-		fmt.Fprintln(w, blockPrefix+"* "+scriptColor(sc.Name()+": "+desc))
+		desc := exprString(sc.Description.Expr)
+		fmt.Fprintln(w, blockPrefix+"* "+scriptColor(sc.AccessorName()+": "))
+		if sc.Name != nil {
+			fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  name: "+nameTruncation(exprString(sc.Name.Expr))))
+		}
+		fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  description: "+desc))
 	}
 
 	if node.IsStack {
 		for _, p := range parentScripts {
 			found := slices.ContainsFunc(node.Scripts,
 				func(a *hcl.Script) bool {
-					return a.Name() == p
+					return a.AccessorName() == p
 				})
 			if !found {
 				fmt.Fprintln(w, blockPrefix+parentScriptColor("~ "+p))
@@ -92,8 +96,8 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 	}
 
 	for _, e := range node.Scripts {
-		if !slices.Contains(parentScripts, e.Name()) {
-			parentScripts = append(parentScripts, e.Name())
+		if !slices.Contains(parentScripts, e.AccessorName()) {
+			parentScripts = append(parentScripts, e.AccessorName())
 		}
 	}
 

@@ -4,16 +4,19 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/fatih/color"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/printer"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -37,7 +40,10 @@ func (c *cli) printScriptInfo() {
 
 	for _, x := range m.Results {
 		c.output.MsgStdOut("Definition: %v", x.ScriptCfg.Range)
-		c.output.MsgStdOut("Description: %v", formatScriptDescription(x.ScriptCfg))
+		if x.ScriptCfg.Name != nil {
+			c.output.MsgStdOut("Name: %s", nameTruncation(exprString(x.ScriptCfg.Name.Expr)))
+		}
+		c.output.MsgStdOut("Description: %s", exprString(x.ScriptCfg.Description.Expr))
 
 		if len(x.Stacks) > 0 {
 			c.output.MsgStdOut("Stacks:")
@@ -144,8 +150,8 @@ func (m *scriptsMatcher) addResult(cfg *config.Tree, scriptCfg *hcl.Script, scop
 	}
 }
 
-func formatScriptDescription(cfg *hcl.Script) string {
-	return string(ast.TokensForExpression(cfg.Description.Expr).Bytes())
+func exprString(expr hhcl.Expression) string {
+	return string(ast.TokensForExpression(expr).Bytes())
 }
 
 func formatScriptJob(job *hcl.ScriptJob) []string {
@@ -167,4 +173,14 @@ func formatScriptJob(job *hcl.ScriptJob) []string {
 	}
 
 	return []string{}
+}
+
+func nameTruncation(name string) string {
+	if len(name) > config.MaxScriptNameRunes {
+		printer.Stderr.Warn(
+			fmt.Sprintf("`script.name` exceeds the maximum allowed characters (%d): field truncated", config.MaxScriptNameRunes),
+		)
+		return name[:config.MaxScriptNameRunes] + "..."
+	}
+	return name
 }

@@ -36,15 +36,25 @@ type ScriptJob struct {
 	Commands *Commands // Commands is a list of executable commands
 }
 
+// ScriptName is a human readable name of a script.
+type ScriptName ast.Attribute
+
 // ScriptDescription is human readable description of a script
 type ScriptDescription ast.Attribute
 
 // Script represents a parsed script block
 type Script struct {
 	Range       info.Range
-	Labels      []string           // Labels of the script block used for grouping scripts
+	Labels      []string // Labels of the script block used for grouping scripts
+	Name        *ScriptName
 	Description *ScriptDescription // Description is a human readable description of a script
 	Jobs        []*ScriptJob       // Job represents the command(s) part of this script
+}
+
+// NewScriptName returns a *ScriptName encapsulating an ast.Attribute
+func NewScriptName(attr ast.Attribute) *ScriptName {
+	name := ScriptName(attr)
+	return &name
 }
 
 // NewScriptDescription returns a *ScriptDescription encapsulating an ast.Attribute
@@ -65,8 +75,8 @@ func NewScriptCommands(attr ast.Attribute) *Commands {
 	return &cmds
 }
 
-// Name returns the formatted script name
-func (sc *Script) Name() string {
+// AccessorName returns the name traversal for accessing the script.
+func (sc *Script) AccessorName() string {
 	var b strings.Builder
 	for i, e := range sc.Labels {
 		if i != 0 {
@@ -93,6 +103,8 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 
 	for _, attr := range block.Attributes {
 		switch attr.Name {
+		case "name":
+			parsedScript.Name = NewScriptName(attr)
 		case "description":
 			parsedScript.Description = NewScriptDescription(attr)
 		default:
