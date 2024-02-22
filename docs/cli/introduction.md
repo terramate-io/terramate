@@ -23,6 +23,7 @@ consists of the following components:
 
 - **Stacks:** Are Infrastructure as Code tooling agnostic and isolated units that group a bunch of infrastructure code, state, and configuration.
 - **Orchestration**: Allows orchestrating the execution of commands such as `terraform apply` or `kubectl apply` in stacks.
+- **Workflows**: Configure and run sequences of commands in stacks.
 - **Git Integration and Change Detection:** Helps to detect and manage stacks that contain changes in a branch, commit or pull request.
 - **Configuration:** Define and reuse data in stacks by using variables and metadata.
 - **Code Generation:** Generate code in stacks to keep your stacks DRY and to provide pre-configured templates
@@ -259,7 +260,7 @@ as Code with stacks at scale.
 It also provides automation and collaboration workflows that run natively in your existing CI/CD pipelines such as GitHub Actions,
 Bitbucket Pipelines and GitLab in a secure and cost-effective manner.
 
-![Terramate Cloud Dashboard](./assets/terramate-cloud-dashboard.png "Terramate Cloud Dashboard")
+![Terramate Cloud Dashboard](../cloud/assets/dashboard.png "Terramate Cloud Dashboard")
 
 If you are interested in Terramate Cloud, please [book a demo](https://terramate.io/demo/) or get in touch via email at
 hello@terramate.io or [Discord](https://terramate.io/discord).

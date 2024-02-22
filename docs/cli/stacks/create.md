@@ -10,7 +10,7 @@ description: Learn how to create and manage Infrastructure as Code agnostic stac
 Stacks can be created using the [create](../cmdline/create.md) command, e.g.:
 
 ```sh
-terramate create <directory>
+terramate create <path>
 ```
 
 By default, this will create a directory with a `stack.tm.hcl` file that contains the configuration for your stack,

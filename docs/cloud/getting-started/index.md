@@ -7,11 +7,11 @@
 When signing up to the platform at [cloud.terramate.io](https://cloud.terramate.io/), you are asked to choose a social
 login provider to sign in with.
 
-Terramate Cloud offers to sign in using 
+Terramate Cloud offers to sign in using:
 
-- a Google Workspace Account (formerly known as GSuite Account),
-- a GitHub Account (coming soon; please [get in touch with support](mailto:hello@terramate.io)), or
-- a Microsoft Account (coming soon; please [get in touch with support](mailto:hello@terramate.io)).
+- A Google Workspace Account (formerly known as GSuite Account),
+- A GitHub Account (coming soon; please [get in touch with support](mailto:hello@terramate.io)), or
+- A Microsoft Account (coming soon; please [get in touch with support](mailto:hello@terramate.io)).
 
 ::: warning
 If you are not a registered early access customer yet, your domain might not be allowed-listed yet, and you will need to
@@ -54,15 +54,19 @@ You need to select the same account you just signed up with to use Terramate CLI
 
 You can validate you are connected to the correct Terramate Cloud Organization using [`terramate cloud info`](../../cli/cmdline/cloud-info.md):
 
-```bash
-$ terramate cloud info
+::: code-group
+```sh [shell]
+terramate cloud info
+```
 
+```sh [output]
 status: signed in
 provider: Google Social Provider
 user: Your Display Name
 email: you@example.com
 organizations: example
 ```
+:::
 
 After successful sign-in via Terramate CLI, it is recommended to persist the selected cloud organization to your configuration
 by creating a config section in e.g., your `terramate.tm.hcl` file as shown here, but replacing `"example"` with the selected
@@ -82,7 +86,7 @@ Terramate CLI is now aware of Terramate Cloud and can be used to synchronize dat
 
 ## Synchronizing initial Terraform drift information
 
-For this next step,, you need to have a repository containing some Terramate Stacks and access to run a `terraform plan` command. If you have a repository with directories containing plain terraform configuration, you can detect Terraform stacks using `terramate create --all-terraform` and configure them as Terramate Stacks.
+For this next step, you need to have a repository containing some Terramate Stacks and access to run a `terraform plan` command. If you have a repository with directories containing plain terraform configuration, you can detect Terraform stacks using `terramate create --all-terraform` and configure them as Terramate Stacks.
 
 Each stack requires a unique Stack ID. If you did not set stack IDs, you can use `terramate create --ensure-stack-ids` to generate an ID for all available stacks. Be sure to git commit your changes if you created stack ids.
 
