@@ -11,6 +11,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,6 +100,12 @@ const (
 // UIMode defines different modes of operation for the cli.
 type UIMode int
 
+type kongParallelFlag struct {
+	Value int
+}
+
+const defaultParallelRunCount = 5
+
 type cliSpec struct {
 	Version        struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag    bool     `name:"version" help:"Terramate version"`
@@ -157,6 +165,11 @@ type cliSpec struct {
 		Reverse                    bool   `default:"false" help:"Reverse the order of execution"`
 		Eval                       bool   `default:"false" help:"Evaluate command line arguments as HCL strings"`
 
+		// Note: 0 is not the real default value here, this is just a workaround.
+		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
+		// The K case is handled in the custom decoder.
+		Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent tasks in parallel"`
+
 		runSafeguardsCliSpec
 
 		Command []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
@@ -173,10 +186,14 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info"`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			CloudStatus string   `help:"Filter by status. Example: --cloud-status=unhealthy"`
-			NoRecursive bool     `default:"false" help:"Do not recurse into child stacks"`
-			DryRun      bool     `default:"false" help:"Plan the execution but do not execute it"`
-			Cmds        []string `arg:"" optional:"true" passthrough:"" help:"Script to execute"`
+			CloudStatus string `help:"Filter by status. Example: --cloud-status=unhealthy"`
+			NoRecursive bool   `default:"false" help:"Do not recurse into child stacks"`
+			DryRun      bool   `default:"false" help:"Plan the execution but do not execute it"`
+
+			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute"`
+
+			// See above comment regarding for run --parallel.
+			Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent tasks in parallel"`
 
 			runSafeguardsCliSpec
 		} `cmd:"" help:"Run script in stacks"`
@@ -686,6 +703,36 @@ func (c *cli) run() {
 	default:
 		fatal("unexpected command sequence", nil)
 	}
+}
+
+func (s *kongParallelFlag) Decode(ctx *kong.DecodeContext) error {
+	if ctx.Scan.Peek().Type == kong.FlagValueToken {
+		t, err := ctx.Scan.PopValue("counter")
+		if err != nil {
+			return err
+		}
+
+		switch v := t.Value.(type) {
+		case string:
+			n, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return stdfmt.Errorf("expected a counter but got %q (%T)", t, t.Value)
+			}
+			s.Value = int(n)
+
+		case int, int8, int16, int32, int64:
+			t := reflect.ValueOf(v)
+			s.Value = int(t.Int())
+
+		default:
+			return stdfmt.Errorf("expected a counter but got %q (%T)", t, t.Value)
+		}
+		return nil
+	}
+
+	s.Value = defaultParallelRunCount
+
+	return nil
 }
 
 func (c *cli) setupSafeguards(run runSafeguardsCliSpec) {
@@ -1605,7 +1652,7 @@ func (c *cli) generateGraph() {
 	logger.Debug().Msg("Create new graph.")
 
 	dotGraph := dot.NewGraph(dot.Directed)
-	graph := dag.New()
+	graph := dag.New[*config.Stack]()
 
 	visited := dag.Visited{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
@@ -1633,7 +1680,7 @@ func (c *cli) generateGraph() {
 			fatal("generating graph", err)
 		}
 
-		generateDot(dotGraph, graph, id, val.(*config.Stack), getLabel)
+		generateDot(dotGraph, graph, id, val, getLabel)
 	}
 
 	logger.Debug().
@@ -1669,18 +1716,17 @@ func (c *cli) generateGraph() {
 
 func generateDot(
 	dotGraph *dot.Graph,
-	graph *dag.DAG,
+	graph *dag.DAG[*config.Stack],
 	id dag.ID,
 	stackval *config.Stack,
 	getLabel func(s *config.Stack) string,
 ) {
 	descendant := dotGraph.Node(getLabel(stackval))
 	for _, ancestor := range graph.AncestorsOf(id) {
-		val, err := graph.Node(ancestor)
+		s, err := graph.Node(ancestor)
 		if err != nil {
 			fatal("generating dot file", err)
 		}
-		s := val.(*config.Stack)
 		ancestorNode := dotGraph.Node(getLabel(s))
 
 		// we invert the graph here.

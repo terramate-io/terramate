@@ -107,6 +107,27 @@ func (c *cli) handleCriticalError(err error) {
 	}
 }
 
+func selectCloudStackTasks(runs []stackRun, pred func(stackRunTask) bool) []stackCloudRun {
+	var cloudRuns []stackCloudRun
+	for _, run := range runs {
+		for _, t := range run.Tasks {
+			if pred(t) {
+				cloudRuns = append(cloudRuns, stackCloudRun{
+					Stack: run.Stack,
+					Task:  t,
+				})
+				// Currently, only a single task per stackRun group may be selected.
+				break
+			}
+		}
+	}
+	return cloudRuns
+}
+
+func isDeploymentTask(t stackRunTask) bool { return t.CloudSyncDeployment }
+
+func isPreviewTask(t stackRunTask) bool { return t.CloudSyncPreview }
+
 func (c *cli) checkCloudSync() {
 	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus && !c.parsedArgs.Run.CloudSyncPreview {
 		return
@@ -234,39 +255,39 @@ func (c *cli) setupCloudConfig() error {
 	return nil
 }
 
-func (c *cli) cloudSyncBefore(run runContext) {
+func (c *cli) cloudSyncBefore(run stackCloudRun) {
 	if !c.cloudEnabled() {
 		return
 	}
 
-	if run.CloudSyncDeployment {
+	if run.Task.CloudSyncDeployment {
 		c.doCloudSyncDeployment(run, deployment.Running)
 	}
 
-	if run.CloudSyncPreview {
+	if run.Task.CloudSyncPreview {
 		c.doPreviewBefore(run)
 	}
 }
 
-func (c *cli) cloudSyncAfter(run runContext, res runResult, err error) {
+func (c *cli) cloudSyncAfter(run stackCloudRun, res runResult, err error) {
 	if !c.cloudEnabled() {
 		return
 	}
 
-	if run.CloudSyncDeployment {
+	if run.Task.CloudSyncDeployment {
 		c.cloudSyncDeployment(run, err)
 	}
 
-	if run.CloudSyncDriftStatus {
+	if run.Task.CloudSyncDriftStatus {
 		c.cloudSyncDriftStatus(run, res, err)
 	}
 
-	if run.CloudSyncPreview {
+	if run.Task.CloudSyncPreview {
 		c.doPreviewAfter(run, res)
 	}
 }
 
-func (c *cli) doPreviewBefore(run runContext) {
+func (c *cli) doPreviewBefore(run stackCloudRun) {
 	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
@@ -288,7 +309,7 @@ func (c *cli) doPreviewBefore(run runContext) {
 	}
 }
 
-func (c *cli) doPreviewAfter(run runContext, res runResult) {
+func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 	planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
@@ -332,12 +353,6 @@ func (c *cli) doPreviewAfter(run runContext, res runResult) {
 			msg = sprintf("%s (with changeset)", msg)
 		}
 		printer.Stderr.Println(msg)
-	}
-}
-
-func (c *cli) cloudSyncCancelStacks(runs []runContext) {
-	for _, run := range runs {
-		c.cloudSyncAfter(run, runResult{ExitCode: -1}, errors.E(ErrRunCanceled))
 	}
 }
 

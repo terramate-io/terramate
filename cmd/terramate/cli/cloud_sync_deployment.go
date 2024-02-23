@@ -18,7 +18,8 @@ import (
 	prj "github.com/terramate-io/terramate/project"
 )
 
-func (c *cli) createCloudDeployment(runs []runContext) {
+func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
+	// Assume each task in deployRuns has the CloudSyncDeployment set.
 	logger := log.With().
 		Logger()
 
@@ -73,7 +74,7 @@ func (c *cli) createCloudDeployment(runs []runContext) {
 		Metadata:      c.cloud.run.metadata,
 	}
 
-	for _, run := range runs {
+	for _, run := range deployRuns {
 		tags := run.Stack.Tags
 		if tags == nil {
 			tags = []string{}
@@ -89,7 +90,7 @@ func (c *cli) createCloudDeployment(runs []runContext) {
 				Path:            run.Stack.Dir.String(),
 			},
 			CommitSHA:         deploymentCommitSHA,
-			DeploymentCommand: strings.Join(run.Cmd, " "),
+			DeploymentCommand: strings.Join(run.Task.Cmd, " "),
 			DeploymentURL:     deploymentURL,
 		})
 	}
@@ -103,10 +104,10 @@ func (c *cli) createCloudDeployment(runs []runContext) {
 		return
 	}
 
-	if len(res) != len(runs) {
+	if len(res) != len(deployRuns) {
 		logger.Error().
 			Msgf("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
-				len(res), len(runs))
+				len(res), len(deployRuns))
 
 		c.disableCloudFeatures(cloudError())
 		return
@@ -125,7 +126,7 @@ func (c *cli) createCloudDeployment(runs []runContext) {
 	}
 }
 
-func (c *cli) cloudSyncDeployment(run runContext, err error) {
+func (c *cli) cloudSyncDeployment(run stackCloudRun, err error) {
 	var status deployment.Status
 	switch {
 	case err == nil:
@@ -141,15 +142,14 @@ func (c *cli) cloudSyncDeployment(run runContext, err error) {
 	c.doCloudSyncDeployment(run, status)
 }
 
-func (c *cli) doCloudSyncDeployment(run runContext, status deployment.Status) {
-	st := run.Stack
+func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status) {
 	logger := log.With().
 		Str("organization", string(c.cloud.run.orgUUID)).
-		Str("stack", st.RelPath()).
+		Str("stack", run.Stack.RelPath()).
 		Stringer("status", status).
 		Logger()
 
-	stackID, ok := c.cloud.run.meta2id[st.ID]
+	stackID, ok := c.cloud.run.meta2id[run.Stack.ID]
 	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return
@@ -157,7 +157,7 @@ func (c *cli) doCloudSyncDeployment(run runContext, status deployment.Status) {
 
 	var details *cloud.ChangesetDetails
 
-	if planfile := run.CloudSyncTerraformPlanFile; planfile != "" {
+	if planfile := run.Task.CloudSyncTerraformPlanFile; planfile != "" {
 		var err error
 		details, err = c.getTerraformChangeset(run, planfile)
 		if err != nil {
@@ -181,7 +181,7 @@ func (c *cli) doCloudSyncDeployment(run runContext, status deployment.Status) {
 	defer cancel()
 	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
 	if err != nil {
-		logger.Err(err).Str("stack_id", st.ID).Msg("failed to update deployment status for each")
+		logger.Err(err).Str("stack_id", run.Stack.ID).Msg("failed to update deployment status for each")
 	} else {
 		logger.Debug().Msg("deployment status synced successfully")
 	}

@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	tfjson "github.com/hashicorp/terraform-json"
@@ -63,6 +64,8 @@ func main() {
 		stackRelPath(os.Args[2])
 	case "tf-plan-sanitize":
 		tfPlanSanitize(os.Args[2])
+	case "fibonacci":
+		fibonacci()
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -123,6 +126,41 @@ func tempDir() {
 	tmpdir, err := os.MkdirTemp("", "tm-tmpdir")
 	checkerr(err)
 	fmt.Print(tmpdir)
+}
+
+// fibonacci, when called from dir fib.N/, writes the Nth fibonacci number to ./fib.txt.
+// It may try to read values from ../fib.N-1/fib.txt and ../fib.N-2/fib.txt, which were previously
+// created by running this command in other dirs.
+func fibonacci() {
+	wd, err := os.Getwd()
+	checkerr(err)
+	dirname := filepath.Base(wd)
+
+	if !strings.HasPrefix(dirname, "fib.") {
+		log.Fatalf("fibonacci must be called from dir 'fib.N, was %v'", wd)
+	}
+
+	n, err := strconv.ParseInt(dirname[len("fib."):], 10, 64)
+	checkerr(err)
+
+	var v int64
+
+	if n == 0 {
+		v = 0
+	} else if n == 1 {
+		v = 1
+	} else {
+		v = 0
+		for _, i := range []int64{n - 1, n - 2} {
+			b, err := os.ReadFile(fmt.Sprintf("../fib.%v/fib.txt", i))
+			checkerr(err)
+			ni, err := strconv.ParseInt(string(b), 10, 64)
+			checkerr(err)
+			v += ni
+		}
+	}
+
+	checkerr(os.WriteFile("fib.txt", []byte(fmt.Sprintf("%v", v)), 0644))
 }
 
 func stackAbsPath(base string) {

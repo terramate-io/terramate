@@ -13,14 +13,14 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) cloudSyncDriftStatus(run runContext, res runResult, err error) {
+func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
 	st := run.Stack
 
 	logger := log.With().
 		Str("action", "cloudSyncDriftStatus").
 		Stringer("stack", st.Dir).
 		Int("exit_code", res.ExitCode).
-		Strs("command", run.Cmd).
+		Strs("command", run.Task.Cmd).
 		Err(err).
 		Logger()
 
@@ -70,7 +70,7 @@ func (c *cli) cloudSyncDriftStatus(run runContext, res runResult, err error) {
 		Metadata:   c.cloud.run.metadata,
 		StartedAt:  res.StartedAt,
 		FinishedAt: res.FinishedAt,
-		Command:    run.Cmd,
+		Command:    run.Task.Cmd,
 	})
 
 	if err != nil {
