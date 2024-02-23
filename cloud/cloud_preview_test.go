@@ -105,7 +105,7 @@ func TestCreatePreview(t *testing.T) {
 					URL:         "https://github.com/owner/repo/pull/23",
 					Labels:      []cloud.Label{},
 					Reviewers:   []cloud.Reviewer{},
-					PushedAt:    &now,
+					UpdatedAt:   &now,
 				},
 				Metadata: &cloud.DeploymentMetadata{},
 			}
