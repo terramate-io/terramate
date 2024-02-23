@@ -12,13 +12,10 @@ import (
 	"github.com/fatih/color"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
-	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
-	runutil "github.com/terramate-io/terramate/run"
-	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/stdlib"
 )
 
@@ -60,7 +57,7 @@ func (c *cli) runScript() {
 		c.output.MsgStdErr("This is a dry run, commands will not be executed.")
 	}
 
-	var runs []runContext
+	var runs []stackRun
 
 	for scriptIdx, result := range m.Results {
 		if len(result.Stacks) == 0 {
@@ -74,6 +71,8 @@ func (c *cli) runScript() {
 		)
 
 		for _, st := range result.Stacks {
+			run := stackRun{Stack: st.Stack}
+
 			ectx, err := scriptEvalContext(c.cfg(), st.Stack)
 			if err != nil {
 				fatal("failed to get context", err)
@@ -86,8 +85,7 @@ func (c *cli) runScript() {
 
 			for jobIdx, job := range evalScript.Jobs {
 				for cmdIdx, cmd := range job.Commands() {
-					run := runContext{
-						Stack:        st.Stack,
+					task := stackRunTask{
 						Cmd:          cmd.Args,
 						ScriptIdx:    scriptIdx,
 						ScriptJobIdx: jobIdx,
@@ -95,23 +93,15 @@ func (c *cli) runScript() {
 					}
 
 					if cmd.Options != nil {
-						run.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
-						run.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
+						task.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
+						task.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
 					}
 
-					runs = append(runs, run)
+					run.Tasks = append(run.Tasks, task)
 				}
 			}
-		}
-	}
 
-	reason, err := runutil.Sort(c.cfg(), runs,
-		func(run runContext) *config.Stack { return run.Stack })
-	if err != nil {
-		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(sprintf("cycle detected: %s", reason), err)
-		} else {
-			fatal("failed to plan execution", err)
+			runs = append(runs, run)
 		}
 	}
 
@@ -121,29 +111,24 @@ func (c *cli) runScript() {
 		return exitCode == 0
 	}
 
-	err = c.runAll(runs, isSuccessExit, runAllOptions{
+	err := c.runAll(runs, isSuccessExit, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
 		ContinueOnError: false,
+		Parallel:        c.parsedArgs.Script.Run.Parallel.Value,
 	})
 	if err != nil {
 		fatal("one or more commands failed", err)
 	}
 }
 
-func (c *cli) prepareScriptCloudDeploymentSync(runStacks []runContext) {
+func (c *cli) prepareScriptCloudDeploymentSync(runs []stackRun) {
 	if c.parsedArgs.Script.Run.DryRun {
 		return
 	}
 
-	var deployRuns []runContext
-	for _, exc := range runStacks {
-		if exc.CloudSyncDeployment {
-			deployRuns = append(deployRuns, exc)
-		}
-	}
-
+	deployRuns := selectCloudStackTasks(runs, isDeploymentTask)
 	if len(deployRuns) == 0 {
 		return
 	}
@@ -178,9 +163,9 @@ func (c *cli) prepareScriptCloudDeploymentSync(runStacks []runContext) {
 // printScriptCommand pretty prints the cmd and attaches a "prompt" style prefix to it
 // for example:
 // /somestack (script:0 job:0.0)> echo hello
-func printScriptCommand(w io.Writer, run runContext) {
+func printScriptCommand(w io.Writer, stack *config.Stack, run stackRunTask) {
 	prompt := color.GreenString(fmt.Sprintf("%s (script:%d job:%d.%d)>",
-		run.Stack.Dir.String(),
+		stack.Dir.String(),
 		run.ScriptIdx, run.ScriptJobIdx, run.ScriptCmdIdx))
 	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
 }

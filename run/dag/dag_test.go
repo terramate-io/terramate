@@ -4,6 +4,7 @@
 package dag_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -276,7 +277,7 @@ func TestValidatedDAG(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			d := dag.New()
+			d := dag.New[any]()
 			var errs []error
 
 			for id, v := range tc.nodes {
@@ -296,6 +297,125 @@ func TestValidatedDAG(t *testing.T) {
 
 			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add node")
 		})
+	}
+}
+
+func TestReduceDAG(t *testing.T) {
+	type node struct {
+		value     int
+		ancestors []dag.ID
+	}
+	type testcase struct {
+		name   string
+		nodes  map[string]node
+		err    error
+		reason string
+		order  []dag.ID
+	}
+
+	testcases := []testcase{
+		{
+			name: "remove roots",
+			nodes: map[string]node{
+				"A": {value: 1},
+				"B": {value: 1},
+				"C": {},
+				"X": {ancestors: []dag.ID{"A", "B"}},
+				"Y": {ancestors: []dag.ID{"X", "A"}},
+			},
+			order: []dag.ID{"C", "X", "Y"},
+		},
+		{
+			name: "remove leafs",
+			nodes: map[string]node{
+				"A": {},
+				"B": {},
+				"U": {ancestors: []dag.ID{"A", "B"}},
+				"V": {ancestors: []dag.ID{"A", "B"}},
+				"X": {value: 1, ancestors: []dag.ID{"U"}},
+				"Y": {value: 1, ancestors: []dag.ID{"V"}},
+			},
+			order: []dag.ID{"A", "B", "U", "V"},
+		},
+		{
+			name: "remove path",
+			nodes: map[string]node{
+				"A": {},
+				"B": {value: 1, ancestors: []dag.ID{"A"}},
+				"C": {value: 1, ancestors: []dag.ID{"B"}},
+				"D": {value: 1, ancestors: []dag.ID{"C"}},
+				"E": {ancestors: []dag.ID{"D"}},
+			},
+			order: []dag.ID{"A", "E"},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := dag.New[int]()
+			var errs []error
+
+			for id, v := range tc.nodes {
+				errs = append(errs, d.AddNode(
+					dag.ID(id), v.value, nil, v.ancestors),
+				)
+			}
+
+			reason, err := d.Validate()
+			if err != nil {
+				assert.EqualStrings(t, tc.reason, reason, "cycle reason differ")
+				errs = append(errs, err)
+			} else {
+				d.Reduce(func(id dag.ID) bool {
+					v, err := d.Node(id)
+					assert.NoError(t, err)
+					return v == 1
+				})
+
+				order := d.Order()
+				assertOrder(t, tc.order, order)
+			}
+
+			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add node")
+		})
+	}
+}
+
+func TestTransformDAG(t *testing.T) {
+	type node[V any] struct {
+		value     V
+		ancestors []dag.ID
+	}
+
+	aNodes := map[string]node[string]{
+		"A": {value: "1"},
+		"B": {value: "2"},
+		"U": {value: "3", ancestors: []dag.ID{"A", "B"}},
+		"V": {value: "4", ancestors: []dag.ID{"A", "B"}},
+		"X": {value: "5", ancestors: []dag.ID{"U"}},
+		"Y": {value: "6", ancestors: []dag.ID{"V"}},
+	}
+
+	a := dag.New[string]()
+
+	for id, v := range aNodes {
+		assert.NoError(t, a.AddNode(
+			dag.ID(id), v.value, nil, v.ancestors,
+		))
+	}
+
+	b, err := dag.Transform(a, func(id dag.ID, v string) (int, error) {
+		return strconv.Atoi(v)
+	})
+	assert.NoError(t, err)
+
+	want := []int{1, 2, 3, 4, 5, 6}
+	order := b.Order()
+	assert.EqualInts(t, len(want), len(order), "length mismatch")
+	for i, id := range order {
+		got, err := b.Node(id)
+		assert.NoError(t, err)
+		assert.EqualInts(t, want[i], got, "value %d mismatch", i)
 	}
 }
 

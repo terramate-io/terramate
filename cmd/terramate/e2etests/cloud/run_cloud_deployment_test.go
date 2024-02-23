@@ -77,7 +77,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:   "failed cmd cancels execution of subsequent stacks",
-			layout: []string{"s:s1", "s:s2"},
+			layout: []string{"s:s1", "s:s1/s2"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
 				run: RunExpected{
@@ -85,8 +85,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					StderrRegex: "executable file not found",
 				},
 				events: eventsResponse{
-					"s1": []string{"pending", "running", "failed"},
-					"s2": []string{"pending", "canceled"},
+					"s1":    []string{"pending", "running", "failed"},
+					"s1/s2": []string{"pending", "canceled"},
 				},
 			},
 		},
@@ -110,8 +110,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			name: "failed cmd and continueOnError",
 			layout: []string{
 				"s:s1",
-				"s:s2",
-				"f:s2/test.txt:test",
+				"s:s1/s2",
+				"f:s1/s2/test.txt:test",
 			},
 			runflags: []string{"--continue-on-error"},
 			cmd:      []string{HelperPath, "cat", "test.txt"},
@@ -125,8 +125,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					},
 				},
 				events: eventsResponse{
-					"s1": []string{"pending", "running", "failed"},
-					"s2": []string{"pending", "running", "ok"},
+					"s1":    []string{"pending", "running", "failed"},
+					"s1/s2": []string{"pending", "running", "ok"},
 				},
 			},
 		},
@@ -339,66 +339,78 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cloudData := tc.cloudData
-			if cloudData == nil {
-				var err error
-				cloudData, err = cloudstore.LoadDatastore(testserverJSONFile)
-				assert.NoError(t, err)
+		for _, isParallel := range []bool{false, true} {
+			tc := tc
+			isParallel := isParallel
+			name := tc.name
+			if isParallel {
+				name += "-parallel"
 			}
-			addr := startFakeTMCServer(t, cloudData)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 
-			s := sandbox.New(t)
-			var genIdsLayout []string
-			ids := []string{}
-			if !tc.skipIDGen {
-				for _, layout := range tc.layout {
-					if layout[0] == 's' {
-						if strings.Contains(layout, "id=") {
-							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-						}
-						id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-						if len(id) > 64 {
-							id = id[:64]
-						}
-						ids = append(ids, id)
-						layout += ":id=" + id
-					}
-					genIdsLayout = append(genIdsLayout, layout)
+				cloudData := tc.cloudData
+				if cloudData == nil {
+					var err error
+					cloudData, err = cloudstore.LoadDatastore(testserverJSONFile)
+					assert.NoError(t, err)
 				}
-			} else {
-				genIdsLayout = tc.layout
-			}
+				addr := startFakeTMCServer(t, cloudData)
 
-			// needed for invoking `terraform ...` commands in the sandbox
-			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
-			s.Env = append(s.Env, tc.env...)
+				s := sandbox.New(t)
+				var genIdsLayout []string
+				ids := []string{}
+				if !tc.skipIDGen {
+					for _, layout := range tc.layout {
+						if layout[0] == 's' {
+							if strings.Contains(layout, "id=") {
+								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
+							}
+							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
+							if len(id) > 64 {
+								id = id[:64]
+							}
+							ids = append(ids, id)
+							layout += ":id=" + id
+						}
+						genIdsLayout = append(genIdsLayout, layout)
+					}
+				} else {
+					genIdsLayout = tc.layout
+				}
 
-			s.BuildTree(genIdsLayout)
-			s.Git().CommitAll("all stacks committed")
+				// needed for invoking `terraform ...` commands in the sandbox
+				s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
+				s.Env = append(s.Env, tc.env...)
 
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, "TMC_API_URL=http://"+addr)
-			env = append(env, tc.env...)
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-			cli.PrependToPath(filepath.Dir(TerraformTestPath))
+				s.BuildTree(genIdsLayout)
+				s.Git().CommitAll("all stacks committed")
 
-			uuid, err := uuid.NewRandom()
-			assert.NoError(t, err)
-			runid := uuid.String()
-			cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, "TMC_API_URL=http://"+addr)
+				env = append(env, tc.env...)
+				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
-			runflags := []string{"run", "--quiet", "--cloud-sync-deployment"}
-			runflags = append(runflags, tc.runflags...)
-			runflags = append(runflags, "--")
-			runflags = append(runflags, tc.cmd...)
-			result := cli.Run(runflags...)
-			AssertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, cloudData, runid, ids, tc.want.events)
-		})
+				uuid, err := uuid.NewRandom()
+				assert.NoError(t, err)
+				runid := uuid.String()
+				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+
+				runflags := []string{"run", "--quiet", "--cloud-sync-deployment"}
+				if isParallel {
+					runflags = append(runflags, "--parallel")
+					tc.want.run.IgnoreStdout = true
+					tc.want.run.IgnoreStderr = true
+				}
+				runflags = append(runflags, tc.runflags...)
+				runflags = append(runflags, "--")
+				runflags = append(runflags, tc.cmd...)
+				result := cli.Run(runflags...)
+				AssertRunResult(t, result, tc.want.run)
+				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+			})
+		}
 	}
 }
 
@@ -478,7 +490,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			name: "failed script cmd cancels execution of subsequent stacks",
 			layout: []string{
 				"s:s1",
-				"s:s2",
+				"s:s1/s2",
 				`f:scripts.tm:script deploy {
 					description = "no"
 					job {
@@ -495,8 +507,8 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 					StderrRegex: "executable file not found",
 				},
 				events: eventsResponse{
-					"s1": []string{"pending", "running", "failed"},
-					"s2": []string{"pending", "canceled"},
+					"s1":    []string{"pending", "running", "failed"},
+					"s1/s2": []string{"pending", "canceled"},
 				},
 			},
 		},
@@ -567,63 +579,79 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		for _, isParallel := range []bool{false, true} {
+			tc := tc
+			isParallel := isParallel
+			name := tc.name
+			if isParallel {
+				name += "-parallel"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 
-			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
-			addr := startFakeTMCServer(t, cloudData)
+				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				assert.NoError(t, err)
+				addr := startFakeTMCServer(t, cloudData)
 
-			s := sandbox.New(t)
-			var genLayout []string
-			ids := []string{}
-			if !tc.skipIDGen {
-				for _, layout := range tc.layout {
-					if layout[0] == 's' {
-						if strings.Contains(layout, "id=") {
-							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
+				s := sandbox.New(t)
+				var genLayout []string
+				ids := []string{}
+				if !tc.skipIDGen {
+					for _, layout := range tc.layout {
+						if layout[0] == 's' {
+							if strings.Contains(layout, "id=") {
+								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
+							}
+							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
+							if len(id) > 64 {
+								id = id[:64]
+							}
+							ids = append(ids, id)
+							layout += ":id=" + id
 						}
-						id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-						if len(id) > 64 {
-							id = id[:64]
-						}
-						ids = append(ids, id)
-						layout += ":id=" + id
+						genLayout = append(genLayout, layout)
 					}
-					genLayout = append(genLayout, layout)
+				} else {
+					genLayout = tc.layout
 				}
-			} else {
-				genLayout = tc.layout
-			}
 
-			for path, def := range tc.scripts {
-				genLayout = append(genLayout, fmt.Sprintf("f:%s:%s", path, def))
-			}
+				for path, def := range tc.scripts {
+					genLayout = append(genLayout, fmt.Sprintf("f:%s:%s", path, def))
+				}
 
-			genLayout = append(genLayout, `f:terramate.tm:
-			terramate {
-			  config {
-				experiments = ["scripts"]
-			  }
-			}`)
+				genLayout = append(genLayout, `f:terramate.tm:
+					terramate {
+					config {
+						experiments = ["scripts"]
+					}
+					}`)
 
-			s.BuildTree(genLayout)
-			s.Git().CommitAll("all stacks committed")
+				s.BuildTree(genLayout)
+				s.Git().CommitAll("all stacks committed")
 
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, "TMC_API_URL=http://"+addr)
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, "TMC_API_URL=http://"+addr)
+				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 
-			uuid, err := uuid.NewRandom()
-			assert.NoError(t, err)
-			runid := uuid.String()
-			cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+				uuid, err := uuid.NewRandom()
+				assert.NoError(t, err)
+				runid := uuid.String()
+				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-			result := cli.RunScript(tc.scriptCmd)
-			AssertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, cloudData, runid, ids, tc.want.events)
-		})
+				var scriptCmd []string
+				if isParallel {
+					scriptCmd = append(scriptCmd, "--parallel")
+					// For the parallel test, we ignore output validation, since the print order is non-deterministic.
+					tc.want.run.IgnoreStderr = true
+					tc.want.run.IgnoreStdout = true
+				}
+				scriptCmd = append(scriptCmd, tc.scriptCmd)
+
+				result := cli.RunScript(scriptCmd...)
+				AssertRunResult(t, result, tc.want.run)
+				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+			})
+		}
 	}
 }
 

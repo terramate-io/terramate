@@ -34,15 +34,28 @@ terramate create path/to/stack \
     --no-generate
 ```
 
-Initialize Terramate in an existing Terraform project:
+The `terramate create` supports initializing Terramate stacks in an existing [Terraform](https://www.terraform.io/)
+or [Terragrunt](https://terragrunt.gruntwork.io/) project.
+
+Scan and create stacks for Terraform stacks:
 
 ```bash
 terramate create --all-terraform
 ```
 
-This is helpful when you want to onboard Terramate in an existing
-Terraform project. `--all-terraform` will create a Terramate configuration
-file in every Terraform directory that contains a `terraform.backend` block or `provider` blocks.
+Scan and create stacks for Terragrunt stacks/modules:
+
+```bash
+terramate create --all-terragrunt
+```
+
+This is helpful when you want to onboard Terramate in an existing project. 
+
+The `--all-terraform` will create a Terramate stack file in every Terraform directory that 
+contains a `terraform.backend` block or `provider` blocks.
+
+The `--all-terragrunt` will create a Terramate stack file in every Terragrunt configuration that
+defines a `terraform.source` attribute (it will correctly parse and include other files as needed).
 
 ## Options
 

@@ -19,10 +19,10 @@ type (
 	ID string
 
 	// DAG is a Directed-Acyclic Graph
-	DAG struct {
+	DAG[V any] struct {
 		// dag is a map of descendantID -> []ancestorID
 		dag    map[ID][]ID
-		values map[ID]interface{}
+		values map[ID]V
 		cycles map[ID]bool
 
 		validated bool
@@ -41,10 +41,10 @@ const (
 )
 
 // New creates a new empty Directed-Acyclic-Graph.
-func New() *DAG {
-	return &DAG{
+func New[V any]() *DAG[V] {
+	return &DAG[V]{
 		dag:    make(map[ID][]ID),
-		values: make(map[ID]interface{}),
+		values: make(map[ID]V),
 	}
 }
 
@@ -52,7 +52,7 @@ func New() *DAG {
 // defines its edge.
 // The value is anything related to the node that needs to be retrieved later
 // when processing the DAG.
-func (d *DAG) AddNode(id ID, value interface{}, descendants, ancestors []ID) error {
+func (d *DAG[V]) AddNode(id ID, value V, descendants, ancestors []ID) error {
 	if _, ok := d.values[id]; ok {
 		return errors.E(ErrDuplicateNode,
 			fmt.Sprintf("adding node id %q", id),
@@ -77,13 +77,13 @@ func (d *DAG) AddNode(id ID, value interface{}, descendants, ancestors []ID) err
 	return nil
 }
 
-func (d *DAG) addAncestors(node ID, ancestorIDs []ID) {
+func (d *DAG[V]) addAncestors(node ID, ancestorIDs []ID) {
 	for _, ancestor := range ancestorIDs {
 		d.addAncestor(node, ancestor)
 	}
 }
 
-func (d *DAG) addAncestor(node, ancestor ID) {
+func (d *DAG[V]) addAncestor(node, ancestor ID) {
 	nodeAncestors, ok := d.dag[node]
 	if !ok {
 		panic("internal error: empty list of edges must exist at this point")
@@ -97,7 +97,7 @@ func (d *DAG) addAncestor(node, ancestor ID) {
 }
 
 // Validate the DAG looking for cycles.
-func (d *DAG) Validate() (reason string, err error) {
+func (d *DAG[V]) Validate() (reason string, err error) {
 	d.cycles = make(map[ID]bool)
 	d.validated = true
 
@@ -110,7 +110,52 @@ func (d *DAG) Validate() (reason string, err error) {
 	return "", nil
 }
 
-func (d *DAG) validateNode(id ID, children []ID) (string, error) {
+// Reduce removes nodes that match the given predicate.
+// When a node is removed, all edges to it are replaced by edges to its children,
+// so the order within the graph is preserved.
+func (d *DAG[V]) Reduce(predicate func(id ID) bool) {
+	visited := Visited{}
+
+	shouldRemove := make(map[ID]bool, len(d.dag))
+	ids := d.IDs()
+
+	// Cache predicates
+	for _, id := range ids {
+		shouldRemove[id] = predicate(id)
+	}
+
+	// Remove nodes from as children and replace with grandchildren
+	for _, id := range ids {
+		d.walkFrom(id, func(id ID) {
+			if _, found := visited[id]; found {
+				return
+			}
+			visited[id] = struct{}{}
+
+			newChildren := []ID{}
+			for _, cid := range d.dag[id] {
+				if shouldRemove[cid] {
+					grandchildren := d.dag[cid]
+					newChildren = append(newChildren, grandchildren...)
+				} else {
+					newChildren = append(newChildren, cid)
+				}
+			}
+
+			d.dag[id] = newChildren
+		})
+	}
+
+	// Remove nodes themselves
+	for id, remove := range shouldRemove {
+		if remove {
+			delete(d.dag, id)
+			delete(d.values, id)
+		}
+	}
+}
+
+func (d *DAG[V]) validateNode(id ID, children []ID) (string, error) {
 	found, reason := d.hasCycle([]ID{id}, children, fmt.Sprintf("%s ->", id))
 	if found {
 		d.cycles[id] = true
@@ -123,7 +168,7 @@ func (d *DAG) validateNode(id ID, children []ID) (string, error) {
 	return "", nil
 }
 
-func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string) {
+func (d *DAG[V]) hasCycle(branch []ID, children []ID, reason string) (bool, string) {
 	for _, id := range branch {
 		if idList(children).contains(id) {
 			d.cycles[id] = true
@@ -143,7 +188,7 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 }
 
 // IDs returns the sorted list of node ids.
-func (d *DAG) IDs() []ID {
+func (d *DAG[V]) IDs() []ID {
 	idlist := make(idList, 0, len(d.dag))
 	for id := range d.dag {
 		idlist = append(idlist, id)
@@ -154,21 +199,22 @@ func (d *DAG) IDs() []ID {
 }
 
 // Node returns the node with the given id.
-func (d *DAG) Node(id ID) (interface{}, error) {
+func (d *DAG[V]) Node(id ID) (V, error) {
 	v, ok := d.values[id]
 	if !ok {
-		return nil, errors.E(ErrNodeNotFound)
+		var v V
+		return v, errors.E(ErrNodeNotFound)
 	}
 	return v, nil
 }
 
 // AncestorsOf returns the list of ancestor node ids of the given id.
-func (d *DAG) AncestorsOf(id ID) []ID {
+func (d *DAG[V]) AncestorsOf(id ID) []ID {
 	return d.dag[id]
 }
 
 // HasCycle returns true if the DAG has a cycle.
-func (d *DAG) HasCycle(id ID) bool {
+func (d *DAG[V]) HasCycle(id ID) bool {
 	if !d.validated {
 		_, err := d.Validate()
 		if err == nil {
@@ -181,7 +227,7 @@ func (d *DAG) HasCycle(id ID) bool {
 
 // Order returns the topological order of the DAG. The node ids are
 // lexicographic sorted whenever possible to give a consistent output.
-func (d *DAG) Order() []ID {
+func (d *DAG[V]) Order() []ID {
 	order := []ID{}
 	visited := Visited{}
 	for _, id := range d.IDs() {
@@ -201,7 +247,7 @@ func (d *DAG) Order() []ID {
 	return order
 }
 
-func (d *DAG) walkFrom(id ID, do func(id ID)) {
+func (d *DAG[V]) walkFrom(id ID, do func(id ID)) {
 	children := d.dag[id]
 	for _, tid := range sortedIds(children) {
 		d.walkFrom(tid, do)
@@ -235,3 +281,30 @@ func (ids idList) contains(other ID) bool {
 func (ids idList) Len() int           { return len(ids) }
 func (ids idList) Swap(i, j int)      { ids[i], ids[j] = ids[j], ids[i] }
 func (ids idList) Less(i, j int) bool { return ids[i] < ids[j] }
+
+// Transform transforms a DAG of D's to a DAG of S's by applying the given function to each node.
+// Afterwards, source DAG must be discarded.
+func Transform[D, S any](from *DAG[S], f func(id ID, v S) (D, error)) (*DAG[D], error) {
+	to := &DAG[D]{
+		dag:       from.dag,
+		values:    make(map[ID]D, len(from.values)),
+		cycles:    from.cycles,
+		validated: from.validated,
+	}
+
+	for id, v := range from.values {
+		if fv, err := f(id, v); err == nil {
+			to.values[id] = fv
+		} else {
+			return nil, err
+		}
+	}
+
+	// Discard from
+	from.dag = nil
+	from.values = nil
+	from.cycles = nil
+	from.validated = false
+
+	return to, nil
+}

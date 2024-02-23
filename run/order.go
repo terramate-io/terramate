@@ -20,13 +20,89 @@ import (
 )
 
 // Sort computes the final execution order for the given list of stacks.
-// In the case of multiple possible orders, it returns the lexicographic sorted
-// path.
+// In the case of multiple possible orders, it returns the lexicographic sorted path.
 func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.Stack) (string, error) {
-	d := dag.New()
+	d, reason, err := buildValidStackDAG(root, items, getStack)
+	if err != nil {
+		return reason, err
+	}
+
+	getStackDir := func(s E) string {
+		return getStack(s).Dir.String()
+	}
+
+	order := d.Order()
+	orderLookup := make(map[string]int, len(order))
+	for idx, id := range order {
+		s, err := d.Node(id)
+		if err != nil {
+			return "", fmt.Errorf("calculating run-order: %w", err)
+		}
+		orderLookup[s.Dir.String()] = idx
+	}
+
+	slices.SortStableFunc(items, func(a, b E) int {
+		return cmp.Compare(orderLookup[getStackDir(a)], orderLookup[getStackDir(b)])
+	})
+
+	return "", nil
+}
+
+// BuildDAGFromStacks computes the final, reduced dag for the given list of stacks.
+func BuildDAGFromStacks[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.Stack) (*dag.DAG[E], string, error) {
+	d, reason, err := buildValidStackDAG(root, items, getStack)
+	if err != nil {
+		return nil, reason, err
+	}
+
+	getStackDir := func(s E) string {
+		return getStack(s).Dir.String()
+	}
+
+	// Minimize graph by removing stacks that were only pulled in for ordering,
+	// but are not executed.
+	d.Reduce(func(id dag.ID) bool {
+		s, err := d.Node(id)
+		if err != nil {
+			return false
+		}
+		return !slices.ContainsFunc(items, func(item E) bool {
+			return getStackDir(item) == s.Dir.String()
+		})
+	})
+
+	itemLookup := make(map[string]E, len(items))
+	for _, item := range items {
+		itemLookup[getStackDir(item)] = item
+	}
+
+	// Transform from DAG of stacks to their corresponding E value.
+	// We have to build the DAG with stacks first, because for the nodes that were pulled in
+	// as depdencies, we have no E value (i.e. these are not in items).
+	// After the graph has been reduced, we can look up the corresponding E values.
+	newD, err := dag.Transform[E](d, func(id dag.ID, s *config.Stack) (E, error) {
+		e, found := itemLookup[s.Dir.String()]
+		if !found {
+			return e, fmt.Errorf("failed to transform run-order graph")
+		}
+		return e, nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
+	return newD, "", nil
+}
+
+func buildValidStackDAG[S ~[]E, E any](
+	root *config.Root,
+	items S,
+	getStack func(E) *config.Stack,
+) (*dag.DAG[*config.Stack], string, error) {
+	d := dag.New[*config.Stack]()
 
 	logger := log.With().
-		Str("action", "run.Sort()").
+		Str("action", "run.buildOrderedStackDAG()").
 		Str("root", root.HostDir()).
 		Logger()
 
@@ -78,36 +154,21 @@ func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.St
 		)
 
 		if err != nil {
-			return "", err
+			return nil, "", err
 		}
 	}
 
 	reason, err := d.Validate()
 	if err != nil {
-		return reason, err
+		return nil, reason, err
 	}
 
-	order := d.Order()
-	orderLookup := make(map[string]int, len(order))
-	for idx, id := range order {
-		val, err := d.Node(id)
-		if err != nil {
-			return "", fmt.Errorf("calculating run-order: %w", err)
-		}
-		s := val.(*config.Stack)
-		orderLookup[s.Dir.String()] = idx
-	}
-
-	slices.SortStableFunc(items, func(a, b E) int {
-		return cmp.Compare(orderLookup[getStackDir(a)], orderLookup[getStackDir(b)])
-	})
-
-	return "", nil
+	return d, "", nil
 }
 
 // BuildDAG builds a run order DAG for the given stack.
 func BuildDAG(
-	d *dag.DAG,
+	d *dag.DAG[*config.Stack],
 	root *config.Root,
 	s *config.Stack,
 	descendantsName string,

@@ -97,7 +97,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			name: "failed cmd cancels execution of subsequent stacks",
 			layout: []string{
 				"s:s1:id=s1",
-				"s:s2:id=s2",
+				"s:s1/s2:id=s2",
 			},
 			cmd: []string{"non-existent-command"},
 			want: want{
@@ -126,7 +126,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			name: "both failed stacks and continueOnError",
 			layout: []string{
 				"s:s1:id=s1",
-				"s:s2:id=s2",
+				"s:s1/s2:id=s2",
 			},
 			runflags: []string{"--continue-on-error"},
 			cmd:      []string{"non-existent-command"},
@@ -153,7 +153,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Stack: cloud.Stack{
 								Repository:    "local",
 								DefaultBranch: "main",
-								Path:          "/s2",
+								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
@@ -167,8 +167,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			name: "one failed cmd and continueOnError",
 			layout: []string{
 				"s:s1:id=s1",
-				"s:s2:id=s2",
-				"f:s2/test.txt:test",
+				"s:s1/s2:id=s2",
+				"f:s1/s2/test.txt:test",
 			},
 			runflags: []string{"--continue-on-error"},
 			cmd:      []string{HelperPath, "cat", "test.txt"},
@@ -196,7 +196,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Stack: cloud.Stack{
 								Repository:    "local",
 								DefaultBranch: "main",
-								Path:          "/s2",
+								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
@@ -263,7 +263,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			name: "multiple drifted stacks",
 			layout: []string{
 				"s:s1:id=s1",
-				"s:s2:id=s2",
+				"s:s1/s2:id=s2",
 			},
 			cmd: []string{HelperPath, "exit", "2"},
 			want: want{
@@ -285,7 +285,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Stack: cloud.Stack{
 								Repository:    "local",
 								DefaultBranch: "main",
-								Path:          "/s2",
+								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
@@ -362,11 +362,11 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			name: "using --cloud-sync-terraform-plan-file=out.tfplan",
 			layout: []string{
 				"s:s1:id=s1",
-				"s:s2:id=s2",
+				"s:s1/s2:id=s2",
 				"copy:s1:testdata/cloud-sync-drift-plan-file",
-				"copy:s2:testdata/cloud-sync-drift-plan-file",
+				"copy:s1/s2:testdata/cloud-sync-drift-plan-file",
 				"run:s1:terraform init",
-				"run:s2:terraform init",
+				"run:s1/s2:terraform init",
 			},
 			runflags: []string{
 				`--cloud-sync-terraform-plan-file=out.tfplan`,
@@ -410,7 +410,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Stack: cloud.Stack{
 								Repository:    "local",
 								DefaultBranch: "main",
-								Path:          "/s2",
+								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
@@ -462,46 +462,58 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
-			addr := startFakeTMCServer(t, cloudData)
-
-			defaultBranch := tc.defaultBranch
-			if defaultBranch == "" {
-				defaultBranch = "main"
+		for _, isParallel := range []bool{false, true} {
+			tc := tc
+			isParallel := isParallel
+			name := tc.name
+			if isParallel {
+				name += "-parallel"
 			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 
-			s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
-				LocalBranchName:         defaultBranch,
-				DefaultRemoteName:       "origin",
-				DefaultRemoteBranchName: defaultBranch,
+				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				assert.NoError(t, err)
+				addr := startFakeTMCServer(t, cloudData)
+
+				defaultBranch := tc.defaultBranch
+				if defaultBranch == "" {
+					defaultBranch = "main"
+				}
+
+				s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
+					LocalBranchName:         defaultBranch,
+					DefaultRemoteName:       "origin",
+					DefaultRemoteBranchName: defaultBranch,
+				})
+
+				s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
+
+				s.BuildTree(tc.layout)
+				s.Git().CommitAll("all stacks committed")
+
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, tc.env...)
+				env = append(env, "TMC_API_URL=http://"+addr)
+				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli.PrependToPath(filepath.Dir(TerraformTestPath))
+				runflags := []string{"run", "--quiet", "--cloud-sync-drift-status"}
+				if isParallel {
+					runflags = append(runflags, "--parallel")
+					tc.want.run.IgnoreStdout = true
+					tc.want.run.IgnoreStderr = true
+				}
+				runflags = append(runflags, tc.runflags...)
+				runflags = append(runflags, "--")
+				runflags = append(runflags, tc.cmd...)
+
+				minStartTime := time.Now().UTC()
+				result := cli.Run(runflags...)
+				maxEndTime := time.Now().UTC()
+				AssertRunResult(t, result, tc.want.run)
+				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
 			})
-
-			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
-
-			s.BuildTree(tc.layout)
-			s.Git().CommitAll("all stacks committed")
-
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, tc.env...)
-			env = append(env, "TMC_API_URL=http://"+addr)
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-			cli.PrependToPath(filepath.Dir(TerraformTestPath))
-			runflags := []string{"run", "--quiet", "--cloud-sync-drift-status"}
-			runflags = append(runflags, tc.runflags...)
-			runflags = append(runflags, "--")
-			runflags = append(runflags, tc.cmd...)
-
-			minStartTime := time.Now().UTC()
-			result := cli.Run(runflags...)
-			maxEndTime := time.Now().UTC()
-			AssertRunResult(t, result, tc.want.run)
-			assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
-		})
+		}
 	}
 }
 
