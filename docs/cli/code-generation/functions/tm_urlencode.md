@@ -26,6 +26,6 @@ tm_urlencode("Hello World!")
 Hello+World%21
 tm_urlencode("☃")
 %E2%98%83
-tm_"http://example.com/search?q=${urlencode("terraform urlencode")}"
+tm_urlencode("http://example.com/search?q=${"terraform urlencode"}")
 http://example.com/search?q=terraform+urlencode
 ```

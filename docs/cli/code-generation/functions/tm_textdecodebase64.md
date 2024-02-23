@@ -37,4 +37,4 @@ Hello World
 * [`tm_textencodebase64`](./tm_textencodebase64.md) performs the opposite operation,
   applying target encoding and then Base64 to a string.
 * [`tm_base64decode`](./tm_base64decode.md) is effectively a shorthand for
-  `textdecodebase64` where the character encoding is fixed as `UTF-8`.
+  `tm_textdecodebase64` where the character encoding is fixed as `UTF-8`.

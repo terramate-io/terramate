@@ -64,7 +64,7 @@ tm_yamlencode({"foo":[1, {"a":"b","c":"d"}, 3], "bar": "baz"})
 - 3
 ```
 
-`yamlencode` always uses YAML's "block style" for mappings and sequences, unless
+`tm_yamlencode` always uses YAML's "block style" for mappings and sequences, unless
 the mapping or sequence is empty. To generate flow-style YAML, use
 [`tm_jsonencode`](./tm_jsonencode.md) instead: YAML flow-style is a superset
 of JSON syntax.

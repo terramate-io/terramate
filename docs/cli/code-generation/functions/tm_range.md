@@ -112,7 +112,7 @@ variable "name_counts" {
 locals {
   expanded_names = {
     for name, count in var.name_counts : name => [
-      for i in range(count) : format("%s%02d", name, i)
+      for i in tm_range(count) : format("%s%02d", name, i)
     ]
   }
 }
