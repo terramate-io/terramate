@@ -28,6 +28,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for formatting specific files and stdin (`terramate fmt [file...]` or `terramate fmt -`).
 - Add `--cloud-status=status` flag to both `terramate run` and `terramate script run`.
 - Add `--cloud-sync-preview` flag to `terramate run` to sync the preview to Terramate Cloud.
+- Improve user experience when using Terramate with existing Terragrunt projects.
+  - Add  `terramate create --all-terragrunt` option, which will automatically create Terramate stacks for each Terraform module.
 - Allow to run independent stacks in parallel for faster deployments and better utilization of system resources in general.
   - Add `--parallel` (short `-j`) option to `terramate run` and `terramate script run`.
   - `--parallel=N` limits the number of concurrent runs to `N`, otherwise a sensible default limit is chosen.
