@@ -38,6 +38,7 @@ import (
 	"github.com/terramate-io/terramate/modvendor/download"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/safeguard"
+	"github.com/terramate-io/terramate/tg"
 	"github.com/terramate-io/terramate/versions"
 
 	"github.com/terramate-io/terramate/stack/trigger"
@@ -136,6 +137,7 @@ type cliSpec struct {
 		Before         []string `help:"Add a stack as before"`
 		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
 		AllTerraform   bool     `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
+		AllTerragrunt  bool     `help:"initialize all Terragrunt modules"`
 		EnsureStackIds bool     `help:"generate an UUID for the stack.id of all stacks which does not define it"`
 		NoGenerate     bool     `help:"Disable code generation for the newly created stacks"`
 	} `cmd:"" help:"Creates a stack on the project"`
@@ -1207,22 +1209,35 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 }
 
 func (c *cli) scanCreate() {
-	if c.parsedArgs.Create.EnsureStackIds && c.parsedArgs.Create.AllTerraform {
-		fatal("Invalid args", errors.E("--all-terraform conflicts with --ensure-stack-ids"))
+	scanFlags := 0
+	if c.parsedArgs.Create.AllTerraform {
+		scanFlags++
+	}
+	if c.parsedArgs.Create.AllTerragrunt {
+		scanFlags++
+	}
+	if c.parsedArgs.Create.EnsureStackIds {
+		scanFlags++
 	}
 
-	if !c.parsedArgs.Create.AllTerraform && !c.parsedArgs.Create.EnsureStackIds {
-		fatal(
-			"Invalid args",
-			errors.E("terramate create requires a path or --all-terraform or --ensure-stack-ids"),
-		)
+	if scanFlags == 0 {
+		fatal("Missing args", errors.E("path argument or one of --all-terraform, --all-terragrunt, --ensure-stack-ids must be provided"))
+	}
+
+	if scanFlags > 1 {
+		fatal("Invalid args", errors.E("only one of --all-terraform, --all-terragrunt, --ensure-stack-ids can be provided"))
 	}
 
 	var flagname string
-	if c.parsedArgs.Create.EnsureStackIds {
+	switch {
+	case c.parsedArgs.Create.EnsureStackIds:
 		flagname = "--ensure-stack-ids"
-	} else {
+	case c.parsedArgs.Create.AllTerraform:
 		flagname = "--all-terraform"
+	case c.parsedArgs.Create.AllTerragrunt:
+		flagname = "--all-terragrunt"
+	default:
+		panic(errors.E(errors.ErrInternal, "bug: no flag set"))
 	}
 
 	if c.parsedArgs.Create.ID != "" ||
@@ -1250,16 +1265,56 @@ func (c *cli) scanCreate() {
 		)
 	}
 
-	if c.parsedArgs.Create.AllTerraform {
+	switch flagname {
+	case "--all-terraform":
 		c.initTerraform()
-		return
+	case "--all-terragrunt":
+		c.initTerragrunt()
+	case "--ensure-stack-ids":
+		c.ensureStackID()
+	}
+}
+
+func (c *cli) initTerragrunt() {
+	modules, err := tg.ScanModules(c.rootdir(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+	if err != nil {
+		fatal("scanning for Terragrunt modules", err)
+	}
+	errs := errors.L()
+	for _, mod := range modules {
+		tree, found := c.prj.root.Lookup(mod.Path)
+		if found && tree.IsStack() {
+			continue
+		}
+
+		stackID, err := uuid.NewRandom()
+		dirBasename := filepath.Base(mod.Path.String())
+		if err != nil {
+			fatal("creating stack UUID", err)
+		}
+		stackSpec := config.Stack{
+			Dir:         mod.Path,
+			ID:          stackID.String(),
+			Name:        dirBasename,
+			Description: dirBasename,
+		}
+
+		err = stack.Create(c.cfg(), stackSpec)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+
+		printer.Stdout.Println(sprintf("Created stack %s", stackSpec.Dir))
 	}
 
-	c.ensureStackID()
+	if err := errs.AsError(); err != nil {
+		fatal("failed to initialize Terragrunt modules", err)
+	}
 }
 
 func (c *cli) initTerraform() {
-	err := c.initDir(c.wd())
+	err := c.initTerraformDir(c.wd())
 	if err != nil {
 		fatal("failed to initialize some directories", err)
 	}
@@ -1294,7 +1349,7 @@ func (c *cli) initTerraform() {
 	c.output.MsgStdOutV(vendorReport.String())
 }
 
-func (c *cli) initDir(baseDir string) error {
+func (c *cli) initTerraformDir(baseDir string) error {
 	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
 	var isStack bool
 	tree, found := c.prj.root.Lookup(pdir)
@@ -1315,7 +1370,7 @@ func (c *cli) initDir(baseDir string) error {
 		}
 
 		if f.IsDir() {
-			errs.Append(c.initDir(path))
+			errs.Append(c.initTerraformDir(path))
 			continue
 		}
 
@@ -1355,7 +1410,6 @@ func (c *cli) initDir(baseDir string) error {
 			continue
 		}
 
-		log.Info().Msgf("created stack %s", stackSpec.Dir)
 		c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
 
 		// so other files in the same directory do not trigger stack creation.
@@ -1365,7 +1419,7 @@ func (c *cli) initDir(baseDir string) error {
 }
 
 func (c *cli) createStack() {
-	if c.parsedArgs.Create.AllTerraform || c.parsedArgs.Create.EnsureStackIds {
+	if c.parsedArgs.Create.AllTerraform || c.parsedArgs.Create.EnsureStackIds || c.parsedArgs.Create.AllTerragrunt {
 		c.scanCreate()
 		return
 	}
