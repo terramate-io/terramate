@@ -41,7 +41,7 @@ func TestScriptList(t *testing.T) {
 	mkExpected := func(name, path string, count int) string {
 		if count != 0 {
 			return fmt.Sprintf(`%s
-  "%s at /%s"
+  Description: "%s at /%s"
   Defined at /%s
     (+%d more)
 
@@ -50,7 +50,7 @@ func TestScriptList(t *testing.T) {
 		}
 
 		return fmt.Sprintf(`%s
-  "%s at /%s"
+  Description: "%s at /%s"
   Defined at /%s
 
 `, name, name, path, path)

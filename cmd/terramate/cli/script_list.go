@@ -34,7 +34,10 @@ func (c *cli) printScriptList() {
 		entry := entries[name]
 
 		c.output.MsgStdOut("%v", name)
-		c.output.MsgStdOut("  %v", formatScriptDescription(entry.ScriptCfg))
+		if entry.ScriptCfg.Name != nil {
+			c.output.MsgStdOut("  Name: %v", nameTruncation(exprString(entry.ScriptCfg.Name.Expr)))
+		}
+		c.output.MsgStdOut("  Description: %v", exprString(entry.ScriptCfg.Description.Expr))
 
 		c.output.MsgStdOut("  Defined at %v", entry.Dir)
 
@@ -48,7 +51,7 @@ func (c *cli) printScriptList() {
 
 func addParentScriptListEntries(cfg *config.Tree, entries scriptListMap) {
 	for _, sc := range cfg.Node.Scripts {
-		scriptname := sc.Name()
+		scriptname := sc.AccessorName()
 		defcount := 1
 		olddef := entries[scriptname]
 		if olddef != nil {
@@ -72,7 +75,7 @@ func addChildScriptListEntries(cfg *config.Tree, entries scriptListMap) {
 	for _, k := range sortedKeys(cfg.Children) {
 		childCfg := cfg.Children[k]
 		for _, sc := range childCfg.Node.Scripts {
-			scriptname := sc.Name()
+			scriptname := sc.AccessorName()
 
 			olddef := entries[scriptname]
 			if olddef != nil {

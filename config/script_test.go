@@ -4,6 +4,7 @@
 package config_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -65,7 +66,7 @@ func TestScriptEval(t *testing.T) {
 				Description: hcl.NewScriptDescription(
 					makeAttribute(t, "description", `666`)),
 			},
-			wantErr: errors.E(config.ErrScriptInvalidTypeDesc),
+			wantErr: errors.E(config.ErrScriptInvalidType),
 		},
 		{
 			name: "description attribute with functions",
@@ -93,6 +94,76 @@ func TestScriptEval(t *testing.T) {
 			want: config.Script{
 				Labels:      labels,
 				Description: "TERRAMATE",
+			},
+		},
+		{
+			name: "name attribute with wrong type",
+			script: hcl.Script{
+				Labels: labels,
+				Name: hcl.NewScriptName(
+					makeAttribute(t, "name", `666`)),
+				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+			},
+			wantErr: errors.E(config.ErrScriptInvalidType),
+		},
+		{
+			name: "name attribute with string",
+			script: hcl.Script{
+				Labels: labels,
+				Name: hcl.NewScriptName(
+					makeAttribute(t, "name", `"some name"`)),
+				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+			},
+			want: config.Script{
+				Labels:      labels,
+				Name:        "some name",
+				Description: "some desc",
+			},
+		},
+		{
+			name: "name attribute exceeds maximum allowed characters - truncation",
+			script: hcl.Script{
+				Labels: labels,
+				Name: hcl.NewScriptName(
+					makeAttribute(t, "name", `"`+strings.Repeat("A", 150)+`"`)),
+				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+			},
+			want: config.Script{
+				Labels:      labels,
+				Name:        strings.Repeat("A", 128),
+				Description: "some desc",
+			},
+		},
+		{
+			name: "name attribute with functions",
+			script: hcl.Script{
+				Labels: labels,
+				Name: hcl.NewScriptName(
+					makeAttribute(t, "name", `tm_upper("some name")`)),
+				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+			},
+			want: config.Script{
+				Labels:      labels,
+				Name:        "SOME NAME",
+				Description: "some desc",
+			},
+		},
+		{
+			name: "name attribute with interpolation, functions and globals",
+			script: hcl.Script{
+				Range:  Range("script.tm", Start(1, 1, 0), End(3, 2, 37)),
+				Labels: labels,
+				Name: hcl.NewScriptName(
+					makeAttribute(t, "name", `"my name is ${tm_upper(global.name_var)}!!!"`)),
+				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+			},
+			globals: map[string]cty.Value{
+				"name_var": cty.StringVal("terramate"),
+			},
+			want: config.Script{
+				Labels:      labels,
+				Name:        "my name is TERRAMATE!!!",
+				Description: "some desc",
 			},
 		},
 		{

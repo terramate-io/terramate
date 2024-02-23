@@ -80,7 +80,8 @@ script "command" "subcommand" { # any level of subcommands is supported
 provide to the `terramate script run` command in order to execute the script:
 `terramate script run command subcommand`. You can define any number of labels.
 - Attributes and Blocks Reference of the `script` block
-  - `description` *(optional)* - A description of the jobs being executed
+  - `name` *(optional)* - A name for the jobs being executed (maximum of 128 chars)
+  - `description` *(required)* - A description of the jobs being executed
   - `job` *(required)* - One or more blocks each defining a sequence of commands to be executed in the script.
   Jobs are executed in the order of definition.
       
