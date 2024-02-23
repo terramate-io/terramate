@@ -11,7 +11,7 @@ description: |-
 
 In the Terraform language, timestamps are conventionally represented as
 strings using [RFC 3339](https://tools.ietf.org/html/rfc3339)
-"Date and Time format" syntax, and so `timestamp` returns a string
+"Date and Time format" syntax, and so `tm_timestamp` returns a string
 in this format.
 
 The result of this function will change every second, so using this function

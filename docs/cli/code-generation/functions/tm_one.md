@@ -8,8 +8,8 @@ description: |-
 # `tm_one` Function
 
 `tm_one` takes a list, set, or tuple value with either zero or one elements.
-If the collection is empty, `one` returns `null`. Otherwise, `one` returns
-the first element. If there are two or more elements then `one` will return
+If the collection is empty, `tm_one` returns `null`. Otherwise, `tm_one` returns
+the first element. If there are two or more elements then `tm_one` will return
 an error.
 
 This is a specialized function intended for the common situation where a
@@ -31,7 +31,7 @@ resource "aws_instance" "example" {
 }
 
 output "instance_ip_address" {
-  value = one(aws_instance.example[*].private_ip)
+  value = tm_one(aws_instance.example[*].private_ip)
 }
 ```
 
@@ -71,7 +71,7 @@ output "instance_ip_address" {
 
 In this case we can see that The `tm_one` function is, in a sense, the opposite
 of applying `[*]` to a primitive-typed value. Splat can convert a possibly-null
-value into a zero-or-one list, and `one` can reverse that to return to a
+value into a zero-or-one list, and `tm_one` can reverse that to return to a
 primitive value that might be null.
 
 ## Examples
@@ -94,7 +94,7 @@ either zero or one elements.
 The `tm_one` function can be particularly helpful in situations where you have a
 set that you know has only zero or one elements. Set values don't support
 indexing, so it's not valid to write `var.set[0]` to extract the "first"
-element of a set, but if you know that there's only one item then `one` can
+element of a set, but if you know that there's only one item then `tm_one` can
 isolate and return that single item:
 
 ```sh

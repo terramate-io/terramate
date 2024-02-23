@@ -27,8 +27,8 @@ additional bits added to the prefix.
 This function accepts both IPv6 and IPv4 prefixes, and the result always uses
 the same addressing scheme as the given prefix.
 
-Unlike the related function [`tm_cidrsubnets`](./tm_cidrsubnets.md), `cidrsubnet`
-allows you to give a specific network number to use. `cidrsubnets` can allocate
+Unlike the related function [`tm_cidrsubnets`](./tm_cidrsubnets.md), `tm_cidrsubnet`
+allows you to give a specific network number to use. `tm_cidrsubnets` can allocate
 multiple network addresses at once, but numbers them automatically starting
 with zero.
 

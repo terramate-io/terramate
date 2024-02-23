@@ -14,7 +14,7 @@ tm_timeadd(timestamp, duration)
 
 In the Terraform language, timestamps are conventionally represented as
 strings using [RFC 3339](https://tools.ietf.org/html/rfc3339)
-"Date and Time format" syntax. `timeadd` requires the `timestamp` argument
+"Date and Time format" syntax. `tm_timeadd` requires the `timestamp` argument
 to be a string conforming to this syntax.
 
 `duration` is a string representation of a time difference, consisting of

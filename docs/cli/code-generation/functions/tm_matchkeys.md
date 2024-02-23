@@ -15,7 +15,7 @@ list.
 tm_matchkeys(valueslist, keyslist, searchset)
 ```
 
-`matchkeys` identifies the indexes in `keyslist` that are equal to elements of
+`tm_matchkeys` identifies the indexes in `keyslist` that are equal to elements of
 `searchset`, and then constructs a new list by taking those same indexes from
 `valueslist`. Both `valueslist` and `keyslist` must be the same length.
 
@@ -65,6 +65,6 @@ the instances by matching one of the resource attributes:
 ]
 ```
 
-Since the signature of `matchkeys` is complicated and not immediately clear to
+Since the signature of `tm_matchkeys` is complicated and not immediately clear to
 the reader when used in configuration, prefer to use `for` expressions where
 possible to maximize readability.

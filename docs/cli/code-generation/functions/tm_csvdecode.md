@@ -71,7 +71,7 @@ resource "aws_instance" "example" {
 ```
 
 The `for` expression in our `for_each` argument transforms the list produced
-by `csvdecode` into a map using the `local_id` as a key, which tells
+by `tm_csvdecode` into a map using the `local_id` as a key, which tells
 Terraform to use the `local_id` value to track each instance it creates.
 Terraform will create and manage the following instance addresses:
 
@@ -89,7 +89,7 @@ If there is no reasonable value you can use as a unique identifier in your CSV
 then you could instead use
 [the `count` meta-argument](https://developer.hashicorp.com/terraform/language/meta-arguments/count)
 to define an object for each CSV row, with each one identified by its index into
-the list returned by `csvdecode`. However, in that case any future updates to
+the list returned by `tm_csvdecode`. However, in that case any future updates to
 the CSV may be disruptive if they change the positions of particular objects in
 the list. We recommend using `for_each` with a unique id column to make
 behavior more predictable on future changes.

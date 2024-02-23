@@ -24,7 +24,7 @@ This function maps **Terramate language values** to JSON values in the following
 | Null value     | `null`    |
 
 Since the JSON format cannot fully represent all of the Terramate language
-types, passing the `jsonencode` result to `jsondecode` will not produce an
+types, passing the `tm_jsonencode` result to `tm_jsondecode` will not produce an
 identical value, but the automatic type conversion rules mean that this is
 rarely a problem in practice.
 

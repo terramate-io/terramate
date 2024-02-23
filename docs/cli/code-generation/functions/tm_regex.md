@@ -15,7 +15,7 @@ to a string and returns the matching substrings.
 tm_regex(pattern, string)
 ```
 
-The return type of `regex` depends on the capture groups, if any, in the
+The return type of `tm_regex` depends on the capture groups, if any, in the
 pattern:
 
 - If the pattern has no capture groups at all, the result is a single string
@@ -28,7 +28,7 @@ pattern:
 
 It's not valid to mix both named and unnamed capture groups in the same pattern.
 
-If the given pattern does not match at all, the `regex` raises an error. To
+If the given pattern does not match at all, the `tm_regex` raises an error. To
 _test_ whether a given pattern matches a string, use
 [`tm_regexall`](./tm_regexall.md) and test that the result has length greater than
 zero.
