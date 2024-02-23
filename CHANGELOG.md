@@ -28,8 +28,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for formatting specific files and stdin (`terramate fmt [file...]` or `terramate fmt -`).
 - Add `--cloud-status=status` flag to both `terramate run` and `terramate script run`.
 - Add `script.name` attribute. 
-  The commands `terramate script info`, `terramate script list` and `terramate script tree` were 
-  updated to show the script name (when available).
+  - The commands `terramate script info`, `terramate script list` and `terramate script tree` were updated to show the script name (when available).
 - Add `--cloud-sync-preview` flag to `terramate run` to sync the preview to Terramate Cloud.
 - Improve user experience when using Terramate with existing Terragrunt projects.
   - Add  `terramate create --all-terragrunt` option, which will automatically create Terramate stacks for each Terraform module.
