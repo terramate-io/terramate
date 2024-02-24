@@ -109,8 +109,7 @@ func (g *githubOIDC) Refresh() (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	client := github.Client{}
-	token, err := client.OIDCToken(ctx, github.OIDCVars{
+	token, err := github.OIDCToken(ctx, github.OIDCVars{
 		ReqURL:   g.reqURL,
 		ReqToken: g.reqToken,
 	})
