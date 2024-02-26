@@ -237,7 +237,7 @@ type (
 		ChecksTotalCount      int        `json:"checks_total_count"`
 		ChecksFailureCount    int        `json:"checks_failure_count"`
 		ChecksSuccessCount    int        `json:"checks_success_count"`
-		PushedAt              *time.Time `json:"pushed_at,omitempty"`
+		UpdatedAt             *time.Time `json:"updated_at,omitempty"`
 	}
 
 	// Label of a review request.

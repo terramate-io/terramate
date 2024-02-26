@@ -768,6 +768,7 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 }
 
 func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool) *cloud.ReviewRequest {
+	pullUpdatedAt := pull.GetUpdatedAt()
 	rr := &cloud.ReviewRequest{
 		Platform:       "github",
 		Repository:     c.prj.prettyRepo(),
@@ -778,6 +779,7 @@ func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullR
 		CommitSHA:      pull.GetHead().GetSHA(),
 		Draft:          pull.GetDraft(),
 		ReviewRequired: len(pull.RequestedReviewers)+len(pull.RequestedTeams) > 0,
+		UpdatedAt:      pullUpdatedAt.GetTime(),
 	}
 
 	if pull.GetState() == "closed" {
