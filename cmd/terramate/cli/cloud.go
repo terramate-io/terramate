@@ -138,6 +138,10 @@ func (c *cli) setupCloudConfig() error {
 		return cloudError()
 	}
 
+	if c.cred().Name() == githubOIDCProviderName {
+		c.uimode = AutomationMode
+	}
+
 	// at this point we know user is onboarded, ie has at least 1 organization.
 	orgs := c.cred().organizations()
 
