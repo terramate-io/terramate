@@ -327,6 +327,10 @@ func (c *cli) runAll(
 				printScriptCommand(c.stderr, run.Stack, task)
 			}
 
+			if !opts.Quiet && !opts.ScriptRun {
+				printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
+			}
+
 			c.cloudSyncBefore(cloudRun)
 
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
@@ -343,7 +347,6 @@ func (c *cli) runAll(
 			}
 
 			if !opts.Quiet && !opts.ScriptRun {
-				printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
 				printer.Stderr.Println(printPrefix + " Executing command " + strconv.Quote(cmdStr))
 			}
 
