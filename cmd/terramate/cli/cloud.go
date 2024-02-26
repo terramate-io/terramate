@@ -303,12 +303,10 @@ func (c *cli) doPreviewBefore(run stackCloudRun) {
 		printer.Stderr.ErrorWithDetails("failed to update stack preview", err)
 		return
 	}
-	if !c.parsedArgs.Quiet {
-		printer.Stderr.Println(sprintf("terramate: stack:'%s' preview_status:%s",
-			run.Stack.Name,
-			preview.StackStatusRunning,
-		))
-	}
+	log.Debug().
+		Str("stack_name", run.Stack.Dir.String()).
+		Str("stack_preview_status", preview.StackStatusRunning.String()).
+		Msg("Setting stack preview status")
 }
 
 func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
@@ -322,6 +320,13 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 			printer.Stderr.WarnWithDetails(
 				sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()),
 				err)
+
+			printer.Stderr.Warn(
+				sprintf("preview status set to \"failed\" (previously %q) due to failure when generating the "+
+					"changeset details", previewStatus),
+			)
+
+			previewStatus = preview.StackStatusFailed
 		}
 		if changeset != nil {
 			previewChangeset = &cloud.ChangesetDetails{
@@ -346,15 +351,14 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 		return
 	}
 
-	if !c.parsedArgs.Quiet {
-		msg := sprintf("terramate: stack:'%s' preview_status:%s",
-			run.Stack.Dir.String(),
-			previewStatus.String(),
-		)
-		if previewChangeset != nil {
-			msg = sprintf("%s (with changeset)", msg)
-		}
-		printer.Stderr.Println(msg)
+	logger := log.With().
+		Str("stack_name", run.Stack.Dir.String()).
+		Str("stack_preview_status", previewStatus.String()).
+		Logger()
+
+	logger.Debug().Msg("Setting stack preview status")
+	if previewChangeset != nil {
+		logger.Debug().Msg("Sending changelog")
 	}
 }
 
@@ -513,9 +517,9 @@ func (c *cli) detectCloudMetadata() {
 
 	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, r.Owner, r.Name, prNumber, headCommit)
 	if err != nil {
-		printer.Stderr.WarnWithDetails(
-			sprintf("failed to retrieve pull request (number: %d, commit: %s)", prNumber, headCommit),
-			err)
+		logger.Debug().Err(err).
+			Int("number", prNumber).
+			Msg("failed to retrieve pull_request")
 		return
 	}
 
