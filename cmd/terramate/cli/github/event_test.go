@@ -3,38 +3,108 @@
 
 package github
 
-import "testing"
+import (
+	"os"
+	"testing"
+
+	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/errors"
+)
 
 const validGithubEventPath = "./testdata/event_pull_request.json"
 
-func TestGetEventFromPath(t *testing.T) {
-	event, err := getEventFromPath(validGithubEventPath)
-	if err != nil {
-		t.Errorf("error is not nil, expected  nil")
+func TestGetEventPR(t *testing.T) {
+	type want struct {
+		err       error
+		updatedAt string
+		htmlURL   string
+		number    int
+		title     string
+		body      string
+		headSHA   string
+		draft     bool
 	}
 
-	if event == nil {
-		t.Fatal("event is nil, expected not nil")
+	type testcase struct {
+		name string
+		env  map[string]string
+		want want
 	}
 
-	if event.PullRequest.UpdatedAt == nil {
-		t.Fatal("event.PullRequest.UpdatedAt is nil, expected not nil")
+	testcases := []testcase{
+		{
+			name: "valid event",
+			env: map[string]string{
+				"GITHUB_EVENT_PATH": validGithubEventPath,
+			},
+			want: want{
+				htmlURL:   "https://github.com/someorg/somerepo/pull/8",
+				number:    8,
+				title:     "envvar",
+				body:      "test",
+				headSHA:   "ea61b5bd72dec0878ae388b04d76a988439d1e28",
+				draft:     false,
+				updatedAt: "2024-02-09 12:38:32 +0000 UTC",
+			},
+		},
+		{
+			name: "non existent path",
+			env: map[string]string{
+				"GITHUB_EVENT_PATH": "/tmp/does-not-exist",
+			},
+			want: want{
+				err: errors.E("open /tmp/does-not-exist: no such file or directory"),
+			},
+		},
+		{
+			name: "missing env var",
+			env:  map[string]string{},
+			want: want{
+				err: errors.E("missing GITHUB_EVENT_PATH"),
+			},
+		},
 	}
 
-	const wantUpdatedAt = "2024-02-09 12:38:32 +0000 UTC"
-	if event.PullRequest.UpdatedAt.String() != wantUpdatedAt {
-		t.Errorf("unexpected event.PullRequest.UpdatedAt, got: %s", event.PullRequest.UpdatedAt.String())
+	// This is needed for tests to have a clean environment when running in GHA
+	if err := os.Unsetenv("GITHUB_EVENT_PATH"); err != nil {
+		t.Fatal(err)
 	}
-}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
 
-func TestGetEventPRUpdatedAt(t *testing.T) {
-	updatedAt, err := GetEventPRUpdatedAt(validGithubEventPath)
-	if err != nil {
-		t.Fatalf("error is not nil, expected nil")
-	}
+			pull, err := GetEventPR()
+			assert.EqualErrs(t, tc.want.err, err)
 
-	const wantUpdatedAt = "2024-02-09 12:38:32 +0000 UTC"
-	if updatedAt.String() != wantUpdatedAt {
-		t.Errorf("updatedAt is not equal to wantUpdatedAt, got: %s", updatedAt.String())
+			if tc.want.updatedAt != "" {
+				assert.EqualStrings(t, tc.want.updatedAt, pull.GetUpdatedAt().String())
+			}
+
+			if tc.want.htmlURL != "" {
+				assert.EqualStrings(t, tc.want.htmlURL, pull.GetHTMLURL())
+			}
+
+			if tc.want.number != 0 {
+				assert.EqualInts(t, tc.want.number, pull.GetNumber())
+			}
+
+			if tc.want.title != "" {
+				assert.EqualStrings(t, tc.want.title, pull.GetTitle())
+			}
+
+			if tc.want.body != "" {
+				assert.EqualStrings(t, tc.want.body, pull.GetBody())
+			}
+
+			if tc.want.headSHA != "" {
+				assert.EqualStrings(t, tc.want.headSHA, pull.GetHead().GetSHA())
+			}
+
+			if tc.want.draft != pull.GetDraft() {
+				t.Errorf("unexpected draft: want %v, got %v", tc.want.draft, pull.GetDraft())
+			}
+		})
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
@@ -56,6 +57,7 @@ type cloudConfig struct {
 		// stackPreviews is a map of stack.ID to stackPreview.ID
 		stackPreviews               map[string]string
 		reviewRequest               *cloud.ReviewRequest
+		prFromGHAEvent              *github.PullRequest
 		metadata                    *cloud.DeploymentMetadata
 		technology, technologyLayer string
 	}
@@ -499,47 +501,71 @@ func (c *cli) detectCloudMetadata() {
 			Msg("failed to retrieve commit information from GitHub API")
 	}
 
-	if pull, found, err := getGithubPR(githubClient, r.Owner, r.Name, headCommit); err == nil {
-		if !found {
-			logger.Warn().
-				Msg("no pull request associated with HEAD commit")
-
-			return
-		}
-
-		logger.Debug().
-			Str("pull_request_url", pull.GetHTMLURL()).
-			Msg("using pull request url")
-
-		setGithubPRMetadata(md, pull)
-
-		reviews, err := listGithubPullReviews(githubClient, r.Owner, r.Name, pull.GetNumber())
-		if err != nil {
-			logger.Warn().
-				Err(err).
-				Msg("failed to retrieve PR reviews")
-		}
-
-		checks, err := listGithubChecks(githubClient, r.Owner, r.Name, headCommit)
-		if err != nil {
-			logger.Warn().
-				Err(err).
-				Msg("failed to retrieve PR reviews")
-		}
-
-		merged := false
-		if pull.GetState() == "closed" {
-			merged, err = isGithubPRMerged(githubClient, r.Owner, r.Name, pull.GetNumber())
-			if err != nil {
-				logger.Warn().
-					Err(err).
-					Msg("failed to retrieve PR merged status")
-			}
-		}
-
-		c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged)
-
+	var prNumber int
+	prFromEvent, err := tmgithub.GetEventPR()
+	if err != nil {
+		logger.Debug().Err(err).Msg("unable to get pull_request details from GITHUB_EVENT_PATH")
 	} else {
+		logger.Debug().Err(err).Msg("got pull_request details from GITHUB_EVENT_PATH")
+		c.cloud.run.prFromGHAEvent = prFromEvent
+		prNumber = prFromEvent.GetNumber()
+	}
+
+	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, r.Owner, r.Name, prNumber, headCommit)
+	if err != nil {
+		printer.Stderr.WarnWithDetails(
+			sprintf("failed to retrieve pull request (number: %d, commit: %s)", prNumber, headCommit),
+			err)
+		return
+	}
+
+	logger.Debug().
+		Str("pull_request_url", pull.GetHTMLURL()).
+		Msg("using pull request url")
+
+	setGithubPRMetadata(md, pull)
+
+	reviews, err := listGithubPullReviews(githubClient, r.Owner, r.Name, pull.GetNumber())
+	if err != nil {
+		logger.Warn().
+			Err(err).
+			Msg("failed to retrieve PR reviews")
+	}
+
+	checks, err := listGithubChecks(githubClient, r.Owner, r.Name, headCommit)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to retrieve PR reviews")
+	}
+
+	merged := false
+	if pull.GetState() == "closed" {
+		merged, err = isGithubPRMerged(githubClient, r.Owner, r.Name, pull.GetNumber())
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to retrieve PR merged status")
+		}
+	}
+
+	c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged)
+}
+
+func getGithubPRByNumberOrCommit(githubClient *github.Client, ghToken, owner, repo string, number int, commit string) (*github.PullRequest, error) {
+	logger := log.With().
+		Str("github_repository", owner+"/"+repo).
+		Str("commit", commit).
+		Logger()
+
+	if number != 0 {
+		// fetch by number
+		pull, err := getGithubPRByNumber(githubClient, owner, repo, number)
+		if err != nil {
+			return nil, err
+		}
+		return pull, nil
+	}
+
+	// fetch by commit
+	pull, found, err := getGithubPRByCommit(githubClient, owner, repo, commit)
+	if err != nil {
 		if errors.IsKind(err, githubErrNotFound) {
 			if ghToken == "" {
 				logger.Warn().Msg("The GITHUB_TOKEN environment variable needs to be exported for private repositories.")
@@ -554,7 +580,14 @@ func (c *cli) detectCloudMetadata() {
 				Err(err).
 				Msg("failed to retrieve pull requests associated with HEAD")
 		}
+		return nil, err
 	}
+	if !found {
+		logger.Warn().Msg("no pull request associated with HEAD commit")
+		return nil, err
+	}
+
+	return pull, nil
 }
 
 func getGithubCommit(ghClient *github.Client, owner, repo, commit string) (*github.RepositoryCommit, error) {
@@ -569,8 +602,21 @@ func getGithubCommit(ghClient *github.Client, owner, repo, commit string) (*gith
 	return rcommit, nil
 }
 
+func getGithubPRByNumber(ghClient *github.Client, owner string, repo string, number int) (*github.PullRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	pull, _, err := ghClient.PullRequests.Get(ctx, owner, repo, number)
+	if err != nil {
+		return nil, err
+	}
+
+	return pull, nil
+
+}
+
 // returns nil, nil if there was no PR associated with commit
-func getGithubPR(ghClient *github.Client, owner, repo, commit string) (*github.PullRequest, bool, error) {
+func getGithubPRByCommit(ghClient *github.Client, owner, repo, commit string) (*github.PullRequest, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
@@ -722,6 +768,7 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 }
 
 func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool) *cloud.ReviewRequest {
+	pullUpdatedAt := pull.GetUpdatedAt()
 	rr := &cloud.ReviewRequest{
 		Platform:       "github",
 		Repository:     c.prj.prettyRepo(),
@@ -732,6 +779,7 @@ func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullR
 		CommitSHA:      pull.GetHead().GetSHA(),
 		Draft:          pull.GetDraft(),
 		ReviewRequired: len(pull.RequestedReviewers)+len(pull.RequestedTeams) > 0,
+		UpdatedAt:      pullUpdatedAt.GetTime(),
 	}
 
 	if pull.GetState() == "closed" {

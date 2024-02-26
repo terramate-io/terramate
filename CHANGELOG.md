@@ -66,6 +66,8 @@ upgrading.
 - Fix `tm_dynamic.attributes` being wrapped many times leading to stack exhaustion when cloning expressions in projects with lots of stacks.
 - Stack ordering not respected in the `script run`.
 - Fix `script.job.command[s]` not handling (typed) lists.
+- Use `repository` filter when listing Terramate Cloud stacks.
+  - It makes the `--cloud-status=<status>` flag faster and potentially less brittle for cases where other repositories have issues.
 
 ## 0.4.4
 
