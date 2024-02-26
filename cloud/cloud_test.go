@@ -155,7 +155,12 @@ func TestCommonAPIFailCases(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), timeout)
 				defer cancel()
 
-				_, err := sdk.StacksByStatus(ctx, "e4c81294-dcf8-45e2-ba95-25f96514a61b", stack.NoFilter)
+				_, err := sdk.StacksByStatus(
+					ctx,
+					"e4c81294-dcf8-45e2-ba95-25f96514a61b",
+					"dummy/repo",
+					stack.NoFilter,
+				)
 				errtest.Assert(t, err, tc.err)
 			}()
 		})
@@ -514,7 +519,7 @@ func TestCloudStacks(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			stacksResp, err := sdk.StacksByStatus(ctx, cloud.UUID(tc.org), tc.filter)
+			stacksResp, err := sdk.StacksByStatus(ctx, cloud.UUID(tc.org), "dummy/repo", tc.filter)
 			errtest.Assert(t, err, tc.want.err)
 			if err != nil {
 				return

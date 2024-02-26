@@ -1177,16 +1177,14 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, status)
+		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, status)
 		if err != nil {
 			return nil, err
 		}
 
 		cloudStacksMap := map[string]bool{}
 		for _, stack := range cloudStacks {
-			if stack.Repository == repository {
-				cloudStacksMap[stack.MetaID] = true
-			}
+			cloudStacksMap[stack.MetaID] = true
 		}
 
 		localStacks := report.Stacks

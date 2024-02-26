@@ -131,9 +131,10 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 
 // StacksByStatus returns all stacks for the given organization.
 // It paginates as needed and returns the total stacks response.
-func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, status stack.FilterStatus) ([]StackObject, error) {
+func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository string, status stack.FilterStatus) ([]StackObject, error) {
 	path := path.Join(StacksPath, string(orgUUID))
 	query := url.Values{}
+	query.Set("repository", repository)
 	if status != stack.NoFilter {
 		query.Set("status", status.String())
 	}

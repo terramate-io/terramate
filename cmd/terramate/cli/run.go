@@ -17,7 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -536,16 +535,9 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
-	githubEventPath, ok := os.LookupEnv("GITHUB_EVENT_PATH")
-	if !ok {
-		printer.Stderr.Warn("missing env var GITHUB_EVENT_PATH")
-		c.disableCloudFeatures(cloudError())
-		return map[string]string{}
-	}
-
-	eventPRUpdatedAt, err := github.GetEventPRUpdatedAt(githubEventPath)
-	if err != nil {
-		printer.Stderr.WarnWithDetails("unable to parse PR updated_at from GITHUB_EVENT_PATH", err)
+	pullRequest := c.cloud.run.prFromGHAEvent
+	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() {
+		printer.Stderr.Warn("unable to read pull_request details from GITHUB_EVENT_PATH")
 		c.disableCloudFeatures(cloudError())
 		return map[string]string{}
 	}
@@ -565,7 +557,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
-			UpdatedAt:       eventPRUpdatedAt.Unix(),
+			UpdatedAt:       pullRequest.GetUpdatedAt().Unix(),
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),
