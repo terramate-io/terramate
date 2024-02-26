@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Use `repository` filter when listing Terramate Cloud stacks.
+  - It makes the `--cloud-status=<status>` flag faster and potentially less brittle for cases where other repositories have issues.
+
 ## 0.4.5
 
 ### Added
