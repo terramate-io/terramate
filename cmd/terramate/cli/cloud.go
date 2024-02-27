@@ -845,15 +845,13 @@ func (c *cli) loadCredential() error {
 		Str("tmc_url", cloudURL).
 		Logger()
 
-	c.cloud = cloudConfig{
-		client: &cloud.Client{
-			BaseURL:    cloudURL,
-			IDPKey:     idpkey(),
-			HTTPClient: &c.httpClient,
-			Logger:     &clientLogger,
-		},
-		output: c.output,
+	c.cloud.client = &cloud.Client{
+		BaseURL:    cloudURL,
+		IDPKey:     idpkey(),
+		HTTPClient: &c.httpClient,
+		Logger:     &clientLogger,
 	}
+	c.cloud.output = c.output
 
 	// checks if this client version can communicate with Terramate Cloud.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)

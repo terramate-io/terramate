@@ -202,6 +202,9 @@ func (c *Client) CreateDeploymentStacks(
 	deploymentUUID UUID,
 	deploymentStacksPayload DeploymentStacksPayloadRequest,
 ) (DeploymentStacksResponse, error) {
+	if deploymentUUID == "" {
+		panic(errors.E(errors.ErrInternal, "deploymentUUID must not be empty"))
+	}
 	err := deploymentStacksPayload.Validate()
 	if err != nil {
 		return DeploymentStacksResponse{}, errors.E(err, "failed to prepare the request")
