@@ -31,6 +31,12 @@ Run a command in all stacks:
 terramate run terraform init
 ```
 
+Run a command in parallel in all stacks (the order of execution is still respected):
+
+```bash
+terramate run --parallel=5 terraform init
+```
+
 Run a command in all stacks inside a specific directory:
 
 ```bash
@@ -78,6 +84,7 @@ When using `--eval` the arguments can reference `terramate`, `global` and `tm_` 
 - `--dry-run` Plan the execution but do not execute it
 - `--reverse` Reverse the order of execution
 - `--eval` Evaluate command line arguments as HCL strings
+- `--parallel=N` Run independent tasks in parallel
 
 ## Project wide `run` configuration.
 
