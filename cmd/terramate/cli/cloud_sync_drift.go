@@ -14,6 +14,14 @@ import (
 )
 
 func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
+	if err := c.setupAuthMethod(); err != nil {
+		c.handleCriticalError(err)
+
+		if !c.cloudEnabled() {
+			return
+		}
+	}
+
 	st := run.Stack
 
 	logger := log.With().
@@ -55,7 +63,7 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	_, err = c.cloud.client.CreateStackDrift(ctx, c.cloud.run.orgUUID, cloud.DriftStackPayloadRequest{
+	_, err = c.cloudCtx.client.CreateStackDrift(ctx, c.cloudCtx.run.orgUUID, cloud.DriftStackPayloadRequest{
 		Stack: cloud.Stack{
 			Repository:      c.prj.prettyRepo(),
 			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
@@ -67,7 +75,7 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 		},
 		Status:     status,
 		Details:    driftDetails,
-		Metadata:   c.cloud.run.metadata,
+		Metadata:   c.cloudCtx.run.metadata,
 		StartedAt:  res.StartedAt,
 		FinishedAt: res.FinishedAt,
 		Command:    run.Task.Cmd,

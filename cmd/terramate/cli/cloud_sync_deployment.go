@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/repository"
+	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
@@ -18,24 +19,35 @@ import (
 	prj "github.com/terramate-io/terramate/project"
 )
 
+// Assume each task in deployRuns has the CloudSyncDeployment set.
 func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
-	// Assume each task in deployRuns has the CloudSyncDeployment set.
 	logger := log.With().
 		Logger()
+
+	err := c.setupAuthMethod()
+	c.handleCriticalError(err)
 
 	if !c.cloudEnabled() {
 		return
 	}
 
+	uuid, err := uuid.GenerateUUID()
+	c.handleCriticalError(err)
+
+	if !c.cloudEnabled() {
+		return
+	}
+
+	c.cloudCtx.run.runUUID = cloud.UUID(uuid)
+
 	logger = logger.With().
-		Str("organization", string(c.cloud.run.orgUUID)).
+		Str("organization", string(c.cloudCtx.run.orgUUID)).
 		Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
 	var (
-		err                 error
 		deploymentCommitSHA string
 		deploymentURL       string
 		ghRepo              string
@@ -69,9 +81,9 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 	}
 
 	payload := cloud.DeploymentStacksPayloadRequest{
-		ReviewRequest: c.cloud.run.reviewRequest,
+		ReviewRequest: c.cloudCtx.run.reviewRequest,
 		Workdir:       prj.PrjAbsPath(c.rootdir(), c.wd()),
-		Metadata:      c.cloud.run.metadata,
+		Metadata:      c.cloudCtx.run.metadata,
 	}
 
 	for _, run := range deployRuns {
@@ -94,7 +106,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 			DeploymentURL:     deploymentURL,
 		})
 	}
-	res, err := c.cloud.client.CreateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
+	res, err := c.cloudCtx.client.CreateDeploymentStacks(ctx, c.cloudCtx.run.orgUUID, c.cloudCtx.run.runUUID, payload)
 	if err != nil {
 		logger.Error().
 			Err(err).
@@ -122,7 +134,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 			c.disableCloudFeatures(cloudError())
 			return
 		}
-		c.cloud.run.meta2id[r.StackMetaID] = r.StackID
+		c.cloudCtx.run.meta2id[r.StackMetaID] = r.StackID
 	}
 }
 
@@ -144,12 +156,12 @@ func (c *cli) cloudSyncDeployment(run stackCloudRun, err error) {
 
 func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status) {
 	logger := log.With().
-		Str("organization", string(c.cloud.run.orgUUID)).
+		Str("organization", string(c.cloudCtx.run.orgUUID)).
 		Str("stack", run.Stack.RelPath()).
 		Stringer("status", status).
 		Logger()
 
-	stackID, ok := c.cloud.run.meta2id[run.Stack.ID]
+	stackID, ok := c.cloudCtx.run.meta2id[run.Stack.ID]
 	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return
@@ -179,7 +191,7 @@ func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	err := c.cloud.client.UpdateDeploymentStacks(ctx, c.cloud.run.orgUUID, c.cloud.run.runUUID, payload)
+	err := c.cloudCtx.client.UpdateDeploymentStacks(ctx, c.cloudCtx.run.orgUUID, c.cloudCtx.run.runUUID, payload)
 	if err != nil {
 		logger.Err(err).Str("stack_id", run.Stack.ID).Msg("failed to update deployment status for each")
 	} else {

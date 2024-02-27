@@ -329,7 +329,7 @@ func Put[T Resource](ctx context.Context, client *Client, payload interface{}, u
 // The instantiated type gets decoded and return as the entity T,
 func Request[T Resource](ctx context.Context, c *Client, method string, url url.URL, postBody io.Reader) (entity T, err error) {
 	if !c.noauth && c.Credential == nil {
-		return entity, errors.E("no credential provided to %s endpoint", url)
+		return entity, errors.E("no credential provided to %s endpoint", url.String())
 	}
 
 	req, err := c.newRequest(ctx, method, url, postBody)

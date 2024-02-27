@@ -340,8 +340,8 @@ type cli struct {
 	output         out.O // Deprecated: use printer.Stdout/Stderr
 	exit           bool
 	prj            project
-	httpClient     http.Client
-	cloud          cloudConfig
+	httpClient     *http.Client
+	cloudCtx       cloudContext
 	uimode         UIMode
 	affectedStacks []stack.Entry
 
@@ -579,6 +579,8 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		uimode = AutomationMode
 	}
 
+	httpClient := http.Client{}
+
 	return &cli{
 		version:    version,
 		stdin:      stdin,
@@ -594,8 +596,10 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		// in order to reduce the number of TCP/SSL handshakes we reuse the same
 		// http.Client in all requests, for most hosts.
 		// The transport can be tuned here, if needed.
-		httpClient:        http.Client{},
+		httpClient:        &httpClient,
 		checkpointResults: make(chan *checkpoint.CheckResponse, 1),
+
+		cloudCtx: newCloudContext(&httpClient),
 	}
 }
 
@@ -1160,7 +1164,7 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 	}
 
 	if status != cloudstack.NoFilter {
-		err := c.setupCloudConfig()
+		err := c.setupAuthMethod()
 		if err != nil {
 			return nil, err
 		}
@@ -1177,7 +1181,7 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, status)
+		cloudStacks, err := c.cloudCtx.client.StacksByStatus(ctx, c.cloudCtx.run.orgUUID, repository, status)
 		if err != nil {
 			return nil, err
 		}
@@ -2214,7 +2218,7 @@ func (c *cli) cfg() *config.Root            { return &c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
-func (c *cli) cred() credential             { return c.cloud.client.Credential.(credential) }
+func (c *cli) cred() credential             { return c.cloudCtx.client.Credential.(credential) }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)

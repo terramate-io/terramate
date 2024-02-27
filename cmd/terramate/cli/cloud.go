@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	stdjson "encoding/json"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -44,23 +45,25 @@ const (
 	githubErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
 )
 
-type cloudConfig struct {
+type cloudContext struct {
 	disabled bool
 	client   *cloud.Client
-	output   out.O
 
-	run struct {
-		runUUID cloud.UUID
-		orgUUID cloud.UUID
+	run cloudRunContext
+}
 
-		meta2id map[string]int64
-		// stackPreviews is a map of stack.ID to stackPreview.ID
-		stackPreviews               map[string]string
-		reviewRequest               *cloud.ReviewRequest
-		prFromGHAEvent              *github.PullRequest
-		metadata                    *cloud.DeploymentMetadata
-		technology, technologyLayer string
-	}
+type cloudRunContext struct {
+	isAuthenticated bool
+	runUUID         cloud.UUID
+	orgUUID         cloud.UUID
+
+	meta2id map[string]int64
+	// stackPreviews is a map of stack.ID to stackPreview.ID
+	stackPreviews               map[string]string
+	reviewRequest               *cloud.ReviewRequest
+	prFromGHAEvent              *github.PullRequest
+	metadata                    *cloud.DeploymentMetadata
+	technology, technologyLayer string
 }
 
 type credential interface {
@@ -82,21 +85,41 @@ type keyValue struct {
 	value string
 }
 
+func newCloudContext(httpClient *http.Client) cloudContext {
+	cloudURL := cloudBaseURL()
+	cloudLogger := log.With().
+		Str("tmc_api_url", cloudURL).
+		Logger()
+
+	return cloudContext{
+		client: &cloud.Client{
+			BaseURL:    cloudURL,
+			IDPKey:     idpkey(),
+			HTTPClient: httpClient,
+			Logger:     &cloudLogger,
+		},
+		run: cloudRunContext{
+			meta2id:       make(map[string]int64),
+			stackPreviews: make(map[string]string),
+		},
+	}
+}
+
 func (c *cli) credentialPrecedence(output out.O) []credential {
 	return []credential{
-		newGithubOIDC(output, c.cloud.client),
-		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg, c.cloud.client),
+		newGithubOIDC(output, c.cloudCtx.client),
+		newGoogleCredential(output, c.cloudCtx.client.IDPKey, c.clicfg, c.cloudCtx.client),
 	}
 }
 
 func (c *cli) cloudEnabled() bool {
-	return !c.cloud.disabled
+	return !c.cloudCtx.disabled
 }
 
 func (c *cli) disableCloudFeatures(err error) {
 	log.Warn().Err(err).Msg(clitest.CloudDisablingMessage)
 
-	c.cloud.disabled = true
+	c.cloudCtx.disabled = true
 }
 
 func (c *cli) handleCriticalError(err error) {
@@ -130,30 +153,6 @@ func isDeploymentTask(t stackRunTask) bool { return t.CloudSyncDeployment }
 
 func isPreviewTask(t stackRunTask) bool { return t.CloudSyncPreview }
 
-func (c *cli) checkCloudSync() {
-	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus && !c.parsedArgs.Run.CloudSyncPreview {
-		return
-	}
-
-	err := c.setupCloudConfig()
-	c.handleCriticalError(err)
-
-	if c.cloud.disabled {
-		return
-	}
-
-	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.cloud.run.meta2id = make(map[string]int64)
-		uuid, err := generateRunID()
-		c.handleCriticalError(err)
-		c.cloud.run.runUUID = cloud.UUID(uuid)
-	}
-
-	if c.parsedArgs.Run.CloudSyncPreview {
-		c.cloud.run.stackPreviews = make(map[string]string)
-	}
-}
-
 func (c *cli) cloudOrgName() string {
 	orgName := os.Getenv("TM_CLOUD_ORGANIZATION")
 	if orgName != "" {
@@ -170,7 +169,11 @@ func (c *cli) cloudOrgName() string {
 	return ""
 }
 
-func (c *cli) setupCloudConfig() error {
+func (c *cli) setupAuthMethod() error {
+	if c.cloudCtx.run.isAuthenticated {
+		return nil
+
+	}
 	err := c.loadCredential()
 	if err != nil {
 		printer.Stderr.ErrorWithDetails("failed to load the cloud credentials", err)
@@ -215,7 +218,7 @@ func (c *cli) setupCloudConfig() error {
 			return cloudError()
 		}
 
-		c.cloud.run.orgUUID = useOrgUUID
+		c.cloudCtx.run.orgUUID = useOrgUUID
 	} else {
 		var activeOrgs cloud.MemberOrganizations
 		var invitedOrgs cloud.MemberOrganizations
@@ -252,8 +255,9 @@ func (c *cli) setupCloudConfig() error {
 			return cloudError()
 		}
 
-		c.cloud.run.orgUUID = activeOrgs[0].UUID
+		c.cloudCtx.run.orgUUID = activeOrgs[0].UUID
 	}
+	c.cloudCtx.run.isAuthenticated = true
 	return nil
 }
 
@@ -290,12 +294,12 @@ func (c *cli) cloudSyncAfter(run stackCloudRun, res runResult, err error) {
 }
 
 func (c *cli) doPreviewBefore(run stackCloudRun) {
-	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
+	stackPreviewID := c.cloudCtx.run.stackPreviews[run.Stack.ID]
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	if err := c.cloud.client.UpdateStackPreview(ctx,
+	if err := c.cloudCtx.client.UpdateStackPreview(ctx,
 		cloud.UpdateStackPreviewOpts{
-			OrgUUID:          c.cloud.run.orgUUID,
+			OrgUUID:          c.cloudCtx.run.orgUUID,
 			StackPreviewID:   stackPreviewID,
 			Status:           preview.StackStatusRunning,
 			ChangesetDetails: nil,
@@ -337,12 +341,12 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 		}
 	}
 
-	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
+	stackPreviewID := c.cloudCtx.run.stackPreviews[run.Stack.ID]
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	if err := c.cloud.client.UpdateStackPreview(ctx,
+	if err := c.cloudCtx.client.UpdateStackPreview(ctx,
 		cloud.UpdateStackPreviewOpts{
-			OrgUUID:          c.cloud.run.orgUUID,
+			OrgUUID:          c.cloudCtx.run.orgUUID,
 			StackPreviewID:   stackPreviewID,
 			Status:           previewStatus,
 			ChangesetDetails: previewChangeset,
@@ -370,11 +374,11 @@ func (c *cli) cloudInfo() {
 	c.cred().info(c.cloudOrgName())
 
 	// verbose info
-	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
+	c.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
 }
 
 func (c *cli) cloudDriftShow() {
-	err := c.setupCloudConfig()
+	err := c.setupAuthMethod()
 	if err != nil {
 		fatal("unable to setup cloud configuration", err)
 	}
@@ -391,7 +395,7 @@ func (c *cli) cloudDriftShow() {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), st.ID)
+	stackResp, found, err := c.cloudCtx.client.GetStack(ctx, c.cloudCtx.run.orgUUID, c.prj.prettyRepo(), st.ID)
 	if err != nil {
 		fatal("unable to fetch stack", err)
 	}
@@ -408,7 +412,7 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 
 	// stack is drifted
-	driftsResp, err := c.cloud.client.StackLastDrift(ctx, c.cloud.run.orgUUID, stackResp.ID)
+	driftsResp, err := c.cloudCtx.client.StackLastDrift(ctx, c.cloudCtx.run.orgUUID, stackResp.ID)
 	if err != nil {
 		fatal("unable to fetch drift", err)
 	}
@@ -419,7 +423,7 @@ func (c *cli) cloudDriftShow() {
 
 	ctx, cancel = context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	driftData, err = c.cloud.client.DriftDetails(ctx, c.cloud.run.orgUUID, stackResp.ID, driftData.ID)
+	driftData, err = c.cloudCtx.client.DriftDetails(ctx, c.cloudCtx.run.orgUUID, stackResp.ID, driftData.ID)
 	if err != nil {
 		fatal("unable to fetch drift details", err)
 	}
@@ -444,12 +448,12 @@ func (c *cli) detectCloudMetadata() {
 
 	headCommit := c.prj.headCommit()
 
-	c.cloud.run.metadata = &cloud.DeploymentMetadata{GitCommitSHA: headCommit}
-	md := c.cloud.run.metadata
+	c.cloudCtx.run.metadata = &cloud.DeploymentMetadata{GitCommitSHA: headCommit}
+	md := c.cloudCtx.run.metadata
 
 	defer func() {
-		if c.cloud.run.metadata != nil {
-			data, err := stdjson.Marshal(c.cloud.run.metadata)
+		if c.cloudCtx.run.metadata != nil {
+			data, err := stdjson.Marshal(c.cloudCtx.run.metadata)
 			if err == nil {
 				logger.Debug().RawJSON("provider_metadata", data).Msg("detected metadata")
 			} else {
@@ -488,7 +492,7 @@ func (c *cli) detectCloudMetadata() {
 		Str("github_repository", ghRepo).
 		Logger()
 
-	githubClient := github.NewClient(&c.httpClient)
+	githubClient := github.NewClient(c.httpClient)
 
 	ghToken, tokenSource := auth.TokenForHost(r.Host)
 
@@ -511,7 +515,7 @@ func (c *cli) detectCloudMetadata() {
 		logger.Debug().Err(err).Msg("unable to get pull_request details from GITHUB_EVENT_PATH")
 	} else {
 		logger.Debug().Err(err).Msg("got pull_request details from GITHUB_EVENT_PATH")
-		c.cloud.run.prFromGHAEvent = prFromEvent
+		c.cloudCtx.run.prFromGHAEvent = prFromEvent
 		prNumber = prFromEvent.GetNumber()
 	}
 
@@ -549,7 +553,7 @@ func (c *cli) detectCloudMetadata() {
 		}
 	}
 
-	c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged)
+	c.cloudCtx.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged)
 }
 
 func getGithubPRByNumberOrCommit(githubClient *github.Client, ghToken, owner, repo string, number int, commit string) (*github.PullRequest, error) {
@@ -840,23 +844,10 @@ func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullR
 }
 
 func (c *cli) loadCredential() error {
-	cloudURL := cloudBaseURL()
-	clientLogger := log.With().
-		Str("tmc_url", cloudURL).
-		Logger()
-
-	c.cloud.client = &cloud.Client{
-		BaseURL:    cloudURL,
-		IDPKey:     idpkey(),
-		HTTPClient: &c.httpClient,
-		Logger:     &clientLogger,
-	}
-	c.cloud.output = c.output
-
 	// checks if this client version can communicate with Terramate Cloud.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	err := c.cloud.client.CheckVersion(ctx)
+	err := c.cloudCtx.client.CheckVersion(ctx)
 	if err != nil {
 		return errors.E(err, clitest.ErrCloudCompat)
 	}
@@ -922,7 +913,7 @@ func cloudBaseURL() string {
 	} else if cloudURL != "" {
 		baseURL = cloudURL
 	} else {
-		baseURL = cloudDefaultBaseURL
+		baseURL = cloud.BaseURL
 	}
 	return baseURL
 }

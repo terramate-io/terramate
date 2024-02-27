@@ -5,10 +5,13 @@ package cloudstore
 
 import (
 	"encoding/json"
+
 	"os"
 	"sort"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
@@ -35,10 +38,11 @@ type (
 		Domain      string     `json:"domain"`
 		Status      string     `json:"status"`
 
-		Members     []Member                   `json:"members"`
-		Stacks      []Stack                    `json:"stacks"`
-		Deployments map[cloud.UUID]*Deployment `json:"deployments"`
-		Drifts      []Drift                    `json:"drifts"`
+		Members          []Member                   `json:"members"`
+		Stacks           []Stack                    `json:"stacks"`
+		Deployments      map[cloud.UUID]*Deployment `json:"deployments"`
+		deploymentsOrder []cloud.UUID
+		Drifts           []Drift `json:"drifts"`
 	}
 	// Member represents the organization member.
 	Member struct {
@@ -330,8 +334,28 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 		org.Deployments = make(map[cloud.UUID]*Deployment)
 	}
 	org.Deployments[deploy.UUID] = &deploy
+	org.deploymentsOrder = append(org.deploymentsOrder, deploy.UUID)
 	d.Orgs[org.Name] = org
 	return nil
+}
+
+// GetLastDeployment returns the last deployment of the given organization.
+func (d *Data) GetLastDeployment(orgID cloud.UUID) (cloud.UUID, bool) {
+	org, found := d.GetOrg(orgID)
+	if !found {
+		return "", false
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if len(org.Deployments) == 1 {
+		ids := maps.Keys(org.Deployments)
+		return ids[0], true
+	}
+	if len(org.deploymentsOrder) == 0 {
+		return "", false
+	}
+	deploy, found := org.Deployments[org.deploymentsOrder[len(org.deploymentsOrder)-1]]
+	return deploy.UUID, found
 }
 
 // InsertDrift inserts a new drift into the store for the provided org.

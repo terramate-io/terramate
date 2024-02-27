@@ -82,7 +82,6 @@ func (c *cli) runOnStacks() {
 	}
 
 	c.checkOutdatedGeneratedCode()
-	c.checkCloudSync()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
@@ -175,7 +174,7 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
-		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
+		c.cloudCtx.run.stackPreviews = c.createCloudPreview(previewRuns)
 	}
 
 	err = c.runAll(runs, isSuccessExit, runAllOptions{
@@ -470,10 +469,10 @@ func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandL
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	stackID := c.cloud.run.meta2id[run.Stack.ID]
-	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
-	err := c.cloud.client.SyncCommandLogs(
-		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs, stackPreviewID,
+	stackID := c.cloudCtx.run.meta2id[run.Stack.ID]
+	stackPreviewID := c.cloudCtx.run.stackPreviews[run.Stack.ID]
+	err := c.cloudCtx.client.SyncCommandLogs(
+		ctx, c.cloudCtx.run.orgUUID, stackID, c.cloudCtx.run.runUUID, logs, stackPreviewID,
 	)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to sync logs")
@@ -538,7 +537,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
-	pullRequest := c.cloud.run.prFromGHAEvent
+	pullRequest := c.cloudCtx.run.prFromGHAEvent
 	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() {
 		printer.Stderr.Warn("unable to read pull_request details from GITHUB_EVENT_PATH")
 		c.disableCloudFeatures(cloudError())
@@ -554,19 +553,19 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	createdPreview, err := c.cloud.client.CreatePreview(
+	createdPreview, err := c.cloudCtx.client.CreatePreview(
 		ctx,
 		cloud.CreatePreviewOpts{
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
-			OrgUUID:         c.cloud.run.orgUUID,
+			OrgUUID:         c.cloudCtx.run.orgUUID,
 			UpdatedAt:       pullRequest.GetUpdatedAt().Unix(),
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),
 			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
-			ReviewRequest:   c.cloud.run.reviewRequest,
-			Metadata:        c.cloud.run.metadata,
+			ReviewRequest:   c.cloudCtx.run.reviewRequest,
+			Metadata:        c.cloudCtx.run.metadata,
 		},
 	)
 	if err != nil {

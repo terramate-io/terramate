@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -137,17 +136,12 @@ func (c *cli) prepareScriptCloudDeploymentSync(runs []stackRun) {
 		fatal("cloud features require a git repository", nil)
 	}
 
-	err := c.setupCloudConfig()
+	err := c.setupAuthMethod()
 	c.handleCriticalError(err)
 
-	if c.cloud.disabled {
+	if !c.cloudEnabled() {
 		return
 	}
-
-	c.cloud.run.meta2id = make(map[string]int64)
-	uuid, err := generateRunID()
-	c.handleCriticalError(err)
-	c.cloud.run.runUUID = cloud.UUID(uuid)
 
 	c.detectCloudMetadata()
 

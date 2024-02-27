@@ -83,9 +83,6 @@ func TestCloudConfig(t *testing.T) {
 					}
 				}`,
 			},
-			want: RunExpected{
-				Status: 0,
-			},
 		},
 		{
 			name: "cloud organization env var overrides value from config",

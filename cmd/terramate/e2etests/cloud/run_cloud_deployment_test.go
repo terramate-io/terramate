@@ -392,11 +392,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
-				uuid, err := uuid.NewRandom()
-				assert.NoError(t, err)
-				runid := uuid.String()
-				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
-
 				runflags := []string{"run", "--quiet", "--cloud-sync-deployment"}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
@@ -408,7 +403,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				runflags = append(runflags, tc.cmd...)
 				result := cli.Run(runflags...)
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+				assertRunEvents(t, cloudData, ids, tc.want.events)
 			})
 		}
 	}
@@ -649,13 +644,13 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 
 				result := cli.RunScript(scriptCmd...)
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+				assertRunEvents(t, cloudData, ids, tc.want.events)
 			})
 		}
 	}
 }
 
-func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids []string, events map[string][]string) {
+func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, ids []string, events map[string][]string) {
 	expectedEvents := eventsResponse{}
 	if events == nil {
 		events = make(map[string][]string)
@@ -676,7 +671,12 @@ func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids
 	}
 
 	org := cloudData.MustOrgByName("terramate")
-	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, cloud.UUID(runid))
+
+	deployUUID, found := cloudData.GetLastDeployment(org.UUID)
+	if !found && len(expectedEvents) > 0 {
+		t.Fatal("last deployment not found")
+	}
+	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, deployUUID)
 	if err != nil && !errors.IsKind(err, cloudstore.ErrNotExists) {
 		t.Fatal(err)
 	}
