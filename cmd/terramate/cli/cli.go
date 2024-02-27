@@ -1602,7 +1602,6 @@ func (c *cli) printStacks() {
 	if err != nil {
 		fatal("Unable to list stacks", err)
 	}
-	c.gitFileSafeguards(false)
 
 	c.printStacksList(report.Stacks, c.parsedArgs.List.Why, c.parsedArgs.List.RunOrder)
 }
