@@ -34,6 +34,18 @@ type expectedDriftStackPayloadRequest struct {
 	ChangesetASCIIRegexes []string
 }
 
+var expectedMetadata *cloud.DeploymentMetadata
+
+func init() {
+	expectedMetadata = &cloud.DeploymentMetadata{
+		GitMetadata: cloud.GitMetadata{
+			GitCommitAuthorName:  "terramate tests",
+			GitCommitAuthorEmail: "terramate@mineiros.io",
+			GitCommitTitle:       "all stacks committed",
+		},
+	}
+}
+
 func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	t.Parallel()
 	type want struct {
@@ -81,13 +93,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -109,19 +122,19 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
 			},
 		},
-
 		{
 			name: "both failed stacks and continueOnError",
 			layout: []string{
@@ -139,25 +152,27 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -182,25 +197,27 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: drift.OK,
+							Status:   drift.OK,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -217,13 +234,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status: drift.Drifted,
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -247,13 +265,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/parent/child",
 								MetaName:      "child",
 								MetaID:        "child",
 							},
-							Status: drift.OK,
+							Status:   drift.OK,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -271,25 +290,27 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Drifted,
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
 						},
 					},
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
 							},
-							Status: drift.Drifted,
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -314,13 +335,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Drifted,
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -346,13 +368,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Drifted,
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -388,7 +411,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
@@ -399,6 +422,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
+							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`Terraform used the selected providers to generate the following execution`,
@@ -408,7 +432,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1/s2",
 								MetaName:      "s2",
@@ -419,6 +443,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 							},
+							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`Terraform used the selected providers to generate the following execution`,
@@ -449,13 +474,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "trunk",
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status: drift.Drifted,
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -497,7 +523,13 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				env = append(env, "TMC_API_URL=http://"+addr)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(TerraformTestPath))
-				runflags := []string{"run", "--quiet", "--cloud-sync-drift-status"}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+				runflags := []string{
+					"run",
+					"--disable-safeguards=git-out-of-sync",
+					"--quiet",
+					"--cloud-sync-drift-status",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true
@@ -529,18 +561,23 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 	assert.NoError(t, err)
 
 	if len(expectedDrifts) != len(res) {
-		t.Errorf("expected %d drifts but found %d: %+v", len(expectedDrifts), len(res), res)
+		t.Fatalf("expected %d drifts but found %d: %+v", len(expectedDrifts), len(res), res)
 	}
 
 	for i, expected := range expectedDrifts {
 		got := res[i]
-		// TODO(i4k): skip checking interpolated commands for now because of the hack
-		// for making the --eval work with the helper binary in a portable way.
-		// We can't portably predict the command because when using --eval the
-		// whole argument list is interpolated, including the program name, and then
-		// on Windows it requires a special escaped string.
-		// See variable `HelperPathAsHCL`.
-		if diff := cmp.Diff(got, expected.DriftStackPayloadRequest, cmpopts.IgnoreFields(cloud.DriftStackPayloadRequest{}, "Command", "Details", "StartedAt", "FinishedAt")); diff != "" {
+		if diff := cmp.Diff(got, expected.DriftStackPayloadRequest,
+			// Ignore hard to predict fields
+			// They are validated (for existence) in the testserver anyway.
+			cmpopts.IgnoreFields(cloud.GitMetadata{}, "GitCommitSHA", "GitCommitAuthorTime"),
+
+			// TODO(i4k): skip checking interpolated commands for now because of the hack
+			// for making the --eval work with the helper binary in a portable way.
+			// We can't portably predict the command because when using --eval the
+			// whole argument list is interpolated, including the program name, and then
+			// on Windows it requires a special escaped string.
+			// See variable `HelperPathAsHCL`.
+			cmpopts.IgnoreFields(cloud.DriftStackPayloadRequest{}, "Command", "Details", "StartedAt", "FinishedAt")); diff != "" {
 			t.Logf("want: %+v", expectedDrifts)
 			t.Logf("got: %+v", got)
 			t.Fatal(diff)

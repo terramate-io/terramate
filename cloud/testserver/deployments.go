@@ -57,6 +57,14 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// NOTE(i4k): The metadata is not required but must be present in all test cases.
+	err = validateMetadata(rPayload.Metadata)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
 	stackCommands := map[string]string{}
 
 	// deployment commit_sha is not required but must be present in all test cases.
