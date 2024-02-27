@@ -151,6 +151,26 @@ jobs:
         run: terramate run --changed --cloud-sync-deployment -- terraform apply -input=false -auto-approve
 ```
 
+### Sending a pull request preview to Terramate Cloud
+
+The `--cloud-sync-preview` flag will send information about the preview to Terramate Cloud.
+
+```yaml
+jobs:
+  preview:
+    name: Preview
+    ...
+      - name: Run preview
+        id: preview
+        run: |
+          terramate run \
+          --changed \
+          --cloud-sync-preview \
+          --cloud-sync-terraform-plan-file=preview.tfplan \
+          -- \
+          terraform plan -out preview.tfplan -detailed-exitcode
+```
+
 ### Detecting Drift
 
 The `run` command supports `--cloud-sync-drift-status` which will set the Terramate Cloud status of any stack to drifted _if the exit code of the command that is run is `2`_ (which for `terraform plan -detailed-exitcode` signals that the plan succeeded and there was a diff). Terramate is also able to send the drifted plan with the `--cloud-sync-terraform-plan-file` option. A typical Github action for drift detection would look something like:
