@@ -88,6 +88,13 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
+	// NOTE(i4k): metadata is not required but must be present in all test cases
+	if err := validateMetadata(payload.Metadata); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
 	st, _, found := store.GetStackByMetaID(org, payload.Stack.MetaID)
 	if !found {
 		st = cloudstore.Stack{
