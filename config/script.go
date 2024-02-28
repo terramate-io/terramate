@@ -32,6 +32,7 @@ const MaxScriptNameRunes = 128
 // ScriptCmdOptions represents optional parameters for a script command
 type ScriptCmdOptions struct {
 	CloudSyncDeployment    bool
+	CloudSyncDriftStatus   bool
 	CloudSyncTerraformPlan string
 }
 
@@ -280,6 +281,15 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 			}
 			r.CloudSyncDeployment = v.True()
 
+		case "cloud_sync_drift_status":
+			if v.Type() != cty.Bool {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a bool, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			r.CloudSyncDriftStatus = v.True()
+
 		case "cloud_sync_terraform_plan_file":
 			if v.Type() != cty.String {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
@@ -291,6 +301,11 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 
 		default:
 			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(), "unknown command option: %s", ks))
+		}
+
+		if r.CloudSyncDeployment && r.CloudSyncDriftStatus {
+			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+				"command option 'cloud_sync_deployment' and 'cloud_sync_drift_status' are conflicting options in the same command"))
 		}
 	}
 

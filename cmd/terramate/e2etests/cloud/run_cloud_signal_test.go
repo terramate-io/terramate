@@ -1,8 +1,6 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !darwin
-
 package cloud_test
 
 import (
@@ -120,7 +118,12 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				runid := uuid.String()
 				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-				runflags := []string{"--cloud-sync-deployment"}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
+				runflags := []string{
+					"--disable-safeguards=git-out-of-sync",
+					"--cloud-sync-deployment",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true
@@ -181,13 +184,14 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -215,7 +219,11 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				env = append(env, "TMC_API_URL=http://"+addr)
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-				runflags := []string{"--cloud-sync-drift-status"}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+				runflags := []string{
+					"--disable-safeguards=git-out-of-sync",
+					"--cloud-sync-drift-status",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true

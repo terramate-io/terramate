@@ -127,8 +127,8 @@ func selectCloudStackTasks(runs []stackRun, pred func(stackRunTask) bool) []stac
 }
 
 func isDeploymentTask(t stackRunTask) bool { return t.CloudSyncDeployment }
-
-func isPreviewTask(t stackRunTask) bool { return t.CloudSyncPreview }
+func isDriftTask(t stackRunTask) bool      { return t.CloudSyncDriftStatus }
+func isPreviewTask(t stackRunTask) bool    { return t.CloudSyncPreview }
 
 func (c *cli) checkCloudSync() {
 	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus && !c.parsedArgs.Run.CloudSyncPreview {
@@ -438,13 +438,16 @@ func (c *cli) detectCloudMetadata() {
 
 	prettyRepo := c.prj.prettyRepo()
 	if prettyRepo == "local" {
+
 		logger.Debug().Msg("skipping review_request and remote metadata for local repository")
 		return
 	}
 
 	headCommit := c.prj.headCommit()
 
-	c.cloud.run.metadata = &cloud.DeploymentMetadata{GitCommitSHA: headCommit}
+	c.cloud.run.metadata = &cloud.DeploymentMetadata{}
+	c.cloud.run.metadata.GitCommitSHA = headCommit
+
 	md := c.cloud.run.metadata
 
 	defer func() {
