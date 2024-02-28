@@ -67,6 +67,14 @@ type stackRunTask struct {
 	CloudSyncTerraformPlanFile string
 }
 
+func (t stackRunTask) isSuccessExit(exitCode int) bool {
+	if t.CloudSyncDriftStatus || (t.CloudSyncPreview && t.CloudSyncTerraformPlanFile != "") {
+		return exitCode == 0 || exitCode == 2
+	}
+
+	return exitCode == 0
+}
+
 // runResult contains exit code and duration of a completed run.
 type runResult struct {
 	ExitCode   int
@@ -130,13 +138,10 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
-	isSuccessExit := func(exitCode int) bool {
-		return exitCode == 0
-	}
-
 	var runs []stackRun
 	var err error
 	for _, st := range stacks {
+
 		run := stackRun{
 			Stack: st.Stack,
 			Tasks: []stackRunTask{
@@ -165,20 +170,13 @@ func (c *cli) runOnStacks() {
 		c.createCloudDeployment(deployRuns)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDriftStatus ||
-		(c.parsedArgs.Run.CloudSyncPreview && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "") {
-		isSuccessExit = func(exitCode int) bool {
-			return exitCode == 0 || exitCode == 2
-		}
-	}
-
 	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
 		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
 	}
 
-	err = c.runAll(runs, isSuccessExit, runAllOptions{
+	err = c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Run.DryRun,
 		Reverse:         c.parsedArgs.Run.Reverse,
@@ -202,8 +200,7 @@ type runAllOptions struct {
 }
 
 // runAll will execute the list of RunStack definitions. A RunStack defines the
-// stack and its command to be executed. The isSuccessCode is a predicate used
-// to decide if the command is considered a successful run or not.
+// stack and its command to be executed.
 // During the execution of this function the default behavior
 // for signal handling will be changed so we can wait for the child
 // process to exit before exiting Terramate.
@@ -214,7 +211,6 @@ type runAllOptions struct {
 // running process and abort the execution of all subsequent stacks.
 func (c *cli) runAll(
 	runs []stackRun,
-	isSuccessCode func(exitCode int) bool,
 	opts runAllOptions,
 ) error {
 	// Construct a DAG from the list of stackRuns, based on the implicit and
@@ -427,7 +423,7 @@ func (c *cli) runAll(
 				logSyncWait()
 
 				var err error
-				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
+				if !task.isSuccessExit(result.cmd.ProcessState.ExitCode()) {
 					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, run.Stack.Dir)
 					errs.Append(err)
 				}

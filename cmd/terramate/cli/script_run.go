@@ -107,11 +107,7 @@ func (c *cli) runScript() {
 
 	c.prepareScriptCloudDeploymentSync(runs)
 
-	isSuccessExit := func(exitCode int) bool {
-		return exitCode == 0
-	}
-
-	err := c.runAll(runs, isSuccessExit, runAllOptions{
+	err := c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
