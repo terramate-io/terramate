@@ -42,6 +42,13 @@ test: test/helper build
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
 
+## test/interop
+.PHONY: test/interop
+test/interop: org?=test
+test/interop: backend_host?=api.stg.terramate.io
+test/interop:
+	TM_CLOUD_ORGANIZATION=$(org) TMC_API_HOST=$(backend_host) go test -v -count=1 -tags interop ./cmd/terramate/e2etests/cloud/interop/...
+
 ## graph2png
 .PHONY: graph2png
 graph2png:
