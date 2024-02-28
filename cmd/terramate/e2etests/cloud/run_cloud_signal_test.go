@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
@@ -113,10 +112,6 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				env = append(env, "TMC_API_URL=http://"+addr)
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-				uuid, err := uuid.NewRandom()
-				assert.NoError(t, err)
-				runid := uuid.String()
-				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 
@@ -135,7 +130,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
 				result := fixture.Run()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}

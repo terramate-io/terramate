@@ -334,6 +334,22 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 	return nil
 }
 
+// FindDeploymentForCommit returns the deployment for the given commit.
+func (d *Data) FindDeploymentForCommit(orgID cloud.UUID, commitSHA string) (*Deployment, bool) {
+	org, found := d.GetOrg(orgID)
+	if !found {
+		return nil, false
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for _, deployment := range org.Deployments {
+		if deployment.Metadata.GitCommitSHA == commitSHA {
+			return deployment, true
+		}
+	}
+	return nil, false
+}
+
 // InsertDrift inserts a new drift into the store for the provided org.
 func (d *Data) InsertDrift(orgID cloud.UUID, drift Drift) (int, error) {
 	org, found := d.GetOrg(orgID)

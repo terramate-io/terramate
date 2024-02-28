@@ -14,7 +14,6 @@ import (
 
 	"github.com/cli/safeexec"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
@@ -399,11 +398,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
-				uuid, err := uuid.NewRandom()
-				assert.NoError(t, err)
-				runid := uuid.String()
-				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
-
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 
 				runflags := []string{
@@ -422,13 +416,13 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				runflags = append(runflags, tc.cmd...)
 				result := cli.Run(runflags...)
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}
 }
 
-func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids []string, events map[string][]string) {
+func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, ids []string, commitSHA string, events map[string][]string) {
 	expectedEvents := eventsResponse{}
 	if events == nil {
 		events = make(map[string][]string)
@@ -449,7 +443,14 @@ func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids
 	}
 
 	org := cloudData.MustOrgByName("terramate")
-	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, cloud.UUID(runid))
+	deployment, ok := cloudData.FindDeploymentForCommit(org.UUID, commitSHA)
+	if !ok {
+		if len(expectedEvents) == 0 {
+			return
+		}
+		t.Fatalf("deployment not found but expected events: %v", expectedEvents)
+	}
+	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, deployment.UUID)
 	if err != nil && !errors.IsKind(err, cloudstore.ErrNotExists) {
 		t.Fatal(err)
 	}
