@@ -48,6 +48,8 @@ const (
 	DriftsPath = "/v1/drifts"
 	// StacksPath is the stacks endpoint base path.
 	StacksPath = "/v1/stacks"
+	// ReviewRequestsPath is the review requests endpoint base path.
+	ReviewRequestsPath = "/v1/review_requests"
 )
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
@@ -156,6 +158,30 @@ func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository st
 		lastPage++
 	}
 	return stacks, nil
+}
+
+// ListReviewRequests retrieves the review requests for the given organization.
+func (c *Client) ListReviewRequests(ctx context.Context, orgUUID UUID) (ReviewRequestResponses, error) {
+	path := path.Join(ReviewRequestsPath, string(orgUUID))
+	query := url.Values{}
+	query.Set("per_page", strconv.Itoa64(pageSize))
+	url := c.URL(path)
+	lastPage := int64(1)
+	var reviews ReviewRequestResponses
+	for {
+		query.Set("page", strconv.Itoa64(lastPage))
+		url.RawQuery = query.Encode()
+		resp, err := Get[ReviewRequestResponsePayload](ctx, c, url)
+		if err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, resp.ReviewRequests...)
+		if int64(len(resp.ReviewRequests)) < pageSize {
+			break
+		}
+		lastPage++
+	}
+	return reviews, nil
 }
 
 // GetStack retrieves the details of the stack with given repo and metaID.

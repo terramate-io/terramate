@@ -52,6 +52,7 @@ type cloudConfig struct {
 
 	run struct {
 		runUUID cloud.UUID
+		orgName string
 		orgUUID cloud.UUID
 
 		meta2id map[string]int64
@@ -182,6 +183,7 @@ func (c *cli) setupCloudConfig() error {
 	orgs := c.cred().organizations()
 
 	useOrgName := c.cloudOrgName()
+	c.cloud.run.orgName = useOrgName
 	if useOrgName != "" {
 		var useOrgUUID cloud.UUID
 		for _, org := range orgs {
@@ -253,6 +255,7 @@ func (c *cli) setupCloudConfig() error {
 			return cloudError()
 		}
 
+		c.cloud.run.orgName = activeOrgs[0].Name
 		c.cloud.run.orgUUID = activeOrgs[0].UUID
 	}
 	return nil
