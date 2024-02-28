@@ -74,6 +74,16 @@ type runResult struct {
 	FinishedAt *time.Time
 }
 
+func (t stackRunTask) isSuccessExit(exitCode int) bool {
+	if exitCode == 0 {
+		return true
+	}
+	if t.CloudSyncDriftStatus || (t.CloudSyncPreview && t.CloudSyncTerraformPlanFile != "") {
+		return exitCode == 2
+	}
+	return false
+}
+
 func (c *cli) runOnStacks() {
 	c.gitSafeguardDefaultBranchIsReachable()
 
@@ -130,10 +140,6 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
-	isSuccessExit := func(exitCode int) bool {
-		return exitCode == 0
-	}
-
 	var runs []stackRun
 	var err error
 	for _, st := range stacks {
@@ -165,20 +171,13 @@ func (c *cli) runOnStacks() {
 		c.createCloudDeployment(deployRuns)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDriftStatus ||
-		(c.parsedArgs.Run.CloudSyncPreview && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "") {
-		isSuccessExit = func(exitCode int) bool {
-			return exitCode == 0 || exitCode == 2
-		}
-	}
-
 	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
 		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
 	}
 
-	err = c.runAll(runs, isSuccessExit, runAllOptions{
+	err = c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Run.DryRun,
 		Reverse:         c.parsedArgs.Run.Reverse,
@@ -214,7 +213,6 @@ type runAllOptions struct {
 // running process and abort the execution of all subsequent stacks.
 func (c *cli) runAll(
 	runs []stackRun,
-	isSuccessCode func(exitCode int) bool,
 	opts runAllOptions,
 ) error {
 	// Construct a DAG from the list of stackRuns, based on the implicit and
@@ -323,7 +321,7 @@ func (c *cli) runAll(
 				Stringer("stack", run.Stack).
 				Logger()
 
-			if opts.ScriptRun {
+			if opts.ScriptRun && !c.parsedArgs.Quiet {
 				printScriptCommand(c.stderr, run.Stack, task)
 			}
 
@@ -427,7 +425,7 @@ func (c *cli) runAll(
 				logSyncWait()
 
 				var err error
-				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
+				if !task.isSuccessExit(result.cmd.ProcessState.ExitCode()) {
 					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, run.Stack.Dir)
 					errs.Append(err)
 				}
