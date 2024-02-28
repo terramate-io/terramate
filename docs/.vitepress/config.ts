@@ -757,18 +757,17 @@ export default defineConfig({
                 { text: 'create', link: '/cli/cmdline/create' },
                 { text: 'clone', link: '/cli/cmdline/clone' },
                 { text: 'list', link: '/cli/cmdline/list' },
-                { text: 'debug show metadata', link: '/cli/cmdline/metadata' },
                 { text: 'get-config-value', link: '/cli/cmdline/get-config-value' },
+                { text: 'debug show metadata', link: '/cli/cmdline/metadata' },
               ],
             },
             {
               text: 'Orchestration',
               items: [
                 { text: 'run', link: '/cli/cmdline/run' },
-                { text: 'debug show runtime-env', link: '/cli/cmdline/run-env' },
-                { text: 'run-graph', link: '/cli/cmdline/run-graph' },
-                { text: 'run-order', link: '/cli/cmdline/run-order' },
                 { text: 'trigger', link: '/cli/cmdline/trigger' },
+                { text: 'run-graph', link: '/cli/cmdline/run-graph' },
+                { text: 'debug show runtime-env', link: '/cli/cmdline/run-env' },
               ],
             },
             {
