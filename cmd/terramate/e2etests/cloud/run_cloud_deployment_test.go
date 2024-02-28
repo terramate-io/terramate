@@ -27,6 +27,14 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
+const testRemoteRepoURL = "terramate.io/terramate-io/dummy-repo.git"
+
+var normalizedTestRemoteRepo string
+
+func init() {
+	normalizedTestRemoteRepo = cloud.NormalizeGitURI(testRemoteRepoURL)
+}
+
 func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 	t.Parallel()
 	type want struct {
@@ -397,7 +405,14 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				runid := uuid.String()
 				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-				runflags := []string{"run", "--quiet", "--cloud-sync-deployment"}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
+				runflags := []string{
+					"run",
+					"--disable-safeguards=git-out-of-sync",
+					"--quiet",
+					"--cloud-sync-deployment",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true
@@ -638,16 +653,18 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				runid := uuid.String()
 				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-				var scriptCmd []string
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
+				scriptArgs := []string{"--disable-safeguards=git-out-of-sync"}
 				if isParallel {
-					scriptCmd = append(scriptCmd, "--parallel")
+					scriptArgs = append(scriptArgs, "--parallel")
 					// For the parallel test, we ignore output validation, since the print order is non-deterministic.
 					tc.want.run.IgnoreStderr = true
 					tc.want.run.IgnoreStdout = true
 				}
-				scriptCmd = append(scriptCmd, tc.scriptCmd)
+				scriptArgs = append(scriptArgs, tc.scriptCmd)
 
-				result := cli.RunScript(scriptCmd...)
+				result := cli.RunScript(scriptArgs...)
 				AssertRunResult(t, result, tc.want.run)
 				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
 			})
