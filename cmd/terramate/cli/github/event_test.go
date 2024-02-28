@@ -44,8 +44,8 @@ func TestGetEventPR(t *testing.T) {
 				"GITHUB_EVENT_PATH": validGithubEventPath,
 			},
 			want: want{
-				htmlURL:   "https://github.com/someorg/somerepo/pull/8",
-				number:    8,
+				htmlURL:   "https://github.com/someorg/somerepo/pull/1494",
+				number:    1494,
 				title:     "envvar",
 				body:      "test",
 				headSHA:   "ea61b5bd72dec0878ae388b04d76a988439d1e28",

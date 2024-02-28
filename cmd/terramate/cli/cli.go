@@ -160,6 +160,7 @@ type cliSpec struct {
 		CloudSyncDeployment        bool   `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
 		CloudSyncDriftStatus       bool   `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
 		CloudSyncPreview           bool   `default:"false" help:"Enable synchronization of review request previews to Terramate Cloud"`
+		DebugPreviewURL            string `default:"" help:"Debug preview URL"`
 		CloudSyncTerraformPlanFile string `default:"" help:"Enable sync of Terraform plan file"`
 		ContinueOnError            bool   `default:"false" help:"Continue executing in other stacks in case of error"`
 		NoRecursive                bool   `default:"false" help:"Do not recurse into child stacks"`
