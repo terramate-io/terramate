@@ -746,9 +746,9 @@ export default defineConfig({
             {
               text: 'Terramate Cloud',
               items: [
-                { text: 'login', link: '/cli/cmdline/cloud-login' },
-                { text: 'info', link: '/cli/cmdline/cloud-info' },
-                { text: 'drift show', link: '/cli/cmdline/cloud-drift-show' },
+                { text: 'cloud login', link: '/cli/cmdline/cloud-login' },
+                { text: 'cloud info', link: '/cli/cmdline/cloud-info' },
+                { text: 'cloud drift show', link: '/cli/cmdline/cloud-drift-show' },
               ],
             },
             {
@@ -757,7 +757,7 @@ export default defineConfig({
                 { text: 'create', link: '/cli/cmdline/create' },
                 { text: 'clone', link: '/cli/cmdline/clone' },
                 { text: 'list', link: '/cli/cmdline/list' },
-                { text: 'metadata', link: '/cli/cmdline/metadata' },
+                { text: 'debug show metadata', link: '/cli/cmdline/metadata' },
                 { text: 'get-config-value', link: '/cli/cmdline/get-config-value' },
               ],
             },
@@ -765,7 +765,7 @@ export default defineConfig({
               text: 'Orchestration',
               items: [
                 { text: 'run', link: '/cli/cmdline/run' },
-                { text: 'run-env', link: '/cli/cmdline/run-env' },
+                { text: 'debug show runtime-env', link: '/cli/cmdline/run-env' },
                 { text: 'run-graph', link: '/cli/cmdline/run-graph' },
                 { text: 'run-order', link: '/cli/cmdline/run-order' },
                 { text: 'trigger', link: '/cli/cmdline/trigger' },
@@ -774,10 +774,10 @@ export default defineConfig({
             {
               text: 'Scripts',
               items: [
-                { text: 'run', link: '/cli/cmdline/script/run' },
-                { text: 'info', link: '/cli/cmdline/script/info' },
-                { text: 'list', link: '/cli/cmdline/script/list' },
-                { text: 'tree', link: '/cli/cmdline/script/tree' },
+                { text: 'script run', link: '/cli/cmdline/script/run' },
+                { text: 'script info', link: '/cli/cmdline/script/info' },
+                { text: 'script list', link: '/cli/cmdline/script/list' },
+                { text: 'script tree', link: '/cli/cmdline/script/tree' },
               ],
             },
             {
@@ -785,7 +785,7 @@ export default defineConfig({
               items: [
                 { text: 'fmt', link: '/cli/cmdline/fmt' },
                 { text: 'generate', link: '/cli/cmdline/generate' },
-                { text: 'globals', link: '/cli/cmdline/globals' },
+                { text: 'debug show globals', link: '/cli/cmdline/globals' },
               ],
             },
             {
