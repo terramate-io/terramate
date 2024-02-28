@@ -14,6 +14,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/go-github/v58/github"
+	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
@@ -144,7 +145,7 @@ func (c *cli) checkCloudSync() {
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
 		c.cloud.run.meta2id = make(map[string]int64)
-		uuid, err := generateRunID()
+		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)
 	}
@@ -925,7 +926,7 @@ func cloudBaseURL() string {
 	} else if cloudURL != "" {
 		baseURL = cloudURL
 	} else {
-		baseURL = cloudDefaultBaseURL
+		baseURL = cloud.BaseURL
 	}
 	return baseURL
 }

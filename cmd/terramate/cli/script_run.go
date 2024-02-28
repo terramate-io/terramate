@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/hashicorp/go-uuid"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -149,7 +150,7 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 
 	if len(deployRuns) > 0 {
 		c.cloud.run.meta2id = make(map[string]int64)
-		uuid, err := generateRunID()
+		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)
 
