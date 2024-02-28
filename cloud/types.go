@@ -235,7 +235,7 @@ type (
 		Labels                []Label    `json:"labels,omitempty"`
 		Reviewers             Reviewers  `json:"reviewers,omitempty"`
 		Status                string     `json:"status"`
-		Draft                 bool       `json:"draft,omitempty"`
+		Draft                 bool       `json:"draft"`
 		ReviewRequired        bool       `json:"review_required,omitempty"`
 		ChangesRequestedCount int        `json:"changes_requested_count"`
 		ApprovedCount         int        `json:"approved_count"`
