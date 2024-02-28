@@ -444,7 +444,9 @@ func (c *cli) detectCloudMetadata() {
 
 	headCommit := c.prj.headCommit()
 
-	c.cloud.run.metadata = &cloud.DeploymentMetadata{GitCommitSHA: headCommit}
+	c.cloud.run.metadata = &cloud.DeploymentMetadata{}
+	c.cloud.run.metadata.GitCommitSHA = headCommit
+
 	md := c.cloud.run.metadata
 
 	defer func() {
