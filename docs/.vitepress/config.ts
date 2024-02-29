@@ -58,6 +58,41 @@ export default defineConfig({
           href: `${siteData.base}favicons/apple-touch-icon.png`,
         },
       ],
+      [
+        'meta',
+        {
+          name: 'og:type',
+          content: 'website'
+        },
+      ],
+      [
+        'meta',
+        {
+          name: 'og:image',
+          content: `${siteData.base}terramate-og_linkedin.png`
+        },
+      ],
+      [
+        'meta',
+        {
+          name: 'twitter:image',
+          content: `${siteData.base}terramate-og_twitter.png`
+        },
+      ],
+      [
+        'meta',
+        {
+          name: 'twitter:card',
+          content: 'summary_large_image'
+        },
+      ],
+      [
+        'meta',
+        {
+          name: 'twitter:creator',
+          content: '@terramateio'
+        },
+      ],
       // [
       //   'link',
       //   {
