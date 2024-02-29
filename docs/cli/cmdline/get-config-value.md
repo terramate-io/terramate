@@ -13,12 +13,12 @@ The `get-config-value` command prints the value of a specific configuration para
 
 ## Usage
 
-`terramate experimental get-config-value`
+`terramate experimental get-config-value <value>`
 
 ## Examples
 
 Return the stack name for a specific stack:
 
 ```bash
-terramate get-config-value 'terramate.stack.name'
+terramate experimental get-config-value 'terramate.stack.name'
 ```
