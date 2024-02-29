@@ -153,7 +153,7 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/cli/orchestration/' },
             { text: 'Run Commands in Stacks', link: '/cli/orchestration/run-commands-in-stacks' },
-            { text: 'Terramate Scripts', link: '/cli/orchestration/scripts' },
+            { text: 'Workflows', link: '/cli/orchestration/scripts' },
             { text: 'Tag Filter', link: '/cli/orchestration/tag-filter' },
             { text: 'Runtime Configuration', link: '/cli/orchestration/runtime-configuration' },
             { text: 'Safe Guards', link: '/cli/orchestration/safeguards' },
