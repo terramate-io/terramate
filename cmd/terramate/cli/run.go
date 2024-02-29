@@ -6,7 +6,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+
+	stdfmt "fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -268,7 +269,7 @@ func (c *cli) runAll(
 
 	printPrefix := "terramate:"
 	if !opts.ScriptRun && opts.DryRun {
-		printPrefix = fmt.Sprintf("%s (dry-run)", printPrefix)
+		printPrefix = stdfmt.Sprintf("%s (dry-run)", printPrefix)
 	}
 
 	go func() {
@@ -573,9 +574,50 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 		return map[string]string{}
 	}
 
-	printer.Stderr.Success(fmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
+	printer.Stderr.Success(stdfmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
+
+	if c.parsedArgs.Run.DebugPreviewURL != "" {
+		c.writePreviewURL()
+	}
 
 	return createdPreview.StackPreviewsByMetaID
+}
+
+func (c *cli) writePreviewURL() {
+	rrNumber := 0
+	if c.cloud.run.metadata != nil && c.cloud.run.metadata.GithubPullRequestNumber != 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+		defer cancel()
+		reviews, err := c.cloud.client.ListReviewRequests(ctx, c.cloud.run.orgUUID)
+		if err != nil {
+			printer.Stderr.Warn(stdfmt.Sprintf("unable to list review requests: %v", err))
+			return
+		}
+		for _, review := range reviews {
+			if review.Number == c.cloud.run.metadata.GithubPullRequestNumber &&
+				review.CommitSHA == c.prj.headCommit() {
+				rrNumber = int(review.ID)
+			}
+		}
+	}
+
+	cloudURL := "https://cloud.terramate.io"
+	if c.cloud.client.BaseURL == "https://api.stg.terramate.io" {
+		cloudURL = "https://cloud.stg.terramate.io"
+	}
+
+	var url = stdfmt.Sprintf("%s/o/%s/review-requests\n", cloudURL, c.cloud.run.orgName)
+	if rrNumber != 0 {
+		url = stdfmt.Sprintf("%s/o/%s/review-requests/%d\n",
+			cloudURL,
+			c.cloud.run.orgName,
+			rrNumber)
+	}
+
+	err := os.WriteFile(c.parsedArgs.Run.DebugPreviewURL, []byte(url), 0644)
+	if err != nil {
+		printer.Stderr.Warn(stdfmt.Sprintf("unable to write preview URL to file: %v", err))
+	}
 }
 
 // getAffectedStacks returns the list of stacks affected by the current command.
