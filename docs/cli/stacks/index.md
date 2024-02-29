@@ -7,6 +7,8 @@ description: Learn how stacks help you efficiently build and manage infrastructu
 
 A modular approach is recommended when working with Infrastructure as Code (IaC). This approach breaks the entire infrastructure code and state into **smaller** and **isolated** units, often referred to as ***stacks.***
 
+@TODO: STATE
+
 ## What are stacks?
 
 A stack is a collection of infrastructure resources that you *configure, provision* and *manage* as a unit.

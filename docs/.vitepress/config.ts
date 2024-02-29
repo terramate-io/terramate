@@ -9,7 +9,7 @@ function getPath(path: string) {
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: 'Terramate CLI Docs',
+  title: 'Terramate Docs',
   // titleTemplate: ':title - Terramate',
   description: 'Terramate CLI is an open-source Infrastructure as Code (IaC) orchestration tool for Terraform, OpenTofu, Terragrunt, Kubernetes, Pulumi, AWS Cloud Formation, AWS Cloud Development Kit (CDK), Azure Resource Manager (ARM), Biceps, and others',
   sitemap: {
@@ -98,7 +98,7 @@ export default defineConfig({
 
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Docs', link: '/cli/introduction' },
+      { text: 'Docs', link: '/introduction' },
       { text: 'Blog', link: 'https://terramate.io/rethinking-iac' },
       { text: 'We are hiring!', link: 'https://jobs.ashbyhq.com/terramate' },
       {
@@ -117,33 +117,32 @@ export default defineConfig({
       '/': [
         {
           text: '👋 Introduction',
-          collapsed: false,
           items: [
-            { text: 'About Terramate', link: '/cli/introduction' },
-            { text: 'How it works', link: '/cli/how-it-works' },
-            { text: 'Why Terramate', link: '/cli/why-terramate' },
-            { text: 'Product Roadmap', link: '/cli/product-roadmap/' },
-            { text: 'Community', link: '/cli/community/' },
+            { text: 'About Terramate', link: '/introduction' },
+            { text: 'How it works', link: '/how-it-works' },
+            { text: 'Why Terramate', link: '/why-terramate' },
+            { text: 'Product Roadmap', link: '/product-roadmap/' },
+            { text: 'Community', link: 'https://terramate.io/discord' },
           ],
         },
         {
-          text: '👋 Getting Started',
-          collapsed: false,
+          text: '🚀 Getting Started',
           items: [
             { text: 'Installation', link: '/cli/installation' },
             { text: 'Quickstart', link: '/cli/getting-started/' },
+            // { text: 'AWS Terraform Quickstart', link: '/cli/getting-started/' },
           ],
         },
         {
-          text: '🚀 Features',
-          collapsed: false,
+          text: '⭐ Concepts',
           items: [
             {
               text: 'Projects',
+              link: '/cli/projects/',
               collapsed: true,
               items: [
-                // { text: 'Create Projects', link: '/cli/projects/create' },
-                { text: 'Configure Projects', link: '/cli/projects/configuration' },
+                { text: 'Create Projects', link: '/cli/projects/create' },
+                { text: 'Configure a project', link: '/cli/projects/configuration' },
                 { text: 'Start with Terraform', link: '/cli/projects/terraform' },
                 { text: 'Start with Terragrunt', link: '/cli/projects/terragrunt' },
               ],
@@ -728,18 +727,18 @@ export default defineConfig({
           ],
         },
         {
-          text: '🤖 Terramate in CI/CD',
-          collapsed: false,
-          link: '/cli/automation/index',
+          text: '🤖 Automating Terramate',
+          link: '/cli/automation/',
           items: [
+            { text: 'GitOps for Infrastructure', link: '/cli/automation/github-actions' },
             { text: 'GitHub Actions', link: '/cli/automation/github-actions' },
             { text: 'GitLab CI/CD (cooming soon)', link: '/cli/automation/gitlab' },
             { text: 'BitBucket Pipelines (cooming soon)', link: '/cli/automation/bitbucket' },
+            { text: 'Azure DevOps (cooming soon)', link: '/cli/automation/azure-devops' },
           ],
         },
         {
           text: '☁️ Terramate Cloud',
-          collapsed: true,
           link: '/cloud/',
           items: [
             {
@@ -760,56 +759,55 @@ export default defineConfig({
             {
               text: 'Deployments',
               link: '/cloud/deployments/',
-              collapsed: false,
+              collapsed: true,
               items: [
                 { text: 'Synchronize Deployments', link: '/cloud/deployments/sync' },
               ],
             },
             {
               text: 'Drift Management',
-              collapsed: false,
+              collapsed: true,
               items: [
                 // { text: 'Introduction', link: '/cli/introduction' },
               ],
             },
+            {
+              text: 'Notifications',
+              collapsed: false,
+              items: [
+              // { text: 'Introduction', link: '/cli/introduction' },
+              ],
+            },
+            {
+              text: 'Organization',
+              link: '/cloud/organization/',
+              collapsed: true,
+              items: [
+                { text: 'General Settings', link: '/cloud/organization/settings' },
+                { text: 'User Management', link: '/cloud/organization/user-management' },
+              ],
+            },
             // {
-            //   text: 'Notifications',
+            //   text: '👟 Profile',
             //   collapsed: false,
             //   items: [
-            //   // { text: 'Introduction', link: '/cli/introduction' },
+            //     // { text: 'Introduction', link: '/cli/introduction' },
             //   ],
             // },
-            // { text: 'Introduction', link: '/cli/introduction' },
+            // {
+            //   text: '🏠 Integrations',
+            //   collapsed: false,
+            //   items: [
+            //     { text: 'Slack', link: '/cloud/integrations/slack/' },
+            //     { text: 'GitHub Actions', link: '/cloud/integrations/github-actions/' },
+            //     { text: 'Gitlab CI/CD', link: '/cloud/integrations/gitlab-cicd/' },
+            //     { text: 'BitBucket Pipelines', link: '/cloud/integrations/bitbucket-pipelines/' },
+            //   ],
+            // },
           ],
         },
         {
-          text: '🏠 Organization',
-          link: '/cloud/organization/',
-          collapsed: false,
-          items: [
-            { text: 'General Settings', link: '/cloud/organization/settings' },
-            { text: 'User Management', link: '/cloud/organization/user-management' },
-          ],
-        },
-        // {
-        //   text: '👟 Profile',
-        //   collapsed: false,
-        //   items: [
-        //     // { text: 'Introduction', link: '/cli/introduction' },
-        //   ],
-        // },
-        // {
-        //   text: '🏠 Integrations',
-        //   collapsed: false,
-        //   items: [
-        //     { text: 'Slack', link: '/cloud/integrations/slack/' },
-        //     { text: 'GitHub Actions', link: '/cloud/integrations/github-actions/' },
-        //     { text: 'Gitlab CI/CD', link: '/cloud/integrations/gitlab-cicd/' },
-        //     { text: 'BitBucket Pipelines', link: '/cloud/integrations/bitbucket-pipelines/' },
-        //   ],
-        // },
-        {
-          text: '👷 Dev Tooling',
+          text: '👨🏽‍💻 Dev Tooling',
           collapsed: true,
           items: [
             { text: 'VSCode Extension', link: 'https://marketplace.visualstudio.com/items?itemName=Mineiros.terramate' },

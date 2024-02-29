@@ -7,11 +7,11 @@ description: With the terramate create command you can create a new stack in the
 
 The `create` command creates a new stack. This command accepts a path that will
 be used to create the stack. The `create` command will create intermediate
-directories as required. Whenever the `create` command is used, the code generation will run automatically to ensure all code relevant for the newly created stack will be generated.
+directories as required. Whenever the `create` command is used, the code generation will run automatically to ensure all code relevant to the newly created stack will be generated.
 
 ## Usage
 
-`terramate create [options] PATH`
+`terramate create [options] <stack>`
 
 ## Examples
 

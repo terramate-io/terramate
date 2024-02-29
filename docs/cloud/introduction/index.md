@@ -22,7 +22,7 @@ We currently support Terraform and OpenTofu but plan to add support for more tec
 
 ## How does it work
 
-Terramate Cloud receives data from [Terramate CLI](../../cli/introduction.md) which is synced during commands such as
+Terramate Cloud receives data from [Terramate CLI](../../introduction.md) which is synced during commands such as
 `terramate run` and others. The CLI runs on a developer's workstation or in any CI/CD, used to orchestrate and automate
 Terraform or OpenTofu. The CLI syncs data such as Terraform plans, deployment metrics, metadata such as GitHub users
 and much more. Based on this data the Terramate Cloud provides visibility insights, observability and enhanced collaboration which can

@@ -41,7 +41,7 @@ jobs:
 
     steps:
 
-      ### Create Pull Request comment
+      # ## Create Pull Request comment
 
       - name: Prepare pull request preview comment
         if: github.event.pull_request
@@ -54,7 +54,7 @@ jobs:
 
             :warning: preview is being created... please stand by!
 
-      ### Check out the code
+      # ## Check out the code
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      ### Install tooling
+      # ## Install tooling
 
       - name: Install Terramate
         uses: terramate-io/terramate-action@v1
@@ -70,9 +70,9 @@ jobs:
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.7.4"
+          terraform_version: 1.7.4
 
-      ### Linting
+      # ## Linting
 
       - name: Check Terramate formatting
         run: terramate fmt --check
@@ -80,13 +80,13 @@ jobs:
       - name: Check Terraform formatting
         run: terraform fmt -recursive -check -diff
 
-      ### Check for changed stacks
+      # ## Check for changed stacks
 
       - name: List changed stacks
         id: list
         run: terramate list --changed
 
-      ### Configure cloud credentials
+      # ## Configure cloud credentials
 
       # - name: Configure AWS credentials
       #   if: steps.list.outputs.stdout
@@ -102,7 +102,7 @@ jobs:
       #   if: steps.list.outputs.stdout
       #   run: aws sts get-caller-identity
 
-      ### Run the Terraform preview via Terramate in each changed stack
+      # ## Run the Terraform preview via Terramate in each changed stack
 
       - name: Initialize Terraform in changed stacks
         if: steps.list.outputs.stdout
@@ -116,7 +116,7 @@ jobs:
         if: steps.list.outputs.stdout
         run: terramate run --changed -- terraform plan -lock-timeout=5m -out out.tfplan
 
-      ### Update Pull Request comment
+      # ## Update Pull Request comment
 
       - name: Generate preview details
         if: steps.list.outputs.stdout
@@ -189,14 +189,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      ### Check out the code
+      # ## Check out the code
 
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      ### Install tooling
+      # ## Install tooling
 
       - name: Install Terramate
         uses: terramate-io/terramate-action@v1
@@ -204,15 +204,15 @@ jobs:
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.7.4"
+          terraform_version: 1.7.4
 
-      ### Check for changed stacks
+      # ## Check for changed stacks
 
       - name: List changed stacks
         id: list
         run: terramate list --changed
 
-      ### Configure cloud credentials
+      # ## Configure cloud credentials
 
       # - name: Configure AWS credentials
       #   if: steps.list.outputs.stdout
@@ -228,7 +228,7 @@ jobs:
       #   if: steps.list.outputs.stdout
       #   run: aws sts get-caller-identity
 
-      ### Run the Terraform deployment via Terramate in each changed stack
+      # ## Run the Terraform deployment via Terramate in each changed stack
 
       - name: Run Terraform init on changed stacks
         if: steps.list.outputs.stdout
