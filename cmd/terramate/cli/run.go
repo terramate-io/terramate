@@ -65,6 +65,7 @@ type stackRunTask struct {
 	CloudSyncDeployment        bool
 	CloudSyncDriftStatus       bool
 	CloudSyncPreview           bool
+	CloudSyncLayer             string
 	CloudSyncTerraformPlanFile string
 }
 
@@ -153,6 +154,7 @@ func (c *cli) runOnStacks() {
 					CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
 					CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 					CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
+					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer.String(),
 				},
 			},
 		}
@@ -546,9 +548,13 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 
 	technology := "other"
 	technologyLayer := "default"
-	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
-		technology = "terraform"
-		technologyLayer = "default"
+	for _, run := range runs {
+		if run.Task.CloudSyncTerraformPlanFile != "" {
+			technology = "terraform"
+		}
+		if layer := run.Task.CloudSyncLayer; layer != "" {
+			technologyLayer = sprintf("custom:%s", layer)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
