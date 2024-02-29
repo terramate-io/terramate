@@ -12,7 +12,7 @@ features, such as stacks, code generation, orchestration, and change detection.
 <!-- NOTE: Add more tutorials over time -->
 <!-- If you want to learn how to use Terramate in an existing Terraform project, go here instead: -->
 
-If you want to get an overview of what Terramate CLI is and how it works, please read the [introduction guide](../introduction.md).
+If you want to get an overview of what Terramate CLI is and how it works, please read the [introduction guide](../../introduction.md).
 
 ::: tip
 Join the ***[Terramate community](https://terramate.io/discord)*** on Discord if you have questions, need help, or to
