@@ -9,7 +9,7 @@ The `list` command lists all Terramate stacks in the current directory recursive
 
 ## Usage
 
-`terramate list`
+`terramate list [options]`
 
 ## Examples
 
@@ -28,8 +28,7 @@ terramate list --run-order
 Explicitly change the working directory:
 
 ```bash
-terramate list --chdir path/to/directory
-```
+terramate list --chdir <path>```
 
 List all stacks below the current directory that have a "drifted" status on Terramate Cloud
 
