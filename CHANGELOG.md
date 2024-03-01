@@ -46,6 +46,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - Ordering constraints between stacks are still respected, i.e. `before`/`after`, parent before sub-folders.
 - Add `cloud_sync_drift_status` option to `script` block commands. It allows for synchronizing the
   stack drift details from script jobs.
+- Add --cloud-sync-layer to allow users to specify a preview layer, e.g.: `stg`, `prod` etc.
+  - This is useful when users want to preview changes in a specific terraform workspace.
 
 ### Fixed
 
