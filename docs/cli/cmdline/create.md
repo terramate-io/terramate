@@ -11,7 +11,7 @@ directories as required. Whenever the `create` command is used, the code generat
 
 ## Usage
 
-`terramate create [options] PATH`
+`terramate create [options] <path>`
 
 ## Examples
 
