@@ -51,8 +51,9 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- Fix a panic in language server with a project caontaining errors on root directory
+- Fix a panic in language server with a project containing errors on root directory
 - Fix the execution order when using `tag` filter in `after/before` in conjunction with implicit order for nested stacks. (BREAKING CHANGE)
+- Fix escape sequences being interpreted in heredocs (issue #1449)
 
 ## v0.4.6
 
