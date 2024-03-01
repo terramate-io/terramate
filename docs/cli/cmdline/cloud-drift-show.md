@@ -9,4 +9,4 @@ The `cloud drift show` command shows any drift that has occurred in the current 
 
 ## Usage
 
-`terramate [-C <stack-directory>] cloud drift show`
+`terramate -C <stack-directory> cloud drift show`
