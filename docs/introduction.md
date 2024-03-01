@@ -5,8 +5,7 @@ description: Terramate is an Infrastructure as Code Management Platform that emp
 
 # About Terramate
 
-Terramate is an Infrastructure as Code (IaC) Management Platform that empowers teams to **organize**, **automate**, **orchestrate**
-and **observe** IaC tools such as Terraform, OpenTofu, Terragrunt, Kubernetes and others.
+Terramate is an Infrastructure as Code (IaC) Management Platform that empowers teams to **organize**, **automate**, **orchestrate** and **observe** IaC tools such as Terraform, OpenTofu, Terragrunt, Kubernetes and others.
 
 It's designed and implemented by long-time Platform Engineering and DevOps practitioners based on previous experience
 building and maintaining cloud infrastructure for some of the most innovative companies in the world.
