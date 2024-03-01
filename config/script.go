@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -33,6 +34,8 @@ const MaxScriptNameRunes = 128
 type ScriptCmdOptions struct {
 	CloudSyncDeployment    bool
 	CloudSyncDriftStatus   bool
+	CloudSyncPreview       bool
+	CloudSyncLayer         preview.Layer
 	CloudSyncTerraformPlan string
 }
 
@@ -147,6 +150,21 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		))
 	}
 
+	var cmdsWithCloudSyncPreview []string
+	for jobIdx, job := range evaluatedScript.Jobs {
+		for cmdIdx, cmd := range job.Commands() {
+			if cmd.Options != nil && cmd.Options.CloudSyncPreview {
+				cmdsWithCloudSyncPreview = append(cmdsWithCloudSyncPreview, fmt.Sprintf("job:%d.%d", jobIdx, cmdIdx))
+			}
+		}
+	}
+	if len(cmdsWithCloudSyncPreview) > 1 {
+		errs.Append(errors.E(ErrScriptInvalidCmdOptions,
+			"only a single command per script may have 'cloud_sync_preview' enabled, but was enabled by: %v",
+			strings.Join(cmdsWithCloudSyncDeployment, " "),
+		))
+	}
+
 	if err := errs.AsError(); err != nil {
 		return Script{}, err
 	}
@@ -233,6 +251,12 @@ func unmarshalScriptJobCommand(cmdValues cty.Value, expr hhcl.Expression) (*Scri
 			if elem.Type().IsObjectType() {
 				var err error
 				r.Options, err = unmarshalScriptCommandOptions(elem, expr)
+				if r.Options != nil &&
+					r.Options.CloudSyncPreview &&
+					(r.Options.CloudSyncDriftStatus || r.Options.CloudSyncDeployment) {
+					errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+						"cloud_sync_preview cannot be used with cloud_sync_deployment or cloud_sync_drift_status"))
+				}
 				errs.Append(err)
 			} else {
 				errs.Append(errors.E(ErrScriptInvalidTypeCommand, expr.Range(),
@@ -289,6 +313,28 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 				break
 			}
 			r.CloudSyncDriftStatus = v.True()
+		case "cloud_sync_preview":
+			if v.Type() != cty.Bool {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a bool, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			r.CloudSyncPreview = v.True()
+
+		case "cloud_sync_layer":
+			if v.Type() != cty.String {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a string, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+
+			r.CloudSyncLayer = preview.Layer(v.AsString())
+			if r.CloudSyncLayer.Validate() != nil {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must contain only alphanumeric characters and hyphens", ks))
+			}
 
 		case "cloud_sync_terraform_plan_file":
 			if v.Type() != cty.String {

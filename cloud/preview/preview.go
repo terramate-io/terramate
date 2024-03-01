@@ -3,7 +3,11 @@
 
 package preview
 
-import "github.com/terramate-io/terramate/errors"
+import (
+	"unicode"
+
+	"github.com/terramate-io/terramate/errors"
+)
 
 // StackStatus is the status of a stack in a preview run
 type StackStatus string
@@ -30,6 +34,26 @@ const ErrInvalidStackStatus = errors.Kind("invalid stack status")
 
 func (p StackStatus) String() string {
 	return string(p)
+}
+
+// Layer represents a cloud sync layer e.g. "dev", "staging", "prod" etc.
+type Layer string
+
+// String returns the string representation of the layer
+func (l Layer) String() string {
+	return string(l)
+}
+
+// Validate validates the cloud sync layer (only alphanumeric characters and
+// hyphens are allowed). An empty string is also allowed.
+func (l Layer) Validate() error {
+	for _, c := range string(l) {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '-' {
+			return errors.E("invalid --cloud-sync-layer, only alphanumeric characters and hyphens are allowed")
+		}
+	}
+
+	return nil
 }
 
 // Validate validates the stack status
