@@ -1,71 +1,215 @@
 ---
 title: terramate create - Command
-description: With the terramate create command you can create a new stack in the current project.
+description: With the 'terramate create' command you can create a new stack or import existing Terraform or Terragrunt configurations.
 ---
 
-# Create
+# Create or Import Stacks
 
-The `create` command creates a new stack. This command accepts a path that will
-be used to create the stack. The `create` command will create intermediate
-directories as required. Whenever the `create` command is used, the code generation will run automatically to ensure all code relevant for the newly created stack will be generated.
+The `terramate create` command creates a new stack in a given directory aka stack-path.
+If the stack-path does not yet exist, it will be created.
+Code Generation will be triggered by default to initialize the newly created stack.
 
-## Usage
+Stack metadata can be set upon creation of the stack.
 
-`terramate create [options] PATH`
+This metadata will also be synchronized to Terramate Cloud if enabled and can help you and your team to browse through stacks better.
 
-## Examples
+**The `terramare create` command can also be used to import existing Terraform or Terragrunt configurations and initialize stacks automatically for an easy on-boarding.**
 
-Create a new stack:
+# Examples
+
+## Create a new stack
+
+This is the most basic example to create a stack in a directory called `path/to/stack`.
 
 ```bash
 terramate create path/to/stack
 ```
 
-Complete Example:
+## Import existing Terraform Root Modules
 
-```bash
-terramate create path/to/stack \
-    --name foo-stack \
-    --description "This is an example" \
-    --tags app,prd \
-    --after ../../after-another-stack,../../after-this-stack \
-    --before ../../before-this-stack,../../before-another-stack \
-    --ignore-existing \
-    --no-generate
-```
+If you already have an existing Terraform setup in your repository and want to initialize all directories containing Terraform configurations as Terramate Stacks, you can use `--all-terraform` option to automatically detect those stacks and initialize them.
 
-The `terramate create` supports initializing Terramate stacks in an existing [Terraform](https://www.terraform.io/)
-or [Terragrunt](https://terragrunt.gruntwork.io/) project.
-
-Scan and create stacks for Terraform stacks:
+Terramate detects all Terraform directories that contain a `backend {}` configuration as a stack for you.
 
 ```bash
 terramate create --all-terraform
 ```
 
-Scan and create stacks for Terragrunt stacks/modules:
+## Import existing Terragrunt Modules
+
+Similar to detecting Terraform directories, existing Terragrunt configurations can be easily initialized as Terramate Stacks.
+
+Terramate detects all Terragrunt Modules that contain a `terraform.source` configuration as a stack for you.
 
 ```bash
 terramate create --all-terragrunt
 ```
 
-This is helpful when you want to onboard Terramate in an existing project. 
+# Usage
 
-The `--all-terraform` will create a Terramate stack file in every Terraform directory that 
-contains a `terraform.backend` block or `provider` blocks.
+`terramate create [options] <stack-path>`
 
-The `--all-terragrunt` will create a Terramate stack file in every Terragrunt configuration that
-defines a `terraform.source` attribute (it will correctly parse and include other files as needed).
+`terramate create --all-terraform`
 
-## Options
+`terramate create --all-terragrunt`
 
-- `--id=STRING` ID of the stack. Defaults to a random UUIDv4 (Using the default is highly recommended).
-- `--name=STRING` Name of the stack. Defaults to stack dir base name.
-- `--description=STRING` Description of the stack. Defaults to the stack name.
-- `--tags=LIST` Adds tags to the stack. Example: `--tags a --tags b` or `--tags a,b`.
-- `--import=LIST` Add import block for the given path on the stack. Example: `--import dir/path1 --import dir/path2` or `--import dir/path1,dir/path2`
-- `--after=LIST`, `--before=LIST` Define an explicit [order of execution](../orchestration/index.md#explicit-order-of-execution). LIST can contain relative paths `../path/to/stack` and/or tags `tag:my-tag`. These options can be used multiple times.
-- `--ignore-existing` If the stack already exists do nothing and don't fail.
-- `--all-terraform` Initialize Terramate in all directories containing `terraform.backend` blocks.
-- `--ensure-stack-ids` Ensures that every stack has a UUID.
-- `--no-generate` Disable code generation for the newly created stack.
+`terramate create --ensure-stack-ids`
+
+In the basic use case `[options]` can be one or multiple of:
+
+## Set the ID
+
+- `--id <id>`
+
+  Default: A new UUIDv4.
+
+  Stack IDs need to be unique within the repository.
+  It is recommended to use an UUID as the stack id.
+
+  Example:
+
+  ```bash
+  terramate create --id "my-id" path/to/stack
+  ```
+
+## Set the name
+
+- `--name <name>`
+
+  Default: The basename of the `<stack-path>`.
+
+  The stack name should help users to understand what a stack is containing.
+
+  It will be used in Terramate Cloud when listing stacks in addition to the `<stack-path>`.
+
+  Example:
+
+  ```bash
+  terramate create --name "My first Terramate stack" path/to/stack
+  ```
+
+## Set the description
+
+- `--description <description>`
+
+  Default: the `<name>` of the stack.
+
+  The description should give more details and context about the stack and the resources managed.
+
+  It will be visible in Terramate Cloud when showing stack details and can help your team to understand previews, deployments and drift details.
+
+  Example:
+
+  ```bash
+  terramate create --description "This stack contains amazing resources for my service" path/to/stack
+  ```
+
+## Set tags
+
+- `--tags <tags>` A comma separated list of tags to add to the stack.
+
+  This option can be used multiple times to define additional tags.
+
+  Tags can be used to filter stacks when listing them or executing commands in them.
+  They can also be used to define the order of execution with `before` and `after` configurations.
+
+  Example:
+
+  ```bash
+  terramate create --tags "mytag,yourtag,gutentag" path/to/stack-a
+  terramate create --tags "mytag" --tag "yourtag" --tag "gutentag" path/to/stack-b
+  ```
+
+## Add imports
+
+- `--import <path>` A comma separated list of directories or files to add import blocks for in the stacks configuration.
+
+  This option can be used multiple times to define additional import blocks.
+
+  Example:
+
+  ```bash
+  terramate create --import "path/to/directory" --import "path/to/file" path/to/stack
+  ```
+
+## Add explicit order of execution
+
+- `--after <list>` A comma separated list of filters.
+
+  This option can be used multiple times to define additional `after` relationships.
+
+  The `<list>` can contain a mix of
+
+  - tags e.g. `tag:my-tag` _(recommended)_
+  - relative paths: e.g `../path/to/stack` to stacks (not recommended)
+
+  When defined, this stack will be executed after matching stacks.
+
+  It is recommended to use tags to maintain refactoring of stack hierarchy.
+  Using stack-paths is available but not recommended to use anymore.
+  When using nested stacks, an implicit order of execution is defined for you.
+
+  Example:
+
+  ```bash
+  terramate create --after "tag:my-tag" --after "../another-stack" path/to/stack
+  ```
+
+- `--before <list>` A comma separated list of filters.
+
+  This option can be used multiple times to define additional `before` relationships.
+
+  The `<list>` can contain a mix of
+
+  - tags e.g. `tag:my-tag` _(recommended)_
+  - relative paths: e.g `../path/to/stack` to stacks
+
+  When defined, this stack will be executed before matching stacks.
+
+  It is recommended to use tags to maintain refactoring of stack hierarchy.
+  Using stack-paths is available but not recommended to use anymore.
+  When using nested stacks, an implicit order of execution is defined for you.
+
+  Example:
+
+  ```bash
+  terramate create --before "tag:my-tag" --before "../another-stack" path/to/stack
+  ```
+
+## Additional options
+
+- `--ignore-existing`
+
+  If set, and the stack already exists do nothing and don't fail.
+
+  Example:
+
+  ```bash
+  terramate create path/to/stack
+  terramate create --ignore-existing path/to/stack
+  ```
+
+- `--no-generate`
+
+  Disable code generation for the newly created stacks
+
+## Special use cases
+
+- `terramate create --all-terraform`
+
+  Detect and initialize all Terraform directories detected.
+  See example above.
+
+- `terramate create --all-terragrunt`
+
+  Detect and initialize all Terragrunt directories detected.
+  See example above.
+
+- `terramate create --ensure-stack-ids`
+
+  Ensures that every stack has an ID set.
+  Stacks that do not have an `id` defined, will get a new UUIDv4 generated and set.
+
+  A stack ID for every stack is required in order to synchronize stacks to Terramate Cloud.
+
+[order of execution]: ../orchestration/index.md#explicit-order-of-execution
