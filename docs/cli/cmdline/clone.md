@@ -19,7 +19,7 @@ in this case, the source directory itself must be a stack.
 
 ## Usage
 
-`terramate experimental clone SOURCE TARGET`
+`terramate experimental clone [options] <source> <target>`
 
 ## Examples
 

@@ -9,7 +9,7 @@ The `generate` command generates files for all code generation strategies. For a
 
 ## Usage
 
-`terramate generate`
+`terramate generate [options]`
 
 
 ## Examples
