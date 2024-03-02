@@ -99,6 +99,8 @@ func (c *cli) runScript() {
 					if cmd.Options != nil {
 						task.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
 						task.CloudSyncDriftStatus = cmd.Options.CloudSyncDriftStatus
+						task.CloudSyncPreview = cmd.Options.CloudSyncPreview
+						task.CloudSyncLayer = cmd.Options.CloudSyncLayer
 						task.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
 					}
 					run.Tasks = append(run.Tasks, task)
@@ -130,7 +132,8 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 
 	deployRuns := selectCloudStackTasks(runs, isDeploymentTask)
 	driftRuns := selectCloudStackTasks(runs, isDriftTask)
-	if len(deployRuns) == 0 && len(driftRuns) == 0 {
+	previewRuns := selectCloudStackTasks(runs, isPreviewTask)
+	if len(deployRuns) == 0 && len(driftRuns) == 0 && len(previewRuns) == 0 {
 		return
 	}
 
@@ -168,6 +171,10 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 			sortableDriftStacks[i] = &config.SortableStack{Stack: e.Stack}
 		}
 		c.ensureAllStackHaveIDs(sortableDriftStacks)
+	}
+
+	if len(previewRuns) > 0 {
+		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
 	}
 }
 

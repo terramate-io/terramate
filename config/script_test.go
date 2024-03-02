@@ -473,6 +473,90 @@ func TestScriptEval(t *testing.T) {
 			},
 		},
 		{
+			name: "command options with cloud_sync_deployment and cloud_sync_preview",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_deployment = true
+								cloud_sync_preview = true
+								cloud_sync_terraform_plan_file = "plan_a"
+							}],
+						  ]
+						`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
+		},
+		{
+			name: "command options with invalid cloud_sync_layer",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_preview = true
+								cloud_sync_terraform_plan_file = "plan_a"
+								cloud_sync_layer = "a+b"
+							}],
+						  ]
+						`),
+					},
+				},
+			},
+			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
+		},
+		{
+			name: "command options with cloud_sync_preview + planfile + layer",
+			script: hcl.Script{
+				Labels: labels,
+				Description: hcl.NewScriptDescription(
+					makeAttribute(t, "description", `"some description"`)),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_preview = true
+								cloud_sync_terraform_plan_file = "plan_a"
+								cloud_sync_layer = "staging"
+							}],
+						  ]
+						`),
+					},
+				},
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some description",
+				Jobs: []config.ScriptJob{
+					{
+						Cmds: []*config.ScriptCmd{
+							{
+								Args: []string{"echo", "hello"},
+								Options: &config.ScriptCmdOptions{
+									CloudSyncDeployment:    false,
+									CloudSyncPreview:       true,
+									CloudSyncLayer:         "staging",
+									CloudSyncTerraformPlan: "plan_a",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "command options",
 			script: hcl.Script{
 				Labels: labels,

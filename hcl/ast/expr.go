@@ -5,7 +5,6 @@ package ast
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
@@ -449,32 +448,42 @@ func isHeredoc(bytes []byte) bool {
 }
 
 func renderString(bytes []byte) []byte {
-	type replace struct {
-		old string
-		new string
+	length := len(bytes)
+	if length < 2 {
+		return bytes
 	}
-	str := string(bytes)
-	for _, r := range []replace{
-		{
-			old: "\\\\",
-			new: "\\",
-		},
-		{
-			old: "\\t",
-			new: "\t",
-		},
-		{
-			old: "\\n",
-			new: "\n",
-		},
-		{
-			old: `\"`,
-			new: `"`,
-		},
-	} {
-		str = strings.ReplaceAll(str, r.old, r.new)
+	// a new slice is needed to avoid modifying the original bytes.
+	out := make([]byte, 0, length)
+	for i := 0; i < length; i++ {
+		r := bytes[i]
+		if r != '\\' {
+			out = append(out, r)
+			continue
+		}
+
+		if i == length-1 {
+			out = append(out, '\\')
+			break
+		}
+
+		i++
+		r = bytes[i]
+
+		switch r {
+		default:
+			out = append(out, '\\')
+			out = append(out, r)
+		case '\\':
+			out = append(out, '\\')
+		case 'n':
+			out = append(out, '\n')
+		case 't':
+			out = append(out, '\t')
+		case '"':
+			out = append(out, '"')
+		}
 	}
-	return []byte(str)
+	return out
 }
 
 func obrace() *hclwrite.Token {

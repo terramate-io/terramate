@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/preview"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
@@ -156,17 +157,18 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		CloudStatus                string `help:"Filter by status. Example: --cloud-status=unhealthy"`
-		CloudSyncDeployment        bool   `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
-		CloudSyncDriftStatus       bool   `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
-		CloudSyncPreview           bool   `default:"false" help:"Enable synchronization of review request previews to Terramate Cloud"`
-		DebugPreviewURL            string `default:"" help:"Debug preview URL"`
-		CloudSyncTerraformPlanFile string `default:"" help:"Enable sync of Terraform plan file"`
-		ContinueOnError            bool   `default:"false" help:"Continue executing in other stacks in case of error"`
-		NoRecursive                bool   `default:"false" help:"Do not recurse into child stacks"`
-		DryRun                     bool   `default:"false" help:"Plan the execution but do not execute it"`
-		Reverse                    bool   `default:"false" help:"Reverse the order of execution"`
-		Eval                       bool   `default:"false" help:"Evaluate command line arguments as HCL strings"`
+		CloudStatus                string        `help:"Filter by status. Example: --cloud-status=unhealthy"`
+		CloudSyncDeployment        bool          `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
+		CloudSyncDriftStatus       bool          `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
+		CloudSyncPreview           bool          `default:"false" help:"Enable synchronization of review request previews to Terramate Cloud"`
+		CloudSyncLayer             preview.Layer `default:"" help:"Layer to use for synchronizing previews to Terramate Cloud e.g. stg, prod etc."`
+		CloudSyncTerraformPlanFile string        `default:"" help:"Enable sync of Terraform plan file"`
+		DebugPreviewURL            string        `default:"" help:"Debug preview URL"`
+		ContinueOnError            bool          `default:"false" help:"Continue executing in other stacks in case of error"`
+		NoRecursive                bool          `default:"false" help:"Do not recurse into child stacks"`
+		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it"`
+		Reverse                    bool          `default:"false" help:"Reverse the order of execution"`
+		Eval                       bool          `default:"false" help:"Evaluate command line arguments as HCL strings"`
 
 		// Note: 0 is not the real default value here, this is just a workaround.
 		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
