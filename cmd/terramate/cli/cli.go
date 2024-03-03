@@ -109,71 +109,69 @@ type kongParallelFlag struct {
 const defaultParallelRunCount = 5
 
 type cliSpec struct {
-	Version        struct{} `cmd:"" help:"Terramate version"`
-	VersionFlag    bool     `name:"version" help:"Terramate version"`
-	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
-	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
-	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags a --tags b\" is the same as \"--tags a,b\""`
-	NoTags         []string `optional:"true" sep:"," help:"Filter stacks that do not have the given tags"`
-	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
-	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
-	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
-	Quiet          bool     `optional:"false" help:"Disable output"`
+	VersionFlag    bool     `hidden:"true" name:"version" help:"Show Terramate version."`
+	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Set working directory."`
+	GitChangeBase  string   `short:"B" optional:"true" help:"Set git base reference for computing changes."`
+	Changed        bool     `short:"c" optional:"true" help:"Filter stacks based on changes made in git."`
+	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags."`
+	NoTags         []string `optional:"true" sep:"," help:"Filter stacks by tags not being set."`
+	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'."`
+	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
+	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
+	Quiet          bool     `optional:"false" help:"Disable outputs."`
 	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
 
 	deprecatedGlobalSafeguardsCliSpec
 
-	// DEPRECATED
-	DisableCheckpoint          bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint checks for updates"`
-	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature"`
+	DisableCheckpoint          bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint checks for updates."`
+	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature."`
 
 	Create struct {
-		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
-		ID             string   `help:"ID of the stack, defaults to UUID"`
-		Name           string   `help:"Name of the stack, defaults to stack dir base name"`
-		Description    string   `help:"Description of the stack, defaults to the stack name"`
-		Import         []string `help:"Add import block for the given path on the stack"`
-		After          []string `help:"Add a stack as after"`
-		Before         []string `help:"Add a stack as before"`
-		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
-		AllTerraform   bool     `help:"initialize all Terraform directories containing terraform.backend blocks defined"`
-		AllTerragrunt  bool     `help:"initialize all Terragrunt modules"`
-		EnsureStackIds bool     `help:"generate an UUID for the stack.id of all stacks which does not define it"`
-		NoGenerate     bool     `help:"Disable code generation for the newly created stacks"`
-	} `cmd:"" help:"Creates a stack on the project"`
+		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack."`
+		ID             string   `help:"Set the ID of the stack, defaults to an UUIDv4 string."`
+		Name           string   `help:"Set the name of the stack, defaults to the basename of <path>"`
+		Description    string   `help:"Set the description of the stack, defaults to <name>"`
+		Import         []string `help:"Add 'import' block to the configuration of the new stack."`
+		After          []string `help:"Add 'after' attritbute to the configuration of the new stack."`
+		Before         []string `help:"Add 'before' attritbute to the configuration of the new stack."`
+		IgnoreExisting bool     `help:"Skip creation without error when the stack already exist."`
+		AllTerraform   bool     `help:"Import existing Terraform Root Modules as stacks."`
+		AllTerragrunt  bool     `help:"Import existing Terragrunt Modules as stacks."`
+		EnsureStackIds bool     `help:"Set the ID of existing stacks that do not set an ID to a new UUIDv4."`
+		NoGenerate     bool     `help:"Do not run code generation after creating the new stack."`
+	} `cmd:"" help:"Create or import stacks."`
 
 	Fmt struct {
-		Files            []string `arg:"" optional:"true" predictor:"file" help:"files to be formatted"`
-		Check            bool     `hidden:"" help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
-		DetailedExitCode bool     `help:"Return an appropriate exit code (0 = ok, 1 = error, 2 = no error but changes were made)"`
-	} `cmd:"" help:"Format all files inside dir recursively"`
+		Files            []string `arg:"" optional:"true" predictor:"file" help:"List of files to be formatted."`
+		Check            bool     `hidden:"" help:"Lists unformatted files but do not change them. (Exits with 0 if all is formatted, 1 otherwise)"`
+		DetailedExitCode bool     `help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
+	} `cmd:"" help:"Format configuration files."`
 
 	List struct {
-		Why                bool   `help:"Shows the reason why the stack has changed"`
+		Why                bool   `help:"Shows the reason why the stack has changed."`
 		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
-		CloudStatus        string `help:"Filter by status. Example: --cloud-status=unhealthy"`
-		RunOrder           bool   `default:"false" help:"Sort stacks by order of execution"`
-	} `cmd:"" help:"List stacks"`
+		CloudStatus        string `help:"Filter by Terramate Cloud status of the stack."`
+		RunOrder           bool   `default:"false" help:"Sort listed stacks by order of execution"`
+	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		CloudStatus                string        `help:"Filter by status. Example: --cloud-status=unhealthy"`
-		CloudSyncDeployment        bool          `default:"false" help:"Enable synchronization of stack execution with the Terramate Cloud"`
-		CloudSyncDriftStatus       bool          `default:"false" help:"Enable drift detection and synchronization with the Terramate Cloud"`
-		CloudSyncPreview           bool          `default:"false" help:"Enable synchronization of review request previews to Terramate Cloud"`
-		CloudSyncLayer             preview.Layer `default:"" help:"Layer to use for synchronizing previews to Terramate Cloud e.g. stg, prod etc."`
-		CloudSyncTerraformPlanFile string        `default:"" help:"Enable sync of Terraform plan file"`
-		DebugPreviewURL            string        `default:"" help:"Debug preview URL"`
-		ContinueOnError            bool          `default:"false" help:"Continue executing in other stacks in case of error"`
-		NoRecursive                bool          `default:"false" help:"Do not recurse into child stacks"`
-		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it"`
-		Reverse                    bool          `default:"false" help:"Reverse the order of execution"`
-		Eval                       bool          `default:"false" help:"Evaluate command line arguments as HCL strings"`
+		CloudStatus                string        `help:"Filter by Terramate Cloud status of the stack."`
+		CloudSyncDeployment        bool          `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
+		CloudSyncDriftStatus       bool          `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
+		CloudSyncPreview           bool          `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+		CloudSyncLayer             preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
+		CloudSyncTerraformPlanFile string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
+		DebugPreviewURL            string        `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
+		ContinueOnError            bool          `default:"false" help:"Do not stop execution when an error occurs."`
+		NoRecursive                bool          `default:"false" help:"Do not recurse into nested child stacks."`
+		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it."`
+		Reverse                    bool          `default:"false" help:"Reverse the order of execution."`
+		Eval                       bool          `default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
 
 		// Note: 0 is not the real default value here, this is just a workaround.
 		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
 		// The K case is handled in the custom decoder.
-		Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent tasks in parallel"`
+		Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent stacks in parallel."`
 
 		runSafeguardsCliSpec
 
@@ -181,63 +179,61 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
-		DetailedExitCode bool `default:"false" help:"Return detailed exit code (0 = ok, 1 = errors, 2 = no errors but changes were made"`
-	} `cmd:"" help:"Generate terraform code for stacks"`
+		DetailedExitCode bool `default:"false" help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
+	} `cmd:"" help:"Run Code Generation in stacks."`
 
 	Script struct {
-		List struct{} `cmd:"" help:"Show a list of all scripts in the current directory"`
-		Tree struct{} `cmd:"" help:"Show a tree of all scripts in the current directory"`
+		List struct{} `cmd:"" help:"List scripts."`
+		Tree struct{} `cmd:"" help:"Dump a tree of scripts."`
 		Info struct {
-			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info"`
+			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info for."`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			CloudStatus string `help:"Filter by status. Example: --cloud-status=unhealthy"`
-			NoRecursive bool   `default:"false" help:"Do not recurse into child stacks"`
-			DryRun      bool   `default:"false" help:"Plan the execution but do not execute it"`
+			CloudStatus string `help:"Filter by Terramate Cloud status of the stack."`
+			NoRecursive bool   `default:"false" help:"Do not recurse into nested child stacks."`
+			DryRun      bool   `default:"false" help:"Plan the execution but do not execute it."`
 
-			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute"`
+			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
 
 			// See above comment regarding for run --parallel.
-			Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent tasks in parallel"`
+			Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent stacks in parallel"`
 
 			runSafeguardsCliSpec
-		} `cmd:"" help:"Run script in stacks"`
-	} `cmd:"" help:"Terramate Script commands"`
-
-	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
+		} `cmd:"" help:"Run a Terramate Script in stacks."`
+	} `cmd:"" help:"Use Terramate Scripts"`
 
 	Debug struct {
 		Show struct {
-			Metadata        struct{} `cmd:"" help:"Shows metadata available on the project"`
-			Globals         struct{} `cmd:"" help:"List globals for all stacks"`
+			Metadata        struct{} `cmd:"" help:"Show metadata available in stacks."`
+			Globals         struct{} `cmd:"" help:"Show globals available in stacks."`
 			GenerateOrigins struct {
-			} `cmd:"" help:"Show generate debug information"`
-			RuntimeEnv struct{} `cmd:"" help:"List run environment variables for all stacks"`
-		} `cmd:"" help:"Show information available in the project"`
-	} `cmd:"" help:"Terramate debugging commands"`
+			} `cmd:"" help:"Show details about generated code in stacks."`
+			RuntimeEnv struct{} `cmd:"" help:"Show available run-time environment variables (ENV) in stacks."`
+		} `cmd:"" help:"Show configuration details of stacks."`
+	} `cmd:"" help:"Debug Terramate configuration."`
 
 	Cloud struct {
-		Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
-		Info  struct{} `cmd:"" help:"cloud information status"`
+		Login struct{} `cmd:"" help:"Sign in to Terramate Cloud."`
+		Info  struct{} `cmd:"" help:"Show your current Terramate Cloud login status."`
 		Drift struct {
 			Show struct {
-			} `cmd:"" help:"show drifts"`
-		} `cmd:"" help:"manage cloud drifts"`
-	} `cmd:"" help:"Terramate Cloud commands"`
+			} `cmd:"" help:"Show the current drift of a stack."`
+		} `cmd:"" help:"Interact with Terramate Cloud Drift Detection."`
+	} `cmd:"" help:"Interact with Terramate Cloud"`
 
 	Experimental struct {
 		Clone struct {
-			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
-			DestDir         string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
-			SkipChildStacks bool   `default:"false" help:"Clone ignores child stacks"`
-		} `cmd:"" help:"Clones a stack"`
+			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned."`
+			DestDir         string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack."`
+			SkipChildStacks bool   `default:"false" help:"Do not clone nested child stacks."`
+		} `cmd:"" help:"Clone a stack."`
 
 		Trigger struct {
-			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
-			Reason             string `default:"" name:"reason" help:"Reason for the stack being triggered"`
-			ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
-			CloudStatus        string `help:"Filter by status. Example: --cloud-status=unhealthy"`
-		} `cmd:"" help:"Triggers a stack"`
+			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
+			Reason             string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
+			ExperimentalStatus string `hidden:"" help:"Filter by Terramate Cloud status of the stack. (deprecated)"`
+			CloudStatus        string `help:"Filter by Terramate Cloud status of the stack."`
+		} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 		RunGraph struct {
 			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
@@ -245,8 +241,8 @@ type cliSpec struct {
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
 		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
-		} `hidden:"" cmd:"" help:"Show the topological ordering of the stacks"`
+			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks (DEPRECATED)"`
+		} `hidden:"" cmd:"" help:"Show the topological ordering of the stacks (DEPRECATED)"`
 
 		Vendor struct {
 			Download struct {
@@ -274,28 +270,31 @@ type cliSpec struct {
 		} `cmd:"" help:"Get configuration value"`
 
 		Cloud struct {
-			Login struct{} `cmd:"" help:"login for cloud.terramate.io"`
-			Info  struct{} `cmd:"" help:"cloud information status"`
+			Login struct{} `cmd:"" help:"login for cloud.terramate.io  (DEPRECATED)"`
+			Info  struct{} `cmd:"" help:"cloud information status (DEPRECATED)"`
 			Drift struct {
 				Show struct {
-				} `cmd:"" help:"show drifts"`
-			} `cmd:"" help:"manage cloud drifts"`
-		} `cmd:"" hidden:"" help:"Terramate Cloud commands"`
-	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
+				} `cmd:"" help:"show drifts  (DEPRECATED)"`
+			} `cmd:"" help:"manage cloud drifts  (DEPRECATED)"`
+		} `cmd:"" hidden:"" help:"Terramate Cloud commands (DEPRECATED)"`
+	} `cmd:"" help:"Use experimental features."`
+
+	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions."`
+
+	Version struct{} `cmd:"" help:"Show Terramate version"`
 }
 
 type runSafeguardsCliSpec struct {
 	// Note: The `name` and `short` are being used to define the -X flag without longer version.
-	DisableSafeguardsAll bool               `default:"false" name:"disable-safeguards=all" short:"X" help:"Disable all safeguards"`
-	DisableSafeguards    safeguard.Keywords `env:"TM_DISABLE_SAFEGUARDS" enum:"git,all,none,git-untracked,git-uncommitted,outdated-code,git-out-of-sync" help:"Disable safeguards: {all,none,git,git-untracked,git-uncommitted,outdated-code,git-out-of-sync}"`
-
-	DeprecatedDisableCheckGenCode   bool `hidden:"" default:"false" name:"disable-check-gen-code" env:"TM_DISABLE_CHECK_GEN_CODE" help:"Disable outdated generated code check"`
-	DeprecatedDisableCheckGitRemote bool `hidden:"" default:"false" name:"disable-check-git-remote" env:"TM_DISABLE_CHECK_GIT_REMOTE" help:"Disable checking if local default branch is updated with remote"`
+	DisableSafeguardsAll            bool               `default:"false" name:"disable-safeguards=all" short:"X" help:"Disable all safeguards."`
+	DisableSafeguards               safeguard.Keywords `env:"TM_DISABLE_SAFEGUARDS" enum:"git,all,none,git-untracked,git-uncommitted,outdated-code,git-out-of-sync" help:"Disable specific safeguards: 'all', 'none', 'git', 'git-untracked', 'git-uncommitted', 'git-out-of-sync', and/or 'outdated-code'."`
+	DeprecatedDisableCheckGenCode   bool               `hidden:"" default:"false" name:"disable-check-gen-code" env:"TM_DISABLE_CHECK_GEN_CODE" help:"Disable outdated generated code check (DEPRECATED)."`
+	DeprecatedDisableCheckGitRemote bool               `hidden:"" default:"false" name:"disable-check-git-remote" env:"TM_DISABLE_CHECK_GIT_REMOTE" help:"Disable checking if local default branch is updated with remote (DEPRECATED)."`
 }
 
 type deprecatedGlobalSafeguardsCliSpec struct {
-	DeprecatedDisableCheckGitUntracked   bool `hidden:"true" optional:"true" name:"disable-check-git-untracked" default:"false" env:"TM_DISABLE_CHECK_GIT_UNTRACKED" help:"Disable git check for untracked files"`
-	DeprecatedDisableCheckGitUncommitted bool `hidden:"true" optional:"true" name:"disable-check-git-uncommitted" default:"false" env:"TM_DISABLE_CHECK_GIT_UNCOMMITTED" help:"Disable git check for uncommitted files"`
+	DeprecatedDisableCheckGitUntracked   bool `hidden:"true" optional:"true" name:"disable-check-git-untracked" default:"false" env:"TM_DISABLE_CHECK_GIT_UNTRACKED" help:"Disable git check for untracked files (DEPRECATED)."`
+	DeprecatedDisableCheckGitUncommitted bool `hidden:"true" optional:"true" name:"disable-check-git-uncommitted" default:"false" env:"TM_DISABLE_CHECK_GIT_UNCOMMITTED" help:"Disable git check for uncommitted files (DEPRECATED)."`
 }
 
 type safeguards struct {
