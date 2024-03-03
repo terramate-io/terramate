@@ -1,11 +1,11 @@
 ---
 title: terramate cloud info - Command
-description: With the terramate cloud info command you can see information about your current session in Terramate Cloud.
+description: Show your current Terramate Cloud login status and information about the selected organization by using the `terramate cloud info` command.
 ---
 
 # Cloud Info
 
-The `cloud info` command prints information about your current session in Terramate Cloud.
+The `terramate cloud info` command prints information about your current session in Terramate Cloud.
 
 ## Usage
 

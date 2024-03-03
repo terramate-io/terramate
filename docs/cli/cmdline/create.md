@@ -1,6 +1,6 @@
 ---
 title: terramate create - Command
-description: With the 'terramate create' command you can create a new stack or import existing Terraform or Terragrunt configurations.
+description: Create a new Stack or import existing Terraform or Terragrunt configurations by using the `terramate create` command.
 ---
 
 # Create or Import Stacks

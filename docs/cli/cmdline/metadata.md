@@ -1,11 +1,11 @@
 ---
-title: terramate metadata - Command
-description: With the terramate metadata command you can see a list of stacks and their metadata.
+title: terramate debug show metadata - Command
+description: Debug stack metadata by dumping the available variables and the corresponding values on the stack level by using the 'terramate debug show metadata' command.
 ---
 
 # Metadata
 
-The `metadata` command prints information stacks and their metadata in the current directory recursively.
+The `terramate debug show metadata` command prints information stacks and their metadata in the current directory recursively.
 
 ## Usage
 

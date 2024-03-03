@@ -1,6 +1,6 @@
 ---
-title: terramate partial-eval - Command
-description: With the terramate partial-eval command you can partially evaluate a Terramate expression.
+title: terramate experimental partial-eval - Command
+description: Debug Terramate Expresions using the `terramate experimental partial-eval` command.
 ---
 
 # Partial Eval
@@ -9,10 +9,10 @@ description: With the terramate partial-eval command you can partially evaluate 
 This is an experimental command and is likely subject to change in the future.
 :::
 
-The `partial-eval` command allows you to partial evaluate a Terramate expression. The difference to [`eval`](./eval.md) is that only the Terramate variables and Terramate functions are evaluated, all
+The `terramate experimental partial-eval` command allows you to partial evaluate a Terramate expression. The difference to [`eval`](./eval.md) is that only the Terramate variables and Terramate functions are evaluated, all
 the rest is left in the expression as is.
 
-Similarly to [experimental eval](./eval.md), for security reasons the `partial-eval` **does not** 
+Similarly to [experimental eval](./eval.md), for security reasons the `partial-eval` **does not**
 support **filesystem related** [functions](../code-generation/functions/index.md).
 Below is the list of functions **not available** in this command:
 
@@ -35,7 +35,7 @@ Below is the list of functions **not available** in this command:
 
 ## Examples
 
-Evaluate an expression that returns the uppercase version of the current stack name: 
+Evaluate an expression that returns the uppercase version of the current stack name:
 
 ```bash
 terramate experimental partial-eval '"${var.variable} ${tm_upper(terramate.stack.name)}"'

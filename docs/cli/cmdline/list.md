@@ -1,11 +1,11 @@
 ---
 title: terramate list - Command
-description: With the terramate list command you can list all stacks in the current directory recursively.
+description: List all stacks or apply filters to selectively list stacks in the current repository by using the `terramate list` command.
 ---
 
 # List
 
-The `list` command lists all Terramate stacks in the current directory recursively. These can be additionally filtered based on Terramate Cloud status with the `--cloud-status=<status>` filter (valid statuses are documented on the [trigger page](./trigger.md))
+The `terramate list` command lists all Terramate stacks in the current directory recursively. These can be additionally filtered based on Terramate Cloud status with the `--cloud-status=<status>` filter (valid statuses are documented on the [trigger page](./trigger.md))
 
 ## Usage
 

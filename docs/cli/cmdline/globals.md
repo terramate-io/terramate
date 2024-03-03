@@ -1,11 +1,11 @@
 ---
-title: terramate globals - Command
-description: With the terramate globals command you print all globals used in stacks recursively.
+title: terramate debug show globals - Command
+description: Debug Globals in stacks by dumping the available variables and the corresponding values on the stack level by using the 'terramate debug show globals' command.
 ---
 
 # Globals
 
-The `globals` command outputs all globals computed for a stack and all child stacks recursively.
+The `terramate debug globals` command outputs all globals computed for a stack and all child stacks recursively.
 
 ## Usage
 

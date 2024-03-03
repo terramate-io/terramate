@@ -1,12 +1,11 @@
 ---
-title: terramate runtime-env - Command
-description: With the terramate run-env command see all environment variables configured for stacks.
+title: terramate debug show runtime-env - Command
+description: Debug stack runtime ENV by dumping the available variables and the corresponding values on the stack level by using the 'terramate debug show runtime-env' command.
 ---
 
 # Run Env
 
-
-The `run-env` command prints all values configured in the `terramate.config.run.env` blocks for all stacks in the current
+The `terramate debug show runtime-env` command prints all values configured in the `terramate.config.run.env` blocks for all stacks in the current
 directory recursively.
 
 ## Usage

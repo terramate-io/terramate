@@ -1,13 +1,13 @@
 ---
 title: terramate script run - Command
-description: With the terramate
+description: Execute a Terramate Script in all stacks or in a filtered subset of stacks by using the `terramate script run` command.
 ---
 
 # Script Run
 
 **Note:** This is an upcoming experimental feature that is subject to change in the future. To use it now, you must enable the project config option `terramate.config.experiments = ["scripts"]`
 
-The `script run CMD` command will run a Terramate script over a set of stacks. `CMD` needs to exactly match the label defined in the `script` block. For example:
+The `terramate script run` command will run a Terramate script over a set of stacks. `CMD` needs to exactly match the label defined in the `script` block. For example:
 
 ```
 script "mycommand" {
@@ -29,6 +29,7 @@ script "command" "subcommand" {
   ...
 }
 ```
+
 The above can be run with `script run command subcommand`.
 
 ## Usage

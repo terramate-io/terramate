@@ -1,6 +1,6 @@
 ---
-title: terramate run-graph - Command
-description: With the terramate run-graph command you can print a graph describing the order of execution of your stacks.
+title: terramate experimental run-graph - Command
+description: Debug the order of execution by creating a dot graph using the `terramate experimental run-graph` command.
 ---
 
 # Run Graph
@@ -9,8 +9,7 @@ description: With the terramate run-graph command you can print a graph describi
 This is an experimental command and is likely subject to change in the future.
 :::
 
-
-The `run-graph` command prints a graph describing the [order of execution](../orchestration/index.md) of your stacks.
+The `terramate experimental run-graph` command prints a graph describing the [order of execution](../orchestration/index.md) of your stacks.
 
 ## Usage
 

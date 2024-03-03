@@ -1,14 +1,14 @@
 ---
 title: terramate run - Command
-description: With the terramate run command you can execute any command in a single or a list of stacks.
+description: Execute any commands in all stacks or in a filtered subset of stacks by using the `terramate run` command.
 ---
 
 # Run
 
-The `run` command executes **any command** in a single or a range of stacks following
+The `terramate run` command executes **any command** in a single or a range of stacks following
 the orchestration [order of execution](../orchestration/index.md).
 
-The `run` command allows you to filter for a specific set of stacks such as:
+The `terramate run` command allows you to filter for a specific set of stacks such as:
 
 - changed stacks
 - stacks with or without specific tags
