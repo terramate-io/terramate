@@ -48,11 +48,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   stack drift details from script jobs.
 - Add --cloud-sync-layer to allow users to specify a preview layer, e.g.: `stg`, `prod` etc.
   - This is useful when users want to preview changes in a specific terraform workspace.
+- Add `--cloud-sync-layer` and `--cloud-sync-preview` to `script` block, this would allow users to synchronize previews to Terramate Cloud via script jobs.
 
 ### Fixed
 
-- Fix a panic in language server with a project caontaining errors on root directory
+- Fix a panic in language server with a project containing errors on root directory
 - Fix the execution order when using `tag` filter in `after/before` in conjunction with implicit order for nested stacks. (BREAKING CHANGE)
+- Fix escape sequences being interpreted in heredocs (issue #1449)
 
 ## v0.4.6
 

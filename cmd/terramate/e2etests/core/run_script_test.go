@@ -334,7 +334,6 @@ func TestRunScriptOnChangedStacks(t *testing.T) {
 
 	s := sandbox.New(t)
 
-	// stack must run after stack2 but stack2 didn't change.
 	s.BuildTree([]string{
 		terramateConfig,
 		`s:stack`,

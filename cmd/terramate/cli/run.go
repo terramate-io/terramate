@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -65,7 +66,7 @@ type stackRunTask struct {
 	CloudSyncDeployment        bool
 	CloudSyncDriftStatus       bool
 	CloudSyncPreview           bool
-	CloudSyncLayer             string
+	CloudSyncLayer             preview.Layer
 	CloudSyncTerraformPlanFile string
 }
 
@@ -154,7 +155,7 @@ func (c *cli) runOnStacks() {
 					CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
 					CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 					CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
-					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer.String(),
+					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer,
 				},
 			},
 		}
