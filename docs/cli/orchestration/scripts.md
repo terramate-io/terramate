@@ -22,7 +22,7 @@ The following will execute each step in our defined workflow in stacks:
 - `terramate run terraform init`
 - `terramate run terraform validate`
 - `terramate run tfsec .`
-- `terraform run terraform apply -auto-approve`
+- `terramate run terraform apply -auto-approve`
 
 Terramate CLI would first invoke `terraform init` in all stacks, then continue with `terraform validate`, and so on.
 
