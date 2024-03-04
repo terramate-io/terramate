@@ -1,14 +1,18 @@
 // Copyright 2024 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package github
+package github_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/test"
+	errtest "github.com/terramate-io/terramate/test/errors"
 )
 
 const validGithubEventPath = "./testdata/event_pull_request.json"
@@ -25,6 +29,8 @@ func TestGetEventPR(t *testing.T) {
 		draft     bool
 	}
 
+	nonExistentEventFile := filepath.Join(test.NonExistingDir(t), "event_pull_request.json")
+
 	type testcase struct {
 		name string
 		env  map[string]string
@@ -38,8 +44,8 @@ func TestGetEventPR(t *testing.T) {
 				"GITHUB_EVENT_PATH": validGithubEventPath,
 			},
 			want: want{
-				htmlURL:   "https://github.com/someorg/somerepo/pull/8",
-				number:    8,
+				htmlURL:   "https://github.com/someorg/somerepo/pull/1494",
+				number:    1494,
 				title:     "envvar",
 				body:      "test",
 				headSHA:   "ea61b5bd72dec0878ae388b04d76a988439d1e28",
@@ -50,17 +56,17 @@ func TestGetEventPR(t *testing.T) {
 		{
 			name: "non existent path",
 			env: map[string]string{
-				"GITHUB_EVENT_PATH": "/tmp/does-not-exist",
+				"GITHUB_EVENT_PATH": nonExistentEventFile,
 			},
 			want: want{
-				err: errors.E("open /tmp/does-not-exist: no such file or directory"),
+				err: os.ErrNotExist,
 			},
 		},
 		{
 			name: "missing env var",
 			env:  map[string]string{},
 			want: want{
-				err: errors.E("missing GITHUB_EVENT_PATH"),
+				err: errors.E(github.ErrGithubEventPathEnvNotSet),
 			},
 		},
 	}
@@ -70,13 +76,14 @@ func TestGetEventPR(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range testcases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
 
-			pull, err := GetEventPR()
-			assert.EqualErrs(t, tc.want.err, err)
+			pull, err := github.GetEventPR()
+			errtest.Assert(t, err, tc.want.err)
 
 			if tc.want.updatedAt != "" {
 				assert.EqualStrings(t, tc.want.updatedAt, pull.GetUpdatedAt().String())

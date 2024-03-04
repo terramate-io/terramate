@@ -1,8 +1,6 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !darwin
-
 package cloud_test
 
 import (
@@ -12,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
@@ -115,12 +112,13 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				env = append(env, "TMC_API_URL=http://"+addr)
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-				uuid, err := uuid.NewRandom()
-				assert.NoError(t, err)
-				runid := uuid.String()
-				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
 
-				runflags := []string{"--cloud-sync-deployment"}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
+				runflags := []string{
+					"--disable-safeguards=git-out-of-sync",
+					"--cloud-sync-deployment",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true
@@ -132,7 +130,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
 				result := fixture.Run()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}
@@ -181,13 +179,14 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					{
 						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
 							Stack: cloud.Stack{
-								Repository:    "local",
+								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
 							},
-							Status: drift.Failed,
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
 						},
 					},
 				},
@@ -215,7 +214,11 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				env = append(env, "TMC_API_URL=http://"+addr)
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-				runflags := []string{"--cloud-sync-drift-status"}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+				runflags := []string{
+					"--disable-safeguards=git-out-of-sync",
+					"--cloud-sync-drift-status",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true

@@ -113,8 +113,8 @@ script "deploy" {
 ### Command options
 
 - `cloud_sync_deployment` *(optional boolean)* Send information about the deployment to Terramate Cloud. See [Sending deployment data to Terramate Cloud](../cmdline/run.md#sending-deployment-data-to-terramate-cloud). Only one command per script may have this option set to true.
-- `cloud_sync_terraform_plan_file` *(optional string)* Sync a Terraform plan file to Terramate Cloud with the deployment. This option is only used
-when `cloud_sync_deployment` is set to true.
+- `cloud_sync_drift_status` *(optional boolean)* Send drift information to Terramate Cloud. See [Detecting Drifts](../cmdline/run.md#detecting-drift).
+- `cloud_sync_terraform_plan_file` *(optional string)* Sync a Terraform plan file to Terramate Cloud with a deployment or drift. This option is only used when `cloud_sync_deployment` or `cloud_sync_drift_status` are set to true.
 
 ## Running Scripts
 

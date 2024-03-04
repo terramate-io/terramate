@@ -154,12 +154,7 @@ type (
 	// It's marshaled as a flat hashmap of values.
 	// Note: no sensitive information must be stored here because it could be logged.
 	DeploymentMetadata struct {
-		GitCommitSHA         string     `json:"git_commit_sha,omitempty"`
-		GitCommitAuthorName  string     `json:"git_commit_author_name,omitempty"`
-		GitCommitAuthorEmail string     `json:"git_commit_author_email,omitempty"`
-		GitCommitAuthorTime  *time.Time `json:"git_commit_author_time,omitempty"`
-		GitCommitTitle       string     `json:"git_commit_title,omitempty"`
-		GitCommitDescription string     `json:"git_commit_description,omitempty"`
+		GitMetadata
 
 		GithubPullRequestAuthorLogin      string `json:"github_pull_request_author_login,omitempty"`
 		GithubPullRequestAuthorAvatarURL  string `json:"github_pull_request_author_avatar_url,omitempty"`
@@ -218,6 +213,16 @@ type (
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
 	}
 
+	// GitMetadata are the git related metadata.
+	GitMetadata struct {
+		GitCommitSHA         string     `json:"git_commit_sha,omitempty"`
+		GitCommitAuthorName  string     `json:"git_commit_author_name,omitempty"`
+		GitCommitAuthorEmail string     `json:"git_commit_author_email,omitempty"`
+		GitCommitAuthorTime  *time.Time `json:"git_commit_author_time,omitempty"`
+		GitCommitTitle       string     `json:"git_commit_title,omitempty"`
+		GitCommitDescription string     `json:"git_commit_description,omitempty"`
+	}
+
 	// ReviewRequest is the review_request object.
 	ReviewRequest struct {
 		Platform              string     `json:"platform"`
@@ -230,7 +235,7 @@ type (
 		Labels                []Label    `json:"labels,omitempty"`
 		Reviewers             Reviewers  `json:"reviewers,omitempty"`
 		Status                string     `json:"status"`
-		Draft                 bool       `json:"draft,omitempty"`
+		Draft                 bool       `json:"draft"`
 		ReviewRequired        bool       `json:"review_required,omitempty"`
 		ChangesRequestedCount int        `json:"changes_requested_count"`
 		ApprovedCount         int        `json:"approved_count"`
@@ -282,6 +287,22 @@ type (
 		Message   string     `json:"message"`
 	}
 
+	// ReviewRequestResponsePayload is the review request response payload.
+	ReviewRequestResponsePayload struct {
+		ReviewRequests ReviewRequestResponses `json:"review_requests"`
+		Pagination     PaginatedResult        `json:"paginated_result"`
+	}
+
+	// ReviewRequestResponses is a list of review request responses.
+	ReviewRequestResponses []ReviewRequestResponse
+
+	// ReviewRequestResponse is the response payload for the review request creation.
+	ReviewRequestResponse struct {
+		ID        int64  `json:"review_request_id"`
+		CommitSHA string `json:"commit_sha"`
+		Number    int    `json:"number"`
+	}
+
 	// PaginatedResult represents the pagination object.
 	PaginatedResult struct {
 		Total   int64 `json:"total"`
@@ -327,8 +348,32 @@ var (
 	_ = Resource(CreatePreviewPayloadRequest{})
 	_ = Resource(CreatePreviewResponse{})
 	_ = Resource(UpdateStackPreviewPayloadRequest{})
+	_ = Resource(ReviewRequestResponse{})
+	_ = Resource(ReviewRequestResponses{})
+	_ = Resource(ReviewRequestResponsePayload{})
 	_ = Resource(EmptyResponse(""))
 )
+
+// Validate the review request response payload.
+func (rr ReviewRequestResponsePayload) Validate() error {
+	if err := rr.ReviewRequests.Validate(); err != nil {
+		return err
+	}
+	return rr.Pagination.Validate()
+}
+
+// Validate the ReviewRequestResponse object.
+func (rr ReviewRequestResponse) Validate() error {
+	if rr.ID == 0 {
+		return errors.E(`missing "review_request_id" field`)
+	}
+	return nil
+}
+
+// Validate the list of review request responses.
+func (rrs ReviewRequestResponses) Validate() error {
+	return validateResourceList(rrs...)
+}
 
 // String is a human readable list of organizations associated with a user.
 func (orgs MemberOrganizations) String() string {

@@ -10,8 +10,10 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/hashicorp/go-uuid"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/printer"
@@ -64,11 +66,13 @@ func (c *cli) runScript() {
 			continue
 		}
 
-		c.output.MsgStdErr("Script %s at %s having %s job(s)",
-			color.GreenString(fmt.Sprintf("%d", scriptIdx)),
-			color.BlueString(result.ScriptCfg.Range.String()),
-			color.BlueString(fmt.Sprintf("%d", len(result.ScriptCfg.Jobs))),
-		)
+		if !c.parsedArgs.Quiet {
+			c.output.MsgStdErr("Script %s at %s having %s job(s)",
+				color.GreenString(fmt.Sprintf("%d", scriptIdx)),
+				color.BlueString(result.ScriptCfg.Range.String()),
+				color.BlueString(fmt.Sprintf("%d", len(result.ScriptCfg.Jobs))),
+			)
+		}
 
 		for _, st := range result.Stacks {
 			run := stackRun{Stack: st.Stack}
@@ -94,9 +98,11 @@ func (c *cli) runScript() {
 
 					if cmd.Options != nil {
 						task.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
+						task.CloudSyncDriftStatus = cmd.Options.CloudSyncDriftStatus
+						task.CloudSyncPreview = cmd.Options.CloudSyncPreview
+						task.CloudSyncLayer = cmd.Options.CloudSyncLayer
 						task.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
 					}
-
 					run.Tasks = append(run.Tasks, task)
 				}
 			}
@@ -105,13 +111,9 @@ func (c *cli) runScript() {
 		}
 	}
 
-	c.prepareScriptCloudDeploymentSync(runs)
+	c.prepareScriptForCloudSync(runs)
 
-	isSuccessExit := func(exitCode int) bool {
-		return exitCode == 0
-	}
-
-	err := c.runAll(runs, isSuccessExit, runAllOptions{
+	err := c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
@@ -123,18 +125,21 @@ func (c *cli) runScript() {
 	}
 }
 
-func (c *cli) prepareScriptCloudDeploymentSync(runs []stackRun) {
+func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	if c.parsedArgs.Script.Run.DryRun {
 		return
 	}
 
 	deployRuns := selectCloudStackTasks(runs, isDeploymentTask)
-	if len(deployRuns) == 0 {
+	driftRuns := selectCloudStackTasks(runs, isDriftTask)
+	previewRuns := selectCloudStackTasks(runs, isPreviewTask)
+	if len(deployRuns) == 0 && len(driftRuns) == 0 && len(previewRuns) == 0 {
 		return
 	}
 
 	if !c.prj.isRepo {
-		fatal("cloud features require a git repository", nil)
+		c.handleCriticalError(errors.E("cloud features require a git repository"))
+		return
 	}
 
 	err := c.setupCloudConfig()
@@ -144,20 +149,33 @@ func (c *cli) prepareScriptCloudDeploymentSync(runs []stackRun) {
 		return
 	}
 
-	c.cloud.run.meta2id = make(map[string]int64)
-	uuid, err := generateRunID()
-	c.handleCriticalError(err)
-	c.cloud.run.runUUID = cloud.UUID(uuid)
-
 	c.detectCloudMetadata()
 
-	sortableDeployStacks := make([]*config.SortableStack, len(deployRuns))
-	for i, e := range deployRuns {
-		sortableDeployStacks[i] = &config.SortableStack{Stack: e.Stack}
-	}
-	c.ensureAllStackHaveIDs(sortableDeployStacks)
+	if len(deployRuns) > 0 {
+		c.cloud.run.meta2id = make(map[string]int64)
+		uuid, err := uuid.GenerateUUID()
+		c.handleCriticalError(err)
+		c.cloud.run.runUUID = cloud.UUID(uuid)
 
-	c.createCloudDeployment(deployRuns)
+		sortableDeployStacks := make([]*config.SortableStack, len(deployRuns))
+		for i, e := range deployRuns {
+			sortableDeployStacks[i] = &config.SortableStack{Stack: e.Stack}
+		}
+		c.ensureAllStackHaveIDs(sortableDeployStacks)
+		c.createCloudDeployment(deployRuns)
+	}
+
+	if len(driftRuns) > 0 {
+		sortableDriftStacks := make([]*config.SortableStack, len(driftRuns))
+		for i, e := range driftRuns {
+			sortableDriftStacks[i] = &config.SortableStack{Stack: e.Stack}
+		}
+		c.ensureAllStackHaveIDs(sortableDriftStacks)
+	}
+
+	if len(previewRuns) > 0 {
+		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
+	}
 }
 
 // printScriptCommand pretty prints the cmd and attaches a "prompt" style prefix to it

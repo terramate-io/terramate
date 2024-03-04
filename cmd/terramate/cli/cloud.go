@@ -14,6 +14,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/go-github/v58/github"
+	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
@@ -51,6 +52,7 @@ type cloudConfig struct {
 
 	run struct {
 		runUUID cloud.UUID
+		orgName string
 		orgUUID cloud.UUID
 
 		meta2id map[string]int64
@@ -127,8 +129,8 @@ func selectCloudStackTasks(runs []stackRun, pred func(stackRunTask) bool) []stac
 }
 
 func isDeploymentTask(t stackRunTask) bool { return t.CloudSyncDeployment }
-
-func isPreviewTask(t stackRunTask) bool { return t.CloudSyncPreview }
+func isDriftTask(t stackRunTask) bool      { return t.CloudSyncDriftStatus }
+func isPreviewTask(t stackRunTask) bool    { return t.CloudSyncPreview }
 
 func (c *cli) checkCloudSync() {
 	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus && !c.parsedArgs.Run.CloudSyncPreview {
@@ -144,7 +146,7 @@ func (c *cli) checkCloudSync() {
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
 		c.cloud.run.meta2id = make(map[string]int64)
-		uuid, err := generateRunID()
+		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)
 	}
@@ -181,6 +183,7 @@ func (c *cli) setupCloudConfig() error {
 	orgs := c.cred().organizations()
 
 	useOrgName := c.cloudOrgName()
+	c.cloud.run.orgName = useOrgName
 	if useOrgName != "" {
 		var useOrgUUID cloud.UUID
 		for _, org := range orgs {
@@ -252,6 +255,7 @@ func (c *cli) setupCloudConfig() error {
 			return cloudError()
 		}
 
+		c.cloud.run.orgName = activeOrgs[0].Name
 		c.cloud.run.orgUUID = activeOrgs[0].UUID
 	}
 	return nil
@@ -438,13 +442,16 @@ func (c *cli) detectCloudMetadata() {
 
 	prettyRepo := c.prj.prettyRepo()
 	if prettyRepo == "local" {
+
 		logger.Debug().Msg("skipping review_request and remote metadata for local repository")
 		return
 	}
 
 	headCommit := c.prj.headCommit()
 
-	c.cloud.run.metadata = &cloud.DeploymentMetadata{GitCommitSHA: headCommit}
+	c.cloud.run.metadata = &cloud.DeploymentMetadata{}
+	c.cloud.run.metadata.GitCommitSHA = headCommit
+
 	md := c.cloud.run.metadata
 
 	defer func() {
@@ -845,15 +852,13 @@ func (c *cli) loadCredential() error {
 		Str("tmc_url", cloudURL).
 		Logger()
 
-	c.cloud = cloudConfig{
-		client: &cloud.Client{
-			BaseURL:    cloudURL,
-			IDPKey:     idpkey(),
-			HTTPClient: &c.httpClient,
-			Logger:     &clientLogger,
-		},
-		output: c.output,
+	c.cloud.client = &cloud.Client{
+		BaseURL:    cloudURL,
+		IDPKey:     idpkey(),
+		HTTPClient: &c.httpClient,
+		Logger:     &clientLogger,
 	}
+	c.cloud.output = c.output
 
 	// checks if this client version can communicate with Terramate Cloud.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -924,7 +929,7 @@ func cloudBaseURL() string {
 	} else if cloudURL != "" {
 		baseURL = cloudURL
 	} else {
-		baseURL = cloudDefaultBaseURL
+		baseURL = cloud.BaseURL
 	}
 	return baseURL
 }

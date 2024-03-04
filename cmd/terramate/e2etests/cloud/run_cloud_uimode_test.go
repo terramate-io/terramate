@@ -1323,6 +1323,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					}
 					s.BuildTree(layout)
 					s.Git().CommitAll("created stacks")
+					if subcase.cmd[0] == "run" {
+						// allows for testing the metadata collection.
+						s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+						cmd := []string{"run", "--disable-safeguards=git-out-of-sync"}
+						cmd = append(cmd, subcase.cmd[1:]...)
+						subcase.cmd = cmd
+					}
 					tm := NewCLI(t, s.RootDir(), env...)
 					tm.LogLevel = zerolog.WarnLevel.String()
 					AssertRunResult(t, tm.Run(subcase.cmd...), subcase.want)

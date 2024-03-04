@@ -83,9 +83,6 @@ func TestCloudConfig(t *testing.T) {
 					}
 				}`,
 			},
-			want: RunExpected{
-				Status: 0,
-			},
 		},
 		{
 			name: "cloud organization env var overrides value from config",
@@ -178,8 +175,13 @@ func TestCloudConfig(t *testing.T) {
 			env = append(env, "TMC_API_URL=http://"+l.Addr().String())
 			tm := NewCLI(t, s.RootDir(), env...)
 
+			// This is required for collecting basic git metadata
+			// NOTE(i4k): As the repo is not real, this requires passing --disable-safeguards=git-out-of-sync
+			s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
 			cmd := []string{
 				"run",
+				"--disable-safeguards=git-out-of-sync",
 				"--quiet",
 				"--cloud-sync-deployment",
 				"--", HelperPath, "true",
