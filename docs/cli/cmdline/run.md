@@ -9,11 +9,11 @@ outline: [2, 3]
 ## Overview
 
 The `terramate run` command executes **any command** in all or a subset of stacks honoring
-the defined [order of execution](../orchestration/index.md). Commands can be executed seuqentially or in parallel.
+the defined [order of execution](../orchestration/index.md). Commands can be executed sequentially or in parallel.
 
 When running commands you can filter for a specific subset of stacks such as:
 
-- Stacks that have changed in th current branch or since the last merge (git-based filtering).
+- Stacks that have changed in the current branch or since the last merge (git-based filtering).
 - Stacks with or without specific tags set in configuration.
 - Stacks in a subtree of the repository.
 - Stacks with a specific health status as known by Terramate Cloud, e.g. `drifted` or `failed` stacks.
@@ -55,7 +55,7 @@ terramate run --chdir stacks/aws -- terraform init
 ### Run in changed stacks
 
 Stacks [containing changes](../change-detection/index.md) can be selected with the `--changed` flag.
-This flag is also supported in `terramate list` which can be used to preview the affeced stacks in advance.
+This flag is also supported in `terramate list` which can be used to preview the affected stacks in advance.
 
 ```bash
 terramate run --changed -- terraform init
@@ -71,7 +71,7 @@ terramate run --tags k8s:prd -- kubectl diff
 
 In order to auto reconcile drifts, three things are needed:
 
-- **Drift Detection is run** regulary and detected drifts are synchronized to Terramate Cloud (TMC)
+- **Drift Detection is run** regularly and detected drifts are synchronized to Terramate Cloud (TMC)
 - **Stacks are tagged** to participate in auto reconciliation of drifts
   _(it is not recommended to reconcile just any stack due to blast radius of potential destructive operations)_
 - **Automation is set up** to run drift detection and reconciliation scheduled in automation like GitHub Actions.
@@ -122,7 +122,7 @@ terramate run [options] -- <cmd ...>
 
   `<type>` can be one or multiple of:
 
-  - `all` - Disable all safeguards. Use `-X` as a short hand for this.
+  - `all` - Disable all safeguards. Use `-X` as a shorthand for this.
   - `none` - Enable all safeguards if disabled by config or environment variable.
   - `git` - Disable all `git` based safeguards
     - `git-untracked` - Disable safeguarding against untracked files.
@@ -130,7 +130,7 @@ terramate run [options] -- <cmd ...>
     - `git-out-of-sync` - Disable safeguarding against being out of sync with the remote default git branch.
   - `outdated-code` - Disable safeguarding against outdated code generation
 
-  Safeguards can also be permanently or temporary disabled via
+  Safeguards can also be permanently or temporarily disabled via
 
   - Terramate Configuration `terramate.config.run.disable_safeguard = "<type ...>"`
   - Environment variable `TM_DISABLE_SAFEGUARDS=<type>`
@@ -233,7 +233,7 @@ absolute path.
 
 For example, let's say you have a `bin` directory at the root of the
 Terramate project where you define some scripts that should be ran in
-each stack. In this case, you can have declaration below in the root
+each stack. In this case, you can have the declaration below in the root
 directory:
 
 ```hcl
@@ -315,7 +315,7 @@ jobs:
 
 ### Detecting Drift
 
-The `run` command supports `--cloud-sync-drift-status` which will set the Terramate Cloud status of any stack to drifted _if the exit code of the command that is run is `2`_ (which for `terraform plan -detailed-exitcode` signals that the plan succeeded and there was a diff). Terramate is also able to send the drifted plan with the `--cloud-sync-terraform-plan-file` option. A typical Github action for drift detection would look something like:
+The `run` command supports `--cloud-sync-drift-status` which will set the Terramate Cloud status of any stack to drifted _if the exit code of the command that is run is `2`_ (which for `terraform plan -detailed-exitcode` signals that the plan succeeded and there was a diff). Terramate is also able to send the drifted plan with the `--cloud-sync-terraform-plan-file` option. A typical Github action for drift detection would look something like this:
 
 ```yaml
 name: Check drift on all stacks once a day
