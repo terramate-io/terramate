@@ -1,92 +1,227 @@
 ---
 title: terramate run - Command
 description: Execute any commands in all stacks or in a filtered subset of stacks by using the `terramate run` command.
+outline: [2, 3]
 ---
 
-# Run
+# Run any Commands in Stacks
 
-The `terramate run` command executes **any command** in a single or a range of stacks following
-the orchestration [order of execution](../orchestration/index.md).
+## Overview
 
-The `terramate run` command allows you to filter for a specific set of stacks such as:
+The `terramate run` command executes **any command** in all or a subset of stacks honoring
+the defined [order of execution](../orchestration/index.md). Commands can be executed seuqentially or in parallel.
 
-- changed stacks
-- stacks with or without specific tags
-- stacks in a specific directory
+When running commands you can filter for a specific subset of stacks such as:
+
+- Stacks that have changed in th current branch or since the last merge (git-based filtering).
+- Stacks with or without specific tags set in configuration.
+- Stacks in a subtree of the repository.
+- Stacks with a specific health status as known by Terramate Cloud, e.g. `drifted` or `failed` stacks.
 
 For details on how the change detection and order of execution works in Terramate please see:
 
 - [Change Detection](../change-detection/index.md)
 - [Orchestration](../orchestration/index.md)
 
-## Usage
-
-`terramate run [options] CMD`
-
 ## Examples
 
-Run a command in all stacks:
+### Run in all stacks
+
+When running `terramate run` without any options, the given command will be executed in all stacks reachable from the current workdir.
+
+First initialize Terraform in all stacks, then run `terraform apply` in all stacks.
 
 ```bash
 terramate run terraform init
+terramate run terraform apply
 ```
 
-Run a command in parallel in all stacks (the order of execution is still respected):
+### Run in opposite order
+
+To reverse the order of execution you can use `--reverse` option.
 
 ```bash
-terramate run --parallel=5 terraform init
+terramate run --reverse terraform destroy
 ```
 
-Run a command in all stacks inside a specific directory:
+### Run in a subtree
+
+To select a subtree within a repository, the `--chdir` global option can be set.
 
 ```bash
 terramate run --chdir stacks/aws -- terraform init
 ```
 
-Run a command in all stacks that [contain changes](../change-detection/index.md):
+### Run in changed stacks
+
+Stacks [containing changes](../change-detection/index.md) can be selected with the `--changed` flag.
+This flag is also supported in `terramate list` which can be used to preview the affeced stacks in advance.
 
 ```bash
 terramate run --changed -- terraform init
 ```
 
-Run a command in all stacks that contain changes and specific tags:
+### Run in tagged stacks
 
 ```bash
-terramate run  --changed --tags k8s:prd -- kubectl diff
+terramate run --tags k8s:prd -- kubectl diff
 ```
 
-Run a command in all stacks that don't contain specific tags, with reversed [order of execution](../orchestration/index.md):
+### TMC: Auto reconcile drifts
+
+In order to auto reconcile drifts, three things are needed:
+
+- **Drift Detection is run** regulary and detected drifts are synchronized to Terramate Cloud (TMC)
+- **Stacks are tagged** to participate in auto reconciliation of drifts
+  _(it is not recommended to reconcile just any stack due to blast radius of potential destructive operations)_
+- **Automation is set up** to run drift detection and reconciliation scheduled in automation like GitHub Actions.
+
+The command can be tested locally by executing:
 
 ```bash
-terramate run  --reverse --no-tags k8s -- terraform apply
+terramate run --cloud-status drifted --tags auto-reconcile-drift -- terraform apply
 ```
 
-Run a command that has its command name and arguments evaluated from an HCL string
-interpolation:
+## Usage
 
 ```bash
-terramate run --eval -- '${global.my_default_command}' '--stack=${terramate.stack.path.absolute}'
+terramate run [options] -- <cmd ...>
 ```
 
-When using `--eval` the arguments can reference `terramate`, `global` and `tm_` functions with the exception of filesystem related functions (`tm_file`, `tm_fileset`, etc are exposed).
+`[options]` can be one or multiple of the following options:
 
 ## Options
 
-- `-B, --git-change-base=STRING` Git base ref for computing changes
-- `-c, --changed` Filter by changed infrastructure
-- `--cloud-status=status` Filter by status of stack in the Terramate Cloud. Example: `--cloud-status=unhealthy`
-- `--tags=TAGS` Filter stacks by tags. Use ":" for logical AND and "," for logical OR. Example: --tags `app:prod` filters stacks containing tag "app" AND "prod". If multiple `--tags` are provided, an OR expression is created. Example: `--tags a --tags b` is the same as `--tags a,b`
-- `--no-tags=NO-TAGS,...` Filter stacks that do not have the given tags
-- `--disable-check-gen-code` Disable outdated generated code check
-- `--disable-check-git-remote` Disable checking if local default branch is updated with remote
-- `--continue-on-error` Continue executing in other stacks in case of error
-- `--no-recursive` Do not recurse into child stacks
-- `--dry-run` Plan the execution but do not execute it
-- `--reverse` Reverse the order of execution
-- `--eval` Evaluate command line arguments as HCL strings
-- `--parallel=N` Run independent tasks in parallel
+### Influence orchestration
 
-## Project wide `run` configuration.
+- `--continue-on-error`
+
+  Do not stop execution when an error occurs.
+
+- `--no-recursive`
+
+  Do not recurse into nested child stacks.
+
+- `--dry-run`
+
+  Plan the execution but do not execute it.
+
+- `--reverse`
+
+  Reverse the order of execution.
+
+- `--parallel <N>`, `-j <N>`
+
+  Run independent stacks in parallel.
+
+- `--disable-safeguards <type>`, `-X` A comma separated list of safeguards.
+
+  This option can be used multiple times.
+
+  Disable safeguards. `-X` is short for disabling `all` safeguards.
+
+  `<type>` can be one or multiple of:
+
+  - `all` - Disable all safeguards. Use `-X` as a short hand for this.
+  - `none` - Enable all safeguards if disabled by config or environment variable.
+  - `git` - Disable all `git` based safeguards
+    - `git-untracked` - Disable safeguarding against untracked files.
+    - `git-uncommitted` - Disable safeguarding against uncommited changes.
+    - `git-out-of-sync` - Disable safeguarding against being out of sync with the remote default git branch.
+  - `outdated-code` - Disable safeguarding against outdated code generation
+
+  Safeguards can also be permanently or temporary disabled via
+
+  - Terramate Configuration `terramate.config.run.disable_safeguard = "<type ...>"`
+  - Environment variable `TM_DISABLE_SAFEGUARDS=<type>`
+
+### Interpolated command execution
+
+- `--eval`
+
+  Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata.
+
+### Change detection support
+
+- `--changed`, `-c`
+
+  Filter stacks based on changes made in git.
+
+  Example:
+
+  ```bash
+  terramate run --changed -- terraform init
+  ```
+
+- `--git-change-base <ref>`, `-B <ref>`
+
+  Set git base reference for computing changes.
+
+  Can only be used when change detection is enabled via the `--changed` option.
+
+  Example:
+
+  ```bash
+  terramate run --changed --git-change-base HEAD~2 -- terraform init
+  ```
+
+### Filters for stacks
+
+- `--tags <tags>`
+
+  Filter stacks by tags.
+
+- `--no-tags <tags>`
+
+  Filter stacks by tags not being set.
+
+## Terramate Cloud Options
+
+### TMC: Advanced filters
+
+- `--cloud-status <status>` only available when connected to Terramate Cloud.
+
+  Filter by Terramate Cloud (TMC) status of the stack.
+
+### TMC: Deployment Synchronization
+
+- `--cloud-sync-deployment` only available when connected to Terramate Cloud.
+
+  Synchronize the command as a new deployment to Terramate Cloud (TMC).
+
+  For Terraform deployments `--cloud-sync-terraform-plan-file <plan-file>` should always be added to include Terraform plan details when synchronizing.
+
+### TMC: Drift Synchronization
+
+- `--cloud-sync-drift-status` only available when connected to Terramate Cloud.
+
+  Synchronize the command as a new drift run to Terramate Cloud (TMC).
+
+  For Terraform drift runs `--cloud-sync-terraform-plan-file <plan-file>` should always be added to include Terraform plan details when synchronizing.
+
+### TMC: Preview Synchronization
+
+- `--cloud-sync-preview` only available when connected to Terramate Cloud.
+
+  Synchronize the command as a new preview to Terramate Cloud (TMC).
+
+  For Terraform previews `--cloud-sync-terraform-plan-file <plan-file>` is required to include Terraform plan details when synchronizing.
+
+- `--cloud-sync-layer <layer>`
+
+  Default `<layer>` is `default` when not set or not detected otherwise.
+
+  Set a custom layer for synchronizing a preview via `--cloud-sync-preview` to Terramate Cloud.
+
+### TMC: Terraform Plan Synchronization
+
+- `--cloud-sync-terraform-plan-file <plan-file>` only available when connected to Terramate Cloud.
+
+  Add details of the Terraform Plan file to the synchronization to Terramate Cloud (TMC).
+
+  This flag is supported in combination with `--cloud-sync-drift-status`, `--cloud-sync-preview`, and `--cloud-sync-preview`.
+
+## Configuration of the Run Command
 
 The `terramate` block at the project root can be used to customize
 the default exported environment variables in the
@@ -114,13 +249,13 @@ terramate {
 }
 ```
 
-Then if you have the script `bin/create-stack.sh`, you can do:
+Then if you have the script `bin/deploy-terraform.sh`, you can do:
 
 ```bash
-$ terramate run create-stack.sh
+$ terramate run deploy-terraform.sh
 ```
 
-## Terramate Cloud functionality
+## Terramate Cloud specifics
 
 The run command offers extended functionality for Terramate Cloud users. For these commands to work `terramate` must be successfully authenticated with Terramate Cloud. This can be done locally with the [cloud login](./cloud-login.md) command or by creating a trust relationship with Github. In the latter case, you must export the `GITHUB_TOKEN` in the Github action:
 
