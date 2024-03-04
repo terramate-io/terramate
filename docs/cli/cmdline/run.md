@@ -31,6 +31,12 @@ Run a command in all stacks:
 terramate run terraform init
 ```
 
+Run a command in parallel in all stacks (the order of execution is still respected):
+
+```bash
+terramate run --parallel=5 terraform init
+```
+
 Run a command in all stacks inside a specific directory:
 
 ```bash
@@ -78,6 +84,7 @@ When using `--eval` the arguments can reference `terramate`, `global` and `tm_` 
 - `--dry-run` Plan the execution but do not execute it
 - `--reverse` Reverse the order of execution
 - `--eval` Evaluate command line arguments as HCL strings
+- `--parallel=N` Run independent tasks in parallel
 
 ## Project wide `run` configuration.
 
@@ -149,6 +156,26 @@ jobs:
       - name: Apply changes
         id: apply
         run: terramate run --changed --cloud-sync-deployment -- terraform apply -input=false -auto-approve
+```
+
+### Sending a pull request preview to Terramate Cloud
+
+The `--cloud-sync-preview` flag will send information about the preview to Terramate Cloud.
+
+```yaml
+jobs:
+  preview:
+    name: Preview
+    ...
+      - name: Run preview
+        id: preview
+        run: |
+          terramate run \
+          --changed \
+          --cloud-sync-preview \
+          --cloud-sync-terraform-plan-file=preview.tfplan \
+          -- \
+          terraform plan -out preview.tfplan -detailed-exitcode
 ```
 
 ### Detecting Drift
