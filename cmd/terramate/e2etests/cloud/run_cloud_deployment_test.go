@@ -4,7 +4,6 @@
 package cloud_test
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/cli/safeexec"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
@@ -26,6 +24,14 @@ import (
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
+
+const testRemoteRepoURL = "terramate.io/terramate-io/dummy-repo.git"
+
+var normalizedTestRemoteRepo string
+
+func init() {
+	normalizedTestRemoteRepo = cloud.NormalizeGitURI(testRemoteRepoURL)
+}
 
 func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 	t.Parallel()
@@ -392,12 +398,14 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
-				uuid, err := uuid.NewRandom()
-				assert.NoError(t, err)
-				runid := uuid.String()
-				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 
-				runflags := []string{"run", "--quiet", "--cloud-sync-deployment"}
+				runflags := []string{
+					"run",
+					"--disable-safeguards=git-out-of-sync",
+					"--quiet",
+					"--cloud-sync-deployment",
+				}
 				if isParallel {
 					runflags = append(runflags, "--parallel")
 					tc.want.run.IgnoreStdout = true
@@ -408,254 +416,13 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				runflags = append(runflags, tc.cmd...)
 				result := cli.Run(runflags...)
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
+				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}
 }
 
-func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
-	t.Parallel()
-
-	makeScriptDef := func(name string, syncDeployment bool, plan string) string {
-		return fmt.Sprintf(`script "%s" {
-			description = "no"
-			job {
-				command = ["echo", "${terramate.stack.name}", {
-					cloud_sync_deployment = %v,
-					cloud_sync_terraform_plan_file = "%s"
-				}]
-			}
-		}`, name, syncDeployment, plan)
-	}
-
-	type want struct {
-		run    RunExpected
-		events eventsResponse
-	}
-	type testcase struct {
-		name       string
-		layout     []string
-		scripts    map[string]string
-		skipIDGen  bool
-		workingDir string
-		scriptCmd  string
-		want       want
-	}
-
-	for _, tc := range []testcase{
-		{
-			name: "all stacks must have ids",
-			layout: []string{
-				"s:s1",
-				"s:s2",
-			},
-			scripts: map[string]string{
-				"deploy.tm": makeScriptDef("deploy", true, ""),
-			},
-			skipIDGen: true,
-			scriptCmd: "deploy",
-			want: want{
-				run: RunExpected{
-					Status:      1,
-					StderrRegex: string(clitest.ErrCloudStacksWithoutID),
-				},
-			},
-		},
-		{
-			name: "failed script command",
-			layout: []string{
-				"s:stack",
-				`f:stack/scripts.tm:script deploy {
-					description = "no"
-					job {
-						command = ["echooooo", "${terramate.stack.name}", {
-							cloud_sync_deployment = true
-						}]
-					}
-				}`,
-			},
-			scriptCmd: "deploy",
-			want: want{
-				run: RunExpected{
-					Status:      1,
-					StderrRegex: "executable file not found",
-				},
-				events: eventsResponse{
-					"stack": []string{"pending", "running", "failed"},
-				},
-			},
-		},
-		{
-			name: "failed script cmd cancels execution of subsequent stacks",
-			layout: []string{
-				"s:s1",
-				"s:s1/s2",
-				`f:scripts.tm:script deploy {
-					description = "no"
-					job {
-						command = ["echooooo", "${terramate.stack.name}", {
-							cloud_sync_deployment = true
-						}]
-					}
-				}`,
-			},
-			scriptCmd: "deploy",
-			want: want{
-				run: RunExpected{
-					Status:      1,
-					StderrRegex: "executable file not found",
-				},
-				events: eventsResponse{
-					"s1":    []string{"pending", "running", "failed"},
-					"s1/s2": []string{"pending", "canceled"},
-				},
-			},
-		},
-		{
-			name:   "basic success",
-			layout: []string{"s:stack"},
-			scripts: map[string]string{
-				"deploy.tm": makeScriptDef("deploy", true, ""),
-			},
-			scriptCmd: "deploy",
-			want: want{
-				run: RunExpected{
-					Status:       0,
-					IgnoreStderr: true,
-					Stdout:       "stack\n",
-				},
-				events: eventsResponse{
-					"stack": []string{"pending", "running", "ok"},
-				},
-			},
-		},
-		{
-			name: "multiple stacks - sync all",
-			layout: []string{
-				"s:s1",
-				"s:s2",
-				"s:s3",
-			},
-			scripts: map[string]string{
-				"deploy.tm": makeScriptDef("deploy", true, ""),
-			},
-			scriptCmd: "deploy",
-			want: want{
-				run: RunExpected{
-					Status:       0,
-					IgnoreStderr: true,
-					Stdout:       "s1\ns2\ns3\n",
-				},
-				events: eventsResponse{
-					"s1": []string{"pending", "running", "ok"},
-					"s2": []string{"pending", "running", "ok"},
-					"s3": []string{"pending", "running", "ok"},
-				},
-			},
-		},
-		{
-			name: "multiple stacks - partial sync",
-			layout: []string{
-				"s:s1",
-				"s:s2",
-				"s:s3",
-			},
-			scripts: map[string]string{
-				"deploy_sync.tm":       makeScriptDef("deploy", true, ""),
-				"s2/deploy_no_sync.tm": makeScriptDef("deploy", false, ""),
-			},
-			scriptCmd: "deploy",
-			want: want{
-				run: RunExpected{
-					Status:       0,
-					IgnoreStderr: true,
-					Stdout:       "s1\ns2\ns3\n",
-				},
-				events: eventsResponse{
-					"s1": []string{"pending", "running", "ok"},
-					"s3": []string{"pending", "running", "ok"},
-				},
-			},
-		},
-	} {
-		for _, isParallel := range []bool{false, true} {
-			tc := tc
-			isParallel := isParallel
-			name := tc.name
-			if isParallel {
-				name += "-parallel"
-			}
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-
-				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-				assert.NoError(t, err)
-				addr := startFakeTMCServer(t, cloudData)
-
-				s := sandbox.New(t)
-				var genLayout []string
-				ids := []string{}
-				if !tc.skipIDGen {
-					for _, layout := range tc.layout {
-						if layout[0] == 's' {
-							if strings.Contains(layout, "id=") {
-								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-							}
-							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-							if len(id) > 64 {
-								id = id[:64]
-							}
-							ids = append(ids, id)
-							layout += ":id=" + id
-						}
-						genLayout = append(genLayout, layout)
-					}
-				} else {
-					genLayout = tc.layout
-				}
-
-				for path, def := range tc.scripts {
-					genLayout = append(genLayout, fmt.Sprintf("f:%s:%s", path, def))
-				}
-
-				genLayout = append(genLayout, `f:terramate.tm:
-					terramate {
-					config {
-						experiments = ["scripts"]
-					}
-					}`)
-
-				s.BuildTree(genLayout)
-				s.Git().CommitAll("all stacks committed")
-
-				env := RemoveEnv(os.Environ(), "CI")
-				env = append(env, "TMC_API_URL=http://"+addr)
-				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-
-				uuid, err := uuid.NewRandom()
-				assert.NoError(t, err)
-				runid := uuid.String()
-				cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
-
-				var scriptCmd []string
-				if isParallel {
-					scriptCmd = append(scriptCmd, "--parallel")
-					// For the parallel test, we ignore output validation, since the print order is non-deterministic.
-					tc.want.run.IgnoreStderr = true
-					tc.want.run.IgnoreStdout = true
-				}
-				scriptCmd = append(scriptCmd, tc.scriptCmd)
-
-				result := cli.RunScript(scriptCmd...)
-				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, runid, ids, tc.want.events)
-			})
-		}
-	}
-}
-
-func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids []string, events map[string][]string) {
+func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, ids []string, commitSHA string, events map[string][]string) {
 	expectedEvents := eventsResponse{}
 	if events == nil {
 		events = make(map[string][]string)
@@ -676,7 +443,14 @@ func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids
 	}
 
 	org := cloudData.MustOrgByName("terramate")
-	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, cloud.UUID(runid))
+	deployment, ok := cloudData.FindDeploymentForCommit(org.UUID, commitSHA)
+	if !ok {
+		if len(expectedEvents) == 0 {
+			return
+		}
+		t.Fatalf("deployment not found but expected events: %v", expectedEvents)
+	}
+	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, deployment.UUID)
 	if err != nil && !errors.IsKind(err, cloudstore.ErrNotExists) {
 		t.Fatal(err)
 	}

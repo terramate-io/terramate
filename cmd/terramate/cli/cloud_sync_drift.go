@@ -40,7 +40,7 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 
 	var driftDetails *cloud.ChangesetDetails
 
-	if planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile; planfile != "" {
+	if planfile := run.Task.CloudSyncTerraformPlanFile; planfile != "" {
 		var err error
 		driftDetails, err = c.getTerraformChangeset(run, planfile)
 		if err != nil {

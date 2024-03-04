@@ -6,7 +6,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+
+	stdfmt "fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -64,6 +66,7 @@ type stackRunTask struct {
 	CloudSyncDeployment        bool
 	CloudSyncDriftStatus       bool
 	CloudSyncPreview           bool
+	CloudSyncLayer             preview.Layer
 	CloudSyncTerraformPlanFile string
 }
 
@@ -72,6 +75,16 @@ type runResult struct {
 	ExitCode   int
 	StartedAt  *time.Time
 	FinishedAt *time.Time
+}
+
+func (t stackRunTask) isSuccessExit(exitCode int) bool {
+	if exitCode == 0 {
+		return true
+	}
+	if t.CloudSyncDriftStatus || (t.CloudSyncPreview && t.CloudSyncTerraformPlanFile != "") {
+		return exitCode == 2
+	}
+	return false
 }
 
 func (c *cli) runOnStacks() {
@@ -130,10 +143,6 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
-	isSuccessExit := func(exitCode int) bool {
-		return exitCode == 0
-	}
-
 	var runs []stackRun
 	var err error
 	for _, st := range stacks {
@@ -146,6 +155,7 @@ func (c *cli) runOnStacks() {
 					CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
 					CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 					CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
+					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer,
 				},
 			},
 		}
@@ -165,20 +175,13 @@ func (c *cli) runOnStacks() {
 		c.createCloudDeployment(deployRuns)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDriftStatus ||
-		(c.parsedArgs.Run.CloudSyncPreview && c.parsedArgs.Run.CloudSyncTerraformPlanFile != "") {
-		isSuccessExit = func(exitCode int) bool {
-			return exitCode == 0 || exitCode == 2
-		}
-	}
-
 	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
 		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
 	}
 
-	err = c.runAll(runs, isSuccessExit, runAllOptions{
+	err = c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Run.DryRun,
 		Reverse:         c.parsedArgs.Run.Reverse,
@@ -214,7 +217,6 @@ type runAllOptions struct {
 // running process and abort the execution of all subsequent stacks.
 func (c *cli) runAll(
 	runs []stackRun,
-	isSuccessCode func(exitCode int) bool,
 	opts runAllOptions,
 ) error {
 	// Construct a DAG from the list of stackRuns, based on the implicit and
@@ -270,7 +272,7 @@ func (c *cli) runAll(
 
 	printPrefix := "terramate:"
 	if !opts.ScriptRun && opts.DryRun {
-		printPrefix = fmt.Sprintf("%s (dry-run)", printPrefix)
+		printPrefix = stdfmt.Sprintf("%s (dry-run)", printPrefix)
 	}
 
 	go func() {
@@ -323,7 +325,7 @@ func (c *cli) runAll(
 				Stringer("stack", run.Stack).
 				Logger()
 
-			if opts.ScriptRun {
+			if opts.ScriptRun && !c.parsedArgs.Quiet {
 				printScriptCommand(c.stderr, run.Stack, task)
 			}
 
@@ -427,7 +429,7 @@ func (c *cli) runAll(
 				logSyncWait()
 
 				var err error
-				if !isSuccessCode(result.cmd.ProcessState.ExitCode()) {
+				if !task.isSuccessExit(result.cmd.ProcessState.ExitCode()) {
 					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, run.Stack.Dir)
 					errs.Append(err)
 				}
@@ -547,9 +549,13 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 
 	technology := "other"
 	technologyLayer := "default"
-	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" {
-		technology = "terraform"
-		technologyLayer = "default"
+	for _, run := range runs {
+		if run.Task.CloudSyncTerraformPlanFile != "" {
+			technology = "terraform"
+		}
+		if layer := run.Task.CloudSyncLayer; layer != "" {
+			technologyLayer = sprintf("custom:%s", layer)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -575,9 +581,50 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 		return map[string]string{}
 	}
 
-	printer.Stderr.Success(fmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
+	printer.Stderr.Success(stdfmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
+
+	if c.parsedArgs.Run.DebugPreviewURL != "" {
+		c.writePreviewURL()
+	}
 
 	return createdPreview.StackPreviewsByMetaID
+}
+
+func (c *cli) writePreviewURL() {
+	rrNumber := 0
+	if c.cloud.run.metadata != nil && c.cloud.run.metadata.GithubPullRequestNumber != 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+		defer cancel()
+		reviews, err := c.cloud.client.ListReviewRequests(ctx, c.cloud.run.orgUUID)
+		if err != nil {
+			printer.Stderr.Warn(stdfmt.Sprintf("unable to list review requests: %v", err))
+			return
+		}
+		for _, review := range reviews {
+			if review.Number == c.cloud.run.metadata.GithubPullRequestNumber &&
+				review.CommitSHA == c.prj.headCommit() {
+				rrNumber = int(review.ID)
+			}
+		}
+	}
+
+	cloudURL := "https://cloud.terramate.io"
+	if c.cloud.client.BaseURL == "https://api.stg.terramate.io" {
+		cloudURL = "https://cloud.stg.terramate.io"
+	}
+
+	var url = stdfmt.Sprintf("%s/o/%s/review-requests\n", cloudURL, c.cloud.run.orgName)
+	if rrNumber != 0 {
+		url = stdfmt.Sprintf("%s/o/%s/review-requests/%d\n",
+			cloudURL,
+			c.cloud.run.orgName,
+			rrNumber)
+	}
+
+	err := os.WriteFile(c.parsedArgs.Run.DebugPreviewURL, []byte(url), 0644)
+	if err != nil {
+		printer.Stderr.Warn(stdfmt.Sprintf("unable to write preview URL to file: %v", err))
+	}
 }
 
 // getAffectedStacks returns the list of stacks affected by the current command.

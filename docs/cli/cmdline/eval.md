@@ -29,7 +29,7 @@ Below is the list of functions that **cannot be used** in this command:
 
 ## Usage
 
-`terramate experimental eval EXPRS`
+`terramate experimental eval <exprs>`
 
 ## Examples
 
