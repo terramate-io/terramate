@@ -132,8 +132,8 @@ type cliSpec struct {
 		Name           string   `help:"Set the name of the stack, defaults to the basename of <path>"`
 		Description    string   `help:"Set the description of the stack, defaults to <name>"`
 		Import         []string `help:"Add 'import' block to the configuration of the new stack."`
-		After          []string `help:"Add 'after' attritbute to the configuration of the new stack."`
-		Before         []string `help:"Add 'before' attritbute to the configuration of the new stack."`
+		After          []string `help:"Add 'after' attribute to the configuration of the new stack."`
+		Before         []string `help:"Add 'before' attribute to the configuration of the new stack."`
 		IgnoreExisting bool     `help:"Skip creation without error when the stack already exist."`
 		AllTerraform   bool     `help:"Import existing Terraform Root Modules as stacks."`
 		AllTerragrunt  bool     `help:"Import existing Terragrunt Modules as stacks."`
