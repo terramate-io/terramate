@@ -11,10 +11,6 @@ The `metadata` command prints information stacks and their metadata in the curre
 
 `terramate debug show metadata [options]`
 
-### Options
-
-- `--chdir=<directory>`: Specify a different directory to run the command. This changes the current working directory to the specified path before executing the command.
-
 ## Examples
 
 List all stacks and their metadata in the current directory recursively:
