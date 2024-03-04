@@ -114,7 +114,7 @@ export default defineConfig({
       // is on `cli` directory.
       '/': [
         {
-          text: '👋 Terramate CLI',
+          text: '👋 Terramate',
           collapsed: false,
           items: [
             { text: 'Introduction', link: '/cli/introduction' },
@@ -125,26 +125,25 @@ export default defineConfig({
           ],
         },
         {
-          text: '🚧 Projects',
-          collapsed: false,
-          items: [
-            // { text: 'Create Projects', link: '/cli/projects/create' },
-            { text: 'Project Configuration', link: '/cli/projects/configuration' },
-            { text: 'Existing Terraform Project', link: '/cli/projects/terraform' },
-            // { text: 'Configure a Terragrunt Project', link: '/cli/introduction' },
-          ],
-        },
-        {
           text: '📚 Stacks',
           collapsed: false,
           items: [
             { text: 'About Stacks', link: '/cli/stacks/' },
             { text: 'Create Stacks', link: '/cli/stacks/create' },
-            { text: 'Configure Stacks', link: '/cli/stacks/configuration' },
-            { text: 'Clone Stacks', link: '/cli/stacks/clone' },
-            { text: 'Manage Stacks', link: '/cli/stacks/manage' },
-            { text: 'Delete Stacks', link: '/cli/stacks/delete' },
-            { text: 'Nesting Stacks', link: '/cli/stacks/nesting' },
+            { text: 'Import Terraform 🚧' },
+            { text: 'Import Terragrunt 🚧' },
+            { text: 'Import OpenTofu 🚧' },
+            {
+              text: 'Manage Stacks',
+              link: '/cli/stacks/manage',
+              collapsed: true,
+              items: [
+                { text: 'Configure Stacks', link: '/cli/stacks/configuration' },
+                { text: 'Clone Stacks', link: '/cli/stacks/clone' },
+                { text: 'Delete Stacks', link: '/cli/stacks/delete' },
+                { text: 'Nesting Stacks', link: '/cli/stacks/nesting' },
+              ]
+            },
           ],
         },
         {
@@ -152,34 +151,30 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Overview', link: '/cli/orchestration/' },
-            { text: 'Run Commands in Stacks', link: '/cli/orchestration/run-commands-in-stacks' },
-            { text: 'Workflows', link: '/cli/orchestration/scripts' },
-            { text: 'Tag Filter', link: '/cli/orchestration/tag-filter' },
-            { text: 'Runtime Configuration', link: '/cli/orchestration/runtime-configuration' },
-            { text: 'Safe Guards', link: '/cli/orchestration/safeguards' },
-          ],
-        },
-        {
-          text: '�️ Change Detection',
-          collapsed: false,
-          items: [
-            { text: 'Overview', link: '/cli/change-detection/' },
+            { text: 'Run any Commands', link: '/cli/orchestration/run-commands-in-stacks' },
+            { text: 'Run Terramate Scripts', link: '/cli/orchestration/scripts' },
             {
-              text: 'Integrations',
+              text: 'Change Detection',
               collapsed: true,
+              link: '/cli/change-detection/',
               items: [
-                { text: 'Git Integration', link: '/cli/change-detection/integrations/git' },
-                { text: 'Terraform Integration', link: '/cli/change-detection/integrations/terraform' },
-                { text: 'OpenTofu Integration', link: '/cli/change-detection/integrations/opentofu' },
-                { text: 'Terragrunt Integration', link: '/cli/change-detection/integrations/terragrunt' },
+                // { text: 'Overview', link: '/cli/change-detection/' },
+                { text: 'Integration: Git', link: '/cli/change-detection/integrations/git' },
+                { text: 'Integration: Terraform', link: '/cli/change-detection/integrations/terraform' },
+                { text: 'Integration: Terragrunt 🚧', link: '/cli/change-detection/integrations/terragrunt' },
+                { text: 'Integration: OpenTofu 🚧', link: '/cli/change-detection/integrations/opentofu' },
+                { text: 'Integration: Local Files', link: '/cli/change-detection/file-watchers' },
               ],
             },
-            { text: 'File Watchers', link: '/cli/change-detection/file-watchers' },
+            { text: 'Filter Stacks', link: '/cli/orchestration/tag-filter' },
+            { text: 'Order of Execution 🚧' },
+            { text: 'Configure Runtime ENV', link: '/cli/orchestration/runtime-configuration' },
+            { text: 'Disable Safeguards', link: '/cli/orchestration/safeguards' },
           ],
         },
         {
           text: '🔗 Code Generation',
-          collapsed: false,
+          collapsed: true,
           items: [
             { text: 'Overview', link: '/cli/code-generation/' },
             { text: 'Generate HCL', link: '/cli/code-generation/generate-hcl' },
@@ -722,12 +717,98 @@ export default defineConfig({
         // },
 
         {
-          text: '👷 Dev Tooling',
+          text: '💻 Terramate CLI',
+          collapsed: true,
+          items: [
+            { text: 'Overview', link: '/cli/cmdline/' },
+            // {
+            //   text: 'Most important actions',
+            //   items: [
+            //     { text: 'Create or Import Stacks', link: '/cli/cmdline/create' },
+            //     { text: 'List Stacks', link: '/cli/cmdline/list' },
+            //     { text: 'Generate Code', link: '/cli/cmdline/generate' },
+            //     { text: 'Run any Commands', link: '/cli/cmdline/run' },
+            //     { text: 'Run Terramate Scripts', link: '/cli/cmdline/script/script-run' },
+            //     { text: 'Terramate Cloud Login', link: '/cli/cmdline/cloud/cloud-login' },
+            //   ],
+            // },
+            {
+              text: 'Stacks and Orchestration',
+              collapsed: false,
+              items: [
+                { text: 'create', link: '/cli/cmdline/create' },
+                { text: 'list', link: '/cli/cmdline/list' },
+                { text: 'run', link: '/cli/cmdline/run' },
+                { text: 'debug show runtime-env', link: '/cli/cmdline/debug/show/debug-show-runtime-env' },
+                { text: 'experimental clone', link: '/cli/cmdline/experimental/experimental-clone' },
+                { text: 'experimental trigger', link: '/cli/cmdline/experimental/experimental-trigger' },
+              ],
+            },
+            {
+              text: 'Terramate Scripts',
+              collapsed: false,
+              items: [
+                { text: 'script run', link: '/cli/cmdline/script/script-run' },
+                { text: 'script info', link: '/cli/cmdline/script/script-info' },
+                { text: 'script list', link: '/cli/cmdline/script/script-list' },
+                { text: 'script tree', link: '/cli/cmdline/script/script-tree' },
+              ],
+            },
+            {
+              text: 'Code Generation',
+              collapsed: false,
+              items: [
+                { text: 'fmt', link: '/cli/cmdline/fmt' },
+                { text: 'generate', link: '/cli/cmdline/generate' },
+                { text: 'debug show metadata', link: '/cli/cmdline/debug/show/debug-show-metadata' },
+                { text: 'debug show globals', link: '/cli/cmdline/debug/show/debug-show-globals' },
+              ],
+            },
+            {
+              text: 'Terramate Cloud',
+              collapsed: false,
+              items: [
+                { text: 'cloud login', link: '/cli/cmdline/cloud/cloud-login' },
+                { text: 'cloud info', link: '/cli/cmdline/cloud/cloud-info' },
+                { text: 'cloud drift show', link: '/cli/cmdline/cloud/drift/cloud-drift-show' },
+              ],
+            },
+            {
+              text: 'Misc',
+              collapsed: true,
+              items: [
+                { text: 'install-completions', link: '/cli/cmdline/install-completions' },
+                { text: 'version', link: '/cli/cmdline/version' },
+              ],
+            },
+            {
+              text: 'Experimental',
+              collapsed: true,
+              items: [
+                { text: 'experimental eval', link: '/cli/cmdline/experimental/experimental-eval' },
+                { text: 'experimental partial-eval', link: '/cli/cmdline/experimental/experimental-partial-eval' },
+                { text: 'experimental get-config-value', link: '/cli/cmdline/experimental/experimental-get-config-value' },
+                { text: 'experimental run-graph', link: '/cli/cmdline/experimental/experimental-run-graph' },
+                { text: 'experimental vendor download', link: '/cli/cmdline/experimental/experimental-vendor-download' },
+              ],
+            },
+          ],
+        },
+        {
+          text: '⛅️ Terramate Cloud 🚧',
           collapsed: false,
           items: [
-            { text: 'VSCode Extension', link: 'https://marketplace.visualstudio.com/items?itemName=Mineiros.terramate' },
-            { text: 'VIM Plugin', link: 'https://github.com/terramate-io/vim-terramate' },
-            { text: 'Language Server', link: '/cli/editor-plugins/language-server' },
+            { text: 'Book a Demo', link: 'https://terramate.io/demo/' },
+          ],
+        },
+        {
+          text: '🗃 Projects',
+          collapsed: true,
+          items: [
+            // { text: 'Create Projects', link: '/cli/projects/create' },
+            { text: 'Project Configuration', link: '/cli/projects/configuration' },
+            { text: 'Existing Terraform Project', link: '/cli/projects/terraform' },
+            // { text: 'Configure a Terragrunt Project', link: '/cli/introduction' },
           ],
         },
         {
@@ -739,64 +820,12 @@ export default defineConfig({
           ],
         },
         {
-          text: '💻 Commands (CLI)',
+          text: '👷 Dev Tooling',
           collapsed: true,
           items: [
-            { text: 'Overview', link: '/cli/cmdline/' },
-            {
-              text: 'Terramate Cloud',
-              items: [
-                { text: 'cloud login', link: '/cli/cmdline/cloud-login' },
-                { text: 'cloud info', link: '/cli/cmdline/cloud-info' },
-                { text: 'cloud drift show', link: '/cli/cmdline/cloud-drift-show' },
-              ],
-            },
-            {
-              text: 'Stacks',
-              items: [
-                { text: 'create', link: '/cli/cmdline/create' },
-                { text: 'clone', link: '/cli/cmdline/clone' },
-                { text: 'list', link: '/cli/cmdline/list' },
-                { text: 'get-config-value', link: '/cli/cmdline/get-config-value' },
-                { text: 'debug show metadata', link: '/cli/cmdline/metadata' },
-              ],
-            },
-            {
-              text: 'Orchestration',
-              items: [
-                { text: 'run', link: '/cli/cmdline/run' },
-                { text: 'trigger', link: '/cli/cmdline/trigger' },
-                { text: 'run-graph', link: '/cli/cmdline/run-graph' },
-                { text: 'debug show runtime-env', link: '/cli/cmdline/run-env' },
-              ],
-            },
-            {
-              text: 'Scripts',
-              items: [
-                { text: 'script run', link: '/cli/cmdline/script/run' },
-                { text: 'script info', link: '/cli/cmdline/script/info' },
-                { text: 'script list', link: '/cli/cmdline/script/list' },
-                { text: 'script tree', link: '/cli/cmdline/script/tree' },
-              ],
-            },
-            {
-              text: 'Code Generation',
-              items: [
-                { text: 'fmt', link: '/cli/cmdline/fmt' },
-                { text: 'generate', link: '/cli/cmdline/generate' },
-                { text: 'debug show globals', link: '/cli/cmdline/globals' },
-              ],
-            },
-            {
-              text: 'Misc',
-              items: [
-                { text: 'eval', link: '/cli/cmdline/eval' },
-                { text: 'partial-eval', link: '/cli/cmdline/partial-eval' },
-                { text: 'vendor download', link: '/cli/cmdline/vendor-download' },
-                { text: 'install-completions', link: '/cli/cmdline/install-completions' },
-                { text: 'version', link: '/cli/cmdline/version' },
-              ],
-            },
+            { text: 'VSCode Extension', link: 'https://marketplace.visualstudio.com/items?itemName=Mineiros.terramate' },
+            { text: 'VIM Plugin', link: 'https://github.com/terramate-io/vim-terramate' },
+            { text: 'Language Server', link: '/cli/editor-plugins/language-server' },
           ],
         },
         {

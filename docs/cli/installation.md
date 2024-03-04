@@ -10,24 +10,6 @@ The Terramate project distributes two binaries:
 - `terramate`: The CLI tool that we love.
 - `terramate-ls`: The Terramate Language Server to integrate Terramate into your IDE.
 
-## Using Go
-
-For installing Terramate with Go, please run:
-
-```sh
-go install github.com/terramate-io/terramate/cmd/...@<version>
-```
-
-Where `<version>` is any Terramate [version tag](https://github.com/terramate-io/terramate/tags),
-or you can just install the **latest** release:
-
-```sh
-go install github.com/terramate-io/terramate/cmd/...@latest
-```
-
-The commands above install both `terramate` and `terramate-ls` into
-your Go binary folder (usually `$HOME/go/bin`).
-
 ## Using a package manager
 
 ### Brew
@@ -56,7 +38,25 @@ To install Terramate using a release binary, follow these steps:
 3. Decompress the package somewhere on your disk. _Note: all files in the package other than `terramate` and `terramate-ls` can be safely deleted_.
 
 4. Ensure that the `terramate` and `terramate-ls` binaries are available to your `PATH`.
-The process for this will vary based on your operating system.
+   The process for this will vary based on your operating system.
+
+## Using Go
+
+For installing Terramate with Go, please run:
+
+```sh
+go install github.com/terramate-io/terramate/cmd/...@<version>
+```
+
+Where `<version>` is any Terramate [version tag](https://github.com/terramate-io/terramate/tags),
+or you can just install the **latest** release:
+
+```sh
+go install github.com/terramate-io/terramate/cmd/...@latest
+```
+
+The commands above install both `terramate` and `terramate-ls` into
+your Go binary folder (usually `$HOME/go/bin`).
 
 ## Using docker
 
@@ -88,6 +88,7 @@ docker run -it -u $(id -u ${USER}):$(id -g ${USER}) \
 ```
 
 ## Auto completion
+
 Terramate supports the autocompletion of commands for _bash_, _zsh_ and _fish_. To
 install the completion just run the command below and open a new shell session:
 

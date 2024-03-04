@@ -19,7 +19,7 @@ globals {
 }
 ```
 
-Terramate globals are available in the `global` namespace via `global.<variable-name>` and can be part of any expression. 
+Terramate globals are available in the `global` namespace via `global.<variable-name>` and can be part of any expression.
 
 Terramate Variables (`let`, `global`, and `terramate` namespaces) and all [Terramate Functions](../functions/index.md)
 are supported on the right side of the definition of a global variable.
@@ -34,8 +34,8 @@ Globals can be defined across multiple Terramate files, with the set of files in
 - Globals can be redefined in different configurations.
 - Globals can reference globals from other configurations.
 - Globals are evaluated only in stack context and do not need to be fully defined on higher levels, i.e., they can
-reference another global that is not yet defined but will be defined on lower levels. For details please see
-[Lazy evaluation](#lazy-evaluation).
+  reference another global that is not yet defined but will be defined on lower levels. For details please see
+  [Lazy evaluation](#lazy-evaluation).
 
 When globals are redefined across different configurations, a simple merge strategy is adopted:
 
@@ -66,7 +66,7 @@ some use cases. To set a specific value of a key within a `map` without redefini
 ```hcl
 globals <variable> [key] [key] ... {
   <key> = <expression>
-} 
+}
 ```
 
 Example:
@@ -110,8 +110,8 @@ Below is a high-level overview of how globals evaluation is implemented for a gi
 - The globals blocks are loaded from all Terramate files in the stack directory.
 - The multiple globals blocks are merged into a single globals definition.
 - Recursively, the parent directories have their globals blocks loaded and merged into the same single globals definition
-but giving preference for the Global defined lower in the filesystem tree.
-- Then resulting single globals block has its attributes evaluated.
+  but giving preference for the Global defined lower in the filesystem tree.
+- Then resulting single `globals {}` block has its attributes evaluated.
   - The `terramate.*` namespace is set with the stack [metadata](./metadata.md) values.
   - Globals that depend on other globals are postponed until all dependencies are evaluated.
 
@@ -121,4 +121,4 @@ configuration is since it is all merged into a single set of globals before eval
 ## Debugging Globals
 
 To see all globals available in each stack, the `terramate debug globals` command can be used. For details, please see the
-[debug globals](../../cmdline/globals.md) command.
+[debug globals](../../cmdline/debug/show/debug-show-globals.md) command.

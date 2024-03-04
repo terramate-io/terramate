@@ -1,6 +1,6 @@
 ---
-title: terramate eval - Command
-description: With the terramate eval command you can fully evaluate a Terramate expression.
+title: terramate experimental eval - Command
+description: Debug Terramate expressions using the `terramate experimental eval` command.
 ---
 
 # Eval
@@ -9,9 +9,9 @@ description: With the terramate eval command you can fully evaluate a Terramate 
 This is an experimental command and is likely subject to change in the future.
 :::
 
-The `eval` command allows you to fully evaluate a Terramate expression provided in the arguments.
+The `terramate experimental eval` command allows you to fully evaluate a Terramate expression provided in the arguments.
 
-For security reasons, the filesystem related functions are disabled for now. 
+For security reasons, the filesystem related functions are disabled for now.
 Below is the list of functions that **cannot be used** in this command:
 
 - tm_abspath,
@@ -40,6 +40,7 @@ terramate experimental eval 'tm_upper(terramate.stack.name)'
 ```
 
 Evaluate an expression that returns a list of all stacks inside the project:
+
 ```sh
 terramate experimental eval 'terramate.stacks'
 ```

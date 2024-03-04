@@ -1,6 +1,6 @@
 ---
-title: terramate get-config-value - Command
-description: With the terramate get-config-value command you can print the value of a specific configuration parameter.
+title: terramate experimental get-config-value - Command
+description: Debug configuration values by using the `terramate experimental get-config-value` command.
 ---
 
 # Get Config Value
@@ -9,7 +9,7 @@ description: With the terramate get-config-value command you can print the value
 This is an experimental command and is likely subject to change in the future.
 :::
 
-The `get-config-value` command prints the value of a specific configuration parameter for a stack.
+The `terramate experimental get-config-value` command prints the value of a specific configuration parameter for a stack.
 
 ## Usage
 

@@ -1,6 +1,6 @@
 ---
 title: terramate script tree - Command
-description: The script tree command shows a tree of all scripts
+description: Dump a tree of available Terramate Scripts using the `terramate script tree` command.
 ---
 
 # Script Tree

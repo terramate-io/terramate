@@ -35,18 +35,18 @@ Which could be represented in a Terramate stack hierarchy as:
 This tree structure following the directory hierarchy has three significant features:
 
 - **The configuration is inherited from left to right:** a [Global Variable](../code-generation/variables/globals.md)
-defined in one stack is automatically inherited by all nested child stacks. This removes the need for brittle code,
-such as hardcoded values and allows you to have an ever-expanding *context* for resources as you descend further into the stack tree.
+  defined in one stack is automatically inherited by all nested child stacks. This removes the need for brittle code,
+  such as hardcoded values and allows you to have an ever-expanding *context* for resources as you descend further into the stack tree.
 - **Execution of commands happens left to right (e.g. `terraform apply`):** In the example mentioned above, the
-VPC will automatically be created before the subnet using the
-[breadth-first search algorithm](https://en.wikipedia.org/wiki/Breadth-first_search), which will be created before the
-EC2 instance. This means a great reduction in explicit dependencies:
-you do not need to specify that the subnet depends upon the existing VPC - it's a natural outcome of the hierarchy
-(though we also support explicit dependencies with wants, before and after attributes in
-[stack configuration](./configuration.md)).
+  VPC will automatically be created before the subnet using the
+  [breadth-first search algorithm](https://en.wikipedia.org/wiki/Breadth-first_search), which will be created before the
+  EC2 instance. This means a great reduction in explicit dependencies:
+  you do not need to specify that the subnet depends upon the existing VPC - it's a natural outcome of the hierarchy
+  (though we also support explicit dependencies with wants, before and after attributes in
+  [stack configuration](./configuration.md)).
 - **Cloning of stacks:** nested stacks can represent whole environments, services or single resources. A neat feature in
-Terramate is that stacks and nested stacks can easily be cloned using the
-[clone](../cmdline/clone.md) command.
+  Terramate is that stacks and nested stacks can easily be cloned using the
+  [clone](../cmdline/experimental/experimental-clone.md) command.
 
 ::: tip
 `terramate run` executed commands in stacks left-to-right using the
