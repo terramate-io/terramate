@@ -61,3 +61,46 @@ This feature makes it easier for users to handle resources effectively, especial
 
 ## Sequential and Parallel Command Orchestration
 Terramate CLI supports both sequential and parallel execution of commands to orchestrate stacks, thus accommodating both dependent and independent stacks. The CLI utilizes a [fork-join model](https://en.wikipedia.org/wiki/Fork%E2%80%93join_model) to execute the sequential parts (dependent stacks requiring specific order) and parallel parts (independent stacks that can be executed in any order). By leveraging this approach, Terramate ensures efficient execution while maintaining accuracy and consistency across deployments.
+
+### Sequential
+Stacks that have a dependency on other stacks need to be run sequentially.
+Terramate cli runs [nested stacks](../stacks/nesting.md) in sequence as per the order of execution defined in the stack's configuration.
+
+In Terramate, by default, commands are executed sequentially. When adhering to the default order of execution for a stack hierarchy as illustrated below:
+```sh
+/vpc
+  /network_acl
+  /internet_gateway
+  /subnet
+    /network_interface
+    /ec2
+  /route_table
+  /security_group
+```
+The sequence of execution follows this pattern:
+
+1. `vpc`
+2. `network_acl`
+3. `internet_gateway`
+4. `subnet`
+   - `network_interface`
+   - `ec2`
+5. `route_table`
+6. `security_group`
+
+As an illustration, to execute a command sequentially across all stacks within a particular directory:
+```bash
+terramate run --chdir stacks/vpc -- terraform init
+```
+### Parallel
+
+Terramate facilitates parallel execution, enabling independent stacks to run in parallel, thereby offering significant time savings, particularly during commands like `terramate run terraform init`. Despite the parallel nature of execution, Terramate ensures that the order of execution is still respected.
+
+This approach notably diminishes build time consumption for deployments and drift detection to a bare minimum, while also reducing waiting time for users when executing commands across stacks. Moreover, with Terramate Cloud, users can conveniently access logs of all executed stacks in the correct order, further enhancing visibility and monitoring capabilities during the execution process.
+
+To initiate parallel execution, users can utilize the `--parallel=N` flag, where N represents the number of parallel processes desired. This allows users to tailor the level of parallelism according to their specific requirements.
+For example:
+```bash
+terramate run --parallel=5 terraform init
+```
+This command runs `terraform init` in parallel across all stacks while maintaining the specified order.
