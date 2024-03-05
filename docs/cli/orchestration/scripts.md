@@ -1,9 +1,12 @@
 ---
-title: Run a sequence of commands in Stacks with Terramate Scripts
-description: Learn how to configure and execute sequences of commands in stacks with Terramate Scripts.
+title: Configure workflows to run sequences of commands in Stacks with Terramate Scripts
+description: Learn how to configure workflows to execute sequences of commands in stacks with Terramate Scripts.
 ---
 
-# Terramate Scripts
+# Configure and run workflows with Terramate Scripts
+
+Workflows are a way of combining multiple commands into one executable unit of work called Terramate Scripts.
+
 
 ## Introduction
 
@@ -22,7 +25,7 @@ The following will execute each step in our defined workflow in stacks:
 - `terramate run terraform init`
 - `terramate run terraform validate`
 - `terramate run tfsec .`
-- `terraform run terraform apply -auto-approve`
+- `terramate run terraform apply -auto-approve`
 
 Terramate CLI would first invoke `terraform init` in all stacks, then continue with `terraform validate`, and so on.
 
