@@ -60,7 +60,7 @@ inside a repository to work: one commit to compare the changes to and another co
 As a first step, create a new git repository and navigate into it:
 
 ```sh
-git init terramate-quickstart
+git init -b main terramate-quickstart
 cd terramate-quickstart
 ```
 
