@@ -11,8 +11,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -102,12 +100,6 @@ const (
 // UIMode defines different modes of operation for the cli.
 type UIMode int
 
-type kongParallelFlag struct {
-	Value int
-}
-
-const defaultParallelRunCount = 5
-
 type cliSpec struct {
 	VersionFlag    bool     `hidden:"true" name:"version" help:"Show Terramate version."`
 	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Set working directory."`
@@ -171,7 +163,7 @@ type cliSpec struct {
 		// Note: 0 is not the real default value here, this is just a workaround.
 		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
 		// The K case is handled in the custom decoder.
-		Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent stacks in parallel."`
+		Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
 
 		runSafeguardsCliSpec
 
@@ -196,7 +188,7 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
 
 			// See above comment regarding for run --parallel.
-			Parallel kongParallelFlag `short:"j" optional:"true" default:"0" help:"Run independent stacks in parallel"`
+			Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
 
 			runSafeguardsCliSpec
 		} `cmd:"" help:"Run a Terramate Script in stacks."`
@@ -707,36 +699,6 @@ func (c *cli) run() {
 	default:
 		fatal("unexpected command sequence", nil)
 	}
-}
-
-func (s *kongParallelFlag) Decode(ctx *kong.DecodeContext) error {
-	if ctx.Scan.Peek().Type == kong.FlagValueToken {
-		t, err := ctx.Scan.PopValue("counter")
-		if err != nil {
-			return err
-		}
-
-		switch v := t.Value.(type) {
-		case string:
-			n, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				return stdfmt.Errorf("expected a counter but got %q (%T)", t, t.Value)
-			}
-			s.Value = int(n)
-
-		case int, int8, int16, int32, int64:
-			t := reflect.ValueOf(v)
-			s.Value = int(t.Int())
-
-		default:
-			return stdfmt.Errorf("expected a counter but got %q (%T)", t, t.Value)
-		}
-		return nil
-	}
-
-	s.Value = defaultParallelRunCount
-
-	return nil
 }
 
 func (c *cli) setupSafeguards(run runSafeguardsCliSpec) {

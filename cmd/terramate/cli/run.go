@@ -187,7 +187,7 @@ func (c *cli) runOnStacks() {
 		Reverse:         c.parsedArgs.Run.Reverse,
 		ScriptRun:       false,
 		ContinueOnError: c.parsedArgs.Run.ContinueOnError,
-		Parallel:        c.parsedArgs.Run.Parallel.Value,
+		Parallel:        c.parsedArgs.Run.Parallel,
 	})
 	if err != nil {
 		fatal("one or more commands failed", err)

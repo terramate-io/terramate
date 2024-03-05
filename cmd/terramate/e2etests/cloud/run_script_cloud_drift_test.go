@@ -512,7 +512,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					"--quiet",
 				}
 				if isParallel {
-					runflags = append(runflags, "--parallel")
+					runflags = append(runflags, "--parallel", "5")
 					tc.want.run.IgnoreStdout = true
 					tc.want.run.IgnoreStderr = true
 				}
