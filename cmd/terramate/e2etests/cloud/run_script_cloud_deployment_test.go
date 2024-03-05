@@ -236,7 +236,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 
 				scriptArgs := []string{"--quiet", "--disable-safeguards=git-out-of-sync"}
 				if isParallel {
-					scriptArgs = append(scriptArgs, "--parallel")
+					scriptArgs = append(scriptArgs, "--parallel=5")
 					// For the parallel test, we ignore output validation, since the print order is non-deterministic.
 					tc.want.run.IgnoreStderr = true
 					tc.want.run.IgnoreStdout = true

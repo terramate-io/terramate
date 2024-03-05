@@ -41,8 +41,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Improve user experience when using Terramate with existing Terragrunt projects.
   - Add  `terramate create --all-terragrunt` option, which will automatically create Terramate stacks for each Terraform module.
 - Allow to run independent stacks in parallel for faster deployments and better utilization of system resources in general.
-  - Add `--parallel` (short `-j`) option to `terramate run` and `terramate script run`.
-  - `--parallel=N` limits the number of concurrent runs to `N`, otherwise a sensible default limit is chosen.
+  - Add `--parallel=N` (short `-j N`) option to `terramate run` and `terramate script run` to allow running up to `N` stacks in parallel.
   - Ordering constraints between stacks are still respected, i.e. `before`/`after`, parent before sub-folders.
 - Add `cloud_sync_drift_status` option to `script` block commands. It allows for synchronizing the
   stack drift details from script jobs.
