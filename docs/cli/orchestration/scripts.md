@@ -7,7 +7,6 @@ description: Learn how to configure workflows to execute sequences of commands i
 
 Workflows are a way of combining multiple commands into one executable unit of work called Terramate Scripts.
 
-
 ## Introduction
 
 When using Terramate CLI, you often encounter scenarios where you want to execute a sequence of commands in stacks.
@@ -33,7 +32,7 @@ To run the full sequence of commands in each stack they could be executed in a s
 
 ```sh
 terramate run -- sh -c '
-  terraform init && 
+  terraform init &&
   terraform validate &&
   tfsec . &&
   terraform apply -auto-approve
@@ -60,8 +59,8 @@ To use this feature it needs to be enabled explicitly in your Terramate config b
   }
 }
 ```
-:::
 
+:::
 
 ## Defining scripts
 
@@ -75,22 +74,23 @@ script "command" "subcommand" { # any level of subcommands is supported
       ["echo", "-n", "Hello"],
       ["echo", " World!"],
     ]
-  } 
+  }
 }
 ```
 
 - The list of labels of the `script` block defines the arguments you need to
-provide to the `terramate script run` command in order to execute the script:
-`terramate script run command subcommand`. You can define any number of labels.
+  provide to the `terramate script run` command in order to execute the script:
+  `terramate script run command subcommand`. You can define any number of labels.
 - Attributes and Blocks Reference of the `script` block
-  - `name` *(optional)* - A name for the jobs being executed (maximum of 128 chars)
-  - `description` *(required)* - A description of the jobs being executed
-  - `job` *(required)* - One or more blocks each defining a sequence of commands to be executed in the script.
-  Jobs are executed in the order of definition.
-      
-      Each job can have the following attributes:
-      
-      - `commands` *(required)* - A list of commands. Each item is a list that has the form `[ command, arg1, arg2, ...]`
+
+  - `name` _(optional)_ - A name for the jobs being executed (maximum of 128 chars)
+  - `description` _(required)_ - A description of the jobs being executed
+  - `job` _(required)_ - One or more blocks each defining a sequence of commands to be executed in the script.
+    Jobs are executed in the order of definition.
+
+    Each job can have the following attributes:
+
+    - `commands` _(required)_ - A list of commands. Each item is a list that has the form `[ command, arg1, arg2, ...]`
       that will be executed accordingly. Terramate Functions and variable interpolation of the following namespaces
       is supported: `global`, `terramate`, and `env`
       Optionally, the last item of the argument list can be an object containing Terramate-specific options for this command.
@@ -115,9 +115,9 @@ script "deploy" {
 
 ### Command options
 
-- `cloud_sync_deployment` *(optional boolean)* Send information about the deployment to Terramate Cloud. See [Sending deployment data to Terramate Cloud](../cmdline/run.md#sending-deployment-data-to-terramate-cloud). Only one command per script may have this option set to true.
-- `cloud_sync_drift_status` *(optional boolean)* Send drift information to Terramate Cloud. See [Detecting Drifts](../cmdline/run.md#detecting-drift).
-- `cloud_sync_terraform_plan_file` *(optional string)* Sync a Terraform plan file to Terramate Cloud with a deployment or drift. This option is only used when `cloud_sync_deployment` or `cloud_sync_drift_status` are set to true.
+- `cloud_sync_deployment` _(optional boolean)_ Send information about the deployment to Terramate Cloud. See [Sending deployment data to Terramate Cloud](../cmdline/run.md#sending-deployment-data-to-terramate-cloud). Only one command per script may have this option set to true.
+- `cloud_sync_drift_status` _(optional boolean)_ Send drift information to Terramate Cloud. See [Detecting Drifts](../cmdline/run.md#detecting-drift).
+- `cloud_sync_terraform_plan_file` _(optional string)_ Sync a Terraform plan file to Terramate Cloud with a deployment or drift. This option is only used when `cloud_sync_deployment` or `cloud_sync_drift_status` are set to true.
 
 ## Running Scripts
 
@@ -174,19 +174,19 @@ This will print out the commands that would be executed per stack, without actua
 
 Besides this, there are additional experimental commands that can be used to inspect and debug script definitions:
 
-- [`terramate script list`](../cmdline/script/list.md)
-Shows a list of all uniquely named scripts that are visible in the current directory, their description, and the root
-directory of their scope. If there are multiple definitions with the same name, a parent is selected over a child,
-or a first sibling over a later sibling (ordered by directory name).
-- [`terramate script info <scriptname>`](../cmdline/script/info.md)
-Shows a detailed list of definitions for a given script name. This list includes the jobs and the stacks within the scope
-of each definition. As with the command before, this information is always relative to the current directory.
-- [`terramate script tree`](../cmdline/script/tree.md)
-Shows a tree view of all scripts relative to the current directory. The tree expands all sub-directories, and the parent
-path back to the project root, showing script definitions per directory. Example:
+- [`terramate script list`](../cmdline/script/script-list.md)
+  Shows a list of all uniquely named scripts that are visible in the current directory, their description, and the root
+  directory of their scope. If there are multiple definitions with the same name, a parent is selected over a child,
+  or a first sibling over a later sibling (ordered by directory name).
+- [`terramate script info <scriptname>`](../cmdline/script/script-info.md)
+  Shows a detailed list of definitions for a given script name. This list includes the jobs and the stacks within the scope
+  of each definition. As with the command before, this information is always relative to the current directory.
+- [`terramate script tree`](../cmdline/script/script-tree.md)
+  Shows a tree view of all scripts relative to the current directory. The tree expands all sub-directories, and the parent
+  path back to the project root, showing script definitions per directory. Example:
 
 <img src="../assets/orchestration/inspecting-scripts.png" width="300px" alt="Explaining how to inspect scripts in Terramate" />
 
-  - 🟡 * Script definition (new or override)
-  - ⚪ ~ Script definition inherited from the parent scope
-  - 🟢 # Stack
+- 🟡 \* Script definition (new or override)
+- ⚪ ~ Script definition inherited from the parent scope
+- 🟢 # Stack

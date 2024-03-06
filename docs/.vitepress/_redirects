@@ -1,0 +1,17 @@
+docs/cli/cmdline/cloud-info.md       docs/cli/cmdline/cloud/cloud-info.md
+docs/cli/cmdline/cloud-drift-show.md docs/cli/cmdline/cloud/drift/cloud-drift-show.md
+docs/cli/cmdline/cloud-login.md      docs/cli/cmdline/cloud/cloud-login.md
+docs/cli/cmdline/globals.md          docs/cli/cmdline/debug/show/debug-show-globals.md
+docs/cli/cmdline/metadata.md         docs/cli/cmdline/debug/show/debug-show-metadata.md
+docs/cli/cmdline/run-env.md          docs/cli/cmdline/debug/show/debug-show-runtime-env.md
+docs/cli/cmdline/clone.md            docs/cli/cmdline/experimental/experimental-clone.md
+docs/cli/cmdline/eval.md             docs/cli/cmdline/experimental/experimental-eval.md
+docs/cli/cmdline/get-config-value.md docs/cli/cmdline/experimental/experimental-get-config-value.md
+docs/cli/cmdline/partial-eval.md     docs/cli/cmdline/experimental/experimental-partial-eval.md
+docs/cli/cmdline/run-graph.md        docs/cli/cmdline/experimental/experimental-run-graph.md
+docs/cli/cmdline/trigger.md          docs/cli/cmdline/experimental/experimental-trigger.md
+docs/cli/cmdline/vendor-download.md  docs/cli/cmdline/experimental/experimental-vendor-download.md
+docs/cli/cmdline/script/info.md      docs/cli/cmdline/script/script-info.md
+docs/cli/cmdline/script/list.md      docs/cli/cmdline/script/script-list.md
+docs/cli/cmdline/script/run.md       docs/cli/cmdline/script/script-run.md
+docs/cli/cmdline/script/tree.md      docs/cli/cmdline/script/script-tree.md
