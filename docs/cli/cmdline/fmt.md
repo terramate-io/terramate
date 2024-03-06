@@ -10,7 +10,7 @@ By default, `terramate fmt` scans the current directory for Terramate configurat
 
 ## Usage
 
-`terramate fmt`
+`terramate fmt [options]`
 
 ## Examples
 
@@ -36,3 +36,4 @@ terramate fmt --check --chdir format/in/this/directory
 ## Options
 
 - `--check` Lists unformatted files. Exit with exit code `0` if all is well formatted, `1` otherwise.
+- `--detailed-exit-code` Return an appropriate exit code (0 = ok, 1 = error, 2 = no error but changes were made)
