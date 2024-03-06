@@ -1,6 +1,6 @@
 ---
 title: terramate script list - Command
-description: The script list command shows a list of scripts that can be run in the current directory
+description: List available Terramate Scripts using the `terramate script list` command.
 ---
 
 # Script List

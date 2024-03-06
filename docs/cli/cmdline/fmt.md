@@ -1,12 +1,12 @@
 ---
 title: terramate fmt - Command
-description: With the terramate fmt command you can rewrite Terramate configuration files to a canonical format.
+description: Ensure formatting of Terramate configuration by using the `terramate fmt` command.
 ---
 
 # Fmt
 
-The `fmt` command rewrites all Terramate configuration files (.tm.hcl) to a canonical format.
-By default, `fmt` scans the current directory for Terramate configuration files recursively.
+The `terramate fmt` command rewrites all Terramate configuration files (.tm.hcl) to a canonical format.
+By default, `terramate fmt` scans the current directory for Terramate configuration files recursively.
 
 ## Usage
 

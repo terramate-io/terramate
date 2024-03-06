@@ -20,8 +20,8 @@ The ID can't be bigger than 64 bytes, **is case insensitive** and
 **must** be unique over the whole project.
 
 There is no default value determined for the stack ID, but when users use
-the [create](../cmdline/create.md) command to create new stacks or the [clone](../cmdline/clone.md) command to clone stacks,
-the ID will default to a [random UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier#:~:text=Version%204%20(random)%5Bedit%5D).
+the [create](../cmdline/create.md) command to create new stacks or the [clone](../cmdline/experimental/experimental-clone.md) command to clone stacks,
+the ID will default to a [random UUID](<https://en.wikipedia.org/wiki/Universally_unique_identifier#:~:text=Version%204%20(random)%5Bedit%5D>).
 
 ```hcl
 stack {
@@ -157,7 +157,7 @@ But if `stack-a-2` always requires stack-b to run, we could put `wants = ["/stac
 configuration and it would always be added to the execution list whenever `stack-a-2` was targeted.
 
 ::: info
-It's *very important to note* that adding a stack to `wants` *does not alter the run order*. If you want a dependent
+It's _very important to note_ that adding a stack to `wants` _does not alter the run order_. If you want a dependent
 stack to run before or after another you must also use the `before` and `after` attributes.
 :::
 

@@ -1,11 +1,11 @@
 ---
 title: terramate install-completions - Command
-description: With the terramate install-completions command you can install some handy shell completions for the Terramate CLI.
+description: Install commandline completion for your shell by using the `terramate install-completions` command.
 ---
 
 # Install Completions
 
-The `install-completions` installs autocompletion of commands for _bash_, _zsh_ and _fish_.
+The `terramate install-completions` installs autocompletion of commands for _bash_, _zsh_ and _fish_.
 
 ## Usage
 

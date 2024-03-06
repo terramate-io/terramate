@@ -1,13 +1,13 @@
 ---
 title: terramate script info - Command
-description: The script info command gives you information about a script
+description: Show detailed info about a Terramate Script using the `terramate script info` command.
 ---
 
 # Script Info
 
 **Note:** This is an upcoming experimental feature that is subject to change in the future. To use it now, you must enable the project config option `terramate.config.experiments = ["scripts"]`
 
-The `script info LABEL...` command lists details about all script definitions matching the given LABELs (see [script run](./run) command for details about matching labels). The information provided by `script info` includes:
+The `terramate script info` command lists details about all script definitions matching the given LABELs (see [script run](../run) command for details about matching labels). The information provided by `script info` includes:
 
 | Name        | Meaning                                                                     |
 | ----------- | --------------------------------------------------------------------------- |

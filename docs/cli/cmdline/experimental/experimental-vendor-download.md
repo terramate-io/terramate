@@ -1,6 +1,6 @@
 ---
-title: terramate vendor download - Command
-description: With the terramate vendor download command you can vendor a dependency.
+title: terramate experimental vendor download - Command
+description: Vendor a dependency using the `terramate experimental vendor download` command.
 ---
 
 # Vendor Download
@@ -9,7 +9,7 @@ description: With the terramate vendor download command you can vendor a depende
 This is an experimental command and is likely subject to change in the future.
 :::
 
-The `vendor download` command vendors dependencies such as Terraform modules.
+The `terramate experimental vendor download` command vendors dependencies such as Terraform modules.
 
 ## Usage
 
@@ -17,7 +17,7 @@ The `vendor download` command vendors dependencies such as Terraform modules.
 
 ## Examples
 
-Vendor a specific Terraform module version: 
+Vendor a specific Terraform module version:
 
 ```bash
 terramate experimental vendor download github.com/mineiros-io/terraform-google-cloud-run v0.2.1
