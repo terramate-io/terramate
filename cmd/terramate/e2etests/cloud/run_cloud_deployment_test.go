@@ -407,7 +407,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					"--cloud-sync-deployment",
 				}
 				if isParallel {
-					runflags = append(runflags, "--parallel")
+					runflags = append(runflags, "--parallel", "5")
 					tc.want.run.IgnoreStdout = true
 					tc.want.run.IgnoreStderr = true
 				}

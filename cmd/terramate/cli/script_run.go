@@ -118,7 +118,7 @@ func (c *cli) runScript() {
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
 		ContinueOnError: false,
-		Parallel:        c.parsedArgs.Script.Run.Parallel.Value,
+		Parallel:        c.parsedArgs.Script.Run.Parallel,
 	})
 	if err != nil {
 		fatal("one or more commands failed", err)
