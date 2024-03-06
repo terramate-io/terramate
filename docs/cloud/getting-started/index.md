@@ -48,13 +48,14 @@ Initially, you will be located on the organization's dashboard. If no data has b
 
 To synchronize the first data with your new Terramate Cloud Organization, you must also sign in from your CLI after signing up with the cloud.
 
-You can use [`terramate cloud login`](../../cli/cmdline/cloud-login.md) to log in to Terramate Cloud. A browser window will allow you to select the Google Workspace Account you want to sign in with.
+You can use [`terramate cloud login`](../../cli/cmdline/cloud/cloud-login.md) to log in to Terramate Cloud. A browser window will allow you to select the Google Workspace Account you want to sign in with.
 
 You need to select the same account you just signed up with to use Terramate CLI with your Terramate Cloud Organization.
 
-You can validate you are connected to the correct Terramate Cloud Organization using [`terramate cloud info`](../../cli/cmdline/cloud-info.md):
+You can validate you are connected to the correct Terramate Cloud Organization using [`terramate cloud info`](../../cli/cmdline/cloud/cloud-info.md):
 
 ::: code-group
+
 ```sh [shell]
 terramate cloud info
 ```
@@ -66,6 +67,7 @@ user: Your Display Name
 email: you@example.com
 organizations: example
 ```
+
 :::
 
 After successful sign-in via Terramate CLI, it is recommended to persist the selected cloud organization to your configuration
@@ -100,31 +102,33 @@ you will need to replace Terraform with your wrapper call, e.g., `aws-vault exec
 
 # On-boarding
 
-1. Execute `terramate run terraform init` to initialize terraform in all available stacks. 
+1. Execute `terramate run terraform init` to initialize terraform in all available stacks.
 2. Execute `terramate run --cloud-sync-drift-status --cloud-sync-terraform-plan-file=drift.tfplan -- terraform plan -detailed-exitcode -out drift.tfplan` to synchronize your drift plans. Continue reading to understand what will happen before actually executing the command.
 
 Terramate CLI will do the following things when executing the command:
 
 1. `terramate` will `run` a `terraform plan -detailed-exitcode -out drift.tfplan` in every stack available.
-    1. The `-detailed-exitcode` will ensure we get information about planned changes. Terraform will exit with an exit code of 
-        - `0` in case the plan was created successfully and no changes were planned.
-        - `1` in case there have been errors and a plan could not be created.
-        - `2` in case the plan was created successfully and changes have been planned.
-        
-        Terramate CLI will interpret the exit code accordingly and synchronize the status to the cloud.
-        
-    2. The `-out drift.tfplan` tells Terraform to store the planned changes in a file within each stack called `drift.tfplan`
+
+   1. The `-detailed-exitcode` will ensure we get information about planned changes. Terraform will exit with an exit code of
+
+      - `0` in case the plan was created successfully and no changes were planned.
+      - `1` in case there have been errors and a plan could not be created.
+      - `2` in case the plan was created successfully and changes have been planned.
+
+      Terramate CLI will interpret the exit code accordingly and synchronize the status to the cloud.
+
+   2. The `-out drift.tfplan` tells Terraform to store the planned changes in a file within each stack called `drift.tfplan`
+
 2. The `--cloud-sync-drift-status` option will ensure Terramate CLI honors the `detailed-exitcode` of Terraform and synchronize the status to Terramate Cloud
 3. The `--cloud-sync-terraform-plan-file=drift.tfplan` is an additional option ensuring that Terramate CLI synchronizes the drift details to Terramate Cloud. We are using the same name for the plan file that was created using `terrafrom plan`.
-    
-    Terramate CLI will redact all sensitive fields before synchronizing the details to Terramate Cloud as a terraform plan file can contain sensitive information. In addition, the Terramate Cloud Backend will redact the values again before persisting them in case someone synchronizes a Terraform Plan without using Terramate CLI.
-    
+
+   Terramate CLI will redact all sensitive fields before synchronizing the details to Terramate Cloud as a terraform plan file can contain sensitive information. In addition, the Terramate Cloud Backend will redact the values again before persisting them in case someone synchronizes a Terraform Plan without using Terramate CLI.
 
 After this command is executed and all stacks have been synchronized, you can visit the dashboard on Terramate Cloud again and see the results of your drift synchronization.
 
 In the best case, you will have zero drifts detected. In any other case, you can review drifts also from the CLI:
 
-1. Start with identifying all drifted stacks by running `terramate list --cloud-status drifted` 
+1. Start with identifying all drifted stacks by running `terramate list --cloud-status drifted`
 2. If stacks are listed using the previous command, enter a stack (change directory using `cd`) that has a drift and show the drift details using `terramate cloud drift show` from the stacks directory. This command will print the Terraform plan details and is callable by any user that is part of your organization and connected to the Terramate cloud. No additional cloud access is required, this means this command can be executed without having access to run a `terraform plan` allowing to set up a least needed privilege access structure. Any known sensitive information is redacted from the plan.
 
 ### Summary of steps required to use Terramate CLI and Cloud
