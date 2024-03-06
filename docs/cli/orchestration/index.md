@@ -94,7 +94,7 @@ terramate run --chdir stacks/vpc -- terraform init
 ```
 ### Parallel
 
-Terramate facilitates parallel execution, enabling independent stacks to run in parallel, thereby offering significant time savings, particularly during commands like `terramate run terraform init`. Despite the parallel nature of execution, Terramate ensures that the order of execution is still respected.
+Terramate facilitates parallel execution, enabling independent stacks to run in parallel, thereby offering significant time savings, particularly during commands like `terraform init`. Despite the parallel nature of execution, Terramate ensures that the order of execution is still respected.
 
 This approach notably diminishes build time consumption for deployments and drift detection to a bare minimum, while also reducing waiting time for users when executing commands across stacks. Moreover, with Terramate Cloud, users can conveniently access logs of all executed stacks in the correct order, further enhancing visibility and monitoring capabilities during the execution process.
 
