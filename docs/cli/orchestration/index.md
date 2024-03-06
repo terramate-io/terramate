@@ -98,7 +98,7 @@ Terramate facilitates parallel execution, enabling independent stacks to run in 
 
 This approach notably diminishes build time consumption for deployments and drift detection to a bare minimum, while also reducing waiting time for users when executing commands across stacks. Moreover, with Terramate Cloud, users can conveniently access logs of all executed stacks in the correct order, further enhancing visibility and monitoring capabilities during the execution process.
 
-To initiate parallel execution, users can utilize the `--parallel=N` flag, where N represents the number of parallel processes desired. This allows users to tailor the level of parallelism according to their specific requirements.
+To initiate parallel execution, users can utilize the `--parallel N` flag, where N represents the number of parallel processes desired. This allows users to tailor the level of parallelism according to their specific requirements.
 For example:
 ```bash
 terramate run --parallel=5 terraform init
