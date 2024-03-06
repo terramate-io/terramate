@@ -531,7 +531,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					"--cloud-sync-drift-status",
 				}
 				if isParallel {
-					runflags = append(runflags, "--parallel")
+					runflags = append(runflags, "-j", "5")
 					tc.want.run.IgnoreStdout = true
 					tc.want.run.IgnoreStderr = true
 				}
