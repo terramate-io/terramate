@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
+	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 )
 
 func TestInteropCloudSyncPreview(t *testing.T) {
