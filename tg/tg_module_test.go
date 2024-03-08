@@ -113,7 +113,7 @@ func TestTerragruntScanModules(t *testing.T) {
 			},
 		},
 		{
-			name: "module with dependencies + root file",
+			name: "module with dependency + root file",
 			layout: []string{
 				`f:some/dir/terragrunt.hcl:` + Doc(
 					Block("terraform",
@@ -153,6 +153,61 @@ func TestTerragruntScanModules(t *testing.T) {
 							project.NewPath("/some/other/dir"),
 							project.NewPath("/some/other2/dir"),
 							project.NewPath("/terragrunt.hcl"),
+						},
+						After: project.Paths{
+							project.NewPath("/some/other/dir"),
+							project.NewPath("/some/other2/dir"),
+						},
+					},
+					{
+						Path:       project.NewPath("/some/other/dir"),
+						ConfigFile: project.NewPath("/some/other/dir/terragrunt.hcl"),
+					},
+					{
+						Path:       project.NewPath("/some/other2/dir"),
+						ConfigFile: project.NewPath("/some/other2/dir/terragrunt.hcl"),
+					},
+				},
+			},
+		},
+		{
+			name: "module with ordering dependencies",
+			layout: []string{
+				`f:some/dir/terragrunt.hcl:` + Doc(
+					Block("terraform",
+						Str("source", "https://some.etc/prj"),
+					),
+					Block("include",
+						Labels("root"),
+						Expr("path", `find_in_parent_folders()`),
+					),
+					Block("dependencies",
+						Expr("paths", `["../other2/dir", "../other/dir"]`),
+					),
+				).String(),
+				`f:some/other/dir/terragrunt.hcl:` + Block("terraform",
+					Str("source", "https://some.etc/prj"),
+				).String(),
+				`f:some/other2/dir/terragrunt.hcl:` + Block("terraform",
+					Str("source", "https://some.etc/prj"),
+				).String(),
+				`f:terragrunt.hcl:` + Doc(
+					Block("terraform"),
+				).String(),
+				`f:common.tfvars:a = "1"`,
+				`f:regional.tfvars:b = "2"`,
+			},
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/some/dir"),
+						ConfigFile: project.NewPath("/some/dir/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/terragrunt.hcl"),
+						},
+						After: project.Paths{
+							project.NewPath("/some/other/dir"),
+							project.NewPath("/some/other2/dir"),
 						},
 					},
 					{

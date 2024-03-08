@@ -1259,6 +1259,7 @@ func (c *cli) initTerragrunt() {
 			ID:          stackID.String(),
 			Name:        dirBasename,
 			Description: dirBasename,
+			After:       mod.After.Strings(),
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)

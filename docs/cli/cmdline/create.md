@@ -48,6 +48,9 @@ Terramate detects all Terragrunt Modules that contain a `terraform.source` confi
 terramate create --all-terragrunt
 ```
 
+If the Terragrunt module declare dependencies then the created stack will have its ordering
+attributes automatically set.
+
 ## Usage
 
 ```bash

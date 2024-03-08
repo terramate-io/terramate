@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Automatically add stack ordering to Terragrunt stacks created by `terramate create --all-terragrunt`.
+
 ## v0.5.0
 
 ### BREAKING CHANGES
