@@ -1,0 +1,166 @@
+# Copyright 2023 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+name: preview
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  preview:
+    name: Changed Terramate stacks
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    strategy:
+        matrix:
+          os: ["ubuntu-20.04", "macos-12", "macos-13"]
+          go: ["1.22"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      ### Create Pull Request comment
+
+      - name: Prepare pull request preview comment
+        if: github.event.pull_request
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          header: preview
+          message: |
+            ## Preview of Project changes in ${{ github.event.pull_request.head.sha }}
+
+            :warning: preview is being created... please stand by!
+
+      ### Install tooling
+
+      - name: Install Terramate
+        uses: terramate-io/terramate-action@i4k-fix-macos
+
+      - name: Check Terramate formatting
+        run: terramate fmt --check
+
+      - name: List changed stacks
+        id: list
+        run: terramate list --changed
+
+      - name: checking go mod tidyness
+        if: steps.list.outputs.stdout && matrix.os == 'ubuntu-20.04'
+        run: make mod/check
+
+      - name: linting code
+        if: steps.list.outputs.stdout && matrix.os == 'ubuntu-20.04'
+        run: make lint
+
+      - name: checking license on source code
+        if: steps.list.outputs.stdout && matrix.os == 'ubuntu-20.04'
+        run: make license/check
+
+      ### Run the terramate preview script
+
+      - name: check cloud info
+        if: steps.list.outputs.stdout
+        run: terramate run --tags golang --no-recursive -- terramate cloud info || true
+        env:
+          TMC_API_HOST: api.stg.terramate.io
+
+      - name: Golang test preview
+        if: steps.list.outputs.stdout
+        run: |
+          echo >preview_url.txt "https://cloud.stg.terramate.io/o/test/review-requests"
+          terramate script run --parallel=10 --tags golang --changed -- test preview
+        env:
+          TMC_API_HOST: api.stg.terramate.io
+          GITHUB_TOKEN: ${{ github.token }}
+
+      ### Update Pull Request comment
+
+      - name: Generate preview details
+        shell: bash
+        if: steps.list.outputs.stdout
+        id: comment
+        run: |
+          echo >>pr-comment.txt "## Preview of Terramate changes in ${{ github.event.pull_request.head.sha }}"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "[:mag: View Details on Terramate Cloud]($(cat preview_url.txt))"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "### Changed Stacks"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt '```bash'
+          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
+          echo >>pr-comment.txt '```'
+          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
+
+      - name: Generate preview when no stacks changed
+        shell: bash
+        if: success() && !steps.list.outputs.stdout
+        run: |
+          echo >>pr-comment.txt "## Preview of Terramate changes in ${{ github.event.pull_request.head.sha }}"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "### Changed Stacks"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt 'No changed stacks, no detailed preview will be generated.'
+          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
+
+      - name: Generate preview when things failed
+        shell: bash
+        if: failure()
+        run: |
+          echo >>pr-comment.txt "## Preview of Terraform changes in ${{ github.event.pull_request.head.sha }}"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "[:mag: View Details on Terramate Cloud]($(cat preview_url.txt))"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "### Changed Stacks"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt '```bash'
+          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
+          echo >>pr-comment.txt '```'
+          echo >>pr-comment.txt ':boom: Generating preview failed. Please see details in Actions output.'
+          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
+
+      - name: Publish generated preview as GitHub commnent
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          header: preview
+          path: pr-comment.txt
+
+  release_dry_run:
+    name: Release Dry Run
+        
+    runs-on: ubuntu-20.04
+        
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+        
+      - name: release dry run
+        run: make release/dry-run
+        
+  required_checks:
+    needs:
+      - preview
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: Kesin11/actions-timeline@v1
