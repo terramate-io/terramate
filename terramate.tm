@@ -9,9 +9,11 @@
 
 terramate {
   config {
+    experiments = ["scripts"]
     run {
       env {
-        PATH = "${terramate.root.path.fs.absolute}/bin${global.PS}${env.PATH}"
+        PATH     = "${terramate.root.path.fs.absolute}/bin${global.PS}${env.PATH}"
+        NO_COLOR = "1"
       }
     }
 
@@ -19,6 +21,10 @@ terramate {
       check_untracked   = false
       check_uncommitted = false
       check_remote      = false
+    }
+
+    cloud {
+      organization = "test"
     }
   }
 }
