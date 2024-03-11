@@ -35,7 +35,7 @@ func main() {
 		dir = rootdir
 	}
 
-	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, dir))
+	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, dir), true)
 	abortOnErr(err)
 
 	if *isJSON {
@@ -47,6 +47,7 @@ func main() {
 
 	for _, mod := range modules {
 		fmt.Printf("Module: %s\n", mod.Path)
+		fmt.Printf("\tSource: %s\n", mod.Source)
 		for _, triggerPath := range mod.DependsOn {
 			fmt.Printf("\t- %s\n", triggerPath)
 		}

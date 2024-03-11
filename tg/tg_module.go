@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"sort"
 
 	"github.com/gruntwork-io/go-commons/env"
@@ -30,6 +29,7 @@ type (
 	// Module is a Terragrunt module.
 	Module struct {
 		Path       project.Path  `json:"path"`
+		Source     string        `json:"source"`
 		ConfigFile project.Path  `json:"config"`
 		After      project.Paths `json:"after,omitempty"`
 
@@ -43,7 +43,7 @@ type (
 
 // ScanModules scans dir looking for Terragrunt modules. It returns a list of
 // modules with its "DependsOn paths" computed.
-func ScanModules(rootdir string, dir project.Path) (Modules, error) {
+func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modules, error) {
 	absDir := project.AbsPath(rootdir, dir.String())
 	opts := newTerragruntOptions(absDir)
 
@@ -59,7 +59,6 @@ func ScanModules(rootdir string, dir project.Path) (Modules, error) {
 	var modules Modules
 
 	sort.Strings(tgConfigFiles)
-	slices.Compact(tgConfigFiles)
 
 	fileErrs := map[string]*errors.List{}
 	fileProcessed := map[string]struct{}{}
@@ -71,7 +70,7 @@ func ScanModules(rootdir string, dir project.Path) (Modules, error) {
 
 		cfgOpts := opts.Clone(cfgfile)
 
-		pctx := config.NewParsingContext(context.Background(), cfgOpts).WithDecodeList(
+		decodeOptions := []config.PartialDecodeSectionType{
 			// needed for tracking:
 			//   - terraform.extra_arguments
 			//   - terraform.required_vars_file
@@ -82,11 +81,16 @@ func ScanModules(rootdir string, dir project.Path) (Modules, error) {
 			// Needed for detecting modules.
 			config.TerraformSource,
 
-			// Need for parsing out the dependencies
-			config.DependencyBlock,
+			// for ordering
 			config.DependenciesBlock,
-		)
+		}
 
+		if trackDependencies {
+			// Need for parsing out the dependencies
+			decodeOptions = append(decodeOptions, config.DependencyBlock)
+		}
+
+		pctx := config.NewParsingContext(context.Background(), cfgOpts).WithDecodeList(decodeOptions...)
 		mod := &Module{
 			Path:       project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
 			ConfigFile: project.PrjAbsPath(rootdir, cfgfile),
@@ -130,6 +134,7 @@ func ScanModules(rootdir string, dir project.Path) (Modules, error) {
 
 		// first module is the module at cfgfile directory.
 		tgMod := stack.Modules[0]
+		mod.Source = *tgConfig.Terraform.Source
 		dependsOn := map[project.Path]struct{}{}
 		for _, path := range mod.DependsOn {
 			dependsOn[path] = struct{}{}
@@ -146,18 +151,20 @@ func ScanModules(rootdir string, dir project.Path) (Modules, error) {
 			dependsOn[project.PrjAbsPath(rootdir, includedFile)] = struct{}{}
 		}
 
-		// "dependency" block is TerragruntDependencies
-		// they get automatically added into tgConfig.Dependencies.Paths
-		for _, dep := range tgConfig.TerragruntDependencies {
-			logger.Trace().Str("dep-path", dep.ConfigPath).Msg("found dependency")
-			if dep.Enabled != nil && !*dep.Enabled {
-				continue
+		if trackDependencies {
+			// "dependency" block is TerragruntDependencies
+			// they get automatically added into tgConfig.Dependencies.Paths
+			for _, dep := range tgConfig.TerragruntDependencies {
+				logger.Trace().Str("dep-path", dep.ConfigPath).Msg("found dependency")
+				if dep.Enabled != nil && !*dep.Enabled {
+					continue
+				}
+				depPath := dep.ConfigPath
+				if !filepath.IsAbs(depPath) {
+					depPath = filepath.Join(tgMod.Path, depPath)
+				}
+				dependsOn[project.PrjAbsPath(rootdir, depPath)] = struct{}{}
 			}
-			depPath := dep.ConfigPath
-			if !filepath.IsAbs(depPath) {
-				depPath = filepath.Join(tgMod.Path, depPath)
-			}
-			dependsOn[project.PrjAbsPath(rootdir, depPath)] = struct{}{}
 		}
 
 		for p := range dependsOn {

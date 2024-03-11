@@ -24,6 +24,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Terragrunt change detection.
+  - Terramate understands the structure of `terragrunt.hcl` files and detects changes if any other Terragrunt referenced file changes (`dependency`, `dependencies` and `include` blocks, function calls like `find_in_parent_folders()`, `read_terragrunt_config()`, etc).
 - Automatically add stack ordering to Terragrunt stacks created by `terramate create --all-terragrunt`.
 
 ## v0.5.0
