@@ -51,6 +51,8 @@ terramate create --all-terragrunt
 If the Terragrunt module declare dependencies then the created stack will have its ordering
 attributes automatically set.
 
+Terramate also has experimental support for Terragrunt in the change detection, check the [Terragrunt integration](../change-detection/integrations/terragrunt.md) page for more information.
+
 ## Usage
 
 ```bash

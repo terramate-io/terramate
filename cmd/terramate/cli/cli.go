@@ -1238,7 +1238,7 @@ func (c *cli) scanCreate() {
 }
 
 func (c *cli) initTerragrunt() {
-	modules, err := tg.ScanModules(c.rootdir(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+	modules, err := tg.ScanModules(c.rootdir(), prj.PrjAbsPath(c.rootdir(), c.wd()), true)
 	if err != nil {
 		fatal("scanning for Terragrunt modules", err)
 	}
