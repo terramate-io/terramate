@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-github/v58/github"
 	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
+	githubql "github.com/shurcooL/githubv4"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
@@ -23,6 +24,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
+	"golang.org/x/oauth2"
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
@@ -495,6 +497,7 @@ func (c *cli) detectCloudMetadata() {
 		Str("github_repository", ghRepo).
 		Logger()
 
+	// HTTP Client
 	githubClient := github.NewClient(&c.httpClient)
 
 	ghToken, tokenSource := auth.TokenForHost(r.Host)
@@ -502,6 +505,20 @@ func (c *cli) detectCloudMetadata() {
 	if ghToken != "" {
 		logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
 		githubClient = githubClient.WithAuthToken(ghToken)
+	}
+
+	// GraphQL CLient
+	var githubQLClient *githubql.Client
+	if ghToken != "" {
+		httpClient := oauth2.NewClient(
+			context.Background(),
+			oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: ghToken},
+			))
+
+		githubQLClient = githubql.NewClient(httpClient)
+	} else {
+		githubQLClient = githubql.NewClient(&c.httpClient)
 	}
 
 	if ghCommit, err := getGithubCommit(githubClient, r.Owner, r.Name, headCommit); err == nil {
@@ -556,7 +573,12 @@ func (c *cli) detectCloudMetadata() {
 		}
 	}
 
-	c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged)
+	reviewDecision, err := getGithubPRReviewDecision(githubQLClient, r.Owner, r.Name, pull.GetNumber())
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to retrieve review decision")
+	}
+
+	c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged, reviewDecision)
 }
 
 func getGithubPRByNumberOrCommit(githubClient *github.Client, ghToken, owner, repo string, number int, commit string) (*github.PullRequest, error) {
@@ -642,6 +664,37 @@ func getGithubPRByCommit(ghClient *github.Client, owner, repo, commit string) (*
 	}
 
 	return pulls[0], true, nil
+
+}
+
+func getGithubPRReviewDecision(qlClient *githubql.Client, owner, repo string, pullNumber int) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
+	defer cancel()
+
+	var q struct {
+		Repository struct {
+			PullRequest struct {
+				ReviewDecision string
+			} `graphql:"pullRequest(number: $pr_number)"`
+			Description string
+		} `graphql:"repository(owner: $repo_owner, name: $repo_name)"`
+	}
+
+	vars := map[string]interface{}{
+		"repo_owner": githubql.String(owner),
+		"repo_name":  githubql.String(repo),
+		"pr_number":  githubql.Int(pullNumber),
+	}
+
+	err := qlClient.Query(ctx, &q, vars)
+	if err != nil {
+		return "", err
+	}
+	r := q.Repository.PullRequest.ReviewDecision
+	if r == "" {
+		return "none", nil
+	}
+	return strings.ToLower(r), nil
 
 }
 
@@ -778,7 +831,7 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 	md.GithubPullRequestAuthorGravatarID = pull.GetUser().GetGravatarID()
 }
 
-func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool) *cloud.ReviewRequest {
+func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool, reviewDecision string) *cloud.ReviewRequest {
 	pullUpdatedAt := pull.GetUpdatedAt()
 	rr := &cloud.ReviewRequest{
 		Platform:       "github",
@@ -789,7 +842,7 @@ func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullR
 		Description:    pull.GetBody(),
 		CommitSHA:      pull.GetHead().GetSHA(),
 		Draft:          pull.GetDraft(),
-		ReviewRequired: len(pull.RequestedReviewers)+len(pull.RequestedTeams) > 0,
+		ReviewDecision: reviewDecision,
 		UpdatedAt:      pullUpdatedAt.GetTime(),
 	}
 

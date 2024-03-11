@@ -236,7 +236,7 @@ type (
 		Reviewers             Reviewers  `json:"reviewers,omitempty"`
 		Status                string     `json:"status"`
 		Draft                 bool       `json:"draft"`
-		ReviewRequired        bool       `json:"review_required,omitempty"`
+		ReviewDecision        string     `json:"review_decision"`
 		ChangesRequestedCount int        `json:"changes_requested_count"`
 		ApprovedCount         int        `json:"approved_count"`
 		ChecksTotalCount      int        `json:"checks_total_count"`
