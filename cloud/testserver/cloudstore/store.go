@@ -59,7 +59,7 @@ type (
 		TechnologyLayer string                    `json:"technology_layer"`
 		ReviewRequest   *cloud.ReviewRequest      `json:"review_request,omitempty"`
 		Metadata        *cloud.DeploymentMetadata `json:"metadata,omitempty"`
-		StackPreviews   []StackPreview            `json:"stack_previews"`
+		StackPreviews   []*StackPreview           `json:"stack_previews"`
 	}
 
 	// StackPreview is the stack preview model.
@@ -309,13 +309,12 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int64, error) {
 
 // AppendPreviewLogs appends logs to the given stack preview.
 func (d *Data) AppendPreviewLogs(org Org, stackPreviewID string, logs cloud.CommandLogs) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	for _, p := range org.Previews {
-		for spIndex, sp := range p.StackPreviews {
+		for _, sp := range p.StackPreviews {
 			if sp.ID == stackPreviewID {
 				sp.Logs = append(sp.Logs, logs...)
-				p.StackPreviews[spIndex] = sp
 				return nil
 			}
 		}
@@ -377,7 +376,7 @@ func (d *Data) GetPreviewByID(org Org, previewID string) (Preview, bool) {
 }
 
 // UpsertStackPreview inserts or updates the given stack preview.
-func (d *Data) UpsertStackPreview(org Org, previewID string, sp StackPreview) (string, error) {
+func (d *Data) UpsertStackPreview(org Org, previewID string, sp *StackPreview) (string, error) {
 	_, pIndex, found := d.getPreviewByID(org, previewID)
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -401,9 +400,9 @@ func (d *Data) UpsertStackPreview(org Org, previewID string, sp StackPreview) (s
 }
 
 // UpdateStackPreview updates the given stack preview.
-func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string, changeset *cloud.ChangesetDetails) (StackPreview, bool) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
+func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string, changeset *cloud.ChangesetDetails) (*StackPreview, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	for i, p := range org.Previews {
 		for spIndex, sp := range p.StackPreviews {
 			if sp.ID == stackPreviewID {
@@ -414,9 +413,8 @@ func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string,
 				return sp, true
 			}
 		}
-
 	}
-	return StackPreview{}, false
+	return nil, false
 }
 
 // GetDeployment returns the given deployment.
@@ -607,13 +605,13 @@ func (d *Data) GetGithubPullRequestResponse() json.RawMessage {
 	return d.Github.GetPullRequestResponse
 }
 
-func (d *Data) getStackPreviewByMetaID(spMetaID string, stackPreviews []StackPreview) (StackPreview, int64, bool) {
+func (d *Data) getStackPreviewByMetaID(spMetaID string, stackPreviews []*StackPreview) (*StackPreview, int64, bool) {
 	for i := range stackPreviews {
 		if stackPreviews[i].Stack.MetaID == spMetaID {
 			return stackPreviews[i], int64(i), true
 		}
 	}
-	return StackPreview{}, 0, false
+	return nil, 0, false
 }
 
 func (d *Data) getPreviewByID(org Org, id string) (Preview, int64, bool) {

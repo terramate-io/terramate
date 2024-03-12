@@ -71,7 +71,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					Technology:      "terraform",
 					TechnologyLayer: "default",
 					UpdatedAt:       1707482312,
-					StackPreviews: []cloudstore.StackPreview{
+					StackPreviews: []*cloudstore.StackPreview{
 						{
 							ID:     "1",
 							Status: "changed",
@@ -114,7 +114,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					Technology:      "terraform",
 					TechnologyLayer: "default",
 					UpdatedAt:       1707482312,
-					StackPreviews: []cloudstore.StackPreview{
+					StackPreviews: []*cloudstore.StackPreview{
 						{
 							ID:     "1",
 							Status: "failed",
