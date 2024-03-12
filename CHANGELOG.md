@@ -20,7 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.4.7
+
+### Fixed
+
+- Remove lowercase validation from `stack.meta_id` (`stack.id` in the stack block)
+  - This would allow users to sync stacks to Terramate Cloud with upper case characters in the `stack.id` attribute.
 
 ## v0.4.6
 
