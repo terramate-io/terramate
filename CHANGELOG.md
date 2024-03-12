@@ -20,7 +20,17 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.5.3
+
+### Fixed
+
+- Fixed issue that prevented stack previews from being created when using uppercase letters in stack IDs.
+
+## v0.5.2
+
+### Fixed
+
+- Fixed inconsistency in `stack.id` case-sensitivity when `--cloud-sync-*` flags are used.
 
 ## v0.5.1
 

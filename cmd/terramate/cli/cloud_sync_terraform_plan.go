@@ -20,6 +20,8 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+const terraformShowTimeout = 300 * time.Second
+
 func (c *cli) getTerraformChangeset(run stackCloudRun, planfile string) (*cloud.ChangesetDetails, error) {
 	logger := log.With().
 		Str("action", "getTerraformChangeset").
@@ -96,8 +98,7 @@ func (c *cli) runTerraformShow(run stackCloudRun, planfile string, flags ...stri
 	args = append(args, flags...)
 	args = append(args, planfile)
 
-	const tfShowTimeout = 5 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), tfShowTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), terraformShowTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "terraform", args...)
@@ -114,6 +115,10 @@ func (c *cli) runTerraformShow(run stackCloudRun, planfile string, flags ...stri
 
 	err := cmd.Run()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", errors.E(clitest.ErrCloudTerraformPlanFile, "command timed out: %s", cmd.String())
+		}
+
 		logger.Error().Str("stderr", stderr.String()).Msg("command stderr")
 		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "executing: %s", cmd.String())
 	}

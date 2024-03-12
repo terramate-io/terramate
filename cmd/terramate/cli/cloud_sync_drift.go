@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
@@ -60,7 +61,7 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 			Repository:      c.prj.prettyRepo(),
 			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 			Path:            st.Dir.String(),
-			MetaID:          st.ID,
+			MetaID:          strings.ToLower(st.ID),
 			MetaName:        st.Name,
 			MetaDescription: st.Description,
 			MetaTags:        st.Tags,
