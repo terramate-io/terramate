@@ -373,7 +373,7 @@ func (c *cli) syncLogs(logger *zerolog.Logger, run runContext, logs cloud.Deploy
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	stackID := c.cloud.run.meta2id[run.Stack.ID]
+	stackID := c.cloud.run.meta2id[strings.ToLower(run.Stack.ID)]
 	err := c.cloud.client.SyncDeploymentLogs(
 		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs,
 	)

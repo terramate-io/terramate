@@ -230,6 +230,29 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 		{
+			name:   "basic drift sync with uppercase stack id",
+			layout: []string{"s:stack:id=STACK"},
+			cmd: []string{
+				HelperPath, "exit", "2",
+			},
+			want: want{
+				drifts: expectedDriftStackPayloadRequests{
+					{
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository:    "local",
+								DefaultBranch: "main",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
+							},
+							Status: drift.Drifted,
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "only stacks inside working dir are synced",
 			layout: []string{
 				"s:parent:id=parent",
