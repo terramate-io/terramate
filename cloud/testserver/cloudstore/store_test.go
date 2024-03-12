@@ -56,7 +56,7 @@ func TestUpsertPreview(t *testing.T) {
 			Description: "Test descritiption",
 			URL:         "https://github.com/terramate-io/terramate/pull/42",
 		},
-		StackPreviews: []cloudstore.StackPreview{
+		StackPreviews: []*cloudstore.StackPreview{
 			{
 				Stack: cloudstore.Stack{
 					Stack: cloud.Stack{

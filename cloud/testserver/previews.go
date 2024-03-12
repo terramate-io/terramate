@@ -189,7 +189,7 @@ func PostPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		stackPreviewID, err := store.UpsertStackPreview(org, previewID, cloudstore.StackPreview{
+		stackPreviewID, err := store.UpsertStackPreview(org, previewID, &cloudstore.StackPreview{
 			Stack: cloudstore.Stack{
 				Stack: s.Stack,
 				State: cloudstore.NewState(),
