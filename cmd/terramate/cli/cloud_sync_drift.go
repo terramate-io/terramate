@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tfjson "github.com/hashicorp/terraform-json"
@@ -68,7 +69,7 @@ func (c *cli) cloudSyncDriftStatus(run runContext, res runResult, err error) {
 			Repository:      c.prj.prettyRepo(),
 			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 			Path:            st.Dir.String(),
-			MetaID:          st.ID,
+			MetaID:          strings.ToLower(st.ID),
 			MetaName:        st.Name,
 			MetaDescription: st.Description,
 			MetaTags:        st.Tags,

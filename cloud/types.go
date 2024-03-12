@@ -410,6 +410,11 @@ func (s Stack) Validate() error {
 	if s.MetaID == "" {
 		return errors.E(`missing "meta_id" field`)
 	}
+
+	if strings.ToLower(s.MetaID) != s.MetaID {
+		return errors.E(`"meta_id" requires a lowercase string but %s provided`, s.MetaID)
+	}
+
 	return nil
 }
 

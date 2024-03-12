@@ -149,7 +149,7 @@ func (c *cli) doCloudSyncDeployment(run runContext, status deployment.Status) {
 		Stringer("status", status).
 		Logger()
 
-	stackID, ok := c.cloud.run.meta2id[st.ID]
+	stackID, ok := c.cloud.run.meta2id[strings.ToLower(st.ID)]
 	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return
