@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fixed internal mapping of `metaID -> previewID` that prevented stack previews from being created if stack ids contained uppercase letters.
+
 ## v0.5.2
 
 ### Fixed

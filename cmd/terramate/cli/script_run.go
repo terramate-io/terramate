@@ -173,7 +173,9 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	}
 
 	if len(previewRuns) > 0 {
-		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
+		for metaID, previewID := range c.createCloudPreview(previewRuns) {
+			c.cloud.run.setMeta2PreviewID(metaID, previewID)
+		}
 	}
 }
 
