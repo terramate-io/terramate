@@ -327,12 +327,14 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 				sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()),
 				err)
 
-			printer.Stderr.Warn(
-				sprintf("preview status set to \"failed\" (previously %q) due to failure when generating the "+
-					"changeset details", previewStatus),
-			)
+			if previewStatus != preview.StackStatusFailed {
+				printer.Stderr.Warn(
+					sprintf("preview status set to \"failed\" (previously %q) due to failure when generating the "+
+						"changeset details", previewStatus),
+				)
 
-			previewStatus = preview.StackStatusFailed
+				previewStatus = preview.StackStatusFailed
+			}
 		}
 		if changeset != nil {
 			previewChangeset = &cloud.ChangesetDetails{
