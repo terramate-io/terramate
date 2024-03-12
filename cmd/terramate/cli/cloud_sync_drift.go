@@ -22,6 +22,8 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+const terraformShowTimeout = 60 * time.Second
+
 func (c *cli) cloudSyncDriftStatus(run runContext, res runResult, err error) {
 	st := run.Stack
 
@@ -165,8 +167,7 @@ func (c *cli) runTerraformShow(run runContext, planfile string, flags ...string)
 	args = append(args, flags...)
 	args = append(args, planfile)
 
-	const tfShowTimeout = 5 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), tfShowTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), terraformShowTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "terraform", args...)
