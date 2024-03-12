@@ -178,7 +178,9 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
-		c.cloud.run.stackPreviews = c.createCloudPreview(previewRuns)
+		for metaID, previewID := range c.createCloudPreview(previewRuns) {
+			c.cloud.run.setMeta2PreviewID(metaID, previewID)
+		}
 	}
 
 	err = c.runAll(runs, runAllOptions{
@@ -472,15 +474,8 @@ func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandL
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	stackID, ok := c.cloud.run.stackCloudID(run.Stack.ID)
-	if !ok {
-		logger.Warn().
-			Err(errors.E(errors.ErrInternal, "cloud stack id not found: failed to sync logs")).
-			Send()
-
-		return
-	}
-	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
+	stackID, _ := c.cloud.run.stackCloudID(run.Stack.ID)
+	stackPreviewID, _ := c.cloud.run.cloudPreviewID(run.Stack.ID)
 	err := c.cloud.client.SyncCommandLogs(
 		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs, stackPreviewID,
 	)
