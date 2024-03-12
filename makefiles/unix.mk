@@ -31,15 +31,24 @@ test/testserver:
 ## build the helper binary
 .PHONY: test/helper
 test/helper:
-	go build -o bin/helper ./cmd/terramate/e2etests/cmd/helper
+	go build -o bin/helper ./e2etests/cmd/helper
 
 ## test code
 .PHONY: test
 tempdir=$(shell ./bin/helper tempdir)
+test: parallel?=10
 test: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
-	./bin/terramate run --no-recursive -- go test -c -tags interop ./cmd/terramate/e2etests/cloud/interop/...
-	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -p $(parallel) -timeout=30m ./...
+	./bin/helper rm $(tempdir)
+
+## test/script run tests throught script run
+.PHONY: test/script
+tempdir=$(shell ./bin/helper tempdir)
+test/script: parallel?=10
+test/script: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate script run --parallel=$(parallel) --changed --tags=golang -- test
 	./bin/helper rm $(tempdir)
 
 ## test/interop

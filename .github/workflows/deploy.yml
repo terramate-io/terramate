@@ -1,0 +1,62 @@
+# Copyright 2024 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+name: Terramate Deployment
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Run all tests and create a Terramate Cloud Deployment
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+
+    runs-on: "ubuntu-20.04"
+
+    steps:
+      ### Check out the code
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      ### Install tooling
+
+      - name: Install Terramate
+        uses: terramate-io/terramate-action@v1
+
+      - name: check cloud info
+        run: terramate run --tags golang --no-recursive -- ./bin/terramate cloud info || true
+        env:
+          TMC_API_HOST: api.stg.terramate.io
+
+      ### Check for changed stacks
+
+      - name: List changed stacks
+        id: list
+        run: terramate list --changed
+
+      - name: checking go mod tidyness
+        if: steps.list.outputs.stdout
+        run: make mod/check
+
+      - name: linting code
+        if: steps.list.outputs.stdout
+        run: make lint
+
+      - name: checking license on source code
+        if: steps.list.outputs.stdout
+        run: make license/check
+
+      - name: check and test all
+        if: steps.list.outputs.stdout
+        run: terramate script run --parallel=5 --changed --tags=golang -- test deploy
+        env:
+          TMC_API_HOST: api.stg.terramate.io
+          GITHUB_TOKEN: ${{ github.token }}
