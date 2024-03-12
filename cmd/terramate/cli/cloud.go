@@ -320,7 +320,7 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
 	var previewChangeset *cloud.ChangesetDetails
-	if planfile != "" {
+	if planfile != "" && previewStatus != preview.StackStatusCanceled {
 		changeset, err := c.getTerraformChangeset(run, planfile)
 		if err != nil || changeset == nil {
 			printer.Stderr.WarnWithDetails(
