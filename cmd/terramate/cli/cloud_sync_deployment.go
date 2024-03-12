@@ -122,7 +122,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 			c.disableCloudFeatures(cloudError())
 			return
 		}
-		c.cloud.run.meta2id[r.StackMetaID] = r.StackID
+		c.cloud.run.setMeta2CloudID(r.StackMetaID, r.StackID)
 	}
 }
 
@@ -149,7 +149,7 @@ func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status)
 		Stringer("status", status).
 		Logger()
 
-	stackID, ok := c.cloud.run.meta2id[run.Stack.ID]
+	stackID, ok := c.cloud.run.stackCloudID(run.Stack.ID)
 	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return

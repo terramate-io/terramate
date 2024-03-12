@@ -152,7 +152,6 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	c.detectCloudMetadata()
 
 	if len(deployRuns) > 0 {
-		c.cloud.run.meta2id = make(map[string]int64)
 		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)

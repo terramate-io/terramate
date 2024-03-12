@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fixed inconsistency in `stack.id` case-sensitivity when `--cloud-sync-*` flags are used.
+
 ## v0.5.1
 
 ### Added
