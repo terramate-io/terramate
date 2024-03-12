@@ -47,24 +47,25 @@ const (
 	githubErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
 )
 
+type cloudRunState struct {
+	runUUID cloud.UUID
+	orgName string
+	orgUUID cloud.UUID
+
+	stackMeta2ID map[string]int64
+	// stackPreviews is a map of stack.ID to stackPreview.ID
+	stackPreviews  map[string]string
+	reviewRequest  *cloud.ReviewRequest
+	prFromGHAEvent *github.PullRequest
+	metadata       *cloud.DeploymentMetadata
+}
+
 type cloudConfig struct {
 	disabled bool
 	client   *cloud.Client
 	output   out.O
 
-	run struct {
-		runUUID cloud.UUID
-		orgName string
-		orgUUID cloud.UUID
-
-		meta2id map[string]int64
-		// stackPreviews is a map of stack.ID to stackPreview.ID
-		stackPreviews               map[string]string
-		reviewRequest               *cloud.ReviewRequest
-		prFromGHAEvent              *github.PullRequest
-		metadata                    *cloud.DeploymentMetadata
-		technology, technologyLayer string
-	}
+	run cloudRunState
 }
 
 type credential interface {
@@ -84,6 +85,18 @@ type credential interface {
 type keyValue struct {
 	key   string
 	value string
+}
+
+func (rs *cloudRunState) setMeta2CloudID(metaID string, id int64) {
+	if rs.stackMeta2ID == nil {
+		rs.stackMeta2ID = make(map[string]int64)
+	}
+	rs.stackMeta2ID[strings.ToLower(metaID)] = id
+}
+
+func (rs cloudRunState) stackCloudID(metaID string) (int64, bool) {
+	id, ok := rs.stackMeta2ID[strings.ToLower(metaID)]
+	return id, ok
 }
 
 func (c *cli) credentialPrecedence(output out.O) []credential {
@@ -147,7 +160,6 @@ func (c *cli) checkCloudSync() {
 	}
 
 	if c.parsedArgs.Run.CloudSyncDeployment {
-		c.cloud.run.meta2id = make(map[string]int64)
 		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)

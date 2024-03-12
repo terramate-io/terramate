@@ -472,7 +472,14 @@ func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandL
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	stackID := c.cloud.run.meta2id[run.Stack.ID]
+	stackID, ok := c.cloud.run.stackCloudID(run.Stack.ID)
+	if !ok {
+		logger.Warn().
+			Err(errors.E(errors.ErrInternal, "cloud stack id not found: failed to sync logs")).
+			Send()
+
+		return
+	}
 	stackPreviewID := c.cloud.run.stackPreviews[run.Stack.ID]
 	err := c.cloud.client.SyncCommandLogs(
 		ctx, c.cloud.run.orgUUID, stackID, c.cloud.run.runUUID, logs, stackPreviewID,
