@@ -130,9 +130,9 @@ export default defineConfig({
           items: [
             { text: 'About Stacks', link: '/cli/stacks/' },
             { text: 'Create Stacks', link: '/cli/stacks/create' },
-            { text: 'Import Terraform 🚧' },
+            { text: 'Import Terraform', link: '/cli/on-boarding/terraform' },
             { text: 'Import Terragrunt', link: '/cli/on-boarding/terragrunt' },
-            { text: 'Import OpenTofu 🚧' },
+            { text: 'Import OpenTofu', link: '/cli/on-boarding/opentofu' },
             {
               text: 'Manage Stacks',
               link: '/cli/stacks/manage',
