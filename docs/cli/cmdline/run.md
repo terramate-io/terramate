@@ -75,15 +75,15 @@ The following example runs 5 stacks in parallel, selects only recently changed s
 
 ```bash
 # initialize changed stacks
-terramate run --changed --prallel 5 -- \
+terramate run --changed --parallel 5 -- \
   terraform init
 
 # create a preview plan
-terramate run --changed --prallel 5 -- \
+terramate run --changed --parallel 5 -- \
   terraform plan -lock-timeout=5m -out out.tfplan
 
 # run the deployment
-terramate run --changed --prallel 5 \
+terramate run --changed --parallel 5 \
   --cloud-sync-deployment \
   --cloud-sync-terraform-plan-file=out.tfplan \
   -- \
@@ -110,7 +110,7 @@ terramate run --parallel 5 -- \\
   terraform init
 
 # run the actual drift detection
-terramate run --prallel 5 \
+terramate run --parallel 5 \
   --cloud-sync-drift-status \
   --cloud-sync-terraform-plan-file=drift.tfplan \
   -- \
