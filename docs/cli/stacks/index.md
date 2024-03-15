@@ -5,19 +5,19 @@ description: Learn how stacks help you efficiently build and manage infrastructu
 
 # About stacks
 
-A modular approach is recommended when working with Infrastructure as Code (IaC). This approach breaks the entire infrastructure code and state into **smaller** and **isolated** units, often referred to as ***stacks.***
+A modular approach is recommended when working with Infrastructure as Code (IaC). This approach breaks the entire infrastructure code and state into **smaller** and **isolated** units, often referred to as **_stacks._**
 
 ## What are stacks?
 
-A stack is a collection of infrastructure resources that you *configure, provision* and *manage* as a unit.
+A stack is a collection of infrastructure resources that you _configure, provision_ and _manage_ as a unit.
 
 You can think about a stack as a combination of:
 
 - **Infrastructure code** which declares a set of infrastructure assets and their configuration.
-Terraform code (`.tf` files) and Cloud Formation (`.json` files) templates are examples of infrastructure code.
-- **State** that describes the status of the assets according to the *latest deployment* (e.g., Terraform state,
-Pulumi state, etc. - can be either stored locally or in a remote location)
-- **Configuration** to *configure* the infrastructure assets and stack behavior (e.g., Variables, Stack Configuration, etc.)
+  Terraform code (`.tf` files) and Cloud Formation (`.json` files) templates are examples of infrastructure code.
+- **State** that describes the status of the assets according to the _latest deployment_ (e.g., Terraform state,
+  Pulumi state, etc. - can be either stored locally or in a remote location)
+- **Configuration** to _configure_ the infrastructure assets and stack behavior (e.g., Variables, Stack Configuration, etc.)
 
 Using stacks to break up your infrastructure code into manageable pieces is considered an industry standard and
 provides the following benefits:
@@ -39,7 +39,7 @@ Terramate Stacks are Infrastructure as Code agnostic stacks and improve the **de
 and **scalability** in Infrastructure as Code projects of any scale.
 
 You can use Terramate Stacks to manage IaC technologies such as Terraform, OpenTofu, Terragrunt, Kubernetes, AWS Cloud
-Formation, AWS Cloud Development Kit  (CDK), Bicep, and others.
+Formation, AWS Cloud Development Kit (CDK), Bicep, and others.
 
 ::: info
 Some IaC technologies, such as AWS Cloud Development Kit (CDK), offer native implementations of stacks, while others don’t.
@@ -47,7 +47,7 @@ It’s important to understand that Terramate integrates seamlessly with those a
 E.g., Terramate can be used to manage Terraform workspaces and CDK Stacks.
 :::
 
-Most of the time, Terramate projects manage *dozens*, *hundreds*, or even *thousands* of stacks. This is possible
+Most of the time, Terramate projects manage _dozens_, _hundreds_, or even _thousands_ of stacks. This is possible
 because Terramate CLI provides a neat set of features that allow you to create and manage stacks efficiently at any
 scale:
 
@@ -91,7 +91,7 @@ stack {
   ]
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Optionally the orchestration behavior can be configured 
+  # Optionally the orchestration behavior can be configured
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   # Ensures that the current stack is executed before the following stacks
@@ -106,7 +106,7 @@ stack {
   ]
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Optionally the trigger behavior can be configured 
+  # Optionally the trigger behavior can be configured
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   # If any of the configured files changed, this stack will be marked as changed in the change detection.

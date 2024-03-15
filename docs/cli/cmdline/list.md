@@ -13,25 +13,25 @@ The `terramate list` command lists all Terramate stacks in the current directory
 
 ## Examples
 
-List all stacks in the current directory recursively:
+### List all stacks in the current directory recursively:
 
 ```bash
 terramate list
 ```
 
-List all stacks in the current directory sorted by order of execution:
+### List all stacks in the current directory sorted by order of execution:
 
 ```bash
 terramate list --run-order
 ```
 
-Explicitly change the working directory:
+### Explicitly change the working directory:
 
 ```bash
 terramate list --chdir path/to/directory
 ```
 
-List all stacks below the current directory that have a "drifted" status on Terramate Cloud
+### List all stacks below the current directory that have a "drifted" status on Terramate Cloud
 
 ```bash
 terramate list --cloud-status=drifted
