@@ -16,10 +16,11 @@ import (
 
 func TestCreateAllTerragrunt(t *testing.T) {
 	type testcase struct {
-		name   string
-		layout []string
-		wd     string
-		want   RunExpected
+		name      string
+		layout    []string
+		wd        string
+		want      RunExpected
+		wantOrder []string
 	}
 
 	hclfile := func(name string, content *hclwrite.Block) string {
@@ -51,6 +52,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin("Created stack /"),
 			},
+			wantOrder: []string{"."},
 		},
 		{
 			name: "terragrunt module at /dir but terraform.source imported from /_common",
@@ -66,6 +68,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			want: RunExpected{
 				Stdout: "Created stack /dir\n",
 			},
+			wantOrder: []string{"dir"},
 		},
 		{
 			name: "terragrunt module at /dir merged with terraform block from root",
@@ -89,6 +92,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			want: RunExpected{
 				Stdout: "Created stack /dir\n",
 			},
+			wantOrder: []string{"dir"},
 		},
 		{
 			name: "multiple siblings terragrunt modules using same TF module",
@@ -116,6 +120,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 					"Created stack /mod3",
 				),
 			},
+			wantOrder: []string{"mod1", "mod2", "mod3"},
 		},
 		{
 			name: "nested terragrunt modules using same TF module",
@@ -143,6 +148,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 					"Created stack /mod1/mod2/mod3",
 				),
 			},
+			wantOrder: []string{"mod1", "mod1/mod2", "mod1/mod2/mod3"},
 		},
 		{
 			name: "terragrunt module at /dir merged with terraform module from root",
@@ -165,6 +171,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 					"Created stack /dir",
 				),
 			},
+			wantOrder: []string{".", "dir"},
 		},
 		{
 			name: "detects Terragrunt module inside Terramate stack",
@@ -178,6 +185,10 @@ func TestCreateAllTerragrunt(t *testing.T) {
 				Stdout: nljoin(
 					"Created stack /prod/stacks/stack1/tg-stack",
 				),
+			},
+			wantOrder: []string{
+				"prod/stacks/stack1",
+				"prod/stacks/stack1/tg-stack",
 			},
 		},
 		{
@@ -196,6 +207,156 @@ func TestCreateAllTerragrunt(t *testing.T) {
 					"Created stack /prod/stack",
 				),
 			},
+			wantOrder: []string{"stack"},
+		},
+		{
+			name: "terragrunt module at root with dependencies at /modules",
+			layout: []string{
+				hclfile("terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependencies",
+						Expr("paths", `["modules/mod1"]`),
+					),
+				)),
+				hclfile("modules/mod1/terragrunt.hcl", Block("terraform",
+					Str("source", "github.com/some/repo"),
+				)),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /",
+					"Created stack /modules/mod1",
+				),
+			},
+			wantOrder: []string{"modules/mod1", "."},
+		},
+		{
+			name: "multiple orderings using dependencies block",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../2"]`),
+					),
+				)),
+				hclfile("2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../3"]`),
+					))),
+				hclfile("3/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					))),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /1",
+					"Created stack /2",
+					"Created stack /3",
+				),
+			},
+			wantOrder: []string{"3", "2", "1"},
+		},
+		{
+			name: "multiple orderings using dependency block",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module2"),
+						Str("config_path", `../2`),
+					),
+				)),
+				hclfile("2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module3"),
+						Str("config_path", `../3`),
+					))),
+				hclfile("3/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					))),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /1",
+					"Created stack /2",
+					"Created stack /3",
+				),
+			},
+			wantOrder: []string{"3", "2", "1"},
+		},
+		{
+			name: "multiple orderings using dependencies/dependency block",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module2"),
+						Str("config_path", `../2`),
+					),
+					Block("dependencies",
+						Expr("paths", `["../3"]`),
+					))),
+				hclfile("2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module3"),
+						Str("config_path", `../3`),
+					))),
+				hclfile("3/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					))),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /1",
+					"Created stack /2",
+					"Created stack /3",
+				),
+			},
+			wantOrder: []string{"3", "2", "1"},
+		},
+		{
+			name: "Terragrunt definitions with ciclic ordering",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../2"]`),
+					),
+				)),
+				hclfile("2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../1"]`),
+					))),
+			},
+			want: RunExpected{
+				Status:      1,
+				StderrRegex: "Found a dependency cycle between modules",
+			},
 		},
 	} {
 		tc := tc
@@ -203,10 +364,18 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 			tm := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			res := tm.Run("create", "--all-terragrunt")
 			AssertRunResult(t,
-				tm.Run("create", "--all-terragrunt"),
+				res,
 				tc.want,
 			)
+			if res.Status == 0 {
+				tm := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+				res := tm.Run("list", "--run-order")
+				AssertRunResult(t, res, RunExpected{
+					Stdout: nljoin(tc.wantOrder...),
+				})
+			}
 		})
 	}
 }

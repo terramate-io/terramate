@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -22,10 +24,16 @@ type (
 	// It has public fields but they *SHALL NOT* be directly manipulated
 	// unless for the case of initialiting the data.
 	Data struct {
-		mu        sync.RWMutex
-		Orgs      map[string]Org        `json:"orgs"`
-		Users     map[string]cloud.User `json:"users"`
-		WellKnown *cloud.WellKnown      `json:"well_known"`
+		mu                    sync.RWMutex
+		Orgs                  map[string]Org        `json:"orgs"`
+		Users                 map[string]cloud.User `json:"users"`
+		WellKnown             *cloud.WellKnown      `json:"well_known"`
+		previewIDAutoInc      int
+		stackPreviewIDAutoInc int
+		Github                struct {
+			GetPullRequestResponse json.RawMessage `json:"get_pull_request_response"`
+			GetCommitResponse      json.RawMessage `json:"get_commit_response"`
+		} `json:"github"`
 	}
 	// Org is the organization model.
 	Org struct {
@@ -35,11 +43,36 @@ type (
 		Domain      string     `json:"domain"`
 		Status      string     `json:"status"`
 
-		Members     []Member                   `json:"members"`
-		Stacks      []Stack                    `json:"stacks"`
-		Deployments map[cloud.UUID]*Deployment `json:"deployments"`
-		Drifts      []Drift                    `json:"drifts"`
+		Members        []Member                   `json:"members"`
+		Stacks         []Stack                    `json:"stacks"`
+		Deployments    map[cloud.UUID]*Deployment `json:"deployments"`
+		Drifts         []Drift                    `json:"drifts"`
+		Previews       []Preview                  `json:"previews"`
+		ReviewRequests []cloud.ReviewRequest      `json:"review_requests"`
 	}
+	//Preview is the preview model.
+	Preview struct {
+		PreviewID string `json:"preview_id"`
+
+		UpdatedAt       int64                     `json:"updated_at"`
+		Technology      string                    `json:"technology"`
+		TechnologyLayer string                    `json:"technology_layer"`
+		ReviewRequest   *cloud.ReviewRequest      `json:"review_request,omitempty"`
+		Metadata        *cloud.DeploymentMetadata `json:"metadata,omitempty"`
+		StackPreviews   []*StackPreview           `json:"stack_previews"`
+	}
+
+	// StackPreview is the stack preview model.
+	StackPreview struct {
+		Stack
+
+		ID               string                  `json:"stack_preview_id"`
+		Status           preview.StackStatus     `json:"status"`
+		Cmd              []string                `json:"cmd,omitempty"`
+		ChangesetDetails *cloud.ChangesetDetails `json:"changeset_details,omitempty"`
+		Logs             cloud.CommandLogs       `json:"logs,omitempty"`
+	}
+
 	// Member represents the organization member.
 	Member struct {
 		UserUUID cloud.UUID `json:"user_uuid"`
@@ -274,6 +307,116 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int64, error) {
 	return int64(len(org.Stacks) - 1), nil
 }
 
+// AppendPreviewLogs appends logs to the given stack preview.
+func (d *Data) AppendPreviewLogs(org Org, stackPreviewID string, logs cloud.CommandLogs) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, p := range org.Previews {
+		for _, sp := range p.StackPreviews {
+			if sp.ID == stackPreviewID {
+				sp.Logs = append(sp.Logs, logs...)
+				return nil
+			}
+		}
+	}
+	return errors.E(ErrNotExists, "stack preview id %s", stackPreviewID)
+}
+
+// UpsertPreview inserts or updates the given preview.
+func (d *Data) UpsertPreview(orguuid cloud.UUID, p Preview) (string, error) {
+	org, found := d.GetOrg(orguuid)
+	if !found {
+		return "", errors.E(ErrNotExists, "org uuid %s", orguuid)
+	}
+
+	d.upsertReviewRequest(org, p.ReviewRequest)
+	for _, sp := range p.StackPreviews {
+		_, err := d.UpsertStack(orguuid, sp.Stack)
+		if err != nil {
+			return "", errors.E(err, "failed to upsert stack")
+		}
+	}
+
+	_, id, found := d.getPreview(org, p.ReviewRequest.Number, p.UpdatedAt)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	p.PreviewID = d.newPreviewID()
+
+	if found {
+		org.Previews[id] = p
+		d.Orgs[org.Name] = org
+
+		for _, sp := range p.StackPreviews {
+			_, err := d.UpsertStackPreview(org, p.PreviewID, sp)
+			if err != nil {
+				return "", errors.E(err, "failed to upsert stack preview")
+			}
+		}
+		return p.PreviewID, nil
+	}
+
+	org = d.Orgs[org.Name]
+	org.Previews = append(org.Previews, p)
+	d.Orgs[org.Name] = org
+
+	return p.PreviewID, nil
+}
+
+// GetPreviewByID returns the preview associated with previewID.
+func (d *Data) GetPreviewByID(org Org, previewID string) (Preview, bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for i := range org.Previews {
+		if org.Previews[i].PreviewID == previewID {
+			return org.Previews[i], true
+		}
+	}
+	return Preview{}, false
+}
+
+// UpsertStackPreview inserts or updates the given stack preview.
+func (d *Data) UpsertStackPreview(org Org, previewID string, sp *StackPreview) (string, error) {
+	_, pIndex, found := d.getPreviewByID(org, previewID)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if found {
+		stackPreviews := org.Previews[pIndex].StackPreviews
+		_, spIndex, spFound := d.getStackPreviewByMetaID(sp.Stack.MetaID, stackPreviews)
+		if spFound {
+			stackPreviews[spIndex] = sp
+			d.Orgs[org.Name] = org
+			return stackPreviews[spIndex].ID, nil
+		}
+
+		sp.ID = d.newStackPreviewID()
+		org.Previews[pIndex].StackPreviews = append(org.Previews[pIndex].StackPreviews, sp)
+		d.Orgs[org.Name] = org
+		return sp.ID, nil
+	}
+
+	return "", errors.E(ErrNotExists, "preview id %s", previewID)
+}
+
+// UpdateStackPreview updates the given stack preview.
+func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string, changeset *cloud.ChangesetDetails) (*StackPreview, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, p := range org.Previews {
+		for _, sp := range p.StackPreviews {
+			if sp.ID == stackPreviewID {
+				sp.Status = preview.StackStatus(status)
+				if changeset != nil {
+					sp.ChangesetDetails = changeset
+				}
+				return sp, true
+			}
+		}
+	}
+	return nil, false
+}
+
 // GetDeployment returns the given deployment.
 func (d *Data) GetDeployment(org *Org, id cloud.UUID) (*Deployment, bool) {
 	d.mu.RLock()
@@ -450,4 +593,81 @@ func NewState() StackState {
 		DeploymentStatus: deployment.OK,
 		DriftStatus:      drift.OK,
 	}
+}
+
+// GetGithubCommitResponse returns the github commit response.
+func (d *Data) GetGithubCommitResponse() json.RawMessage {
+	return d.Github.GetCommitResponse
+}
+
+// GetGithubPullRequestResponse returns the github pull request response.
+func (d *Data) GetGithubPullRequestResponse() json.RawMessage {
+	return d.Github.GetPullRequestResponse
+}
+
+func (d *Data) getStackPreviewByMetaID(spMetaID string, stackPreviews []*StackPreview) (*StackPreview, int64, bool) {
+	for i := range stackPreviews {
+		if stackPreviews[i].Stack.MetaID == spMetaID {
+			return stackPreviews[i], int64(i), true
+		}
+	}
+	return nil, 0, false
+}
+
+func (d *Data) getPreviewByID(org Org, id string) (Preview, int64, bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for i, p := range org.Previews {
+		if p.PreviewID == id {
+			return p, int64(i), true
+		}
+	}
+	return Preview{}, 0, false
+}
+
+func (d *Data) newPreviewID() string {
+	d.previewIDAutoInc++
+	return strconv.Itoa(d.previewIDAutoInc)
+}
+
+func (d *Data) newStackPreviewID() string {
+	d.stackPreviewIDAutoInc++
+	return strconv.Itoa(d.stackPreviewIDAutoInc)
+}
+
+func (d *Data) upsertReviewRequest(org Org, newRR *cloud.ReviewRequest) {
+	rrIndex, rrFound := d.getReviewRequest(org, newRR.Number)
+	if !rrFound {
+		org = d.Orgs[org.Name]
+		org.ReviewRequests = append(org.ReviewRequests, *newRR)
+		d.Orgs[org.Name] = org
+		return
+	}
+
+	org = d.Orgs[org.Name]
+	org.ReviewRequests[rrIndex] = *newRR
+	d.Orgs[org.Name] = org
+}
+
+func (d *Data) getReviewRequest(org Org, rrNumber int) (int64, bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	for i, rr := range d.Orgs[org.Name].ReviewRequests {
+		if rr.Number == rrNumber {
+			return int64(i), true
+		}
+	}
+	return 0, false
+}
+
+func (d *Data) getPreview(org Org, rrNumber int, updatedAt int64) (Preview, int64, bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for i, p := range org.Previews {
+		if org.Previews[i].ReviewRequest.Number == rrNumber && org.Previews[i].UpdatedAt == updatedAt {
+			return p, int64(i), true
+		}
+	}
+	return Preview{}, 0, false
 }

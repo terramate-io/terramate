@@ -48,7 +48,18 @@ func handler(store *cloudstore.Data, fn Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		if !strings.HasPrefix(r.Header.Get("User-Agent"), "terramate/") {
 			w.WriteHeader(http.StatusBadRequest)
-			writeString(w, "only supports terramate/.* User-Agents")
+			writeString(w, " only supports terramate/.* User-Agents")
+			return
+		}
+		fn(store, w, r, p)
+	}
+}
+
+func handlerGithub(store *cloudstore.Data, fn Handler) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		if !strings.HasPrefix(r.Header.Get("User-Agent"), "go-github/") {
+			w.WriteHeader(http.StatusBadRequest)
+			writeString(w, "only supports go-github/.* User-Agents")
 			return
 		}
 		fn(store, w, r, p)
@@ -94,6 +105,23 @@ func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[st
 		// test only
 		router.GET(cloud.DriftsPath+"/:orguuid", handler(store, GetDrifts))
 	}
+
+	if enabled[cloud.PreviewsPath] {
+		router.POST(cloud.PreviewsPath+"/:orguuid", handler(store, PostPreviews))
+		router.PATCH(cloud.StackPreviewsPath+"/:orguuid/:stack_preview_id", handler(store, PatchStackPreviews))
+		router.POST(cloud.StackPreviewsPath+"/:orguuid/:stack_preview_id/logs", handler(store, PostStackPreviewsLogs))
+		router.GET(cloud.PreviewsPath+"/:orguuid/:preview_id", handler(store, GetPreview))
+	}
+
+	if enabled["github_api"] {
+		router.GET("/repos/:owner/:repo/pulls/:pull_number", handlerGithub(store, GetPullRequest))
+		router.GET("/repos/:owner/:repo/pulls/:pull_number/reviews", handlerGithub(store, ListReviews))
+		router.GET("/repos/:owner/:repo/pulls/:pull_number/merge", handlerGithub(store, PullRequestIsMerged))
+		router.GET("/repos/:owner/:repo/commits/:ref", handlerGithub(store, GetCommit))
+		router.GET("/repos/:owner/:repo/commits/:ref/pulls", handlerGithub(store, ListPullRequestsWithCommit))
+		router.GET("/repos/:owner/:repo/commits/:ref/check-runs", handlerGithub(store, ListCheckRunsForRef))
+	}
+
 }
 
 // RouterAddCustoms add custom routes to the fake server.
@@ -114,6 +142,8 @@ func EnableAllConfig() map[string]bool {
 		cloud.DeploymentsPath:  true,
 		cloud.DriftsPath:       true,
 		cloud.StacksPath:       true,
+		cloud.PreviewsPath:     true,
+		"github_api":           true,
 	}
 }
 

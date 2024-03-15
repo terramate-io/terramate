@@ -14,6 +14,7 @@ import (
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 type repository struct {
@@ -134,6 +135,61 @@ func TestListChangedStacks(t *testing.T) {
 			want: listTestResult{
 				list:    []string{"/stack1", "/stack2"},
 				changed: []string{"/stack2"},
+			},
+		},
+		{
+			name:        "single Terragrunt stack with no changes",
+			repobuilder: singleTerragruntStackWithNoChangesRepo,
+			want: listTestResult{
+				list: []string{"/tg-stack"},
+			},
+		},
+		{
+			name:        "single Terragrunt stack with single local Terraform module changed",
+			repobuilder: singleTerragruntStackWithSingleTerraformModuleChangedRepo,
+			want: listTestResult{
+				list:    []string{"/tg-stack"},
+				changed: []string{"/tg-stack"},
+			},
+		},
+		{
+			name:        "Terragrunt stack changed due to referenced file changed",
+			repobuilder: terragruntStackChangedDueToReferencedFileChangedRepo,
+			want: listTestResult{
+				list:    []string{"/tg-stack"},
+				changed: []string{"/tg-stack"},
+			},
+		},
+		// NOTE(i4k): The testcases below ensure dependant modules are not mark as changed when the dependency changes.
+		// In the future, the dependencies will mark the dependant as changed if a flag is provided.
+		{
+			name:        "Terragrunt stack changed due to a dependency changed",
+			repobuilder: terragruntStackChangedDueToDependencyChangedRepo,
+			want: listTestResult{
+				list:    []string{"/another-stack", "/tg-stack"},
+				changed: []string{"/another-stack"},
+			},
+		},
+		{
+			name:        "Terragrunt stack changed due to the dep of a dep changed",
+			repobuilder: terragruntStackChangedDueToDepOfDepStacksChangedRepo,
+			want: listTestResult{
+				list:    []string{"/dep-dep-tg-stack", "/dep-tg-stack", "/tg-stack"},
+				changed: []string{"/dep-dep-tg-stack"},
+			},
+		},
+		{
+			name:        "Terragrunt stack changed due to the dep of a dep non-stack changed",
+			repobuilder: terragruntStackChangedDueToDepOfDepNonStacksChangedRepo,
+			want: listTestResult{
+				list: []string{"/tg-stack"},
+			},
+		},
+		{
+			name:        "Terragrunt stack changed due to the dep of a dep local terraform changed",
+			repobuilder: terragruntStackChangedDueToDepOfDepModuleSourceChangedRepo,
+			want: listTestResult{
+				list: []string{"/tg-stack"},
 			},
 		},
 	} {
@@ -331,7 +387,6 @@ func singleMergeCommitRepo(t *testing.T) repository {
 	addMergeCommit(t, repo.Dir, "testbranch")
 
 	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
-
 	return repo
 }
 
@@ -545,6 +600,401 @@ module "module2" {
 
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
+
+	return repo
+}
+
+func singleTerragruntStackWithNoChangesRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+
+	repo.modules = append(repo.modules, module1)
+
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "../modules/module1"),
+		),
+	).String())
+
+	test.WriteFile(t, module1, "main.tf", `# empty file`)
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	return repo
+}
+
+func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+
+	repo.modules = append(repo.modules, module1)
+
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "../modules/module1"),
+		),
+	).String())
+
+	test.WriteFile(t, module1, "main.tf", `# empty file`)
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+
+	test.WriteFile(t, module1, "main.tf", `# changed file`)
+	assert.NoError(t, g.Add(module1), "add files")
+	assert.NoError(t, g.Commit("module changed"), "commit files")
+	return repo
+}
+
+func terragruntStackChangedDueToDependencyChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+	anotherStack := test.Mkdir(t, repo.Dir, "another-stack")
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+	createStack(t, root, anotherStack)
+
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "github.com/test/test2"),
+		),
+		Block("dependency",
+			Labels("another-stack"),
+			Str("config_path", "../another-stack"),
+		),
+	).String())
+
+	test.WriteFile(t, anotherStack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "https://etc/etc"),
+		),
+	).String())
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the dependency module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	test.WriteFile(t, anotherStack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "github.com/test/test3"),
+		),
+	).String())
+	assert.NoError(t, g.Add(anotherStack), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	return repo
+}
+
+func terragruntStackChangedDueToDepOfDepStacksChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+	depStack := test.Mkdir(t, repo.Dir, "dep-tg-stack")
+	depDepStack := test.Mkdir(t, repo.Dir, "dep-dep-tg-stack")
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+	createStack(t, root, depStack)
+	createStack(t, root, depDepStack)
+
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "github.com/test/test2"),
+		),
+		Block("dependency",
+			Labels("dep-stack"),
+			Str("config_path", "../dep-tg-stack"),
+		),
+	).String())
+
+	test.WriteFile(t, depStack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "https://etc/etc"),
+		),
+		Block("dependency",
+			Labels("dep-dep-stack"),
+			Str("config_path", "../dep-dep-tg-stack"),
+		),
+	).String())
+
+	test.WriteFile(t, depDepStack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "https://etc/etc"),
+		),
+	).String())
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the dep-dep-tg-stack module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	test.WriteFile(t, depDepStack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "changed/value"),
+		),
+	).String())
+	assert.NoError(t, g.Add(depDepStack), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	return repo
+}
+
+func terragruntStackChangedDueToDepOfDepNonStacksChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+
+	// note: below modules are not stacks
+	depModule := test.Mkdir(t, repo.Dir, "dep-tg-module")
+	depDepModule := test.Mkdir(t, repo.Dir, "dep-dep-tg-module")
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "github.com/test/test2"),
+		),
+		Block("dependency",
+			Labels("dep-stack"),
+			Str("config_path", "../dep-tg-module"),
+		),
+	).String())
+
+	test.WriteFile(t, depModule, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "https://etc/etc"),
+		),
+		Block("dependency",
+			Labels("dep-dep-stack"),
+			Str("config_path", "../dep-dep-tg-module"),
+		),
+	).String())
+
+	test.WriteFile(t, depDepModule, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "https://etc/etc"),
+		),
+	).String())
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the dep-dep-tg-stack module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	test.WriteFile(t, depDepModule, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "changed/value"),
+		),
+	).String())
+	assert.NoError(t, g.Add(depDepModule), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	return repo
+}
+
+func terragruntStackChangedDueToDepOfDepModuleSourceChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+
+	// note: below modules are not stacks
+	depModule := test.Mkdir(t, repo.Dir, "dep-tg-module")
+	depDepModule := test.Mkdir(t, repo.Dir, "dep-dep-tg-module")
+
+	localModule := test.Mkdir(t, repo.Dir, "local-module")
+	test.WriteFile(t, localModule, "main.tf", "# empty file")
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "github.com/test/test2"),
+		),
+		Block("dependency",
+			Labels("dep-stack"),
+			Str("config_path", "../dep-tg-module"),
+		),
+	).String())
+
+	test.WriteFile(t, depModule, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "https://etc/etc"),
+		),
+		Block("dependency",
+			Labels("dep-dep-stack"),
+			Str("config_path", "../dep-dep-tg-module"),
+		),
+	).String())
+
+	test.WriteFile(t, depDepModule, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "../local-module"),
+		),
+	).String())
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the dep-dep-tg-stack module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	test.WriteFile(t, localModule, "main.tf", "# changed file")
+	assert.NoError(t, g.Add(localModule), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	return repo
+}
+
+func terragruntStackChangedDueToReferencedFileChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "github.com/test/test2"),
+		),
+		Block("include",
+			Expr("path", `find_in_parent_folders()`),
+		),
+	).String())
+
+	test.WriteFile(t, repo.Dir, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Block("extra_arguments",
+				Labels("common_vars"),
+				Expr("commands", `get_terraform_commands_that_need_vars()`),
+				Expr("required_var_files", `[find_in_parent_folders("common.tfvars")]`),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, repo.Dir, "common.tfvars", `key = "value"`)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the common.tfvars file
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	test.WriteFile(t, repo.Dir, "common.tfvars", `key = "changed value"`)
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
 }

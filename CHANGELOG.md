@@ -22,6 +22,26 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## v0.5.3
+
+### Fixed
+
+- Fixed issue that prevented stack previews from being created when using uppercase letters in stack IDs.
+
+## v0.5.2
+
+### Fixed
+
+- Fixed inconsistency in `stack.id` case-sensitivity when `--cloud-sync-*` flags are used.
+
+## v0.5.1
+
+### Added
+
+- Terragrunt change detection.
+  - Terramate understands the structure of `terragrunt.hcl` files and detects changes if any other Terragrunt referenced file changes (`dependency`, `dependencies` and `include` blocks, function calls like `find_in_parent_folders()`, `read_terragrunt_config()`, etc).
+- Automatically add stack ordering to Terragrunt stacks created by `terramate create --all-terragrunt`.
+
 ## v0.5.0
 
 ### BREAKING CHANGES
