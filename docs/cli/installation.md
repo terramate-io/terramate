@@ -5,9 +5,10 @@ description: Learn how to install Terramate with Go or package managers such as 
 
 # Installation
 
-The Terramate project distributes two binaries:
+To get started with Terramate, the first step you need to take is to install [Terramate CLI](https://github.com/terramate-io/terramate),
+which distributes two binaries:
 
-- `terramate`: The CLI tool that we love.
+- `terramate`: The CLI tool used to create, manage and orchestrate your IaC stacks and workflows.
 - `terramate-ls`: The Terramate Language Server to integrate Terramate into your IDE.
 
 ## Using a package manager
