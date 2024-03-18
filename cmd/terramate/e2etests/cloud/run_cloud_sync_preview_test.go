@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -23,9 +24,17 @@ import (
 
 func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 	t.Parallel()
+	type Metadata struct {
+		GithubPullRequestURL       string
+		GithubPullRequestNumber    int
+		GithubPullRequestTitle     string
+		GithubPullRequestUpdatedAt string
+		GithubPullRequestPushedAt  string
+	}
 	type want struct {
 		run         RunExpected
 		preview     *cloudstore.Preview
+		Metadata    *Metadata
 		ignoreTypes cmp.Option
 	}
 	type testcase struct {
@@ -78,12 +87,30 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 						},
 					},
+					ReviewRequest: &cloud.ReviewRequest{
+						Platform:    "github",
+						Repository:  "terramate.io/terramate-io/dummy-repo.git",
+						CommitSHA:   "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+						Number:      1347,
+						Title:       "Amazing new feature",
+						Description: "Please pull these awesome changes in!",
+						URL:         "https://github.com/octocat/Hello-World/pull/1347",
+						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Status:      "open",
+						UpdatedAt:   toTime("2011-01-26T19:01:12Z"),
+						PushedAt:    toTime("2024-02-09T12:38:30Z"),
+					},
+				},
+				Metadata: &Metadata{
+					GithubPullRequestURL:       "https://github.com/octocat/Hello-World/pull/1347",
+					GithubPullRequestNumber:    1347,
+					GithubPullRequestTitle:     "Amazing new feature",
+					GithubPullRequestUpdatedAt: "2011-01-26T19:01:12Z",
 				},
 				ignoreTypes: cmpopts.IgnoreTypes(
 					cloud.CommandLogs{},
 					&cloud.ChangesetDetails{},
 					cloudstore.Stack{},
-					&cloud.ReviewRequest{},
 					&cloud.DeploymentMetadata{},
 				),
 			},
@@ -173,7 +200,6 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			s.BuildTree(genIdsLayout)
 			s.Git().CommitAll("all stacks committed")
 
-			t.Logf("addr: %s", addr)
 			env := RemoveEnv(os.Environ(), "CI")
 			env = append(env, "TMC_API_URL=http://"+addr)
 			env = append(env, "TM_GITHUB_API_URL=http://"+addr+"/")
@@ -220,6 +246,13 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					t.Errorf("unexpected  preview: %s", diff)
 				}
 			}
+
+			if tc.want.Metadata != nil {
+				assert.EqualStrings(t, tc.want.Metadata.GithubPullRequestURL, previewResp.Metadata.GithubPullRequestURL)
+				assert.EqualInts(t, tc.want.Metadata.GithubPullRequestNumber, previewResp.Metadata.GithubPullRequestNumber)
+				assert.EqualStrings(t, tc.want.Metadata.GithubPullRequestTitle, previewResp.Metadata.GithubPullRequestTitle)
+				assert.EqualStrings(t, tc.want.Metadata.GithubPullRequestUpdatedAt, previewResp.Metadata.GithubPullRequestUpdatedAt.Format(time.RFC3339))
+			}
 		})
 	}
 }
@@ -228,4 +261,12 @@ func datapath(t *testing.T, path string) string {
 	wd, err := os.Getwd()
 	assert.NoError(t, err)
 	return filepath.Join(wd, filepath.FromSlash(path))
+}
+
+func toTime(s string) *time.Time {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		panic(err)
+	}
+	return &t
 }
