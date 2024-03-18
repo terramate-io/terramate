@@ -37,6 +37,8 @@ func TestPostPreviews(t *testing.T) {
 				],
 				"review_request": {"repository": "terramate-io/terramate", "number": 1, "title": "sometitle"},
 				"updated_at": 1709644546,
+				"pushed_at": 1709644546,
+				"commit_sha": "somecommitsha",
 				"technology": "terraform",
 				"technology_layer": "default"
 			}`,
@@ -97,6 +99,8 @@ func TestPostPreviews(t *testing.T) {
 	assert.EqualStrings(t, "terraform", preview.Technology)
 	assert.EqualStrings(t, "default", preview.TechnologyLayer)
 	assert.EqualInts(t, 1709644546, int(preview.UpdatedAt))
+	assert.EqualInts(t, 1709644546, int(preview.PushedAt))
+	assert.EqualStrings(t, "somecommitsha", preview.CommitSHA)
 
 	assert.IsTrue(t, len(preview.StackPreviews) == 1)
 	assert.EqualStrings(t, "1", preview.StackPreviews[0].ID)
