@@ -69,14 +69,14 @@ export default defineConfig({
         'meta',
         {
           name: 'og:image',
-          content: `${siteData.base}terramate-og_linkedin.png`
+          content: `https://terramate.io${siteData.base}terramate-og_linkedin.png`
         },
       ],
       [
         'meta',
         {
           name: 'twitter:image',
-          content: `${siteData.base}terramate-og_twitter.png`
+          content: `https://terramate.io${siteData.base}terramate-og_twitter.png`
         },
       ],
       [
@@ -154,9 +154,10 @@ export default defineConfig({
           text: '👋 Introduction',
           items: [
             { text: 'About Terramate', link: '/introduction' },
-            // { text: 'How it works', link: '/how-it-works' },
-            // { text: 'Why Terramate', link: '/why-terramate' },
+            { text: 'How it works', link: '/how-it-works' },
+            { text: 'Why Terramate', link: '/why-terramate' },
             // { text: 'Product Roadmap', link: '/product-roadmap/' },
+            { text: 'Community', link: 'https://terramate.io/discord' },
           ],
         },
         {
