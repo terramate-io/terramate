@@ -9,7 +9,7 @@ Terramate CLI helps you manage your daily IaC workloads:
 
 - Manage stacks, maintain your IaC Code base, and keep it DRY via code generation.
 - Plan & Deploy your IaC Changes in an effective way using advanced orchestration and change detection
-- Synchronize your distributed IaC set ups to and from Terramate Cloud to improve observability and keep your code base healthy.
+- Synchronize your distributed IaC set ups to and from Terramate Cloud to improve observability and keep your code base heatlhy
 
 This section will provide information to the most used CLI commands and also offers a complete reference of CLI commands available.
 
@@ -59,7 +59,7 @@ terramate run -- terraform plan
 
 ## Run Terramate Script in stacks
 
-A Terramate Script provides a simple interface (`terraform deploy`) for running a complex sequence of commands like `terraform init`, `terraform validate`, `terraform plan`, `terraform apply`.
+A Terramate Script provides a simple interface (`terraform deploy`) for running a complex sequence of commands like `terrform init`, `terraform validate`, `terraform plan`, `terraform apply`.
 Scripts are user defined and can execute any command.
 
 ```bash

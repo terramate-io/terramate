@@ -10,10 +10,10 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^1.2.1",
-    "eslint": "^8.54.0",
+    "eslint": "^8.57.0",
     "glob": "^10.3.10",
-    "pnpm": "8.11.0",
-    "vitepress": "1.0.0-rc.31"
+    "pnpm": "8.15.4",
+    "vitepress": "1.0.0-rc.44"
   },
   "eslintConfig": {
     "extends": [

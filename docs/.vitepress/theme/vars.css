@@ -19,3 +19,7 @@
   background-clip: text;
   -webkit-text-fill-color: var(--vp-home-hero-name-color);
 }
+
+/* strong {
+  color: var(--vp-c-brand-2);
+} */
