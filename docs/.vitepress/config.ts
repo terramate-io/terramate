@@ -68,14 +68,14 @@ export default defineConfig({
       [
         'meta',
         {
-          name: 'og:image',
+          property: 'og:image',
           content: `https://terramate.io${siteData.base}terramate-og_linkedin.png`
         },
       ],
       [
         'meta',
         {
-          name: 'twitter:image',
+          property: 'twitter:image',
           content: `https://terramate.io${siteData.base}terramate-og_twitter.png`
         },
       ],
