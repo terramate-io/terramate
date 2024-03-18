@@ -91,6 +91,8 @@ func TestCreatePreview(t *testing.T) {
 				AffectedStacks:  makeAffectedStacks(tc.numRunContexts),
 				OrgUUID:         cloud.UUID(tc.orgUUID),
 				UpdatedAt:       now.Unix(),
+				PushedAt:        now.Unix(),
+				CommitSHA:       "2fef3ab48c543322e911bc53baec6196231e95bc",
 				Technology:      "terraform",
 				TechnologyLayer: "default",
 				Repository:      "https://github.com/owner/repo",
