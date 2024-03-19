@@ -6,7 +6,6 @@ package cloud_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +27,6 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 		name       string
 		layout     []string
 		runflags   []string
-		skipIDGen  bool
 		workingDir string
 		cmd        []string
 		want       want
@@ -38,7 +36,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:    "canceled hang command",
-			layout:  []string{"s:stack"},
+			layout:  []string{"s:stack:id=stack"},
 			runMode: HangRun,
 			want: want{
 				run: RunExpected{
@@ -53,7 +51,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 		},
 		{
 			name:    "canceled subsequent stacks",
-			layout:  []string{"s:s1", "s:s1/s2"},
+			layout:  []string{"s:s1:id=s1", "s:s1/s2:id=s1_s2"},
 			runMode: SleepRun,
 			want: want{
 				run: RunExpected{
@@ -63,7 +61,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				},
 				events: eventsResponse{
 					"s1":    []string{"pending", "running", "failed"},
-					"s1/s2": []string{"pending", "canceled"},
+					"s1_s2": []string{"pending", "canceled"},
 				},
 			},
 		},
@@ -85,28 +83,8 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				addr := startFakeTMCServer(t, cloudData)
 
 				s := sandbox.New(t)
-				var genIdsLayout []string
-				ids := []string{}
-				if !tc.skipIDGen {
-					for _, layout := range tc.layout {
-						if layout[0] == 's' {
-							if strings.Contains(layout, "id=") {
-								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-							}
-							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-							if len(id) > 64 {
-								id = id[:64]
-							}
-							ids = append(ids, id)
-							layout += ":id=" + id
-						}
-						genIdsLayout = append(genIdsLayout, layout)
-					}
-				} else {
-					genIdsLayout = tc.layout
-				}
+				s.BuildTree(tc.layout)
 
-				s.BuildTree(genIdsLayout)
 				s.Git().CommitAll("all stacks committed")
 				env := RemoveEnv(os.Environ(), "CI")
 				env = append(env, "TMC_API_URL=http://"+addr)
@@ -130,7 +108,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				fixture.Command = tc.cmd // if empty, uses the runFixture default cmd.
 				result := fixture.Run()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
+				assertRunEvents(t, cloudData, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}

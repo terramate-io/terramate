@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +34,7 @@ func init() {
 
 func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 	t.Parallel()
+
 	type want struct {
 		run    RunExpected
 		events eventsResponse
@@ -43,7 +43,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		name       string
 		layout     []string
 		runflags   []string
-		skipIDGen  bool
 		workingDir string
 		env        []string
 		cloudData  *cloudstore.Data
@@ -58,8 +57,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				"s:s1",
 				"s:s2",
 			},
-			skipIDGen: true,
-			cmd:       []string{HelperPath, "echo", "ok"},
+			cmd: []string{HelperPath, "echo", "ok"},
 			want: want{
 				run: RunExpected{
 					Status:      1,
@@ -69,7 +67,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:   "failed command",
-			layout: []string{"s:stack"},
+			layout: []string{"s:stack:id=stack"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
 				run: RunExpected{
@@ -83,7 +81,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:   "failed cmd cancels execution of subsequent stacks",
-			layout: []string{"s:s1", "s:s1/s2"},
+			layout: []string{"s:s1:id=s1", "s:s1/s2:id=s2"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
 				run: RunExpected{
@@ -91,14 +89,14 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					StderrRegex: "executable file not found",
 				},
 				events: eventsResponse{
-					"s1":    []string{"pending", "running", "failed"},
-					"s1/s2": []string{"pending", "canceled"},
+					"s1": []string{"pending", "running", "failed"},
+					"s2": []string{"pending", "canceled"},
 				},
 			},
 		},
 		{
 			name:     "both failed stacks and continueOnError",
-			layout:   []string{"s:s1", "s:s2"},
+			layout:   []string{"s:s1:id=s1", "s:s2:id=s2"},
 			runflags: []string{"--continue-on-error"},
 			cmd:      []string{"non-existent-command"},
 			want: want{
@@ -115,8 +113,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "failed cmd and continueOnError",
 			layout: []string{
-				"s:s1",
-				"s:s1/s2",
+				"s:s1:id=s1",
+				"s:s1/s2:id=s2",
 				"f:s1/s2/test.txt:test",
 			},
 			runflags: []string{"--continue-on-error"},
@@ -131,19 +129,32 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					},
 				},
 				events: eventsResponse{
-					"s1":    []string{"pending", "running", "failed"},
-					"s1/s2": []string{"pending", "running", "ok"},
+					"s1": []string{"pending", "running", "failed"},
+					"s2": []string{"pending", "running", "ok"},
 				},
 			},
 		},
 		{
 			name:     "basic success sync",
-			layout:   []string{"s:stack"},
+			layout:   []string{"s:stack:id=stack"},
 			runflags: []string{`--eval`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: RunExpected{
-					Status: 0,
+					Stdout: "/stack\n",
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name:     "basic success sync - mixed case stack ID",
+			layout:   []string{"s:stack:id=StAcK"},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			want: want{
+				run: RunExpected{
 					Stdout: "/stack\n",
 				},
 				events: eventsResponse{
@@ -153,7 +164,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:     "setting TM_CLOUD_ORGANIZATION",
-			layout:   []string{"s:stack"},
+			layout:   []string{"s:stack:id=stack"},
 			runflags: []string{`--eval`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			env:      []string{"TM_CLOUD_ORGANIZATION=terramate"},
@@ -197,7 +208,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 			want: want{
 				run: RunExpected{
-					Status: 0,
 					Stdout: "/stack\n",
 				},
 				events: eventsResponse{
@@ -207,7 +217,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:     "organization is case insensitive",
-			layout:   []string{"s:stack"},
+			layout:   []string{"s:stack:id=stack"},
 			runflags: []string{`--eval`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			env:      []string{"TM_CLOUD_ORGANIZATION=TerraMate"},
@@ -262,8 +272,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "only stacks inside working dir are synced",
 			layout: []string{
-				"s:parent",
-				"s:parent/child",
+				"s:parent:id=parent",
+				"s:parent/child:id=child",
 			},
 			workingDir: "parent/child",
 			runflags:   []string{`--eval`},
@@ -274,15 +284,15 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					Stdout: "/parent/child\n",
 				},
 				events: eventsResponse{
-					"parent/child": []string{"pending", "running", "ok"},
+					"child": []string{"pending", "running", "ok"},
 				},
 			},
 		},
 		{
 			name: "multiple stacks",
 			layout: []string{
-				"s:s1",
-				"s:s2",
+				"s:s1:id=s1",
+				"s:s2:id=s2",
 			},
 			runflags: []string{`--eval`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
@@ -300,12 +310,11 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:     "skip missing plan",
-			layout:   []string{"s:stack"},
+			layout:   []string{"s:stack:id=stack"},
 			runflags: []string{`--eval`, `--cloud-sync-terraform-plan-file=out.tfplan`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: RunExpected{
-					Status: 0,
 					Stdout: "/stack\n",
 					StderrRegexes: []string{
 						clitest.CloudSkippingTerraformPlanSync,
@@ -319,8 +328,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "multiple stacks with plans",
 			layout: []string{
-				"s:s1",
-				"s:s2",
+				"s:s1:id=s1",
+				"s:s2:id=s2",
 				"copy:s1:testdata/cloud-sync-drift-plan-file",
 				"copy:s2:testdata/cloud-sync-drift-plan-file",
 				"run:s1:terraform init",
@@ -335,7 +344,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 			want: want{
 				run: RunExpected{
-					Status: 0,
 					Stdout: "/s1\n/s2\n",
 				},
 				events: eventsResponse{
@@ -346,7 +354,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 	} {
 		for _, isParallel := range []bool{false, true} {
-			tc := tc
 			isParallel := isParallel
 			name := tc.name
 			if isParallel {
@@ -364,32 +371,12 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				addr := startFakeTMCServer(t, cloudData)
 
 				s := sandbox.New(t)
-				var genIdsLayout []string
-				ids := []string{}
-				if !tc.skipIDGen {
-					for _, layout := range tc.layout {
-						if layout[0] == 's' {
-							if strings.Contains(layout, "id=") {
-								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-							}
-							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-							if len(id) > 64 {
-								id = id[:64]
-							}
-							ids = append(ids, id)
-							layout += ":id=" + id
-						}
-						genIdsLayout = append(genIdsLayout, layout)
-					}
-				} else {
-					genIdsLayout = tc.layout
-				}
 
 				// needed for invoking `terraform ...` commands in the sandbox
 				s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
 				s.Env = append(s.Env, tc.env...)
 
-				s.BuildTree(genIdsLayout)
+				s.BuildTree(tc.layout)
 				s.Git().CommitAll("all stacks committed")
 
 				env := RemoveEnv(os.Environ(), "CI")
@@ -416,30 +403,15 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				runflags = append(runflags, tc.cmd...)
 				result := cli.Run(runflags...)
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
+				assertRunEvents(t, cloudData, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}
 }
 
-func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, ids []string, commitSHA string, events map[string][]string) {
-	expectedEvents := eventsResponse{}
-	if events == nil {
-		events = make(map[string][]string)
-	}
-
-	for stackpath, ev := range events {
-		found := false
-		for _, id := range ids {
-			if strings.HasPrefix(id, strings.ToLower(strings.ReplaceAll(stackpath+"-id-", "/", "-"))) {
-				expectedEvents[id] = ev
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("generated id not found for stack %s", stackpath)
-		}
+func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, commitSHA string, expectedEvents eventsResponse) {
+	if expectedEvents == nil {
+		expectedEvents = make(map[string][]string)
 	}
 
 	org := cloudData.MustOrgByName("terramate")

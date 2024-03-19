@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+- Fix `--cloud-status` flag when stacks were synchronized with uppercase in the `stack.id`.
+
 ## v0.5.3
 
 ### Fixed

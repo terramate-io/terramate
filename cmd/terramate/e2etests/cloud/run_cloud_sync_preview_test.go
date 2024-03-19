@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -40,7 +39,6 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 	type testcase struct {
 		name            string
 		layout          []string
-		skipIDGen       bool
 		runflags        []string
 		workingDir      string
 		env             []string
@@ -54,7 +52,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 		{
 			name: "basic success sync",
 			layout: []string{
-				"s:stack",
+				"s:stack:id=stack",
 				`f:stack/main.tf:
 				  resource "local_file" "foo" {
 					content  = "test content"
@@ -120,7 +118,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 		{
 			name: "failure of command should still create preview with stack preview status failed",
 			layout: []string{
-				"s:stack",
+				"s:stack:id=stack",
 				`f:stack/main.tf:
 				  resource "local_file" "foo" {
 					content  = "test content"
@@ -182,26 +180,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
 			s.Env = append(s.Env, tc.env...)
 
-			var genIdsLayout []string
-			if !tc.skipIDGen {
-				for _, layout := range tc.layout {
-					if layout[0] == 's' {
-						if strings.Contains(layout, "id=") {
-							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-						}
-						id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-						if len(id) > 64 {
-							id = id[:64]
-						}
-						layout += ":id=" + id
-					}
-					genIdsLayout = append(genIdsLayout, layout)
-				}
-			} else {
-				genIdsLayout = tc.layout
-			}
-
-			s.BuildTree(genIdsLayout)
+			s.BuildTree(tc.layout)
 			s.Git().CommitAll("all stacks committed")
 
 			env := RemoveEnv(os.Environ(), "CI")
