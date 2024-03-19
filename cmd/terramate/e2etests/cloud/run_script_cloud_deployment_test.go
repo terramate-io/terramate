@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -42,7 +41,6 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 		name       string
 		layout     []string
 		scripts    map[string]string
-		skipIDGen  bool
 		workingDir string
 		scriptCmd  string
 		want       want
@@ -58,7 +56,6 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			scripts: map[string]string{
 				"deploy.tm": makeScriptDef("deploy", true, ""),
 			},
-			skipIDGen: true,
 			scriptCmd: "deploy",
 			want: want{
 				run: RunExpected{
@@ -70,7 +67,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "failed script command",
 			layout: []string{
-				"s:stack",
+				"s:stack:id=stack",
 				`f:stack/scripts.tm:script deploy {
 					description = "no"
 					job {
@@ -94,8 +91,8 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "failed script cmd cancels execution of subsequent stacks",
 			layout: []string{
-				"s:s1",
-				"s:s1/s2",
+				"s:s1:id=s1",
+				"s:s1/s2:id=s1_s2",
 				`f:scripts.tm:script deploy {
 					description = "no"
 					job {
@@ -113,13 +110,13 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				},
 				events: eventsResponse{
 					"s1":    []string{"pending", "running", "failed"},
-					"s1/s2": []string{"pending", "canceled"},
+					"s1_s2": []string{"pending", "canceled"},
 				},
 			},
 		},
 		{
 			name:   "basic success",
-			layout: []string{"s:stack"},
+			layout: []string{"s:stack:id=stack"},
 			scripts: map[string]string{
 				"deploy.tm": makeScriptDef("deploy", true, ""),
 			},
@@ -134,11 +131,28 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:   "basic success - uppercase ID",
+			layout: []string{"s:stack:id=STACK"},
+			scripts: map[string]string{
+				"deploy.tm": makeScriptDef("deploy", true, ""),
+			},
+			scriptCmd: "deploy",
+			want: want{
+				run: RunExpected{
+					Stdout: "stack\n",
+				},
+				events: eventsResponse{
+					// CLI lower the case of stack ID when syncing to the cloud.
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
 			name: "multiple stacks - sync all",
 			layout: []string{
-				"s:s1",
-				"s:s2",
-				"s:s3",
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+				"s:s3:id=s3",
 			},
 			scripts: map[string]string{
 				"deploy.tm": makeScriptDef("deploy", true, ""),
@@ -158,9 +172,9 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "multiple stacks - partial sync",
 			layout: []string{
-				"s:s1",
-				"s:s2",
-				"s:s3",
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+				"s:s3:id=s3",
 			},
 			scripts: map[string]string{
 				"deploy_sync.tm":       makeScriptDef("deploy", true, ""),
@@ -193,39 +207,20 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				addr := startFakeTMCServer(t, cloudData)
 
 				s := sandbox.New(t)
-				var genLayout []string
-				ids := []string{}
-				if !tc.skipIDGen {
-					for _, layout := range tc.layout {
-						if layout[0] == 's' {
-							if strings.Contains(layout, "id=") {
-								t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-							}
-							id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-							if len(id) > 64 {
-								id = id[:64]
-							}
-							ids = append(ids, id)
-							layout += ":id=" + id
-						}
-						genLayout = append(genLayout, layout)
-					}
-				} else {
-					genLayout = tc.layout
-				}
 
+				layout := tc.layout
 				for path, def := range tc.scripts {
-					genLayout = append(genLayout, fmt.Sprintf("f:%s:%s", path, def))
+					layout = append(layout, fmt.Sprintf("f:%s:%s", path, def))
 				}
 
-				genLayout = append(genLayout, `f:terramate.tm:
+				layout = append(layout, `f:terramate.tm:
 					terramate {
 					config {
 						experiments = ["scripts"]
 					}
 					}`)
 
-				s.BuildTree(genLayout)
+				s.BuildTree(layout)
 				s.Git().CommitAll("all stacks committed")
 
 				env := RemoveEnv(os.Environ(), "CI")
@@ -245,7 +240,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 
 				result := cli.RunScript(scriptArgs...)
 				AssertRunResult(t, result, tc.want.run)
-				assertRunEvents(t, cloudData, ids, s.Git().RevParse("HEAD"), tc.want.events)
+				assertRunEvents(t, cloudData, s.Git().RevParse("HEAD"), tc.want.events)
 			})
 		}
 	}

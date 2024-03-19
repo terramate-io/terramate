@@ -1155,7 +1155,7 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 		var stacks []stack.Entry
 
 		for _, stack := range localStacks {
-			if cloudStacksMap[stack.Stack.ID] {
+			if cloudStacksMap[strings.ToLower(stack.Stack.ID)] {
 				stacks = append(stacks, stack)
 			}
 		}
