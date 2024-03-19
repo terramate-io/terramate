@@ -341,7 +341,7 @@ func (c *cli) doPreviewBefore(run stackCloudRun) {
 }
 
 func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
-	planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile
+	planfile := run.Task.CloudSyncTerraformPlanFile
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
 	var previewChangeset *cloud.ChangesetDetails
