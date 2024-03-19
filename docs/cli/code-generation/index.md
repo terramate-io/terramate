@@ -257,7 +257,7 @@ We recommend the following best practices when working with code generation.
 
 ### Add generated files to your Git repository
 
-Commit the generated files to the repository. This can be archived either by manually running `terramate generate`
+Commit the generated files to the repository. This can be achieved either by manually running `terramate generate`
 locally or by automating `terramate generate` in your CI/CD pipelines.
 In any case, the generated files should be available to the Pull Request reviewer so they can spot misconfigurations.
 
