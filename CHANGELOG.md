@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+- Add `script.job.name` and `script.job.description` attributes.
+
 ## v0.5.4
 
 - Fix `--cloud-status` flag when stacks were synchronized with uppercase in the `stack.id`.

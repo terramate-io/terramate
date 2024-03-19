@@ -41,10 +41,11 @@ func (c *cli) printScriptInfo() {
 	for _, x := range m.Results {
 		c.output.MsgStdOut("Definition: %v", x.ScriptCfg.Range)
 		if x.ScriptCfg.Name != nil {
-			c.output.MsgStdOut("Name: %s", nameTruncation(exprString(x.ScriptCfg.Name.Expr)))
+			c.output.MsgStdOut("Name: %s", nameTruncation(exprString(x.ScriptCfg.Name.Expr), "script.name"))
 		}
-		c.output.MsgStdOut("Description: %s", exprString(x.ScriptCfg.Description.Expr))
-
+		if x.ScriptCfg.Description != nil {
+			c.output.MsgStdOut("Description: %s", descTruncation(exprString(x.ScriptCfg.Description.Expr), "script.description"))
+		}
 		if len(x.Stacks) > 0 {
 			c.output.MsgStdOut("Stacks:")
 			for _, st := range x.Stacks {
@@ -58,6 +59,12 @@ func (c *cli) printScriptInfo() {
 		for _, job := range x.ScriptCfg.Jobs {
 			for cmdIdx, cmd := range formatScriptJob(job) {
 				if cmdIdx == 0 {
+					if job.Name != nil {
+						c.output.MsgStdOut("  Name: %s", nameTruncation(exprString(job.Name.Expr), "script.job.name"))
+					}
+					if job.Description != nil {
+						c.output.MsgStdOut("  Description: %s", descTruncation(exprString(job.Description.Expr), "script.job.description"))
+					}
 					c.output.MsgStdOut("  * %v", cmd)
 				} else {
 					c.output.MsgStdOut("    %v", cmd)
@@ -175,12 +182,22 @@ func formatScriptJob(job *hcl.ScriptJob) []string {
 	return []string{}
 }
 
-func nameTruncation(name string) string {
+func nameTruncation(name string, attrName string) string {
 	if len(name) > config.MaxScriptNameRunes {
 		printer.Stderr.Warn(
-			fmt.Sprintf("`script.name` exceeds the maximum allowed characters (%d): field truncated", config.MaxScriptNameRunes),
+			fmt.Sprintf("`%s` exceeds the maximum allowed characters (%d): field truncated", attrName, config.MaxScriptNameRunes),
 		)
 		return name[:config.MaxScriptNameRunes] + "..."
+	}
+	return name
+}
+
+func descTruncation(name string, attrName string) string {
+	if len(name) > config.MaxScriptDescRunes {
+		printer.Stderr.Warn(
+			fmt.Sprintf("`%s` exceeds the maximum allowed characters (%d): field truncated", attrName, config.MaxScriptNameRunes),
+		)
+		return name[:config.MaxScriptDescRunes] + "..."
 	}
 	return name
 }
