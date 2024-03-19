@@ -75,12 +75,14 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 	}
 
 	for _, sc := range node.Scripts {
-		desc := exprString(sc.Description.Expr)
 		fmt.Fprintln(w, blockPrefix+"* "+scriptColor(sc.AccessorName()+": "))
 		if sc.Name != nil {
-			fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  name: "+nameTruncation(exprString(sc.Name.Expr))))
+			fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  Name: "+nameTruncation(exprString(sc.Name.Expr), "script.name")))
 		}
-		fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  description: "+desc))
+		if sc.Description != nil {
+			desc := exprString(sc.Description.Expr)
+			fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  Description: "+desc))
+		}
 	}
 
 	if node.IsStack {

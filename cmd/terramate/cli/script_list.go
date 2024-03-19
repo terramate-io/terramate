@@ -35,10 +35,11 @@ func (c *cli) printScriptList() {
 
 		c.output.MsgStdOut("%v", name)
 		if entry.ScriptCfg.Name != nil {
-			c.output.MsgStdOut("  Name: %v", nameTruncation(exprString(entry.ScriptCfg.Name.Expr)))
+			c.output.MsgStdOut("  Name: %v", nameTruncation(exprString(entry.ScriptCfg.Name.Expr), "script.name"))
 		}
-		c.output.MsgStdOut("  Description: %v", exprString(entry.ScriptCfg.Description.Expr))
-
+		if entry.ScriptCfg.Description != nil {
+			c.output.MsgStdOut("  Description: %v", exprString(entry.ScriptCfg.Description.Expr))
+		}
 		c.output.MsgStdOut("  Defined at %v", entry.Dir)
 
 		if entry.DefCount > 1 {
