@@ -20,10 +20,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.5.4
 
 - Fix `--cloud-status` flag when stacks were synchronized with uppercase in the `stack.id`.
 - Fix `terramate cloud drift show` when used in stacks containing uppercase in the `stack.id`.
+- fix `cloud_sync_terraform_plan_file` option for previews in scripts
 
 ## v0.5.3
 
