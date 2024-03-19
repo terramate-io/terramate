@@ -42,7 +42,7 @@ This tree structure following the directory hierarchy has three significant feat
   [breadth-first search algorithm](https://en.wikipedia.org/wiki/Breadth-first_search), which will be created before the
   EC2 instance. This means a great reduction in explicit dependencies:
   you do not need to specify that the subnet depends upon the existing VPC - it's a natural outcome of the hierarchy
-  (though we also support explicit dependencies with wants, before and after attributes in
+  (though we also support explicit dependencies with `wants`, `before` and `after` attributes in
   [stack configuration](./configuration.md)).
 - **Cloning of stacks:** nested stacks can represent whole environments, services or single resources. A neat feature in
   Terramate is that stacks and nested stacks can easily be cloned using the
