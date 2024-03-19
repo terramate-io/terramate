@@ -354,6 +354,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 	} {
 		for _, isParallel := range []bool{false, true} {
+			tc := tc
 			isParallel := isParallel
 			name := tc.name
 			if isParallel {
