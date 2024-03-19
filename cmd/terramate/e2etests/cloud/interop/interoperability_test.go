@@ -103,7 +103,7 @@ func TestInteropSyncDeployment(t *testing.T) {
 func TestInteropDrift(t *testing.T) {
 	for _, stackpath := range []string{
 		"testdata/interop-stacks/basic-drift",
-		// "testdata/interop-stacks/basic-drift-uppercase-id", buggy, not yet
+		"testdata/interop-stacks/basic-drift-uppercase-id",
 	} {
 		t.Run("drift: "+filepath.Base(stackpath), func(t *testing.T) {
 			tmcli := NewInteropCLI(t, datapath(t, stackpath))

@@ -443,6 +443,11 @@ func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 			Metadata: drift.Metadata,
 		})
 	}
+	res.Pagination = cloud.PaginatedResult{
+		Total:   int64(len(drifts)),
+		Page:    page,
+		PerPage: int64(len(res.Drifts)),
+	}
 	// return most recent drifts first.
 	sort.Slice(res.Drifts, func(i, j int) bool {
 		return res.Drifts[i].ID > res.Drifts[j].ID

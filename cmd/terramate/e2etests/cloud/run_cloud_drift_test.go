@@ -568,6 +568,33 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				maxEndTime := time.Now().UTC()
 				AssertRunResult(t, result, tc.want.run)
 				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
+
+				for _, wantDrift := range tc.want.drifts {
+					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(wantDrift.Stack.Path[1:])), env...)
+					res := cli.Run("cloud", "drift", "show")
+
+					if wantDrift.Status != drift.Drifted {
+						AssertRunResult(t, res, RunExpected{
+							Status:      0,
+							StdoutRegex: "is not drifted",
+						})
+					} else {
+						if wantDrift.Details == nil || (wantDrift.Details.ChangesetASCII == "" && wantDrift.Details.ChangesetJSON == "") {
+							AssertRunResult(t, res, RunExpected{
+								Status:      1,
+								StderrRegex: "is drifted, but no details are available.",
+							})
+						} else {
+							AssertRunResult(t, res, RunExpected{
+								Status: 0,
+								StdoutRegexes: []string{
+									"Terraform used the selected providers to generate the following execution",
+									`local_file.foo will be created`,
+								},
+							})
+						}
+					}
+				}
 			})
 		}
 	}

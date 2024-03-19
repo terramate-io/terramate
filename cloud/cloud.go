@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 
 	hversion "github.com/apparentlymart/go-versions/versions"
 	"github.com/rs/zerolog"
@@ -188,7 +189,7 @@ func (c *Client) ListReviewRequests(ctx context.Context, orgUUID UUID) (ReviewRe
 func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, metaID string) (StackObject, bool, error) {
 	query := url.Values{
 		"repository": []string{repo},
-		"meta_id":    []string{metaID},
+		"meta_id":    []string{strings.ToLower(metaID)},
 	}
 
 	url := c.URL(path.Join(StacksPath, string(orgUUID)), query)
