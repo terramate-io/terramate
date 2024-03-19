@@ -26,7 +26,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix `--cloud-status` flag when stacks were synchronized with uppercase in the `stack.id`.
 - Fix `terramate cloud drift show` when used in stacks containing uppercase in the `stack.id`.
-- fix `cloud_sync_terraform_plan_file` option for previews in scripts
+- Fix `cloud_sync_terraform_plan_file` option for previews in scripts
 
 ## v0.5.3
 
