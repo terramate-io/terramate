@@ -77,17 +77,20 @@ In Terramate, by default, commands are executed sequentially. When adhering to t
   /route_table
   /security_group
 ```
-The sequence of execution follows this pattern:
+When executed sequentially and respecting the nested layout, the execution sequence follows this pattern (in alphabetical order):
 
-1. `vpc`
-2. `network_acl`
-3. `internet_gateway`
-4. `subnet`
-   - `network_interface`
-   - `ec2`
-5. `route_table`
-6. `security_group`
+```sh
+terramate list --run-order
 
+vpc
+vpc/internet_gateway
+vpc/network_acl
+vpc/route_table
+vpc/security_group
+vpc/subnet
+vpc/subnet/ec2
+vpc
+```
 As an illustration, to execute a command sequentially across all stacks within a particular directory:
 ```bash
 terramate run --chdir stacks/vpc -- terraform init
