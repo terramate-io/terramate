@@ -113,6 +113,7 @@ For `stack` context, the labels must follow the constraints below:
 * It is always defined with `/` independent on the OS you are working on
 * It does not contain `../` (code can only be generated inside the stack)
 * It does not start with `./`
+* It does not contain a dot directory (invalid example: `somedir/.invalid/main.tf`)
 * It is not a symbolic link
 * It is not a stack
 * It is unique on the whole hierarchy of a stack for all blocks with condition=true.
@@ -122,6 +123,7 @@ For `root` context, the constraints are:
 * It is an absolute path in the form `/<dir>/<filename>` or just `/<filename>`.
 * It is always defined with `/` independent on the OS you are working on
 * It does not contain `../` (code can only be generated inside the project root)
+* It does not contain a dot directory (invalid example: `somedir/.invalid/file.txt`)
 * It is not a symbolic link
 * It is not a stack
 * It is unique on the whole hierarchy for all blocks with condition=true.
