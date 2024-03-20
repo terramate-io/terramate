@@ -123,6 +123,72 @@ func TestGenerateIgnore(t *testing.T) {
 				},
 			},
 		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1260
+			name: "regression test: dotfiles snould not be skipped when scanning files",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels("/.root-file"),
+						Expr("context", "root"),
+						Str("content", "root context"),
+						Bool("condition", true),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"/.root-file": stringer("root context"),
+					},
+				},
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						".file":     stringer("stack context"),
+						".file.hcl": stringer(`data = "data"`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{".root-file"},
+					},
+					{
+						Dir: project.NewPath("/stack"),
+						Created: []string{
+							".file",
+							".file.hcl",
+						},
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -578,6 +644,60 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dotdirs should be skipped when scanning stack files",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".directory/file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".directory/.file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".directory/.file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".directory/file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stack"),
+						},
+						Error: errors.E(generate.ErrInvalidGenBlockLabel),
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -673,6 +793,36 @@ func TestGenerateCleanup(t *testing.T) {
 						Deleted: []string{
 							"d.hcl",
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "cleanup ignores dotdirs outside stacks",
+			layout: []string{
+				genfile(".dir/a.hcl", "AAA"),
+				genfile(".dir/subdir/b.hcl", "BBB"),
+				genfile(".dir/subdir/again/c.hcl", "CCC"),
+			},
+			want: []generatedFile{
+				// Note the files below have the HCL magic header but it's not used in the comparison
+				// but just the "content".
+				{
+					dir: "/.dir",
+					files: map[string]fmt.Stringer{
+						"a.hcl": stringer("AAA"),
+					},
+				},
+				{
+					dir: "/.dir/subdir",
+					files: map[string]fmt.Stringer{
+						"b.hcl": stringer("BBB"),
+					},
+				},
+				{
+					dir: "/.dir/subdir/again",
+					files: map[string]fmt.Stringer{
+						"c.hcl": stringer("CCC"),
 					},
 				},
 			},
