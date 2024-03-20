@@ -30,9 +30,8 @@ type project struct {
 		localDefaultBranchCommit  string
 		remoteDefaultBranchCommit string
 
-		baseRefConfigured bool
-		remoteConfigured  bool
-		branchConfigured  bool
+		remoteConfigured bool
+		branchConfigured bool
 
 		repoChecks stack.RepoChecks
 	}
@@ -142,15 +141,13 @@ func (p *project) isDefaultBranch() bool {
 
 // defaultBaseRef returns the baseRef for the current git environment.
 func (p *project) defaultBaseRef() string {
-	git := p.gitcfg()
 	if p.isDefaultBranch() &&
 		p.remoteDefaultCommit() == p.headCommit() {
-		_, err := p.git.wrapper.RevParse(git.DefaultBranchBaseRef)
+		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
 		if err == nil {
-			return git.DefaultBranchBaseRef
+			return defaultBranchBaseRef
 		}
 	}
-
 	return p.defaultBranchRef()
 }
 
@@ -158,12 +155,11 @@ func (p *project) defaultBaseRef() string {
 func (p *project) defaultLocalBaseRef() string {
 	git := p.gitcfg()
 	if p.isDefaultBranch() {
-		_, err := p.git.wrapper.RevParse(git.DefaultBranchBaseRef)
+		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
 		if err == nil {
-			return git.DefaultBranchBaseRef
+			return defaultBranchBaseRef
 		}
 	}
-
 	return git.DefaultBranch
 }
 
@@ -200,11 +196,6 @@ func (p *project) setDefaults() error {
 	}
 
 	gitOpt := cfg.Terramate.Config.Git
-
-	p.git.baseRefConfigured = gitOpt.DefaultBranchBaseRef != ""
-	if !p.git.baseRefConfigured {
-		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
-	}
 
 	p.git.branchConfigured = gitOpt.DefaultBranch != ""
 	if !p.git.branchConfigured {

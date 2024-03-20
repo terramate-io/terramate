@@ -132,9 +132,6 @@ type RunEnv struct {
 
 // GitConfig represents Terramate Git configuration.
 type GitConfig struct {
-	// DefaultBranchBaseRef is the baseRef when in default branch.
-	DefaultBranchBaseRef string
-
 	// DefaultBranch is the default branch.
 	DefaultBranch string
 
@@ -1801,17 +1798,6 @@ func parseGitConfig(cfg *RootConfig, gitBlock *ast.MergedBlock) error {
 			}
 
 			git.DefaultRemote = value.AsString()
-
-		case "default_branch_base_ref":
-			if value.Type() != cty.String {
-				errs.Append(attrErr(attr,
-					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
-					value.Type().FriendlyName(),
-				))
-
-				continue
-			}
-			git.DefaultBranchBaseRef = value.AsString()
 
 		case "check_untracked":
 			if err := checkSafeguardConfigConflict(cfg, attr); err != nil {
