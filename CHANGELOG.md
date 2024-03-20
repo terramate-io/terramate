@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Changed
+
+- The code generation of HCL and plain files was disallowed inside dot directories.
+
 ## v0.5.5
 
 - Add `script.job.name` and `script.job.description` attributes.

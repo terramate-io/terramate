@@ -353,6 +353,120 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 			},
 		},
 		{
+			name:   "if path is inside dotdir fails",
+			skipOn: "windows",
+			layout: []string{
+				"s:stacks/stack",
+				"d:.somedir",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels(".somedir/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels(".somedir/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack"),
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:   "if path is inside deep dotdir fails",
+			skipOn: "windows",
+			layout: []string{
+				"s:stacks/stack",
+				"d:somedir/otherdir/.somedir",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("somedir/otherdir/.somedir/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("somedir/otherdir/.somedir/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack"),
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:   "if path is inside deep dotdir, even if not the leaf, fails",
+			skipOn: "windows",
+			layout: []string{
+				"s:stacks/stack",
+				"d:somedir/otherdir/.somedir/moredirs/a/b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("somedir/otherdir/.somedir/moredirs/a/b/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("somedir/otherdir/.somedir/moredirs/a/b/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack"),
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
 			name: "invalid paths fails",
 			layout: []string{
 				"s:stacks/stack-1",
