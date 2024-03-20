@@ -783,76 +783,74 @@ export default defineConfig({
         },
 
         {
-          text: '☁️ Terramate Cloud',
-          // link: '/cloud/',
+          text: '⛅️ Terramate Cloud',
+          link: '/cloud/',
+          collapsed: false,
           items: [
+            { text: 'Book a Demo', link: 'https://terramate.io/demo/' },
             {
-              text: 'Book a demo',
-              link: 'https://terramate.io/demo/',
+              text: 'Dashboard',
+              link: '/cloud/dashboard/',
+            },
+            {
+              text: 'Stacks',
+              link: '/cloud/stacks/',
+              collapsed: true,
+              items: [
+                { text: 'Stacks List', link: '/cloud/stacks/list' },
+                { text: 'Stack Details', link: '/cloud/stacks/details' },
+                { text: 'Stack Status', link: '/cloud/stacks/status' },
+                { text: 'Synchronize Stacks', link: '/cloud/stacks/sync' },
+              ],
+            },
+            {
+              text: 'Deployments',
+              link: '/cloud/deployments/',
+              collapsed: true,
+              items: [
+                { text: 'Synchronize Deployments', link: '/cloud/deployments/sync' },
+              ],
+            },
+            {
+              text: 'Drift Management',
+              collapsed: true,
+              items: [
+                // { text: 'Introduction', link: '/cli/introduction' },
+              ],
+            },
+            {
+              text: 'Notifications',
+              collapsed: false,
+              items: [
+              // { text: 'Introduction', link: '/cli/introduction' },
+              ],
+            },
+            {
+              text: 'Organization',
+              link: '/cloud/organization/',
+              collapsed: true,
+              items: [
+                { text: 'General Settings', link: '/cloud/organization/settings' },
+                { text: 'User Management', link: '/cloud/organization/user-management' },
+              ],
             },
             // {
-            //   text: 'Dashboard',
-            //   link: '/cloud/dashboard/',
-            // },
-            // {
-            //   text: 'Stacks',
-            //   link: '/cloud/stacks/',
-            //   collapsed: true,
-            //   items: [
-            //     { text: 'Stacks List', link: '/cloud/stacks/list' },
-            //     { text: 'Stack Details', link: '/cloud/stacks/details' },
-            //     { text: 'Stack Status', link: '/cloud/stacks/status' },
-            //     { text: 'Synchronize Stacks', link: '/cloud/stacks/sync' },
-            //   ],
-            // },
-            // {
-            //   text: 'Deployments',
-            //   link: '/cloud/deployments/',
-            //   collapsed: true,
-            //   items: [
-            //     { text: 'Synchronize Deployments', link: '/cloud/deployments/sync' },
-            //   ],
-            // },
-            // {
-            //   text: 'Drift Management',
-            //   collapsed: true,
+            //   text: '👟 Profile',
+            //   collapsed: false,
             //   items: [
             //     // { text: 'Introduction', link: '/cli/introduction' },
             //   ],
             // },
             // {
-            //   text: 'Notifications',
+            //   text: '🏠 Integrations',
             //   collapsed: false,
             //   items: [
-            //   // { text: 'Introduction', link: '/cli/introduction' },
+            //     { text: 'Slack', link: '/cloud/integrations/slack/' },
+            //     { text: 'GitHub Actions', link: '/cloud/integrations/github-actions/' },
+            //     { text: 'Gitlab CI/CD', link: '/cloud/integrations/gitlab-cicd/' },
+            //     { text: 'BitBucket Pipelines', link: '/cloud/integrations/bitbucket-pipelines/' },
             //   ],
             // },
-            // {
-            //   text: 'Organization',
-            //   link: '/cloud/organization/',
-            //   collapsed: true,
-            //   items: [
-            //     { text: 'General Settings', link: '/cloud/organization/settings' },
-            //     { text: 'User Management', link: '/cloud/organization/user-management' },
-            //   ],
-            // },
-            // // {
-            // //   text: '👟 Profile',
-            // //   collapsed: false,
-            // //   items: [
-            // //     // { text: 'Introduction', link: '/cli/introduction' },
-            // //   ],
-            // // },
-            // // {
-            // //   text: '🏠 Integrations',
-            // //   collapsed: false,
-            // //   items: [
-            // //     { text: 'Slack', link: '/cloud/integrations/slack/' },
-            // //     { text: 'GitHub Actions', link: '/cloud/integrations/github-actions/' },
-            // //     { text: 'Gitlab CI/CD', link: '/cloud/integrations/gitlab-cicd/' },
-            // //     { text: 'BitBucket Pipelines', link: '/cloud/integrations/bitbucket-pipelines/' },
-            // //   ],
-            // // },
           ],
         },
         {
