@@ -217,7 +217,7 @@ export default defineConfig({
                   ],
                 },
                 { text: 'Filter Stacks', link: '/cli/orchestration/tag-filter' },
-                // { text: 'Order of Execution ', link: '/cli/orchestration/order-of-execution' },
+                { text: 'Order of Execution ', link: '/cli/orchestration/order-of-execution' },
                 { text: 'Configure Runtime ENV', link: '/cli/orchestration/runtime-configuration' },
                 { text: 'Disable Safeguards', link: '/cli/orchestration/safeguards' },
               ],
@@ -956,7 +956,7 @@ export default defineConfig({
           link: '/cli/guides/',
         },
         {
-          text: 'Community',
+          text: '🌍 Community',
           link: 'https://terramate.io/discord',
         },
       ],
