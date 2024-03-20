@@ -1,122 +1,112 @@
 ---
 title: Run Commands in Stacks
 description: Learn how to orchestrate the execution of commands in stacks with the terramate run command.
+outline: [2, 3]
 ---
 
-# Run Commands in Stacks
+# Run any Commands in Stacks
 
 Terramate CLI allows you to orchestrate the execution of stacks by running
 commands in all stacks or filtering stacks using certain criteria.
 
+Terramate is not limited to executing `terraform` inside of stacks but can execute any command available. This includes but is not limited to `terragrunt`, `tofu`, `kubectl`, `helm`, and `make`.
+
+When running commands in stacks the [defined order of execution](../stacks/configuration#explicit-order-of-execution) is honored and stacks are run in order.
+
 ## Run commands in all stacks
 
 Running commands in stacks sequentially can be done with the
-[run](../cmdline/run.md) command.
+[terramate run](../cmdline/run.md) command.
 
-**Example:** Run commands in all stacks with `terramate run`
+**Example:** Run hello world commands in all stacks with `terramate run`
 
 ```hcl
-terramate run <cmd>
+terramate run echo "hello world"
 ```
 
-::: tip
-The [`list --run-order`](../cmdline/list.md) command returns a list that describes the order of execution of your stacks.
-:::
+## Run commands in selected stacks
 
-## Run commands in a subset of stacks using filter
+When `terramate run` is executed it will run in all stacks that are reachable from the working directory.
 
-There are three main ways to filter stacks targeted in `terramate run`:
-**scope**, **tags** and **change detection**.
+The following filters can be used to select a subset of stacks to execute commands in. They can be combined to limit the number of stacks executed in a single run.
 
-### Filter by scope
+### Filter by directory subtree
 
-Terramate uses the current directory it is being executed to filter out stacks,
-i.e., limit the scope of the execution. So if you execute `terramate` from the
-project's root directory, all stacks will be selected and change to inner
-directories in the project structure will select only stacks that are children
-of the current directory.
-
-The `-C <path>` flag can be used to change the scope without having to `cd` to the directory.
-
-**Example:** Change the scope to `some/dir`
+It is possible to execute Terramate in a subtree of your repository by either changing the working directory into the subdirectory or by temporarily changing the working directory during execution using the `--chdir <path>` command line option (short: `-C <path>`).
 
 ```hcl
-terramate run -C some/dir -- <cmd>
+terramate --chdir path/to/tree -- echo "hello from subtree"
+```
+
+### Filter a specific stack
+
+When selecting a specific stack using the `--chdir` command line option the selected stack and all nested stacks will be selected. To only execute the parent stack, using the `--no-recursive` command line option will ensure, that no child stacks will be executed.
+
+```hcl
+terramate --chdir path/to/parent-stack --no-recursive -- echo "hello from stack"
 ```
 
 ### Filter by tags
 
-Stacks can also be tagged to allow for further targeting.
+When [tags are defined on stacks](../stacks/configuration#tags), this information can be used to execute commands in stacks with or without specific tags.
 
 ```hcl
-stack {
-  name = "Some Application"
-  tags = ["kubernetes"]
-  id   = "f2b426b2-f614-4fa5-8f12-af78e5dcc13e"
-}
-```
-
-Tags can be used to filter stacks on any command using `--tags` (or `--no-tags`
-to exclude). Logical **AND** and **OR** can be achieved with the `:` and `,` operators.
-
-**Example:** Run a command in all stacks tagged with `kubernetes` or `k8s`.
-
-```hcl
-terramate run --tags kubernetes,k8s -- <cmd>
+terramate --tags    k8s,kubernetes -- echo "hello from k8s stack"
+terramate --no-tags k8s,kubernetes -- echo "hello from non k8s stack"
 ```
 
 ### Filter for changed stacks
 
-The `--changed` flag will filter by stacks that have changed in Git compared to a base ref
-using the [Git integration](../change-detection/integrations/git.md) of the
-[change detection](../change-detection/index.md).
+Terramate integrates with various tools to enable [Change Detection](../change-detection/index.md).
+
+Making use of Change Detection features when running commands can improve run-times on local machines and in automation.
+
+To enable it add the `--changed` command line option.
 
 **Example:** Execute a command in all stacks that contain changes
 
 ```hcl
-terramate run --changed -- <cmd>
+terramate run --changed -- echo "hello from changed stack"
 ```
 
-::: info
-The default base ref is `origin/main` when working in a feature branch and
-`HEAD^` when on main. The base ref can be changed in the project configuration
-(or with `-B`), but the defaults allow for the most common workflow where all
-changed stacks in a feature branch should be previewed in a PR and applied on merge.
-:::
+## Influence the order of execution
 
-::: tip
-Terramate supports importing code with `import` blocks to allow for code re-use,
-and when the source of one of these `import` blocks changes, all stacks where
-the code is imported will be marked as changed.
-:::
+Terramate honors the explicit and implicit order of execution when running commands.
 
-It is possible to monitor files that are outside the stack for changes
-using the `watch` property in the configuration of a stack.
+`terramate list --run-order` or `terramate run --dry-run` can be used to preview the order in which commands will be executed in stacks.
 
-**Example:** Watch for changes outside the current stack 
+### Run in parallel
+
+Stacks that are not affected by a specific order of execution can be executed in parallel.
+
+Terramate will always guarantee that ordered stacks will still run in order but independent stacks or stacks that have their depending stacks completed can run in parallel.
+
+By default, Terramate will always execute all stacks in sequence one stack at a time.
+
+**Example:** Run multiple stacks in parallel
 
 ```hcl
-stack {
-  name = "Some Application"
-  tags = ["kubernetes"]
-  id   = "f2b426b2-f614-4fa5-8f12-af78e5dcc13e"
-  watch = [
-    "/path/to/file",
-  ]
-}
-
+terramate run --parallel 100 -- echo "hello from stack in parallel"
 ```
 
-### Changing the run scope and order
+::: warning
+It is not possible to run `terraform init` in parallel when provider caching is enabled via `TF_PLUGIN_CACHE_DIR` as terraform does not support this mode of operation at this time.
+:::
 
-Sometimes, you want to change the [default order of execution](./index.md#order-of-execution), which can be done
-with the [`before`](../stacks/configuration.md#stackbefore-setstringoptional) and
-[`after`](../stacks/configuration.md#stackafter-setstringoptional) attributes in the configuration of a stack.
-For details, please see the [stacks configuration](../stacks/configuration.md#configuring-the-order-of-execution) documentation.
+### Reverse the run order
 
-By default, Terramate will run against all child stacks selected by the filter
-(e.g., all changed stacks with `--changed`). It is possible to add explicit
-dependencies for stacks not beneath the current directory by using
-[`watch`](../stacks/configuration.md#stackwatch-listoptional),
-[`wants`](../stacks/configuration.md#stackwants-setstringoptional) and
-[`wanted_by`](../stacks/configuration.md#stackwanted_by-setstringoptional) attributes.
+The order defined in the configuration of a stack and defined via integrations can be reverted when executing commands in stacks.
+
+**Example:** Execute a command in all stacks but in reverse order
+
+```hcl
+terramate run --reverse -- echo "hello from stack in reversed order"
+```
+
+This is useful when running destructive operations where dependent stacks need to remove their configuration before other stacks.
+
+A very good example here is the destroy operation of Terraform to destroy stacks in opposite order:
+
+```hcl
+terramate run --reverse -- terraform destroy
+```
