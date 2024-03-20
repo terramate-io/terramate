@@ -992,8 +992,17 @@ func validateStackGeneratedFiles(root *config.Root, stackpath string, generated 
 		abspath := filepath.Join(stackpath, relpath)
 		destdir := filepath.Dir(abspath)
 
-		// We need to check that destdir, or any of its parents, is not a symlink or a stack.
+		// We need to check that destdir, or any of its parents, is not a symlink, a stack or a dotdir.
 		for strings.HasPrefix(destdir, stackpath) && destdir != stackpath {
+			dirname := filepath.Base(destdir)
+			if dirname[0] == '.' {
+				errs.Append(errors.E(
+					ErrInvalidGenBlockLabel,
+					file.Range(),
+					"%s: generation inside dot directories are disallowed",
+					file.Label(),
+				))
+			}
 			info, err := os.Lstat(destdir)
 			if err != nil {
 				if errors.Is(err, fs.ErrNotExist) {
