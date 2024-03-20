@@ -24,7 +24,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Changed
 
-- (**Breaking Change**) The code generation of HCL and plain files was disallowed inside dot directories.
+- (**BREAKING CHANGE**) Removes the option `terramate.config.git.default_branch_base_ref`.
+- (**BREAKING CHANGE**) The code generation of HCL and plain files was disallowed inside dot directories.
 
 ## v0.5.5
 

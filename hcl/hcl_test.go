@@ -770,7 +770,6 @@ func TestHCLParserRootConfig(t *testing.T) {
 								git {
 									default_branch          = "trunk"
 									default_remote          = "upstream"
-									default_branch_base_ref = "HEAD~2"
 									check_untracked         = false
 									check_uncommitted       = false
 									check_remote            = false
@@ -785,12 +784,11 @@ func TestHCLParserRootConfig(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch:        "trunk",
-								DefaultRemote:        "upstream",
-								DefaultBranchBaseRef: "HEAD~2",
-								CheckUntracked:       false,
-								CheckUncommitted:     false,
-								CheckRemote:          hcl.CheckIsFalse,
+								DefaultBranch:    "trunk",
+								DefaultRemote:    "upstream",
+								CheckUntracked:   false,
+								CheckUncommitted: false,
+								CheckRemote:      hcl.CheckIsFalse,
 							},
 						},
 					},
