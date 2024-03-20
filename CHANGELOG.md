@@ -20,11 +20,21 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Changed
+
+- (**Breaking Change**) The code generation of HCL and plain files was disallowed inside dot directories.
+
 ## v0.5.5
+
+### Added
 
 - Add `script.job.name` and `script.job.description` attributes.
 
 ## v0.5.4
+
+### Fixed
 
 - Fix `--cloud-status` flag when stacks were synchronized with uppercase in the `stack.id`.
 - Fix `terramate cloud drift show` when used in stacks containing uppercase in the `stack.id`.

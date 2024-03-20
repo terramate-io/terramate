@@ -2000,7 +2000,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			if !p.hasExperimentalFeature("scripts") {
 				errs.Append(
 					errors.E(ErrTerramateSchema, block.DefRange(),
-						"unrecognized block %q", block.Type),
+						"unrecognized block %q (script is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [\"scripts\"]`)", block.Type),
 				)
 				continue
 			}
