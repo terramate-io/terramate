@@ -1949,7 +1949,7 @@ func (c *cli) ensureStackID() {
 			continue
 		}
 
-		id, err := stack.UpdateStackID(entry.Stack.HostDir(c.cfg()))
+		id, err := stack.UpdateStackID(c.cfg(), entry.Stack.HostDir(c.cfg()))
 		if err != nil {
 			fatal(sprintf("failed to update stack.id of stack %s", entry.Stack.Dir), err)
 		}

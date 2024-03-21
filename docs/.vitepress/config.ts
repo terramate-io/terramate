@@ -157,7 +157,6 @@ export default defineConfig({
             // { text: 'How it works', link: '/how-it-works' },
             // { text: 'Why Terramate', link: '/why-terramate' },
             // { text: 'Product Roadmap', link: '/product-roadmap/' },
-            { text: 'Community', link: 'https://terramate.io/discord' },
           ],
         },
         {

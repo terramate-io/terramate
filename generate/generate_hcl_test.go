@@ -1303,6 +1303,82 @@ EOT
 				},
 			},
 		},
+		{
+			name: "generate HCL with dotfile",
+			layout: []string{
+				"s:/",
+				"s:/stack-1",
+				"s:/stack-2",
+			},
+			configs: []hclconfig{
+				// inherited, fallthrough child stacks
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels(".tflint.hcl"),
+							Content(
+								Block("plugin",
+									Labels("terraform"),
+									Bool("enabled", true),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						".tflint.hcl": Doc(
+							Block("plugin",
+								Labels("terraform"),
+								Bool("enabled", true),
+							),
+						),
+					},
+				},
+				{
+					dir: "/stack-1",
+					files: map[string]fmt.Stringer{
+						".tflint.hcl": Doc(
+							Block("plugin",
+								Labels("terraform"),
+								Bool("enabled", true),
+							),
+						),
+					},
+				},
+				{
+					dir: "/stack-2",
+					files: map[string]fmt.Stringer{
+						".tflint.hcl": Doc(
+							Block("plugin",
+								Labels("terraform"),
+								Bool("enabled", true),
+							),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{".tflint.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/stack-1"),
+						Created: []string{".tflint.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/stack-2"),
+						Created: []string{".tflint.hcl"},
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -2255,6 +2331,23 @@ func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.DefaultHeader())
 
 	assertEqualReports(t, s.Generate(), generate.Report{})
+}
+
+func TestGenerateHCLCleanupOldFilesDONTIgnoreDotFiles(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+
+	// Creates a file with a generated header inside dot dirs.
+	test.WriteFile(t, filepath.Join(s.RootDir(), "somedir"), ".test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, filepath.Join(s.RootDir(), "another"), ".test.tf", genhcl.DefaultHeader())
+
+	assertEqualReports(t, s.Generate(), generate.Report{
+		Successes: []generate.Result{
+			{Dir: project.NewPath("/another"), Deleted: []string{".test.tf"}},
+			{Dir: project.NewPath("/somedir"), Deleted: []string{".test.tf"}},
+		},
+	})
 }
 
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
