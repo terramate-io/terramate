@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fixed a bug in the dotfiles handling in the code generation. Now it's possible to generate files such as `.tflint.hcl`.
+
 ### Changed
 
 - (**BREAKING CHANGE**) Removes the option `terramate.config.git.default_branch_base_ref`.

@@ -446,11 +446,12 @@ processSubdirs:
 		}
 
 		for _, entry := range entries {
-			if config.Skip(entry.Name()) {
-				continue
-			}
-
 			if entry.IsDir() {
+				// only dotdirs are ignored.
+				if entry.Name()[0] == '.' {
+					continue
+				}
+
 				isStack := config.IsStack(root, filepath.Join(absSubdir, entry.Name()))
 				if isStack {
 					continue
