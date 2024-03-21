@@ -55,7 +55,7 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
-			name:        "single stack: different base",
+			name:        "single stack changed using different base",
 			repobuilder: singleNotChangedStack,
 			baseRef:     "HEAD^",
 			want: listTestResult{
@@ -81,6 +81,22 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: changed",
 			repobuilder: singleChangedStacksRepo,
+			want: listTestResult{
+				list:    []string{"/"},
+				changed: []string{"/"},
+			},
+		},
+		{
+			name:        "single stack: dotfile changed",
+			repobuilder: singleChangedDotFileStackRepo,
+			want: listTestResult{
+				list:    []string{"/"},
+				changed: []string{"/"},
+			},
+		},
+		{
+			name:        "single stack: file inside dotdir changed",
+			repobuilder: singleChangedDotDirStackRepo,
 			want: listTestResult{
 				list:    []string{"/"},
 				changed: []string{"/"},
@@ -294,6 +310,34 @@ func singleChangedStacksRepo(t *testing.T) repository {
 	assert.NoError(t, g.Add("bar"), "add bar failed")
 	assert.NoError(t, g.Commit("bar message"), "bar commit failed")
 
+	return repo
+}
+
+func singleChangedDotFileStackRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepo(t)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+
+	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
+
+	_ = test.WriteFile(t, repo.Dir, ".bar", "bar")
+
+	assert.NoError(t, g.Add(".bar"), "add .bar failed")
+	assert.NoError(t, g.Commit("bar message"), "bar commit failed")
+	return repo
+}
+
+func singleChangedDotDirStackRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepo(t)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+
+	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
+
+	_ = test.WriteFile(t, filepath.Join(repo.Dir, ".bar"), "bar", "bar")
+
+	assert.NoError(t, g.Add(".bar"), "add .bar dir failed")
+	assert.NoError(t, g.Commit("bar dir message"), "bar commit failed")
 	return repo
 }
 

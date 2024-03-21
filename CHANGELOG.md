@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- (**BREAKING CHANGE**) Enable change detection for dotfiles. You can still use `.gitignore` to ignore them (if needed).
+
 ### Fixed
 
 - Fixed a bug in the dotfiles handling in the code generation. Now it's possible to generate files such as `.tflint.hcl`.
