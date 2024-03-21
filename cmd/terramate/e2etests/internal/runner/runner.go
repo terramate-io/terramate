@@ -74,7 +74,7 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 	}
 	if len(env) == 0 {
 		// by default, it's assumed human mode
-		env = RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
+		env = RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	// custom cliconfig file
