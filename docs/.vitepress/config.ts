@@ -216,7 +216,7 @@ export default defineConfig({
                     { text: 'Integration: Local Files', link: '/cli/change-detection/file-watchers' },
                   ],
                 },
-                { text: 'Filter Stacks', link: '/cli/orchestration/tag-filter' },
+                // { text: 'Filter Stacks', link: '/cli/orchestration/tag-filter' },
                 { text: 'Order of Execution ', link: '/cli/orchestration/order-of-execution' },
                 { text: 'Configure Runtime ENV', link: '/cli/orchestration/runtime-configuration' },
                 { text: 'Disable Safeguards', link: '/cli/orchestration/safeguards' },
