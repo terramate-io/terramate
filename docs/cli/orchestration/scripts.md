@@ -70,6 +70,7 @@ A script in Terramate CLI is defined in a script block placed in any Terramate c
 script "command" "subcommand" { # any level of subcommands is supported
   description = "Execute commands"
   job {
+    description = "hello world job"
     commands = [
       ["echo", "-n", "Hello"],
       ["echo", " World!"],
@@ -84,12 +85,14 @@ script "command" "subcommand" { # any level of subcommands is supported
 - Attributes and Blocks Reference of the `script` block
 
   - `name` _(optional)_ - A name for the jobs being executed (maximum of 128 chars)
-  - `description` _(required)_ - A description of the jobs being executed
+  - `description` _(optional)_ - A description of the jobs being executed (maximum of 1000 chars)
   - `job` _(required)_ - One or more blocks each defining a sequence of commands to be executed in the script.
     Jobs are executed in the order of definition.
 
     Each job can have the following attributes:
 
+    - `name` _(optional)_ - A name for the job (maximum of 128 chars).
+    - `description` _(optional)_ - A description for the job (maximum of 1000 chars).
     - `commands` _(required)_ - A list of commands. Each item is a list that has the form `[ command, arg1, arg2, ...]`
       that will be executed accordingly. Terramate Functions and variable interpolation of the following namespaces
       is supported: `global`, `terramate`, and `env`
@@ -103,6 +106,8 @@ To run a Terraform deployment, a script can be defined as:
 script "deploy" {
   description = "Run a Terraform deployment"
   job {
+    name        = "deploy"
+    description = "Initialize, validate and deploy Terraform stacks"
     commands = [
       ["terraform", "init"],
       ["terraform", "validate"],
@@ -116,8 +121,9 @@ script "deploy" {
 ### Command options
 
 - `cloud_sync_deployment` _(optional boolean)_ Send information about the deployment to Terramate Cloud. See [Sending deployment data to Terramate Cloud](../cmdline/run.md#sending-deployment-data-to-terramate-cloud). Only one command per script may have this option set to true.
+- `cloud_sync_preview` _(optional boolean)_ Send information about a _Pull Request_ preview to Terramate Cloud. See [Sending a Pull Request Preview to Terramate Cloud](../cmdline/run.md#sending-a-pull-request-preview-to-terramate-cloud). Only one command per script may have this option set to true.
 - `cloud_sync_drift_status` _(optional boolean)_ Send drift information to Terramate Cloud. See [Detecting Drifts](../cmdline/run.md#detecting-drift).
-- `cloud_sync_terraform_plan_file` _(optional string)_ Sync a Terraform plan file to Terramate Cloud with a deployment or drift. This option is only used when `cloud_sync_deployment` or `cloud_sync_drift_status` are set to true.
+- `cloud_sync_terraform_plan_file` _(optional string)_ Sync a Terraform plan file to Terramate Cloud with a deployment or drift. This option is only used when `cloud_sync_deployment`, `cloud_sync_drift_status` or `cloud_sync_preview` are set to true.
 
 ## Running Scripts
 
