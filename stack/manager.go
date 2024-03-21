@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
@@ -135,11 +134,6 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		logger = logger.With().
 			Stringer("path", projpath).
 			Logger()
-
-		if strings.HasPrefix(path, ".") && !isTriggerFile {
-			logger.Debug().Msg("ignoring changed file starting with .")
-			continue
-		}
 
 		if isTriggerFile {
 			logger = logger.With().
