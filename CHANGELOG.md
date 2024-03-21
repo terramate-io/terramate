@@ -29,6 +29,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fixed a bug in the dotfiles handling in the code generation. Now it's possible to generate files such as `.tflint.hcl`.
+- Fixed the cloning of stacks containing `import` blocks.
 
 ### Changed
 
