@@ -5,9 +5,11 @@ package cloud_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -21,7 +23,7 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
-func TestCLIRunWithCloudSyncPreview(t *testing.T) {
+func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 	t.Parallel()
 	type Metadata struct {
 		GithubPullRequestURL       string
@@ -30,16 +32,22 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 		GithubPullRequestUpdatedAt string
 		GithubPullRequestPushedAt  string
 	}
+
+	type changesetDetails struct {
+		Provisioner           string
+		ChangesetASCIIRegexes []string
+	}
+
 	type want struct {
-		run         RunExpected
-		preview     *cloudstore.Preview
-		Metadata    *Metadata
-		ignoreTypes cmp.Option
+		run                    RunExpected
+		preview                *cloudstore.Preview
+		Metadata               *Metadata
+		stackPreviewChangesets []changesetDetails
+		ignoreTypes            cmp.Option
 	}
 	type testcase struct {
 		name            string
 		layout          []string
-		runflags        []string
 		workingDir      string
 		env             []string
 		cloudData       *cloudstore.Data
@@ -52,7 +60,30 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 		{
 			name: "basic success sync",
 			layout: []string{
-				"s:stack:id=stack",
+				"s:stack:id=someid",
+				`f:terramate.tm:
+				  terramate {
+					config {
+						experiments = ["scripts"]
+					}
+				  }
+				`,
+				fmt.Sprintf(`f:stack/preview.tm:
+
+				  script "preview" {
+					description = "sync a preview"
+					job {
+					  commands = [
+						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
+						  cloud_sync_preview             = true,
+						  cloud_sync_terraform_plan_file = "out.tfplan",
+						}],
+					  ]
+					}
+				  }
+				  `,
+					TerraformTestPath,
+				),
 				`f:stack/main.tf:
 				  resource "local_file" "foo" {
 					content  = "test content"
@@ -60,8 +91,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				  }`,
 				"run:stack:terraform init",
 			},
-			runflags:        []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
-			cmd:             []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+			cmd:             []string{"script", "run", "-X", "preview"},
 			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
 			want: want{
 				run: RunExpected{
@@ -107,47 +137,13 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					GithubPullRequestTitle:     "Amazing new feature",
 					GithubPullRequestUpdatedAt: "2011-01-26T19:01:12Z",
 				},
-				ignoreTypes: cmpopts.IgnoreTypes(
-					cloud.CommandLogs{},
-					&cloud.ChangesetDetails{},
-					cloudstore.Stack{},
-					&cloud.DeploymentMetadata{},
-				),
-			},
-		},
-		{
-			name: "failure of command should still create preview with stack preview status failed",
-			layout: []string{
-				"s:stack:id=stack",
-				`f:stack/main.tf:
-				  resource "local_file" "foo" {
-					content  = "test content"
-					filename = "${path.module}/foo.bar"
-				  }`,
-				"run:stack:terraform init",
-			},
-			runflags:        []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
-			cmd:             []string{TerraformTestPath, "plan-invalid-subcommand", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
-			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
-			want: want{
-				run: RunExpected{
-					Status: 1,
-					StderrRegexes: []string{
-						"Preview created",
-					},
-				},
-				preview: &cloudstore.Preview{
-					PreviewID:       "1",
-					Technology:      "terraform",
-					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
-					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
-					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
-					StackPreviews: []*cloudstore.StackPreview{
-						{
-							ID:     "1",
-							Status: "failed",
-							Cmd:    []string{TerraformTestPath, "plan-invalid-subcommand", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+				stackPreviewChangesets: []changesetDetails{
+					{
+						Provisioner: "terraform",
+						ChangesetASCIIRegexes: []string{
+							`Terraform will perform the following actions:`,
+							`# local_file.foo will be created`,
+							`Plan: 1 to add, 0 to change, 0 to destroy`,
 						},
 					},
 				},
@@ -155,7 +151,6 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					cloud.CommandLogs{},
 					&cloud.ChangesetDetails{},
 					cloudstore.Stack{},
-					&cloud.ReviewRequest{},
 					&cloud.DeploymentMetadata{},
 				),
 			},
@@ -193,15 +188,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 
 			s.Git().SetRemoteURL("origin", normalizedTestRemoteRepo)
 
-			runflags := []string{
-				"run",
-				"--disable-safeguards=all",
-				"--cloud-sync-preview",
-			}
-			runflags = append(runflags, tc.runflags...)
-			runflags = append(runflags, "--")
-			runflags = append(runflags, tc.cmd...)
-			result := cli.Run(runflags...)
+			result := cli.Run(tc.cmd...)
 			AssertRunResult(t, result, tc.want.run)
 
 			orguuid := string(cloudData.MustOrgByName("terramate").UUID)
@@ -224,6 +211,21 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				t.Fatalf("failed to decode response: %v", err)
 			}
 
+			for i, sp := range previewResp.StackPreviews {
+				assert.EqualStrings(t, tc.want.stackPreviewChangesets[i].Provisioner, sp.ChangesetDetails.Provisioner)
+				for _, asciiRegex := range tc.want.stackPreviewChangesets[i].ChangesetASCIIRegexes {
+					matched, err := regexp.MatchString(asciiRegex, sp.ChangesetDetails.ChangesetASCII)
+					assert.NoError(t, err, "failed to compile regex %q", asciiRegex)
+
+					if !matched {
+						t.Errorf("ChangesetASCII=\"%s\" does not match regex %q",
+							sp.ChangesetDetails.ChangesetASCII,
+							asciiRegex,
+						)
+					}
+				}
+			}
+
 			if tc.want.preview != nil {
 				if diff := cmp.Diff(*(tc.want.preview), previewResp, tc.want.ignoreTypes); diff != "" {
 					t.Errorf("unexpected  preview: %s", diff)
@@ -238,18 +240,4 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			}
 		})
 	}
-}
-
-func datapath(t *testing.T, path string) string {
-	wd, err := os.Getwd()
-	assert.NoError(t, err)
-	return filepath.Join(wd, filepath.FromSlash(path))
-}
-
-func toTime(s string) *time.Time {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		panic(err)
-	}
-	return &t
 }

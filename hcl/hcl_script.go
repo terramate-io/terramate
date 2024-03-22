@@ -15,9 +15,9 @@ import (
 // Errors returned during the HCL parsing of script block
 const (
 	ErrScriptNoLabels            errors.Kind = "terramate schema error: (script): must provide at least one label"
-	ErrScriptNoDesc              errors.Kind = "terramate schema error: (script): missing description"
 	ErrScriptRedeclared          errors.Kind = "terramate schema error: (script): multiple script blocks with same labels in the same directory"
 	ErrScriptUnrecognizedAttr    errors.Kind = "terramate schema error: (script): unrecognized attribute"
+	ErrScriptJobUnrecognizedAttr errors.Kind = "terramate schema error: (script.job): unrecognized attribute"
 	ErrScriptUnrecognizedBlock   errors.Kind = "terramate schema error: (script): unrecognized block"
 	ErrScriptNoCmds              errors.Kind = "terramate schema error: (script): missing command or commands"
 	ErrScriptMissingOrInvalidJob errors.Kind = "terramate schema error: (script): missing or invalid job"
@@ -32,35 +32,19 @@ type Commands ast.Attribute
 
 // ScriptJob represent a Job within a Script
 type ScriptJob struct {
-	Command  *Command  // Command is a single executable command
-	Commands *Commands // Commands is a list of executable commands
+	Name        *ast.Attribute
+	Description *ast.Attribute
+	Command     *Command  // Command is a single executable command
+	Commands    *Commands // Commands is a list of executable commands
 }
-
-// ScriptName is a human readable name of a script.
-type ScriptName ast.Attribute
-
-// ScriptDescription is human readable description of a script
-type ScriptDescription ast.Attribute
 
 // Script represents a parsed script block
 type Script struct {
 	Range       info.Range
-	Labels      []string // Labels of the script block used for grouping scripts
-	Name        *ScriptName
-	Description *ScriptDescription // Description is a human readable description of a script
-	Jobs        []*ScriptJob       // Job represents the command(s) part of this script
-}
-
-// NewScriptName returns a *ScriptName encapsulating an ast.Attribute
-func NewScriptName(attr ast.Attribute) *ScriptName {
-	name := ScriptName(attr)
-	return &name
-}
-
-// NewScriptDescription returns a *ScriptDescription encapsulating an ast.Attribute
-func NewScriptDescription(attr ast.Attribute) *ScriptDescription {
-	desc := ScriptDescription(attr)
-	return &desc
+	Labels      []string       // Labels of the script block used for grouping scripts
+	Name        *ast.Attribute // Name of the script
+	Description *ast.Attribute // Description is a human readable description of a script
+	Jobs        []*ScriptJob   // Job represents the command(s) part of this script
 }
 
 // NewScriptCommand returns a *Command encapsulating an ast.Attribute
@@ -102,11 +86,12 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 	}
 
 	for _, attr := range block.Attributes {
+		attr := attr
 		switch attr.Name {
 		case "name":
-			parsedScript.Name = NewScriptName(attr)
+			parsedScript.Name = &attr
 		case "description":
-			parsedScript.Description = NewScriptDescription(attr)
+			parsedScript.Description = &attr
 		default:
 			errs.Append(errors.E(ErrScriptUnrecognizedAttr, attr.NameRange))
 		}
@@ -115,7 +100,7 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 	for _, nestedBlock := range block.Blocks {
 		switch nestedBlock.Type {
 		case "job":
-			parsedJobBlock, err := validateScriptJobBlock(nestedBlock)
+			parsedJobBlock, err := parseScriptJobBlock(nestedBlock)
 			if err != nil {
 				errs.Append(err)
 				continue
@@ -123,7 +108,6 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 			parsedScript.Jobs = append(parsedScript.Jobs, parsedJobBlock)
 		default:
 			errs.Append(errors.E(ErrScriptUnrecognizedBlock, nestedBlock.TypeRange, nestedBlock.Type))
-
 		}
 	}
 
@@ -133,10 +117,6 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 
 	if len(parsedScript.Jobs) == 0 {
 		errs.Append(errors.E(ErrScriptMissingOrInvalidJob, block.Range))
-	}
-
-	if parsedScript.Description == nil {
-		errs.Append(errors.E(ErrScriptNoDesc, block.Range))
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -155,19 +135,23 @@ func findScript(scripts []*Script, target []string) (*Script, bool) {
 	return nil, false
 }
 
-func validateScriptJobBlock(block *ast.Block) (*ScriptJob, error) {
+func parseScriptJobBlock(block *ast.Block) (*ScriptJob, error) {
 	errs := errors.L()
 
 	parsedScriptJob := &ScriptJob{}
 	for _, attr := range block.Attributes {
+		attr := attr
 		switch attr.Name {
+		case "name":
+			parsedScriptJob.Name = &attr
+		case "description":
+			parsedScriptJob.Description = &attr
 		case "command":
 			parsedScriptJob.Command = NewScriptCommand(attr)
 		case "commands":
 			parsedScriptJob.Commands = NewScriptCommands(attr)
 		default:
-			errs.Append(errors.E(ErrScriptUnrecognizedAttr, attr.NameRange, attr.Name))
-
+			errs.Append(errors.E(ErrScriptJobUnrecognizedAttr, attr.NameRange, attr.Name))
 		}
 	}
 

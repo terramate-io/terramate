@@ -68,15 +68,15 @@ export default defineConfig({
       [
         'meta',
         {
-          name: 'og:image',
-          content: `${siteData.base}terramate-og_linkedin.png`
+          property: 'og:image',
+          content: `https://terramate.io${siteData.base}terramate-og_linkedin.png`
         },
       ],
       [
         'meta',
         {
-          name: 'twitter:image',
-          content: `${siteData.base}terramate-og_twitter.png`
+          property: 'twitter:image',
+          content: `https://terramate.io${siteData.base}terramate-og_twitter.png`
         },
       ],
       [
@@ -217,7 +217,7 @@ export default defineConfig({
                   ],
                 },
                 { text: 'Filter Stacks', link: '/cli/orchestration/tag-filter' },
-                { text: 'Order of Execution 🚧'},
+                // { text: 'Order of Execution ', link: '/cli/orchestration/order-of-execution' },
                 { text: 'Configure Runtime ENV', link: '/cli/orchestration/runtime-configuration' },
                 { text: 'Disable Safeguards', link: '/cli/orchestration/safeguards' },
               ],

@@ -23,6 +23,8 @@ type (
 	// CreatePreviewPayloadRequest is the request payload for the creation of
 	// stack deployments.
 	CreatePreviewPayloadRequest struct {
+		CommitSHA       string              `json:"commit_sha"`
+		PushedAt        int64               `json:"pushed_at"`
 		UpdatedAt       int64               `json:"updated_at"`
 		Technology      string              `json:"technology"`
 		TechnologyLayer string              `json:"technology_layer"`
@@ -114,6 +116,12 @@ func (r CreatePreviewPayloadRequest) Validate() error {
 	}
 	if r.UpdatedAt == 0 {
 		errs.Append(errors.E(`missing "updated_at" field`))
+	}
+	if r.PushedAt == 0 {
+		errs.Append(errors.E(`missing "pushed_at" field`))
+	}
+	if r.CommitSHA == "" {
+		errs.Append(errors.E(`missing "commit_sha" field`))
 	}
 	if r.Stacks == nil {
 		errs.Append(errors.E(`missing "stacks" field`))

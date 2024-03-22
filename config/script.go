@@ -30,6 +30,9 @@ const (
 // MaxScriptNameRunes defines the maximum number of runes allowed for a script name.
 const MaxScriptNameRunes = 128
 
+// MaxScriptDescRunes defines the maximum number of runes allowed for a script description.
+const MaxScriptDescRunes = 1000
+
 // ScriptCmdOptions represents optional parameters for a script command
 type ScriptCmdOptions struct {
 	CloudSyncDeployment    bool
@@ -47,8 +50,10 @@ type ScriptCmd struct {
 
 // ScriptJob represents an evaluated job block
 type ScriptJob struct {
-	Cmd  *ScriptCmd
-	Cmds []*ScriptCmd
+	Name        string
+	Description string
+	Cmd         *ScriptCmd
+	Cmds        []*ScriptCmd
 }
 
 // Script represents an evaluated script block
@@ -92,12 +97,48 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		evaluatedScript.Name = name
 	}
 
-	desc, err := evalScriptStringField(evalctx, script.Description.Expr, "script.description")
-	errs.Append(err)
-	evaluatedScript.Description = desc
+	if script.Description != nil {
+		desc, err := evalScriptStringField(evalctx, script.Description.Expr, "script.description")
+		errs.Append(err)
+		if len(desc) > MaxScriptDescRunes {
+			desc = desc[:MaxScriptDescRunes]
+
+			printer.Stderr.Warn(
+				fmt.Sprintf("`script.description` exceeds the maximum allowed characters (%d): field truncated", MaxScriptDescRunes),
+			)
+		}
+		evaluatedScript.Description = desc
+	}
 
 	for _, job := range script.Jobs {
 		evaluatedJob := ScriptJob{}
+
+		if job.Name != nil {
+			name, err := evalScriptStringField(evalctx, job.Name.Expr, "script.job.name")
+			errs.Append(err)
+			if len(name) > MaxScriptNameRunes {
+				name = name[:MaxScriptNameRunes]
+
+				printer.Stderr.Warn(
+					fmt.Sprintf("`script.job.name` exceeds the maximum allowed characters (%d): field truncated", MaxScriptNameRunes),
+				)
+			}
+			evaluatedJob.Name = name
+		}
+
+		if job.Description != nil {
+			desc, err := evalScriptStringField(evalctx, job.Description.Expr, "script.job.description")
+			errs.Append(err)
+			if len(desc) > MaxScriptDescRunes {
+				desc = desc[:MaxScriptDescRunes]
+
+				printer.Stderr.Warn(
+					fmt.Sprintf("`script.job.description` exceeds the maximum allowed characters (%d): field truncated", MaxScriptDescRunes),
+				)
+			}
+
+			evaluatedJob.Description = desc
+		}
 
 		if job.Command != nil {
 			expr := job.Command.Expr

@@ -341,7 +341,7 @@ func (c *cli) doPreviewBefore(run stackCloudRun) {
 }
 
 func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
-	planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile
+	planfile := run.Task.CloudSyncTerraformPlanFile
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
 	var previewChangeset *cloud.ChangesetDetails
@@ -870,7 +870,13 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 	md.GithubPullRequestAuthorGravatarID = pull.GetUser().GetGravatarID()
 }
 
-func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullRequestReview, checks []*github.CheckRun, merged bool, reviewDecision string) *cloud.ReviewRequest {
+func (c *cli) newReviewRequest(
+	pull *github.PullRequest,
+	reviews []*github.PullRequestReview,
+	checks []*github.CheckRun,
+	merged bool,
+	reviewDecision string,
+) *cloud.ReviewRequest {
 	pullUpdatedAt := pull.GetUpdatedAt()
 	rr := &cloud.ReviewRequest{
 		Platform:       "github",
@@ -883,6 +889,12 @@ func (c *cli) newReviewRequest(pull *github.PullRequest, reviews []*github.PullR
 		Draft:          pull.GetDraft(),
 		ReviewDecision: reviewDecision,
 		UpdatedAt:      pullUpdatedAt.GetTime(),
+	}
+
+	prFromEvent := c.cloud.run.prFromGHAEvent
+	if prFromEvent.GetHead() != nil && prFromEvent.GetHead().GetRepo() != nil {
+		pushedAt := prFromEvent.GetHead().GetRepo().GetPushedAt()
+		rr.PushedAt = pushedAt.GetTime()
 	}
 
 	if pull.GetState() == "closed" {

@@ -1155,7 +1155,7 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 		var stacks []stack.Entry
 
 		for _, stack := range localStacks {
-			if cloudStacksMap[stack.Stack.ID] {
+			if cloudStacksMap[strings.ToLower(stack.Stack.ID)] {
 				stacks = append(stacks, stack)
 			}
 		}
@@ -1949,7 +1949,7 @@ func (c *cli) ensureStackID() {
 			continue
 		}
 
-		id, err := stack.UpdateStackID(entry.Stack.HostDir(c.cfg()))
+		id, err := stack.UpdateStackID(c.cfg(), entry.Stack.HostDir(c.cfg()))
 		if err != nil {
 			fatal(sprintf("failed to update stack.id of stack %s", entry.Stack.Dir), err)
 		}

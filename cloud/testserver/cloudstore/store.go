@@ -55,6 +55,8 @@ type (
 		PreviewID string `json:"preview_id"`
 
 		UpdatedAt       int64                     `json:"updated_at"`
+		PushedAt        int64                     `json:"pushed_at"`
+		CommitSHA       string                    `json:"commit_sha"`
 		Technology      string                    `json:"technology"`
 		TechnologyLayer string                    `json:"technology_layer"`
 		ReviewRequest   *cloud.ReviewRequest      `json:"review_request,omitempty"`

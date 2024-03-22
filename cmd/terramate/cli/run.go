@@ -569,6 +569,8 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
 			UpdatedAt:       pullRequest.GetUpdatedAt().Unix(),
+			PushedAt:        pullRequest.GetHead().GetRepo().GetPushedAt().Unix(),
+			CommitSHA:       pullRequest.GetHead().GetSHA(),
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),

@@ -28,9 +28,9 @@ import (
 func TestScriptEval(t *testing.T) {
 	t.Parallel()
 
-	makeAttribute := func(t *testing.T, name string, expr string) ast.Attribute {
+	makeAttribute := func(t *testing.T, name string, expr string) *ast.Attribute {
 		t.Helper()
-		return ast.Attribute{
+		return &ast.Attribute{
 			Attribute: &hhcl.Attribute{
 				Name: name,
 				Expr: test.NewExpr(t, expr),
@@ -39,12 +39,16 @@ func TestScriptEval(t *testing.T) {
 	}
 
 	makeCommand := func(t *testing.T, expr string) *hcl.Command {
-		parsed := hcl.Command(makeAttribute(t, "command", expr))
+		t.Helper()
+		attr := makeAttribute(t, "command", expr)
+		parsed := hcl.Command(*attr)
 		return &parsed
 	}
 
 	makeCommands := func(t *testing.T, expr string) *hcl.Commands {
-		parsed := hcl.Commands(makeAttribute(t, "commands", expr))
+		t.Helper()
+		attr := makeAttribute(t, "commands", expr)
+		parsed := hcl.Commands(*attr)
 		return &parsed
 	}
 
@@ -60,20 +64,27 @@ func TestScriptEval(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name: "description attribute wrong type",
+			name: "no description attribute",
 			script: hcl.Script{
 				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `666`)),
+			},
+			want: config.Script{
+				Labels: labels,
+			},
+		},
+		{
+			name: "description attribute wrong type",
+			script: hcl.Script{
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `666`),
 			},
 			wantErr: errors.E(config.ErrScriptInvalidType),
 		},
 		{
 			name: "description attribute with functions",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `tm_upper("some description")`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `tm_upper("some description")`),
 			},
 			want: config.Script{
 				Labels:      labels,
@@ -83,10 +94,9 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "description attribute with functions and globals",
 			script: hcl.Script{
-				Range:  Range("script.tm", Start(1, 1, 0), End(3, 2, 37)),
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `tm_upper(global.some_string_var)`)),
+				Range:       Range("script.tm", Start(1, 1, 0), End(3, 2, 37)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `tm_upper(global.some_string_var)`),
 			},
 			globals: map[string]cty.Value{
 				"some_string_var": cty.StringVal("terramate"),
@@ -99,20 +109,18 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "name attribute with wrong type",
 			script: hcl.Script{
-				Labels: labels,
-				Name: hcl.NewScriptName(
-					makeAttribute(t, "name", `666`)),
-				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+				Labels:      labels,
+				Name:        makeAttribute(t, "name", `666`),
+				Description: makeAttribute(t, "description", `"some desc"`),
 			},
 			wantErr: errors.E(config.ErrScriptInvalidType),
 		},
 		{
 			name: "name attribute with string",
 			script: hcl.Script{
-				Labels: labels,
-				Name: hcl.NewScriptName(
-					makeAttribute(t, "name", `"some name"`)),
-				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+				Labels:      labels,
+				Name:        makeAttribute(t, "name", `"some name"`),
+				Description: makeAttribute(t, "description", `"some desc"`),
 			},
 			want: config.Script{
 				Labels:      labels,
@@ -123,10 +131,9 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "name attribute exceeds maximum allowed characters - truncation",
 			script: hcl.Script{
-				Labels: labels,
-				Name: hcl.NewScriptName(
-					makeAttribute(t, "name", `"`+strings.Repeat("A", 150)+`"`)),
-				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+				Labels:      labels,
+				Name:        makeAttribute(t, "name", `"`+strings.Repeat("A", 150)+`"`),
+				Description: makeAttribute(t, "description", `"some desc"`),
 			},
 			want: config.Script{
 				Labels:      labels,
@@ -137,10 +144,9 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "name attribute with functions",
 			script: hcl.Script{
-				Labels: labels,
-				Name: hcl.NewScriptName(
-					makeAttribute(t, "name", `tm_upper("some name")`)),
-				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+				Labels:      labels,
+				Name:        makeAttribute(t, "name", `tm_upper("some name")`),
+				Description: makeAttribute(t, "description", `"some desc"`),
 			},
 			want: config.Script{
 				Labels:      labels,
@@ -151,11 +157,10 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "name attribute with interpolation, functions and globals",
 			script: hcl.Script{
-				Range:  Range("script.tm", Start(1, 1, 0), End(3, 2, 37)),
-				Labels: labels,
-				Name: hcl.NewScriptName(
-					makeAttribute(t, "name", `"my name is ${tm_upper(global.name_var)}!!!"`)),
-				Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some desc"`)),
+				Range:       Range("script.tm", Start(1, 1, 0), End(3, 2, 37)),
+				Labels:      labels,
+				Name:        makeAttribute(t, "name", `"my name is ${tm_upper(global.name_var)}!!!"`),
+				Description: makeAttribute(t, "description", `"some desc"`),
 			},
 			globals: map[string]cty.Value{
 				"name_var": cty.StringVal("terramate"),
@@ -169,9 +174,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command attribute wrong type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Command: makeCommand(t, `"echo"`),
@@ -186,9 +190,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command attribute wrong element type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Command: makeCommand(t, `["echo", 666]`),
@@ -200,9 +203,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command attribute with functions and globals",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Command: makeCommand(t, `["echo", tm_upper("hello ${global.some_string_var}")]`),
@@ -227,9 +229,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command attribute with list type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Command: makeCommand(t, `true ? tm_concat(["echo"], ["something"]) : []`),
@@ -254,9 +255,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "commands attribute with list type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `true ? tm_concat([["echo", "something"]], [["echo", "other", "thing"]]) : []`),
@@ -286,9 +286,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command with first item interpolated",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Command: makeCommand(t, `["${global.some_command_name}", "--version"]`),
@@ -313,9 +312,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "commands attribute wrong type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `"echo"`),
@@ -330,9 +328,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "commands attribute wrong element type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -349,9 +346,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "commands evaluating to empty list",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `[]`),
@@ -363,9 +359,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "commands item evaluating to empty list",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `[
@@ -381,9 +376,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command evaluating to empty list",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Command: makeCommand(t, `[]`),
@@ -395,9 +389,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "commands attribute with functions and globals",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -428,11 +421,11 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "multiple jobs",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
+						Name: makeAttribute(t, "name", `"job name"`),
 						Commands: makeCommands(t, `
 						  [
 							["echo", tm_upper("hello ${global.some_string_var}")],
@@ -458,6 +451,7 @@ func TestScriptEval(t *testing.T) {
 				Description: "some description",
 				Jobs: []config.ScriptJob{
 					{
+						Name: "job name",
 						Cmds: []*config.ScriptCmd{
 							{Args: []string{"echo", "HELLO TERRAMATE"}},
 							{Args: []string{"stat", "."}},
@@ -473,11 +467,68 @@ func TestScriptEval(t *testing.T) {
 			},
 		},
 		{
+			name: "job.name attribute exceeds maximum allowed characters - truncation",
+			script: hcl.Script{
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some desc"`),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Name: makeAttribute(t, "name", `"`+strings.Repeat("A", 150)+`"`),
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello"],
+						  ]
+						`),
+					},
+				},
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some desc",
+				Jobs: []config.ScriptJob{
+					{
+						Name: strings.Repeat("A", 128),
+						Cmds: []*config.ScriptCmd{
+							{Args: []string{"echo", "hello"}},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "job.description attribute exceeds maximum allowed characters - truncation",
+			script: hcl.Script{
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some desc"`),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Description: makeAttribute(t, "description", `"`+strings.Repeat("A", config.MaxScriptDescRunes+100)+`"`),
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello"],
+						  ]
+						`),
+					},
+				},
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some desc",
+				Jobs: []config.ScriptJob{
+					{
+						Description: strings.Repeat("A", 1000),
+						Cmds: []*config.ScriptCmd{
+							{Args: []string{"echo", "hello"}},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "command options with cloud_sync_deployment and cloud_sync_preview",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -497,9 +548,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command options with invalid cloud_sync_layer",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -519,9 +569,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command options with cloud_sync_preview + planfile + layer",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -559,9 +608,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "command options",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -613,9 +661,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "invalid command option",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -633,9 +680,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "invalid command options object",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -651,9 +697,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "invalid command option type",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `
@@ -671,9 +716,8 @@ func TestScriptEval(t *testing.T) {
 		{
 			name: "multiple cloud_sync_deployments",
 			script: hcl.Script{
-				Labels: labels,
-				Description: hcl.NewScriptDescription(
-					makeAttribute(t, "description", `"some description"`)),
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
 				Jobs: []*hcl.ScriptJob{
 					{
 						Commands: makeCommands(t, `

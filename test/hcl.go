@@ -292,9 +292,14 @@ func assertScriptBlocks(t *testing.T, got, want []*hcl.Script) {
 	for i, g := range got {
 		w := want[i]
 
-		assert.EqualStrings(t,
-			exprAsStr(t, w.Description.Expr), exprAsStr(t, g.Description.Expr),
-			"description expr mismatch")
+		if w.Description != nil {
+			assert.EqualStrings(t,
+				exprAsStr(t, w.Description.Expr), exprAsStr(t, g.Description.Expr),
+				"description expr mismatch")
+		} else if g.Description != nil {
+			t.Fatalf("got script.description[%s] but expected nil", exprAsStr(t, g.Description.Expr))
+
+		}
 
 		assert.IsTrue(t, slices.Equal(w.Labels, g.Labels),
 			fmt.Sprintf("script label value mismatch: want[%#v], got [%#v]", w.Labels, g.Labels))
@@ -302,6 +307,24 @@ func assertScriptBlocks(t *testing.T, got, want []*hcl.Script) {
 		assert.EqualInts(t, len(w.Jobs), len(g.Jobs), "script len(jobs) mismatch")
 		for k, gotJob := range g.Jobs {
 			wantJob := w.Jobs[k]
+
+			if wantJob.Name != nil {
+				assert.EqualStrings(t,
+					exprAsStr(t, wantJob.Name.Expr),
+					exprAsStr(t, gotJob.Name.Expr),
+				)
+			} else if gotJob.Name != nil {
+				t.Fatalf("got job.name[%s] but expected nil", exprAsStr(t, gotJob.Name.Expr))
+			}
+
+			if wantJob.Description != nil {
+				assert.EqualStrings(t,
+					exprAsStr(t, wantJob.Description.Expr),
+					exprAsStr(t, gotJob.Description.Expr),
+				)
+			} else if gotJob.Description != nil {
+				t.Fatalf("got job.description[%s] but expected nil", exprAsStr(t, gotJob.Description.Expr))
+			}
 
 			if wantJob.Command != nil {
 				assert.EqualStrings(t,
