@@ -6,7 +6,7 @@ outline: [2, 3]
 
 # Configure stacks
 
-Terramate detects stacks based on the exitance of a `stack {}` Block. The name of the file is not important and can be different from `stack.tm.hcl`. There can be exactly one stack block defined in a stack.
+Terramate detects stacks based on the existence of a `stack {}` block. The name of the file is not important and can be different from `stack.tm.hcl`. There can be exactly one stack block defined in a stack.
 
 - Define Stack Metadata: `name`, `description`, `id`, `tags`.
 - Set an explicit Order of Execution: `before`, `after`.

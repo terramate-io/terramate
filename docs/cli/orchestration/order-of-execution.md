@@ -1,6 +1,6 @@
 ---
 title: Order of Execution
-description: Define the order stacks are executed in.
+description: Learn about the order of execution when orchestration stacks with Terramate.
 outline: [2, 3]
 ---
 
@@ -8,12 +8,12 @@ outline: [2, 3]
 
 ## Implicit Order of Execution
 
-implicit order will be detected by Terramate depending on integrations and hierarchy of stacks.
+Implicit order will be detected by Terramate depending on integrations and hierarchy of stacks.
 
 ### Parent and Child Stacks
 
 Currently Terramate orders stacks implicitly when they are nested.
-Nested Stacks are stacks that are in a subdirectory of stack.
+nested stacks are stacks that are in a subdirectory of stack.
 
 Any level of nesting is supported.
 

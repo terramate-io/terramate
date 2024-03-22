@@ -90,7 +90,7 @@ terramate run --parallel 100 -- echo "hello from stack in parallel"
 ```
 
 ::: warning
-It is not possible to run `terraform init` in parallel when provider caching is enabled via `TF_PLUGIN_CACHE_DIR` as terraform does not support this mode of operation at this time.
+It is not possible to run `terraform init` in parallel when provider caching is enabled via `TF_PLUGIN_CACHE_DIR` as Terraform does not support this mode of operation at this time.
 :::
 
 ### Reverse the run order
@@ -105,7 +105,7 @@ terramate run --reverse -- echo "hello from stack in reversed order"
 
 This is useful when running destructive operations where dependent stacks need to remove their configuration before other stacks.
 
-A very good example here is the destroy operation of Terraform to destroy stacks in opposite order:
+An example use-case is the destroy operation of Terraform to destroy stacks in opposite order:
 
 ```hcl
 terramate run --reverse -- terraform destroy
