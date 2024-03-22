@@ -1,7 +1,6 @@
 ---
 title: "On-boarding: Terragrunt On-boarding"
 description: Import your existing Terragrunt Setup to Terramate
-outline: [2, 3]
 ---
 
 # Start with existing Terragrunt Projects
