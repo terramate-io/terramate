@@ -1,7 +1,6 @@
 ---
 title: Stack Configuration
 description: Learn how to configure the metadata and orchestration behavior of stacks in Terramate.
-outline: [2, 3]
 ---
 
 # Configure stacks

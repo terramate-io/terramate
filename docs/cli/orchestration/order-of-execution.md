@@ -1,7 +1,6 @@
 ---
 title: Order of Execution
 description: Learn about the order of execution when orchestration stacks with Terramate.
-outline: [2, 3]
 ---
 
 # Order of Execution

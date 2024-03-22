@@ -1,7 +1,6 @@
 ---
 title: Create Stacks
 description: Learn how to create and manage Infrastructure as Code agnostic stacks with Terramate.
-outline: [2, 3]
 ---
 
 # Create Stacks

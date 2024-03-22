@@ -1,7 +1,6 @@
 ---
 title: terramate run - Command
 description: Execute any commands in all stacks or in a filtered subset of stacks by using the `terramate run` command.
-outline: [2, 3]
 ---
 
 # Run any Commands in Stacks

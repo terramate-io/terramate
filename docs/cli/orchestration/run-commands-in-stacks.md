@@ -1,7 +1,6 @@
 ---
 title: Run Commands in Stacks
 description: Learn how to orchestrate the execution of commands in stacks with the terramate run command.
-outline: [2, 3]
 ---
 
 # Run any Commands in Stacks
