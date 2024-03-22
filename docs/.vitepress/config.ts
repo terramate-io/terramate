@@ -227,10 +227,23 @@ export default defineConfig({
               link: '/cli/automation/',
               collapsed: true,
               items: [
-                // { text: 'GitOps for Infrastructure', link: '/cli/automation/github-actions' },
                 {
                   text: 'GitHub Actions',
-                  link: '/cli/automation/github-actions'
+                  link: '/cli/automation/github-actions/',
+                  items: [
+                    {
+                      text: 'Deployment Workflow',
+                      link: '/cli/automation/github-actions/deployment-workflow',
+                    },
+                    {
+                      text: 'Drift Check Workflow',
+                      link: '/cli/automation/github-actions/drift-check-workflow',
+                    },
+                    {
+                      text: 'Preview Workflow',
+                      link: '/cli/automation/github-actions/preview-workflow',
+                    },
+                  ]
                 },
                 {
                   text: 'GitLab CI 🚧',
