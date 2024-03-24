@@ -810,10 +810,49 @@ export default defineConfig({
               link: '/cloud/stacks/',
               collapsed: true,
               items: [
-                { text: 'Stacks List', link: '/cloud/stacks/list' },
-                { text: 'Stack Details', link: '/cloud/stacks/details' },
-                { text: 'Stack Status', link: '/cloud/stacks/status' },
-                { text: 'Synchronize Stacks', link: '/cloud/stacks/sync' },
+                {
+                  text: 'About Stack Status',
+                  link: '/cloud/stacks/status',
+                },
+                {
+                  text: 'View Stacks',
+                  link: '/cloud/stacks/list',
+                },
+                {
+                  text: 'View Stack Details',
+                  link: '/cloud/stacks/details',
+                },
+                {
+                  text: 'Synchronize Stacks',
+                  link: '/cloud/stacks/sync',
+                },
+                {
+                  text: 'Use Stack Status in CLI 🚧',
+                  // link: '/cloud/deployments/use-cloud-status-in-cli'
+                },
+              ],
+            },
+            {
+              text: 'Pull Request Previews',
+              // link: '/cloud/previews/',
+              collapsed: true,
+              items: [
+                {
+                  text: 'View Pull Requests 🚧',
+                  // link: '/cloud/previews/view-pull-requests'
+                },
+                {
+                  text: 'View Previews 🚧',
+                  // link: '/cloud/previews/view-previews'
+                },
+                {
+                  text: 'Synchronize in Automation',
+                  link: '/cloud/previews/synchronization-in-automation'
+                },
+                {
+                  text: 'Synchronize via Scripts',
+                  link: '/cloud/previews/synchronization-with-scripts'
+                },
               ],
             },
             {
@@ -821,23 +860,66 @@ export default defineConfig({
               link: '/cloud/deployments/',
               collapsed: true,
               items: [
-                { text: 'Synchronize Deployments', link: '/cloud/deployments/sync' },
+                {
+                  text: 'View Deloyments 🚧',
+                  // link: '/cloud/deployments/view-deployments'
+                },
+                {
+                  text: 'Get Deployment Notification',
+                  link: '/cloud/deployments/notifications'
+                },
+                {
+                  text: 'Synchronize in Automation',
+                  link: '/cloud/deployments/synchronization-in-automation'
+                },
+                {
+                  text: 'Synchronize from CLI',
+                  link: '/cloud/deployments/synchronization-from-cli'
+                },
+                {
+                  text: 'Synchronize via Scripts',
+                  link: '/cloud/deployments/synchronization-with-scripts'
+                },
               ],
             },
             {
               text: 'Drift Management',
+              // link: '/cloud/drifts/',
               collapsed: true,
               items: [
-                // { text: 'Introduction', link: '/cli/introduction' },
+                {
+                  text: 'Get Drift Notifications',
+                  link: '/cloud/drifts/notifications'
+                },
+                {
+                  text: 'Synchronize in Automation',
+                  link: '/cloud/drifts/synchronization-in-automation'
+                },
+                {
+                  text: 'Synchronize from CLI',
+                  link: '/cloud/drifts/synchronization-from-cli'
+                },
+                {
+                  text: 'Synchronize via Scripts',
+                  link: '/cloud/drifts/synchronization-with-scripts'
+                },
+                // {
+                //   text: 'View Drifted Stacks',
+                //   // link: '/cloud/drifts/view-drifts'
+                // },
+                {
+                  text: 'Reconcile Drifts 🚧',
+                  // link: '/cloud/drifts/reconcile-drifts'
+                },
               ],
             },
-            {
-              text: 'Notifications',
-              collapsed: false,
-              items: [
-              // { text: 'Introduction', link: '/cli/introduction' },
-              ],
-            },
+            // {
+            //   text: 'Notifications',
+            //   collapsed: false,
+            //   items: [
+            //   // { text: 'Introduction', link: '/cli/introduction' },
+            //   ],
+            // },
             {
               text: 'Organization',
               link: '/cloud/organization/',
