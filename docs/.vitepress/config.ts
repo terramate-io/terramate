@@ -823,10 +823,10 @@ export default defineConfig({
                   text: 'Synchronize Stacks',
                   link: '/cloud/stacks/sync',
                 },
-                {
-                  text: 'Use Stack Status in CLI 🚧',
-                  // link: '/cloud/deployments/use-cloud-status-in-cli'
-                },
+                // {
+                //   text: 'Use Stack Status in CLI 🚧',
+                //   // link: '/cloud/deployments/use-cloud-status-in-cli'
+                // },
               ],
             },
             {
@@ -834,14 +834,14 @@ export default defineConfig({
               // link: '/cloud/previews/',
               collapsed: true,
               items: [
-                {
-                  text: 'View Pull Requests 🚧',
-                  // link: '/cloud/previews/view-pull-requests'
-                },
-                {
-                  text: 'View Previews 🚧',
-                  // link: '/cloud/previews/view-previews'
-                },
+                // {
+                //   text: 'View Pull Requests 🚧',
+                //   // link: '/cloud/previews/view-pull-requests'
+                // },
+                // {
+                //   text: 'View Previews 🚧',
+                //   // link: '/cloud/previews/view-previews'
+                // },
                 {
                   text: 'Synchronize in Automation',
                   link: '/cloud/previews/synchronization-in-automation'
@@ -857,10 +857,10 @@ export default defineConfig({
               link: '/cloud/deployments/',
               collapsed: true,
               items: [
-                {
-                  text: 'View Deloyments 🚧',
-                  // link: '/cloud/deployments/view-deployments'
-                },
+                // {
+                //   text: 'View Deloyments 🚧',
+                //   // link: '/cloud/deployments/view-deployments'
+                // },
                 {
                   text: 'Get Deployment Notification',
                   link: '/cloud/deployments/notifications'
@@ -904,10 +904,10 @@ export default defineConfig({
                 //   text: 'View Drifted Stacks',
                 //   // link: '/cloud/drifts/view-drifts'
                 // },
-                {
-                  text: 'Reconcile Drifts 🚧',
-                  // link: '/cloud/drifts/reconcile-drifts'
-                },
+                // {
+                //   text: 'Reconcile Drifts 🚧',
+                //   // link: '/cloud/drifts/reconcile-drifts'
+                // },
               ],
             },
             // {
