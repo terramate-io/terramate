@@ -20,7 +20,7 @@ To gather metadata from GitHub about the commit associated with the drift check,
 
 The following options are available in Terramate Scripts and mirror the CLI options with the name:
 
-- Set `cloud_sync_drift_status = true` to let Terramate CLI know about the command that is doing the actual drift check and returns a detailed exit status to define a successful run that has changes or has no changed detected.
+- Set `cloud_sync_drift_status = true` to let Terramate CLI know about the command that is doing the actual drift check and returns a detailed exit status to define a successful run that has changed or has no changes detected.
 - Set `cloud_sync_terraform_plan_file` to the name of the terraform plan to synchronize the deployment details.
 
 ## Terramate Script Config

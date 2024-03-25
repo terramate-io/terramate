@@ -10,8 +10,8 @@ the "next generation" Infrastructure as Code approach that we provide with Terra
 
 ## Introduction
 
-Adopting, managing and automating Infrastructure as Code is a time-consuming,
-costly and error-prone process. Currently, two approaches exist:
+Adopting, managing, and automating Infrastructure as Code is a time-consuming,
+costly, and error-prone process. Currently, two approaches exist:
 
 ## The "Do it yourself" approach 💥
 
@@ -33,13 +33,13 @@ proprietary platforms or by buying purpose-built CI/CD platforms.
 
 - cheap
 - secure
-- allows you to stay in your native iac
+- allows you to stay in your native IaC
 - scalable
 - multi repo
 - any command
 - none intrusive
 - fast, scalable
-- allows you to work native
+- allows you to work natively
 
 
 ## Terramate Vs

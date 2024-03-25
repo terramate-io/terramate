@@ -20,7 +20,7 @@ At the same time, it integrates seamlessly and in a non-intrusive way with all y
 ## What is Terramate
 
 Using Terramate provides a scalable and cost-efficient approach to managing cloud infrastructure with Infrastructure as
-Code tools you already know and use by imposing **structure**, **workflows** and **best practices**.
+Code tools you already know and use by imposing **structure**, **workflows**, and **best practices**.
 
 Terramate combines a free and [open source](https://github.com/terramate-io/terramate) CLI used by developers and in
 automation that optionally pairs with a fully managed Cloud service [Terramate Cloud](./cloud/index.md).
@@ -81,7 +81,7 @@ It is free for individual use, with features available for teams.
 - **Collaboration**: Teams regain ownership and can collaborate on every step of the IaC deployment lifecycle. Discuss
 planned changes through previews, and take ownership of failures and drifts.
 - **Observability and Visibility**: Understand the status of your Infrastructure stacks. Into application state, resource usage, cost, ownership, changes, access, associated deployments and more. See inside any stack, deployment, and resource, at any scale, anywhere.
-- **Terramate AI**: LLM-powered analysis of deployment status, blast radius and more.
+- **Terramate AI**: LLM-powered analysis of deployment status, blast radius, and more.
 - **Drift Control**: Automatically detect and resolve drifts.
 - **Governance**: Manage ownership for stacks, deployments, failure, drift and more.
 
