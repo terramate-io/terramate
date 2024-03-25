@@ -26,7 +26,7 @@ Terramate Cloud receives data from [Terramate CLI](../../introduction.md) which 
 `terramate run` and others. The CLI runs on a developer's workstation or in any CI/CD, used to orchestrate and automate
 Terraform or OpenTofu. The CLI syncs data such as Terraform plans, deployment metrics, metadata such as GitHub users
 and much more. Based on this data the Terramate Cloud provides visibility insights, observability and enhanced collaboration which can
-be natively integrated with Pull Requests in e.g. GitHub or Gitlab.
+be natively integrated with Pull Requests in e.g. GitHub or GitLab.
 
 ::: tip
 Terramate CLI never syncs any sensitive values in plan files such as secrets. Sensitive values are removed on the client
