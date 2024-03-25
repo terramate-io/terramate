@@ -1,3 +1,8 @@
+---
+title: User Management in Terramate Cloud
+description: Learn how to manage users of an organization in Terramate Cloud.
+---
+
 # User Management
 
 To manage teammates, an `admin` can choose from the following actions, while a normal `member` can only see the list of teammates or leave an organization.
@@ -44,7 +49,7 @@ Every teammate can decide to deactivate themselves to leave the organization.
 
 As an `admin` you can promote other teammates by granting them the `admin` role or demote other teammates by granting them the `member` role.
 
-Only other teammates can be managed this way. You can not demote yourself. To drop the `admin` role, promote another teammate to `admin` and ask the teammate to demote you. This guarantees that your organization always have at least one administrator.
+Only other teammates can be managed this way. You can not demote yourself. To drop the `admin` role, promote another teammate to `admin` and ask the teammate to demote you. This guarantees that your organization always has at least one administrator.
 
 In case the only teammate having an `admin` role is not active anymore, and you need to promote a new admin, please get in touch with our support.
 
