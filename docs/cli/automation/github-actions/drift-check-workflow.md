@@ -11,19 +11,21 @@ Search for `CHANGEME` to adjust needed credentials details for AWS and Google Cl
 
 Drift Checks require action and protocolling the results, so Terramate Cloud support is required for those workflows at the moment.
 
-The following workflows run every day at 2am.
+The following workflows run every day at 2 am.
 
 ## Terramate Cloud support
 
-When synchronizing drift checks to Terramate Cloud, the following fetures will support the team with handling drifts:
+When synchronizing drift checks to Terramate Cloud, the following features will support the team with handling drifts:
 
-- Get notified on new drifts via Slacks notifications.
+- Get notified on new drifts via Slack notifications.
 - Highlight and identify drifted stacks in the Stacks List and Dashboard
 - See drift details without requiring your team to have elevated access to read the Terraform state or have access to read the cloud resources.
 - Identify the time when a drift happened and how long a stack stayed in a drifted state.
 - Create automation to reconcile a drift without human interaction using `--cloud-status` filter in Terramate CLI.
 
 ## Deployment Blueprints
+
+Create the following GitHub Actions configuration at `.github/workflows/drift.yml`
 
 ::: code-group
 
@@ -147,5 +149,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 ```
-
 :::

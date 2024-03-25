@@ -13,7 +13,7 @@ Search for `CHANGEME` to adjust needed credentials details for AWS and Google Cl
 
 When synchronizing previews to Terramate Cloud previews will be synchronized with a detailed status and can be reviewed on a stack level.
 
-The following actions also post back previews as GitHub comments. This will soon be taken care of by Terramate Cloud to fix some short-commings:
+The following actions also post back previews as GitHub comments. This will soon be taken care of by Terramate Cloud to fix some short-comings:
 
 - GitHub limits the size of a comment, so when creating large plans of many stacks, previews are truncated.
 - Rate limits in GitHub sometimes prevent comments from being created.
@@ -27,6 +27,8 @@ Terramate Cloud will provide:
 - Detection and blocking on required re-plan of a stale plan, when the stack was changed on the default branch and in a pull request and the code is not up to date.
 
 ## Deployment Blueprints
+
+Create the following GitHub Actions configuration at `.github/workflows/preview.yml`
 
 ::: code-group
 

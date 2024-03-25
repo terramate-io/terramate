@@ -1,6 +1,6 @@
 ---
 title: How to use Terramate to automate and orchestrate Terraform Deployments in GitHub Actions
-description: Learn how to use Terramate to configure custom GitOps workflows to automate and orchestrate Terraform and OpenTofu Deploymnets in GitHub Actions.
+description: Learn how to use Terramate to configure custom GitOps workflows to automate and orchestrate Terraform and OpenTofu Deployments in GitHub Actions.
 ---
 
 # Run a Deployment in GitHub Actions
@@ -15,6 +15,8 @@ When synchronizing deployments to Terramate Cloud it is recommended to run a dri
 This drift check will be used to judge the health of the deployment even if the deployment succeeded if can show a drift right away.
 
 ## Deployment Blueprints
+
+Create the following GitHub Actions configuration at `.github/workflows/deploy.yml`
 
 ::: code-group
 

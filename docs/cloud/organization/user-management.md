@@ -1,3 +1,8 @@
+---
+title: User Management in Terramate Cloud
+description: Learn how to manage users of an organization in Terramate Cloud.
+---
+
 # User Management
 
 To manage teammates, an `admin` can choose from the following actions, while a normal `member` can only see the list of teammates or leave an organization.
