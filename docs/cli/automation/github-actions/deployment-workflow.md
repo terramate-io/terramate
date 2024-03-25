@@ -1,7 +1,6 @@
 ---
 title: How to use Terramate to automate and orchestrate Terraform Deployments in GitHub Actions
 description: Learn how to use Terramate to configure custom GitOps workflows to automate and orchestrate Terraform and OpenTofu Deploymnets in GitHub Actions.
-outline: [2, 3]
 ---
 
 # Run a Deployment in GitHub Actions

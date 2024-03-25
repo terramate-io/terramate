@@ -1,7 +1,6 @@
 ---
 title: How to use Terramate to automate and orchestrate Terraform Drift Checks in GitHub Actions
 description: Learn how to use Terramate to configure custom GitOps workflows to automate and orchestrate Terraform and OpenTofu Drift Checks in GitHub Actions.
-outline: [2, 3]
 ---
 
 # Run a Drfit Check in GitHub Actions
