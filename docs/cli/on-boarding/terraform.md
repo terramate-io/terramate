@@ -1,7 +1,6 @@
 ---
 title: "On-boarding: Terraform On-boarding"
 description: Import your existing Terraform Setup to Terramate
-outline: [2, 3]
 ---
 
 # Start with existing Terraform Projects

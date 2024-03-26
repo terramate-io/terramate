@@ -5,61 +5,17 @@ description: Learn how to configure the metadata and orchestration behavior of s
 
 # Configure stacks
 
-Stacks can be configured in the `stack {}` block (by default in `stack.tm.hcl`). The options available cover:
+Terramate detects stacks based on the existence of a `stack {}` block. The name of the file is not important and can be different from `stack.tm.hcl`. There can be exactly one stack block defined in a stack.
 
-- Configuring Metadata (`name`, `description`, `id`, `tags`) for targeting
-- Changing the order of execution (`before`, `after`)
-- Triggering options (`watch`, `wants`, `wanted_by`)
-
-## Configure metadata
-
-### stack.id (string)(optional)
-
-The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
-The ID can't be bigger than 64 bytes, **is case insensitive** and
-**must** be unique over the whole project.
-
-There is no default value determined for the stack ID, but when users use
-the [create](../cmdline/create.md) command to create new stacks or the [clone](../cmdline/experimental/experimental-clone.md) command to clone stacks,
-the ID will default to a [random UUID](<https://en.wikipedia.org/wiki/Universally_unique_identifier#:~:text=Version%204%20(random)%5Bedit%5D>).
+- Define Stack Metadata: `name`, `description`, `id`, `tags`.
+- Set an explicit Order of Execution: `before`, `after`.
+- Configure Forced Execution: `watch`, `wants`, `wanted_by`.
 
 ```hcl
 stack {
-  id = "some_id_that_must_be_unique"
-}
-```
-
-### stack.name (string)(optional)
-
-The stack name can be any string and defaults to the stack directory base name.
-
-```hcl
-stack {
-  name = "My Awesome Stack Name"
-}
-```
-
-### stack.description (string)(optional)
-
-The stack description can be any string and defaults to an empty string.
-
-```hcl
-stack {
+  id          = "7b5f4d89-70a7-42f0-972f-3be8550e65df"
+  name        = "My Awesome Stack Name"
   description = "My Awesome Stack Description"
-}
-```
-
-### stack.tags (set(string))(optional)
-
-The tags list must be a unique set of strings where each tag must adhere to the following rules:
-
-- It must start with a lowercase ASCII alphabetic character (`[a-z]`).
-- It must end with a lowercase ASCII alphanumeric character (`[0-9a-z]`).
-- It must have only lowercase ASCII alphanumeric, `_` and `` characters (`[0-9a-z_-]`).
-
-```hcl
-stack {
-  ...
   tags = [
     "aws",
     "vpc",
@@ -68,76 +24,154 @@ stack {
 }
 ```
 
-## Configuring the order of execution
+## General Stack Metadata
+
+### `id`
+
+The stack ID **must** be a `string` composed of alphanumeric chars, dashes, and underscores.
+The ID can't be bigger than 64 bytes, **is case insensitive** and **must** be unique over the whole project. It is required when synchronizen data to Terramate Cloud.
+
+It is recommended to use a lowercase [UUIDv4](<https://en.wikipedia.org/wiki/Universally_unique_identifier#:~:text=Version%204%20(random)%5Bedit%5D>) as stack ID as this is the default when a stack is created using the [`terramate create`](../cmdline/create.md) command.
+
+When stacks are [cloned](../cmdline/experimental/experimental-clone.md) a new UUIDv4 is generated for cloned stacks.
+
+When `id` is missing in stacks, the `terramate create --ensure-id` command can be used to add a UUIDv4 to stacks that did not define an `id` yet.
+
+Example:
+
+```hcl
+id = "7b5f4d89-70a7-42f0-972f-3be8550e65df"
+```
+
+The id is available as `terramate.stack.id` variable in Code Generation.
+
+### `name`
+
+The optional stack name can be any string. It is supposed to give the stack a human-readable Name.
+
+If not set, it defaults to the basename of the stack path.
+
+The stack name will be synchronized to Terramate Cloud and shown in addition to the stack path to identify a stack.
+
+```hcl
+name = "My Awesome Stack Name"
+```
+
+The name is available as `terramate.stack.name` variable in Code Generation.
+
+### `description`
+
+The stack description can be any string and can include multiple lines.
+
+It will be synchronized to Terramate Cloud and shown in the Stacks Details area.
+
+```hcl
+description = "My Awesome Stack Description"
+```
+
+The description is available as `terramate.stack.description` variable in Code Generation.
+
+### `tags`
+
+The tags list is a set of strings and each tag needs to be a lowercase alphanumeric string that can also contain dashes and underscores.
+
+Tags can be used to target/filter stacks in various commands and shall be used when defining order of execution of a stack.
+
+Terramate Cloud allows to filter stacks by tags.
+
+```hcl
+tags = [
+  "aws",
+  "vpc",
+  "bastion",
+]
+```
+
+Tags are available as `terramate.stack.tags` variable in Code Generation and can be used to conditionally generate code for stacks having or not having specific stacks defined.
+
+Examples of commands with tags support:
+
+- Listing having or not having tags set:
+
+  - `terramate list --tags a`
+  - `terramate list --no-tags b`
+
+- Running any command in stacks having or not having tags set:
+
+  - `terramate run --tags c -- echo "hi from stack with tag c"`
+  - `terramate run --no-tags d -- echo "hi from stack without tag d"`
+
+- Running `my script` Terramate Script in stacks having or not having tags set:
+
+  - `terramate script run --tags e my script`
+  - `terramate script run --no-tags f my script`
+
+## Explicit Order of Execution
 
 ::: tip
 It's a best practice to use tags instead of paths for defining the order of execution of
 stacks with `before` and `after`.
 :::
 
-### stack.after (set(string))(optional)
+### `after`
 
 `after` defines a list of stacks that this stack must run after.
 It accepts project absolute paths (like `/other/stack`), paths relative to
 the directory of this stack (e.g.: `../other/stack`) or a [Tag Filter](../orchestration/index.md#filter-by-tags).
 
 ```hcl
-stack {
-  ...
-  after = [
-    "tag:prod:networking",
-    "/prod/apps/auth"
-  ]
-}
+after = [
+  "tag:prod:networking",
+  "/prod/apps/auth",
+]
 ```
 
 The stack above will run after all stacks tagged with `prod` **and** `networking` and after `/prod/apps/auth` stack.
 
 See the [orchestration docs](../orchestration/index.md#order-of-execution) for details.
 
-### stack.before (set(string))(optional)
+### `before`
 
 Defines the list of stacks that this stack must run `before`, following the same rules as `after`.
 
 ```hcl
-stack {
-  ...
-  before = [
-    "tag:prod:networking",
-    "/prod/apps/auth"
-  ]
-}
+before = [
+  "tag:prod:networking",
+  "/prod/apps/auth",
+]
 ```
 
-## Configure triggering options
+## Influence Change Detection
 
-### stack.watch (list)(optional)
+### `watch`
 
 The list of files that must be watched for changes in the [change detection](../change-detection/index.md).
 
 ```hcl
-stack {
-  ...
-  watch = [
-    "/policies/mypolicy.json"
-  ]
-}
+watch = [
+  "/policies/mypolicy.json"
+]
 ```
 
 The configuration above will mark the stack as changed whenever
 the file `/policies/mypolicy.json` changes.
 
-### stack.wants (set(string))(optional)
+## Forced Execution
+
+::: warning
+Using forced execution is an anti pattern and will lead to a bigger blast radius.
+Consider combining the stacks for easier maintainability instead.
+Im most scenarios defining Order of Execution is sufficient to guarantee changes are applied in order.
+:::
+
+### `wants`
 
 This attribute defines a list of stacks that will be run whenever this stack is run. Example:
 
 ```hcl
-stack {
-  ...
-  wants = [
-    "/other/stack"
-  ]
-}
+wants = [
+  "/other/stack"
+]
 ```
 
 This can be useful to force a dependency relationship between stacks - for example, if a dependent stack is outside of
@@ -161,7 +195,7 @@ It's _very important to note_ that adding a stack to `wants` _does not alter the
 stack to run before or after another you must also use the `before` and `after` attributes.
 :::
 
-### stack.wanted_by (set(string))(optional)
+### `wanted_by`
 
 This attribute is similar to `stack.wants` but works reversely. That is, using the same hierarchy as above, we could
 achieve the same result (including `stack-b` whenever we trigger `stack-a-2`) by putting
@@ -177,8 +211,5 @@ achieve the same result (including `stack-b` whenever we trigger `stack-a-2`) by
 
 ```hcl
 # stack-b/stack.tm.hcl
-stack {
-  ...
-  wanted_by = ["/stacks/stack-a-2"]
-}
+wanted_by = ["/stacks/stack-a-2"]
 ```

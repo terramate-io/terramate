@@ -3,22 +3,31 @@ title: Create Stacks
 description: Learn how to create and manage Infrastructure as Code agnostic stacks with Terramate.
 ---
 
-# Create stacks
+# Create Stacks
 
-## Create a stack
+## Create a plain stack
 
-Stacks can be created using the [create](../cmdline/create.md) command, e.g.:
+Stacks can be created using the [terramate create](../cmdline/create.md) command.
+The command accepts a set of options to allow to initialize all its details programmatically.
+You can set metadata like the `name`, `description`, add `tags`, or define an order of execution.
 
 ```sh
-terramate create [options] <directory>
+terramate create <directory>
 ```
 
-By default, this will create a directory with a `stack.tm.hcl` file that contains the configuration for your stack,
-which comes with some default properties:
+By default, the `terramate create` command will create a directory and add a `stack.tm.hcl` file that contains the configuration for your stack adding the directory basename as `name` and `description` and creating a UUIDv4 as `id` that needs to be unique within the current reposiory and identifies the stack in Terramate Cloud if connected.
+
+It is recommended to never change the `id` once committed to allow tracking of the stack when refactoring the directory hierarchy.
+
+The generated file is an HCL file and can be edited and extended at any point in time.
+
+The following example
 
 ```sh
 terramate create stacks/vpc --name "Main VPC" --description "Stack to manage the main VPC"
 ```
+
+will lead to the creation of the following file:
 
 ```hcl
 # ./stacks/vpc/stack.tm.hcl
@@ -29,46 +38,18 @@ stack {
 }
 ```
 
-- `name`: name of the stack, defaults to the basename of the directory
-- `description`: description of the stack, defaults to the basename of the directory
-- `id`: a project-wide random UUID
+You can use all available configuration properties as attributes to the [terramate create](../cmdline/create.md) command, e.g.
 
-You can use all available configuration properties as attributes to the [create](../cmdline/create.md) command, e.g.
 For an overview of all properties available for configuring stacks,
-please see [stacks configuration](./configuration.md) documentation.
+please see [Stack Configuration](./configuration.md) documentation.
 
-## Generating code when creating stacks
+Terramate detects stacks based on the exitance of a `stack {}` Block. The name of the file is not important and can be different from `stack.tm.hcl`. There can be exactly one stack block defined in a stack.
 
-Whenever you create a new stack using the [create](../cmdline/create.md) command, Terramate will automatically run the
-code generation for you. This comes especially handy when you want to automatically create files such as
-Terraform configurations for each newly created stack.
+For new stacks, [Code Generation](../code-generation/index.md) will be triggered so that the new stack gets initialized with a default configuration if desired.
 
-For example, the following Terramate configuration will automatically create the Terraform backend configuration using the
-`stack.id` property as a reference for the key of the Terraform state in all stacks that are tagged with `terraform`.
+## Import existing stacks
 
-```hcl
-generate_hcl "_terramate_generated_backend.tf" {
-  condition = tm_contains(terramate.stack.tags, "terraform")
+Terramate can detect and import various existing configurations.
 
-  content {
-    terraform {
-      backend "s3" {
-        region         = "us-east-1"
-        bucket         = "terraform-state-bucket"
-        key            = "terraform/stacks/by-id/${terramate.stack.id}/terraform.tfstate"
-        encrypt        = true
-        dynamodb_table = "terraform_state"
-      }
-    }
-  }
-}
-```
-
-Running the code generation upon stack creation can be disabled by passing the `-no-generate` argument to the
-[create](../cmdline/create.md) command, e.g.:
-
-```hcl
-terramate create -no-generate <path>
-```
-
-For details, please see [Code Generation](../code-generation/index.md) documentation.
+- `terramate create --all-terraform` will [import existing Terraform](../on-boarding/terraform.md)
+- `terramate create --all-terragrunt` will [import existing Terragrunt](../on-boarding/terragrunt.md)

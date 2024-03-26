@@ -30,7 +30,7 @@ Each stack has a list of historic deployments the stack was included in.
 
 This information helps to detect the deployment that introduces the `failed` state. Each deployment can be used to visit the deployment in GitHub.
 
-See [Deployments](../deployments/sync.md) Visibility to learn how to synchronize deployments with Terramate Cloud.
+See [Deployments](../deployments/) Visibility to learn how to synchronize deployments with Terramate Cloud.
 
 ## Drift Runs
 
@@ -38,4 +38,4 @@ Each stack has a list of historic drift runs the stack was included in.
 
 This information helps to detect the point in time when a drift was first detected and if a drift was related to a specific deployment.
 
-See [Drift Detection](../drifts/index.md) to learn how to synchronize drift runs with Terramate Cloud.
+See [Drift Detection](../drifts/) to learn how to synchronize drift runs with Terramate Cloud.

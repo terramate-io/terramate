@@ -1,3 +1,8 @@
+---
+title: Dashboard in Terramate Cloud
+description: Learn how the dashboard in Terramate Cloud helps to keep an overview of the health of all stacks. In addition, it shows historical data about deployments.
+---
+
 # Dashboard
 
 The dashboard helps to keep an overview of the health of all stacks. In addition, it shows historical data about deployments.
@@ -6,7 +11,7 @@ The dashboard helps to keep an overview of the health of all stacks. In addition
 
 ## Health Donut
 
-The Health Donut either shows the amount of healthy stacks in case no stacks are unhealthy or the details about how many
+The Health Donut either shows the number of healthy stacks in case no stacks are unhealthy or the details about how many
 stacks are in a `failed` state and how many stacks are in a `drifted` state.
 
 ## Deployment Graph
@@ -16,7 +21,7 @@ stacks `failed` to deploy or succeeded.
 
 ## Last Deployments
 
-To have a real time activity overview of deployments that were running or are currently running, the list of the last
+To have a real-time activity overview of deployments that were running or are currently running, the list of the last
 deployments shows details about deployment runs.
 
 ::: tip

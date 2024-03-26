@@ -1,7 +1,6 @@
 ---
 title: "On-boarding: OpenTofu On-boarding"
 description: Import your existing OpenTofu Setup to Terramate
-outline: [2, 3]
 ---
 
 # Start with existing OpenTofu Projects
