@@ -73,3 +73,9 @@ Run a script in all stacks with an specific Terramate Cloud status:
 ```bash
 terramate script run --cloud-status=unhealthy deploy
 ```
+
+Run a script called "destroy" on all stacks in the reverse order:
+
+```bash
+terramate script run --reverse destroy
+```
