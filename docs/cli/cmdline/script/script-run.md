@@ -50,6 +50,12 @@ Run a script called "deploy" on all changed stacks where it is available:
 terramate script run --changed deploy
 ```
 
+Run a script called "deploy" on all changed stacks and continue on error:
+
+```bash
+terramate script run --changed --continue-on-error deploy
+```
+
 Do a dry run of running the deploy script:
 
 ```bash
