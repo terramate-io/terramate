@@ -33,10 +33,13 @@ func (c *cli) getTerraformChangeset(run stackCloudRun, planfile string) (*cloud.
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
-	absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
-	_, err := os.Lstat(absPlanFilePath)
-	if err != nil {
-		return nil, errors.E(err, "checking plan file")
+	// Terragrunt writes the plan to a temporary directory, so we cannot check for its existence.
+	if !run.Task.UseTerragrunt {
+		absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
+		_, err := os.Lstat(absPlanFilePath)
+		if err != nil {
+			return nil, errors.E(err, "checking plan file")
+		}
 	}
 
 	renderedPlan, err := c.runTerraformShow(run, planfile, "-no-color")
@@ -92,19 +95,26 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 func (c *cli) runTerraformShow(run stackCloudRun, planfile string, flags ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
-	args := []string{
-		"show",
+	cmdName := "terraform"
+	if run.Task.UseTerragrunt {
+		cmdName = "terragrunt"
 	}
+
+	args := []string{"show"}
 	args = append(args, flags...)
+	if run.Task.UseTerragrunt {
+		args = append(args, "--terragrunt-non-interactive")
+	}
 	args = append(args, planfile)
 
 	ctx, cancel := context.WithTimeout(context.Background(), terraformShowTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "terraform", args...)
+	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = run.Stack.Dir.HostPath(c.rootdir())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	cmd.Env = run.Env
 
 	logger := log.With().
 		Str("action", "runTerraformShow").

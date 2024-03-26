@@ -30,6 +30,9 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - the script execution will be aborted and no further commands or jobs from that script will be run on the current stack node.
     - the script execution will continue to run on the next stack node.
     - `terramate script run` will return exit code 1 (same behaviour as `terramate run --continue-on-error`).
+- Improved Terragrunt integration by adding `--terragrunt` flag.
+  - Instructs the CLI to use the Terragrunt binary when generating a plan file for cloud syncing.
+  - It's supported as a flag for `terramate run` and as a command option `terragrunt = true` for script commands.
 
 ### Fixed
 

@@ -2696,6 +2696,25 @@ func TestRunDryRun(t *testing.T) {
 
 }
 
+func TestRunTerragrunt(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+
+	_ = s.CreateStack("stack")
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+
+	// This just tests if the option is properly supported.
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t,
+		cli.Run("run", "--terragrunt", "--quiet", HelperPath, "true"),
+		RunExpected{},
+	)
+}
+
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	t.Parallel()
 

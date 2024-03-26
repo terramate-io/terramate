@@ -53,6 +53,7 @@ type stackRun struct {
 type stackCloudRun struct {
 	Stack *config.Stack
 	Task  stackRunTask
+	Env   []string
 }
 
 // stackRunTask declares a stack run context.
@@ -68,6 +69,8 @@ type stackRunTask struct {
 	CloudSyncPreview           bool
 	CloudSyncLayer             preview.Layer
 	CloudSyncTerraformPlanFile string
+
+	UseTerragrunt bool
 }
 
 // runResult contains exit code and duration of a completed run.
@@ -156,6 +159,7 @@ func (c *cli) runOnStacks() {
 					CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 					CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
 					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer,
+					UseTerragrunt:              c.parsedArgs.Run.Terragrunt,
 				},
 			},
 		}
@@ -311,8 +315,10 @@ func (c *cli) runAll(
 		errs := errors.L()
 
 		for _, task := range run.Tasks {
+			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
+
 			// For cloud sync, we always assume that there's a single task per stack.
-			cloudRun := stackCloudRun{Stack: run.Stack, Task: task}
+			cloudRun := stackCloudRun{Stack: run.Stack, Task: task, Env: environ}
 
 			select {
 			case <-cancelCtx.Done():
@@ -337,7 +343,6 @@ func (c *cli) runAll(
 
 			c.cloudSyncBefore(cloudRun)
 
-			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
 			if err != nil {
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
