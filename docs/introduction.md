@@ -5,22 +5,35 @@ description: Terramate is an Infrastructure as Code Management Platform that emp
 
 # About Terramate
 
-Terramate is a next-generation Infrastructure as Code (IaC) Management Platform that empowers teams to **build**,
-**deploy**, **manage** and **observe** cloud infrastructure with IaC tools such as Terraform, OpenTofu, Terragrunt,
-Kubernetes and others.
+Terramate enables teams to **build**, **deploy**, **manage** and **observe** cloud infrastructure with Infrastructure as
+Code (IaC) tools such as Terraform, OpenTofu, Terragrunt, Kubernetes and others.
 
-It's designed and implemented by long-time Platform, Cloud and DevOps Engineering practitioners based on previous experience
+Infrastructure as Code is hard and complex - we get it! 
+
+Terramate helps you to overcome this by providing a ***next-generation*** Infrastructure as Code Management Platform that
+runs natively in your existing CI/CD system.
+
+Using Terramate makes it possible to:
+
+1. **Streamline configuration management and environments**: Terramate enables you to manage environments and services with
+stacks and adds code generation to keep configuration DRY, which means you can easily deploy multiple services and environments
+and avoid manual copy & paste of duplicate configuration files.
+2. **Automate and orchestrate Terraform, OpenTofu and Terragrunt in any CI/CD**: Terramate enables you to turn any CI/CD into a powerful
+IaC vending machine which means no more wasted time and money maintaining DIY solutions or buying expensive purpose-built
+CI/CD systems.
+3. **Enable better collaboration, governance, observability and drift control**: Terramate adds a powerful suite of features
+to improve the developer experience when working with infrastructure as code such as plan previews, policies, observability,
+notifications, SlackOps, automated drift detection and reconciliation, which means better productivity, fewer failures and more stable infrastructure.
+
+Terramate is designed and implemented by long-time Platform, Cloud and DevOps Engineering practitioners based on previous experience
 building and maintaining cloud infrastructure platforms for some of the most innovative companies in the world.
 
-Terramate can be integrated into any existing architecture and with every third-party tooling in less than 5 minutes,
+It can be integrated into any existing architecture and with every third-party tooling in less than 5 minutes,
 with no prerequisites, no lock-in and without modifying any of your existing configurations.
 
-At the same time, it integrates seamlessly and in a non-intrusive way with all your existing tooling, such as GitHub or Slack.
+At the same time, Terramate integrates seamlessly and in a non-intrusive way with all your existing tooling, such as GitHub or Slack.
 
 ## What is Terramate
-
-Using Terramate provides a scalable and cost-efficient approach to managing cloud infrastructure with Infrastructure as
-Code tools you already know and use by imposing **structure**, **workflows**, and **best practices**.
 
 Terramate combines a free and [open source](https://github.com/terramate-io/terramate) CLI used by developers and in
 automation that optionally pairs with a fully managed Cloud service [Terramate Cloud](./cloud/index.md).
@@ -42,7 +55,8 @@ successfully used by some of the best Platform Engineering and DevOps teams in t
 4. **Faster and more secure deployments**: Limit the blast radius and risk of infrastructure changes.
 3. **Improved productivity and developer experience**: Removes guess-work and config sprawl by imposing structure, workflows and best practices.
 2. **Secure, scalable and cost-efficient**: Build on top of a battle-tested and proven platform instead of wasting time.
-building and maintaining a DIY solution. By integrating with your existing CI/CD instead of replicating it.
+building and maintaining a DIY solution. By integrating with your existing CI/CD instead of replicating it. Terramate is
+secure by design and never needs access to your state or any of your cloud accounts.
 5. **Zero maintenance overhead**: Serverless, with Terramate you don't need to host or maintain any infrastructure.
 6. **No lock-in and seamless integrations**: Using Terramate doesn't require to touch any of your existing configurations
 and integrates seamlessly with all other tooling.

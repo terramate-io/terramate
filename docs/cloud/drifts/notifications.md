@@ -1,6 +1,6 @@
 ---
 title: Drift Notifications
-description: Learn how to get notified about new drifts that Terramate Cloud detects in stacks.
+description: Learn how to configure Slack notifications for drift detection in Terramate Cloud.
 ---
 
 # Drift Notifications
@@ -18,6 +18,6 @@ The notification will contain detailed information about the drifted stack and l
 
 ## Initial Drift Run
 
-When on-boarding to Terramate Cloud it is recommended to run a drift run before setting up the notifications when the initial run is expected to detect a lot of drifted stacks.
+When onboarding to Terramate Cloud it is recommended to run a drift run before setting up the notifications when the initial run is expected to detect a lot of drifted stacks.
 
 After the initial drift check run, the Slack Webhook can be set up and only new drifts will notify the channel.
