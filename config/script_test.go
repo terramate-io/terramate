@@ -659,6 +659,44 @@ func TestScriptEval(t *testing.T) {
 			},
 		},
 		{
+			name: "command options with planfile + terragrunt",
+			script: hcl.Script{
+				Labels:      labels,
+				Description: makeAttribute(t, "description", `"some description"`),
+				Jobs: []*hcl.ScriptJob{
+					{
+						Commands: makeCommands(t, `
+						  [
+							["echo", "hello", {
+								cloud_sync_deployment = true
+								cloud_sync_terraform_plan_file = "plan_a"
+								terragrunt = true
+							}],
+						  ]
+						`),
+					},
+				},
+			},
+			want: config.Script{
+				Labels:      labels,
+				Description: "some description",
+				Jobs: []config.ScriptJob{
+					{
+						Cmds: []*config.ScriptCmd{
+							{
+								Args: []string{"echo", "hello"},
+								Options: &config.ScriptCmdOptions{
+									CloudSyncDeployment:    true,
+									UseTerragrunt:          true,
+									CloudSyncTerraformPlan: "plan_a",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "invalid command option",
 			script: hcl.Script{
 				Labels:      labels,
