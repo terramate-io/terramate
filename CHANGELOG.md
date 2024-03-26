@@ -25,6 +25,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - (**BREAKING CHANGE**) Enable change detection for dotfiles. You can still use `.gitignore` to ignore them (if needed).
+- Add a new flag `--continue-on-error` to `terramate script run`. When the flag
+  is set and a command in a script returns an error:
+    - the script execution will be aborted and no further commands or jobs from that script will be run on the current stack node.
+    - the script execution will continue to run on the next stack node.
+    - `terramate script run` will return exit code 1 (same behaviour as `terramate run --continue-on-error`).
 
 ### Fixed
 

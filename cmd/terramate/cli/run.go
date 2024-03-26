@@ -343,7 +343,7 @@ func (c *cli) runAll(
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 				if continueOnError {
-					continue
+					break
 				}
 
 				cancel()
@@ -398,7 +398,7 @@ func (c *cli) runAll(
 				c.cloudSyncAfter(cloudRun, res, errors.E(err, ErrRunFailed))
 				errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
 				if continueOnError {
-					continue
+					break
 				}
 
 				cancel()
@@ -455,9 +455,11 @@ func (c *cli) runAll(
 			}
 
 			err = errs.AsError()
-			if err != nil && !continueOnError {
+			if err != nil {
+				if continueOnError {
+					return err
+				}
 				logger.Info().Msg("interrupting execution of further stacks")
-
 				cancel()
 				return err
 			}
