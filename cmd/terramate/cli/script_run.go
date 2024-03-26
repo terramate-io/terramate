@@ -102,6 +102,7 @@ func (c *cli) runScript() {
 						task.CloudSyncPreview = cmd.Options.CloudSyncPreview
 						task.CloudSyncLayer = cmd.Options.CloudSyncLayer
 						task.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
+						task.UseTerragrunt = cmd.Options.UseTerragrunt
 					}
 					run.Tasks = append(run.Tasks, task)
 				}

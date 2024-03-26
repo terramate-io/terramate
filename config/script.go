@@ -40,6 +40,7 @@ type ScriptCmdOptions struct {
 	CloudSyncPreview       bool
 	CloudSyncLayer         preview.Layer
 	CloudSyncTerraformPlan string
+	UseTerragrunt          bool
 }
 
 // ScriptCmd represents an evaluated script command
@@ -385,6 +386,15 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 				break
 			}
 			r.CloudSyncTerraformPlan = v.AsString()
+
+		case "terragrunt":
+			if v.Type() != cty.Bool {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a bool, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			r.UseTerragrunt = v.True()
 
 		default:
 			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(), "unknown command option: %s", ks))
