@@ -181,9 +181,10 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info for."`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			CloudStatus string `help:"Filter by Terramate Cloud status of the stack."`
-			NoRecursive bool   `default:"false" help:"Do not recurse into nested child stacks."`
-			DryRun      bool   `default:"false" help:"Plan the execution but do not execute it."`
+			CloudStatus     string `help:"Filter by Terramate Cloud status of the stack."`
+			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
+			ContinueOnError bool   `default:"false" help:"Continue executing next stacks when a command returns an error."`
+			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
 
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
 

@@ -117,7 +117,7 @@ func (c *cli) runScript() {
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
 		ScriptRun:       true,
-		ContinueOnError: false,
+		ContinueOnError: c.parsedArgs.Script.Run.ContinueOnError,
 		Parallel:        c.parsedArgs.Script.Run.Parallel,
 	})
 	if err != nil {
