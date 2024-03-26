@@ -30,6 +30,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - the script execution will be aborted and no further commands or jobs from that script will be run on the current stack node.
     - the script execution will continue to run on the next stack node.
     - `terramate script run` will return exit code 1 (same behaviour as `terramate run --continue-on-error`).
+- Add a new flag `--reverse` to `terramate script run`. When the flag is set, the script execution will happen in the reverse order of the selected stacks.  This is similar to `terramate run --reverse`.
 
 ### Fixed
 

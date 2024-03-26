@@ -116,6 +116,7 @@ func (c *cli) runScript() {
 	err := c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
+		Reverse:         c.parsedArgs.Script.Run.Reverse,
 		ScriptRun:       true,
 		ContinueOnError: c.parsedArgs.Script.Run.ContinueOnError,
 		Parallel:        c.parsedArgs.Script.Run.Parallel,
