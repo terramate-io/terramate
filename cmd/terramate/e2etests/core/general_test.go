@@ -308,7 +308,7 @@ func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 	AssertRunResult(t, ts.ListChangedStacks(), wantRes)
 }
 
-func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
+func TestFailsOnChangeDetectionIfRepoDoesntHaveOrigin(t *testing.T) {
 	t.Parallel()
 
 	rootdir := test.TempDir(t)
@@ -400,6 +400,17 @@ func TestFailsIfDefaultRemoteDoesntHaveDefaultBranch(t *testing.T) {
 	`)
 
 	cli := NewCLI(t, s.RootDir())
+
+	test.WriteFile(t, s.RootDir(), "terramate.tm.hcl", `
+terramate {
+	config {
+		git {
+			default_branch = "wrong"
+		}
+	}
+}
+`)
+
 	AssertRunResult(t,
 		cli.ListChangedStacks(),
 		RunExpected{
@@ -560,6 +571,20 @@ terramate {
 	}
 }
 `)
+
+	AssertRun(t, cli.ListChangedStacks())
+}
+
+func TestDefaultBranchDetection(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
+		DefaultRemoteName:       "origin",
+		DefaultRemoteBranchName: "master",
+		LocalBranchName:         "feat",
+	})
+
+	cli := NewCLI(t, s.RootDir())
 
 	AssertRun(t, cli.ListChangedStacks())
 }
