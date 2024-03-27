@@ -157,7 +157,7 @@ func TestCloudConfig(t *testing.T) {
 				}
 			})
 
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			layout := tc.layout
 			if len(layout) == 0 {
 				layout = []string{

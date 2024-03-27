@@ -348,7 +348,7 @@ func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
 func TestListStackWithNoTerramateBlock(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{"s:stack"})
 	cli := NewCLI(t, s.RootDir())
 	AssertRunResult(t, cli.ListStacks(), RunExpected{Stdout: "stack\n"})
@@ -357,7 +357,7 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 func TestListLogsWarningIfConfigHasConflicts(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{
 		"s:stack",
 		`f:stack/terramate.tm:terramate {}`,

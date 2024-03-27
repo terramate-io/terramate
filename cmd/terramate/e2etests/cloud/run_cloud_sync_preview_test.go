@@ -174,7 +174,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			}
 			addr := startFakeTMCServer(t, cloudData)
 
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 			// needed for invoking `terraform ...` commands in the sandbox
 			s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))

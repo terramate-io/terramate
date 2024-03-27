@@ -17,7 +17,7 @@ import (
 func TestListWatchChangedFile(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	extDir := s.RootEntry().CreateDir("external")
 	extFile := extDir.CreateFile("file.txt", "anything")
@@ -48,7 +48,7 @@ func TestListWatchChangedFile(t *testing.T) {
 func TestListWatchRelativeChangedFile(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	extDir := s.RootEntry().CreateDir("external")
 	extFile := extDir.CreateFile("file.txt", "anything")
@@ -78,7 +78,7 @@ func TestListWatchRelativeChangedFile(t *testing.T) {
 func TestListWatchFileOutsideProject(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	extDir := s.RootEntry().CreateDir("external")
 	extFile := extDir.CreateFile("file.txt", "anything")
@@ -107,7 +107,7 @@ func TestListWatchFileOutsideProject(t *testing.T) {
 func TestListWatchNonExistentFile(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		`s:stack:watch=["/external/non-existent.txt"]`,
@@ -129,7 +129,7 @@ func TestListWatchNonExistentFile(t *testing.T) {
 func TestListWatchElementsWithFuncalls(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	extDir := s.RootEntry().CreateDir("EXTERNAL")
 	extFile := extDir.CreateFile("FILE.TXT", "anything")
@@ -161,7 +161,7 @@ func TestListWatchElementsWithFuncalls(t *testing.T) {
 func TestListWatchExprWithFuncalls(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	extDir := s.RootEntry().CreateDir("external")
 	extFile1 := extDir.CreateFile("file1.txt", "anything")
@@ -199,7 +199,7 @@ func TestListWatchExprWithFuncalls(t *testing.T) {
 func TestListWatchDirectoryFails(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	extDir := s.RootEntry().CreateDir("external")
 	extFile := extDir.CreateFile("file.txt", "anything")

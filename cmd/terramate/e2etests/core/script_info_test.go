@@ -75,7 +75,7 @@ Jobs:
 	addStackWithScripts("stacks/b", []string{"deploy", "other"})
 	addStackWithScripts("stacks/bb", []string{"other3"})
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree(layout)
 
 	s.RootEntry().CreateConfig(`

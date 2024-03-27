@@ -156,7 +156,7 @@ func TestClone(t *testing.T) {
 		filename = "test.txt"
 		content  = "test"
 	)
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.RootEntry().CreateFile(filename, content)
 	git := s.Git()
 
@@ -172,7 +172,7 @@ func TestClone(t *testing.T) {
 
 func TestCurrentBranch(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	git := s.Git()
 
 	assert.EqualStrings(t, "main", git.CurrentBranch())

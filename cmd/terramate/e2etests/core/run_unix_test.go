@@ -31,7 +31,7 @@ func TestRunLookPathFromStackEnviron(t *testing.T) {
 
 	const stackName = "stack"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	root := s.RootEntry()
 

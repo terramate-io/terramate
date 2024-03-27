@@ -84,7 +84,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				assert.NoError(t, err)
 				addr := startFakeTMCServer(t, cloudData)
 
-				s := sandbox.New(t)
+				s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 				s.BuildTree(tc.layout)
 
 				s.Git().CommitAll("all stacks committed")
@@ -185,7 +185,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				assert.NoError(t, err)
 				addr := startFakeTMCServer(t, cloudData)
 
-				s := sandbox.New(t)
+				s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 				s.BuildTree(tc.layout)
 				s.Git().CommitAll("all stacks committed")

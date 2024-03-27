@@ -16,7 +16,7 @@ func TestImportsGlob(t *testing.T) {
 	t.Parallel()
 	testcase := func(t *testing.T, pattern string, want RunExpected) {
 		t.Parallel()
-		s := sandbox.New(t)
+		s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 		s.BuildTree([]string{
 			`s:.`,
 			`f:imports/DIR_1/file1.tm:globals {

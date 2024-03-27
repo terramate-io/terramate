@@ -767,7 +767,7 @@ func TestDownloadVendor(t *testing.T) {
 	}
 
 	setup := func(t *testing.T, tc testcase) fixture {
-		s := sandbox.New(t)
+		s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 		s.BuildTree(tc.layout)
 
 		if tc.vendordir == "" {
@@ -990,7 +990,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 		content  = "test"
 	)
 
-	repoSandbox := sandbox.New(t)
+	repoSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	repogit := repoSandbox.Git()
 
@@ -1034,7 +1034,7 @@ func TestModVendorWithRef(t *testing.T) {
 		content  = "test"
 	)
 
-	repoSandbox := sandbox.New(t)
+	repoSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	repoSandbox.RootEntry().CreateFile(filename, content)
 
 	repogit := repoSandbox.Git()
@@ -1102,7 +1102,7 @@ func TestModVendorWithRef(t *testing.T) {
 
 func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.RootEntry().CreateFile("file.txt", "data")
 
@@ -1137,7 +1137,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 
 func TestModVendorNoRefFails(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	gitURI := uri.File(s.RootDir())
 	rootdir := test.TempDir(t)
 

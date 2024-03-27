@@ -206,7 +206,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				assert.NoError(t, err)
 				addr := startFakeTMCServer(t, cloudData)
 
-				s := sandbox.New(t)
+				s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 				layout := tc.layout
 				for path, def := range tc.scripts {

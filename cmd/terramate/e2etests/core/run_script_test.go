@@ -400,7 +400,7 @@ func TestRunScript(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			sandboxes := []sandbox.S{
-				sandbox.New(t),
+				sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate),
 			}
 
 			for _, s := range sandboxes {
@@ -442,7 +442,7 @@ func TestRunScriptOnChangedStacks(t *testing.T) {
 		  }`
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		terramateConfig,

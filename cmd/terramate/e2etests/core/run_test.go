@@ -907,7 +907,7 @@ func TestCLIRunOrder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			sandboxes := []sandbox.S{
-				sandbox.New(t),
+				sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate),
 				sandbox.NoGit(t, true),
 			}
 
@@ -1549,7 +1549,7 @@ func TestRunWantedBy(t *testing.T) {
 
 func testRunSelection(t *testing.T, tc selectionTestcase) {
 	sandboxes := []sandbox.S{
-		sandbox.New(t),
+		sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate),
 		sandbox.NoGit(t, true),
 	}
 
@@ -1620,7 +1620,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	// stack must run after stack2 but stack2 didn't change.
 	s.BuildTree([]string{
@@ -1680,7 +1680,7 @@ func TestRunReverseExecution(t *testing.T) {
 
 	const testfile = "testfile"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	cli := NewCLI(t, s.RootDir())
 	assertRunOrder := func(stacks ...string) {
 		t.Helper()
@@ -1739,7 +1739,7 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.
 
 	const testfile = "testfile"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		`s:parent-stack:tags=[]`,
@@ -1789,7 +1789,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	// stack2 must run after stack and both changed.
 	s.BuildTree([]string{
@@ -1843,7 +1843,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		mainTfContents = "# some code"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	stack.CreateFile(mainTfFileName, mainTfContents)
@@ -2278,7 +2278,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.CreateStack("stack")
 	orphanEntry := s.CreateStack("orphan")
 	orphanEntry.CreateFile("config.tm", GenerateHCL(
@@ -2325,7 +2325,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 
 	const generateFile = "generate.tm.hcl"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	stack := s.CreateStack("stack")
 
 	// So we can list the stack as changed
@@ -2638,7 +2638,7 @@ func TestRunOutput(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			_ = s.CreateStack("stack")
 			git := s.Git()
 			git.CommitAll("first commit")
@@ -2682,7 +2682,7 @@ func TestRunDryRun(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			_ = s.CreateStack("stack")
 			git := s.Git()
 			git.CommitAll("first commit")
@@ -2705,7 +2705,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		mainTfAlteredContents = "# other code"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	file := stack.CreateFile(mainTfFileName, mainTfInitialContents)
@@ -2987,7 +2987,7 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 		contentsStack1 = "stack-1 file"
 		contentsStack2 = "stack-2 file"
 	)
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack1 := s.CreateStack("stacks/stack-1")
 	stack2 := s.CreateStack("stacks/stack-2")
@@ -3042,7 +3042,7 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 func TestRunLogsUserCommand(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	testfile := stack.CreateFile("test", "")
@@ -3061,7 +3061,7 @@ func TestRunLogsUserCommand(t *testing.T) {
 func TestRunContinueOnError(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{
 		`s:s1`,
 		`s:s2`,
@@ -3094,7 +3094,7 @@ func TestRunContinueOnError(t *testing.T) {
 func TestRunNoRecursive(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		`f:file.txt:root`,
@@ -3165,7 +3165,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 		newTerramateOverriden = "newValue"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	root := s.RootEntry()
 	stack := s.CreateStack(stackName)

@@ -19,7 +19,7 @@ func TestSafeguardsUsages(t *testing.T) {
 
 	setup := func(t *testing.T, fileContent string, env ...string) (CLI, sandbox.FileEntry, sandbox.S) {
 		t.Helper()
-		s := sandbox.New(t)
+		s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 		stack := s.CreateStack("stack")
 		someFile := stack.CreateFile("main.tf", fileContent)
@@ -122,7 +122,7 @@ func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 	// Regression test to guarantee that all git checks
 	// are disabled and no git operation will be performed for certain commands.
 	// Some people like to get some coding done on airplanes :-)
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	git := s.Git()
 	git.SetRemoteURL("origin", "http://non-existant/terramate.git")
 
@@ -156,7 +156,7 @@ func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 func TestSafeguardCheckRemoteFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack-1")
 	mainTfFile := stack.CreateFile("main.tf", "# no code")
@@ -217,7 +217,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 
 	setup := func(t *testing.T, env ...string) (CLI, sandbox.FileEntry, sandbox.S) {
 		t.Helper()
-		s := sandbox.New(t)
+		s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 		stack := s.CreateStack("stack")
 		someFile := stack.CreateFile("main.tf", fileContents)
@@ -577,7 +577,7 @@ func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 		nonExistentGit = "http://non-existent/terramate.git"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", fileContents)
 
@@ -611,7 +611,7 @@ func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 
 func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	const (
 		fileContents = "body"
@@ -623,7 +623,7 @@ func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 	git := s.Git()
 	git.CommitAll("first commit")
 
-	bare := sandbox.New(t)
+	bare := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	git.SetRemoteURL("origin", string(uri.File(bare.Git().BareRepoAbsPath())))
 
 	tm := NewCLI(t, s.RootDir())

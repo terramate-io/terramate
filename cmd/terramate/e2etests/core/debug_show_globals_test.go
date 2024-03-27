@@ -239,7 +239,7 @@ stack "/stacks/stack-name":
 			t.Parallel()
 
 			sandboxes := []sandbox.S{
-				sandbox.New(t),
+				sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate),
 				sandbox.NoGit(t, true),
 			}
 

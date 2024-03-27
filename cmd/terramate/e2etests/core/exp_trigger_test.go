@@ -19,7 +19,7 @@ import (
 func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.CreateStack("dir/stacks/stack")
 	git := s.Git()
 	git.CommitAll("all")
@@ -42,7 +42,7 @@ func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
 		t.Skip("symlink tests skipped on windows")
 	}
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{
 		"s:dir/stack",
 		"l:dir/stack:dir/link-to-stack",
@@ -75,8 +75,8 @@ func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
 func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
 	t.Parallel()
 
-	project1 := sandbox.New(t)
-	project2 := sandbox.New(t)
+	project1 := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
+	project2 := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	project1.CreateStack("project1-stack")
 	project2.CreateStack("project2-stack")
@@ -100,7 +100,7 @@ func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
 func TestListDetectAsChangedTriggeredStack(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 
@@ -128,7 +128,7 @@ func TestRunChangedDetectionIgnoresDeletedTrigger(t *testing.T) {
 
 	const testfile = "testfile"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		"s:stack",
@@ -174,7 +174,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 
 	const testfile = "testfile"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		"s:stack-1",
@@ -233,7 +233,7 @@ func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {
 
 	const testfile = "testfile"
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.BuildTree([]string{
 		"s:stack-1",

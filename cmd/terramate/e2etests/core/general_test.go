@@ -24,7 +24,7 @@ func TestBug25(t *testing.T) {
 		modname2 = "2"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	mod1 := s.CreateModule(modname1)
 	mod1MainTf := mod1.CreateFile("main.tf", "# module 1")
@@ -71,7 +71,7 @@ func TestBugModuleMultipleFilesSameDir(t *testing.T) {
 		modname3 = "3"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	mod2 := s.CreateModule(modname2)
 	mod2MainTf := mod2.CreateFile("main.tf", "# module 2")
@@ -131,7 +131,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
@@ -170,7 +170,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
@@ -210,7 +210,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", "# no code")
@@ -236,7 +236,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 func TestDefaultBaseRefInMain(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack-1")
 	stack.CreateFile("main.tf", "# no code")
@@ -258,7 +258,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack-1")
 	stack.CreateFile("main.tf", "# no code")
@@ -278,7 +278,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	ts := NewCLI(t, s.RootDir())
 
 	createCommittedStack := func(name string) {
@@ -567,7 +567,7 @@ terramate {
 func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{
 		"s:stacks/stack",
 	})

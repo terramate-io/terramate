@@ -49,7 +49,7 @@ func TestListRunOrder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			s.BuildTree(tc.layout)
 
 			cli := NewCLI(t, s.RootDir())

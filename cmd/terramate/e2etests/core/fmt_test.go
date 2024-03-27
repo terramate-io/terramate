@@ -28,7 +28,7 @@ name = "name"
 	formattedHCL, err := fmt.Format(unformattedHCL, "")
 	assert.NoError(t, err)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	cli := NewCLI(t, s.RootDir())
 
 	t.Run("checking succeeds when there is no Terramate files", func(t *testing.T) {

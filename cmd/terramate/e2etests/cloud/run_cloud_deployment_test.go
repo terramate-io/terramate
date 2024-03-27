@@ -371,7 +371,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				}
 				addr := startFakeTMCServer(t, cloudData)
 
-				s := sandbox.New(t)
+				s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 				// needed for invoking `terraform ...` commands in the sandbox
 				s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
@@ -449,7 +449,7 @@ func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, commitSHA string,
 
 func TestRunGithubTokenDetection(t *testing.T) {
 	t.Parallel()
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	git := s.Git()
 	git.SetRemoteURL("origin", "https://github.com/any-org/any-repo")
 

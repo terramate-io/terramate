@@ -338,7 +338,7 @@ func TestExperimentalRunOrderNotChangedStackIgnored(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	// stack must run after stack2 but stack2 didn't change.
 	s.BuildTree([]string{

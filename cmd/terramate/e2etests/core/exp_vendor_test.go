@@ -241,7 +241,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	const filename = "main.tf"
 
 	setupModuleGit := func(name string, ref string, deps ...string) string {
-		moduleRepo := sandbox.New(t)
+		moduleRepo := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 		var mainContent string
 		for _, dep := range deps {
 			if mainContent != "" {
@@ -337,7 +337,7 @@ func vendorHCLConfig(dir string) string {
 }
 
 func newGitSource(t *testing.T, filename, content string) string {
-	repoSandbox := sandbox.New(t)
+	repoSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	repoSandbox.RootEntry().CreateFile(filename, content)
 
 	repoGit := repoSandbox.Git()

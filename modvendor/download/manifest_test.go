@@ -279,7 +279,7 @@ func TestVendorManifest(t *testing.T) {
 		tcase := tcase
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			repoSandbox := sandbox.New(t)
+			repoSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 			// Remove the default README.md created by the sandbox
 			test.RemoveFile(t, repoSandbox.RootDir(), "README.md")
@@ -338,7 +338,7 @@ func TestInvalidManifestFailsDotTerramate(t *testing.T) {
 
 func testInvalidManifestFails(t *testing.T, configpath string) {
 	t.Parallel()
-	repoSandbox := sandbox.New(t)
+	repoSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	test.WriteFile(t, repoSandbox.RootDir(), configpath, "not valid HCL")
 
 	repogit := repoSandbox.Git()

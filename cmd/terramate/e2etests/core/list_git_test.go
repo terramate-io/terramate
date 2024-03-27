@@ -24,7 +24,7 @@ func TestE2EListWithGit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			s.BuildTree(tc.layout)
 
 			cli := NewCLI(t, s.RootDir())
@@ -48,8 +48,8 @@ func TestE2EListWithGitSubModules(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			rootSandbox := sandbox.New(t)
-			subSandbox := sandbox.New(t)
+			rootSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
+			subSandbox := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 			subSandbox.BuildTree(tc.layout)
 
@@ -88,7 +88,7 @@ func TestE2EListWithGitSubModules(t *testing.T) {
 func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	subdir := stack.CreateDir("sub/dir")
@@ -114,7 +114,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	subdir := stack.CreateDir("sub")
@@ -147,7 +147,7 @@ terramate {
 func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack-old")
 	cli := NewCLI(t, s.RootDir())
@@ -167,7 +167,7 @@ func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
 func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	s.CreateStack("stack")
 	toBeDeletedDir := filepath.Join(s.RootDir(), "to-be-deleted")
@@ -190,7 +190,7 @@ func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
 func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	testDir := stack.CreateDir("test")
@@ -214,7 +214,7 @@ func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 func TestListChangedDontIgnoreStackDeletedDirs(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	toBeDeletedDir := stack.CreateDir("test1")
@@ -239,7 +239,7 @@ func TestListChangedDontIgnoreStackDeletedDirs(t *testing.T) {
 func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	testDir := stack.CreateDir("test")
@@ -269,7 +269,7 @@ func TestListTwiceBug(t *testing.T) {
 		modname        = "modA"
 	)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	mod1 := s.CreateModule(modname)
@@ -301,7 +301,7 @@ func TestListChangedParsingVariablesWithOptionals(t *testing.T) {
 	// This test is to ensure we can parse Terraform code that uses
 	// new features from 1.3, like variables with optionals.
 	// In this case, change detection is unaffected by the new optionals feature.
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := s.CreateStack("stack")
 	mod1 := s.CreateModule("mod1")
@@ -371,7 +371,7 @@ func TestGitGlobalConfigIsUsed(t *testing.T) {
 	// code below creates a common case of changed files.
 	// the directory sub/dir is ignored by the global .gitignore
 
-	repo := sandbox.New(t)
+	repo := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 
 	stack := repo.CreateStack("stack")
 

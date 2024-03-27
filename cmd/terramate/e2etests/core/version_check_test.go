@@ -36,7 +36,7 @@ func TestVersionCheck(t *testing.T) {
 	}
 
 	run := func(t *testing.T, cmd string, version string) RunResult {
-		s := sandbox.New(t)
+		s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 		s.BuildTree([]string{"s:stack"})
 		root := s.RootEntry()
 		root.CreateConfig(fmt.Sprintf(`terramate {

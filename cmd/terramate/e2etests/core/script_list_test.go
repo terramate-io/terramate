@@ -62,7 +62,7 @@ func TestScriptList(t *testing.T) {
 	addStackWithScripts("stacks/b/b1/b2", []string{"deploy", "break"})
 	addStackWithScripts("stacks/c", []string{"deploy"})
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree(layout)
 
 	s.RootEntry().CreateConfig(`

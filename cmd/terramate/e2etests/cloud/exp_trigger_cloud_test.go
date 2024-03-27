@@ -33,7 +33,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 
 	addr := startFakeTMCServer(t, store)
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{
 		`s:stacks/my-stack-1:id=` + stackID,
 		`s:stacks/my-stack-2`,
@@ -517,7 +517,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 
 			addr := startFakeTMCServer(t, store)
 
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			s.BuildTree(tc.layout)
 			repository := tc.repository
 			repositoryURL := tc.repository

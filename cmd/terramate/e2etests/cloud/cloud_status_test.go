@@ -351,7 +351,7 @@ func TestCloudStatus(t *testing.T) {
 			assert.NoError(t, err)
 			addr := startFakeTMCServer(t, store)
 
-			s := sandbox.New(t)
+			s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 			tc.layout = append(tc.layout,
 				"f:command.tm:"+Doc(
 					Block("terramate",

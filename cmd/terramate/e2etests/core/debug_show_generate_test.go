@@ -164,7 +164,7 @@ func TestGenerateDebug(t *testing.T) {
 func TestGenerateDebugWithChanged(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
+	s := sandbox.NewFromTemplate(t, sandbox.DefaultGitTemplate)
 	s.BuildTree([]string{
 		"s:stack-1",
 		"s:stack-2",
