@@ -23,7 +23,7 @@ To gather metadata from GitHub about the pull request associated with the previe
 The [run](../../cli/cmdline/run.md) command in Terramate CLI offers some command line options to synchronize drift status information to Terramate Cloud.
 
 - `--cloud-sync-drift-status` Synchronizes the drift status and logs to Terramate Cloud
-- `--cloud-sync-terraform-plan=FILE` A Terraform integration that allows synchronization of details about the changed, added or deleted Terraform Resources that were planned and define the drift between code and cloud.
+- `--cloud-sync-terraform-plan FILE` A Terraform integration that allows synchronization of details about the changed, added or deleted Terraform Resources that were planned and define the drift between code and cloud.
 
 ::: tip
 Use the following command to synchronize the full status of your stacks to Terramate Cloud.
@@ -35,9 +35,9 @@ The full command line to run a drift check looks like the following:
 ```bash
 terramate run \
   --cloud-sync-drift-status \
-  --cloud-sync-terraform-plan=out.tfplan \
+  --cloud-sync-terraform-plan out.tfplan \
   --continue-on-error \
-  terraform plan -outfile out.tfplan
+  terraform plan -out out.tfplan
 ```
 
 It is recommended to create a Terramate Script as explained in the next section, to provide an easy interface for users that can be used on local machines the same way as in CI/CD automated environments.
