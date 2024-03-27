@@ -168,7 +168,7 @@ export default defineConfig({
             { text: 'Import Terraform', link: '/cli/on-boarding/terraform' },
             { text: 'Import Terragrunt', link: '/cli/on-boarding/terragrunt' },
             { text: 'Import OpenTofu', link: '/cli/on-boarding/opentofu' },
-            { text: 'Quickstart from Scratch', link: '/cli/getting-started/' },
+            { text: 'Start using the Cloud', link: '/cloud/on-boarding/' },
             // { text: 'AWS Terraform Quickstart', link: '/cli/getting-started/' },
           ],
         },
@@ -797,10 +797,9 @@ export default defineConfig({
 
         {
           text: '⛅️ Terramate Cloud',
-          link: '/cloud/',
-          collapsed: false,
+          // link: '/cloud/',
+          // collapsed: false,
           items: [
-            { text: 'Book a Demo', link: 'https://terramate.io/demo/' },
             {
               text: 'Dashboard',
               link: '/cloud/dashboard/',
@@ -825,6 +824,10 @@ export default defineConfig({
                 {
                   text: 'Synchronize Stacks',
                   link: '/cloud/stacks/sync',
+                },
+                {
+                  text: 'Book a Demo',
+                  link: 'https://terramate.io/demo/',
                 },
                 // {
                 //   text: 'Use Stack Status in CLI 🚧',
@@ -1046,6 +1049,10 @@ export default defineConfig({
         {
           text: '🤓 Tutorials',
           link: '/cli/guides/',
+          collapsed: true,
+          items: [
+            { text: 'Quickstart from Scratch', link: '/cli/getting-started/' },
+          ]
         },
         {
           text: '🌍 Community',
