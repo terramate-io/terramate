@@ -50,7 +50,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name: "basic success sync",
+			name: "warning when not running with GITHUB_ACTIONS",
 			layout: []string{
 				"s:stack:id=stack",
 				`f:stack/main.tf:
@@ -62,6 +62,41 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			},
 			runflags:        []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
 			cmd:             []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					StdoutRegexes: []string{
+						"Plan: 1 to add, 0 to change, 0 to destroy.",
+					},
+					StderrRegexes: []string{
+						"--cloud-sync-preview is only supported in GitHub Actions workflows",
+					},
+				},
+				ignoreTypes: cmpopts.IgnoreTypes(
+					cloud.CommandLogs{},
+					&cloud.ChangesetDetails{},
+					cloudstore.Stack{},
+					&cloud.DeploymentMetadata{},
+				),
+			},
+		},
+		{
+			name: "basic success sync",
+			layout: []string{
+				"s:stack:id=stack",
+				`f:stack/main.tf:
+				  resource "local_file" "foo" {
+					content  = "test content"
+					filename = "${path.module}/foo.bar"
+				  }`,
+				"run:stack:terraform init",
+			},
+			runflags: []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
+			cmd:      []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+			env: []string{
+				"GITHUB_ACTIONS=1",
+			},
 			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
 			want: want{
 				run: RunExpected{
@@ -126,8 +161,11 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				  }`,
 				"run:stack:terraform init",
 			},
-			runflags:        []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
-			cmd:             []string{TerraformTestPath, "plan-invalid-subcommand", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+			runflags: []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
+			cmd:      []string{TerraformTestPath, "plan-invalid-subcommand", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+			env: []string{
+				"GITHUB_ACTIONS=1",
+			},
 			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
 			want: want{
 				run: RunExpected{
@@ -184,6 +222,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			s.Git().CommitAll("all stacks committed")
 
 			env := RemoveEnv(os.Environ(), "CI")
+			env = RemoveEnv(env, "GITHUB_ACTIONS")
 			env = append(env, "TMC_API_URL=http://"+addr)
 			env = append(env, "TM_GITHUB_API_URL=http://"+addr+"/")
 			env = append(env, "GITHUB_EVENT_PATH="+tc.githubEventPath)
@@ -204,27 +243,27 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			result := cli.Run(runflags...)
 			AssertRunResult(t, result, tc.want.run)
 
-			orguuid := string(cloudData.MustOrgByName("terramate").UUID)
-			req, err := http.NewRequest("GET", "http://"+addr+"/v1/previews/"+orguuid+"/1", nil)
-			if err != nil {
-				t.Fatalf("failed to create request: %v", err)
-			}
-
-			req.Header.Set("User-Agent", "terramate/0.0.0-test")
-			httpClient := &http.Client{}
-			httpResp, err := httpClient.Do(req)
-			if err != nil {
-				t.Fatalf("failed to send request: %v", err)
-			}
-			defer func() { _ = httpResp.Body.Close() }()
-
-			assert.EqualInts(t, httpResp.StatusCode, http.StatusOK)
 			var previewResp cloudstore.Preview
-			if err := json.NewDecoder(httpResp.Body).Decode(&previewResp); err != nil {
-				t.Fatalf("failed to decode response: %v", err)
-			}
-
 			if tc.want.preview != nil {
+				orguuid := string(cloudData.MustOrgByName("terramate").UUID)
+				req, err := http.NewRequest("GET", "http://"+addr+"/v1/previews/"+orguuid+"/1", nil)
+				if err != nil {
+					t.Fatalf("failed to create request: %v", err)
+				}
+
+				req.Header.Set("User-Agent", "terramate/0.0.0-test")
+				httpClient := &http.Client{}
+				httpResp, err := httpClient.Do(req)
+				if err != nil {
+					t.Fatalf("failed to send request: %v", err)
+				}
+				defer func() { _ = httpResp.Body.Close() }()
+
+				assert.EqualInts(t, httpResp.StatusCode, http.StatusOK)
+				if err := json.NewDecoder(httpResp.Body).Decode(&previewResp); err != nil {
+					t.Fatalf("failed to decode response: %v", err)
+				}
+
 				if diff := cmp.Diff(*(tc.want.preview), previewResp, tc.want.ignoreTypes); diff != "" {
 					t.Errorf("unexpected  preview: %s", diff)
 				}

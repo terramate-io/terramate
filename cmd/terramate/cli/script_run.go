@@ -139,6 +139,11 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 		return
 	}
 
+	if len(previewRuns) > 0 && os.Getenv("GITHUB_ACTIONS") == "" {
+		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
+		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
+	}
+
 	if !c.prj.isRepo {
 		c.handleCriticalError(errors.E("cloud features require a git repository"))
 		return
