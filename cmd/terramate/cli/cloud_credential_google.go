@@ -41,6 +41,10 @@ const (
 	maxPort = 52023
 )
 
+// ErrIDPNeedConfirmation is an error indicating the user has multiple providers set up and
+// linking them is needed.
+const ErrIDPNeedConfirmation errors.Kind = "the account was already set up with another provider"
+
 type (
 	googleCredential struct {
 		mu sync.RWMutex
@@ -50,7 +54,6 @@ type (
 		refreshToken string
 		jwtClaims    jwt.MapClaims
 		expireAt     time.Time
-		email        string
 		orgs         cloud.MemberOrganizations
 		user         cloud.User
 
@@ -68,8 +71,8 @@ type (
 
 	credentialInfo struct {
 		ProviderID       string `json:"providerId"`
-		Email            string `json:"email"`
 		DisplayName      string `json:"displayName"`
+		ScreenName       string `json:"screenName"`
 		LocalID          string `json:"localId"`
 		IDToken          string `json:"idToken"`
 		Context          string `json:"context"`
@@ -79,6 +82,7 @@ type (
 		ExpiresIn        string `json:"expiresIn"`
 		OauthIDToken     string `json:"oauthIdToken"`
 		RawUserInfo      string `json:"rawUserInfo"`
+		NeedConfirmation bool   `json:"needConfirmation,omitempty"`
 	}
 
 	cachedCredential struct {
@@ -125,7 +129,7 @@ func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 
 	select {
 	case cred := <-h.credentialChan:
-		output.MsgStdOut("Logged in as %s", cred.DisplayName)
+		output.MsgStdOut("Logged in as %s", cred.UserDisplayName())
 		output.MsgStdOutV("Token: %s", cred.IDToken)
 		expire, _ := strconv.Atoi(cred.ExpiresIn)
 		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
@@ -243,6 +247,60 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 	return respURL, nil
 }
 
+func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (credentialInfo, error) {
+	const endpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp"
+
+	reqData, err := stdjson.Marshal(reqPayload)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+
+	url := endpointURL(endpoint, idpKey)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url.String(), bytes.NewBuffer(reqData))
+	if err != nil {
+		return credentialInfo{}, err
+	}
+
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return credentialInfo{}, errors.E(err, "failed to start authentication process")
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return credentialInfo{}, errors.E(err)
+	}
+
+	if resp.StatusCode != 200 {
+		return credentialInfo{}, errors.E("%s request returned %d", req.URL, resp.StatusCode)
+	}
+
+	var creds credentialInfo
+	err = stdjson.Unmarshal(data, &creds)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+	if creds.NeedConfirmation {
+		return credentialInfo{}, errors.E(ErrIDPNeedConfirmation)
+	}
+	return creds, nil
+}
+
+func (c credentialInfo) UserDisplayName() string {
+	if c.DisplayName != "" {
+		return c.DisplayName
+	}
+	return c.ScreenName
+}
+
 type tokenHandler struct {
 	sync.Mutex
 
@@ -252,6 +310,14 @@ type tokenHandler struct {
 	errChan        chan error
 	credentialChan chan credentialInfo
 	idpKey         string
+}
+
+type googleSignInPayload struct {
+	PostBody            string `json:"postBody,omitempty"`
+	RequestURI          string `json:"requestUri"`
+	SessionID           string `json:"sessionId,omitempty"`
+	ReturnSecureToken   bool   `json:"returnSecureToken"`
+	ReturnIdpCredential bool   `json:"returnIdpCredential"`
 }
 
 func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -270,66 +336,14 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	gotURL, _ := url.Parse(h.continueURL)
 	gotURL.RawQuery = r.URL.Query().Encode()
 
-	const signInEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp"
-
-	type payload struct {
-		RequestURI          string `json:"requestUri"`
-		SessionID           string `json:"sessionId"`
-		ReturnSecureToken   bool   `json:"returnSecureToken"`
-		ReturnIdpCredential bool   `json:"returnIdpCredential"`
-	}
-
-	postBody := payload{
+	reqPayload := googleSignInPayload{
 		RequestURI:          gotURL.String(),
 		SessionID:           h.consentData.SessionID,
 		ReturnSecureToken:   true,
 		ReturnIdpCredential: true,
 	}
 
-	data, err := stdjson.Marshal(&postBody)
-	if err != nil {
-		h.handleErr(w, errors.E(err))
-		return
-	}
-
-	logger := log.With().
-		Str("action", "tokenHandler.ServeHTTP").
-		Logger()
-
-	url := endpointURL(signInEndpoint, h.idpKey)
-	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
-	if err != nil {
-		h.handleErr(w, errors.E(err, "failed to create authentication url"))
-		return
-	}
-
-	req.Header.Add("content-type", "application/json")
-
-	logger.Debug().
-		Str("url", req.URL.String()).
-		Msg("sending request")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		h.handleErr(w, errors.E(err, "failed to start authentication process"))
-		return
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		h.errChan <- errors.E(err)
-		return
-	}
-
-	if resp.StatusCode != 200 {
-		h.handleErr(w, errors.E("%s request returned %d", req.URL, resp.StatusCode))
-		return
-	}
-
-	var creds credentialInfo
-	err = stdjson.Unmarshal(data, &creds)
+	creds, err := signInWithIDP(reqPayload, idpkey())
 	if err != nil {
 		h.handleErr(w, errors.E(err))
 		return
@@ -555,7 +569,7 @@ func (g *googleCredential) DisplayClaims() []keyValue {
 	return []keyValue{
 		{
 			key:   "email",
-			value: g.email,
+			value: g.user.Email,
 		},
 	}
 }
@@ -657,11 +671,5 @@ func (g *googleCredential) update(idToken, refreshToken string) (err error) {
 	}
 	sec, dec := math.Modf(exp)
 	g.expireAt = time.Unix(int64(sec), int64(dec*(1e9)))
-
-	email, ok := g.jwtClaims["email"].(string)
-	if !ok {
-		return errors.E(`Google JWT token has no "email" field`)
-	}
-	g.email = email
 	return nil
 }
