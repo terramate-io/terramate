@@ -26,5 +26,5 @@ To gather metadata from GitHub about the pull request associated with the previe
 - Use OpenID Connect (OIDC) to authenticate to your Cloud Provider to use short-lived credentials - Terramate CLI uses OIDC by default.
 - Ensure that all drift checks run on all stacks even if some errors are detected using the `--continue-on-error` command line option
 - Run a Drift Check right after the deployment and synchronize the result to Terramate Cloud to get an immediate health check and ensure the deployment is stable.
-- Run a Drift Check at least every 24 hours to get a detailed history of newly detected drift.
+- Run a Drift Check at least every 24 hours to get a detailed history of when drifts were introduced.
 - Set up notification to get informed about newly detected drifts in stacks

@@ -10,8 +10,8 @@ with what we call the "next generation" Infrastructure as Code approach that we 
 
 ## Different approaches to Infrastructure as Code
 
-Adopting, managing and automating Infrastructure as Code is a time-consuming,
-costly and error-prone process. Currently, two approaches exist:
+Adopting, managing, and automating Infrastructure as Code is a time-consuming,
+costly, and error-prone process. Currently, two approaches exist:
 
 ### The "Do it yourself" approach 💥
 

@@ -10,7 +10,7 @@ GitHub Actions add continuous integration to GitHub repositories to automate you
 Terramate integrates seamlessly with GitHub Actions to automate and orchestrate IaC tools such as Terraform and OpenTofu.
 
 ::: tip
-You can find a reference architecture to get started with Terramate, Terraform, AWS and GitHub Actions in no time
+You can find a reference architecture to get started with Terramate, Terraform, AWS, and GitHub Actions in no time
 at [terramate-quickstart-aws](https://github.com/terramate-io/terramate-quickstart-aws).
 :::
 
@@ -33,7 +33,7 @@ In addition, when synchronizing to Terramate Cloud, `terramate` also synchronize
 For this process, Terramate needs additional permissions to read pull-request details and checks.
 
 - `id-token: write` Allow to create an OIDC TOKEN for exchange with Cloud Credentials and to authenticate to Terramate Cloud
-- `contents: read` Allow to checkout the code from the repository
+- `contents: read` Allow to check the code from the repository
 - `pull-requests: read` Allow to read pull request details
 - `checks: read` Allow to read workflow details
 
@@ -46,7 +46,7 @@ The GitHub Actions Workflow Blueprints follow the merge+apply strategy, where de
 ## Code Checkout
 
 For the Change Detection to work, the git history is needed to be able to compare the current commit with previous commits.
-this is achieved by adding `fetch-depth: 0` option to the `actions/checkout@v4` GitHub Action.
+this is achieved by adding the `fetch-depth: 0` option to the `actions/checkout@v4` GitHub Action.
 
 ## Cloud Authentication
 
