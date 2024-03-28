@@ -51,11 +51,11 @@ terramate run -- terraform init
 ### Create a Terraform Plan in parallel
 
 ```bash
-terramate run --parallel 5 -- terraform plan -outfile plan.tfplan
+terramate run --parallel 5 -- terraform plan -out plan.tfplan
 ```
 
 ### Apply a Terraform Plan in Changed Stacks
 
 ```bash
-terramate run --changed -- terraform apply -outfile plan.tfplan -auto-approve
+terramate run --changed -- terraform apply -out plan.tfplan -auto-approve
 ```

@@ -20,7 +20,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.6.0
 
 ### Added
 
@@ -30,6 +30,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - the script execution will be aborted and no further commands or jobs from that script will be run on the current stack node.
     - the script execution will continue to run on the next stack node.
     - `terramate script run` will return exit code 1 (same behaviour as `terramate run --continue-on-error`).
+- Add a new flag `--reverse` to `terramate script run`. When the flag is set, the script execution will happen in the reverse order of the selected stacks.  This is similar to `terramate run --reverse`.
+- Improved Terragrunt integration by adding `--terragrunt` flag.
+  - Instructs the CLI to use the Terragrunt binary when generating a plan file for cloud syncing.
+  - It's supported as a flag for `terramate run` and as a command option `terragrunt = true` for script commands.
 
 ### Fixed
 

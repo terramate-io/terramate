@@ -282,6 +282,10 @@ terramate run [options] -- <cmd ...>
 
   This flag is supported in combination with `--cloud-sync-drift-status`, `--cloud-sync-preview`, and `--cloud-sync-preview`.
 
+- `--terragrunt`
+
+  Use Terragrunt to generate the Terraform Plan file.
+
 ## Configuration of the Run Command
 
 The `terramate` block at the project root can be used to customize

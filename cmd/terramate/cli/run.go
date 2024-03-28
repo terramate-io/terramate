@@ -40,6 +40,8 @@ const (
 	// ErrRunCommandNotFound represents the error when the command cannot be found
 	// in the system.
 	ErrRunCommandNotFound errors.Kind = "command not found"
+
+	cloudSyncPreviewGHAWarning = "--cloud-sync-preview is only supported in GitHub Actions workflows"
 )
 
 // stackRun contains a list of tasks to be run per stack.
@@ -53,6 +55,7 @@ type stackRun struct {
 type stackCloudRun struct {
 	Stack *config.Stack
 	Task  stackRunTask
+	Env   []string
 }
 
 // stackRunTask declares a stack run context.
@@ -68,6 +71,8 @@ type stackRunTask struct {
 	CloudSyncPreview           bool
 	CloudSyncLayer             preview.Layer
 	CloudSyncTerraformPlanFile string
+
+	UseTerragrunt bool
 }
 
 // runResult contains exit code and duration of a completed run.
@@ -143,6 +148,11 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
+	if c.parsedArgs.Run.CloudSyncPreview && os.Getenv("GITHUB_ACTIONS") == "" {
+		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
+		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
+	}
+
 	var runs []stackRun
 	var err error
 	for _, st := range stacks {
@@ -156,6 +166,7 @@ func (c *cli) runOnStacks() {
 					CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
 					CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
 					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer,
+					UseTerragrunt:              c.parsedArgs.Run.Terragrunt,
 				},
 			},
 		}
@@ -311,8 +322,10 @@ func (c *cli) runAll(
 		errs := errors.L()
 
 		for _, task := range run.Tasks {
+			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
+
 			// For cloud sync, we always assume that there's a single task per stack.
-			cloudRun := stackCloudRun{Stack: run.Stack, Task: task}
+			cloudRun := stackCloudRun{Stack: run.Stack, Task: task, Env: environ}
 
 			select {
 			case <-cancelCtx.Done():
@@ -337,7 +350,6 @@ func (c *cli) runAll(
 
 			c.cloudSyncBefore(cloudRun)
 
-			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
 			if err != nil {
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
@@ -546,7 +558,10 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 
 	pullRequest := c.cloud.run.prFromGHAEvent
 	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() {
-		printer.Stderr.Warn("unable to read pull_request details from GITHUB_EVENT_PATH")
+		printer.Stderr.WarnWithDetails(
+			"unable to create preview: missing pull request information",
+			errors.E("--cloud-sync-preview can only be used in a GitHub Action workflow triggered by a pull request event"),
+		)
 		c.disableCloudFeatures(cloudError())
 		return map[string]string{}
 	}

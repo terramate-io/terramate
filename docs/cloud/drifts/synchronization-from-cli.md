@@ -35,9 +35,9 @@ The full command line to run a drift check looks like the following:
 ```bash
 terramate run \
   --cloud-sync-drift-status \
-  --cloud-sync-terraform-plan=out.tfplan \
+  --cloud-sync-terraform-plan out.tfplan \
   --continue-on-error \
-  terraform plan -outfile out.tfplan
+  terraform plan -out out.tfplan
 ```
 
 It is recommended to create a Terramate Script as explained in the next section, to provide an easy interface for users that can be used on local machines the same way as in CI/CD automated environments.

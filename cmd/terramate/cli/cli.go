@@ -159,6 +159,7 @@ type cliSpec struct {
 		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it."`
 		Reverse                    bool          `default:"false" help:"Reverse the order of execution."`
 		Eval                       bool          `default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
+		Terragrunt                 bool          `default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
 
 		// Note: 0 is not the real default value here, this is just a workaround.
 		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
@@ -185,6 +186,7 @@ type cliSpec struct {
 			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
 			ContinueOnError bool   `default:"false" help:"Continue executing next stacks when a command returns an error."`
 			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
+			Reverse         bool   `default:"false" help:"Reverse the order of execution."`
 
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
 

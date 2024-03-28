@@ -102,6 +102,7 @@ func (c *cli) runScript() {
 						task.CloudSyncPreview = cmd.Options.CloudSyncPreview
 						task.CloudSyncLayer = cmd.Options.CloudSyncLayer
 						task.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
+						task.UseTerragrunt = cmd.Options.UseTerragrunt
 					}
 					run.Tasks = append(run.Tasks, task)
 				}
@@ -116,6 +117,7 @@ func (c *cli) runScript() {
 	err := c.runAll(runs, runAllOptions{
 		Quiet:           c.parsedArgs.Quiet,
 		DryRun:          c.parsedArgs.Script.Run.DryRun,
+		Reverse:         c.parsedArgs.Script.Run.Reverse,
 		ScriptRun:       true,
 		ContinueOnError: c.parsedArgs.Script.Run.ContinueOnError,
 		Parallel:        c.parsedArgs.Script.Run.Parallel,
@@ -135,6 +137,11 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	previewRuns := selectCloudStackTasks(runs, isPreviewTask)
 	if len(deployRuns) == 0 && len(driftRuns) == 0 && len(previewRuns) == 0 {
 		return
+	}
+
+	if len(previewRuns) > 0 && os.Getenv("GITHUB_ACTIONS") == "" {
+		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
+		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
 	}
 
 	if !c.prj.isRepo {

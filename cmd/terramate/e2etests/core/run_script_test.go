@@ -72,10 +72,39 @@ func TestRunScript(t *testing.T) {
 					"/stack-a \\(script:0 job:0.0\\)> echo hello",
 					"/stack-a \\(script:0 job:1.0\\)> echo some message",
 				},
-				StdoutRegexes: []string{
-					"hello",
-					"some message",
-				},
+				Stdout: "hello" + "\n" +
+					"some message" + "\n",
+			},
+		},
+		{
+			name: "script with --reverse",
+			layout: []string{
+				terramateConfig,
+				"s:stack-a",
+				`f:stack-a/script.tm:
+				script "somescript" {
+				  description = "some description"
+				  job {
+					command = ["echo", "hello1"]
+				  }
+				  job {
+					command = ["echo", "hello2"]
+				  }
+				}`,
+				"s:stack-a/stack-b",
+			},
+			runScript: []string{"somescript"},
+			args:      []string{"--reverse"},
+			want: RunExpected{
+				Stderr: `Script 0 at /stack-a/script.tm:2,5-10,6 having 2 job(s)` + "\n" +
+					"/stack-a/stack-b (script:0 job:0.0)> echo hello1" + "\n" +
+					"/stack-a/stack-b (script:0 job:1.0)> echo hello2" + "\n" +
+					"/stack-a (script:0 job:0.0)> echo hello1" + "\n" +
+					"/stack-a (script:0 job:1.0)> echo hello2" + "\n",
+				Stdout: "hello1" + "\n" +
+					"hello2" + "\n" +
+					"hello1" + "\n" +
+					"hello2" + "\n",
 			},
 		},
 		{
@@ -98,17 +127,15 @@ func TestRunScript(t *testing.T) {
 			runScript: []string{"somescript"},
 			args:      []string{"--continue-on-error"},
 			want: RunExpected{
-				StderrRegexes: []string{
-					"Script 0 at /stack-a/script.tm:.* having 2 job\\(s\\)",
-					"/stack-a \\(script:0 job:0.0\\)> echo hello1",
-					"/stack-a \\(script:0 job:1.0\\)> echo hello2",
-					"/stack-a/stack-b \\(script:0 job:0.0\\)> echo hello1",
-					"/stack-a/stack-b \\(script:0 job:1.0\\)> echo hello2",
-				},
-				StdoutRegexes: []string{
-					"hello1",
-					"hello2",
-				},
+				Stderr: `Script 0 at /stack-a/script.tm:2,5-10,6 having 2 job(s)` + "\n" +
+					"/stack-a (script:0 job:0.0)> echo hello1" + "\n" +
+					"/stack-a (script:0 job:1.0)> echo hello2" + "\n" +
+					"/stack-a/stack-b (script:0 job:0.0)> echo hello1" + "\n" +
+					"/stack-a/stack-b (script:0 job:1.0)> echo hello2" + "\n",
+				Stdout: "hello1" + "\n" +
+					"hello2" + "\n" +
+					"hello1" + "\n" +
+					"hello2" + "\n",
 			},
 		},
 		{
@@ -143,9 +170,8 @@ func TestRunScript(t *testing.T) {
 					"Error: one or more commands failed" + "\n" +
 					"> executable file not found in $PATH: running " + "`someunknowncommand`" + " in stack /stack-a: someunknowncommand" + "\n" +
 					"> executable file not found in $PATH: running " + "`someunknowncommand`" + " in stack /stack-a/stack-b: someunknowncommand" + "\n",
-				StdoutRegexes: []string{
-					"hello1",
-				},
+				Stdout: "hello1" + "\n" +
+					"hello1" + "\n",
 			},
 		},
 		{
@@ -180,9 +206,8 @@ func TestRunScript(t *testing.T) {
 					"Error: one or more commands failed\n" +
 					"> execution failed: running " + HelperPath + " false (in /stack-a): exit status 1\n" +
 					"> execution failed: running " + HelperPath + " false (in /stack-a/stack-b): exit status 1\n",
-				StdoutRegexes: []string{
-					"hello1",
-				},
+				Stdout: "hello1" + "\n" +
+					"hello1" + "\n",
 			},
 		},
 		{

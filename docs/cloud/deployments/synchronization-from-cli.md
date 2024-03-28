@@ -33,7 +33,7 @@ The full command line to run an auto-approved apply based on an existing plan fi
 ```bash
 terramate run \
   --cloud-sync-deployment \
-  --cloud-sync-terraform-plan=out.tfplan \
+  --cloud-sync-terraform-plan out.tfplan \
   --changed \
   terraform apply -auto-approve out.tfplan
 ```
