@@ -278,6 +278,14 @@ func (git Git) BaseDir() string {
 	return git.cfg.repoDir
 }
 
+// LogGraph returns a human-readable graph of the git log
+func (git Git) LogGraph() string {
+	git.t.Helper()
+	out, err := git.g.Exec("log", "--graph", "--all", "--oneline")
+	assert.NoError(git.t, err)
+	return out
+}
+
 func defaultGitConfig() GitConfig {
 	return GitConfig{
 		LocalBranchName:         "main",

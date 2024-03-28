@@ -6,8 +6,10 @@ package core_test
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
@@ -255,6 +257,432 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
 
+func TestChangeBaseSelection1(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	cli := NewCLI(t, s.RootDir())
+	git := s.Git()
+
+	hashToName := map[string]string{"": ""}
+	nameToHash := map[string]string{"": ""}
+
+	setNamedCommit := func(name string) {
+		hash := git.RevParse("HEAD")
+
+		hashToName[hash] = name
+		nameToHash[name] = hash
+	}
+
+	makeStackCommit := func(name string) {
+		st := s.CreateStack(name)
+		st.CreateFile("main.tf", "# none")
+		git.Add(name)
+		git.Commit(name)
+
+		setNamedCommit(name)
+	}
+
+	type testcase struct {
+		Commit string
+		Ref    string
+
+		WantChanged []string
+	}
+
+	var tests []testcase
+
+	makeStackCommit("main_c1")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "main_c1",
+			WantChanged: []string{
+				"main_c1",
+			},
+		}}...,
+	)
+
+	git.CheckoutNew("merged1")
+	makeStackCommit("merged1_c1")
+	makeStackCommit("merged1_c2")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "merged1_c1",
+			WantChanged: []string{
+				"merged1_c1",
+			},
+		},
+		{
+			Commit: "merged1_c2",
+			WantChanged: []string{
+				"merged1_c1",
+				"merged1_c2",
+			},
+		},
+		{
+			Ref: "merged1",
+			WantChanged: []string{
+				"merged1_c1",
+				"merged1_c2",
+			},
+		}}...,
+	)
+
+	git.Checkout("main")
+	git.Merge("merged1")
+	setNamedCommit("main_c2")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "main_c2",
+			WantChanged: []string{
+				"merged1_c1",
+				"merged1_c2",
+			},
+		}}...,
+	)
+
+	git.CheckoutNew("unmerged")
+	makeStackCommit("unmerged_c1")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "unmerged_c1",
+			WantChanged: []string{
+				"unmerged_c1",
+			},
+		},
+		{
+			Ref: "unmerged",
+			WantChanged: []string{
+				"unmerged_c1",
+			},
+		}}...,
+	)
+
+	git.Checkout("main")
+
+	git.CheckoutNew("merged2")
+	makeStackCommit("merged2_c1")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "merged2_c1",
+			WantChanged: []string{
+				"merged2_c1",
+			},
+		},
+		{
+			Ref: "merged2",
+			WantChanged: []string{
+				"merged2_c1",
+			},
+		}}...,
+	)
+
+	git.Checkout("main")
+	git.Merge("merged2")
+	setNamedCommit("main_c3")
+
+	git.Push("main") // origin/main -> main_c3
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "main_c3",
+			WantChanged: []string{
+				"merged2_c1",
+			},
+		},
+		{
+			Ref: "origin/main",
+			WantChanged: []string{
+				"merged2_c1",
+			},
+		}}...,
+	)
+
+	git.CheckoutNew("empty")
+
+	tests = append(tests, []testcase{
+		{
+			Ref:         "empty",
+			WantChanged: []string{},
+		}}...,
+	)
+
+	git.CheckoutNew("wip")
+	makeStackCommit("wip_c1")
+	makeStackCommit("wip_c2")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "wip_c1",
+			WantChanged: []string{
+				"wip_c1",
+			},
+		},
+		{
+			Commit: "wip_c2",
+			WantChanged: []string{
+				"wip_c1",
+				"wip_c2",
+			},
+		},
+		{
+			Ref: "wip",
+			WantChanged: []string{
+				"wip_c1",
+				"wip_c2",
+			},
+		}}...,
+	)
+
+	git.Checkout("main")
+	makeStackCommit("main_c4")
+	makeStackCommit("main_c5")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "main_c4",
+			WantChanged: []string{
+				"main_c4",
+			},
+		},
+		{
+			Commit: "main_c5",
+			WantChanged: []string{
+				"main_c4",
+				"main_c5",
+			},
+		},
+		{
+			Ref: "main",
+			WantChanged: []string{
+				"main_c5",
+			},
+		}}...,
+	)
+
+	for _, tc := range tests {
+		var name string
+		if tc.Commit != "" {
+			name = tc.Commit
+		} else {
+			name = tc.Ref
+		}
+
+		t.Run(name, func(t *testing.T) {
+			assert.IsTrue(t, (tc.Commit != "") != (tc.Ref != ""), "set either commit or ref")
+			var rev string
+			if tc.Commit != "" {
+				rev = nameToHash[tc.Commit]
+			} else {
+				rev = tc.Ref
+			}
+
+			git.Checkout(rev)
+
+			wantStdout := ""
+			if len(tc.WantChanged) != 0 {
+				wantStdout = strings.Join(tc.WantChanged, "\n") + "\n"
+			}
+
+			want := RunExpected{Stdout: wantStdout}
+			AssertRunResult(t, cli.ListChangedStacks(), want)
+		})
+	}
+}
+
+func TestChangeBaseSelection2(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	cli := NewCLI(t, s.RootDir())
+	git := s.Git()
+
+	hashToName := map[string]string{"": ""}
+	nameToHash := map[string]string{"": ""}
+
+	setNamedCommit := func(name string) {
+		hash := git.RevParse("HEAD")
+
+		hashToName[hash] = name
+		nameToHash[name] = hash
+	}
+
+	makeStackCommit := func(name string) {
+		st := s.CreateStack(name)
+		st.CreateFile("main.tf", "# none")
+		git.Add(name)
+		git.Commit(name)
+
+		setNamedCommit(name)
+	}
+
+	type testcase struct {
+		Commit string
+		Ref    string
+
+		WantChanged []string
+	}
+
+	var tests []testcase
+
+	makeStackCommit("A")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "A",
+			WantChanged: []string{
+				"A",
+			},
+		}}...,
+	)
+
+	git.CheckoutNew("merged")
+	makeStackCommit("A0")
+	git.CheckoutNew("unmerged")
+	makeStackCommit("A2")
+	git.Checkout("merged")
+	makeStackCommit("A1")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "A0",
+			WantChanged: []string{
+				"A0",
+			},
+		},
+		{
+			Commit: "A1",
+			WantChanged: []string{
+				"A0",
+				"A1",
+			},
+		},
+		{
+			Ref: "merged",
+			WantChanged: []string{
+				"A0",
+				"A1",
+			},
+		},
+		{
+			Commit: "A2",
+			WantChanged: []string{
+				"A0",
+				"A2",
+			},
+		},
+		{
+			Ref: "unmerged",
+			WantChanged: []string{
+				"A0",
+				"A2",
+			},
+		}}...,
+	)
+
+	git.Checkout("main")
+	git.Merge("merged")
+	setNamedCommit("B")
+
+	git.CheckoutNew("empty")
+
+	tests = append(tests, []testcase{
+		{
+			Ref:         "empty",
+			WantChanged: []string{},
+		}}...,
+	)
+
+	git.Checkout("main")
+	git.CheckoutNew("wip")
+	makeStackCommit("B0")
+
+	git.Checkout("main")
+	makeStackCommit("C")
+
+	git.Checkout("wip")
+	git.Merge("main")
+	setNamedCommit("C0")
+
+	git.Checkout("main")
+	makeStackCommit("D")
+
+	tests = append(tests, []testcase{
+		{
+			Commit: "B0",
+			WantChanged: []string{
+				"B0",
+			},
+		},
+		{
+			Commit: "C",
+			WantChanged: []string{
+				"C",
+			},
+		},
+		{
+			Commit: "C0",
+			WantChanged: []string{
+				"B0",
+			},
+		},
+		{
+			Ref: "wip",
+			WantChanged: []string{
+				"B0",
+			},
+		},
+		{
+			Commit: "D",
+			WantChanged: []string{
+				"D",
+			},
+		},
+		{
+			Ref: "main",
+			WantChanged: []string{
+				"D",
+			},
+		}}...,
+	)
+
+	git.Push("main")
+
+	for _, tc := range tests {
+		var name string
+		if tc.Commit != "" {
+			name = tc.Commit
+		} else {
+			name = tc.Ref
+		}
+
+		t.Run(name, func(t *testing.T) {
+			assert.IsTrue(t, (tc.Commit != "") != (tc.Ref != ""), "set either commit or ref")
+			var rev string
+			if tc.Commit != "" {
+				rev = nameToHash[tc.Commit]
+			} else {
+				rev = tc.Ref
+			}
+
+			git.Checkout(rev)
+
+			wantStdout := ""
+			if len(tc.WantChanged) != 0 {
+				wantStdout = strings.Join(tc.WantChanged, "\n") + "\n"
+			}
+
+			want := RunExpected{Stdout: wantStdout}
+			AssertRunResult(t, cli.ListChangedStacks(), want)
+		})
+	}
+}
+
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	t.Parallel()
 
@@ -290,19 +718,16 @@ func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 		git.Commit(name)
 	}
 
-	wantStdout := ""
-
 	// creates N commits in main.
-	// in this case, it should use origin/main as baseRef even if in main.
+	// in this case, it should use HEAD^ as baseRef.
 
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("stack-%d", i)
 		createCommittedStack(name)
-		wantStdout += name + "\n"
 	}
 
 	wantRes := RunExpected{
-		Stdout: wantStdout,
+		Stdout: "stack-9\n",
 	}
 
 	AssertRunResult(t, ts.ListChangedStacks(), wantRes)
