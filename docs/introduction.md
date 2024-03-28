@@ -95,9 +95,9 @@ It is free for individual use, with features available for teams.
 - **Collaboration**: Teams regain ownership and can collaborate on every step of the IaC deployment lifecycle. Discuss
 planned changes through previews, and take ownership of failures and drifts.
 - **Observability and Visibility**: Understand the status of your Infrastructure stacks. Into application state, resource usage, cost, ownership, changes, access, associated deployments and more. See inside any stack, deployment, and resource, at any scale, anywhere.
-- **Drift Control**: Automatically detect and resolve drift.
+- **Terramate AI**: LLM-powered analysis of deployment status, blast radius, and more.
+- **Drift Control**: Automatically detect and resolve drifts.
 - **Governance**: Manage ownership for stacks, deployments, failure, drift and more.
-- **Terramate AI**: LLM-powered analysis of deployment status, blast radius and more.
 
 ## Next steps
 
