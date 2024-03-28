@@ -151,4 +151,9 @@ Terramate CLI Previews can run in any CI/CD and we provide Blueprints for variou
 
 - Reconcile any detected drifts
 - Learn about Terramate Cloud in this documentation
--
+- Start using Terramate Cloud to
+  - Get visibility and notifications about drifts when they happen.
+  - Catch failed deployments when they happen and notify your team.
+  - Gain visibility of overall stack health for all your repositories in a central place.
+  - Share details about previews, drifts, and deployments with your team without the need to grant them elevated access to cloud resources.
+- Share your feedback with us and join our roadmap to shape the future of the product as you need it.
