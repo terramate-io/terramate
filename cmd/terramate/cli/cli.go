@@ -208,7 +208,10 @@ type cliSpec struct {
 	} `cmd:"" help:"Debug Terramate configuration."`
 
 	Cloud struct {
-		Login struct{} `cmd:"" help:"Sign in to Terramate Cloud."`
+		Login struct {
+			Google bool `optional:"true" help:"authenticate with google credentials"`
+			Github bool `optional:"true" help:"authenticate with github credentials"`
+		} `cmd:"" help:"Sign in to Terramate Cloud."`
 		Info  struct{} `cmd:"" help:"Show your current Terramate Cloud login status."`
 		Drift struct {
 			Show struct {
@@ -502,7 +505,12 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	case "experimental cloud login": // Deprecated: use cloud login
 		fallthrough
 	case "cloud login":
-		err := googleLogin(output, idpkey(), clicfg)
+		var err error
+		if parsedArgs.Cloud.Login.Github {
+			err = githubLogin(output, cloudBaseURL(), idpkey(), clicfg)
+		} else {
+			err = googleLogin(output, idpkey(), clicfg)
+		}
 		if err != nil {
 			fatal("authentication failed", err)
 		}
