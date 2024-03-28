@@ -5,7 +5,7 @@ description: Learn how to connect Terramate CLI with Terramate Cloud and start s
 
 # Connect Terramate CLI to Terramate Cloud
 
-After installing Terramate CLI, setting up your repository and importing any existing configuration you can start using Terramate Cloud. The on-boarding should not take long but includes the time it needs to run your first drift check over all your stacks and requires some configuration of automation pipelines - But we have you covered with our existing Terramate Automation Blueprints for the most common CI/CD platforms.
+After installing Terramate CLI, setting up your repository, and importing any existing configuration you can start using Terramate Cloud. The onboarding should not take long but includes the time it needs to run your first drift check over all your stacks and requires some configuration of automation pipelines - But we have you covered with our existing Terramate Automation Blueprints for the most common CI/CD platforms.
 
 ## Create a Cloud Account
 
@@ -32,8 +32,8 @@ terramate {
 
 ## Login from CLI
 
-To synchronize data from you local machine, you will need to `login` to Terramate Cloud from the CLI.
-Terramate CLI will store a session on your machine after successful login.
+To synchronize data from your local machine, you will need to `login` to Terramate Cloud from the CLI.
+Terramate CLI will store a session on your machine after a successful login.
 
 Use the following command to initiate the login.
 
@@ -41,7 +41,7 @@ Use the following command to initiate the login.
 terramate cloud login
 ```
 
-After execution of this command a browser window will open and you can sign in to terramate cloud.
+After execution of this command, a browser window will open and you can sign in to terramate cloud.
 When this login is successful a message to continue in the CLI is shown in the browser and the CLI will also confirm the success.
 
 ## Required permissions
@@ -105,7 +105,7 @@ Doing the initial drift check manually is a good start but enabling data synchro
 
 Multiple git repositories from multiple owners can be connected to the same Terramate Organization.
 
-It is recommended to set up automation for scheduled drift runs, deployments and for generating previews for pull requests.
+It is recommended to set up automation for scheduled drift runs, and deployments and for generating previews for pull requests.
 
 ### Synchronize Drift Runs
 
@@ -119,7 +119,7 @@ Terramate CLI Drift Checks can run in any CI/CD and we provide Blueprints for va
 Recommendations when synchronizing drift checks:
 
 - Run a Drift Check at least every 24 hours to get a detailed history of when drifts were introduced.
-- Run a Drift Check right after a deployment and synchronize the result to Terramate Cloud to get an immediate health check and ensure the deployment is stable.
+- Run a Drift Check right after deployment and synchronize the result to Terramate Cloud to get an immediate health check and ensure the deployment is stable.
 - Ensure that all drift checks run on all stacks even if some errors are detected using the `--continue-on-error` command line option
 - Set up notifications to get informed about newly detected drifts in stacks
 

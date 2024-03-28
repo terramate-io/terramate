@@ -26,7 +26,7 @@ The [run](../../cli/cmdline/run.md) command in Terramate CLI offers some command
 information to Terramate Cloud.
 
 - `--cloud-sync-deployment` Synchronizes the deployment status and logs to Terramate Cloud
-- `--cloud-sync-terraform-plan=FILE` A Terraform integration that allows synchronization of details about the changed, added, or deleted Terraform Resources that were planned to be applied in the deployment
+- `--cloud-sync-terraform-plan FILE` A Terraform integration that allows synchronization of details about the changed, added, or deleted Terraform Resources that were planned to be applied in the deployment
 
 The full command line to run an auto-approved apply based on an existing plan file in changed stacks only looks like the following:
 
