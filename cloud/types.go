@@ -206,6 +206,7 @@ type (
 		GithubCommitCommitterGitDate    *time.Time `json:"github_commit_committer_git_date,omitempty"`
 
 		GithubActionsDeploymentBranch      string `json:"github_actions_deployment_branch,omitempty"`
+		GithubActionsDeploymentActor       string `json:"github_actions_deployment_actor,omitempty"`
 		GithubActionsDeploymentTriggeredBy string `json:"github_actions_triggered_by,omitempty"`
 		GithubActionsRunID                 string `json:"github_actions_run_id,omitempty"`
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
