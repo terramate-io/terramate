@@ -798,7 +798,8 @@ func setDefaultGitMetadata(md *cloud.DeploymentMetadata, commit *git.CommitMetad
 }
 
 func setGithubActionsMetadata(md *cloud.DeploymentMetadata) {
-	md.GithubActionsDeploymentTriggeredBy = os.Getenv("GITHUB_ACTOR")
+	md.GithubActionsDeploymentActor = os.Getenv("GITHUB_ACTOR")
+	md.GithubActionsDeploymentTriggeredBy = os.Getenv("GITHUB_TRIGGERING_ACTOR")
 	md.GithubActionsDeploymentBranch = os.Getenv("GITHUB_REF_NAME")
 	md.GithubActionsRunID = os.Getenv("GITHUB_RUN_ID")
 	md.GithubActionsRunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
