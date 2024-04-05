@@ -13,6 +13,8 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// TODO: line added for triggering bench in CI.
+
 	packageDir, err := os.Getwd()
 	if err != nil {
 		log.Printf("failed to get test working directory: %v", err)

@@ -2,7 +2,7 @@ GO_RELEASER_VERSION=v1.14.0
 GOLANGCI_LINT_VERSION ?= v1.52.2
 COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**'
-BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
+BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@customize-bench-runner
 
 ## Build terramate tools into bin directory
 .PHONY: build
@@ -129,10 +129,10 @@ bench/check: pkg?=./...
 bench/check: old?=main
 bench/check: new?=$(shell git rev-parse HEAD)
 bench/check:
-	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem,-count=20,-run=Bench" \
-		-old $(old) -new $(new) \
+	$(BENCH_CHECK) -mod $(name) -old $(old) -new $(new) \
 		-check allocs/op=$(allocdelta) \
-		-check time/op=$(timedelta)
+		-check time/op=$(timedelta) \
+		go test -benchmem -count=20 -run=Bench -bench=. $(pkg)	
 
 ## cleanup artifacts produced by the benchmarking process
 bench/cleanup:
