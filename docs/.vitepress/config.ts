@@ -797,9 +797,11 @@ export default defineConfig({
 
         {
           text: '⛅️ Terramate Cloud',
-          // link: '/cloud/',
-          // collapsed: false,
           items: [
+            {
+              text: 'Create your Account',
+              link: '/cloud/signup/',
+            },
             {
               text: 'Dashboard',
               link: '/cloud/dashboard/',

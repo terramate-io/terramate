@@ -15,7 +15,7 @@ On the details page, the following information is available
 - The **path** of the stack within the repository
 - The ID of the stack as set in the Terramate config via `stack.id`
 - The **created date and time** when the stack was created on Terramate Cloud
-- The **updated date and time** when the stack status last updated
+- The **updated date and time** when the stack status was last updated
 - The **tags** configured for a stack via `stack.tags`
 
 ## Stack Alerts
