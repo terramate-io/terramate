@@ -449,6 +449,32 @@ func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
 	runFromDir(t, "/stacks/stack-1")
 }
 
+func TestGenerateWarnsForTmGenNonInheritable(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		"s:stacks/stack-1",
+		"s:stacks/stack-2",
+		"f:invalid.tf.tmgen:test = 1",
+	})
+
+	s.RootEntry().CreateFile(
+		config.DefaultFilename,
+		Terramate(
+			Config(
+				Expr("experiments", `["tmgen"]`),
+			),
+		).String(),
+	)
+
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, tmcli.Run("generate"), RunExpected{
+		Stdout:      "Nothing to do, generated code is up to date\n",
+		StderrRegex: "Warning: non-inheritable generate found outside a stack",
+	})
+}
+
 type str string
 
 func (s str) String() string {

@@ -6,6 +6,7 @@ package generate_test
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -974,6 +975,74 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestTmGenDeletesFileWhenHidden(t *testing.T) {
+	t.Parallel()
+
+	const filename = "file.tf"
+
+	s := sandbox.NoGit(t, true)
+	s.RootEntry().CreateFile("terramate.tm", Terramate(Config(Expr("experiments", `["tmgen"]`))).String())
+	stackEntry := s.CreateStack("stack")
+
+	assertFileExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("want file %q to exist, instead got: %v", path, err)
+		}
+	}
+	assertFileDontExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		_, err := os.Stat(path)
+
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
+		t.Fatalf("want file %q to not exist, instead got: %v", path, err)
+	}
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{})
+	assertFileDontExist(filename)
+
+	stackEntry.CreateFile(
+		filename+".tmgen",
+		"val = 1",
+	)
+
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     project.NewPath("/stack"),
+				Created: []string{filename},
+			},
+		},
+	})
+	assertFileExist(filename)
+
+	test.RemoveFile(t, stackEntry.Path(), filename+".tmgen")
+	stackEntry.CreateFile(
+		"."+filename+".tmgen", //dotfile
+		"val = 1",
+	)
+
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     project.NewPath("/stack"),
+				Deleted: []string{filename},
+			},
+		},
+	})
+	assertFileDontExist(filename)
 }
 
 func testCodeGeneration(t *testing.T, tcases []testcase) {

@@ -1686,6 +1686,163 @@ func TestGenerateHCL(t *testing.T) {
 	}
 }
 
+func TestGenHCLTmGen(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name:  "if tmgen is disabled in the experiments, then the file is ignored",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "main.tf.tmgen",
+					add:      &strings.Builder{},
+				},
+			},
+		},
+		{
+			name:  "empty .tmgen file generates empty file",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "main.tf.tmgen",
+					add:      &strings.Builder{},
+				},
+			},
+			want: []result{
+				{
+					name: "main.tf",
+					hcl: genHCL{
+						condition: true,
+						body:      Doc(),
+					},
+				},
+			},
+		},
+		{
+			name:  ".tmgen file without prefix is ignored -- because it's a dotfile",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: ".tmgen",
+					add:      Block("test"),
+				},
+			},
+		},
+		{
+			name:  "generating simple main.tf",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "main.tf.tmgen",
+					add: Block("module",
+						Str("source", "something.else/etc"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "main.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Block("module",
+							Str("source", "something.else/etc"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "tmgen using globals and terramate namespace",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "test.tf.tmgen",
+					add: Block("testblock",
+						Expr("bool", "global.some_bool"),
+						Expr("number", "global.some_number"),
+						Expr("string", "global.some_string"),
+						Expr("stack_name", "terramate.stack.name"),
+						Expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("stack_name", "stack"),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+	} {
+		tc.run(t)
+	}
+}
+
 type (
 	hclconfig struct {
 		path     string

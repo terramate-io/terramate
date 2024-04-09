@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add experimental support for `tmgen` file extension for easy code generation/templating
+  of existing infrastructure. You can enable it with `terramate.config.experimental = ["tmgen"]`.
+
 ## v0.6.0
 
 ### Added

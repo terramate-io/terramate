@@ -4,6 +4,9 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,11 +15,17 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -420,12 +429,19 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		if err != nil {
 			return nil, err
 		}
+
 		tree.Node = cfg
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
 		parentTree = tree
 	}
+
+	err = processTmGenFiles(parentTree.Root(), &parentTree.Node, cfgdir, dirEntries)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, dirEntry := range dirEntries {
 		fname := dirEntry.Name()
 		if Skip(fname) || !dirEntry.IsDir() {
@@ -442,6 +458,78 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		parentTree.Children[fname] = node
 	}
 	return parentTree, nil
+}
+
+func processTmGenFiles(root *Root, cfg *hcl.Config, cfgdir string, dirEntries []fs.DirEntry) error {
+	const tmgenSuffix = ".tmgen"
+
+	tmgenEnabled := root.HasExperiment("tmgen")
+
+	// process all .tmgen files.
+	for _, dirEntry := range dirEntries {
+		fname := dirEntry.Name()
+		if !strings.HasSuffix(fname, tmgenSuffix) || fname[0] == '.' {
+			continue
+		}
+
+		absFname := filepath.Join(cfgdir, fname)
+
+		if !tmgenEnabled {
+			printer.Stderr.Warn(
+				fmt.Sprintf("found %q but `tmgen` is not enabled in the `terramate.config.experiments` attribute",
+					absFname,
+				),
+			)
+			continue
+		}
+
+		content, err := os.ReadFile(absFname)
+		if err != nil {
+			return errors.E(err, "failed to read .tmgen file")
+		}
+		parser := hclparse.NewParser()
+		hclFile, diags := parser.ParseHCL(content, fname)
+		if diags.HasErrors() {
+			return errors.E(diags, "failed to parse .tmgen file")
+		}
+
+		lines := bytes.Split(content, []byte{'\n'})
+		nLines := len(lines)
+		lastLineNColumns := len(lines[nLines-1])
+
+		label := fname[:len(fname)-len(tmgenSuffix)] // removes suffix
+
+		body, ok := hclFile.Body.(*hclsyntax.Body)
+		if !ok {
+			panic(errors.E(errors.ErrInternal, "unexpected parsed HCL body"))
+		}
+
+		block := &hhcl.Block{
+			Type: "content",
+			Body: body,
+		}
+		implicitGenBlock := hcl.GenHCLBlock{
+			IsImplicitBlock: true,
+			Dir:             project.PrjAbsPath(root.HostDir(), cfgdir),
+			NonInheritable:  true,
+			Range: info.NewRange(root.HostDir(), hhcl.Range{
+				Filename: absFname,
+				Start:    hhcl.InitialPos,
+				End: hhcl.Pos{
+					Line:   nLines,
+					Column: lastLineNColumns,
+					Byte:   len(content) - 1,
+				},
+			}),
+			Label:   label,
+			Lets:    ast.NewMergedBlock("lets", []string{}),
+			Asserts: nil,
+			Content: block,
+		}
+
+		cfg.Generate.HCLs = append(cfg.Generate.HCLs, implicitGenBlock)
+	}
+	return nil
 }
 
 // IsEmptyConfig tells if the configuration is empty.

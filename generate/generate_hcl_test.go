@@ -1005,6 +1005,56 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "block with same label as implicit tmgen block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
+							),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "repeated.tmgen",
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("other_block",
+								Str("data", "parent data"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stack"),
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
 			name: "stack imports config with block with same label as parent",
 			layout: []string{
 				"s:stacks/stack",
