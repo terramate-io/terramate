@@ -760,6 +760,46 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
+			name: "tmgen is detected when changed",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+					},
+					files: []file{
+						{
+							path: "terramate.tm",
+							body: Terramate(
+								Config(
+									Expr("experiments", `["tmgen"]`),
+								),
+							),
+						},
+						{
+							path: "stack-1/test.hcl.tmgen",
+							body: Doc(
+								Str("content", "tmgen"),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "stack-1/test.hcl.tmgen",
+							body: Doc(),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+					},
+				},
+			},
+		},
+		{
 			name: "generate blocks shifting condition",
 			steps: []step{
 				{

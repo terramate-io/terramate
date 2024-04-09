@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
@@ -240,6 +241,9 @@ type Stack struct {
 
 // GenHCLBlock represents a parsed generate_hcl block.
 type GenHCLBlock struct {
+	// Dir where the block is declared.
+	Dir project.Path
+
 	// Range is the range of the entire block definition.
 	Range info.Range
 	// Label of the block.
@@ -251,9 +255,16 @@ type GenHCLBlock struct {
 	// Represents all stack_filter blocks
 	StackFilters []StackFilterConfig
 	// Content block.
-	Content *hclsyntax.Block
+	Content *hcl.Block
 	// Asserts represents all assert blocks
 	Asserts []AssertConfig
+
+	// NonInheritable tells if the block must not be inherited in child directories.
+	NonInheritable bool
+
+	// IsImplicitBlock tells if the block is implicit (does not have a real generate_hcl block).
+	// This is the case for the "tmgen" feature.
+	IsImplicitBlock bool
 }
 
 // GenFileBlock represents a parsed generate_file block
@@ -979,7 +990,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		Label:        block.Labels[0],
 		Lets:         lets,
 		Asserts:      asserts,
-		Content:      content,
+		Content:      content.AsHCLBlock(),
 		Condition:    block.Body.Attributes["condition"],
 		StackFilters: stackFilters,
 	}, nil

@@ -67,7 +67,7 @@ const (
 	ErrParsing errors.Kind = "parsing generate_hcl block"
 
 	// ErrContentEval indicates the failure to evaluate the content block.
-	ErrContentEval errors.Kind = "evaluating content block"
+	ErrContentEval errors.Kind = "evaluating content"
 
 	// ErrConditionEval indicates the failure to evaluate the condition attribute.
 	ErrConditionEval errors.Kind = "evaluating condition attribute"
@@ -189,7 +189,7 @@ func Load(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
-	hclBlocks, err := loadGenHCLBlocks(root, st.Dir)
+	hclBlocks, err := loadGenHCLBlocks(root, st, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -304,8 +304,12 @@ func Load(
 		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 		gen := hclwrite.NewEmptyFile()
-		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
+		blockBody, ok := hclBlock.Content.Body.(*hclsyntax.Body)
+		if !ok {
+			panic(errors.E(errors.ErrInternal, "unexpected block body type"))
+		}
+		if err := copyBody(gen.Body(), blockBody, evalctx); err != nil {
+			return nil, evalErr(root.Tree().RootDir(), ErrContentEval, hclBlock, err)
 		}
 
 		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
@@ -331,6 +335,13 @@ func Load(
 	return hcls, nil
 }
 
+func evalErr(rootdir string, kind errors.Kind, block hcl.GenHCLBlock, err error) error {
+	if block.IsImplicitBlock {
+		return errors.E(kind, err, `tmgen file "%s"`, project.PrjAbsPath(rootdir, block.Range.HostPath()))
+	}
+	return errors.E(kind, err, "generate_hcl %q", block.Label)
+}
+
 type dynBlockAttributes struct {
 	attributes *hclsyntax.Attribute
 	iterator   *hclsyntax.Attribute
@@ -343,11 +354,17 @@ type dynBlockAttributes struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
+func loadGenHCLBlocks(root *config.Root, st *config.Stack, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
 	res := []hcl.GenHCLBlock{}
 	cfg, ok := root.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
-		res = append(res, cfg.Node.Generate.HCLs...)
+		hclBlocks := cfg.Node.Generate.HCLs
+		for _, block := range hclBlocks {
+			if block.NonInheritable && block.Dir != st.Dir {
+				continue
+			}
+			res = append(res, block)
+		}
 	}
 
 	parentCfgDir := cfgdir.Dir()
@@ -355,7 +372,7 @@ func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock
 		return res, nil
 	}
 
-	parentRes, err := loadGenHCLBlocks(root, parentCfgDir)
+	parentRes, err := loadGenHCLBlocks(root, st, parentCfgDir)
 	if err != nil {
 		return nil, err
 	}

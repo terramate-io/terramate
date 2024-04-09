@@ -23,6 +23,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/stdlib"
@@ -177,11 +178,25 @@ func Do(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
+	validateBlocksInheritance(root.Tree())
 	stackReport := forEachStack(root, vendorDir,
 		vendorRequests, doStackGeneration)
 	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
+}
+
+func validateBlocksInheritance(tree *config.Tree) {
+	blocks := tree.Node.Generate.HCLs
+	for _, block := range blocks {
+		if block.NonInheritable && !tree.IsStack() {
+			printer.Stderr.Warn(fmt.Sprintf("non-inheritable generate found outside a stack: %s", block.Range.HostPath()))
+		}
+	}
+
+	for _, children := range tree.Children {
+		validateBlocksInheritance(children)
+	}
 }
 
 func doStackGeneration(
