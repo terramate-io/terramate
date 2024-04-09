@@ -475,6 +475,60 @@ func TestGenerateWarnsForTmGenNonInheritable(t *testing.T) {
 	})
 }
 
+func TestGenerateFileNonInheritableOutsideStackGeneratesWarning(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		"d:non-stack",
+	})
+
+	s.RootEntry().
+		CreateDir("non-stack").
+		CreateFile(
+			config.DefaultFilename,
+			GenerateFile(
+				Labels("test.txt"),
+				Bool("inherit", false),
+				Str("content", "test"),
+			).String(),
+		)
+
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, tmcli.Run("generate"), RunExpected{
+		Stdout:      "Nothing to do, generated code is up to date\n",
+		StderrRegex: "Warning: non-inheritable generate found outside a stack",
+	})
+}
+
+func TestGenerateHCLNonInheritableOutsideStackGeneratesWarning(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		"d:non-stack",
+	})
+
+	s.RootEntry().
+		CreateDir("non-stack").
+		CreateFile(
+			config.DefaultFilename,
+			GenerateHCL(
+				Labels("test.txt"),
+				Bool("inherit", false),
+				Content(
+					Str("hello", "world"),
+				),
+			).String(),
+		)
+
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, tmcli.Run("generate"), RunExpected{
+		Stdout:      "Nothing to do, generated code is up to date\n",
+		StderrRegex: "Warning: non-inheritable generate found outside a stack",
+	})
+}
+
 type str string
 
 func (s str) String() string {
