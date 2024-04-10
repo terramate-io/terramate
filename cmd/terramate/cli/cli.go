@@ -208,7 +208,10 @@ type cliSpec struct {
 	} `cmd:"" help:"Debug Terramate configuration."`
 
 	Cloud struct {
-		Login struct{} `cmd:"" help:"Sign in to Terramate Cloud."`
+		Login struct {
+			Google bool `optional:"true" help:"authenticate with google credentials"`
+			Github bool `optional:"true" help:"authenticate with github credentials"`
+		} `cmd:"" help:"Sign in to Terramate Cloud."`
 		Info  struct{} `cmd:"" help:"Show your current Terramate Cloud login status."`
 		Drift struct {
 			Show struct {
@@ -502,8 +505,54 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	case "experimental cloud login": // Deprecated: use cloud login
 		fallthrough
 	case "cloud login":
-		err := googleLogin(output, idpkey(), clicfg)
+		var err error
+		var email string
+		var alreadyUsedProviders []string
+		var provider string
+		if parsedArgs.Cloud.Login.Github {
+			provider = "GitHub"
+			email, alreadyUsedProviders, err = githubLogin(output, cloudBaseURL(), idpkey(), clicfg)
+		} else {
+			provider = "Google"
+			email, alreadyUsedProviders, err = googleLogin(output, idpkey(), clicfg)
+		}
 		if err != nil {
+			if errors.IsKind(err, ErrEmailNotVerified) {
+				printer.Stderr.Error(stdfmt.Sprintf("email %s is not verified", email))
+				printer.Stderr.Println(
+					"Please login to https://cloud.terramate.io first to verify your email and continue the sign up process.",
+				)
+				os.Exit(1)
+			}
+			if errors.IsKind(err, ErrIDPNeedConfirmation) {
+				printer.Stderr.Error(err.Error())
+
+				bufs := []strings.Builder{}
+				for _, providerDomain := range alreadyUsedProviders {
+					switch providerDomain {
+					case "google.com":
+						b := strings.Builder{}
+						b.WriteString("- terramate cloud login --google (For login with your Google account)")
+						bufs = append(bufs, b)
+					case "github.com":
+						b := strings.Builder{}
+						b.WriteString("- terramate cloud login --github (For login with your GitHub account)")
+						bufs = append(bufs, b)
+					}
+				}
+
+				var buf strings.Builder
+				if len(bufs) > 0 {
+					buf.WriteString("Please login using one of the methods below:\n")
+					for _, b := range bufs {
+						buf.WriteString(b.String() + "\n")
+					}
+					buf.WriteString("or alternatively:\n")
+				}
+				buf.WriteString(stdfmt.Sprintf("- Go to https://cloud.terramate.io and authenticate with the %s Social login to link the accounts.", provider))
+				printer.Stderr.Println(buf.String())
+				os.Exit(1)
+			}
 			fatal("authentication failed", err)
 		}
 		output.MsgStdOut("authenticated successfully")

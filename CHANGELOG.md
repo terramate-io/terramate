@@ -24,6 +24,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `terramate cloud login --github` for authenticating with the Github account.
 - Add experimental support for `tmgen` file extension for easy code generation/templating
   of existing infrastructure. You can enable it with `terramate.config.experimental = ["tmgen"]`.
 
