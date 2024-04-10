@@ -46,8 +46,9 @@ const (
 
 // stackRun contains a list of tasks to be run per stack.
 type stackRun struct {
-	Stack *config.Stack
-	Tasks []stackRunTask
+	Stack           *config.Stack
+	Tasks           []stackRunTask
+	OverrideGlobals map[string]string
 }
 
 // stackCloudRun is a stackRun, but with a single task, because the cloud API only supports
@@ -99,7 +100,7 @@ func (c *cli) runOnStacks() {
 		fatal("run expects a cmd", nil)
 	}
 
-	c.checkOutdatedGeneratedCode()
+	c.checkOutdatedGeneratedCode(c.parsedArgs.Run.Global)
 	c.checkCloudSync()
 
 	var stacks config.List[*config.SortableStack]
@@ -169,6 +170,7 @@ func (c *cli) runOnStacks() {
 					UseTerragrunt:              c.parsedArgs.Run.Terragrunt,
 				},
 			},
+			OverrideGlobals: c.parsedArgs.Generate.Global,
 		}
 		if c.parsedArgs.Run.Eval {
 			run.Tasks[0].Cmd, err = c.evalRunArgs(run.Stack, run.Tasks[0].Cmd)
@@ -531,7 +533,7 @@ func (c *cli) loadAllStackEnvs(runs []stackRun) (map[prj.Path]runutil.EnvVars, e
 	errs := errors.L()
 	stackEnvs := map[prj.Path]runutil.EnvVars{}
 	for _, run := range runs {
-		env, err := runutil.LoadEnv(c.cfg(), run.Stack)
+		env, err := runutil.LoadEnv(c.cfg(), run.Stack, run.OverrideGlobals)
 		errs.Append(err)
 		stackEnvs[run.Stack.Dir] = env
 	}

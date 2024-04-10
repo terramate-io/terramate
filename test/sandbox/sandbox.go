@@ -257,7 +257,7 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root, vendorDir, nil)
+	report := generate.Do(root, vendorDir, nil, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
@@ -297,7 +297,7 @@ func (s S) LoadStackGlobals(
 ) *eval.Object {
 	s.t.Helper()
 
-	report := globals.ForStack(root, st)
+	report := globals.ForStack(root, st, nil)
 	assert.NoError(s.t, report.AsError())
 	return report.Globals
 }

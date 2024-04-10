@@ -92,7 +92,7 @@ type LoadResult struct {
 // If a critical error that fails the loading of all results happens it returns
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
-func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
+func Load(root *config.Root, vendorDir project.Path, overrideGlobals map[string]string) ([]LoadResult, error) {
 	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 
 	for i, st := range stacks {
 		res := LoadResult{Dir: st.Dir()}
-		loadres := globals.ForStack(root, st.Stack)
+		loadres := globals.ForStack(root, st.Stack, overrideGlobals)
 		if err := loadres.AsError(); err != nil {
 			res.Err = err
 			results[i] = res
@@ -183,8 +183,9 @@ func Do(
 	root *config.Root,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
+	overrideGlobals map[string]string,
 ) Report {
-	stackReport := doStackGeneration(root, vendorDir, vendorRequests)
+	stackReport := doStackGeneration(root, vendorDir, vendorRequests, overrideGlobals)
 	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
@@ -194,6 +195,7 @@ func doStackGeneration(
 	root *config.Root,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
+	overrideGlobals map[string]string,
 ) Report {
 	logger := log.With().
 		Str("action", "generate.doStackGeneration()").
@@ -217,8 +219,8 @@ func doStackGeneration(
 			runtime := root.Runtime()
 			ctx.SetNamespace("terramate", runtime)
 
-			// evaluting globals mutate the ctx.
-			_ = globals.ForDir(root, cfg.Dir(), ctx)
+			// evaluating globals mutate the ctx.
+			_ = globals.ForDir(root, cfg.Dir(), ctx, overrideGlobals)
 
 			// explicitly not checking the globals.AsErrors because it can be a file to be imported.
 
@@ -272,7 +274,7 @@ func doStackGeneration(
 			return report
 		}
 
-		globals := globals.ForStack(root, stack)
+		globals := globals.ForStack(root, stack, overrideGlobals)
 		if err := globals.AsError(); err != nil {
 			report.addFailure(cfg.Dir(), err)
 			continue
@@ -577,7 +579,7 @@ processSubdirs:
 
 // DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error) {
+func DetectOutdated(root *config.Root, vendorDir project.Path, overrideGlobals map[string]string) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
 		Logger()
@@ -593,7 +595,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
+		outdated, err := stackOutdated(root, stack.Stack, vendorDir, overrideGlobals)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -640,13 +642,14 @@ func stackOutdated(
 	root *config.Root,
 	st *config.Stack,
 	vendorDir project.Path,
+	overrideGlobals map[string]string,
 ) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.stackOutdated").
 		Stringer("stack", st).
 		Logger()
 
-	report := globals.ForStack(root, st)
+	report := globals.ForStack(root, st, overrideGlobals)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}

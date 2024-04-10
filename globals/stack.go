@@ -10,12 +10,12 @@ import (
 )
 
 // ForStack loads from the config tree all globals defined for a given stack.
-func ForStack(root *config.Root, stack *config.Stack) EvalReport {
+func ForStack(root *config.Root, stack *config.Stack, overrideGlobals map[string]string) EvalReport {
 	ctx := eval.NewContext(
 		stdlib.Functions(stack.HostDir(root)),
 	)
 	runtime := root.Runtime()
 	runtime.Merge(stack.RuntimeValues(root))
 	ctx.SetNamespace("terramate", runtime)
-	return ForDir(root, stack.Dir, ctx)
+	return ForDir(root, stack.Dir, ctx, overrideGlobals)
 }

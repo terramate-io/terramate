@@ -23,7 +23,7 @@ import (
 
 func (c *cli) runScript() {
 	c.gitSafeguardDefaultBranchIsReachable()
-	c.checkOutdatedGeneratedCode()
+	c.checkOutdatedGeneratedCode(c.parsedArgs.Script.Run.Global)
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Script.Run.NoRecursive {
@@ -75,9 +75,12 @@ func (c *cli) runScript() {
 		}
 
 		for _, st := range result.Stacks {
-			run := stackRun{Stack: st.Stack}
+			run := stackRun{
+				Stack:           st.Stack,
+				OverrideGlobals: c.parsedArgs.Generate.Global,
+			}
 
-			ectx, err := scriptEvalContext(c.cfg(), st.Stack)
+			ectx, err := scriptEvalContext(c.cfg(), st.Stack, c.parsedArgs.Script.Run.Global)
 			if err != nil {
 				fatal("failed to get context", err)
 			}
@@ -196,8 +199,8 @@ func printScriptCommand(w io.Writer, stack *config.Stack, run stackRunTask) {
 	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
 }
 
-func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, error) {
-	globalsReport := globals.ForStack(root, st)
+func scriptEvalContext(root *config.Root, st *config.Stack, overrideGlobals map[string]string) (*eval.Context, error) {
+	globalsReport := globals.ForStack(root, st, overrideGlobals)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, err
 	}
