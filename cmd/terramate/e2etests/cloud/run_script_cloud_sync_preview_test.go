@@ -75,8 +75,8 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					job {
 					  commands = [
 						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
-						  cloud_sync_preview             = true,
-						  cloud_sync_terraform_plan_file = "out.tfplan",
+						  sync_preview             = true,
+						  sync_terraform_plan_file = "out.tfplan",
 						}],
 					  ]
 					}
@@ -100,7 +100,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						"Plan: 1 to add, 0 to change, 0 to destroy.",
 					},
 					StderrRegexes: []string{
-						"--cloud-sync-preview is only supported in GitHub Actions workflows",
+						"--sync-preview is only supported in GitHub Actions workflows",
 					},
 				},
 				ignoreTypes: cmpopts.IgnoreTypes(
@@ -129,8 +129,8 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					job {
 					  commands = [
 						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
-						  cloud_sync_preview             = true,
-						  cloud_sync_terraform_plan_file = "out.tfplan",
+						  sync_preview             = true,
+						  sync_terraform_plan_file = "out.tfplan",
 						}],
 					  ]
 					}

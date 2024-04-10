@@ -26,6 +26,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add experimental support for `tmgen` file extension for easy code generation/templating
   of existing infrastructure. You can enable it with `terramate.config.experimental = ["tmgen"]`.
+- Make cloud-related options more concise by dropping the `cloud` prefix.
+  - Option flags `--cloud-*` are shortened to `--*`, e.g. `--cloud-status=ok` => `--status=ok`.
+  - Script command options `cloud_*` are shorted to `*`, e.g. `cloud_sync_deployment` => `sync_deployment`.
+  - Old flags and command options are still supported as aliases for the new ones.
 
 ## v0.6.0
 

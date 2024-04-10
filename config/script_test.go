@@ -525,7 +525,7 @@ func TestScriptEval(t *testing.T) {
 			},
 		},
 		{
-			name: "command options with cloud_sync_deployment and cloud_sync_preview",
+			name: "command options with sync_deployment and sync_preview",
 			script: hcl.Script{
 				Labels:      labels,
 				Description: makeAttribute(t, "description", `"some description"`),
@@ -534,9 +534,9 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_deployment = true
-								cloud_sync_preview = true
-								cloud_sync_terraform_plan_file = "plan_a"
+								sync_deployment = true
+								sync_preview = true
+								sync_terraform_plan_file = "plan_a"
 							}],
 						  ]
 						`),
@@ -546,7 +546,7 @@ func TestScriptEval(t *testing.T) {
 			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
 		},
 		{
-			name: "command options with invalid cloud_sync_layer",
+			name: "command options with invalid sync_layer",
 			script: hcl.Script{
 				Labels:      labels,
 				Description: makeAttribute(t, "description", `"some description"`),
@@ -555,9 +555,9 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_preview = true
-								cloud_sync_terraform_plan_file = "plan_a"
-								cloud_sync_layer = "a+b"
+								sync_preview = true
+								sync_terraform_plan_file = "plan_a"
+								sync_layer = "a+b"
 							}],
 						  ]
 						`),
@@ -567,7 +567,7 @@ func TestScriptEval(t *testing.T) {
 			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
 		},
 		{
-			name: "command options with cloud_sync_preview + planfile + layer",
+			name: "command options with sync_preview + planfile + layer",
 			script: hcl.Script{
 				Labels:      labels,
 				Description: makeAttribute(t, "description", `"some description"`),
@@ -576,9 +576,9 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_preview = true
-								cloud_sync_terraform_plan_file = "plan_a"
-								cloud_sync_layer = "staging"
+								sync_preview = true
+								sync_terraform_plan_file = "plan_a"
+								sync_layer = "staging"
 							}],
 						  ]
 						`),
@@ -615,8 +615,8 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_deployment = false
-								cloud_sync_terraform_plan_file = "plan_a"
+								sync_deployment = false
+								sync_terraform_plan_file = "plan_a"
 							}],
 						  ]
 						`),
@@ -624,8 +624,8 @@ func TestScriptEval(t *testing.T) {
 					{
 						Command: makeCommand(t, `
 							["echo", "hello", {
-								cloud_sync_deployment = true
-								cloud_sync_terraform_plan_file = "plan_b"
+								sync_deployment = true
+								sync_terraform_plan_file = "plan_b"
 							}]
 						`),
 					},
@@ -668,8 +668,8 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_deployment = true
-								cloud_sync_terraform_plan_file = "plan_a"
+								sync_deployment = true
+								sync_terraform_plan_file = "plan_a"
 								terragrunt = true
 							}],
 						  ]
@@ -706,7 +706,7 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_deploymenttttttt = false
+								sync_deploymenttttttt = false
 							}],
 						  ]
 						`),
@@ -742,7 +742,7 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 						  [
 							["echo", "hello", {
-								cloud_sync_deployment = "false"
+								sync_deployment = "false"
 							}],
 						  ]
 						`),
@@ -752,7 +752,7 @@ func TestScriptEval(t *testing.T) {
 			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
 		},
 		{
-			name: "multiple cloud_sync_deployments",
+			name: "multiple sync_deployments",
 			script: hcl.Script{
 				Labels:      labels,
 				Description: makeAttribute(t, "description", `"some description"`),
@@ -761,8 +761,8 @@ func TestScriptEval(t *testing.T) {
 						Commands: makeCommands(t, `
 							  [
 								["echo", "hello", {
-									cloud_sync_deployment = true
-									cloud_sync_terraform_plan_file = "plan_a"
+									sync_deployment = true
+									sync_terraform_plan_file = "plan_a"
 								}],
 							  ]
 							`),
@@ -770,8 +770,8 @@ func TestScriptEval(t *testing.T) {
 					{
 						Command: makeCommand(t, `
 								["echo", "hello", {
-									cloud_sync_deployment = true
-									cloud_sync_terraform_plan_file = "plan_a"
+									sync_deployment = true
+									sync_terraform_plan_file = "plan_a"
 								}]
 							`),
 					},

@@ -40,8 +40,8 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 			)
 			AssertRunResult(t,
 				tmcli.Run("run", "--quiet",
-					"--cloud-sync-preview",
-					"--cloud-sync-terraform-plan-file=out.plan",
+					"--sync-preview",
+					"--terraform-plan-file=out.plan",
 					"--",
 					TerraformTestPath,
 					"plan",
@@ -70,33 +70,33 @@ func TestInteropSyncDeployment(t *testing.T) {
 				Stdout: nljoin("."),
 			})
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet", "--cloud-sync-deployment", "--", HelperPath, "false"),
+				tmcli.Run("run", "--quiet", "--sync-deployment", "--", HelperPath, "false"),
 				RunExpected{
 					IgnoreStderr: true,
 					Status:       1,
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
+				tmcli.Run("list", "--status=unhealthy"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=failed"), RunExpected{
+				tmcli.Run("list", "--status=failed"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
 			// fix the failed stacks
-			AssertRun(t, tmcli.Run("run", "--quiet", "--cloud-status=failed", "--cloud-sync-deployment", "--", HelperPath, "true"))
+			AssertRun(t, tmcli.Run("run", "--quiet", "--status=failed", "--sync-deployment", "--", HelperPath, "true"))
 
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=ok"), RunExpected{
+				tmcli.Run("list", "--status=ok"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
-			AssertRun(t, tmcli.Run("list", "--cloud-status=unhealthy"))
-			AssertRun(t, tmcli.Run("list", "--cloud-status=failed"))
-			AssertRun(t, tmcli.Run("list", "--cloud-status=drifted"))
+			AssertRun(t, tmcli.Run("list", "--status=unhealthy"))
+			AssertRun(t, tmcli.Run("list", "--status=failed"))
+			AssertRun(t, tmcli.Run("list", "--status=drifted"))
 		})
 	}
 }
@@ -123,7 +123,7 @@ func TestInteropDrift(t *testing.T) {
 
 			// basic drift, without details
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet", "--cloud-sync-drift-status", "--", TerraformTestPath, "plan", "-detailed-exitcode"),
+				tmcli.Run("run", "--quiet", "--sync-drift-status", "--", TerraformTestPath, "plan", "-detailed-exitcode"),
 				RunExpected{
 					Status:       0,
 					IgnoreStdout: true,
@@ -131,12 +131,12 @@ func TestInteropDrift(t *testing.T) {
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
+				tmcli.Run("list", "--status=unhealthy"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=drifted"), RunExpected{
+				tmcli.Run("list", "--status=drifted"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
@@ -151,7 +151,7 @@ func TestInteropDrift(t *testing.T) {
 			// complete drift
 			AssertRunResult(t,
 				tmcli.Run(
-					"run", "--cloud-sync-drift-status", "--cloud-sync-terraform-plan-file=out.plan", "--",
+					"run", "--sync-drift-status", "--terraform-plan-file=out.plan", "--",
 					TerraformTestPath, "plan", "-out=out.plan", "-detailed-exitcode",
 				),
 				RunExpected{
@@ -161,12 +161,12 @@ func TestInteropDrift(t *testing.T) {
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=unhealthy"), RunExpected{
+				tmcli.Run("list", "--status=unhealthy"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=drifted"), RunExpected{
+				tmcli.Run("list", "--status=drifted"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
@@ -182,11 +182,11 @@ func TestInteropDrift(t *testing.T) {
 			)
 
 			// check reseting the drift status to OK
-			AssertRun(t, tmcli.Run("run", "--quiet", "--cloud-status=drifted", "--cloud-sync-drift-status", "--", HelperPath, "exit", "0"))
-			AssertRun(t, tmcli.Run("list", "--cloud-status=unhealthy"))
-			AssertRun(t, tmcli.Run("list", "--cloud-status=drifted"))
+			AssertRun(t, tmcli.Run("run", "--quiet", "--status=drifted", "--sync-drift-status", "--", HelperPath, "exit", "0"))
+			AssertRun(t, tmcli.Run("list", "--status=unhealthy"))
+			AssertRun(t, tmcli.Run("list", "--status=drifted"))
 			AssertRunResult(t,
-				tmcli.Run("list", "--cloud-status=ok"), RunExpected{
+				tmcli.Run("list", "--status=ok"), RunExpected{
 					Stdout: nljoin("."),
 				},
 			)
