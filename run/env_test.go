@@ -241,7 +241,7 @@ func TestLoadRunEnv(t *testing.T) {
 				stack, err := config.LoadStack(root, project.NewPath(path.Join("/", stackRelPath)))
 				assert.NoError(t, err)
 
-				gotvars, err := run.LoadEnv(root, stack)
+				gotvars, err := run.LoadEnv(root, stack, nil)
 				errorstest.Assert(t, err, wantres.enverr)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}

@@ -15,6 +15,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/mapexpr"
 
+	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
@@ -73,7 +74,7 @@ func (a GlobalPathKey) name() string {
 //
 // More specific globals (closer or at the current dir) have precedence over
 // less specific globals (closer or at the root dir).
-func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
+func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context, overrideGlobals map[string]string) EvalReport {
 	tree, ok := root.Lookup(cfgdir)
 	if !ok {
 		return NewEvalReport()
@@ -81,6 +82,34 @@ func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context) EvalRepor
 
 	exprs, err := LoadExprs(tree)
 	if err != nil {
+		report := NewEvalReport()
+		report.BootstrapErr = err
+		return report
+	}
+
+	errs := errors.L()
+	for name, exprStr := range overrideGlobals {
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			errs.Append(errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr))
+			continue
+		}
+		parts := strings.Split(name, ".")
+		length := len(parts)
+		globalPath := NewGlobalAttrPath(parts[0:length-1], parts[length-1])
+		exprs.SetOverride(
+			cfgdir,
+			globalPath,
+			expr,
+			info.NewRange(root.HostDir(), hhcl.Range{
+				Filename: "<eval argument>",
+				Start:    hhcl.InitialPos,
+				End:      hhcl.InitialPos,
+			}),
+		)
+	}
+
+	if err := errs.AsError(); err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
 		return report

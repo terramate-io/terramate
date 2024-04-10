@@ -4079,7 +4079,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			stacks, err := config.LoadAllStacks(cfg)
 			assert.NoError(t, err)
 			for _, elem := range stacks {
-				report := globals.ForStack(s.Config(), elem.Stack)
+				report := globals.ForStack(s.Config(), elem.Stack, nil)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
@@ -4118,7 +4118,7 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 			t.Logf("loading globals for stack: %s", st.Dir)
 
-			gotReport := globals.ForStack(s.Config(), st)
+			gotReport := globals.ForStack(s.Config(), st, nil)
 			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
 			if tcase.wantErr != nil {
 				continue

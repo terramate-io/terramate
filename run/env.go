@@ -38,7 +38,7 @@ type EnvVars []string
 // LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
-func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
+func LoadEnv(root *config.Root, st *config.Stack, overrideGlobals map[string]string) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
 		Str("root", root.HostDir()).
@@ -49,7 +49,7 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		return nil, nil
 	}
 
-	globalsReport := globals.ForStack(root, st)
+	globalsReport := globals.ForStack(root, st, overrideGlobals)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}

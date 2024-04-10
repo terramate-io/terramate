@@ -147,19 +147,20 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		CloudStatus                string        `help:"Filter by Terramate Cloud status of the stack."`
-		CloudSyncDeployment        bool          `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
-		CloudSyncDriftStatus       bool          `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
-		CloudSyncPreview           bool          `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
-		CloudSyncLayer             preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
-		CloudSyncTerraformPlanFile string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
-		DebugPreviewURL            string        `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
-		ContinueOnError            bool          `default:"false" help:"Do not stop execution when an error occurs."`
-		NoRecursive                bool          `default:"false" help:"Do not recurse into nested child stacks."`
-		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it."`
-		Reverse                    bool          `default:"false" help:"Reverse the order of execution."`
-		Eval                       bool          `default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
-		Terragrunt                 bool          `default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
+		CloudStatus                string            `help:"Filter by Terramate Cloud status of the stack."`
+		CloudSyncDeployment        bool              `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
+		CloudSyncDriftStatus       bool              `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
+		CloudSyncPreview           bool              `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+		CloudSyncLayer             preview.Layer     `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
+		CloudSyncTerraformPlanFile string            `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
+		DebugPreviewURL            string            `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
+		ContinueOnError            bool              `default:"false" help:"Do not stop execution when an error occurs."`
+		NoRecursive                bool              `default:"false" help:"Do not recurse into nested child stacks."`
+		DryRun                     bool              `default:"false" help:"Plan the execution but do not execute it."`
+		Reverse                    bool              `default:"false" help:"Reverse the order of execution."`
+		Eval                       bool              `default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
+		Terragrunt                 bool              `default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
+		Global                     map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
 
 		// Note: 0 is not the real default value here, this is just a workaround.
 		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
@@ -172,7 +173,8 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
-		DetailedExitCode bool `default:"false" help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
+		Global           map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
+		DetailedExitCode bool              `default:"false" help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
 	} `cmd:"" help:"Run Code Generation in stacks."`
 
 	Script struct {
@@ -188,7 +190,8 @@ type cliSpec struct {
 			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
 			Reverse         bool   `default:"false" help:"Reverse the order of execution."`
 
-			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
+			Cmds   []string          `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
 
 			// See above comment regarding for run --parallel.
 			Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
@@ -202,8 +205,11 @@ type cliSpec struct {
 			Metadata        struct{} `cmd:"" help:"Show metadata available in stacks."`
 			Globals         struct{} `cmd:"" help:"Show globals available in stacks."`
 			GenerateOrigins struct {
+				Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
 			} `cmd:"" help:"Show details about generated code in stacks."`
-			RuntimeEnv struct{} `cmd:"" help:"Show available run-time environment variables (ENV) in stacks."`
+			RuntimeEnv struct {
+				Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
+			} `cmd:"" help:"Show available run-time environment variables (ENV) in stacks."`
 		} `cmd:"" help:"Show configuration details of stacks."`
 	} `cmd:"" help:"Debug Terramate configuration."`
 
@@ -1003,7 +1009,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents, c.parsedArgs.Generate.Global)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
@@ -1629,7 +1635,7 @@ func (c *cli) printRuntimeEnv() {
 	}
 
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
-		envVars, err := run.LoadEnv(c.cfg(), stackEntry.Stack)
+		envVars, err := run.LoadEnv(c.cfg(), stackEntry.Stack, c.parsedArgs.Debug.Show.RuntimeEnv.Global)
 		if err != nil {
 			fatal("loading stack run environment", err)
 		}
@@ -1822,7 +1828,7 @@ func (c *cli) generateDebug() {
 		selectedStacks[stack.Dir()] = struct{}{}
 	}
 
-	results, err := generate.Load(c.cfg(), c.vendorDir())
+	results, err := generate.Load(c.cfg(), c.vendorDir(), c.parsedArgs.Debug.Show.GenerateOrigins.Global)
 	if err != nil {
 		fatal("generate debug: loading generated code", err)
 	}
@@ -1861,7 +1867,7 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
-		report := globals.ForStack(c.cfg(), stack)
+		report := globals.ForStack(c.cfg(), stack, nil)
 		if err := report.AsError(); err != nil {
 			fatal(sprintf("listing stacks globals: loading stack at %s", stack.Dir), err)
 		}
@@ -2123,7 +2129,7 @@ func envVarIsSet(val string) bool {
 	return val != "" && val != "0" && val != "false"
 }
 
-func (c *cli) checkOutdatedGeneratedCode() {
+func (c *cli) checkOutdatedGeneratedCode(overrideGlobals map[string]string) {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
@@ -2132,7 +2138,7 @@ func (c *cli) checkOutdatedGeneratedCode() {
 		return
 	}
 
-	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
+	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir(), overrideGlobals)
 	if err != nil {
 		fatal("failed to check outdated code on project", err)
 	}
