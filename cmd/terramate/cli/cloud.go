@@ -161,7 +161,7 @@ func isDriftTask(t stackRunTask) bool      { return t.CloudSyncDriftStatus }
 func isPreviewTask(t stackRunTask) bool    { return t.CloudSyncPreview }
 
 func (c *cli) checkCloudSync() {
-	if !c.parsedArgs.Run.CloudSyncDeployment && !c.parsedArgs.Run.CloudSyncDriftStatus && !c.parsedArgs.Run.CloudSyncPreview {
+	if !c.parsedArgs.Run.SyncDeployment && !c.parsedArgs.Run.SyncDriftStatus && !c.parsedArgs.Run.SyncPreview {
 		return
 	}
 
@@ -172,7 +172,7 @@ func (c *cli) checkCloudSync() {
 		return
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment {
+	if c.parsedArgs.Run.SyncDeployment {
 		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)

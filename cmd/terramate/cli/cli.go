@@ -142,17 +142,24 @@ type cliSpec struct {
 	List struct {
 		Why                bool   `help:"Shows the reason why the stack has changed."`
 		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
-		CloudStatus        string `help:"Filter by Terramate Cloud status of the stack."`
+		CloudStatus        string `hidden:""`
+		Status             string `help:"Filter by Terramate Cloud status of the stack."`
 		RunOrder           bool   `default:"false" help:"Sort listed stacks by order of execution"`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		CloudStatus                string        `help:"Filter by Terramate Cloud status of the stack."`
-		CloudSyncDeployment        bool          `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
-		CloudSyncDriftStatus       bool          `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
-		CloudSyncPreview           bool          `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
-		CloudSyncLayer             preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
-		CloudSyncTerraformPlanFile string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
+		CloudStatus                string        `hidden:""`
+		Status                     string        `help:"Filter by Terramate Cloud status of the stack."`
+		CloudSyncDeployment        bool          `hidden:""`
+		SyncDeployment             bool          `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
+		CloudSyncDriftStatus       bool          `hidden:""`
+		SyncDriftStatus            bool          `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
+		CloudSyncPreview           bool          `hidden:""`
+		SyncPreview                bool          `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+		CloudSyncLayer             preview.Layer `hidden:""`
+		Layer                      preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
+		CloudSyncTerraformPlanFile string        `hidden:""`
+		TerraformPlanFile          string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
 		DebugPreviewURL            string        `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
 		ContinueOnError            bool          `default:"false" help:"Do not stop execution when an error occurs."`
 		NoRecursive                bool          `default:"false" help:"Do not recurse into nested child stacks."`
@@ -182,7 +189,8 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info for."`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			CloudStatus     string `help:"Filter by Terramate Cloud status of the stack."`
+			CloudStatus     string `hidden:""`
+			Status          string `help:"Filter by Terramate Cloud status of the stack."`
 			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
 			ContinueOnError bool   `default:"false" help:"Continue executing next stacks when a command returns an error."`
 			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
@@ -230,7 +238,8 @@ type cliSpec struct {
 			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
 			Reason             string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
 			ExperimentalStatus string `hidden:"" help:"Filter by Terramate Cloud status of the stack. (deprecated)"`
-			CloudStatus        string `help:"Filter by Terramate Cloud status of the stack."`
+			CloudStatus        string `hidden:""`
+			Status             string `help:"Filter by Terramate Cloud status of the stack."`
 		} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 		RunGraph struct {
@@ -427,6 +436,8 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	if err != nil {
 		fatal("failed to load cli configuration file", err)
 	}
+
+	migrateFlagAliases(&parsedArgs)
 
 	// cmdline flags override configuration file.
 
@@ -926,11 +937,44 @@ func hasVendorDirConfig(cfg hcl.Config) bool {
 	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
 }
 
+func migrateFlagAliases(parsedArgs *cliSpec) {
+	// list
+	migrateStringFlag(&parsedArgs.List.Status, parsedArgs.List.CloudStatus)
+
+	// run
+	migrateStringFlag(&parsedArgs.Run.Status, parsedArgs.Run.CloudStatus)
+	migrateBoolFlag(&parsedArgs.Run.SyncDeployment, parsedArgs.Run.CloudSyncDeployment)
+	migrateBoolFlag(&parsedArgs.Run.SyncDriftStatus, parsedArgs.Run.CloudSyncDriftStatus)
+	migrateBoolFlag(&parsedArgs.Run.SyncPreview, parsedArgs.Run.CloudSyncPreview)
+	migrateStringFlag(&parsedArgs.Run.TerraformPlanFile, parsedArgs.Run.CloudSyncTerraformPlanFile)
+	if parsedArgs.Run.CloudSyncLayer != "" && parsedArgs.Run.Layer == "" {
+		parsedArgs.Run.Layer = parsedArgs.Run.CloudSyncLayer
+	}
+
+	// script run
+	migrateStringFlag(&parsedArgs.Script.Run.Status, parsedArgs.Script.Run.CloudStatus)
+
+	// experimental trigger
+	migrateStringFlag(&parsedArgs.Experimental.Trigger.Status, parsedArgs.Experimental.Trigger.CloudStatus)
+}
+
+func migrateStringFlag(flag *string, alias string) {
+	if alias != "" && *flag == "" {
+		*flag = alias
+	}
+}
+
+func migrateBoolFlag(flag *bool, alias bool) {
+	if alias && !*flag {
+		*flag = alias
+	}
+}
+
 func (c *cli) triggerStackByFilter() {
 	expStatus := c.parsedArgs.Experimental.Trigger.ExperimentalStatus
-	cloudStatus := c.parsedArgs.Experimental.Trigger.CloudStatus
+	cloudStatus := c.parsedArgs.Experimental.Trigger.Status
 	if expStatus != "" && cloudStatus != "" {
-		fatal("--experimental-status and --cloud-status cannot be used together", nil)
+		fatal("--experimental-status and --status cannot be used together", nil)
 	}
 
 	statusStr := expStatus
@@ -939,7 +983,7 @@ func (c *cli) triggerStackByFilter() {
 	}
 
 	if statusStr == "" {
-		fatal("trigger command expects either a stack path or the --cloud-status flag", nil)
+		fatal("trigger command expects either a stack path or the --status flag", nil)
 	}
 
 	status := parseStatusFilter(statusStr)
@@ -1604,9 +1648,9 @@ func (c *cli) printStacks() {
 	}
 
 	expStatus := c.parsedArgs.List.ExperimentalStatus
-	cloudStatus := c.parsedArgs.List.CloudStatus
+	cloudStatus := c.parsedArgs.List.Status
 	if expStatus != "" && cloudStatus != "" {
-		fatal("Invalid args", errors.E("--experimental-status and --cloud-status cannot be used together"))
+		fatal("Invalid args", errors.E("--experimental-status and --status cannot be used together"))
 	}
 
 	statusStr := expStatus

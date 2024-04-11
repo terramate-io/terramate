@@ -41,7 +41,7 @@ const (
 	// in the system.
 	ErrRunCommandNotFound errors.Kind = "command not found"
 
-	cloudSyncPreviewGHAWarning = "--cloud-sync-preview is only supported in GitHub Actions workflows"
+	cloudSyncPreviewGHAWarning = "--sync-preview is only supported in GitHub Actions workflows"
 )
 
 // stackRun contains a list of tasks to be run per stack.
@@ -116,31 +116,31 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.CloudStatus))
+		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.Status))
 		if err != nil {
 			fatal("computing selected stacks", err)
 		}
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment && c.parsedArgs.Run.CloudSyncDriftStatus {
-		fatal(sprintf("--cloud-sync-deployment conflicts with --cloud-sync-drift-status"), nil)
+	if c.parsedArgs.Run.SyncDeployment && c.parsedArgs.Run.SyncDriftStatus {
+		fatal(sprintf("--sync-deployment conflicts with --sync-drift-status"), nil)
 	}
 
-	if c.parsedArgs.Run.CloudSyncPreview && (c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus) {
-		fatal("cannot use --cloud-sync-preview with --cloud-sync-deployment or --cloud-sync-drift-status", nil)
+	if c.parsedArgs.Run.SyncPreview && (c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus) {
+		fatal("cannot use --sync-preview with --sync-deployment or --sync-drift-status", nil)
 	}
 
-	if c.parsedArgs.Run.CloudSyncTerraformPlanFile == "" && c.parsedArgs.Run.CloudSyncPreview {
-		fatal("--cloud-sync-preview requires --cloud-sync-terraform-plan-file", nil)
+	if c.parsedArgs.Run.TerraformPlanFile == "" && c.parsedArgs.Run.SyncPreview {
+		fatal("--sync-preview requires --terraform-plan-file", nil)
 	}
 
-	cloudSyncEnabled := c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview
+	cloudSyncEnabled := c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview
 
-	if c.parsedArgs.Run.CloudSyncTerraformPlanFile != "" && !cloudSyncEnabled {
-		fatal("--cloud-sync-terraform-plan-file requires flags --cloud-sync-deployment or --cloud-sync-drift-status or --cloud-sync-preview", nil)
+	if c.parsedArgs.Run.TerraformPlanFile != "" && !cloudSyncEnabled {
+		fatal("--terraform-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview", nil)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment || c.parsedArgs.Run.CloudSyncDriftStatus || c.parsedArgs.Run.CloudSyncPreview {
+	if c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview {
 		if !c.prj.isRepo {
 			fatal("cloud features requires a git repository", nil)
 		}
@@ -148,7 +148,7 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
-	if c.parsedArgs.Run.CloudSyncPreview && os.Getenv("GITHUB_ACTIONS") == "" {
+	if c.parsedArgs.Run.SyncPreview && os.Getenv("GITHUB_ACTIONS") == "" {
 		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
 		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
 	}
@@ -161,11 +161,11 @@ func (c *cli) runOnStacks() {
 			Tasks: []stackRunTask{
 				{
 					Cmd:                        c.parsedArgs.Run.Command,
-					CloudSyncDeployment:        c.parsedArgs.Run.CloudSyncDeployment,
-					CloudSyncDriftStatus:       c.parsedArgs.Run.CloudSyncDriftStatus,
-					CloudSyncPreview:           c.parsedArgs.Run.CloudSyncPreview,
-					CloudSyncTerraformPlanFile: c.parsedArgs.Run.CloudSyncTerraformPlanFile,
-					CloudSyncLayer:             c.parsedArgs.Run.CloudSyncLayer,
+					CloudSyncDeployment:        c.parsedArgs.Run.SyncDeployment,
+					CloudSyncDriftStatus:       c.parsedArgs.Run.SyncDriftStatus,
+					CloudSyncPreview:           c.parsedArgs.Run.SyncPreview,
+					CloudSyncTerraformPlanFile: c.parsedArgs.Run.TerraformPlanFile,
+					CloudSyncLayer:             c.parsedArgs.Run.Layer,
 					UseTerragrunt:              c.parsedArgs.Run.Terragrunt,
 				},
 			},
@@ -179,14 +179,14 @@ func (c *cli) runOnStacks() {
 		runs = append(runs, run)
 	}
 
-	if c.parsedArgs.Run.CloudSyncDeployment {
+	if c.parsedArgs.Run.SyncDeployment {
 		// This will just select all runs, since the CloudSyncDeployment was set just above.
 		// Still, it's convenient to re-use this function here.
 		deployRuns := selectCloudStackTasks(runs, isDeploymentTask)
 		c.createCloudDeployment(deployRuns)
 	}
 
-	if c.parsedArgs.Run.CloudSyncPreview && c.cloudEnabled() {
+	if c.parsedArgs.Run.SyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
 		for metaID, previewID := range c.createCloudPreview(previewRuns) {
@@ -560,7 +560,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() {
 		printer.Stderr.WarnWithDetails(
 			"unable to create preview: missing pull request information",
-			errors.E("--cloud-sync-preview can only be used in a GitHub Action workflow triggered by a pull request event"),
+			errors.E("--sync-preview can only be used in a GitHub Action workflow triggered by a pull request event"),
 		)
 		c.disableCloudFeatures(cloudError())
 		return map[string]string{}

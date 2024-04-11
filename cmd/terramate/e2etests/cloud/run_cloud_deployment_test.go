@@ -311,7 +311,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name:     "skip missing plan",
 			layout:   []string{"s:stack:id=stack"},
-			runflags: []string{`--eval`, `--cloud-sync-terraform-plan-file=out.tfplan`},
+			runflags: []string{`--eval`, `--terraform-plan-file=out.tfplan`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			want: want{
 				run: RunExpected{
@@ -337,7 +337,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				"run:s2:terraform init",
 				"run:s2:terraform plan -no-color -out=out.tfplan",
 			},
-			runflags: []string{`--eval`, `--cloud-sync-terraform-plan-file=out.tfplan`},
+			runflags: []string{`--eval`, `--terraform-plan-file=out.tfplan`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
 			env: []string{
 				`TF_VAR_content=my secret`,
@@ -392,7 +392,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					"run",
 					"--disable-safeguards=git-out-of-sync",
 					"--quiet",
-					"--cloud-sync-deployment",
+					"--sync-deployment",
 				}
 				if isParallel {
 					runflags = append(runflags, "--parallel", "5")
@@ -501,7 +501,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", HelperPath, "true")
+			"--sync-deployment", "--", HelperPath, "true")
 		AssertRunResult(t, result, RunExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from GH_TOKEN",
@@ -517,7 +517,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", HelperPath, "true")
+			"--sync-deployment", "--", HelperPath, "true")
 		AssertRunResult(t, result, RunExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from GITHUB_TOKEN",
@@ -544,7 +544,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", HelperPath, "true")
+			"--sync-deployment", "--", HelperPath, "true")
 		AssertRunResult(t, result, RunExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from oauth_token",

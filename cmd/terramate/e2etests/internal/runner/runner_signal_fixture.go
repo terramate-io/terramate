@@ -65,7 +65,7 @@ func (tm CLI) helperPath() string {
 // Usage:
 //
 //	cli := NewCli(t, chdir)
-//	fixture := NewRunFixture(hangRun, s.RootDir(), "--cloud-sync-deployment")
+//	fixture := NewRunFixture(hangRun, s.RootDir(), "--sync-deployment")
 //	result = fixture.Run()
 //	AssertRunResult(t, result, expected)
 func (tm *CLI) NewRunFixture(mode RunMode, rootdir string, flags ...string) RunFixture {

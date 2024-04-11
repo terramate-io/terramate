@@ -26,8 +26,8 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			Str("description", "no"),
 			Block("job",
 				Expr("command", fmt.Sprintf(`["echo", "${terramate.stack.name}", {
-			cloud_sync_deployment = %v,
-			cloud_sync_terraform_plan_file = "%s"
+			sync_deployment = %v,
+			sync_terraform_plan_file = "%s"
 		}]`, syncDeployment, plan)),
 			),
 		).String()
@@ -72,7 +72,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 					description = "no"
 					job {
 						command = ["echooooo", "${terramate.stack.name}", {
-							cloud_sync_deployment = true
+							sync_deployment = true
 						}]
 					}
 				}`,
@@ -97,7 +97,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 					description = "no"
 					job {
 						command = ["echooooo", "${terramate.stack.name}", {
-							cloud_sync_deployment = true
+							sync_deployment = true
 						}]
 					}
 				}`,

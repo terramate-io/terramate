@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// note: unrecovered panic() aborts the program with exit code 2 and this
-	// could be confused with a *detected drift* (see: run --cloud-sync-drift-status)
+	// could be confused with a *detected drift* (see: run --sync-drift-status)
 	// then avoid panics here and do proper os.Exit(1) in case of errors.
 
 	switch os.Args[1] {

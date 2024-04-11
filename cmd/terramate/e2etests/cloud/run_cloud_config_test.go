@@ -183,7 +183,7 @@ func TestCloudConfig(t *testing.T) {
 				"run",
 				"--disable-safeguards=git-out-of-sync",
 				"--quiet",
-				"--cloud-sync-deployment",
+				"--sync-deployment",
 				"--", HelperPath, "true",
 			}
 			AssertRunResult(t, tm.Run(cmd...), tc.want)

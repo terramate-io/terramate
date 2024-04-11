@@ -49,7 +49,7 @@ func (l Layer) String() string {
 func (l Layer) Validate() error {
 	for _, c := range string(l) {
 		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '-' {
-			return errors.E("invalid --cloud-sync-layer, only alphanumeric characters and hyphens are allowed")
+			return errors.E("invalid --layer, only alphanumeric characters and hyphens are allowed")
 		}
 	}
 
