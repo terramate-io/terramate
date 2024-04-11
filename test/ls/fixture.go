@@ -20,11 +20,10 @@ type Fixture struct {
 	Editor  *Editor
 }
 
-// Setup a new fixture.
-func Setup(t *testing.T, layout ...string) Fixture {
+func setup(t *testing.T, createRootConfig bool, layout ...string) Fixture {
 	t.Helper()
 
-	s := sandbox.NoGit(t, true)
+	s := sandbox.NoGit(t, createRootConfig)
 	s.BuildTree(layout)
 
 	// WHY: LSP is bidirectional, the editor calls the server
@@ -68,6 +67,18 @@ func Setup(t *testing.T, layout ...string) Fixture {
 		Editor:  e,
 		Sandbox: s,
 	}
+}
+
+// Setup a new fixture.
+func Setup(t *testing.T, layout ...string) Fixture {
+	t.Helper()
+	return setup(t, true, layout...)
+}
+
+// SetupNoRootConfig a new fixture without root config.
+func SetupNoRootConfig(t *testing.T, layout ...string) Fixture {
+	t.Helper()
+	return setup(t, false, layout...)
 }
 
 func jsonrpc2Conn(rw io.ReadWriteCloser) jsonrpc2.Conn {

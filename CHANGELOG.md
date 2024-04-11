@@ -32,6 +32,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - Script command options `cloud_*` are shorted to `*`, e.g. `cloud_sync_deployment` => `sync_deployment`.
   - Old flags and command options are still supported as aliases for the new ones.
 
+### Fixed
+
+- Language server panics when editing a file outside a repository.
+
 ## v0.6.0
 
 ### Added
