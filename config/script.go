@@ -187,7 +187,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 	}
 	if len(cmdsWithCloudSyncDeployment) > 1 {
 		errs.Append(errors.E(ErrScriptInvalidCmdOptions,
-			"only a single command per script may have 'cloud_sync_deployment' enabled, but was enabled by: %v",
+			"only a single command per script may have 'sync_deployment' enabled, but was enabled by: %v",
 			strings.Join(cmdsWithCloudSyncDeployment, " "),
 		))
 	}
@@ -202,7 +202,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 	}
 	if len(cmdsWithCloudSyncPreview) > 1 {
 		errs.Append(errors.E(ErrScriptInvalidCmdOptions,
-			"only a single command per script may have 'cloud_sync_preview' enabled, but was enabled by: %v",
+			"only a single command per script may have 'sync_preview' enabled, but was enabled by: %v",
 			strings.Join(cmdsWithCloudSyncDeployment, " "),
 		))
 	}
@@ -297,7 +297,7 @@ func unmarshalScriptJobCommand(cmdValues cty.Value, expr hhcl.Expression) (*Scri
 					r.Options.CloudSyncPreview &&
 					(r.Options.CloudSyncDriftStatus || r.Options.CloudSyncDeployment) {
 					errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
-						"cloud_sync_preview cannot be used with cloud_sync_deployment or cloud_sync_drift_status"))
+						"sync_preview cannot be used with sync_deployment or sync_drift_status"))
 				}
 				errs.Append(err)
 			} else {
@@ -338,6 +338,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 		}
 
 		switch ks := k.AsString(); ks {
+		case "sync_deployment":
+			fallthrough
 		case "cloud_sync_deployment":
 			if v.Type() != cty.Bool {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
@@ -347,6 +349,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 			}
 			r.CloudSyncDeployment = v.True()
 
+		case "sync_drift_status":
+			fallthrough
 		case "cloud_sync_drift_status":
 			if v.Type() != cty.Bool {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
@@ -355,6 +359,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 				break
 			}
 			r.CloudSyncDriftStatus = v.True()
+		case "sync_preview":
+			fallthrough
 		case "cloud_sync_preview":
 			if v.Type() != cty.Bool {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
@@ -364,6 +370,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 			}
 			r.CloudSyncPreview = v.True()
 
+		case "sync_layer":
+			fallthrough
 		case "cloud_sync_layer":
 			if v.Type() != cty.String {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
@@ -378,6 +386,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 					"command option '%s' must contain only alphanumeric characters and hyphens", ks))
 			}
 
+		case "sync_terraform_plan_file":
+			fallthrough
 		case "cloud_sync_terraform_plan_file":
 			if v.Type() != cty.String {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
@@ -402,7 +412,7 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 
 		if r.CloudSyncDeployment && r.CloudSyncDriftStatus {
 			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
-				"command option 'cloud_sync_deployment' and 'cloud_sync_drift_status' are conflicting options in the same command"))
+				"command option 'sync_deployment' and 'sync_drift_status' are conflicting options in the same command"))
 		}
 	}
 

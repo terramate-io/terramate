@@ -60,7 +60,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				  }`,
 				"run:stack:terraform init",
 			},
-			runflags:        []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
+			runflags:        []string{`--terraform-plan-file=out.tfplan`},
 			cmd:             []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
 			want: want{
@@ -70,7 +70,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						"Plan: 1 to add, 0 to change, 0 to destroy.",
 					},
 					StderrRegexes: []string{
-						"--cloud-sync-preview is only supported in GitHub Actions workflows",
+						"--sync-preview is only supported in GitHub Actions workflows",
 					},
 				},
 				ignoreTypes: cmpopts.IgnoreTypes(
@@ -92,7 +92,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				  }`,
 				"run:stack:terraform init",
 			},
-			runflags: []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
+			runflags: []string{`--terraform-plan-file=out.tfplan`},
 			cmd:      []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 			env: []string{
 				"GITHUB_ACTIONS=1",
@@ -161,7 +161,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				  }`,
 				"run:stack:terraform init",
 			},
-			runflags: []string{`--cloud-sync-terraform-plan-file=out.tfplan`},
+			runflags: []string{`--terraform-plan-file=out.tfplan`},
 			cmd:      []string{TerraformTestPath, "plan-invalid-subcommand", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 			env: []string{
 				"GITHUB_ACTIONS=1",
@@ -235,7 +235,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			runflags := []string{
 				"run",
 				"--disable-safeguards=all",
-				"--cloud-sync-preview",
+				"--sync-preview",
 			}
 			runflags = append(runflags, tc.runflags...)
 			runflags = append(runflags, "--")

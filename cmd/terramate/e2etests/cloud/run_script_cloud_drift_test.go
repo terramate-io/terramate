@@ -53,7 +53,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Str("description", "test"),
 					Block("job",
 						Expr("command", `["echo", "ok", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`),
 					),
 				).String(),
@@ -75,7 +75,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Str("description", "test"),
 					Block("job",
 						Expr("command", `["non-existent-command", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`),
 					),
 				).String(),
@@ -113,7 +113,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Str("description", "test"),
 					Block("job",
 						Expr("command", `["non-existent-command", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`),
 					),
 				).String(),
@@ -151,7 +151,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`, HelperPathAsHCL)),
 					),
 				).String(),
@@ -186,7 +186,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command", fmt.Sprintf(
 							`["%s", "echo", "${terramate.stack.path.absolute}", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`, HelperPathAsHCL)),
 					),
 				).String(),
@@ -225,7 +225,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`, HelperPathAsHCL)),
 					),
 				).String(),
@@ -263,7 +263,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file with non-existent plan file",
+			name: "using --terraform-plan-file with non-existent plan file",
 			layout: []string{
 				"s:s1:id=s1",
 				"f:script.tm:" + Block("script",
@@ -272,8 +272,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
-							cloud_sync_drift_status = true
-							cloud_sync_terraform_plan_file = "out.tfplan"
+							sync_drift_status = true
+							sync_terraform_plan_file = "out.tfplan"
 						}]`, HelperPathAsHCL)),
 					),
 				).String(),
@@ -303,7 +303,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file with absolute path",
+			name: "using --terraform-plan-file with absolute path",
 			layout: []string{
 				"s:s1:id=s1",
 				"f:script.tm:" + Block("script",
@@ -312,8 +312,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
-							cloud_sync_drift_status = true
-							cloud_sync_terraform_plan_file = "%s"
+							sync_drift_status = true
+							sync_terraform_plan_file = "%s"
 						}]`, HelperPathAsHCL, absPlanFilePathAsHCL)),
 					),
 				).String(),
@@ -344,7 +344,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file=out.tfplan",
+			name: "using --terraform-plan-file=out.tfplan",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s1/s2:id=s2",
@@ -358,8 +358,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command",
 							`["terraform", "plan", "-no-color", "-detailed-exitcode", "-out=out.tfplan", {
-							cloud_sync_drift_status = true
-							cloud_sync_terraform_plan_file = "out.tfplan"
+							sync_drift_status = true
+							sync_terraform_plan_file = "out.tfplan"
 						}]`),
 					),
 				).String(),
@@ -438,7 +438,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Block("job",
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
-							cloud_sync_drift_status = true
+							sync_drift_status = true
 						}]`, HelperPathAsHCL)),
 					),
 				).String(),

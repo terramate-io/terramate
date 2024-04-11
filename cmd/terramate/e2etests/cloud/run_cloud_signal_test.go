@@ -97,7 +97,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 
 				runflags := []string{
 					"--disable-safeguards=git-out-of-sync",
-					"--cloud-sync-deployment",
+					"--sync-deployment",
 				}
 				if isParallel {
 					runflags = append(runflags, "--parallel", "5")
@@ -197,7 +197,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 				runflags := []string{
 					"--disable-safeguards=git-out-of-sync",
-					"--cloud-sync-drift-status",
+					"--sync-drift-status",
 				}
 				if isParallel {
 					runflags = append(runflags, "--parallel=5")

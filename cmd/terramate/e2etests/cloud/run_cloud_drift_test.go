@@ -341,12 +341,12 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file with non-existent plan file",
+			name: "using --terraform-plan-file with non-existent plan file",
 			layout: []string{
 				"s:s1:id=s1",
 			},
 			runflags: []string{
-				`--cloud-sync-terraform-plan-file=out.tfplan`,
+				`--terraform-plan-file=out.tfplan`,
 			},
 			cmd: []string{HelperPath, "exit", "2"},
 			want: want{
@@ -373,12 +373,12 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file with absolute path",
+			name: "using --terraform-plan-file with absolute path",
 			layout: []string{
 				"s:s1:id=s1",
 			},
 			runflags: []string{
-				fmt.Sprintf(`--cloud-sync-terraform-plan-file=%s`, absPlanFilePath),
+				fmt.Sprintf(`--terraform-plan-file=%s`, absPlanFilePath),
 			},
 			cmd: []string{HelperPath, "exit", "2"},
 			want: want{
@@ -406,7 +406,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file=out.tfplan",
+			name: "using --terraform-plan-file=out.tfplan",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s1/s2:id=s2",
@@ -416,7 +416,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				"run:s1/s2:terraform init",
 			},
 			runflags: []string{
-				`--cloud-sync-terraform-plan-file=out.tfplan`,
+				`--terraform-plan-file=out.tfplan`,
 			},
 			env: []string{
 				`TF_VAR_content=my secret`,
@@ -552,7 +552,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					"run",
 					"--disable-safeguards=git-out-of-sync",
 					"--quiet",
-					"--cloud-sync-drift-status",
+					"--sync-drift-status",
 				}
 				if isParallel {
 					runflags = append(runflags, "-j", "5")

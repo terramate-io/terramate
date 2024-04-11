@@ -39,10 +39,10 @@ func TestCloudStatus(t *testing.T) {
 
 	for _, tc := range []cloudStatusTestcase{
 		{
-			name:       "local repository is not permitted with --cloud-status=",
+			name:       "local repository is not permitted with --status=",
 			layout:     []string{"s:s1:id=s1"},
 			repository: test.TempDir(t),
-			flags:      []string{`--cloud-status=unhealthy`},
+			flags:      []string{`--status=unhealthy`},
 			want: RunExpected{
 				Status:      1,
 				StderrRegex: "unhealthy status filter does not work with filesystem based remotes",
@@ -64,7 +64,7 @@ func TestCloudStatus(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			flags: []string{"--cloud-status=unhealthy"},
+			flags: []string{"--status=unhealthy"},
 		},
 		{
 			name: "1 cloud stack healthy, others absent, asking for unhealthy: return nothing",
@@ -85,10 +85,34 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 		},
 		{
 			name: "1 cloud stack healthy, others absent, asking for ok: return ok",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--status=ok`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "deprecated --cloud-status alias",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -130,7 +154,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=healthy`},
+			flags: []string{`--status=healthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1"),
 			},
@@ -154,7 +178,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 		},
 		{
 			name: "1 cloud stack drifted, other absent, asking for unhealthy: return drifted",
@@ -175,7 +199,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1"),
 			},
@@ -199,7 +223,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1"),
 			},
@@ -234,7 +258,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1"),
 			},
@@ -266,7 +290,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 		},
 		{
 			name: "2 local stacks, 2 same unhealthy stacks, return both",
@@ -298,7 +322,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1", "s2"),
 			},
@@ -334,7 +358,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--cloud-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1", "s2"),
 			},
@@ -451,7 +475,7 @@ func paginationTestcase(perPage int) cloudStatusTestcase {
 		layout:  layout,
 		stacks:  stacks,
 		perPage: perPage,
-		flags:   []string{`--cloud-status=unhealthy`},
+		flags:   []string{`--status=unhealthy`},
 		want: RunExpected{
 			Stdout: nljoin(names...),
 		},

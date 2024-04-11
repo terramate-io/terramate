@@ -156,7 +156,7 @@ cloud/sync/ok: build test/helper
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
 			--tags test \
-			run --cloud-sync-deployment --  \
+			run --sync-deployment --  \
 			$(PWD)/bin/helper true
 
 ## sync the Terramate example stack with a failed status.
@@ -166,7 +166,7 @@ cloud/sync/failed: build test/helper
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
 			--tags test \
-			run --cloud-sync-deployment --  \
+			run --sync-deployment --  \
 			$(PWD)/bin/helper false
 
 ## Display help for all targets
