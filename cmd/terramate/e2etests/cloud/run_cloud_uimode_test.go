@@ -117,7 +117,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 				{
@@ -126,7 +126,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 			},
@@ -283,7 +283,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 				{
@@ -292,7 +292,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
 					},
 				},
 			},
@@ -675,7 +675,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
 							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
@@ -687,7 +687,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
 							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
@@ -807,7 +807,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
@@ -819,7 +819,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
@@ -930,7 +930,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
@@ -942,7 +942,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
@@ -1040,7 +1040,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
@@ -1052,7 +1052,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},

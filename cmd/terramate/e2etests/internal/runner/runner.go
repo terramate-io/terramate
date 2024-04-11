@@ -207,7 +207,7 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	fakeJwt, err := token.SignedString([]byte("test"))
 	assert.NoError(t, err)
-	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd"}`, fakeJwt))
+	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd", "provider": "Google"}`, fakeJwt))
 
 	cmd := exec.Command(tm.terramatePath(), allargs...)
 	cmd.Stdout = stdout
