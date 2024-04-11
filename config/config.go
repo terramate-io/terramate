@@ -508,10 +508,22 @@ func processTmGenFiles(root *Root, cfg *hcl.Config, cfgdir string, dirEntries []
 			Type: "content",
 			Body: body,
 		}
+
+		// should never fail
+		inheritFalse, diags := hclsyntax.ParseExpression([]byte("false"), "<implicit block>", hhcl.InitialPos)
+		if diags.HasErrors() {
+			panic(errors.E(errors.ErrInternal, diags))
+		}
+
+		inheritAttr := &hclsyntax.Attribute{
+			Name: "inherit",
+			Expr: inheritFalse,
+		}
+
 		implicitGenBlock := hcl.GenHCLBlock{
 			IsImplicitBlock: true,
 			Dir:             project.PrjAbsPath(root.HostDir(), cfgdir),
-			NonInheritable:  true,
+			Inherit:         inheritAttr,
 			Range: info.NewRange(root.HostDir(), hhcl.Range{
 				Filename: absFname,
 				Start:    hhcl.InitialPos,

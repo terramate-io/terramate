@@ -23,7 +23,6 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
-	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/stdlib"
@@ -129,10 +128,14 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 				continue
 			}
 
-			file, err := genfile.Eval(block, evalctx)
+			file, skip, err := genfile.Eval(block, dircfg, evalctx)
 			if err != nil {
 				res.Err = errors.L(res.Err, err).AsError()
 				results = append(results, res)
+				continue
+			}
+
+			if skip {
 				continue
 			}
 
@@ -178,135 +181,134 @@ func Do(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
-	validateBlocksInheritance(root.Tree())
-	stackReport := forEachStack(root, vendorDir,
-		vendorRequests, doStackGeneration)
+	stackReport := doStackGeneration(root, vendorDir, vendorRequests)
 	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
 }
 
-func validateBlocksInheritance(tree *config.Tree) {
-	blocks := tree.Node.Generate.HCLs
-	for _, block := range blocks {
-		if block.NonInheritable && !tree.IsStack() {
-			printer.Stderr.Warn(fmt.Sprintf("non-inheritable generate found outside a stack: %s", block.Range.HostPath()))
-		}
-	}
-
-	for _, children := range tree.Children {
-		validateBlocksInheritance(children)
-	}
-}
-
 func doStackGeneration(
 	root *config.Root,
-	stack *config.Stack,
-	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-) dirReport {
-	stackpath := stack.HostDir(root)
+) Report {
 	logger := log.With().
 		Str("action", "generate.doStackGeneration()").
-		Stringer("stack", stack.Dir).
 		Logger()
 
-	report := dirReport{}
+	report := Report{}
 
-	logger.Debug().Msg("generating files")
-
-	generated, err := loadStackCodeCfgs(root, stack, globals, vendorDir, vendorRequests)
-	if err != nil {
-		report.err = err
-		return report
-	}
-
-	errsmap := checkFileConflict(generated)
-	if len(errsmap) > 0 {
-		errs := errors.L()
-		for _, err := range errsmap {
-			errs.Append(err)
-		}
-		report.err = errs.AsError()
-		return report
-	}
-
-	err = validateStackGeneratedFiles(root, stackpath, generated)
-	if err != nil {
-		report.err = err
-		return report
-	}
-
-	allFiles, err := allStackGeneratedFiles(root, stack.HostDir(root), generated)
-	if err != nil {
-		report.err = errors.E(err, "listing all generated files")
-		return report
-	}
-
-	logger.Debug().Msg("saving generated files")
-
-	for _, file := range generated {
-		filename := file.Label()
-		path := filepath.Join(stackpath, filename)
-		logger := logger.With().
-			Str("filename", filename).
-			Logger()
-
-		if !file.Condition() {
-			logger.Debug().Msg("condition is false, ignoring file")
-			continue
-		}
-
-		body := file.Header() + file.Body()
-
-		// Change detection + remove entries that got re-generated
-		oldFileBody, oldExists := allFiles[filename]
-
-		if !oldExists || oldFileBody != body {
-			err := writeGeneratedCode(root, path, file)
-			if err != nil {
-				report.err = errors.E(err, "saving file %q", filename)
-				return report
-			}
-		}
-
-		if !oldExists {
-			log.Info().
-				Stringer("stack", stack.Dir).
-				Str("file", filename).
-				Msg("created file")
-
-			report.addCreatedFile(filename)
-		} else {
-			delete(allFiles, filename)
-			if body != oldFileBody {
-				log.Info().
-					Stringer("stack", stack.Dir).
-					Str("file", filename).
-					Msg("changed file")
-
-				report.addChangedFile(filename)
-			}
-		}
-	}
-
-	for filename := range allFiles {
-		log.Info().
-			Stringer("stack", stack.Dir).
-			Str("file", filename).
-			Msg("deleted file")
-
-		report.addDeletedFile(filename)
-
-		path := filepath.Join(stackpath, filename)
-		err = os.Remove(path)
+	for _, cfg := range root.Tree().Stacks() {
+		stack, err := cfg.Stack()
 		if err != nil {
-			report.err = errors.E("removing file %s", filename)
+			report.BootstrapErr = err
 			return report
 		}
 
-		delete(allFiles, filename)
+		globals := globals.ForStack(root, stack)
+		if err := globals.AsError(); err != nil {
+			report.addFailure(cfg.Dir(), err)
+			continue
+		}
+
+		logger.Debug().Msg("generating files")
+
+		generated, err := loadStackCodeCfgs(root, stack, globals.Globals, vendorDir, vendorRequests)
+		if err != nil {
+			report.addFailure(cfg.Dir(), err)
+			continue
+		}
+
+		errsmap := checkFileConflict(generated)
+		if len(errsmap) > 0 {
+			errs := errors.L()
+			for _, err := range errsmap {
+				errs.Append(err)
+			}
+			report.addFailure(cfg.Dir(), errs.AsError())
+			continue
+		}
+
+		err = validateStackGeneratedFiles(root, cfg.HostDir(), generated)
+		if err != nil {
+			report.addFailure(cfg.Dir(), err)
+			continue
+		}
+
+		allFiles, err := allStackGeneratedFiles(root, stack.HostDir(root), generated)
+		if err != nil {
+			report.addFailure(cfg.Dir(), errors.E(err, "listing all generated files"))
+			continue
+		}
+
+		logger.Debug().Msg("saving generated files")
+
+		stackReport := dirReport{}
+
+		for _, file := range generated {
+			filename := file.Label()
+			path := filepath.Join(cfg.HostDir(), filename)
+			logger := logger.With().
+				Str("filename", filename).
+				Logger()
+
+			if !file.Condition() {
+				logger.Debug().Msg("condition is false, ignoring file")
+				continue
+			}
+
+			body := file.Header() + file.Body()
+
+			// Change detection + remove entries that got re-generated
+			oldFileBody, oldExists := allFiles[filename]
+
+			if !oldExists || oldFileBody != body {
+				err := writeGeneratedCode(root, path, file)
+				if err != nil {
+					report.addFailure(cfg.Dir(), errors.E(err, "saving file %q", filename))
+					continue
+				}
+			}
+
+			if !oldExists {
+				log.Info().
+					Stringer("stack", stack.Dir).
+					Str("file", filename).
+					Msg("created file")
+
+				stackReport.addCreatedFile(filename)
+			} else {
+				delete(allFiles, filename)
+				if body != oldFileBody {
+					log.Info().
+						Stringer("stack", stack.Dir).
+						Str("file", filename).
+						Msg("changed file")
+
+					stackReport.addChangedFile(filename)
+				}
+			}
+		}
+
+		for filename := range allFiles {
+			log.Info().
+				Stringer("stack", stack.Dir).
+				Str("file", filename).
+				Msg("deleted file")
+
+			stackReport.addDeletedFile(filename)
+
+			path := filepath.Join(cfg.HostDir(), filename)
+			err = os.Remove(path)
+			if err != nil {
+				report.addFailure(cfg.Dir(), errors.E("removing file %s", filename))
+				continue
+			}
+
+			delete(allFiles, filename)
+		}
+
+		report.addDirReport(cfg.Dir(), stackReport)
 	}
 
 	logger.Debug().Msg("finished generating files")
@@ -360,10 +362,14 @@ func doRootGeneration(root *config.Root) Report {
 
 			logger.Debug().Msg("block validated successfully")
 
-			file, err := genfile.Eval(block, evalctx)
+			file, skip, err := genfile.Eval(block, cfg, evalctx)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report
+			}
+
+			if skip {
+				continue
 			}
 
 			logger.Debug().Msg("block evaluated successfully")
@@ -751,42 +757,6 @@ func readFile(path string) (string, bool, error) {
 	}
 
 	return string(data), true, nil
-}
-
-type forEachStackFunc func(
-	*config.Root,
-	*config.Stack,
-	*eval.Object,
-	project.Path,
-	chan<- event.VendorRequest,
-) dirReport
-
-func forEachStack(
-	root *config.Root,
-	vendorDir project.Path,
-	vendorRequests chan<- event.VendorRequest,
-	fn forEachStackFunc,
-) Report {
-	report := Report{}
-
-	stacks, err := config.LoadAllStacks(root.Tree())
-	if err != nil {
-		report.BootstrapErr = err
-		return report
-	}
-
-	for _, elem := range stacks {
-		globalsReport := globals.ForStack(root, elem.Stack)
-		if err := globalsReport.AsError(); err != nil {
-			report.addFailure(elem.Dir(), errors.E(ErrLoadingGlobals, err))
-			continue
-		}
-
-		stackReport := fn(root, elem.Stack, globalsReport.Globals, vendorDir, vendorRequests)
-		report.addDirReport(elem.Dir(), stackReport)
-	}
-
-	return report
 }
 
 func allStackGeneratedFiles(
