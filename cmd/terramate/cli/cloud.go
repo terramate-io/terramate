@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	stdjson "encoding/json"
+	stdfmt "fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors/verbosity"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
@@ -41,12 +43,73 @@ const (
 	defaultGithubTimeout = defaultCloudTimeout
 )
 
+const (
+	cloudFeatStatus          = "--status' is a Terramate Cloud feature to filter stacks that failed to deploy or have drifted."
+	cloudFeatSyncDeployment  = "'--sync-deployment' is a Terramate Cloud feature to synchronize deployment details to Terramate Cloud."
+	cloudFeatSyncDriftStatus = "'--sync-drift-status' is a Terramate Cloud feature to synchronize drift and health check results to Terramate Cloud."
+	cloudFeatSyncPreview     = "'--sync-preview' is a Terramate Cloud feature to synchronize deployment previews to Terramate Cloud."
+)
+
 const githubDomain = "github.com"
 
 const (
 	githubErrNotFound            errors.Kind = "resource not found (HTTP Status: 404)"
 	githubErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
+
+	// ErrLoginRequired is an error indicating that user has to login to the cloud.
+	ErrLoginRequired errors.Kind = "cloud login required"
+
+	// ErrIDPNeedConfirmation is an error indicating the user has multiple providers set up and
+	// linking them is needed.
+	ErrIDPNeedConfirmation errors.Kind = "the account was already set up with another email provider"
+
+	// ErrEmailNotVerified is an error indicating that user's email need to be verified.
+	ErrEmailNotVerified errors.Kind = "email is not verified"
 )
+
+// newCloudRequiredError creates an error indicating that a cloud login is required to use requested features.
+func newCloudRequiredError(requestedFeatures []string) *errors.DetailedError {
+	err := errors.D("This command uses Terramate Cloud features and requires you to be logged in.")
+
+	for _, s := range requestedFeatures {
+		err = err.WithDetails(verbosity.V1, s)
+	}
+
+	err = err.WithDetails(verbosity.V1, "To login with an existing account, run 'terramate cloud login'.").
+		WithDetails(verbosity.V1, "To create a free account, visit https://cloud.terramate.io.")
+
+	return err.WithCode(clitest.ErrCloud)
+}
+
+// newIDPNeedConfirmationError creates an error indicating the user has multiple providers set up and
+// linking them is needed.
+func newIDPNeedConfirmationError(verifiedProviders []string) *errors.DetailedError {
+	err := errors.D("The account was already set up with another email provider.")
+
+	if len(verifiedProviders) > 0 {
+		err = err.WithDetails(verbosity.V1, "Please login using one of the methods below:")
+		for _, providerDomain := range verifiedProviders {
+			switch providerDomain {
+			case "google.com":
+				err = err.WithDetails(verbosity.V1, "- Run 'terramate cloud login --google' to login with your Google account")
+			case "github.com":
+				err = err.WithDetails(verbosity.V1, "- Run 'terramate cloud login --github' to login with your GitHub account")
+			}
+			err = err.WithDetails(verbosity.V1, "Alternatively, visit https://cloud.terramate.io and authenticate with the Social login to link the accounts.")
+		}
+	} else {
+		err = err.WithDetails(verbosity.V1, "Visit https://cloud.terramate.io and authenticate to link the accounts.")
+	}
+
+	return err.WithCode(ErrIDPNeedConfirmation)
+}
+
+// newEmailNotVerifiedError creates an error indicating that user's email need to be verified.
+func newEmailNotVerifiedError(email string) *errors.DetailedError {
+	return errors.D("Email %s is not verified.", email).
+		WithDetails(verbosity.V1, "Please login to https://cloud.terramate.io to verify your email and continue the sign up process.").
+		WithCode(ErrEmailNotVerified)
+}
 
 type cloudRunState struct {
 	runUUID cloud.UUID
@@ -132,7 +195,7 @@ func (c *cli) disableCloudFeatures(err error) {
 func (c *cli) handleCriticalError(err error) {
 	if err != nil {
 		if c.uimode == HumanMode {
-			fatal("aborting", err)
+			fatal(err)
 		}
 
 		c.disableCloudFeatures(err)
@@ -165,7 +228,18 @@ func (c *cli) checkCloudSync() {
 		return
 	}
 
-	err := c.setupCloudConfig()
+	var feats []string
+	if c.parsedArgs.Run.SyncDeployment {
+		feats = append(feats, cloudFeatSyncDeployment)
+	}
+	if c.parsedArgs.Run.SyncDriftStatus {
+		feats = append(feats, cloudFeatSyncDriftStatus)
+	}
+	if c.parsedArgs.Run.SyncPreview {
+		feats = append(feats, cloudFeatSyncPreview)
+	}
+
+	err := c.setupCloudConfig(feats)
 	c.handleCriticalError(err)
 
 	if c.cloud.disabled {
@@ -195,9 +269,12 @@ func (c *cli) cloudOrgName() string {
 	return ""
 }
 
-func (c *cli) setupCloudConfig() error {
+func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	err := c.loadCredential()
 	if err != nil {
+		if errors.IsKind(err, ErrLoginRequired) {
+			return newCloudRequiredError(requestedFeatures).WithCause(err)
+		}
 		printer.Stderr.ErrorWithDetails("failed to load the cloud credentials", err)
 		return cloudError()
 	}
@@ -349,12 +426,12 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 		changeset, err := c.getTerraformChangeset(run, planfile)
 		if err != nil || changeset == nil {
 			printer.Stderr.WarnWithDetails(
-				sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()),
-				err)
+				stdfmt.Sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()), err,
+			)
 
 			if previewStatus != preview.StackStatusFailed {
 				printer.Stderr.Warn(
-					sprintf("preview status set to \"failed\" (previously %q) due to failure when generating the "+
+					stdfmt.Sprintf("preview status set to \"failed\" (previously %q) due to failure when generating the "+
 						"changeset details", previewStatus),
 				)
 
@@ -402,7 +479,8 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 func (c *cli) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
-		fatal("failed to load credentials", err)
+		// TODO: Better error message.
+		fatalWithDetails(err, "failed to load credentials")
 	}
 	c.cred().info(c.cloudOrgName())
 
@@ -411,29 +489,29 @@ func (c *cli) cloudInfo() {
 }
 
 func (c *cli) cloudDriftShow() {
-	err := c.setupCloudConfig()
+	err := c.setupCloudConfig(nil)
 	if err != nil {
-		fatal("unable to setup cloud configuration", err)
+		fatalWithDetails(err, "unable to setup cloud configuration")
 	}
 	st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 	if err != nil {
-		fatal("loading stack in current directory", err)
+		fatalWithDetails(err, "loading stack in current directory")
 	}
 	if !found {
-		fatal("No stack selected. Please enter a stack to show a potential drift.", nil)
+		fatal("No stack selected. Please enter a stack to show a potential drift.")
 	}
 	if st.ID == "" {
-		fatal("The stack must have an ID for using TMC features", nil)
+		fatal("The stack must have an ID for using TMC features")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
 	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), st.ID)
 	if err != nil {
-		fatal("unable to fetch stack", err)
+		fatalWithDetails(err, "unable to fetch stack")
 	}
 	if !found {
-		fatal(sprintf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String()), nil)
+		fatalf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String())
 	}
 
 	if stackResp.Status != stack.Drifted && stackResp.DriftStatus != drift.Drifted {
@@ -447,10 +525,10 @@ func (c *cli) cloudDriftShow() {
 	// stack is drifted
 	driftsResp, err := c.cloud.client.StackLastDrift(ctx, c.cloud.run.orgUUID, stackResp.ID)
 	if err != nil {
-		fatal("unable to fetch drift", err)
+		fatalWithDetails(err, "unable to fetch drift")
 	}
 	if len(driftsResp.Drifts) == 0 {
-		fatal(sprintf("Stack %s is drifted, but no details are available.", st.Dir.String()), nil)
+		fatalf("Stack %s is drifted, but no details are available.", st.Dir.String())
 	}
 	driftData := driftsResp.Drifts[0]
 
@@ -458,10 +536,10 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 	driftData, err = c.cloud.client.DriftDetails(ctx, c.cloud.run.orgUUID, stackResp.ID, driftData.ID)
 	if err != nil {
-		fatal("unable to fetch drift details", err)
+		fatalWithDetails(err, "unable to fetch drift details")
 	}
 	if driftData.Status != drift.Drifted || driftData.Details == nil || driftData.Details.Provisioner == "" {
-		fatal(sprintf("Stack %s is drifted, but no details are available.", st.Dir.String()), nil)
+		fatalf("Stack %s is drifted, but no details are available.", st.Dir.String())
 	}
 	c.output.MsgStdOutV("drift provisioner: %s", driftData.Details.Provisioner)
 	c.output.MsgStdOut(driftData.Details.ChangesetASCII)
@@ -986,7 +1064,7 @@ func (c *cli) loadCredential() error {
 		}
 	}
 	if !found {
-		return errors.E("no credential found")
+		return errors.E("no credential found", ErrLoginRequired)
 	}
 	return nil
 }

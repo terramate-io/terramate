@@ -96,7 +96,7 @@ func (c *cli) runOnStacks() {
 	c.gitSafeguardDefaultBranchIsReachable()
 
 	if len(c.parsedArgs.Run.Command) == 0 {
-		fatal("run expects a cmd", nil)
+		fatal("run expects a cmd")
 	}
 
 	c.checkOutdatedGeneratedCode()
@@ -106,11 +106,11 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatal("loading stack in current directory", err)
+			fatalWithDetails(err, "loading stack in current directory")
 		}
 
 		if !found {
-			fatal("--no-recursive provided but no stack found in the current directory", nil)
+			fatal("--no-recursive provided but no stack found in the current directory")
 		}
 
 		stacks = append(stacks, st.Sortable())
@@ -118,31 +118,31 @@ func (c *cli) runOnStacks() {
 		var err error
 		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.Status))
 		if err != nil {
-			fatal("computing selected stacks", err)
+			fatalWithDetails(err, "computing selected stacks")
 		}
 	}
 
 	if c.parsedArgs.Run.SyncDeployment && c.parsedArgs.Run.SyncDriftStatus {
-		fatal(sprintf("--sync-deployment conflicts with --sync-drift-status"), nil)
+		fatal("--sync-deployment conflicts with --sync-drift-status")
 	}
 
 	if c.parsedArgs.Run.SyncPreview && (c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus) {
-		fatal("cannot use --sync-preview with --sync-deployment or --sync-drift-status", nil)
+		fatal("cannot use --sync-preview with --sync-deployment or --sync-drift-status")
 	}
 
 	if c.parsedArgs.Run.TerraformPlanFile == "" && c.parsedArgs.Run.SyncPreview {
-		fatal("--sync-preview requires --terraform-plan-file", nil)
+		fatal("--sync-preview requires --terraform-plan-file")
 	}
 
 	cloudSyncEnabled := c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview
 
 	if c.parsedArgs.Run.TerraformPlanFile != "" && !cloudSyncEnabled {
-		fatal("--terraform-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview", nil)
+		fatal("--terraform-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
 	}
 
 	if c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview {
 		if !c.prj.isRepo {
-			fatal("cloud features requires a git repository", nil)
+			fatal("cloud features requires a git repository")
 		}
 		c.ensureAllStackHaveIDs(stacks)
 		c.detectCloudMetadata()
@@ -173,7 +173,7 @@ func (c *cli) runOnStacks() {
 		if c.parsedArgs.Run.Eval {
 			run.Tasks[0].Cmd, err = c.evalRunArgs(run.Stack, run.Tasks[0].Cmd)
 			if err != nil {
-				fatal("unable to evaluate command", err)
+				fatalWithDetails(err, "unable to evaluate command")
 			}
 		}
 		runs = append(runs, run)
@@ -203,7 +203,7 @@ func (c *cli) runOnStacks() {
 		Parallel:        c.parsedArgs.Run.Parallel,
 	})
 	if err != nil {
-		fatal("one or more commands failed", err)
+		fatalWithDetails(err, "one or more commands failed")
 	}
 }
 
@@ -238,9 +238,9 @@ func (c *cli) runAll(
 		func(run stackRun) *config.Stack { return run.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatal(sprintf("cycle detected: %s", reason), err)
+			fatalWithDetails(err, "cycle detected: %s", reason)
 		} else {
-			fatal("failed to plan execution", err)
+			fatalWithDetails(err, "failed to plan execution")
 		}
 	}
 
@@ -573,7 +573,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 			technology = "terraform"
 		}
 		if layer := run.Task.CloudSyncLayer; layer != "" {
-			technologyLayer = sprintf("custom:%s", layer)
+			technologyLayer = stdfmt.Sprintf("custom:%s", layer)
 		}
 	}
 
@@ -663,13 +663,13 @@ func (c *cli) getAffectedStacks() []stack.Entry {
 	if c.parsedArgs.Changed {
 		report, err = mgr.ListChanged(c.baseRef())
 		if err != nil {
-			fatal("listing changed stacks", err)
+			fatalWithDetails(err, "listing changed stacks")
 		}
 
 	} else {
 		report, err = mgr.List()
 		if err != nil {
-			fatal("listing stacks", err)
+			fatalWithDetails(err, "listing stacks")
 		}
 	}
 

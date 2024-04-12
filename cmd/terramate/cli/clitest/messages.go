@@ -19,6 +19,9 @@ const (
 
 	// CloudSkippingTerraformPlanSync is the message displayed when a terraform plan sync is skipped.
 	CloudSkippingTerraformPlanSync = "skipping the sync of Terraform plan details"
+
+	// CloudLoginRequiredMessage is the message displayed when cloud login is required.
+	CloudLoginRequiredMessage = "This command uses Terramate Cloud features and requires you to be logged in"
 )
 
 const (

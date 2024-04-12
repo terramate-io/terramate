@@ -19,10 +19,10 @@ import (
 
 const defaultGitHubClientID = "08e1f8d6f599c7ec48c5"
 
-func githubLogin(output out.O, tmcBaseURL string, idpKey string, clicfg cliconfig.Config) (string, []string, error) {
+func githubLogin(output out.O, tmcBaseURL string, idpKey string, clicfg cliconfig.Config) error {
 	token, err := githubAuth()
 	if err != nil {
-		return "", nil, err
+		return err
 	}
 
 	postBody := url.Values{
@@ -37,16 +37,16 @@ func githubLogin(output out.O, tmcBaseURL string, idpKey string, clicfg cliconfi
 		ReturnSecureToken:   true,
 	}
 
-	cred, email, alreadyUsedProviders, err := signInWithIDP(reqPayload, idpKey)
+	cred, err := signInWithIDP(reqPayload, idpKey)
 	if err != nil {
-		return email, alreadyUsedProviders, err
+		return err
 	}
 
 	output.MsgStdOut("Logged in as %s", cred.UserDisplayName())
 	output.MsgStdOutV("Token: %s", cred.IDToken)
 	expire, _ := strconv.Atoi(cred.ExpiresIn)
 	output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-	return email, nil, saveCredential(output, cred, clicfg)
+	return saveCredential(output, cred, clicfg)
 }
 
 func githubAuth() (string, error) {

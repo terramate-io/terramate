@@ -317,8 +317,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
-							fatalErr,
+							string(clitest.CloudLoginRequiredMessage),
 						},
 					},
 				},
@@ -332,7 +331,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.CloudLoginRequiredMessage),
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -348,8 +347,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
-							fatalErr,
+							string(clitest.CloudLoginRequiredMessage),
 						},
 					},
 				},
@@ -363,7 +361,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.CloudLoginRequiredMessage),
 							string(clitest.CloudDisablingMessage),
 						},
 					},
@@ -378,7 +376,6 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							`failed to load credentials`,
-							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -390,7 +387,6 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							`failed to load credentials`,
-							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
