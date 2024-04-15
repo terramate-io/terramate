@@ -1181,6 +1181,26 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "generate_file with inherit and context=root -- fails",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+					generate_file "test.tf" {
+						content = "fail"
+						context = root
+						inherit = false
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}

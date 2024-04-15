@@ -158,6 +158,375 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_file with inherit=true on root stack without child stacks",
+			layout: []string{
+				"s:/",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", true),
+							Expr("content", `"okay"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit=true on root stack with child stacks",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", true),
+							Expr("content", `"okay"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit=false on root stack with child stacks",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", false),
+							Expr("content", `"okay"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit=false on intermediate stack with child stack",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/s1",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", false),
+							Expr("content", `"okay"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit=false on leaf stack with child stack",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/s1/s2",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", false),
+							Expr("content", `"okay"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file at root with inherit=global.inherit generating only in parent",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Expr("inherit", `global.inherit`),
+							Expr("content", `"okay"`),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit=global.inherit=false generates in child if setting overrided",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Expr("inherit", `global.inherit`),
+							Expr("content", `"okay"`),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit=global.inherit=false at root obey each child sibling stack config",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Expr("inherit", `global.inherit`),
+							Expr("content", `"okay"`),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+				{
+					path: "/s2",
+					add: Doc(
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`okay`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with stack on root and substacks",
 			layout: []string{
 				"s:/",
