@@ -88,6 +88,42 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			// check: https://github.com/hashicorp/hcl/pull/639
+			name: "ensure code generation supports HCL function namespaces",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("any"),
+						Content(
+							Expr("result", `foo::upper("foo")`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"any": Doc(
+							Expr("result", `foo::upper("foo")`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"any"},
+					},
+				},
+			},
+		},
+		{
 			// This is a regression test for a severe bug on extension
 			name: "multiple stacks extending imported globals on parent",
 			layout: []string{
@@ -1426,6 +1462,438 @@ EOT
 						Dir:     project.NewPath("/stack-2"),
 						Created: []string{".tflint.hcl"},
 					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=true on root stack without child stacks",
+			layout: []string{
+				"s:/",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", true),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=true on root stack with child stacks",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", true),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false on root stack with child stacks",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false on intermediate stack with child stack",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/s1",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false on leaf stack with child stack",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/s1/s2",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl at root with inherit=global.inherit generating only in parent",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=global.inherit=false generates in child if setting overrided",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=global.inherit=false at root obey each child sibling stack config",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+				{
+					path: "/s2",
+					add: Doc(
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false outside of a stack is ignored",
+			layout: []string{
+				"s:/s1",
+				"s:/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `false`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
 				},
 			},
 		},

@@ -38,7 +38,6 @@ func PrintConfig(w io.Writer, cfg Config) error {
 	rootBody := f.Body()
 
 	if cfg.Terramate != nil {
-
 		tm := cfg.Terramate
 		tmBlock := rootBody.AppendNewBlock("terramate", nil)
 		tmBody := tmBlock.Body()
@@ -50,7 +49,6 @@ func PrintConfig(w io.Writer, cfg Config) error {
 	}
 
 	if cfg.Stack != nil {
-
 		stack := cfg.Stack
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()

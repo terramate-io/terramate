@@ -24,9 +24,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `generate_*.inherit` attribute for controlling if generate blocks must be inherited
+  into child stacks.
 - Add `terramate cloud login --github` for authenticating with the Github account.
 - Add experimental support for `tmgen` file extension for easy code generation/templating
   of existing infrastructure. You can enable it with `terramate.config.experimental = ["tmgen"]`.
+- Add `--watch` flag to `terramate create` for populating the `stack.watch` field.
+- Add support for parsing and generating code containing HCL namespaced functions.
+  - Check [here](https://github.com/hashicorp/hcl/pull/639) for details.
 - Make cloud-related options more concise by dropping the `cloud` prefix.
   - Option flags `--cloud-*` are shortened to `--*`, e.g. `--cloud-status=ok` => `--status=ok`.
   - Script command options `cloud_*` are shorted to `*`, e.g. `cloud_sync_deployment` => `sync_deployment`.

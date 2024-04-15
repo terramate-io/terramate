@@ -52,7 +52,7 @@ type (
 		WantedBy []string
 
 		// Watch is the list of files to be watched for changes.
-		Watch []project.Path
+		Watch project.Paths
 
 		// IsChanged tells if this is a changed stack.
 		IsChanged bool
@@ -91,7 +91,7 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 		name = filepath.Base(cfg.AbsDir())
 	}
 
-	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
+	watchFiles, err := ValidateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
 	if err != nil {
 		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
@@ -249,7 +249,9 @@ func (s *Stack) Sortable() *SortableStack {
 	}
 }
 
-func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
+// ValidateWatchPaths validates if the provided watch paths points to regular files
+// inside the project repository.
+func ValidateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
 	for _, pathstr := range paths {
 		var abspath string
