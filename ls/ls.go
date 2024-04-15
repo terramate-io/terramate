@@ -364,11 +364,10 @@ func (s *Server) checkFiles(files []string, currentFile string, currentContent s
 	dir := filepath.Dir(currentFile)
 	var experiments []string
 	root, rootdir, found, err := config.TryLoadConfig(dir)
-	if err == nil {
-		experiments = root.Tree().Node.Experiments()
-	}
 	if !found {
 		rootdir = s.workspace
+	} else if err == nil {
+		experiments = root.Tree().Node.Experiments()
 	}
 
 	parser, err := hcl.NewTerramateParser(rootdir, dir, experiments...)

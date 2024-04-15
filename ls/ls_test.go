@@ -45,6 +45,24 @@ func TestDocumentOpen(t *testing.T) {
 		params.URI.Filename())
 }
 
+func TestDocumentOpenWithoutRootConfig(t *testing.T) {
+	t.Parallel()
+	f := lstest.SetupNoRootConfig(t)
+
+	stack := f.Sandbox.CreateStack("stack")
+	f.Editor.CheckInitialize(f.Sandbox.RootDir())
+	f.Editor.Open(fmt.Sprintf("stack/%s", stackpkg.DefaultFilename))
+	r := <-f.Editor.Requests
+	assert.EqualStrings(t, "textDocument/publishDiagnostics", r.Method(),
+		"unexpected notification request")
+
+	var params lsp.PublishDiagnosticsParams
+	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
+	assert.EqualInts(t, 0, len(params.Diagnostics))
+	assert.EqualStrings(t, filepath.Join(stack.Path(), stackpkg.DefaultFilename),
+		params.URI.Filename())
+}
+
 func TestDocumentRegressionErrorLoadingRootConfig(t *testing.T) {
 	t.Parallel()
 	f := lstest.Setup(t)
