@@ -26,7 +26,7 @@ func (c *cli) printScriptInfo() {
 
 	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
 	if err != nil {
-		fatal("computing selected stacks", err)
+		fatalWithDetails(err, "computing selected stacks")
 	}
 
 	m := newScriptsMatcher(labels)

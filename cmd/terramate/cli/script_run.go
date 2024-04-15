@@ -21,6 +21,12 @@ import (
 	"github.com/terramate-io/terramate/stdlib"
 )
 
+const (
+	cloudFeatScriptSyncDeployment  = "Script option 'sync_deployment' is a Terramate Cloud feature to synchronize deployment details to Terramate Cloud."
+	cloudFeatScriptSyncDriftStatus = "Script option 'sync_drift_status' is a Terramate Cloud feature to synchronize drift and health check results to Terramate Cloud."
+	cloudFeatScriptSyncPreview     = "Script option 'sync_preview' is a Terramate Cloud feature to synchronize deployment previews to Terramate Cloud."
+)
+
 func (c *cli) runScript() {
 	c.gitSafeguardDefaultBranchIsReachable()
 	c.checkOutdatedGeneratedCode()
@@ -29,11 +35,11 @@ func (c *cli) runScript() {
 	if c.parsedArgs.Script.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatal("failed to load stack in current directory", err)
+			fatalWithDetails(err, "failed to load stack in current directory")
 		}
 
 		if !found {
-			fatal("--no-recursive provided but no stack found in the current directory", nil)
+			fatal("--no-recursive provided but no stack found in the current directory")
 		}
 
 		stacks = append(stacks, st.Sortable())
@@ -41,7 +47,7 @@ func (c *cli) runScript() {
 		var err error
 		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Script.Run.Status))
 		if err != nil {
-			fatal("failed to compute selected stacks", err)
+			fatalWithDetails(err, "failed to compute selected stacks")
 		}
 	}
 
@@ -79,12 +85,12 @@ func (c *cli) runScript() {
 
 			ectx, err := scriptEvalContext(c.cfg(), st.Stack)
 			if err != nil {
-				fatal("failed to get context", err)
+				fatalWithDetails(err, "failed to get context")
 			}
 
 			evalScript, err := config.EvalScript(ectx, *result.ScriptCfg)
 			if err != nil {
-				fatal("failed to eval script", err)
+				fatalWithDetails(err, "failed to eval script")
 			}
 
 			for jobIdx, job := range evalScript.Jobs {
@@ -123,7 +129,7 @@ func (c *cli) runScript() {
 		Parallel:        c.parsedArgs.Script.Run.Parallel,
 	})
 	if err != nil {
-		fatal("one or more commands failed", err)
+		fatalWithDetails(err, "one or more commands failed")
 	}
 }
 
@@ -139,6 +145,17 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 		return
 	}
 
+	var feats []string
+	if len(deployRuns) > 0 {
+		feats = append(feats, cloudFeatScriptSyncDeployment)
+	}
+	if len(driftRuns) > 0 {
+		feats = append(feats, cloudFeatScriptSyncDriftStatus)
+	}
+	if len(previewRuns) > 0 {
+		feats = append(feats, cloudFeatScriptSyncPreview)
+	}
+
 	if len(previewRuns) > 0 && os.Getenv("GITHUB_ACTIONS") == "" {
 		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
 		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
@@ -149,7 +166,7 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 		return
 	}
 
-	err := c.setupCloudConfig()
+	err := c.setupCloudConfig(feats)
 	c.handleCriticalError(err)
 
 	if c.cloud.disabled {

@@ -41,13 +41,6 @@ const (
 	maxPort = 52023
 )
 
-// ErrIDPNeedConfirmation is an error indicating the user has multiple providers set up and
-// linking them is needed.
-const ErrIDPNeedConfirmation errors.Kind = "the account was already set up with another email provider"
-
-// ErrEmailNotVerified is an error indicating that user's email need to be verified.
-const ErrEmailNotVerified errors.Kind = "email is not verified"
-
 type (
 	googleCredential struct {
 		mu sync.RWMutex
@@ -100,7 +93,7 @@ type (
 	}
 )
 
-func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) (string, []string, error) {
+func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
 		errChan:        make(chan tokenError),
@@ -121,7 +114,7 @@ func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) (string, 
 
 	consentData, err := createAuthURI(<-redirectURLChan, idpKey)
 	if err != nil {
-		return "", nil, err
+		return err
 	}
 
 	consentDataChan <- consentData
@@ -142,9 +135,9 @@ func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) (string, 
 		output.MsgStdOutV("Token: %s", cred.IDToken)
 		expire, _ := strconv.Atoi(cred.ExpiresIn)
 		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-		return cred.Email, nil, saveCredential(output, cred, clicfg)
+		return saveCredential(output, cred, clicfg)
 	case err := <-h.errChan:
-		return err.email, err.alreadyUsedProviders, err.err
+		return err.err
 	}
 }
 
@@ -258,12 +251,12 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 	return respURL, nil
 }
 
-func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credentialInfo, email string, providers []string, err error) {
+func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credentialInfo, err error) {
 	const endpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp"
 
 	reqData, err := stdjson.Marshal(reqPayload)
 	if err != nil {
-		return credentialInfo{}, "", nil, err
+		return credentialInfo{}, err
 	}
 
 	url := endpointURL(endpoint, idpKey)
@@ -272,7 +265,7 @@ func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credenti
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url.String(), bytes.NewBuffer(reqData))
 	if err != nil {
-		return credentialInfo{}, "", nil, err
+		return credentialInfo{}, err
 	}
 
 	req.Header.Add("content-type", "application/json")
@@ -281,31 +274,31 @@ func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credenti
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return credentialInfo{}, "", nil, errors.E(err, "failed to start authentication process")
+		return credentialInfo{}, errors.E(err, "failed to start authentication process")
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return credentialInfo{}, "", nil, errors.E(err)
+		return credentialInfo{}, errors.E(err)
 	}
 
 	if resp.StatusCode != 200 {
-		return credentialInfo{}, "", nil, errors.E("%s request returned %d", req.URL, resp.StatusCode)
+		return credentialInfo{}, errors.E("%s request returned %d", req.URL, resp.StatusCode)
 	}
 
 	var creds credentialInfo
 	err = stdjson.Unmarshal(data, &creds)
 	if err != nil {
-		return credentialInfo{}, "", nil, err
+		return credentialInfo{}, err
 	}
 	if creds.NeedConfirmation {
-		return credentialInfo{}, creds.Email, creds.VerifiedProviders, errors.E(ErrIDPNeedConfirmation)
+		return credentialInfo{}, newIDPNeedConfirmationError(creds.VerifiedProviders)
 	}
 	if !creds.EmailVerified {
-		return credentialInfo{}, creds.Email, nil, errors.E(ErrEmailNotVerified)
+		return credentialInfo{}, newEmailNotVerifiedError(creds.Email)
 	}
-	return creds, creds.Email, nil, nil
+	return creds, nil
 }
 
 func (c credentialInfo) UserDisplayName() string {
@@ -316,9 +309,7 @@ func (c credentialInfo) UserDisplayName() string {
 }
 
 type tokenError struct {
-	err                  error
-	alreadyUsedProviders []string
-	email                string
+	err error
 }
 
 type tokenHandler struct {
@@ -363,13 +354,11 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ReturnIdpCredential: true,
 	}
 
-	creds, email, alreadyUsedProviders, err := signInWithIDP(reqPayload, idpkey())
+	creds, err := signInWithIDP(reqPayload, idpkey())
 	if err != nil {
 		h.handleErr(w)
 		h.errChan <- tokenError{
-			err:                  err,
-			alreadyUsedProviders: alreadyUsedProviders,
-			email:                email,
+			err: err,
 		}
 		return
 	}
@@ -444,7 +433,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 func endpointURL(endpoint string, idpKey string) *url.URL {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		fatal("failed to parse endpoint URL for createAuthURI", err)
+		fatalWithDetails(err, "failed to parse endpoint URL for createAuthURI")
 	}
 
 	q := u.Query()
@@ -637,7 +626,7 @@ func (g *googleCredential) fetchDetails() error {
 
 	if err != nil {
 		if errors.IsKind(err, cloud.ErrNotFound) {
-			return errors.E(clitest.ErrCloudOnboardingIncomplete)
+			return errors.E(clitest.ErrCloudOnboardingIncomplete, ErrLoginRequired)
 		}
 		return err
 	}
