@@ -21,7 +21,7 @@ require (
 	github.com/gruntwork-io/terragrunt v0.55.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/hc-install v0.6.1
-	github.com/hashicorp/hcl/v2 v2.17.0
+	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hashicorp/terraform-json v0.17.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
@@ -39,7 +39,7 @@ require (
 	go.lsp.dev/uri v0.3.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	golang.org/x/oauth2 v0.13.0
-	golang.org/x/sync v0.4.0
+	golang.org/x/sync v0.5.0
 )
 
 require (
@@ -61,6 +61,7 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
+	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.50.0 // indirect
@@ -142,6 +143,7 @@ require (
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
+	golang.org/x/tools v0.15.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.149.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
