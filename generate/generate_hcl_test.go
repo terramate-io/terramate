@@ -88,6 +88,42 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			// check: https://github.com/hashicorp/hcl/pull/639
+			name: "ensure code generation supports HCL function namespaces",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("any"),
+						Content(
+							Expr("result", `foo::upper("foo")`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"any": Doc(
+							Expr("result", `foo::upper("foo")`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"any"},
+					},
+				},
+			},
+		},
+		{
 			// This is a regression test for a severe bug on extension
 			name: "multiple stacks extending imported globals on parent",
 			layout: []string{
