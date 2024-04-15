@@ -370,6 +370,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 			}
 			r.CloudSyncPreview = v.True()
 
+		case "layer":
+			fallthrough
 		case "sync_layer":
 			fallthrough
 		case "cloud_sync_layer":
@@ -386,6 +388,8 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 					"command option '%s' must contain only alphanumeric characters and hyphens", ks))
 			}
 
+		case "terraform_plan_file":
+			fallthrough
 		case "sync_terraform_plan_file":
 			fallthrough
 		case "cloud_sync_terraform_plan_file":

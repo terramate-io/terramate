@@ -76,7 +76,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					  commands = [
 						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
 						  sync_preview             = true,
-						  sync_terraform_plan_file = "out.tfplan",
+						  terraform_plan_file = "out.tfplan",
 						}],
 					  ]
 					}
@@ -130,7 +130,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					  commands = [
 						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
 						  sync_preview             = true,
-						  sync_terraform_plan_file = "out.tfplan",
+						  terraform_plan_file = "out.tfplan",
 						}],
 					  ]
 					}
