@@ -5,6 +5,7 @@ package core_test
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -105,6 +106,8 @@ func TestCreateStack(t *testing.T) {
 		stackAfter2      = "stack-after-2"
 		stackBefore1     = "stack-before-1"
 		stackBefore2     = "stack-before-2"
+		watch1           = "watched1.txt"
+		watch2           = "watched2.txt"
 		stackTag1        = "a"
 		stackTag2        = "b"
 		genFilename      = "file.txt"
@@ -154,11 +157,18 @@ func TestCreateStack(t *testing.T) {
 			absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
 			got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
+			stackBasePath := project.NewPath(path.Join("/", stackPath))
+			wantWatch := project.Paths{
+				stackBasePath.Join(watch1),
+				stackBasePath.Join(watch2),
+			}
+
 			assert.EqualStrings(t, stackID, got.ID)
 			assert.EqualStrings(t, stackName, got.Name, "checking stack name")
 			assert.EqualStrings(t, stackDescription, got.Description, "checking stack description")
 			test.AssertDiff(t, got.After, []string{stackAfter1, stackAfter2}, "created stack has invalid after")
 			test.AssertDiff(t, got.Before, []string{stackBefore1, stackBefore2}, "created stack has invalid before")
+			test.AssertDiff(t, got.Watch, wantWatch, "created stack has invalid watch")
 			test.AssertDiff(t, got.Tags, []string{stackTag1, stackTag2})
 
 			test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{stackImport1, stackImport2})
@@ -179,6 +189,8 @@ func TestCreateStack(t *testing.T) {
 		"--after", stackAfter2,
 		"--before", stackBefore1,
 		"--before", stackBefore2,
+		"--watch", watch1,
+		"--watch", watch2,
 		"--tags", stackTag1,
 		"--tags", stackTag2,
 	)
@@ -189,6 +201,7 @@ func TestCreateStack(t *testing.T) {
 		"--import", strings.Join([]string{stackImport1, stackImport2}, ","),
 		"--after", strings.Join([]string{stackAfter1, stackAfter2}, ","),
 		"--before", strings.Join([]string{stackBefore1, stackBefore2}, ","),
+		"--watch", strings.Join([]string{watch1, watch2}, ","),
 		"--tags", strings.Join([]string{stackTag1, stackTag2}, ","),
 	)
 }

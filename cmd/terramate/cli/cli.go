@@ -126,6 +126,7 @@ type cliSpec struct {
 		Import         []string `help:"Add 'import' block to the configuration of the new stack."`
 		After          []string `help:"Add 'after' attribute to the configuration of the new stack."`
 		Before         []string `help:"Add 'before' attribute to the configuration of the new stack."`
+		Watch          []string `help:"Add 'watch' attribute to the configuration of the new stack."`
 		IgnoreExisting bool     `help:"Skip creation without error when the stack already exist."`
 		AllTerraform   bool     `help:"Import existing Terraform Root Modules as stacks."`
 		AllTerragrunt  bool     `help:"Import existing Terragrunt Modules as stacks."`
@@ -1305,6 +1306,7 @@ func (c *cli) scanCreate() {
 		c.parsedArgs.Create.IgnoreExisting ||
 		len(c.parsedArgs.Create.After) != 0 ||
 		len(c.parsedArgs.Create.Before) != 0 ||
+		len(c.parsedArgs.Create.Watch) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
 
 		fatal(
@@ -1316,6 +1318,7 @@ func (c *cli) scanCreate() {
 					"--description, "+
 					"--after, "+
 					"--before, "+
+					"--watch, "+
 					"--import, "+
 					" --ignore-existing",
 				flagname,
@@ -1510,6 +1513,11 @@ func (c *cli) createStack() {
 		tags = append(tags, strings.Split(tag, ",")...)
 	}
 
+	watch, err := config.ValidateWatchPaths(c.rootdir(), stackHostDir, c.parsedArgs.Create.Watch)
+	if err != nil {
+		fatal("invalid --watch argument value", err)
+	}
+
 	stackSpec := config.Stack{
 		Dir:         prj.PrjAbsPath(c.rootdir(), stackHostDir),
 		ID:          stackID,
@@ -1517,10 +1525,11 @@ func (c *cli) createStack() {
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
+		Watch:       watch,
 		Tags:        tags,
 	}
 
-	err := stack.Create(c.cfg(), stackSpec, c.parsedArgs.Create.Import...)
+	err = stack.Create(c.cfg(), stackSpec, c.parsedArgs.Create.Import...)
 	if err != nil {
 		logger := log.With().
 			Stringer("stack", stackSpec.Dir).

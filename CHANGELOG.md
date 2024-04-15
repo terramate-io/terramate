@@ -29,6 +29,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `terramate cloud login --github` for authenticating with the Github account.
 - Add experimental support for `tmgen` file extension for easy code generation/templating
   of existing infrastructure. You can enable it with `terramate.config.experimental = ["tmgen"]`.
+- Add `--watch` flag to `terramate create` for populating the `stack.watch` field.
 - Add support for parsing and generating code containing HCL namespaced functions.
   - Check [here](https://github.com/hashicorp/hcl/pull/639) for details.
 - Make cloud-related options more concise by dropping the `cloud` prefix.

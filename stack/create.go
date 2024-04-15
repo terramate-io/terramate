@@ -72,6 +72,7 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 		Description: stack.Description,
 		After:       stack.After,
 		Before:      stack.Before,
+		Watch:       stack.Watch.Strings(),
 		Tags:        stack.Tags,
 	}
 
