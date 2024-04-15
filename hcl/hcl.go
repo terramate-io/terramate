@@ -259,8 +259,8 @@ type GenHCLBlock struct {
 	// Asserts represents all assert blocks
 	Asserts []AssertConfig
 
-	// NonInheritable tells if the block must not be inherited in child directories.
-	NonInheritable bool
+	// Inherit tells if the block is inherited in child directories.
+	Inherit *hclsyntax.Attribute
 
 	// IsImplicitBlock tells if the block is implicit (does not have a real generate_hcl block).
 	// This is the case for the "tmgen" feature.
@@ -269,6 +269,9 @@ type GenHCLBlock struct {
 
 // GenFileBlock represents a parsed generate_file block
 type GenFileBlock struct {
+	// Dir where the block is declared.
+	Dir project.Path
+
 	// Range is the range of the entire block definition.
 	Range info.Range
 	// Label of the block
@@ -285,6 +288,9 @@ type GenFileBlock struct {
 	Context string
 	// Asserts represents all assert blocks
 	Asserts []AssertConfig
+
+	// Inherit tells if the block is inherited in child directories.
+	Inherit *hclsyntax.Attribute
 }
 
 // Evaluator represents a Terramate evaluator
@@ -986,12 +992,14 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	return GenHCLBlock{
+		Dir:          block.Range.Path().Dir(),
 		Range:        block.Range,
 		Label:        block.Labels[0],
 		Lets:         lets,
 		Asserts:      asserts,
 		Content:      content.AsHCLBlock(),
 		Condition:    block.Body.Attributes["condition"],
+		Inherit:      block.Body.Attributes["inherit"],
 		StackFilters: stackFilters,
 	}, nil
 }
@@ -1061,6 +1069,14 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		}
 	}
 
+	inherit := block.Body.Attributes["inherit"]
+	if inherit != nil && context == "root" {
+		errs.Append(errors.E(ErrTerramateSchema,
+			inherit.Range(),
+			`inherit attribute cannot be used with context=root`,
+		))
+	}
+
 	if err := errs.AsError(); err != nil {
 		return GenFileBlock{}, err
 	}
@@ -1071,6 +1087,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 	}
 
 	return GenFileBlock{
+		Dir:          block.Range.Path().Dir(),
 		Range:        block.Range,
 		Label:        block.Labels[0],
 		Lets:         lets,
@@ -1078,6 +1095,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		StackFilters: stackFilters,
 		Content:      block.Body.Attributes["content"],
 		Condition:    block.Body.Attributes["condition"],
+		Inherit:      inherit,
 		Context:      context,
 	}, nil
 }
@@ -1130,6 +1148,10 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 		Attributes: []hcl.AttributeSchema{
 			{
 				Name:     "condition",
+				Required: false,
+			},
+			{
+				Name:     "inherit",
 				Required: false,
 			},
 		},
@@ -1198,6 +1220,10 @@ func validateGenerateFileBlock(block *ast.Block) error {
 			},
 			{
 				Name:     "condition",
+				Required: false,
+			},
+			{
+				Name:     "inherit",
 				Required: false,
 			},
 			{

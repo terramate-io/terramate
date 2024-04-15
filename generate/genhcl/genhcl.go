@@ -72,9 +72,15 @@ const (
 	// ErrConditionEval indicates the failure to evaluate the condition attribute.
 	ErrConditionEval errors.Kind = "evaluating condition attribute"
 
+	// ErrInheritEval indicates the failure to evaluate the inherit attribute.
+	ErrInheritEval errors.Kind = "evaluating inherit attribute"
+
 	// ErrInvalidConditionType indicates the condition attribute
 	// has an invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
+
+	// ErrInvalidInheritType indicates the inherit attribute has an invalid type.
+	ErrInvalidInheritType errors.Kind = "invalid inherit type"
 
 	// ErrInvalidDynamicIterator indicates that the iterator of a tm_dynamic block
 	// is invalid.
@@ -270,6 +276,29 @@ func Load(
 			continue
 		}
 
+		inherit := true
+		if hclBlock.Inherit != nil {
+			value, err := evalctx.Eval(hclBlock.Inherit.Expr)
+			if err != nil {
+				return nil, errors.E(ErrInheritEval, err)
+			}
+
+			if value.Type() != cty.Bool {
+				return nil, errors.E(
+					ErrInvalidInheritType,
+					`"inherit" has type %s but must be boolean`,
+					value.Type().FriendlyName(),
+				)
+			}
+
+			inherit = value.True()
+		}
+
+		if !inherit && hclBlock.Dir != st.Dir {
+			// ignore non-inheritable block
+			continue
+		}
+
 		asserts := make([]config.Assert, len(hclBlock.Asserts))
 		assertsErrs := errors.L()
 		assertFailed := false
@@ -358,13 +387,7 @@ func loadGenHCLBlocks(root *config.Root, st *config.Stack, cfgdir project.Path) 
 	res := []hcl.GenHCLBlock{}
 	cfg, ok := root.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
-		hclBlocks := cfg.Node.Generate.HCLs
-		for _, block := range hclBlocks {
-			if block.NonInheritable && block.Dir != st.Dir {
-				continue
-			}
-			res = append(res, block)
-		}
+		res = append(res, cfg.Node.Generate.HCLs...)
 	}
 
 	parentCfgDir := cfgdir.Dir()
