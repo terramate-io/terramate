@@ -37,6 +37,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - Script command options `cloud_*` are shorted to `*`, e.g. `cloud_sync_deployment` => `sync_deployment`.
   - Old flags and command options are still supported as aliases for the new ones.
 
+### Changed
+
+- Terragrunt integration is now stable and ready for production use.
+
 ### Fixed
 
 - Language server panics when editing a file outside a repository.
