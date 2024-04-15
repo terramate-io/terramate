@@ -29,8 +29,6 @@ type (
 	Manager struct {
 		root *config.Root // whole config
 		git  *git.Git
-
-		hasTerragruntExperimentsEnabled bool
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -67,9 +65,8 @@ func NewManager(root *config.Root) *Manager {
 // NewGitAwareManager returns a stack manager that supports change detection.
 func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 	return &Manager{
-		root:                            root,
-		git:                             git,
-		hasTerragruntExperimentsEnabled: root.HasExperiment("terragrunt"),
+		root: root,
+		git:  git,
 	}
 }
 
@@ -207,16 +204,13 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 	}
 
 	// discover Terragrunt modules
-	var tgModules tg.Modules
+	tgModules, err := tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
+	if err != nil {
+		return nil, errors.E(errListChanged, err, "scanning terragrunt modules")
+	}
 	tgModulesMap := make(map[project.Path]*tg.Module)
-	if m.hasTerragruntExperimentsEnabled {
-		tgModules, err = tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
-		if err != nil {
-			return nil, errors.E(errListChanged, err, "scanning terragrunt modules")
-		}
-		for _, mod := range tgModules {
-			tgModulesMap[mod.Path] = mod
-		}
+	for _, mod := range tgModules {
+		tgModulesMap[mod.Path] = mod
 	}
 
 rangeStacks:
@@ -284,11 +278,6 @@ rangeStacks:
 
 		if err != nil {
 			return nil, errors.E(errListChanged, "checking if Terraform module changes", err)
-		}
-
-		// Terragrunt module change detection
-		if !m.hasTerragruntExperimentsEnabled {
-			continue
 		}
 
 		tgMod, ok := tgModulesMap[stack.Dir]
