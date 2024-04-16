@@ -59,7 +59,9 @@ func InstallTerraform(preferredVersion string) (string, string, func(), error) {
 		return "", "", nil, errors.E(err, "installing Terraform")
 	}
 	log.Printf("Terraform installed version: %s", installVersion)
-	panic(installVersion)
+	if installVersion != preferredVersion {
+		panic(installVersion)
+	}
 	return execPath, installVersion, func() {
 		err := installer.Remove(context.Background())
 		if err != nil {
