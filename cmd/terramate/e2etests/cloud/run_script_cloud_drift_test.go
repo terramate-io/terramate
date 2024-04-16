@@ -273,7 +273,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
 							sync_drift_status = true
-							sync_terraform_plan_file = "out.tfplan"
+							terraform_plan_file = "out.tfplan"
 						}]`, HelperPathAsHCL)),
 					),
 				).String(),
@@ -313,7 +313,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						Expr("command", fmt.Sprintf(
 							`["%s", "exit", "2", {
 							sync_drift_status = true
-							sync_terraform_plan_file = "%s"
+							terraform_plan_file = "%s"
 						}]`, HelperPathAsHCL, absPlanFilePathAsHCL)),
 					),
 				).String(),
@@ -359,7 +359,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						Expr("command",
 							`["terraform", "plan", "-no-color", "-detailed-exitcode", "-out=out.tfplan", {
 							sync_drift_status = true
-							sync_terraform_plan_file = "out.tfplan"
+							terraform_plan_file = "out.tfplan"
 						}]`),
 					),
 				).String(),

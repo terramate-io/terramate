@@ -22,6 +22,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fixed remaining naming inconsistencies of some `cloud` script options.
+  - `--cloud-sync-terraform-plan-file` => `--terraform-plan-file` (flag), `terraform_plan_file` (script option)
+  - `--cloud-sync-layer` => `--layer` (flag), `layer` (script option)
+
 ## v0.6.1
 
 ### Added

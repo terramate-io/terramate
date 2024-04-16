@@ -27,7 +27,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			Block("job",
 				Expr("command", fmt.Sprintf(`["echo", "${terramate.stack.name}", {
 			sync_deployment = %v,
-			sync_terraform_plan_file = "%s"
+			terraform_plan_file = "%s"
 		}]`, syncDeployment, plan)),
 			),
 		).String()

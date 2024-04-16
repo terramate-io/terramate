@@ -536,7 +536,7 @@ func TestScriptEval(t *testing.T) {
 							["echo", "hello", {
 								sync_deployment = true
 								sync_preview = true
-								sync_terraform_plan_file = "plan_a"
+								terraform_plan_file = "plan_a"
 							}],
 						  ]
 						`),
@@ -546,7 +546,7 @@ func TestScriptEval(t *testing.T) {
 			wantErr: errors.E(config.ErrScriptInvalidCmdOptions),
 		},
 		{
-			name: "command options with invalid sync_layer",
+			name: "command options with invalid layer",
 			script: hcl.Script{
 				Labels:      labels,
 				Description: makeAttribute(t, "description", `"some description"`),
@@ -556,8 +556,8 @@ func TestScriptEval(t *testing.T) {
 						  [
 							["echo", "hello", {
 								sync_preview = true
-								sync_terraform_plan_file = "plan_a"
-								sync_layer = "a+b"
+								terraform_plan_file = "plan_a"
+								layer = "a+b"
 							}],
 						  ]
 						`),
@@ -577,8 +577,8 @@ func TestScriptEval(t *testing.T) {
 						  [
 							["echo", "hello", {
 								sync_preview = true
-								sync_terraform_plan_file = "plan_a"
-								sync_layer = "staging"
+								terraform_plan_file = "plan_a"
+								layer = "staging"
 							}],
 						  ]
 						`),
@@ -616,7 +616,7 @@ func TestScriptEval(t *testing.T) {
 						  [
 							["echo", "hello", {
 								sync_deployment = false
-								sync_terraform_plan_file = "plan_a"
+								terraform_plan_file = "plan_a"
 							}],
 						  ]
 						`),
@@ -625,7 +625,7 @@ func TestScriptEval(t *testing.T) {
 						Command: makeCommand(t, `
 							["echo", "hello", {
 								sync_deployment = true
-								sync_terraform_plan_file = "plan_b"
+								terraform_plan_file = "plan_b"
 							}]
 						`),
 					},
@@ -669,7 +669,7 @@ func TestScriptEval(t *testing.T) {
 						  [
 							["echo", "hello", {
 								sync_deployment = true
-								sync_terraform_plan_file = "plan_a"
+								terraform_plan_file = "plan_a"
 								terragrunt = true
 							}],
 						  ]
@@ -762,7 +762,7 @@ func TestScriptEval(t *testing.T) {
 							  [
 								["echo", "hello", {
 									sync_deployment = true
-									sync_terraform_plan_file = "plan_a"
+									terraform_plan_file = "plan_a"
 								}],
 							  ]
 							`),
@@ -771,7 +771,7 @@ func TestScriptEval(t *testing.T) {
 						Command: makeCommand(t, `
 								["echo", "hello", {
 									sync_deployment = true
-									sync_terraform_plan_file = "plan_a"
+									terraform_plan_file = "plan_a"
 								}]
 							`),
 					},
