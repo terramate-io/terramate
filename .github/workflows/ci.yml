@@ -64,6 +64,8 @@ jobs:
 
       - name: make test
         run: terramate run --tags golang --changed -- make test
+        env:
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
 
       - name: make build
         run: terramate run --tags golang --changed -- make build
