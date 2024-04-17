@@ -919,7 +919,7 @@ func IsRootConfig(rootdir string) (bool, error) {
 
 // parseGenerateHCLBlock the generate_hcl block.
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
+func parseGenerateHCLBlock(cfgdir project.Path, block *ast.Block) (GenHCLBlock, error) {
 	var (
 		content      *hclsyntax.Block
 		asserts      []AssertConfig
@@ -992,7 +992,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	return GenHCLBlock{
-		Dir:          block.Range.Path().Dir(),
+		Dir:          cfgdir,
 		Range:        block.Range,
 		Label:        block.Labels[0],
 		Lets:         lets,
@@ -1006,7 +1006,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 
 // parseGenerateFileBlock parses all Terramate files on the given dir, returning
 // parsed generate_file blocks.
-func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
+func parseGenerateFileBlock(cfgdir project.Path, block *ast.Block) (GenFileBlock, error) {
 	err := validateGenerateFileBlock(block)
 	if err != nil {
 		return GenFileBlock{}, err
@@ -1087,7 +1087,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 	}
 
 	return GenFileBlock{
-		Dir:          block.Range.Path().Dir(),
+		Dir:          cfgdir,
 		Range:        block.Range,
 		Label:        block.Labels[0],
 		Lets:         lets,
@@ -1974,6 +1974,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	var foundstack, foundVendor bool
 	var stackblock, vendorBlock *ast.Block
 
+	cfgdir := project.PrjAbsPath(p.rootdir, p.dir)
+
 	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
@@ -2006,14 +2008,14 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			vendorBlock = block
 
 		case "generate_hcl":
-			genhcl, err := parseGenerateHCLBlock(block)
+			genhcl, err := parseGenerateHCLBlock(cfgdir, block)
 			errs.Append(err)
 			if err == nil {
 				config.Generate.HCLs = append(config.Generate.HCLs, genhcl)
 			}
 
 		case "generate_file":
-			genfile, err := parseGenerateFileBlock(block)
+			genfile, err := parseGenerateFileBlock(cfgdir, block)
 			errs.Append(err)
 			if err == nil {
 				config.Generate.Files = append(config.Generate.Files, genfile)

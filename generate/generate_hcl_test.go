@@ -1648,6 +1648,63 @@ EOT
 			},
 		},
 		{
+			name: "generate with inherit=false from imported file on intermediate stack with child stack",
+			layout: []string{
+				"d:modules",
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", false),
+							Str("content", "hello"),
+						),
+					),
+				},
+				{
+					path:     "/s1",
+					filename: "gen.tm",
+					add: Doc(
+						Import(
+							Str("source", "/modules/imported.tm"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+						"root.txt": stringer("hello"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl", "root.txt"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_hcl with inherit=false on leaf stack with child stack",
 			layout: []string{
 				"s:/",
@@ -1871,6 +1928,132 @@ EOT
 					},
 					{
 						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl at root with inherit=global.inherit from import generating only in parent",
+			layout: []string{
+				"d:/modules",
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+				{
+					path: "/",
+					add: Doc(
+						Import(
+							Str("source", "/modules/imported.tm"),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl at root with inherit=global.inherit from import generating in both",
+			layout: []string{
+				"d:/modules",
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+				{
+					path: "/",
+					add: Doc(
+						Import(
+							Str("source", "/modules/imported.tm"),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1/s2",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
 						Created: []string{"root.hcl"},
 					},
 				},
