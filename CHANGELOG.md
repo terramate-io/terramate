@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fixed the `generate_*.inherit=false` case when the blocks are imported and inherited in child stacks.
+
 ## v0.6.2
 
 ### Fixed
