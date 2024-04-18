@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix `fmt --detailed-exit-code` not saving the modified files.
+
 ## v0.6.3
 
 ### Fixed

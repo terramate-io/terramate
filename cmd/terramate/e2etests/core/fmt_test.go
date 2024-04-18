@@ -94,15 +94,18 @@ name = "name"
 		assertWantedFilesContents(t, unformattedHCL)
 	})
 
-	t.Run("--detailed-exit-code returns status=2 when used on unformatted files", func(t *testing.T) {
+	t.Run("--detailed-exit-code returns status=2 when used on unformatted files - do modify the files", func(t *testing.T) {
+		// see: https://github.com/terramate-io/terramate/issues/1649
+		writeUnformattedFiles()
 		AssertRunResult(t, cli.Run("fmt", "--detailed-exit-code"), RunExpected{
 			Status: 2,
 			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, unformattedHCL)
+		assertWantedFilesContents(t, formattedHCL)
 	})
 
 	t.Run("checking fails with unformatted files on subdirs", func(t *testing.T) {
+		writeUnformattedFiles()
 		subdir := filepath.Join(s.RootDir(), "another-stacks")
 		cli := NewCLI(t, subdir)
 		AssertRunResult(t, cli.Run("fmt", "--check"), RunExpected{
@@ -117,6 +120,7 @@ name = "name"
 	})
 
 	t.Run("update unformatted files in place", func(t *testing.T) {
+		writeUnformattedFiles()
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{
 			Stdout: wantedFilesStr,
 		})
@@ -124,6 +128,8 @@ name = "name"
 	})
 
 	t.Run("checking succeeds when all files are formatted", func(t *testing.T) {
+		writeUnformattedFiles()
+		AssertRunResult(t, cli.Run("fmt"), RunExpected{IgnoreStdout: true})
 		AssertRunResult(t, cli.Run("fmt", "--check"), RunExpected{})
 		assertWantedFilesContents(t, formattedHCL)
 	})

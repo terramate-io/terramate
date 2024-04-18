@@ -1597,10 +1597,6 @@ func (c *cli) format() {
 		if c.parsedArgs.Fmt.Check {
 			os.Exit(1)
 		}
-
-		if c.parsedArgs.Fmt.DetailedExitCode {
-			os.Exit(2)
-		}
 	}
 
 	errs := errors.L()
@@ -1609,7 +1605,11 @@ func (c *cli) format() {
 	}
 
 	if err := errs.AsError(); err != nil {
-		fatalWithDetails(err, "saving files formatted files")
+		fatalWithDetails(err, "saving formatted files")
+	}
+
+	if len(results) > 0 && c.parsedArgs.Fmt.DetailedExitCode {
+		os.Exit(2)
 	}
 }
 
