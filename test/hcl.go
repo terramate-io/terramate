@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
@@ -62,10 +63,39 @@ func AssertGenCodeEquals(t *testing.T, got string, want string) {
 func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	t.Helper()
 
+	// Reasoning:
+	// It happened several times that fields were added to the
+	// hcl.Config tree and their respective assertXYZ() func
+	// was not updated to include the field in the assertion,
+	// leading to false positive test cases.
+	// The solution here for the aforementioned problem is not
+	// ideal but can potentially catch more mistakes like that.
+	//
+	// We run an initial cmp.Diff() over the entire hcl.Config{}
+	// and ignore the non-comparable fields. If a new field is
+	// introduced into a non-ignored type, then it will be compared
+	// by default. We must be very selective on what we ignore,
+	// in order to make this strategy work.
+
+	if diff := cmp.Diff(got, want,
+		cmpopts.IgnoreUnexported(hcl.Config{}),
+		cmpopts.IgnoreUnexported(project.Path{}),
+
+		// this contains the Raw HCL constructs and it was never tested here.
+		cmpopts.IgnoreFields(hcl.Config{}, "Imported"),
+
+		// Globals/Asserts/Scripts are mostly Attribute and Expr, which cannot be easily compared with cmp.Diff.
+		cmpopts.IgnoreFields(hcl.Config{}, "Globals", "Asserts", "Scripts"),
+		cmpopts.IgnoreFields(hcl.RunEnv{}, "Attributes"), // because Expr and Range
+		cmpopts.IgnoreFields(hcl.Config{}, "Generate"),
+	); diff != "" {
+		t.Logf("want: %+v", want)
+		t.Logf("got: %+v", got)
+		t.Fatal(diff)
+	}
+
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
-	assertStackBlock(t, got.Stack, want.Stack)
 	assertAssertsBlock(t, got.Asserts, want.Asserts, "terramate asserts")
-	AssertDiff(t, got.Vendor, want.Vendor, "terramate vendor")
 	assertGenHCLBlocks(t, got.Generate.HCLs, want.Generate.HCLs)
 	assertGenFileBlocks(t, got.Generate.Files, want.Generate.Files)
 	assertScriptBlocks(t, got.Scripts, want.Scripts)
@@ -411,22 +441,6 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	}
 
 	return string(file.Bytes())
-}
-
-func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
-	if (got == nil) != (want == nil) {
-		t.Fatalf("want[%+v] != got[%+v]", want, got)
-	}
-
-	if want == nil {
-		return
-	}
-
-	assert.EqualInts(t, len(got.After), len(want.After), "After length mismatch")
-
-	for i, w := range want.After {
-		assert.EqualStrings(t, w, got.After[i], "stack after mismatch")
-	}
 }
 
 // WriteRootConfig writes a basic terramate root config.
