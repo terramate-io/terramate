@@ -39,7 +39,8 @@ type ScriptCmdOptions struct {
 	CloudSyncDriftStatus   bool
 	CloudSyncPreview       bool
 	CloudSyncLayer         preview.Layer
-	CloudSyncTerraformPlan string
+	CloudTerraformPlanFile string
+	CloudTofuPlanFile      string
 	UseTerragrunt          bool
 }
 
@@ -399,7 +400,16 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 					ks, v.Type().FriendlyName()))
 				break
 			}
-			r.CloudSyncTerraformPlan = v.AsString()
+			r.CloudTerraformPlanFile = v.AsString()
+
+		case "tofu_plan_file":
+			if v.Type() != cty.String {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a string, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			r.CloudTofuPlanFile = v.AsString()
 
 		case "terragrunt":
 			if v.Type() != cty.Bool {
@@ -416,7 +426,12 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 
 		if r.CloudSyncDeployment && r.CloudSyncDriftStatus {
 			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
-				"command option 'sync_deployment' and 'sync_drift_status' are conflicting options in the same command"))
+				"'sync_deployment' and 'sync_drift_status' are conflicting options in the same command"))
+		}
+
+		if r.CloudTerraformPlanFile != "" && r.CloudTofuPlanFile != "" {
+			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+				"'terraform_plan_file' and 'tofu_plan_file' are conflicting options in the same command"))
 		}
 	}
 

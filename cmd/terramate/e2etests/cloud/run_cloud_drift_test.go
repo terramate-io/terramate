@@ -61,6 +61,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		defaultBranch string
 		cmd           []string
 		want          want
+		tofu          bool
 	}
 
 	absPlanFilePath := test.WriteFile(t, test.TempDir(t), "out.tfplan", ``)
@@ -478,6 +479,79 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 		},
 		{
+			name: "using --tofu-plan-file=out.tfplan",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s1/s2:id=s2",
+				"copy:s1:testdata/cloud-sync-drift-plan-file",
+				"copy:s1/s2:testdata/cloud-sync-drift-plan-file",
+				"run:s1:tofu init",
+				"run:s1/s2:tofu init",
+			},
+			runflags: []string{
+				`--tofu-plan-file=out.tfplan`,
+			},
+			tofu: true,
+			env: []string{
+				`TF_VAR_content=my secret`,
+			},
+			cmd: []string{
+				"tofu", "plan", "-no-color", "-detailed-exitcode", "-out=out.tfplan",
+			},
+			want: want{
+				run: RunExpected{
+					StdoutRegexes: []string{
+						`OpenTofu used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				},
+				drifts: expectedDriftStackPayloadRequests{
+					{
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository:    normalizedTestRemoteRepo,
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
+							},
+							Status: drift.Drifted,
+							Details: &cloud.ChangesetDetails{
+								Provisioner:   "opentofu",
+								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+							},
+							Metadata: expectedMetadata,
+						},
+						ChangesetASCIIRegexes: []string{
+							`OpenTofu used the selected providers to generate the following execution`,
+							`local_file.foo will be created`,
+						},
+					},
+					{
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository:    normalizedTestRemoteRepo,
+								DefaultBranch: "main",
+								Path:          "/s1/s2",
+								MetaName:      "s2",
+								MetaID:        "s2",
+							},
+							Status: drift.Drifted,
+							Details: &cloud.ChangesetDetails{
+								Provisioner:   "opentofu",
+								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+							},
+							Metadata: expectedMetadata,
+						},
+						ChangesetASCIIRegexes: []string{
+							`OpenTofu used the selected providers to generate the following execution`,
+							`local_file.foo will be created`,
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "drift with different default branch",
 			layout: []string{
 				"s:stack:id=stack",
@@ -585,10 +659,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								StderrRegex: "is drifted, but no details are available.",
 							})
 						} else {
+							s := "Terraform"
+							if tc.tofu {
+								s = "OpenTofu"
+							}
 							AssertRunResult(t, res, RunExpected{
 								Status: 0,
 								StdoutRegexes: []string{
-									"Terraform used the selected providers to generate the following execution",
+									s + " used the selected providers to generate the following execution",
 									`local_file.foo will be created`,
 								},
 							})
@@ -683,7 +761,12 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		assert.NoError(t, json.Unmarshal([]byte(got.Details.ChangesetJSON), &gotPlan))
 		assert.NoError(t, json.Unmarshal([]byte(expected.Details.ChangesetJSON), &wantPlan))
 
-		if diff := cmp.Diff(gotPlan, wantPlan, cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp", "FormatVersion")); diff != "" {
+		if diff := cmp.Diff(gotPlan, wantPlan,
+			// TODO (snk): Could also supply two planfiles, but I think this is fine, too.
+			cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp", "FormatVersion", "TerraformVersion"),
+			cmpopts.IgnoreFields(tfjson.ResourceChange{}, "ProviderName"),
+			cmpopts.IgnoreFields(tfjson.ProviderConfig{}, "FullName"),
+			cmpopts.IgnoreFields(tfjson.StateResource{}, "ProviderName")); diff != "" {
 			t.Logf("want: %+v", expected.Details.ChangesetJSON)
 			t.Logf("got: %+v", got.Details.ChangesetJSON)
 			t.Fatal(diff)

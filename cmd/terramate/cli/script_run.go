@@ -103,11 +103,16 @@ func (c *cli) runScript() {
 					}
 
 					if cmd.Options != nil {
+						planFile, planProvisioner := selectPlanFile(
+							cmd.Options.CloudTerraformPlanFile,
+							cmd.Options.CloudTofuPlanFile)
+
 						task.CloudSyncDeployment = cmd.Options.CloudSyncDeployment
 						task.CloudSyncDriftStatus = cmd.Options.CloudSyncDriftStatus
 						task.CloudSyncPreview = cmd.Options.CloudSyncPreview
 						task.CloudSyncLayer = cmd.Options.CloudSyncLayer
-						task.CloudSyncTerraformPlanFile = cmd.Options.CloudSyncTerraformPlan
+						task.CloudPlanFile = planFile
+						task.CloudPlanProvisioner = planProvisioner
 						task.UseTerragrunt = cmd.Options.UseTerragrunt
 					}
 					run.Tasks = append(run.Tasks, task)

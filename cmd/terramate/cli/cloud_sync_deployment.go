@@ -157,9 +157,9 @@ func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status)
 
 	var details *cloud.ChangesetDetails
 
-	if planfile := run.Task.CloudSyncTerraformPlanFile; planfile != "" {
+	if run.Task.CloudPlanFile != "" {
 		var err error
-		details, err = c.getTerraformChangeset(run, planfile)
+		details, err = c.getTerraformChangeset(run)
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
