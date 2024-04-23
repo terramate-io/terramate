@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -294,12 +293,9 @@ func StacksFromTrees(trees List[*Tree]) (List[*SortableStack], error) {
 }
 
 // LoadAllStacks loads all stacks inside the given rootdir.
-func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
-	logger := log.With().
-		Str("action", "stack.LoadAll()").
-		Str("root", cfg.RootDir()).
-		Logger()
-
+func LoadAllStacks(root *Root, cfg *Tree) (List[*SortableStack], error) {
+	falsy := false
+	root.hasTerragruntStacks = &falsy
 	stacks := List[*SortableStack]{}
 	stacksIDs := map[string]*Stack{}
 
@@ -309,12 +305,16 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 			return nil, err
 		}
 
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Debug().Msg("Found stack")
 		stacks = append(stacks, stack.Sortable())
+
+		if !*root.hasTerragruntStacks {
+			st, err := os.Lstat(
+				filepath.Join(stack.Dir.HostPath(root.HostDir()), "terragrunt.hcl"),
+			)
+			if err == nil && st.Mode().IsRegular() {
+				*root.hasTerragruntStacks = true
+			}
+		}
 
 		if stack.ID != "" {
 			if otherStack, ok := stacksIDs[strings.ToLower(stack.ID)]; ok {

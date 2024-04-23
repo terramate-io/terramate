@@ -73,7 +73,7 @@ func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() (*Report, error) {
-	entries, err := List(m.root.Tree())
+	entries, err := List(m.root, m.root.Tree())
 	if err != nil {
 		return nil, err
 	}
@@ -198,19 +198,24 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		}
 	}
 
-	allstacks, err := List(m.root.Tree())
+	allstacks, err := List(m.root, m.root.Tree())
 	if err != nil {
 		return nil, errors.E(errListChanged, "searching for stacks", err)
 	}
 
-	// discover Terragrunt modules
-	tgModules, err := tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
-	if err != nil {
-		return nil, errors.E(errListChanged, err, "scanning terragrunt modules")
-	}
 	tgModulesMap := make(map[project.Path]*tg.Module)
-	for _, mod := range tgModules {
-		tgModulesMap[mod.Path] = mod
+	var tgModules tg.Modules
+
+	if m.root.IsTerragruntChangeDetectionEnabled() {
+		// discover Terragrunt modules
+		tgModules, err = tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
+		if err != nil {
+			return nil, errors.E(errListChanged, err, "scanning terragrunt modules")
+		}
+
+		for _, mod := range tgModules {
+			tgModulesMap[mod.Path] = mod
+		}
 	}
 
 rangeStacks:
@@ -280,6 +285,7 @@ rangeStacks:
 			return nil, errors.E(errListChanged, "checking if Terraform module changes", err)
 		}
 
+		// tgModulesMap is only populated if Terragrunt is enabled.
 		tgMod, ok := tgModulesMap[stack.Dir]
 		if !ok {
 			continue
@@ -321,7 +327,7 @@ rangeStacks:
 // AddWantedOf returns all wanted stacks from the given stacks.
 func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
 	wantsDag := dag.New[*config.Stack]()
-	allstacks, err := config.LoadAllStacks(m.root.Tree())
+	allstacks, err := config.LoadAllStacks(m.root, m.root.Tree())
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
 	}

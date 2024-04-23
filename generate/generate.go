@@ -90,7 +90,7 @@ type LoadResult struct {
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
 func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
-	stacks, err := config.LoadAllStacks(root.Tree())
+	stacks, err := config.LoadAllStacks(root, root.Tree())
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +515,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 		Str("action", "generate.DetectOutdated()").
 		Logger()
 
-	stacks, err := config.LoadAllStacks(root.Tree())
+	stacks, err := config.LoadAllStacks(root, root.Tree())
 	if err != nil {
 		return nil, err
 	}

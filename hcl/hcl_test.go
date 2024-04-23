@@ -962,6 +962,102 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = auto",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "auto"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntConfig{
+									Enabled: hcl.TerragruntAutoOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = off",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "off"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntConfig{
+									Enabled: hcl.TerragruntOffOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = force",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "force"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntConfig{
+									Enabled: hcl.TerragruntForceOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}

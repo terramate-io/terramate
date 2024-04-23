@@ -22,6 +22,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `terramate.config.change_detection.terragrunt.enabled` attribute. It supports the values below:
+  - `auto` (*default*): Automatically detects if Terragrunt is being used and enables change detection if needed.
+  - `force`: Enables Terragrunt change detection even if no Terragrunt file is detected.
+  - `off`: Disables Terragrunt change detection.
+
 ## v0.6.4
 
 ### Fixed
