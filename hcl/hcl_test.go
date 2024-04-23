@@ -404,7 +404,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							Experiments: []string{},
+							Experiments: nil,
 						},
 					},
 				},
@@ -561,7 +561,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							DisableSafeguards: safeguard.Keywords{},
+							DisableSafeguards: nil,
 						},
 					},
 				},
