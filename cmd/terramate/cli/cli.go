@@ -1727,7 +1727,7 @@ func (c *cli) generateGraph() {
 		fatal(`-label expects the values "stack.name" or "stack.dir"`)
 	}
 
-	entries, err := stack.List(c.cfg().Tree())
+	entries, err := stack.List(c.cfg(), c.cfg().Tree())
 	if err != nil {
 		fatalWithDetails(err, "listing stacks to build graph")
 	}
