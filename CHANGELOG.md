@@ -20,7 +20,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## v0.7.0
+## v0.6.5
 
 ### Added
 
@@ -28,6 +28,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `auto` (*default*): Automatically detects if Terragrunt is being used and enables change detection if needed.
   - `force`: Enables Terragrunt change detection even if no Terragrunt file is detected.
   - `off`: Disables Terragrunt change detection.
+
+### Fixed
+
+- Fixed a performance regression in repositories having a lot of stacks.
 
 ## v0.6.4
 
