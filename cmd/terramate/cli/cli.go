@@ -2443,11 +2443,6 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		wd: wd,
 	}
 
-	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
-	if err != nil {
-		return project{}, false, err
-	}
-
 	gw, err := newGit(wd)
 	if err == nil {
 		gitdir, err := gw.Root()
@@ -2460,14 +2455,6 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			rootdir, err := filepath.EvalSymlinks(gitabs)
 			if err != nil {
 				return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
-			}
-
-			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
-				log.Warn().
-					Str("rootConfig", rootCfgPath).
-					Str("projectRoot", rootdir).
-					Err(errors.E(ErrRootCfgInvalidDir)).
-					Msg("ignoring root config")
 			}
 
 			cfg, err := config.LoadRoot(rootdir)
@@ -2487,6 +2474,11 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			return prj, true, nil
 		}
+	}
+
+	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
+	if err != nil {
+		return project{}, false, err
 	}
 
 	if !rootfound {
