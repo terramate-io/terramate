@@ -38,58 +38,75 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add `terramate.config.change_detection.terragrunt.enabled` attribute. It supports the values below:
-  - `auto` (*default*): Automatically detects if Terragrunt is being used and enables change detection if needed.
-  - `force`: Enables Terragrunt change detection even if no Terragrunt file is detected.
+  - `auto` (_default_): Automatically detects if Terragrunt is being used and enables change detection if needed.
+  - `force`: Enables Terragrunt change detection even if no Terragrunt file is detected in any stack.
   - `off`: Disables Terragrunt change detection.
 
 ### Fixed
 
-- Fixed a performance regression in repositories having a lot of stacks.
+- Fix a performance regression in repositories having a lot of stacks.
 
 ## v0.6.4
 
 ### Fixed
 
-- Fix `fmt --detailed-exit-code` not saving the modified files.
+- Fix `terramate fmt --detailed-exit-code` not saving the modified files.
 
 ## v0.6.3
 
 ### Fixed
 
-- Fixed the `generate_*.inherit=false` case when the blocks are imported and inherited in child stacks.
+- Fix the `generate_*.inherit=false` case when the blocks are imported and inherited in child stacks.
 
 ## v0.6.2
 
 ### Fixed
 
-- Fixed remaining naming inconsistencies of some `cloud` script options.
-  - `--cloud-sync-terraform-plan-file` => `--terraform-plan-file` (flag), `terraform_plan_file` (script option)
-  - `--cloud-sync-layer` => `--layer` (flag), `layer` (script option)
+- Fix remaining naming inconsistencies of some `cloud` script options.
+  - Rename CLI option `--sync-layer` to `--layer`
+  - Rename CLI option `--sync-terraform-plan-file` to `--terraform-plan-file`
+  - Rename Terramate Script option `sync_layer` to `layer`
+  - Rename Terramate Script option `sync_terraform_plan_file` to `terraform_plan_file`
+  - Old flags and command options are still supported as aliases for the new ones.
 
 ## v0.6.1
+
+### Experiments
+
+- Promote Terragrunt integration experiment to stable.
+  - Please remove `terragrunt` from `terramate.config.experimental` config.
+- Add new experiment `tmgen` which allows to generate HCL files in stacks without `generate_hcl` configurations.
+  - Please enable the experiment with `terramate.config.experimental = ["tmgen"]`.
 
 ### Added
 
 - Add `generate_*.inherit` attribute for controlling if generate blocks must be inherited
   into child stacks.
-- Add `terramate cloud login --github` for authenticating with the Github account.
-- Add experimental support for `tmgen` file extension for easy code generation/templating
-  of existing infrastructure. You can enable it with `terramate.config.experimental = ["tmgen"]`.
-- Add `--watch` flag to `terramate create` for populating the `stack.watch` field.
+- Add `terramate cloud login --github` for authenticating with the GitHub account.
+- Add `terramate create --watch` flag for populating the `stack.watch` field at stack creation.
 - Add support for parsing and generating code containing HCL namespaced functions.
-  - Check [here](https://github.com/hashicorp/hcl/pull/639) for details.
-- Make cloud-related options more concise by dropping the `cloud` prefix.
-  - Option flags `--cloud-*` are shortened to `--*`, e.g. `--cloud-status=ok` => `--status=ok`.
-  - Script command options `cloud_*` are shorted to `*`, e.g. `cloud_sync_deployment` => `sync_deployment`.
-  - Old flags and command options are still supported as aliases for the new ones.
+  - Check [HCL Changes](https://github.com/hashicorp/hcl/pull/639) for details.
 
 ### Changed
 
-- Terragrunt integration is now stable and ready for production use.
+- Rename Terramate Cloud options
+  - Rename CLI option `--cloud-sync-deployment` to `--sync-deployment`
+  - Rename CLI option `--cloud-sync-drift-status` to `--sync-drift-status`
+  - Rename CLI option `--cloud-sync-preview` to `--sync-preview`
+  - Rename CLI option `--cloud-sync-layer` to `--sync-layer` (WARN: fixed in next release to `--layer`)
+  - Rename CLI option `--cloud-sync-terraform-plan-file` to `--sync-terraform-plan-file` (WARN: fixed in next release to `--terraform-plan-file`)
+  - Rename CLI option `--cloud-status` to `--status`
+  - Rename Terramate Script option `cloud_sync_deployment` to `sync_deployment`
+  - Rename Terramate Script option `cloud_sync_drift-status` to `sync_drift_status`
+  - Rename Terramate Script option `cloud_sync_preview` to `sync_preview`
+  - Rename Terramate Script option `cloud_sync_layer` to `sync_layer` (WARN: fixed in next release to `layer`)
+  - Rename Terramate Script option `cloud_sync_terraform_plan_file` to `sync_terraform_plan_file` (WARN: fixed in next release to `terraform_plan_file`)
+  - Rename Terramate Script option `cloud_status` to `status`
+  - Old flags and command options are still supported as aliases for the new ones.
 
 ### Fixed
 
-- Language server panics when editing a file outside a repository.
+- Fix a panic in the language server when editing a file outside a repository.
 
 ## v0.6.0
 
@@ -98,18 +115,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - (**BREAKING CHANGE**) Enable change detection for dotfiles. You can still use `.gitignore` to ignore them (if needed).
 - Add a new flag `--continue-on-error` to `terramate script run`. When the flag
   is set and a command in a script returns an error:
-    - the script execution will be aborted and no further commands or jobs from that script will be run on the current stack node.
-    - the script execution will continue to run on the next stack node.
-    - `terramate script run` will return exit code 1 (same behaviour as `terramate run --continue-on-error`).
-- Add a new flag `--reverse` to `terramate script run`. When the flag is set, the script execution will happen in the reverse order of the selected stacks.  This is similar to `terramate run --reverse`.
-- Improved Terragrunt integration by adding `--terragrunt` flag.
-  - Instructs the CLI to use the Terragrunt binary when generating a plan file for cloud syncing.
-  - It's supported as a flag for `terramate run` and as a command option `terragrunt = true` for script commands.
+  - The script execution will be aborted and no further commands or jobs from that script will be run on the current stack node.
+  - The script execution will continue to run on the next stack node.
+  - `terramate script run` will return exit code 1 (same behavior as `terramate run --continue-on-error`).
+- Add a new flag `--reverse` to `terramate script run`. When the flag is set, the script execution will happen in the reverse order of the selected stacks. This is similar to `terramate run --reverse`.
+- Improve Terragrunt Integration for Terramate Cloud by adding `--terragrunt` flag and `terragrunt` script option to use `terragrunt` binary to create change details when synchronizing to Terramate Cloud
 
 ### Fixed
 
-- Fixed a bug in the dotfiles handling in the code generation. Now it's possible to generate files such as `.tflint.hcl`.
-- Fixed the cloning of stacks containing `import` blocks.
+- Fix a bug in the dotfiles handling in the code generation. Now it's possible to generate files such as `.tflint.hcl`.
+- Fix the cloning of stacks containing `import` blocks.
 
 ### Changed
 
@@ -134,21 +149,21 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- Fixed issue that prevented stack previews from being created when using uppercase letters in stack IDs.
+- Fix an issue that prevented stack previews from being created when using uppercase letters in stack IDs.
 
 ## v0.5.2
 
 ### Fixed
 
-- Fixed inconsistency in `stack.id` case-sensitivity when `--cloud-sync-*` flags are used.
+- Fix an inconsistency in `stack.id` case-sensitivity when `--cloud-sync-*` flags are used.
 
 ## v0.5.1
 
 ### Added
 
-- Terragrunt change detection.
-  - Terramate understands the structure of `terragrunt.hcl` files and detects changes if any other Terragrunt referenced file changes (`dependency`, `dependencies` and `include` blocks, function calls like `find_in_parent_folders()`, `read_terragrunt_config()`, etc).
-- Automatically add stack ordering to Terragrunt stacks created by `terramate create --all-terragrunt`.
+- Add Terragrunt change detection.
+  - Terramate understands the structure of `terragrunt.hcl` files and detects changes if any other Terragrunt referenced file changes (`dependency`, `dependencies` and `include` blocks, function calls like `find_in_parent_folders()`, `read_terragrunt_config()`).
+- Add `before` and `after` configuration to Terragrunt stacks created by `terramate create --all-terragrunt`.
 
 ## v0.5.0
 
@@ -166,10 +181,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for `--cloud-status` filter to `terramate run`
 - Add support for `--cloud-status` filter to `terramate script run`
 - Add support to synchronize previews to Terramate Cloud via new `terramate run --cloud-sync-preview`
-- Add `script.name` attribute. 
+- Add `script.name` attribute.
   - The commands `terramate script info`, `terramate script list` and `terramate script tree` were updated to show the script name (when available).
 - Improve user experience when using Terramate with existing Terragrunt projects.
-  - Add  `terramate create --all-terragrunt` option, which will automatically create Terramate stacks for each Terraform module.
+  - Add `terramate create --all-terragrunt` option, which will automatically create Terramate stacks for each Terraform module.
 - Allow to run independent stacks in parallel for faster deployments and better utilization of system resources in general.
   - Add `--parallel=N` (short `-j N`) option to `terramate run` and `terramate script run` to allow running up to `N` stacks in parallel.
   - Ordering constraints between stacks are still respected, i.e. `before`/`after`, parent before sub-folders.
@@ -208,7 +223,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Changed
 
-- Refactor Safeguard
+- Refactor Safeguards
 
   - Add `disable_safeguards` configuration and `--disable-safeguards` CLI option with possible values
     - `all` Disable ALL safeguards (use with care)
@@ -219,7 +234,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
       - `git-out-of-sync` Disable Safeguard that checks for being in sync with remote git
     - `outdated-code` Disable Safeguard that checks for outdated code
 
-- Promote cloud commands
+- Promote cloud commands from `experimental`
 
   - `terramate cloud login`
   - `terramate cloud info`
@@ -244,7 +259,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Deprecated
 
-- Old safeguard configuration options are now considered deprecated and will issue a warning when used in upcoming releases.
+- Deprecate old safeguard configuration options and issue a warning when used.
 
 ## 0.4.4
 
@@ -268,7 +283,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `terramate debug show generate-origins`
   - `terramate debug show runtime-env`
 
-- Improvements in the output of `list`, `run` and `create` commands.
+- Improve the output of `list`, `run` and `create` commands.
 
 ### Fixed
 
@@ -301,8 +316,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- Ensured that SIGINT aborts execution of subsequent stacks in all cases.
-- Removed non-supported functions (`tm_sensitive` and `tm_nonsensitive`)
+- Ensure that SIGINT aborts the execution of subsequent stacks in all cases.
+- Remove non-supported functions (`tm_sensitive` and `tm_nonsensitive`)
 
 ## 0.4.1
 
@@ -315,8 +330,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- Allow to specify multiple tags separated by comma when using `terramate create --tags` command.
-- Fixed inconsistent behaviour in `terramate create` vs. `terramate create --all-terraform`, both now populate the name/description fields the same way.
+- Allow to specify multiple tags separated by a comma when using `terramate create --tags` command.
+- Fix inconsistent behavior in `terramate create` vs. `terramate create --all-terraform`, both now populate the name/description fields the same way.
 
 ## 0.4.0
 
@@ -329,7 +344,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Changed
 
 - BREAKING CHANGE: Make `stack.id` case insensitive. If you used case to identify different stacks, the stack ID need to be adjusted. If you use the recommended UUIDs nothing has to be done.
-- We now distribute the Terramate Language Server `terramate-ls` alongside `terramate` to be able to pick up changes faster for IDEs.
+- Distribute the Terramate Language Server `terramate-ls` alongside `terramate` to be able to pick up changes faster for IDEs.
 
 ## 0.3.1
 
@@ -347,7 +362,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
-- Introduced the `terramate experimental cloud login` command.
+- Add the `terramate experimental cloud login` command.
 
 ### Fixed
 
