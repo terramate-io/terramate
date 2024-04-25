@@ -7,8 +7,8 @@ import "github.com/terramate-io/terramate/config"
 
 // List loads from the config all terramate stacks.
 // It returns a lexicographic sorted list of stack directories.
-func List(cfg *config.Tree) ([]Entry, error) {
-	stacks, err := config.LoadAllStacks(cfg)
+func List(root *config.Root, cfg *config.Tree) ([]Entry, error) {
+	stacks, err := config.LoadAllStacks(root, cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -161,6 +161,7 @@ type cliSpec struct {
 		Layer                      preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
 		CloudSyncTerraformPlanFile string        `hidden:""`
 		TerraformPlanFile          string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
+		TofuPlanFile               string        `default:"" help:"Add details of the OpenTofu Plan file to the synchronization to Terramate Cloud."`
 		DebugPreviewURL            string        `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
 		ContinueOnError            bool          `default:"false" help:"Do not stop execution when an error occurs."`
 		NoRecursive                bool          `default:"false" help:"Do not recurse into nested child stacks."`
@@ -1727,7 +1728,7 @@ func (c *cli) generateGraph() {
 		fatal(`-label expects the values "stack.name" or "stack.dir"`)
 	}
 
-	entries, err := stack.List(c.cfg().Tree())
+	entries, err := stack.List(c.cfg(), c.cfg().Tree())
 	if err != nil {
 		fatalWithDetails(err, "listing stacks to build graph")
 	}

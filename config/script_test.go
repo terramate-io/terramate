@@ -597,7 +597,7 @@ func TestScriptEval(t *testing.T) {
 									CloudSyncDeployment:    false,
 									CloudSyncPreview:       true,
 									CloudSyncLayer:         "staging",
-									CloudSyncTerraformPlan: "plan_a",
+									CloudTerraformPlanFile: "plan_a",
 								},
 							},
 						},
@@ -641,7 +641,7 @@ func TestScriptEval(t *testing.T) {
 								Args: []string{"echo", "hello"},
 								Options: &config.ScriptCmdOptions{
 									CloudSyncDeployment:    false,
-									CloudSyncTerraformPlan: "plan_a",
+									CloudTerraformPlanFile: "plan_a",
 								},
 							},
 						},
@@ -651,7 +651,7 @@ func TestScriptEval(t *testing.T) {
 							Args: []string{"echo", "hello"},
 							Options: &config.ScriptCmdOptions{
 								CloudSyncDeployment:    true,
-								CloudSyncTerraformPlan: "plan_b",
+								CloudTerraformPlanFile: "plan_b",
 							},
 						},
 					},
@@ -688,7 +688,7 @@ func TestScriptEval(t *testing.T) {
 								Options: &config.ScriptCmdOptions{
 									CloudSyncDeployment:    true,
 									UseTerragrunt:          true,
-									CloudSyncTerraformPlan: "plan_a",
+									CloudTerraformPlanFile: "plan_a",
 								},
 							},
 						},

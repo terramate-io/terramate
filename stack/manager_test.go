@@ -161,8 +161,33 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
-			name:        "single Terragrunt stack with single local Terraform module changed",
-			repobuilder: singleTerragruntStackWithSingleTerraformModuleChangedRepo,
+			name: "(terragrunt: auto): single Terragrunt stack with single local Terraform module changed",
+			repobuilder: func(t *testing.T) repository {
+				t.Helper()
+				return singleTerragruntStackWithSingleTerraformModuleChangedRepo(t, "auto")
+			},
+			want: listTestResult{
+				list:    []string{"/tg-stack"},
+				changed: []string{"/tg-stack"},
+			},
+		},
+		{
+			name: "(terragrunt: off): single Terragrunt stack with single local Terraform module changed",
+			repobuilder: func(t *testing.T) repository {
+				t.Helper()
+				return singleTerragruntStackWithSingleTerraformModuleChangedRepo(t, "off")
+			},
+			want: listTestResult{
+				list:    []string{"/tg-stack"},
+				changed: []string{},
+			},
+		},
+		{
+			name: "(terragrunt: force): single Terragrunt stack with single local Terraform module changed",
+			repobuilder: func(t *testing.T) repository {
+				t.Helper()
+				return singleTerragruntStackWithSingleTerraformModuleChangedRepo(t, "force")
+			},
 			want: listTestResult{
 				list:    []string{"/tg-stack"},
 				changed: []string{"/tg-stack"},
@@ -689,12 +714,16 @@ func singleTerragruntStackWithNoChangesRepo(t *testing.T) repository {
 	return repo
 }
 
-func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T) repository {
+func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T, enabledOption string) repository {
 	repo := singleMergeCommitRepoNoStack(t)
 	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
 		Block("terramate",
 			Block("config",
-				Expr("experiments", `["terragrunt"]`),
+				Block("change_detection",
+					Block("terragrunt",
+						Str("enabled", enabledOption),
+					),
+				),
 			),
 		),
 	).String())

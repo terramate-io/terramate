@@ -404,7 +404,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							Experiments: []string{},
+							Experiments: nil,
 						},
 					},
 				},
@@ -561,7 +561,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							DisableSafeguards: safeguard.Keywords{},
+							DisableSafeguards: nil,
 						},
 					},
 				},
@@ -956,6 +956,102 @@ func TestHCLParserRootConfig(t *testing.T) {
 						Config: &hcl.RootConfig{
 							Generate: &hcl.GenerateRootConfig{
 								HCLMagicHeaderCommentStyle: ptr("#"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = auto",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "auto"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntConfig{
+									Enabled: hcl.TerragruntAutoOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = off",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "off"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntConfig{
+									Enabled: hcl.TerragruntOffOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = force",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "force"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntConfig{
+									Enabled: hcl.TerragruntForceOption,
+								},
 							},
 						},
 					},

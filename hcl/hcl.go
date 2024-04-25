@@ -149,6 +149,26 @@ type GitConfig struct {
 	CheckRemote OptionalCheck
 }
 
+// ChangeDetectionConfig is the `terramate.config.change_detection` config.
+type ChangeDetectionConfig struct {
+	Terragrunt *TerragruntConfig
+}
+
+// TerragruntConfig is the `terramate.config.change_detection.terragrunt` config.
+type TerragruntConfig struct {
+	Enabled TerragruntChangeDetectionEnabledOption
+}
+
+// TerragruntChangeDetectionEnabledOption is the change detection options for enabling Terragrunt.
+type TerragruntChangeDetectionEnabledOption int
+
+// Terragrunt Enabling options.
+const (
+	TerragruntAutoOption TerragruntChangeDetectionEnabledOption = iota
+	TerragruntOffOption
+	TerragruntForceOption
+)
+
 // GenerateRootConfig represents the AST node for the `terramate.config.generate` block.
 type GenerateRootConfig struct {
 	HCLMagicHeaderCommentStyle *string
@@ -164,6 +184,7 @@ type CloudConfig struct {
 type RootConfig struct {
 	Git               *GitConfig
 	Generate          *GenerateRootConfig
+	ChangeDetection   *ChangeDetectionConfig
 	Run               *RunConfig
 	Cloud             *CloudConfig
 	Experiments       []string
@@ -913,8 +934,10 @@ func IsRootConfig(rootdir string) (bool, error) {
 	if terramate == nil {
 		return false, nil
 	}
-	_, ok := terramate.Blocks[ast.NewEmptyLabelBlockType("config")]
-	return ok, nil
+	if _, ok := terramate.Attributes["required_version"]; ok {
+		return ok, nil
+	}
+	return false, nil
 }
 
 // parseGenerateHCLBlock the generate_hcl block.
@@ -1659,7 +1682,7 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "run", "cloud"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "change_detection", "run", "cloud"))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
@@ -1683,6 +1706,12 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		cfg.Generate = &GenerateRootConfig{}
 
 		errs.Append(parseGenerateRootConfig(cfg.Generate, generateBlock))
+	}
+
+	changeDetectionBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("change_detection")]
+	if ok {
+		cfg.ChangeDetection = &ChangeDetectionConfig{}
+		errs.Append(parseChangeDetectionConfig(cfg.ChangeDetection, changeDetectionBlock))
 	}
 
 	return errs.AsError()
@@ -1783,6 +1812,70 @@ func parseGenerateRootConfig(cfg *GenerateRootConfig, generateBlock *ast.MergedB
 		}
 	}
 	return errs.AsError()
+}
+
+func parseChangeDetectionConfig(cfg *ChangeDetectionConfig, changeDetectionBlock *ast.MergedBlock) error {
+	err := changeDetectionBlock.ValidateSubBlocks("terragrunt")
+	if err != nil {
+		return err
+	}
+	terragruntBlock, ok := changeDetectionBlock.Blocks[ast.NewEmptyLabelBlockType("terragrunt")]
+	if !ok {
+		return nil
+	}
+
+	cfg.Terragrunt = &TerragruntConfig{}
+	return parseTerragruntConfig(cfg.Terragrunt, terragruntBlock)
+}
+
+func parseTerragruntConfig(cfg *TerragruntConfig, terragruntBlock *ast.MergedBlock) error {
+	errs := errors.L()
+	errs.Append(terragruntBlock.ValidateSubBlocks())
+
+	for _, attr := range terragruntBlock.Attributes {
+		switch attr.Name {
+		case "enabled":
+			value, diags := attr.Expr.Value(nil)
+			if diags.HasErrors() {
+				errs.Append(errors.E(diags,
+					"failed to evaluate terramate.config.change_detection.terragrunt.%s attribute", attr.Name,
+				))
+				continue
+			}
+			if value.Type() != cty.String {
+				errs.Append(attrErr(attr,
+					"terramate.config.change_detection.terragrunt.enabled is not a string but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
+
+			valStr := value.AsString()
+			var opt TerragruntChangeDetectionEnabledOption
+			switch valStr {
+			case "auto":
+				opt = TerragruntAutoOption
+			case "off":
+				opt = TerragruntOffOption
+			case "force":
+				opt = TerragruntForceOption
+			default:
+				errs.Append(attrErr(attr,
+					`terramate.config.change_detection.terragrunt.enabled must be either "auto", "off" or "force" but %q was given`,
+					valStr,
+				))
+			}
+
+			cfg.Enabled = opt
+		default:
+			errs.Append(errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.change_detection.terragrunt.%s",
+				attr.Name,
+			))
+		}
+	}
+	return nil
 }
 
 func parseRunEnv(runEnv *RunEnv, envBlock *ast.MergedBlock) error {

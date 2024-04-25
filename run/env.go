@@ -5,15 +5,17 @@ package run
 
 import (
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
+	"golang.org/x/exp/maps"
 
-	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -38,17 +40,10 @@ type EnvVars []string
 // LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
+// All defined `terramate.config.run.env` definitions from the provided stack dir
+// up to the root of the project are collected, and env definitions closer to the
+// stack have precedence over parent definitions.
 func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
-	logger := log.With().
-		Str("action", "run.Env()").
-		Str("root", root.HostDir()).
-		Stringer("stack", st).
-		Logger()
-
-	if !root.Tree().Node.HasRunEnv() {
-		return nil, nil
-	}
-
 	globalsReport := globals.ForStack(root, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
@@ -61,32 +56,61 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	evalctx.SetNamespace("global", globalsReport.Globals.AsValueMap())
 	evalctx.SetEnv(os.Environ())
 
-	envVars := EnvVars{}
+	tree, _ := root.Lookup(st.Dir)
+	envMap := map[string]string{}
+	skipMap := map[string]struct{}{}
 
-	attrs := root.Tree().Node.Terramate.Config.Run.Env.Attributes.SortedList()
+	for {
+		if tree.Node.HasRunEnv() {
+			attrs := tree.Node.Terramate.Config.Run.Env.Attributes.SortedList()
 
-	for _, attr := range attrs {
-		logger = logger.With().
-			Str("attribute", attr.Name).
-			Logger()
+			for _, attr := range attrs {
+				if _, skip := skipMap[attr.Name]; skip {
+					continue
+				}
+				traversal, diags := hcl.AbsTraversalForExpr(attr.Expr)
+				skip := !diags.HasErrors() && len(traversal) == 1 && (traversal.RootName() == "unset")
+				if skip {
+					skipMap[attr.Name] = struct{}{}
+					continue
+				}
+				val, err := evalctx.Eval(attr.Expr)
+				if err != nil {
+					return nil, errors.E(ErrEval, err)
+				}
 
-		val, err := evalctx.Eval(attr.Expr)
-		if err != nil {
-			return nil, errors.E(ErrEval, err)
+				if val.IsNull() {
+					skipMap[attr.Name] = struct{}{}
+					continue
+				}
+
+				if val.Type() != cty.String {
+					return nil, errors.E(
+						ErrInvalidEnvVarType,
+						attr.Range,
+						"attr has type %s but must be string",
+						val.Type().FriendlyName(),
+					)
+				}
+
+				if _, ok := envMap[attr.Name]; !ok {
+					envMap[attr.Name] = val.AsString()
+				}
+			}
 		}
 
-		if val.Type() != cty.String {
-			return nil, errors.E(
-				ErrInvalidEnvVarType,
-				attr.Range,
-				"attr has type %s but must be string",
-				val.Type().FriendlyName(),
-			)
+		tree = tree.Parent
+		if tree == nil {
+			break
 		}
-		envVars = append(envVars, attr.Name+"="+val.AsString())
-
 	}
 
+	var envVars EnvVars
+	keys := maps.Keys(envMap)
+	sort.Strings(keys)
+	for _, k := range keys {
+		envVars = append(envVars, k+"="+envMap[k])
+	}
 	return envVars, nil
 }
 
