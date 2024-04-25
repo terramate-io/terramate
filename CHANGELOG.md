@@ -20,13 +20,17 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.8.0
 
 ### Added
 
 - Add support for hierarchical configuration of the stack environment variables.
   - The `terramate.config.run.env` declared closer to the stack has precedence over
     declarations in parent directories.
+- Full support for OpenTofu plan files when syncing deployments, drifts or previews to Terramate Cloud.
+  - Add option flag `--tofu-plan-file` as alternative to `--terramate-plan-file`.
+  - Add script command option `tofu_plan_file` as alternative to `terraform_plan_option`.
+  - Both options work similar to their Terraform counterparts, but indicate that the plan was generated with `tofu`.
 
 ### Refactor
 
@@ -41,10 +45,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `auto` (_default_): Automatically detects if Terragrunt is being used and enables change detection if needed.
   - `force`: Enables Terragrunt change detection even if no Terragrunt file is detected in any stack.
   - `off`: Disables Terragrunt change detection.
-- Full support for OpenTofu plan files when syncing deployments, drifts or previews to Terramate Cloud.
-  - Add option flag `--tofu-plan-file` as alternative to `--terramate-plan-file`.
-  - Add script command option `tofu_plan_file` as alternative to `terraform_plan_option`.
-  - Both options work similar to their Terraform counterparts, but indicate that the plan was generated with `tofu`.
 
 ### Fixed
 
