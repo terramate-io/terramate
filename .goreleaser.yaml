@@ -37,6 +37,27 @@ archives:
       - goos: windows
         format: zip
 
+chocolateys:
+  - name: 'terramate'
+    ids:
+      - 'terramate'
+      - 'terramate-ls'
+    title: Terramate
+    authors: Terramate GmbH
+    project_url: https://github.com/terramate-io/terramate
+    icon_url: 'https://raw.githubusercontent.com/terramate-io/brand/main/whitemode/stamp.svg'
+    license_url: 'https://github.com/terramate-io/terramate/blob/main/LICENSE'
+    require_license_acceptance: false
+    project_source_url: 'https://github.com/terramate-io/terramate'
+    docs_url: 'https://github.com/terramate-io/terramate/blob/main/README.md'
+    bug_tracker_url: 'https://github.com/terramate-io/terramate/issues'
+    summary: 'Terramate - your infrastructure as code software'
+    description: |
+      Terramate helps you manage and version your infrastructure as code.
+    release_notes: 'https://github.com/terramate-io/terramate/releases/tag/v{{ .Version }}'
+    api_key: '{{ .Env.CHOCOLATEY_API_KEY }}'
+    source_repo: 'https://push.chocolatey.org/'
+
 dockers:
   - dockerfile: hack/release/Dockerfile
     image_templates:

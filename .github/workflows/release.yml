@@ -22,7 +22,21 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-
+      - name: Install Snapcraft & Chocolatey
+        # from https://github.com/twpayne/chezmoi/blob/5293b40b48e678c461d68d06b635010173cac970/.github/workflows/main.yml#L154C1-L167C38
+        run: |
+          sudo apt-get --quiet update
+          sudo apt-get --no-install-suggests --no-install-recommends --quiet --yes install musl-tools snapcraft
+          # https://github.com/goreleaser/goreleaser/issues/1715
+          # https://bugs.launchpad.net/snapcraft/+bug/1889741
+          mkdir -p "${HOME}/.cache/snapcraft/download"
+          mkdir -p "${HOME}/.cache/snapcraft/stage-packages"
+          mkdir -p /opt/chocolatey
+          wget -q -O - "https://github.com/chocolatey/choco/releases/download/2.2.2/chocolatey.v2.2.2.tar.gz" | tar -xz -C "/opt/chocolatey"
+          echo '#!/bin/bash' >> /usr/local/bin/choco
+          echo 'mono /opt/chocolatey/choco.exe $@' >> /usr/local/bin/choco
+          chmod +x /usr/local/bin/choco
+      
       - name: Log in to ghcr.io container registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
@@ -30,6 +44,7 @@ jobs:
         run: make release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
           DISCORD_WEBHOOK_ID: ${{ secrets.DISCORD_WEBHOOK_ID }}
           DISCORD_WEBHOOK_TOKEN: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
           TWITTER_CONSUMER_KEY: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY }}
