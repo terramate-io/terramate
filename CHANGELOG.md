@@ -22,6 +22,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for hierarchical configuration of the stack environment variables.
+  - The `terramate.config.run.env` declared closer to the stack has precedence over
+    declarations in parent directories.
+
 ### Refactor
 
 - (**BREAKING CHANGE**) Use `terramate.required_version` to detect project root if git is absent. 
