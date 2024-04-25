@@ -934,8 +934,10 @@ func IsRootConfig(rootdir string) (bool, error) {
 	if terramate == nil {
 		return false, nil
 	}
-	_, ok := terramate.Blocks[ast.NewEmptyLabelBlockType("config")]
-	return ok, nil
+	if _, ok := terramate.Attributes["required_version"]; ok {
+		return ok, nil
+	}
+	return false, nil
 }
 
 // parseGenerateHCLBlock the generate_hcl block.

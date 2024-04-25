@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Refactor
+
+- (**BREAKING CHANGE**) Use `terramate.required_version` to detect project root if git is absent. 
+  - This is only a breaking change for projects not using `git`.
+
 ## v0.6.5
 
 ### Added

@@ -447,9 +447,8 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 func WriteRootConfig(t testing.TB, rootdir string) {
 	WriteFile(t, rootdir, "root.config.tm", `
 terramate {
-	config {
-
-	}
+	required_version = "> 0.0.1"
+	required_version_allow_prereleases = true
 }
 			`)
 }
