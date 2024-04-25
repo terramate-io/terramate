@@ -66,11 +66,13 @@ type stackRunTask struct {
 	ScriptJobIdx int
 	ScriptCmdIdx int
 
-	CloudSyncDeployment        bool
-	CloudSyncDriftStatus       bool
-	CloudSyncPreview           bool
-	CloudSyncLayer             preview.Layer
-	CloudSyncTerraformPlanFile string
+	CloudSyncDeployment  bool
+	CloudSyncDriftStatus bool
+	CloudSyncPreview     bool
+	CloudSyncLayer       preview.Layer
+
+	CloudPlanFile        string
+	CloudPlanProvisioner string
 
 	UseTerragrunt bool
 }
@@ -86,10 +88,21 @@ func (t stackRunTask) isSuccessExit(exitCode int) bool {
 	if exitCode == 0 {
 		return true
 	}
-	if t.CloudSyncDriftStatus || (t.CloudSyncPreview && t.CloudSyncTerraformPlanFile != "") {
+	if t.CloudSyncDriftStatus || (t.CloudSyncPreview && t.CloudPlanFile != "") {
 		return exitCode == 2
 	}
 	return false
+}
+
+func selectPlanFile(terraformPlan, tofuPlan string) (planfile, provisioner string) {
+	if tofuPlan != "" {
+		planfile = tofuPlan
+		provisioner = ProvisionerOpenTofu
+	} else if terraformPlan != "" {
+		planfile = terraformPlan
+		provisioner = ProvisionerTerraform
+	}
+	return
 }
 
 func (c *cli) runOnStacks() {
@@ -130,14 +143,22 @@ func (c *cli) runOnStacks() {
 		fatal("cannot use --sync-preview with --sync-deployment or --sync-drift-status")
 	}
 
-	if c.parsedArgs.Run.TerraformPlanFile == "" && c.parsedArgs.Run.SyncPreview {
-		fatal("--sync-preview requires --terraform-plan-file")
+	if c.parsedArgs.Run.TerraformPlanFile != "" && c.parsedArgs.Run.TofuPlanFile != "" {
+		fatal("--terraform-plan-file conflicts with --tofu-plan-file")
+	}
+
+	planFile, planProvisioner := selectPlanFile(c.parsedArgs.Run.TerraformPlanFile, c.parsedArgs.Run.TofuPlanFile)
+
+	if planFile == "" && c.parsedArgs.Run.SyncPreview {
+		fatal("--sync-preview requires --terraform-plan-file or -tofu-plan-file")
 	}
 
 	cloudSyncEnabled := c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview
 
 	if c.parsedArgs.Run.TerraformPlanFile != "" && !cloudSyncEnabled {
 		fatal("--terraform-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
+	} else if c.parsedArgs.Run.TofuPlanFile != "" && !cloudSyncEnabled {
+		fatal("--tofu-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
 	}
 
 	if c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview {
@@ -160,13 +181,14 @@ func (c *cli) runOnStacks() {
 			Stack: st.Stack,
 			Tasks: []stackRunTask{
 				{
-					Cmd:                        c.parsedArgs.Run.Command,
-					CloudSyncDeployment:        c.parsedArgs.Run.SyncDeployment,
-					CloudSyncDriftStatus:       c.parsedArgs.Run.SyncDriftStatus,
-					CloudSyncPreview:           c.parsedArgs.Run.SyncPreview,
-					CloudSyncTerraformPlanFile: c.parsedArgs.Run.TerraformPlanFile,
-					CloudSyncLayer:             c.parsedArgs.Run.Layer,
-					UseTerragrunt:              c.parsedArgs.Run.Terragrunt,
+					Cmd:                  c.parsedArgs.Run.Command,
+					CloudSyncDeployment:  c.parsedArgs.Run.SyncDeployment,
+					CloudSyncDriftStatus: c.parsedArgs.Run.SyncDriftStatus,
+					CloudSyncPreview:     c.parsedArgs.Run.SyncPreview,
+					CloudPlanFile:        planFile,
+					CloudPlanProvisioner: planProvisioner,
+					CloudSyncLayer:       c.parsedArgs.Run.Layer,
+					UseTerragrunt:        c.parsedArgs.Run.Terragrunt,
 				},
 			},
 		}
@@ -569,8 +591,8 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 	technology := "other"
 	technologyLayer := "default"
 	for _, run := range runs {
-		if run.Task.CloudSyncTerraformPlanFile != "" {
-			technology = "terraform"
+		if run.Task.CloudPlanFile != "" {
+			technology = run.Task.CloudPlanProvisioner
 		}
 		if layer := run.Task.CloudSyncLayer; layer != "" {
 			technologyLayer = stdfmt.Sprintf("custom:%s", layer)

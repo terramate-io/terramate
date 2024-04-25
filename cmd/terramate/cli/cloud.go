@@ -418,12 +418,12 @@ func (c *cli) doPreviewBefore(run stackCloudRun) {
 }
 
 func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
-	planfile := run.Task.CloudSyncTerraformPlanFile
+	planfile := run.Task.CloudPlanFile
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
 	var previewChangeset *cloud.ChangesetDetails
 	if planfile != "" && previewStatus != preview.StackStatusCanceled {
-		changeset, err := c.getTerraformChangeset(run, planfile)
+		changeset, err := c.getTerraformChangeset(run)
 		if err != nil || changeset == nil {
 			printer.Stderr.WarnWithDetails(
 				stdfmt.Sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()), err,

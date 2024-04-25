@@ -41,9 +41,9 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 
 	var driftDetails *cloud.ChangesetDetails
 
-	if planfile := run.Task.CloudSyncTerraformPlanFile; planfile != "" {
+	if run.Task.CloudPlanFile != "" {
 		var err error
-		driftDetails, err = c.getTerraformChangeset(run, planfile)
+		driftDetails, err = c.getTerraformChangeset(run)
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}

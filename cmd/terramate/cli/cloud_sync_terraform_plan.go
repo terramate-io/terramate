@@ -22,7 +22,18 @@ import (
 
 const terraformShowTimeout = 300 * time.Second
 
-func (c *cli) getTerraformChangeset(run stackCloudRun, planfile string) (*cloud.ChangesetDetails, error) {
+const (
+	// ProvisionerTerraform indicates that a plan was created by Terraform.
+	ProvisionerTerraform = "terraform"
+
+	// ProvisionerOpenTofu indicates that a plan was created by OpenTofu.
+	ProvisionerOpenTofu = "opentofu"
+)
+
+func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails, error) {
+	planfile := run.Task.CloudPlanFile
+	provisioner := run.Task.CloudPlanProvisioner
+
 	logger := log.With().
 		Str("action", "getTerraformChangeset").
 		Str("planfile", planfile).
@@ -42,13 +53,13 @@ func (c *cli) getTerraformChangeset(run stackCloudRun, planfile string) (*cloud.
 		}
 	}
 
-	renderedPlan, err := c.runTerraformShow(run, planfile, "-no-color")
+	renderedPlan, err := c.runTerraformShow(run, "-no-color")
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to synchronize the ASCII plan output")
 	}
 
 	var newJSONPlanData []byte
-	jsonPlanData, err := c.runTerraformShow(run, planfile, "-no-color", "-json")
+	jsonPlanData, err := c.runTerraformShow(run, "-no-color", "-json")
 	if err == nil {
 		newJSONPlanData, err = sanitizeJSONPlan([]byte(jsonPlanData))
 		if err != nil {
@@ -63,7 +74,7 @@ func (c *cli) getTerraformChangeset(run stackCloudRun, planfile string) (*cloud.
 	}
 
 	return &cloud.ChangesetDetails{
-		Provisioner:    "terraform",
+		Provisioner:    provisioner,
 		ChangesetASCII: renderedPlan,
 		ChangesetJSON:  string(newJSONPlanData),
 	}, nil
@@ -92,12 +103,19 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 	return newJSONPlanData, nil
 }
 
-func (c *cli) runTerraformShow(run stackCloudRun, planfile string, flags ...string) (string, error) {
+func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
-	cmdName := "terraform"
+	planfile := run.Task.CloudPlanFile
+	provisioner := run.Task.CloudPlanProvisioner
+
+	var cmdName string
 	if run.Task.UseTerragrunt {
 		cmdName = "terragrunt"
+	} else if provisioner == ProvisionerOpenTofu {
+		cmdName = "tofu"
+	} else {
+		cmdName = "terraform"
 	}
 
 	args := []string{"show"}

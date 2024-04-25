@@ -28,6 +28,12 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.2
+          tofu_wrapper: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: configure git
         run: git config --global core.autocrlf false
     
