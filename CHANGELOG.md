@@ -26,18 +26,23 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
-- Add support for hierarchical configuration of the stack environment variables.
+- Add support for hierarchical configuration of the stack run-time environment variables.
   - The `terramate.config.run.env` declared closer to the stack has precedence over
     declarations in parent directories.
-- Full support for OpenTofu plan files when syncing deployments, drifts or previews to Terramate Cloud.
-  - Add option flag `--tofu-plan-file` as alternative to `--terramate-plan-file`.
-  - Add script command option `tofu_plan_file` as alternative to `terraform_plan_option`.
-  - Both options work similar to their Terraform counterparts, but indicate that the plan was generated with `tofu`.
+- Full support for OpenTofu plan files when synchronizing deployments, drifts or previews to Terramate Cloud:
+  - Add CLI option `--tofu-plan-file=FILE`
+  - Add Terramate Scripts command option `tofu_plan_file = FILE`
 
-### Refactor
+### Changed
 
-- (**BREAKING CHANGE**) Use `terramate.required_version` to detect project root if git is absent. 
+- (**BREAKING CHANGE**) Use `terramate.required_version` to detect project root if git is absent.
   - This is only a breaking change for projects not using `git`.
+
+## (v0.7.0)
+
+### Tested
+
+- Issue a test-only release that includes everything that was published in v0.6.5
 
 ## v0.6.5
 
