@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix incorrect warning emitted by the parser in the case `terramate.config.run.env` is defined outside project root.
+
 ## v0.8.0
 
 ### Added

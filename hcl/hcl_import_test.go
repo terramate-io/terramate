@@ -225,7 +225,7 @@ func TestHCLImport(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrUnexpectedTerramate),
+					errors.E(hcl.ErrTerramateSchema),
 				},
 			},
 		},
