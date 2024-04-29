@@ -19,6 +19,7 @@ import (
 
 	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/hashicorp/terraform-json/sanitize"
+	"github.com/terramate-io/terramate/project"
 )
 
 func main() {
@@ -51,7 +52,7 @@ func main() {
 	case "sleep":
 		sleep(os.Args[2])
 	case "env":
-		env()
+		env(os.Args[2], os.Args[3:]...)
 	case "cat":
 		cat(os.Args[2])
 	case "rm":
@@ -102,7 +103,22 @@ func exit(exitCodeStr string) {
 }
 
 // env sends os.Environ() on stdout and exits.
-func env() {
+func env(rootdir string, names ...string) {
+	if len(names) > 0 {
+		cwd, err := os.Getwd()
+		checkerr(err)
+		dir := project.PrjAbsPath(rootdir, cwd)
+
+		for _, env := range os.Environ() {
+			parts := strings.Split(env, "=")
+			for _, n := range names {
+				if parts[0] == n {
+					fmt.Printf("%s: %s\n", dir, strings.Join(parts[1:], "="))
+				}
+			}
+		}
+		return
+	}
 	for _, env := range os.Environ() {
 		fmt.Println(env)
 	}
