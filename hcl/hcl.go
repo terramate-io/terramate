@@ -30,10 +30,9 @@ import (
 
 // Errors returned during the HCL parsing.
 const (
-	ErrHCLSyntax           errors.Kind = "HCL syntax error"
-	ErrTerramateSchema     errors.Kind = "terramate schema error"
-	ErrImport              errors.Kind = "import error"
-	ErrUnexpectedTerramate errors.Kind = "`terramate` block is only allowed at the project root directory"
+	ErrHCLSyntax       errors.Kind = "HCL syntax error"
+	ErrTerramateSchema errors.Kind = "terramate schema error"
+	ErrImport          errors.Kind = "import error"
 )
 
 const (
@@ -2200,15 +2199,15 @@ func (p *TerramateParser) checkConfigSanity(_ Config) error {
 	tmblock := rawconfig.MergedBlocks["terramate"]
 	if tmblock != nil && p.dir != p.rootdir {
 		for _, raworigin := range tmblock.RawOrigins {
-			if filepath.Dir(raworigin.Range.HostPath()) != p.dir {
-				errs.Append(
-					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange,
-						"imported from directory %q", p.dir),
-				)
-			} else {
-				errs.Append(
-					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange),
-				)
+			for _, attr := range raworigin.Attributes.SortedList() {
+				errs.Append(attributeSanityCheckErr(p.dir, "terramate", attr))
+			}
+			for _, block := range raworigin.Blocks {
+				if block.Type == "config" {
+					errs.Append(terramateConfigBlockSanityCheck(p.dir, block))
+				} else {
+					errs.Append(blockSanityCheckErr(p.dir, "terramate", block))
+				}
 			}
 		}
 	}
@@ -2219,6 +2218,57 @@ func (p *TerramateParser) checkConfigSanity(_ Config) error {
 		logger.Warn().Err(err).Send()
 	}
 	return nil
+}
+
+func terramateConfigRunSanityCheck(parsingDir string, runblock *ast.Block) error {
+	errs := errors.L()
+	for _, attr := range runblock.Attributes.SortedList() {
+		errs.Append(attributeSanityCheckErr(parsingDir, "terramate.config.run", attr))
+	}
+	for _, block := range runblock.Blocks {
+		if block.Type == "env" {
+			continue
+		}
+		errs.Append(blockSanityCheckErr(parsingDir, "terramate.config.run", block))
+	}
+	return errs.AsError()
+}
+
+func terramateConfigBlockSanityCheck(parsingDir string, cfgblock *ast.Block) error {
+	errs := errors.L()
+	for _, attr := range cfgblock.Attributes.SortedList() {
+		errs.Append(attributeSanityCheckErr(parsingDir, "terramate.config", attr))
+	}
+	for _, block := range cfgblock.Blocks {
+		if block.Type == "run" {
+			errs.Append(terramateConfigRunSanityCheck(parsingDir, block))
+		} else {
+			errs.Append(blockSanityCheckErr(parsingDir, "terramate.config", block))
+		}
+	}
+	return errs.AsError()
+}
+
+func blockSanityCheckErr(parsingDir string, baseBlockName string, block *ast.Block) error {
+	err := errors.E("block %s.%s can only be declared at the project root directory", baseBlockName, block.Type)
+	if filepath.Dir(block.Range.HostPath()) != parsingDir {
+		err = errors.E(ErrTerramateSchema, err, block.TypeRange,
+			"imported from directory %q", parsingDir)
+	} else {
+		err = errors.E(ErrTerramateSchema, err, block.TypeRange)
+	}
+	return err
+}
+
+func attributeSanityCheckErr(parsingDir string, baseBlockName string, attr ast.Attribute) error {
+	err := errors.E("attribute %s.%s can only be declared at the project root directory", baseBlockName, attr.Name)
+	if filepath.Dir(attr.Range.HostPath()) != parsingDir {
+		err = errors.E(ErrTerramateSchema, err, attr.NameRange,
+			"imported from directory %q", parsingDir)
+	} else {
+		err = errors.E(ErrTerramateSchema, err, attr.NameRange)
+	}
+	return err
 }
 
 func validateGlobals(block *ast.MergedBlock) error {
