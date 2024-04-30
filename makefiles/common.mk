@@ -142,12 +142,12 @@ bench/cleanup:
 ## executes a dry run of the release process
 .PHONY: release/dry-run
 release/dry-run:
-	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --snapshot --rm-dist
+	goreleaser release --snapshot --rm-dist 
 
 ## generates a terramate release
 .PHONY: release
 release:
-	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
+	goreleaser release --rm-dist --key $(GORELEASER_KEY)
 
 ## sync the Terramate example stack with a success status.
 .PHONY: cloud/sync/ok
