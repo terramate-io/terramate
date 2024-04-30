@@ -25,7 +25,13 @@ jobs:
 
       - name: Log in to ghcr.io container registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
+      - name: install goreleaser
+        run: |
+          curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o goreleaser.tar.gz
+          tar -xzf goreleaser.tar.gz
+          chmod +x goreleaser
+          sudo mv goreleaser /usr/local/bin/
+      
       - name: Run GoReleaser
         run: make release
         env:
