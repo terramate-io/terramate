@@ -20,7 +20,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.8.1
+
+### Fixed
+
+- Fix incorrect warning emitted by the parser in the case `terramate.config.run.env` is defined outside project root.
 
 ## v0.8.0
 

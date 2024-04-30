@@ -2300,7 +2300,8 @@ func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
 		"run",
 		"--quiet",
 		HelperPath,
-		"env",
+		"echo",
+		"ok",
 	), RunExpected{
 		IgnoreStdout: true,
 	})
@@ -3219,7 +3220,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 
 	tm := NewCLI(t, s.RootDir(), clienv...)
 
-	res := tm.Run("run", HelperPath, "env")
+	res := tm.Run("run", HelperPath, "env", s.RootDir())
 	if res.Status != 0 {
 		t.Errorf("unexpected status code %d", res.Status)
 		t.Logf("stdout:\n%s", res.Stdout)
