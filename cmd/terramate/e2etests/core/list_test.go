@@ -10,6 +10,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -354,21 +355,198 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 	AssertRunResult(t, cli.ListStacks(), RunExpected{Stdout: "stack\n"})
 }
 
-func TestListLogsWarningIfConfigHasConflicts(t *testing.T) {
+func TestListLogsWarningIfConfigHasSchemaIssues(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
-	s.BuildTree([]string{
-		"s:stack",
-		`f:stack/terramate.tm:terramate {}`,
-	})
+	type testcase struct {
+		name   string
+		layout []string
+		want   RunExpected
+	}
 
-	tmcli := NewCLI(t, s.RootDir())
-	tmcli.LogLevel = "warn"
-	AssertRunResult(t, tmcli.ListStacks(), RunExpected{
-		Stdout:      "stack\n",
-		StderrRegex: string(hcl.ErrUnexpectedTerramate),
-	})
+	for _, tc := range []testcase{
+		{
+			name: "empty terramate block in child dirs do not warn",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate().String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+			},
+		},
+		{
+			name: "empty terramate.config block in child dirs do not warn",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Config(),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+			},
+		},
+		{
+			name: "terramate.required_version in child dirs do WARN",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Str("required_version", "1.0.0"),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"required_version",
+				},
+			},
+		},
+		{
+			name: "imported terramate.required_version in child dirs do WARN",
+			layout: []string{
+				"f:/modules/terramate.tm:" + Terramate(
+					Str("required_version", "1.0.0"),
+				).String(),
+				"s:stack",
+				`f:stack/import-block.tm:` + Import(
+					Str("source", "/modules/terramate.tm"),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"required_version",
+					"imported from directory",
+				},
+			},
+		},
+		{
+			name: "terramate.config.git in child dirs do WARN",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Config(
+						Block("git"),
+					),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"block terramate\\.config\\.git can only be declared at the project root directory",
+				},
+			},
+		},
+		{
+			name: "imported terramate.config.git in child dirs do WARN",
+			layout: []string{
+				"f:/modules/terramate.tm:" + Terramate(
+					Config(
+						Block("git"),
+					),
+				).String(),
+				"s:stack",
+				`f:stack/import-block.tm:` + Import(
+					Str("source", "/modules/terramate.tm"),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"block terramate\\.config\\.git can only be declared at the project root directory",
+					"imported from directory",
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate in child dirs do WARN",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Config(
+						Block("generate"),
+					),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"block terramate\\.config\\.generate can only be declared at the project root directory",
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection in child dirs do WARN",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Config(
+						Block("change_detection"),
+					),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"block terramate\\.config\\.change_detection can only be declared at the project root directory",
+				},
+			},
+		},
+		{
+			name: "terramate.config.run.check_gen_code in child dirs do WARN",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Config(
+						Block("run",
+							Bool("check_gen_code", false),
+						),
+					),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+				StderrRegexes: []string{
+					string(hcl.ErrTerramateSchema),
+					"attribute terramate\\.config\\.run\\.check_gen_code can only be declared at the project root directory",
+				},
+			},
+		},
+		{
+			name: "terramate.config.run.env block in child dirs do NOT warn",
+			layout: []string{
+				"s:stack",
+				`f:stack/terramate.tm:` + Terramate(
+					Config(
+						Block("run",
+							Block("env",
+								Str("FOO", "BAR"),
+							),
+						),
+					),
+				).String(),
+			},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(tc.layout)
+			tmcli := NewCLI(t, s.RootDir())
+			tmcli.LogLevel = "warn"
+			AssertRunResult(t, tmcli.ListStacks(), tc.want)
+		})
+	}
 }
 
 func TestListNoSuchFile(t *testing.T) {

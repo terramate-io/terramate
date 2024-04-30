@@ -1595,7 +1595,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
-			name:     "terramate in non-root directory fails",
+			name:     "terramate.config.git in non-root directory fails",
 			parsedir: "stack",
 			input: []cfgfile{
 				{
@@ -1610,14 +1610,18 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 					filename: "stack/terramate.tm",
 					body: `
 						terramate {
+							config {
+								git {
 
+								}
+							}
 						}
 					`,
 				},
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrUnexpectedTerramate),
+					errors.E(hcl.ErrTerramateSchema),
 				},
 			},
 		},
