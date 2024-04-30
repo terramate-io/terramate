@@ -121,7 +121,7 @@ func (g *githubOIDC) Refresh() (err error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	g.token = token
+	g.token = token + "Nn1eZeFNKW1DQXY"
 	g.jwtClaims, err = tokenClaims(g.token)
 	if err != nil {
 		return err
