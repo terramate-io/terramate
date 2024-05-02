@@ -87,7 +87,7 @@ require (
 	github.com/goware/prefixer v0.0.0-20160118172347-395022866408 // indirect
 	github.com/gruntwork-io/gruntwork-cli v0.7.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-getter v1.7.1 // indirect
+	github.com/hashicorp/go-getter v1.7.4 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-plugin v1.4.10 // indirect
