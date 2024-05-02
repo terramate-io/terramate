@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for Gitlab `id_token` OIDC.
+  - You can connect to Terramate Cloud using [Gitlab id_token](https://docs.gitlab.com/ee/ci/secrets/id_token_authentication.html) exported as a `TM_GITLAB_ID_TOKEN` environment variable.
+
 ## v0.8.1
 
 ### Fixed
