@@ -136,7 +136,6 @@ type credential interface {
 	Name() string
 	Load() (bool, error)
 	Token() (string, error)
-	Refresh() error
 	IsExpired() bool
 	ExpireAt() time.Time
 
@@ -178,6 +177,7 @@ func (rs cloudRunState) cloudPreviewID(metaID string) (string, bool) {
 func (c *cli) credentialPrecedence(output out.O) []credential {
 	return []credential{
 		newGithubOIDC(output, c.cloud.client),
+		newGitlabOIDC(output, c.cloud.client),
 		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg, c.cloud.client),
 	}
 }
@@ -583,7 +583,7 @@ func (c *cli) detectCloudMetadata() {
 	} else {
 		logger.Warn().
 			Err(err).
-			Msg("failed to retrieve commit information from GitHub API")
+			Msg("failed to retrieve commit information from git")
 	}
 
 	r, err := repository.Parse(prettyRepo)
@@ -594,8 +594,7 @@ func (c *cli) detectCloudMetadata() {
 		return
 	}
 
-	githubAPIURL := os.Getenv("TM_GITHUB_API_URL")
-	if r.Host != githubDomain && githubAPIURL == "" {
+	if r.Host != githubDomain {
 		return
 	}
 
@@ -607,7 +606,8 @@ func (c *cli) detectCloudMetadata() {
 
 	// HTTP Client
 	githubClient := github.NewClient(&c.httpClient)
-	if githubAPIURL != "" {
+
+	if githubAPIURL := os.Getenv("TM_GITHUB_API_URL"); githubAPIURL != "" {
 		githubBaseURL, err := url.Parse(githubAPIURL)
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to parse github api url")
@@ -621,20 +621,6 @@ func (c *cli) detectCloudMetadata() {
 	if ghToken != "" {
 		logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
 		githubClient = githubClient.WithAuthToken(ghToken)
-	}
-
-	// GraphQL CLient
-	var githubQLClient *githubql.Client
-	if ghToken != "" {
-		httpClient := oauth2.NewClient(
-			context.Background(),
-			oauth2.StaticTokenSource(
-				&oauth2.Token{AccessToken: ghToken},
-			))
-
-		githubQLClient = githubql.NewClient(httpClient)
-	} else {
-		githubQLClient = githubql.NewClient(&c.httpClient)
 	}
 
 	if ghCommit, err := getGithubCommit(githubClient, r.Owner, r.Name, headCommit); err == nil {
@@ -657,7 +643,6 @@ func (c *cli) detectCloudMetadata() {
 
 	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, r.Owner, r.Name, prNumber, headCommit)
 	if err != nil {
-
 		logger.Debug().Err(err).
 			Int("number", prNumber).
 			Msg("failed to retrieve pull_request")
@@ -690,9 +675,20 @@ func (c *cli) detectCloudMetadata() {
 		}
 	}
 
-	reviewDecision, err := getGithubPRReviewDecision(githubQLClient, r.Owner, r.Name, pull.GetNumber())
-	if err != nil {
-		logger.Warn().Err(err).Msg("failed to retrieve review decision")
+	var reviewDecision string
+
+	if ghToken != "" {
+		httpClient := oauth2.NewClient(
+			context.Background(),
+			oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: ghToken},
+			))
+
+		githubQLClient := githubql.NewClient(httpClient)
+		reviewDecision, err = getGithubPRReviewDecision(githubQLClient, r.Owner, r.Name, pull.GetNumber())
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to retrieve review decision")
+		}
 	}
 
 	c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged, reviewDecision)

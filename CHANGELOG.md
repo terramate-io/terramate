@@ -20,6 +20,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add support for Gitlab `id_token` OIDC.
+  - You can connect to Terramate Cloud using [Gitlab id_token](https://docs.gitlab.com/ee/ci/secrets/id_token_authentication.html) exported as a `TM_GITLAB_ID_TOKEN` environment variable.
+
 ## v0.8.1
 
 ### Fixed
