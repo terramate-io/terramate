@@ -664,7 +664,7 @@ func (c *cli) detectCloudMetadata() {
 
 	checks, err := listGithubChecks(githubClient, r.Owner, r.Name, headCommit)
 	if err != nil {
-		logger.Warn().Err(err).Msg("failed to retrieve PR reviews")
+		logger.Warn().Err(err).Msg("failed to retrieve GHA checks")
 	}
 
 	merged := false
@@ -823,11 +823,12 @@ func listGithubPullReviews(ghClient *github.Client, owner, repo string, pullNumb
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	opt := &github.ListOptions{PerPage: 100}
+	opt := &github.ListOptions{}
+	opt.PerPage = 100
 
 	var allReviews []*github.PullRequestReview
 	for {
-		reviews, resp, err := ghClient.PullRequests.ListReviews(ctx, owner, repo, pullNumber, nil)
+		reviews, resp, err := ghClient.PullRequests.ListReviews(ctx, owner, repo, pullNumber, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -845,11 +846,12 @@ func listGithubChecks(ghClient *github.Client, owner, repo string, commit string
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGithubTimeout)
 	defer cancel()
 
-	opt := &github.ListOptions{PerPage: 100}
+	opt := &github.ListCheckRunsOptions{}
+	opt.PerPage = 100
 
 	var allChecks []*github.CheckRun
 	for {
-		checksResponse, resp, err := ghClient.Checks.ListCheckRunsForRef(ctx, owner, repo, commit, nil)
+		checksResponse, resp, err := ghClient.Checks.ListCheckRunsForRef(ctx, owner, repo, commit, opt)
 		if err != nil {
 			return nil, err
 		}
