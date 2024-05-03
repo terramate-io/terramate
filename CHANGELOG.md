@@ -20,6 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## v0.6.6
+
+### Fixed
+
+- Fix issue with handling paginated responses from Github API when retrieving review and GHA action metadata.
+
 ## v0.6.5
 
 ### Added
