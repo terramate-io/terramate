@@ -123,10 +123,9 @@ jobs:
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@latest
       - name: install goreleaser
         run: |
-          curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o goreleaser.tar.gz
-          tar -xzf goreleaser.tar.gz
-          chmod +x goreleaser
-          sudo mv goreleaser /usr/local/bin/
+          curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o /tmp/goreleaser.tar.gz
+          cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
+          sudo mv /tmp/goreleaser /usr/local/bin/
       
       - name: release dry run
         run: terramate run --tags golang --changed -- make release/dry-run
