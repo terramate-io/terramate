@@ -54,29 +54,6 @@ furies:
       - deb
       - rpm
 
-scoops:
-  - name: terramate
-    url_template: "https://github.com/terramate-io/terramate/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    homepage: "https://github.com/terramate-io/terramate/"
-    description: "Terramate CLI is an open-source Orchestrator and Code Generator for Terraform and OpenTofu."
-    license: MPL-2.0
-    commit_author:
-      name: github-actions
-      email: actions@github.com
-    commit_msg_template: "Scoop manifest update for {{ .ProjectName }} version {{ .Tag }}"
-    persist:
-      - "config"
-      - "data"
-    pre_install: ["Write-Host 'Preparing to install Terramate...'"]
-    post_install: ["Write-Host 'Terramate installation complete.'"]
-    depends:
-      - "git"
-    repository:
-      owner: terramate-io
-      name: terramate
-      branch: main
-      token: "{{ .Env.GITHUB_TOKEN }}"
-
 dockers:
   - dockerfile: hack/release/Dockerfile
     image_templates:
