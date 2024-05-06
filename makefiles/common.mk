@@ -1,4 +1,4 @@
-GO_RELEASER_VERSION=v1.14.0
+GO_RELEASER_VERSION=v1.14.0-pro
 GOLANGCI_LINT_VERSION ?= v1.52.2
 COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**'
@@ -138,6 +138,15 @@ bench/check:
 bench/cleanup:
 	rm -f *.prof
 	rm -f *.test
+
+### Check goreleaser version
+.PHONY: check-goreleaser-version
+check-goreleaser-version:
+	@installed_version=$$(goreleaser --version | grep "GitVersion:" | awk '{print $$2}'); \
+	if [ "$$installed_version" != "$(GO_RELEASER_VERSION)" ]; then \
+		echo "Error: Installed goreleaser version ($$installed_version) does not match the specified version $(GO_RELEASER_VERSION)."; \
+		exit 1; \
+	fi
 
 ## executes a dry run of the release process
 .PHONY: release/dry-run
