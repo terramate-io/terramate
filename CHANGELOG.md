@@ -20,6 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- Fix deployments with no stacks still creating empty deployments on Terramate Cloud.
+
 ## v0.8.2
 
 ### Added
