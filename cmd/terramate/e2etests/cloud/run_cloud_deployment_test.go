@@ -352,6 +352,21 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "no stacks",
+			layout: []string{
+				"f:empty.txt",
+			},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+
+			want: want{
+				run: RunExpected{
+					Status: 0,
+				},
+				events: eventsResponse{},
+			},
+		},
 	} {
 		for _, isParallel := range []bool{false, true} {
 			tc := tc

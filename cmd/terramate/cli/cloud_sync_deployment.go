@@ -23,7 +23,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 	logger := log.With().
 		Logger()
 
-	if !c.cloudEnabled() {
+	if !c.cloudEnabled() || len(deployRuns) == 0 {
 		return
 	}
 
