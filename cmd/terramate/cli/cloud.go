@@ -636,7 +636,7 @@ func (c *cli) detectCloudMetadata() {
 	if err != nil {
 		logger.Debug().Err(err).Msg("unable to get pull_request details from GITHUB_EVENT_PATH")
 	} else {
-		logger.Debug().Err(err).Msg("got pull_request details from GITHUB_EVENT_PATH")
+		logger.Debug().Msg("got pull_request details from GITHUB_EVENT_PATH")
 		c.cloud.run.prFromGHAEvent = prFromEvent
 		prNumber = prFromEvent.GetNumber()
 	}
@@ -729,8 +729,8 @@ func getGithubPRByNumberOrCommit(githubClient *github.Client, ghToken, owner, re
 		return nil, err
 	}
 	if !found {
-		logger.Warn().Msg("no pull request associated with HEAD commit")
-		return nil, err
+		logger.Debug().Msg("no pull request associated with HEAD commit")
+		return nil, stdfmt.Errorf("no pull request associated with HEAD commit")
 	}
 
 	return pull, nil
@@ -930,10 +930,12 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 	md.GithubPullRequestHeadAuthorGravatarID = pull.GetHead().GetUser().GetGravatarID()
 	createdAt := pull.GetCreatedAt()
 	updatedAt := pull.GetUpdatedAt()
+	closedAt := pull.GetClosedAt()
+	mergedAt := pull.GetMergedAt()
 	md.GithubPullRequestCreatedAt = createdAt.GetTime()
 	md.GithubPullRequestUpdatedAt = updatedAt.GetTime()
-	md.GithubPullRequestClosedAt = pull.ClosedAt.GetTime()
-	md.GithubPullRequestMergedAt = pull.MergedAt.GetTime()
+	md.GithubPullRequestClosedAt = closedAt.GetTime()
+	md.GithubPullRequestMergedAt = mergedAt.GetTime()
 
 	md.GithubPullRequestBaseLabel = pull.GetBase().GetLabel()
 	md.GithubPullRequestBaseRef = pull.GetBase().GetRef()
