@@ -1392,7 +1392,7 @@ func TestGenerateHCL(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "attributes on generate_hcl block fails",
+			name:  "unrecognized attributes on generate_hcl block fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{

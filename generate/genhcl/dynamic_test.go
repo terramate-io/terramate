@@ -851,6 +851,57 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "attributes from a map",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: Globals(
+						Expr("obj", `tm_tomap({
+						  a = {
+							data = "global data",
+						  },
+						  b = {
+							other_data = "global data 2"
+						  }
+						})`),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "gen.tm",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Content(
+							TmDynamic(
+								Labels("test"),
+								Expr("for_each", `global.obj`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `iter.value`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("test",
+								Str("data", "global data"),
+							),
+							Block("test",
+								Str("other_data", "global data 2"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generated blocks have attributes on same order as attributes object",
 			stack: "/stack",
 			configs: []hclconfig{
