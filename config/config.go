@@ -49,10 +49,11 @@ const (
 type Root struct {
 	tree Tree
 
+	lookupCache map[string]*Tree
+
 	// hasTerragruntStacks tells if the repository has any Terragrunt stack.
 	hasTerragruntStacks *bool
-
-	runtime project.Runtime
+	runtime             project.Runtime
 }
 
 // Tree is the configuration tree.
@@ -124,6 +125,7 @@ func NewRoot(tree *Tree) *Root {
 	r := &Root{}
 	tree.root = r
 	r.tree = *tree
+	r.lookupCache = make(map[string]*Tree)
 
 	r.initRuntime()
 	return r
@@ -146,7 +148,13 @@ func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (*Tree, bool) {
-	return root.tree.lookup(path)
+	tree, ok := root.lookupCache[path.String()]
+	if ok {
+		return tree, tree != nil
+	}
+	tree, ok = root.tree.lookup(path)
+	root.lookupCache[path.String()] = tree
+	return tree, ok
 }
 
 // StacksByPaths returns the stacks from the provided relative paths.

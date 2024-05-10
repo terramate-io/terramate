@@ -21,7 +21,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -127,8 +126,8 @@ func (f File) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
+	evalctx *eval.Context,
 	st *config.Stack,
-	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
@@ -138,7 +137,6 @@ func Load(
 	}
 
 	var files []File
-
 	for _, genFileBlock := range genFileBlocks {
 		if genFileBlock.Context != StackContext {
 			continue
@@ -173,16 +171,13 @@ func Load(
 			continue
 		}
 
-		evalctx := stack.NewEvalCtx(root, st, globals)
-
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
-		dircfg, _ := root.Lookup(st.Dir)
-		file, skip, err := Eval(genFileBlock, dircfg, evalctx.Context)
+		file, skip, err := Eval(genFileBlock, evalctx, st.Dir)
 		if err != nil {
 			return nil, err
 		}
@@ -199,12 +194,13 @@ func Load(
 }
 
 // Eval the generate_file block.
-func Eval(block hcl.GenFileBlock, cfg *config.Tree, evalctx *eval.Context) (file File, skip bool, err error) {
+func Eval(block hcl.GenFileBlock, evalctx *eval.Context, dir project.Path) (File, bool, error) {
 	name := block.Label
-	err = lets.Load(block.Lets, evalctx)
-	if err != nil {
-		return File{}, false, err
-	}
+	letsResolver := lets.NewResolver(block.Lets)
+	evalctx.SetResolver(letsResolver)
+	defer func() {
+		evalctx.DeleteResolver("let")
+	}()
 
 	condition := true
 	if block.Condition != nil {
@@ -249,7 +245,7 @@ func Eval(block hcl.GenFileBlock, cfg *config.Tree, evalctx *eval.Context) (file
 		inherit = value.True()
 	}
 
-	if !inherit && block.Dir != cfg.Dir() {
+	if !inherit && block.Dir != dir {
 		// ignore non-inheritable block
 		return File{}, true, nil
 	}

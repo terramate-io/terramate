@@ -36,6 +36,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
 	"github.com/terramate-io/terramate/printer"
+	"github.com/terramate-io/terramate/runtime"
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/tg"
 	"github.com/terramate-io/terramate/versions"
@@ -112,6 +113,7 @@ type cliSpec struct {
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
 	Quiet          bool     `optional:"false" help:"Disable outputs."`
 	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+	CPUProfiling   bool     `optional:"true" default:"false" help:"Create a CPU profile file when running"`
 
 	deprecatedGlobalSafeguardsCliSpec
 
@@ -590,6 +592,8 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		fatal("flag --changed requires a repository with at least two commits")
 	}
 
+	globalsResolver := globals.NewResolver(&prj.root)
+	prj.globals = globalsResolver
 	uimode := HumanMode
 	if val := os.Getenv("CI"); envVarIsSet(val) {
 		uimode = AutomationMode
@@ -1056,7 +1060,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), c.globals(), c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
@@ -1887,7 +1891,7 @@ func (c *cli) generateDebug() {
 		selectedStacks[stack.Dir()] = struct{}{}
 	}
 
-	results, err := generate.Load(c.cfg(), c.vendorDir())
+	results, err := generate.Load(c.cfg(), c.globals(), c.vendorDir())
 	if err != nil {
 		fatalWithDetails(err, "generate debug: loading generated code")
 	}
@@ -1926,12 +1930,21 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
-		report := globals.ForStack(c.cfg(), stack)
-		if err := report.AsError(); err != nil {
+		tree := stackEntry.Stack.Tree()
+		evalctx := eval.New(
+			stack.Dir,
+			runtime.NewResolver(c.cfg(), stack),
+			c.globals(),
+		)
+		evalctx.SetFunctions(stdlib.Functions(evalctx, tree.HostDir()))
+
+		expr, _ := ast.ParseExpression(`global`, `<print-globals>`)
+		globals, err := evalctx.Eval(expr)
+		if err != nil {
 			fatalWithDetails(err, "listing stacks globals: loading stack at %s", stack.Dir)
 		}
 
-		globalsStrRepr := report.Globals.String()
+		globalsStrRepr := fmt.FormatAttributes(globals.AsValueMap())
 		if globalsStrRepr == "" {
 			continue
 		}
@@ -2056,6 +2069,18 @@ func (c *cli) partialEval() {
 	}
 }
 
+func (c *cli) detectEvalContext(overrideGlobals map[string]string) *eval.Context {
+	var st *config.Stack
+	if config.IsStack(c.cfg(), c.wd()) {
+		var err error
+		st, err = config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+		if err != nil {
+			fatalWithDetails(err, "setup eval context: loading stack config")
+		}
+	}
+	return c.setupEvalContext(st, overrideGlobals)
+}
+
 func (c *cli) evalRunArgs(st *config.Stack, cmd []string) ([]string, error) {
 	ctx := c.setupEvalContext(st, map[string]string{})
 	var newargs []string
@@ -2125,42 +2150,23 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 	c.output.MsgStdOut("%s", string(data))
 }
 
-func (c *cli) detectEvalContext(overrideGlobals map[string]string) *eval.Context {
-	var st *config.Stack
-	if config.IsStack(c.cfg(), c.wd()) {
-		var err error
-		st, err = config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
-		if err != nil {
-			fatalWithDetails(err, "setup eval context: loading stack config")
-		}
-	}
-	return c.setupEvalContext(st, overrideGlobals)
-}
-
 func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]string) *eval.Context {
-	runtime := c.cfg().Runtime()
-
+	var pdir prj.Path
 	var tdir string
 	if st != nil {
-		tdir = st.HostDir(c.cfg())
-		runtime.Merge(st.RuntimeValues(c.cfg()))
+		pdir = st.Dir
 	} else {
+		pdir = prj.PrjAbsPath(c.rootdir(), c.wd())
 		tdir = c.wd()
 	}
-
-	ctx := eval.NewContext(stdlib.NoFS(tdir))
-	ctx.SetNamespace("terramate", runtime)
 
 	wdPath := prj.PrjAbsPath(c.rootdir(), tdir)
 	tree, ok := c.cfg().Lookup(wdPath)
 	if !ok {
 		fatalWithDetails(errors.E("configuration at %s not found", wdPath), "Missing configuration")
 	}
-	exprs, err := globals.LoadExprs(tree)
-	if err != nil {
-		fatalWithDetails(err, "loading globals expressions")
-	}
 
+	var overrideStmts eval.Stmts
 	for name, exprStr := range overrideGlobals {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
@@ -2170,20 +2176,26 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 			)
 		}
 		parts := strings.Split(name, ".")
-		length := len(parts)
-		globalPath := globals.NewGlobalAttrPath(parts[0:length-1], parts[length-1])
-		exprs.SetOverride(
-			wdPath,
-			globalPath,
-			expr,
-			info.NewRange(c.rootdir(), hhcl.Range{
-				Filename: "<eval argument>",
+		ref := eval.NewRef("global", parts...)
+		overrideStmts = append(overrideStmts, eval.Stmt{
+			Origin: ref,
+			LHS:    ref,
+			Info: eval.NewInfo(pdir, info.NewRange(c.rootdir(), hhcl.Range{
 				Start:    hhcl.InitialPos,
 				End:      hhcl.InitialPos,
-			}),
-		)
+				Filename: `<cmdline>`,
+			})),
+			RHS: eval.NewExprRHS(expr),
+		})
 	}
-	_ = exprs.Eval(ctx)
+
+	ctx := eval.New(
+		tree.Dir(),
+		runtime.NewResolver(c.cfg(), st),
+		globals.NewResolver(c.cfg(), overrideStmts...),
+	)
+
+	ctx.SetFunctions(stdlib.NoFS(ctx, c.wd()))
 	return ctx
 }
 
@@ -2200,7 +2212,7 @@ func (c *cli) checkOutdatedGeneratedCode() {
 		return
 	}
 
-	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
+	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.globals(), c.vendorDir())
 	if err != nil {
 		fatalWithDetails(err, "failed to check outdated code on project")
 	}
@@ -2248,6 +2260,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 func (c *cli) wd() string                   { return c.prj.wd }
 func (c *cli) rootdir() string              { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root            { return &c.prj.root }
+func (c *cli) globals() *globals.Resolver   { return c.prj.globals }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }

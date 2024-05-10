@@ -152,7 +152,7 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 				continue
 			}
 
-			s, err := config.NewStackFromHCL(m.root.HostDir(), cfg.Node)
+			s, err := config.NewStackFromHCL(m.root.HostDir(), cfg)
 			if err != nil {
 				return nil, errors.E(errListChanged, err)
 			}
@@ -187,7 +187,7 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 			}
 		}
 
-		s, err := config.NewStackFromHCL(m.root.HostDir(), stackTree.Node)
+		s, err := config.NewStackFromHCL(m.root.HostDir(), stackTree)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}

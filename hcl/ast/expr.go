@@ -14,6 +14,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// Tokenizer is an interface for expressions that knows how to tokenize themselves.
+type Tokenizer interface {
+	Tokens() hclwrite.Tokens
+}
+
 // ParseExpression parses the expression str.
 func ParseExpression(str string, filename string) (hcl.Expression, error) {
 	expr, diags := hclsyntax.ParseExpression([]byte(str), filename, hcl.InitialPos)
@@ -31,6 +36,14 @@ func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	return tokens
 }
 
+// StringForExpression returns a string representation of the expression.
+func StringForExpression(expr hcl.Expression) string {
+	if stringer, ok := expr.(fmt.Stringer); ok {
+		return stringer.String()
+	}
+	return string(TokensForExpression(expr).Bytes())
+}
+
 // TokensForValue returns the tokens for the provided value.
 func TokensForValue(value cty.Value) hclwrite.Tokens {
 	if value.Type() == customdecode.ExpressionClosureType {
@@ -40,6 +53,11 @@ func TokensForValue(value cty.Value) hclwrite.Tokens {
 		return TokensForExpression(customdecode.ExpressionFromVal(value))
 	}
 	return hclwrite.TokensForValue(value)
+}
+
+// StringForValue returns a string representation of the value.
+func StringForValue(value cty.Value) string {
+	return string(TokensForValue(value).Bytes())
 }
 
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
@@ -57,6 +75,13 @@ func (builder *tokenBuilder) add(tokens ...*hclwrite.Token) {
 }
 
 func (builder *tokenBuilder) build(expr hcl.Expression) {
+	if tokenizer, ok := expr.(interface {
+		Tokens() hclwrite.Tokens
+	}); ok {
+		builder.add(tokenizer.Tokens()...)
+		return
+	}
+
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		builder.literalTokens(e)

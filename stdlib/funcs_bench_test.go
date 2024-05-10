@@ -9,13 +9,16 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
-	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func BenchmarkTmAllTrueLiteralList(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	s := sandbox.NoGit(b, true)
+	evalctx := eval.New(project.NewPath("/"))
+	evalctx.SetFunctions(stdlib.NoFS(evalctx, s.RootDir()))
 	expr, err := ast.ParseExpression(`tm_alltrue([
 		false,
 		tm_element(tm_range(0, 100), 0) == 0,
@@ -34,7 +37,9 @@ func BenchmarkTmAllTrueLiteralList(b *testing.B) {
 
 func BenchmarkTmAllTrueFuncall(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	s := sandbox.NoGit(b, true)
+	evalctx := eval.New(project.NewPath("/"))
+	evalctx.SetFunctions(stdlib.NoFS(evalctx, s.RootDir()))
 	expr, err := ast.ParseExpression(`tm_alltrue(tm_distinct([for i in tm_range(0, 3) : i == 2 ? true : false]))`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -49,7 +54,9 @@ func BenchmarkTmAllTrueFuncall(b *testing.B) {
 
 func BenchmarkTmAnyTrueLiteralList(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	s := sandbox.NoGit(b, true)
+	evalctx := eval.New(project.NewPath("/"))
+	evalctx.SetFunctions(stdlib.NoFS(evalctx, s.RootDir()))
 	expr, err := ast.ParseExpression(`tm_anytrue([
 		true,
 		tm_element(tm_range(0, 100), 0) != 0,
@@ -68,7 +75,9 @@ func BenchmarkTmAnyTrueLiteralList(b *testing.B) {
 
 func BenchmarkTmAnyTrueFuncall(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	s := sandbox.NoGit(b, true)
+	evalctx := eval.New(project.NewPath("/"))
+	evalctx.SetFunctions(stdlib.NoFS(evalctx, s.RootDir()))
 	expr, err := ast.ParseExpression(`tm_anytrue(tm_distinct([for i in tm_range(0, 3) : i == 2 ? true : false]))`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -83,7 +92,9 @@ func BenchmarkTmAnyTrueFuncall(b *testing.B) {
 
 func BenchmarkTmTernary(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	s := sandbox.NoGit(b, true)
+	evalctx := eval.New(project.NewPath("/"))
+	evalctx.SetFunctions(stdlib.NoFS(evalctx, s.RootDir()))
 	expr, err := ast.ParseExpression(`tm_ternary(false, tm_unknown_function(), "result")`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -98,7 +109,9 @@ func BenchmarkTmTernary(b *testing.B) {
 
 func BenchmarkTmTry(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	s := sandbox.NoGit(b, true)
+	evalctx := eval.New(project.NewPath("/"))
+	evalctx.SetFunctions(stdlib.NoFS(evalctx, s.RootDir()))
 	expr, err := ast.ParseExpression(`tm_try(tm_unknown_function(), "result")`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()

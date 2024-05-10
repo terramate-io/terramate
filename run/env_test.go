@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/test"
 	errorstest "github.com/terramate-io/terramate/test/errors"
@@ -147,7 +148,7 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 			want: map[string]result{
 				"stack": {
-					enverr: errors.E(run.ErrLoadingGlobals),
+					enverr: errors.E(eval.ErrEval),
 				},
 			},
 		},

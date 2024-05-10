@@ -11,7 +11,6 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
-	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
@@ -389,15 +388,18 @@ func TestLoad(t *testing.T) {
 				{
 					path: "config.tm",
 					body: Doc(
+						Globals(
+							Str("a", "from root"),
+						),
 						GenerateHCL(
 							Labels("test.hcl"),
 							Content(
-								Str("stacks", "test"),
+								Expr("stacks", `global.a`),
 							),
 						),
 						GenerateFile(
 							Labels("test.txt"),
-							Str("content", "test"),
+							Expr("content", `global.a`),
 						),
 					),
 				},
@@ -421,11 +423,11 @@ func TestLoad(t *testing.T) {
 			want: []result{
 				{
 					dir: "/stack-1",
-					err: errors.E(globals.ErrEval),
+					err: errors.E(eval.ErrEval),
 				},
 				{
 					dir: "/stack-2",
-					err: errors.E(globals.ErrEval),
+					err: errors.E(eval.ErrEval),
 				},
 				{
 					dir: "/stack-3",
@@ -435,8 +437,8 @@ func TestLoad(t *testing.T) {
 							condition: true,
 							blockRange: Range(
 								"/config.tm",
-								Start(1, 1, 0),
-								End(5, 2, 63),
+								Start(4, 1, 30),
+								End(8, 2, 95),
 							),
 						},
 						{
@@ -444,8 +446,8 @@ func TestLoad(t *testing.T) {
 							condition: true,
 							blockRange: Range(
 								"/config.tm",
-								Start(6, 1, 64),
-								End(8, 2, 111),
+								Start(9, 1, 96),
+								End(11, 2, 145),
 							),
 						},
 					},
@@ -545,7 +547,7 @@ func TestLoad(t *testing.T) {
 				root.CreateFile(cfg.path, cfg.body.String())
 			}
 
-			got, err := generate.Load(s.Config(), project.NewPath("/modules"))
+			got, err := generate.Load(s.Config(), s.Globals(), project.NewPath("/modules"))
 			assert.IsError(t, err, tcase.wantErr)
 			if tcase.wantErr != nil {
 				return

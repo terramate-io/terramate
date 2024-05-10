@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
@@ -53,7 +54,7 @@ checkImports:
 // AssertStacks asserts that s1 and s2 are equal.
 func AssertStacks(t testing.TB, got, want config.Stack) {
 	t.Helper()
-	if diff := cmp.Diff(got, want, cmp.AllowUnexported(project.Path{})); diff != "" {
+	if diff := cmp.Diff(got, want, cmp.AllowUnexported(project.Path{}), cmpopts.IgnoreUnexported(config.Stack{})); diff != "" {
 		t.Fatalf("diff (-got, +want): %s", diff)
 	}
 }

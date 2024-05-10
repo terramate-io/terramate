@@ -17,7 +17,7 @@ import (
 // TernaryFunc is the `tm_ternary` function implementation.
 // The `tm_ternary(cond, expr1, expr2)` will return expr1 if `cond` evaluates
 // to `true` and `expr2` otherwise.
-func TernaryFunc() function.Function {
+func TernaryFunc(evalctx *eval.Context) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -35,25 +35,29 @@ func TernaryFunc() function.Function {
 		},
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			return ternary(args[0], args[1], args[2])
+			return ternary(evalctx, args[0], args[1], args[2])
 		},
 	})
 }
 
-func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
+func ternary(evalctx *eval.Context, cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 	if cond.True() {
-		return evalTernaryBranch(val1)
+		return evalTernaryBranch(evalctx, val1)
 	}
-	return evalTernaryBranch(val2)
+	return evalTernaryBranch(evalctx, val2)
 }
 
-func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
+func evalTernaryBranch(evalctx *eval.Context, arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
-	ctx := eval.NewContextFrom(closure.EvalContext)
-	newexpr, err := ctx.PartialEval(&ast.CloneExpression{
+	// some HCL language construct declare variables and pass them down the
+	// context tree, then we need to use the expression's own underlying EvalContext when available.
+	bk := evalctx.Internal
+	evalctx.Internal = closure.EvalContext
+	newexpr, err := evalctx.PartialEval(&ast.CloneExpression{
 		Expression: closure.Expression.(hclsyntax.Expression),
 	})
+	evalctx.Internal = bk
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/runtime"
 	"github.com/terramate-io/terramate/stdlib"
 )
 
@@ -83,7 +84,7 @@ func (c *cli) runScript() {
 		for _, st := range result.Stacks {
 			run := stackRun{Stack: st.Stack}
 
-			ectx, err := scriptEvalContext(c.cfg(), st.Stack)
+			ectx, err := scriptEvalContext(c.cfg(), st.Stack, c.globals())
 			if err != nil {
 				fatalWithDetails(err, "failed to get context")
 			}
@@ -218,18 +219,11 @@ func printScriptCommand(w io.Writer, stack *config.Stack, run stackRunTask) {
 	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
 }
 
-func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, error) {
-	globalsReport := globals.ForStack(root, st)
-	if err := globalsReport.AsError(); err != nil {
-		return nil, err
-	}
+func scriptEvalContext(root *config.Root, st *config.Stack, globalsResolver *globals.Resolver) (*eval.Context, error) {
 
-	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
-	runtime := root.Runtime()
-	runtime.Merge(st.RuntimeValues(root))
-	evalctx.SetNamespace("terramate", runtime)
-	evalctx.SetNamespace("global", globalsReport.Globals.AsValueMap())
-	evalctx.SetEnv(os.Environ())
+	evalctx := eval.New(st.Dir, globalsResolver, runtime.NewResolver(root, st))
+	evalctx.SetFunctions(stdlib.Functions(evalctx, st.HostDir(root)))
+	//evalctx.SetEnv(os.Environ())
 
 	return evalctx, nil
 }

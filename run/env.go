@@ -9,10 +9,15 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/terramate-io/terramate/runtime"
+
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
 	"golang.org/x/exp/maps"
 
@@ -20,9 +25,6 @@ import (
 )
 
 const (
-	// ErrLoadingGlobals indicates that an error happened while loading globals.
-	ErrLoadingGlobals errors.Kind = "loading globals to evaluate terramate.config.run.env configuration"
-
 	// ErrEval indicates that an error happened while evaluating one of the
 	// terramate.config.run.env attributes.
 	ErrEval errors.Kind = "evaluating terramate.config.run.env attribute"
@@ -44,21 +46,20 @@ type EnvVars []string
 // up to the root of the project are collected, and env definitions closer to the
 // stack have precedence over parent definitions.
 func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
-	globalsReport := globals.ForStack(root, st)
-	if err := globalsReport.AsError(); err != nil {
-		return nil, errors.E(ErrLoadingGlobals, err)
-	}
-
-	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
-	runtime := root.Runtime()
-	runtime.Merge(st.RuntimeValues(root))
-	evalctx.SetNamespace("terramate", runtime)
-	evalctx.SetNamespace("global", globalsReport.Globals.AsValueMap())
-	evalctx.SetEnv(os.Environ())
-
-	tree, _ := root.Lookup(st.Dir)
+	evalctx := eval.New(
+		st.Dir,
+		globals.NewResolver(root),
+		runtime.NewResolver(root, st),
+		&EnvResolver{
+			rootdir: root.HostDir(),
+			env:     os.Environ(),
+		},
+	)
+	evalctx.SetFunctions(stdlib.Functions(evalctx, st.HostDir(root)))
 	envMap := map[string]string{}
 	skipMap := map[string]struct{}{}
+
+	tree, _ := root.Lookup(st.Dir)
 
 	for {
 		if tree.Node.HasRunEnv() {
@@ -112,6 +113,50 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		envVars = append(envVars, k+"="+envMap[k])
 	}
 	return envVars, nil
+}
+
+type EnvResolver struct {
+	rootdir  string
+	scopeDir project.Path
+	env      []string
+}
+
+func (r *EnvResolver) Name() string { return "env" }
+
+func (r *EnvResolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
+
+func (r *EnvResolver) loadStmts() (eval.Stmts, error) {
+	stmts := make(eval.Stmts, len(r.env))
+	for _, env := range r.env {
+		nameval := strings.Split(env, "=")
+
+		ref := eval.Ref{
+			Object: r.Name(),
+			Path:   []string{nameval[0]},
+		}
+
+		val := cty.StringVal(strings.Join(nameval[1:], "="))
+		stmts = append(stmts, eval.Stmt{
+			Origin: ref,
+			LHS:    ref,
+			RHS:    eval.NewValRHS(val),
+			Info: eval.NewInfo(project.NewPath("/"), info.NewRange(r.rootdir, hhcl.Range{
+				Start:    hhcl.InitialPos,
+				End:      hhcl.InitialPos,
+				Filename: `<environ>`,
+			})), // env is root-scoped
+		})
+	}
+	return stmts, nil
+}
+
+func (r *EnvResolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+	stmts, err := r.loadStmts()
+	if err != nil {
+		return nil, err
+	}
+	filtered, _ := stmts.SelectBy(ref, map[eval.RefStr]eval.Ref{})
+	return []eval.Stmts{filtered}, nil
 }
 
 func getEnv(key string, environ []string) (string, bool) {
