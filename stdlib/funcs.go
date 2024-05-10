@@ -73,6 +73,9 @@ func Functions(evalctx *eval.Context, basedir string) map[string]function.Functi
 	// sane ternary
 	tmfuncs["tm_ternary"] = TernaryFunc(evalctx)
 
+	// optimized try
+	tmfuncs["tm_try"] = TryFunc()
+
 	tmfuncs["tm_version_match"] = VersionMatch()
 	return tmfuncs
 }

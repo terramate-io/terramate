@@ -33,13 +33,7 @@ func TernaryFunc(evalctx *eval.Context) function.Function {
 				Type: customdecode.ExpressionClosureType,
 			},
 		},
-		Type: func(args []cty.Value) (cty.Type, error) {
-			v, err := ternary(evalctx, args[0], args[1], args[2])
-			if err != nil {
-				return cty.NilType, err
-			}
-			return v.Type(), nil
-		},
+		Type: function.StaticReturnType(cty.DynamicPseudoType),
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			return ternary(evalctx, args[0], args[1], args[2])
 		},

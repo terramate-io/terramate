@@ -63,7 +63,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	env := RemoveEnv(os.Environ(), "CI")
 	env = append(env, "TMC_API_URL=http://"+addr, "CI=")
 	cli := NewCLI(t, s.RootDir(), env...)
-	AssertRunResult(t, cli.Run("experimental", "trigger", "--experimental-status=unhealthy"), RunExpected{
+	AssertRunResult(t, cli.Run("experimental", "trigger", "--status=unhealthy"), RunExpected{
 		IgnoreStdout: true,
 	})
 
@@ -94,10 +94,10 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name:       "local repository is not permitted with --experimental-status=",
+			name:       "local repository is not permitted with --status=",
 			layout:     []string{"s:s1:id=s1"},
 			repository: test.TempDir(t),
-			flags:      []string{`--experimental-status=unhealthy`},
+			flags:      []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
 					Status:      1,
@@ -114,7 +114,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			want: want{
 				trigger: RunExpected{
 					Status:      1,
-					StderrRegex: "trigger command expects either a stack path or the --experimental-status flag",
+					StderrRegex: "trigger command expects either a stack path or the --status flag",
 				},
 			},
 		},
@@ -124,7 +124,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				"s:s1:id=s1",
 				"s:s2:id=s2",
 			},
-			flags: []string{"--experimental-status=unhealthy"},
+			flags: []string{"--status=unhealthy"},
 		},
 		{
 			name: "1 cloud stack healthy, other absent, asking for unhealthy: trigger nothing",
@@ -145,7 +145,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 		},
 		{
 			name: "1 cloud stack unhealthy but different repository, trigger nothing",
@@ -166,7 +166,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 		},
 		{
 			name: "1 cloud stack failed, other absent, asking for unhealthy, trigger the failed",
@@ -187,7 +187,36 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
+			want: want{
+				trigger: RunExpected{
+					StdoutRegex: "Created trigger for stack",
+				},
+				list: RunExpected{
+					Stdout: nljoin("s1"),
+				},
+			},
+		},
+		{
+			name: "deprecated --cloud-status alias",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+			},
+			flags: []string{`--cloud-status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -227,7 +256,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -267,7 +296,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=ok`},
+			flags: []string{`--status=ok`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -307,7 +336,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=ok`},
+			flags: []string{`--status=ok`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -347,7 +376,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=failed`},
+			flags: []string{`--status=failed`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -387,7 +416,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=drifted`},
+			flags: []string{`--status=drifted`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -424,7 +453,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 		},
 		{
 			name: "2 local stacks, 2 same unhealthy stacks, trigger both",
@@ -456,7 +485,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",
@@ -497,7 +526,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 			},
-			flags: []string{`--experimental-status=unhealthy`},
+			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
 					StdoutRegex: "Created trigger for stack",

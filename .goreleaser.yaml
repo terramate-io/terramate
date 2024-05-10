@@ -37,6 +37,23 @@ archives:
       - goos: windows
         format: zip
 
+nfpms:
+  - maintainer: terramate.io 
+    description: Terramate CLI is an open-source Orchestrator and Code Generator for Terraform and OpenTofu.
+    homepage: https://github.com/terramate-io/terramate/
+    license: MPL-2.0
+    formats:
+      - deb
+      - rpm
+
+furies:
+  - 
+    account: terramate
+    secret_name: FURY_TOKEN
+    formats:
+      - deb
+      - rpm
+
 dockers:
   - dockerfile: hack/release/Dockerfile
     image_templates:

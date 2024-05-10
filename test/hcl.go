@@ -63,10 +63,39 @@ func AssertGenCodeEquals(t *testing.T, got string, want string) {
 func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	t.Helper()
 
+	// Reasoning:
+	// It happened several times that fields were added to the
+	// hcl.Config tree and their respective assertXYZ() func
+	// was not updated to include the field in the assertion,
+	// leading to false positive test cases.
+	// The solution here for the aforementioned problem is not
+	// ideal but can potentially catch more mistakes like that.
+	//
+	// We run an initial cmp.Diff() over the entire hcl.Config{}
+	// and ignore the non-comparable fields. If a new field is
+	// introduced into a non-ignored type, then it will be compared
+	// by default. We must be very selective on what we ignore,
+	// in order to make this strategy work.
+
+	if diff := cmp.Diff(got, want,
+		cmpopts.IgnoreUnexported(hcl.Config{}),
+		cmpopts.IgnoreUnexported(project.Path{}),
+
+		// this contains the Raw HCL constructs and it was never tested here.
+		cmpopts.IgnoreFields(hcl.Config{}, "Imported"),
+
+		// Globals/Asserts/Scripts are mostly Attribute and Expr, which cannot be easily compared with cmp.Diff.
+		cmpopts.IgnoreFields(hcl.Config{}, "Globals", "Asserts", "Scripts"),
+		cmpopts.IgnoreFields(hcl.RunEnv{}, "Attributes"), // because Expr and Range
+		cmpopts.IgnoreFields(hcl.Config{}, "Generate"),
+	); diff != "" {
+		t.Logf("want: %+v", want)
+		t.Logf("got: %+v", got)
+		t.Fatal(diff)
+	}
+
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
-	assertStackBlock(t, got.Stack, want.Stack)
 	assertAssertsBlock(t, got.Asserts, want.Asserts, "terramate asserts")
-	AssertDiff(t, got.Vendor, want.Vendor, "terramate vendor")
 	assertGenHCLBlocks(t, got.Generate.HCLs, want.Generate.HCLs)
 	assertGenFileBlocks(t, got.Generate.Files, want.Generate.Files)
 	assertScriptBlocks(t, got.Scripts, want.Scripts)
@@ -296,9 +325,14 @@ func assertScriptBlocks(t *testing.T, got, want []*hcl.Script) {
 	for i, g := range got {
 		w := want[i]
 
-		assert.EqualStrings(t,
-			exprAsStr(t, w.Description.Expr), exprAsStr(t, g.Description.Expr),
-			"description expr mismatch")
+		if w.Description != nil {
+			assert.EqualStrings(t,
+				exprAsStr(t, w.Description.Expr), exprAsStr(t, g.Description.Expr),
+				"description expr mismatch")
+		} else if g.Description != nil {
+			t.Fatalf("got script.description[%s] but expected nil", exprAsStr(t, g.Description.Expr))
+
+		}
 
 		assert.IsTrue(t, slices.Equal(w.Labels, g.Labels),
 			fmt.Sprintf("script label value mismatch: want[%#v], got [%#v]", w.Labels, g.Labels))
@@ -306,6 +340,24 @@ func assertScriptBlocks(t *testing.T, got, want []*hcl.Script) {
 		assert.EqualInts(t, len(w.Jobs), len(g.Jobs), "script len(jobs) mismatch")
 		for k, gotJob := range g.Jobs {
 			wantJob := w.Jobs[k]
+
+			if wantJob.Name != nil {
+				assert.EqualStrings(t,
+					exprAsStr(t, wantJob.Name.Expr),
+					exprAsStr(t, gotJob.Name.Expr),
+				)
+			} else if gotJob.Name != nil {
+				t.Fatalf("got job.name[%s] but expected nil", exprAsStr(t, gotJob.Name.Expr))
+			}
+
+			if wantJob.Description != nil {
+				assert.EqualStrings(t,
+					exprAsStr(t, wantJob.Description.Expr),
+					exprAsStr(t, gotJob.Description.Expr),
+				)
+			} else if gotJob.Description != nil {
+				t.Fatalf("got job.description[%s] but expected nil", exprAsStr(t, gotJob.Description.Expr))
+			}
 
 			if wantJob.Command != nil {
 				assert.EqualStrings(t,
@@ -394,29 +446,12 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	return string(file.Bytes())
 }
 
-func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
-	if (got == nil) != (want == nil) {
-		t.Fatalf("want[%+v] != got[%+v]", want, got)
-	}
-
-	if want == nil {
-		return
-	}
-
-	assert.EqualInts(t, len(got.After), len(want.After), "After length mismatch")
-
-	for i, w := range want.After {
-		assert.EqualStrings(t, w, got.After[i], "stack after mismatch")
-	}
-}
-
 // WriteRootConfig writes a basic terramate root config.
 func WriteRootConfig(t testing.TB, rootdir string) {
 	WriteFile(t, rootdir, "root.config.tm", `
 terramate {
-	config {
-
-	}
+	required_version = "> 0.0.1"
+	required_version_allow_prereleases = true
 }
 			`)
 }

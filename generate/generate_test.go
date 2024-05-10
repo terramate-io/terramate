@@ -6,6 +6,7 @@ package generate_test
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -118,6 +119,72 @@ func TestGenerateIgnore(t *testing.T) {
 						Created: []string{
 							"dir/file.hcl",
 							"file.hcl",
+						},
+					},
+				},
+			},
+		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1260
+			name: "regression test: dotfiles snould not be skipped when scanning files",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels("/.root-file"),
+						Expr("context", "root"),
+						Str("content", "root context"),
+						Bool("condition", true),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"/.root-file": stringer("root context"),
+					},
+				},
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						".file":     stringer("stack context"),
+						".file.hcl": stringer(`data = "data"`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{".root-file"},
+					},
+					{
+						Dir: project.NewPath("/stack"),
+						Created: []string{
+							".file",
+							".file.hcl",
 						},
 					},
 				},
@@ -353,6 +420,120 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 			},
 		},
 		{
+			name:   "if path is inside dotdir fails",
+			skipOn: "windows",
+			layout: []string{
+				"s:stacks/stack",
+				"d:.somedir",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels(".somedir/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels(".somedir/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack"),
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:   "if path is inside deep dotdir fails",
+			skipOn: "windows",
+			layout: []string{
+				"s:stacks/stack",
+				"d:somedir/otherdir/.somedir",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("somedir/otherdir/.somedir/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("somedir/otherdir/.somedir/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack"),
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:   "if path is inside deep dotdir, even if not the leaf, fails",
+			skipOn: "windows",
+			layout: []string{
+				"s:stacks/stack",
+				"d:somedir/otherdir/.somedir/moredirs/a/b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("somedir/otherdir/.somedir/moredirs/a/b/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("somedir/otherdir/.somedir/moredirs/a/b/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack"),
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
 			name: "invalid paths fails",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -464,6 +645,60 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dotdirs should be skipped when scanning stack files",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".directory/file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels(".directory/.file.hcl"),
+						Content(
+							Str("data", "data"),
+						),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".directory/.file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels(".directory/file"),
+						Str("content", "stack context"),
+						Bool("condition", true),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stack"),
+						},
+						Error: errors.E(generate.ErrInvalidGenBlockLabel),
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -563,6 +798,36 @@ func TestGenerateCleanup(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "cleanup ignores dotdirs outside stacks",
+			layout: []string{
+				genfile(".dir/a.hcl", "AAA"),
+				genfile(".dir/subdir/b.hcl", "BBB"),
+				genfile(".dir/subdir/again/c.hcl", "CCC"),
+			},
+			want: []generatedFile{
+				// Note the files below have the HCL magic header but it's not used in the comparison
+				// but just the "content".
+				{
+					dir: "/.dir",
+					files: map[string]fmt.Stringer{
+						"a.hcl": stringer("AAA"),
+					},
+				},
+				{
+					dir: "/.dir/subdir",
+					files: map[string]fmt.Stringer{
+						"b.hcl": stringer("BBB"),
+					},
+				},
+				{
+					dir: "/.dir/subdir/again",
+					files: map[string]fmt.Stringer{
+						"c.hcl": stringer("CCC"),
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -571,7 +836,7 @@ func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
 
 	s := sandbox.NoGit(t, true)
 	dir := s.RootEntry().CreateDir("dir")
-	file := dir.CreateFile("file.hcl", genhcl.Header)
+	file := dir.CreateFile("file.hcl", genhcl.DefaultHeader())
 	file.Chmod(0)
 	defer file.Chmod(0755)
 
@@ -710,6 +975,74 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestTmGenDeletesFileWhenHidden(t *testing.T) {
+	t.Parallel()
+
+	const filename = "file.tf"
+
+	s := sandbox.NoGit(t, true)
+	s.RootEntry().CreateFile("terramate.tm", Terramate(Config(Expr("experiments", `["tmgen"]`))).String())
+	stackEntry := s.CreateStack("stack")
+
+	assertFileExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("want file %q to exist, instead got: %v", path, err)
+		}
+	}
+	assertFileDontExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		_, err := os.Stat(path)
+
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
+		t.Fatalf("want file %q to not exist, instead got: %v", path, err)
+	}
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{})
+	assertFileDontExist(filename)
+
+	stackEntry.CreateFile(
+		filename+".tmgen",
+		"val = 1",
+	)
+
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     project.NewPath("/stack"),
+				Created: []string{filename},
+			},
+		},
+	})
+	assertFileExist(filename)
+
+	test.RemoveFile(t, stackEntry.Path(), filename+".tmgen")
+	stackEntry.CreateFile(
+		"."+filename+".tmgen", //dotfile
+		"val = 1",
+	)
+
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     project.NewPath("/stack"),
+				Deleted: []string{filename},
+			},
+		},
+	})
+	assertFileDontExist(filename)
 }
 
 func testCodeGeneration(t *testing.T, tcases []testcase) {

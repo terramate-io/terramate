@@ -38,8 +38,22 @@ test/helper:
 tempdir=$(shell ./bin/helper tempdir)
 test: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
+	./bin/terramate run --no-recursive -- go test -c -tags interop ./cmd/terramate/e2etests/cloud/interop/...
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
+
+## test/interop
+.PHONY: test/interop
+test/interop: org?=test
+test/interop: backend_host?=api.stg.terramate.io
+test/interop:
+	TM_CLOUD_ORGANIZATION=$(org) TMC_API_HOST=$(backend_host) go test -v -count=1 -tags interop ./cmd/terramate/e2etests/cloud/interop/...
+
+## graph2png
+.PHONY: graph2png
+graph2png:
+	./bin/terramate experimental run-graph | dot -Tpng > graph.png
+	@echo "check the image: graph.png"
 
 ## test if terramate works with CI git environment.
 .PHONY: test/ci

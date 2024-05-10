@@ -19,6 +19,11 @@ build/terramate:
 build/terramate-ls:
 	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/terramate-ls$(EXEC_SUFFIX) ./cmd/terramate-ls
 
+## Build tgdeps
+.PHONY: build/tgdeps
+build/tgdeps:
+	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/tgdeps$(EXEC_SUFFIX) ./cmd/tgdeps
+
 ## Install terramate tools on the host
 .PHONY: install
 install: install/terramate install/terramate-ls
@@ -33,6 +38,11 @@ install/terramate:
 .PHONY: install/terramate-ls
 install/terramate-ls:
 	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate-ls
+
+## Install tgdeps
+.PHONY: install/tgdeps
+install/tgdeps:
+	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/tgdeps
 
 .PHONY: generate
 generate:
@@ -116,7 +126,7 @@ bench/check: allocdelta="+20%"
 bench/check: timedelta="+20%"
 bench/check: name=github.com/terramate-io/terramate
 bench/check: pkg?=./...
-bench/check: old=main
+bench/check: old?=main
 bench/check: new?=$(shell git rev-parse HEAD)
 bench/check:
 	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem,-count=20,-run=Bench" \
@@ -132,12 +142,12 @@ bench/cleanup:
 ## executes a dry run of the release process
 .PHONY: release/dry-run
 release/dry-run:
-	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --snapshot --rm-dist
+	goreleaser release --snapshot --rm-dist 
 
 ## generates a terramate release
 .PHONY: release
 release:
-	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
+	goreleaser release --rm-dist --key $(GORELEASER_KEY)
 
 ## sync the Terramate example stack with a success status.
 .PHONY: cloud/sync/ok
@@ -146,7 +156,7 @@ cloud/sync/ok: build test/helper
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
 			--tags test \
-			run --cloud-sync-deployment --  \
+			run --sync-deployment --  \
 			$(PWD)/bin/helper true
 
 ## sync the Terramate example stack with a failed status.
@@ -156,7 +166,7 @@ cloud/sync/failed: build test/helper
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
 			--tags test \
-			run --cloud-sync-deployment --  \
+			run --sync-deployment --  \
 			$(PWD)/bin/helper false
 
 ## Display help for all targets

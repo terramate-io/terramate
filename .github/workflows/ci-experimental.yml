@@ -3,7 +3,7 @@
 
 name: ci-experimental
 on:
-  pull_request:
+  push:
     paths-ignore:
       - 'docs/**'
       - 'makefiles/**'
@@ -20,17 +20,19 @@ jobs:
     strategy:
       matrix:
         os: ["windows-2022"]
-        go: ["1.20"]
+        go: ["1.21"]
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
-          fetch-depth: 0
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.2
+          tofu_wrapper: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: configure git
         run: git config --global core.autocrlf false

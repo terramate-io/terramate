@@ -78,6 +78,7 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					`/stack`,
 				),
+				StderrRegex: "Warning: Stack references invalid path in 'after' attribute",
 			},
 		},
 		{
@@ -89,6 +90,7 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					`/stack`,
 				),
+				StderrRegex: "Warning: Stack references invalid path in 'after' attribute",
 			},
 		},
 		{
@@ -539,6 +541,57 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "implicit order with tags - Zied case",
+			layout: []string{
+				`s:project:tags=["project"];before=["tag:identity"]`,
+				`s:iac/cloud-storage/bucket:tags=["bucket"];after=["tag:project", "tag:service-account"]`,
+				`s:iac/service-accounts:tags=["identity"];before=["/iac/service-accounts/sa-name"]`,
+				`s:iac/service-accounts/sa-name:tags=["service-account"]`,
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"/project",
+					"/iac/service-accounts",
+					"/iac/service-accounts/sa-name",
+					"/iac/cloud-storage/bucket",
+				),
+			},
+		},
+		{
+			name: "before clause pulling a branch of fs ordered stacks",
+			layout: []string{
+				`s:project:tags=["project"];before=["tag:parent"]`,
+				`s:dir/parent:tags=["parent"]`,
+				`s:dir/parent/child:tags=["child"]`,
+				`s:dir/other:tags=["other"];after=["tag:project", "tag:child"]`,
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					`/project`,
+					`/dir/parent`,
+					`/dir/parent/child`,
+					`/dir/other`,
+				),
+			},
+		},
+		{
+			name: "stack pulled to the middle of fs ordering chain",
+			layout: []string{
+				`s:parent`,
+				`s:parent/child:before=["tag:other"]`,
+				`s:parent/child/grand-child`,
+				`s:other:tags=["other"]`,
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					`/parent`,
+					`/parent/child`,
+					`/other`,
+					`/parent/child/grand-child`,
+				),
+			},
+		},
+		{
 			name: "grand parent before parent before child (implicit)",
 			layout: []string{
 				`s:grand-parent/parent/child`,
@@ -862,7 +915,25 @@ func TestCLIRunOrder(t *testing.T) {
 				s := s
 				t.Run("run on sandbox", func(t *testing.T) {
 					t.Parallel()
-					s.BuildTree(tc.layout)
+					copiedLayout := make([]string, len(tc.layout))
+					copy(copiedLayout, tc.layout)
+					if runtime.GOOS != "windows" {
+						copiedLayout = append(copiedLayout,
+
+							fmt.Sprintf(`file:script.tm:
+terramate {
+	config {
+		experiments = ["scripts"]
+	}
+}
+script "cmd" {
+	description = "test"
+	job {
+		command = ["%s", "stack-abs-path", "%s"]
+	}
+}`, HelperPath, s.RootDir()))
+					}
+					s.BuildTree(copiedLayout)
 
 					wd := s.RootDir()
 					if tc.workingDir != "" {
@@ -879,6 +950,28 @@ func TestCLIRunOrder(t *testing.T) {
 
 					cli := NewCLI(t, wd)
 					AssertRunResult(t, cli.StacksRunOrder(filterArgs...), tc.want)
+					runArgs := []string{
+						"--quiet", "run", "-X", // disable all safeguards
+					}
+					runArgs = append(runArgs, filterArgs...)
+					runArgs = append(runArgs, "--", HelperPath, "stack-abs-path", s.RootDir())
+					AssertRunResult(t, cli.Run(runArgs...), tc.want)
+
+					if runtime.GOOS != "windows" {
+						runScriptArgs := []string{
+							"--quiet",
+						}
+						runScriptArgs = append(runScriptArgs, filterArgs...)
+						runScriptArgs = append(runScriptArgs, "script", "run", "-X", "cmd") // disable all safeguards)
+						AssertRunResult(t, cli.Run(runScriptArgs...), RunExpected{
+							Status:        tc.want.Status,
+							IgnoreStderr:  true,
+							Stdout:        tc.want.Stdout,
+							IgnoreStdout:  tc.want.IgnoreStdout,
+							StdoutRegex:   tc.want.StdoutRegex,
+							StdoutRegexes: tc.want.StdoutRegexes,
+						})
+					}
 				})
 			}
 		})
@@ -899,6 +992,10 @@ func TestRunWants(t *testing.T) {
 				Stdout: nljoin(
 					"/stack-a",
 				),
+				StderrRegexes: []string{
+					"Stack selection clauses \\(wants\\/wanted_by\\) have cycles",
+					`cycle detected: /stack-a -> /stack-a: checking node id "/stack-a"`,
+				},
 			},
 		},
 		{
@@ -1067,6 +1164,10 @@ func TestRunWants(t *testing.T) {
 					"/stack-e",
 					"/stack-z",
 				),
+				StderrRegexes: []string{
+					"Stack selection clauses \\(wants\\/wanted_by\\) have cycles",
+					`cycle detected: /stack-a -> /stack-b -> /stack-e -> /stack-a: checking node id "/stack-a"`,
+				},
 			},
 		},
 		{
@@ -1095,6 +1196,10 @@ func TestRunWants(t *testing.T) {
 					"/stack-e",
 					"/stack-z",
 				),
+				StderrRegexes: []string{
+					"Stack selection clauses \\(wants\\/wanted_by\\) have cycles",
+					`cycle detected: /stack-a -> /stack-b -> /stack-e -> /stack-a: checking node id "/stack-a"`,
+				},
 			},
 		},
 		{
@@ -1249,6 +1354,10 @@ func TestRunWantedBy(t *testing.T) {
 					"/stack1",
 					"/stack2",
 				),
+				StderrRegexes: []string{
+					"Stack selection clauses \\(wants\\/wanted_by\\) have cycles",
+					"cycle detected: /stack1 -> /stack2 -> /stack1: checking node id \"/stack1\"",
+				},
 			},
 		},
 		{
@@ -1390,6 +1499,10 @@ func TestRunWantedBy(t *testing.T) {
 				Stdout: nljoin(
 					"/stacks/stack-b",
 				),
+				StderrRegexes: []string{
+					"Stack references invalid path in 'wanted_by' attribute",
+					"no such file or directory",
+				},
 			},
 		},
 		{
@@ -1444,7 +1557,25 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 		s := s
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s.BuildTree(tc.layout)
+			copiedLayout := make([]string, len(tc.layout))
+			copy(copiedLayout, tc.layout)
+			if runtime.GOOS != "windows" {
+				copiedLayout = append(copiedLayout,
+
+					fmt.Sprintf(`file:script.tm:
+terramate {
+	config {
+		experiments = ["scripts"]
+	}
+}
+script "cmd" {
+	description = "test"
+	job {
+		command = ["%s", "stack-abs-path", "%s"]
+	}
+}`, HelperPath, s.RootDir()))
+			}
+			s.BuildTree(copiedLayout)
 
 			var baseArgs []string
 			for _, filter := range tc.filterTags {
@@ -1456,7 +1587,7 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 
 			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
 
-			runOrderArgs := append(baseArgs, "experimental", "run-order")
+			runOrderArgs := append(baseArgs, "--quiet", "experimental", "run-order")
 			AssertRunResult(t, cli.Run(runOrderArgs...), tc.want)
 
 			if s.IsGit() {
@@ -1465,8 +1596,19 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			runArgs := append(baseArgs, "run", HelperPath, "stack-abs-path", s.RootDir())
+			copiedBaseArgs := make([]string, len(baseArgs))
+			copy(copiedBaseArgs, baseArgs)
+			runArgs := append(copiedBaseArgs, "run", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
 			AssertRunResult(t, cli.Run(runArgs...), tc.want)
+
+			if runtime.GOOS != "windows" {
+				scriptArgs := append(copiedBaseArgs, "script", "run", "cmd")
+				AssertRunResult(t, cli.Run(scriptArgs...), RunExpected{
+					Stdout:       tc.want.Stdout,
+					IgnoreStderr: true,
+					Status:       tc.want.Status,
+				})
+			}
 		})
 	}
 }
@@ -1506,6 +1648,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -1515,6 +1658,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	cli = NewCLI(t, stack.Path())
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -1548,6 +1692,7 @@ func TestRunReverseExecution(t *testing.T) {
 
 		AssertRunResult(t, cli.Run(
 			"run",
+			"--quiet",
 			"--reverse",
 			HelperPath,
 			"cat",
@@ -1556,6 +1701,7 @@ func TestRunReverseExecution(t *testing.T) {
 
 		AssertRunResult(t, cli.Run(
 			"run",
+			"--quiet",
 			"--reverse",
 			"--changed",
 			HelperPath,
@@ -1613,10 +1759,11 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.
 		if filter != "" {
 			baseArgs = append(baseArgs, "--tags", filter)
 		}
-		runArgs := append(baseArgs, "run", HelperPath, "cat", testfile)
+		runArgs := append(baseArgs, "run", "--quiet", HelperPath, "cat", testfile)
 		AssertRunResult(t, cli.Run(runArgs...), RunExpected{Stdout: want})
 
 		runChangedArgs := append(baseArgs, "run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
@@ -1668,7 +1815,9 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
-	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: wantList})
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{
+		Stdout: wantList,
+	})
 
 	wantRun := fmt.Sprintf(
 		"%s%s",
@@ -1678,6 +1827,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -1705,35 +1855,47 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	stack.CreateFile("untracked-file.txt", `# something`)
 
-	cli := NewCLI(t, s.RootDir())
+	t.Run("ensure test env is in the correct state", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir())
 
-	// check untracked with --changed
-	AssertRunResult(t, cli.Run(
-		"run",
-		"--changed",
-		HelperPath,
-		"cat",
-		mainTfFileName,
-	), RunExpected{
-		Status:      defaultErrExitStatus,
-		StderrRegex: "repository has untracked files",
+		// check untracked with --changed
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has untracked files",
+		})
+
+		// check untracked *without* --changed
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has untracked files",
+		})
 	})
 
-	// check untracked *without* --changed
-	AssertRunResult(t, cli.Run(
-		"run",
-		HelperPath,
-		"cat",
-		mainTfFileName,
-	), RunExpected{
-		Status:      defaultErrExitStatus,
-		StderrRegex: "repository has untracked files",
+	t.Run("ensure list is not affected by untracked check", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir())
+
+		AssertRun(t, tmcli.Run("list", "--changed"))
+		AssertRunResult(t, tmcli.Run("list"), RunExpected{
+			Stdout: nljoin("stack"),
+		})
 	})
 
 	// disabling the check must work for both with and without --changed
 
-	t.Run("disable check using cmd args", func(t *testing.T) {
-		AssertRun(t, cli.Run(
+	t.Run("disable check using deprecated cmd args", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
 			"run",
 			"--changed",
 			"--disable-check-git-untracked",
@@ -1742,8 +1904,9 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			mainTfFileName,
 		))
 
-		AssertRunResult(t, cli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-check-git-untracked",
 			HelperPath,
 			"cat",
@@ -1753,20 +1916,21 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		})
 	})
 
-	t.Run("disable check using env vars", func(t *testing.T) {
-		cli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		cli.AppendEnv = append(cli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=true")
-
-		AssertRun(t, cli.Run(
+	t.Run("disable check using --disable-safeguards=git-untracked cmd args", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
 			"run",
+			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
 		))
 
-		AssertRunResult(t, cli.Run(
+		AssertRunResult(t, tmcli.Run(
+			"--quiet",
 			"run",
+			"--disable-safeguards=git-untracked",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -1775,7 +1939,99 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		})
 	})
 
-	t.Run("disable check using hcl config", func(t *testing.T) {
+	t.Run("disable check using --disable-safeguards=all cmd args", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=all",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"--quiet",
+			"run",
+			"--disable-safeguards=all",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using -X", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
+			"run",
+			"-X",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"--quiet",
+			"run",
+			"-X",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using env vars using env=true", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=true")
+
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using env vars using env=1", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=1")
+
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using terramate.config.git.check_untracked", func(t *testing.T) {
 		const rootConfig = "terramate.tm.hcl"
 
 		s.RootEntry().CreateFile(rootConfig, `
@@ -1789,7 +2045,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		`)
 		defer s.RootEntry().RemoveFile(rootConfig)
 
-		AssertRun(t, cli.Run(
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
 			"run",
 			"--changed",
 			HelperPath,
@@ -1797,13 +2054,223 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			mainTfFileName,
 		))
 
-		AssertRunResult(t, cli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			HelperPath,
 			"cat",
 			mainTfFileName,
 		), RunExpected{
 			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using terramate.config.disable_safeguards=git-untracked", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    disable_safeguards = ["git-untracked"]
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using terramate.config.disable_safeguards=git", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    disable_safeguards = ["git"]
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("make sure --disable-safeguards=git-untracked has precedence over config", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_untracked = true
+			    }
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=git-untracked",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=git-untracked",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("make sure --disable-safeguards=git-untracked has precedence over disable_safeguards config", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    disable_safeguards = ["git-untracked"]
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRun(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=git-untracked",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		))
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=git-untracked",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("make sure --disable-safeguards=none re-enables config option", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_untracked = false
+			    }
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=none",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has untracked files",
+		})
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=none",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has untracked files",
+		})
+	})
+
+	t.Run("make sure TM_DISABLE_SAFEGUARDS=none re-enables config option", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_untracked = false
+			    }
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=none")
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has untracked files",
+		})
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has untracked files",
 		})
 	})
 }
@@ -1831,8 +2298,10 @@ func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
 
 	AssertRunResult(t, tmcli.Run(
 		"run",
+		"--quiet",
 		HelperPath,
-		"env",
+		"echo",
+		"ok",
 	), RunExpected{
 		IgnoreStdout: true,
 	})
@@ -1904,9 +2373,10 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 
 	// disabling the check must work for both with and without --changed
 
-	t.Run("disable check using cmd args", func(t *testing.T) {
+	t.Run("disable check-gen-code using deprecated flags", func(t *testing.T) {
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			"--disable-check-gen-code",
 			HelperPath,
@@ -1918,6 +2388,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-check-gen-code",
 			HelperPath,
 			"cat",
@@ -1927,18 +2398,79 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		})
 	})
 
-	t.Run("disable check using env vars", func(t *testing.T) {
-		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GEN_CODE=true")
-		AssertRunResult(t, tmcli.Run("run", "--changed", HelperPath, "cat", generateFile), RunExpected{
+	t.Run("disable outdated-code check using --disable-safeguards=outdated-code", func(t *testing.T) {
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--changed",
+			"--disable-safeguards=outdated-code",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
 			Stdout: generateFileBody,
 		})
-		AssertRunResult(t, tmcli.Run("run", HelperPath, "cat", generateFile), RunExpected{
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=outdated-code",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
 			Stdout: generateFileBody,
 		})
 	})
 
-	t.Run("disable check using hcl config", func(t *testing.T) {
+	t.Run("disable outdated-code check using -X", func(t *testing.T) {
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--changed",
+			"-X",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
+			Stdout: generateFileBody,
+		})
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"-X",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
+			Stdout: generateFileBody,
+		})
+	})
+
+	t.Run("disable check using env=true", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GEN_CODE=true")
+		AssertRunResult(t, tmcli.Run("run", "--quiet", "--changed", HelperPath, "cat", generateFile), RunExpected{
+			Stdout: generateFileBody,
+		})
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath, "cat", generateFile), RunExpected{
+			Stdout: generateFileBody,
+		})
+	})
+
+	t.Run("disable check using env=1", func(t *testing.T) {
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GEN_CODE=1")
+		AssertRunResult(t, tmcli.Run("run", "--quiet", "--changed", HelperPath, "cat", generateFile), RunExpected{
+			Stdout: generateFileBody,
+		})
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath, "cat", generateFile), RunExpected{
+			Stdout: generateFileBody,
+		})
+	})
+
+	t.Run("disable check using terramate.config.run.check_gen_code", func(t *testing.T) {
 		const rootConfig = "terramate.tm.hcl"
 
 		s.RootEntry().CreateFile(rootConfig, `
@@ -1954,13 +2486,234 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		git.Add(rootConfig)
 		git.Commit("commit root config")
 
-		AssertRunResult(t, tmcli.Run("run", "--changed", HelperPath, "cat", generateFile), RunExpected{
+		AssertRunResult(t, tmcli.Run("run", "--quiet", "--changed", HelperPath, "cat", generateFile), RunExpected{
 			Stdout: generateFileBody,
 		})
-		AssertRunResult(t, tmcli.Run("run", HelperPath, "cat", generateFile), RunExpected{
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath, "cat", generateFile), RunExpected{
 			Stdout: generateFileBody,
 		})
 	})
+
+	t.Run("disable check using terramate.config.disable_safeguards", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    disable_safeguards = ["outdated-code"]
+			  }
+			}
+		`)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		AssertRunResult(t, tmcli.Run("run", "--quiet", "--changed", HelperPath, "cat", generateFile), RunExpected{
+			Stdout: generateFileBody,
+		})
+		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath, "cat", generateFile), RunExpected{
+			Stdout: generateFileBody,
+		})
+	})
+
+	t.Run("re-enables check with --disable-safeguards=none", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    run {
+				  # comment for file change
+			      check_gen_code = false
+			    }
+			  }
+			}
+		`)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--changed",
+			"--disable-safeguards=none",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		})
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--disable-safeguards=none",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		})
+	})
+
+	t.Run("re-enables check with TM_DISABLE_SAFEGUARDS=none", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    run {
+				  # another comment for file change
+			      check_gen_code = false
+			    }
+			  }
+			}
+		`)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=none")
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		})
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			HelperPath,
+			"cat",
+			generateFile,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		})
+	})
+}
+
+func TestRunOutput(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		name    string
+		runArgs []string
+		want    RunExpected
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "run without eval",
+			runArgs: []string{HelperPath, "echo", "hello"},
+			want: RunExpected{
+				Stderr: "terramate: Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: Executing command "%s echo hello"`, HelperPath) + "\n",
+				Stdout: "hello\n",
+			},
+		},
+		{
+			name:    "run with eval",
+			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			want: RunExpected{
+				Stderr: "terramate: Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: Executing command "%s echo stack"`, HelperPath) + "\n",
+				Stdout: "stack\n",
+			},
+		},
+		{
+			name:    "run with eval with error",
+			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.abcabc}"},
+			want: RunExpected{
+				Stderr: "Error: unable to evaluate command" + "\n" +
+					`> <cmd arg>:1,19-26: eval expression: eval "${terramate.stack.abcabc}": This object does not have an attribute named "abcabc"` + ".\n",
+				Stdout: "",
+				Status: 1,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			_ = s.CreateStack("stack")
+			git := s.Git()
+			git.CommitAll("first commit")
+			cli := NewCLI(t, s.RootDir())
+			AssertRunResult(t,
+				cli.Run(append([]string{"run"}, tc.runArgs...)...),
+				tc.want,
+			)
+		})
+	}
+
+}
+
+func TestRunDryRun(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		name    string
+		runArgs []string
+		want    RunExpected
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "dryrun without eval",
+			runArgs: []string{"--dry-run", HelperPath, "echo", "hello"},
+			want: RunExpected{
+				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo hello"`, HelperPath) + "\n",
+				Stdout: "",
+			},
+		},
+		{
+			name:    "dryrun with eval",
+			runArgs: []string{"--dry-run", "--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			want: RunExpected{
+				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
+					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo stack"`, HelperPath) + "\n",
+				Stdout: "",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			_ = s.CreateStack("stack")
+			git := s.Git()
+			git.CommitAll("first commit")
+			cli := NewCLI(t, s.RootDir())
+			AssertRunResult(t,
+				cli.Run(append([]string{"run"}, tc.runArgs...)...),
+				tc.want,
+			)
+		})
+	}
+
+}
+
+func TestRunTerragrunt(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+
+	_ = s.CreateStack("stack")
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+
+	// This just tests if the option is properly supported.
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t,
+		cli.Run("run", "--terragrunt", "--quiet", HelperPath, "true"),
+		RunExpected{},
+	)
 }
 
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
@@ -1985,6 +2738,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	// everything committed, repo is clean
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		HelperPath,
 		"cat",
 		mainTfFileName,
@@ -1992,6 +2746,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -2013,6 +2768,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--changed",
 		HelperPath,
 		"cat",
@@ -2025,6 +2781,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	// --dry-run ignore safeguards
 	AssertRunResult(t, cli.Run(
 		"run",
+		"--quiet",
 		"--dry-run",
 		HelperPath,
 		"cat",
@@ -2035,10 +2792,11 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 
 	// disable uncommitted check
 
-	t.Run("disable check using cmd args", func(t *testing.T) {
+	t.Run("disable check using deprecated args", func(t *testing.T) {
 		AssertRunResult(t, cli.Run(
 			"--disable-check-git-uncommitted",
 			"run",
+			"--quiet",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2050,6 +2808,57 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 			"--disable-check-git-uncommitted",
 			"--changed",
 			"run",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfAlteredContents,
+		})
+	})
+
+	t.Run("disable check using new --disable-safeguards=git-uncommitted args", func(t *testing.T) {
+		AssertRunResult(t, cli.Run(
+			"run",
+			"--disable-safeguards=git-uncommitted",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfAlteredContents,
+		})
+
+		AssertRunResult(t, cli.Run(
+			"--quiet",
+			"--changed",
+			"run",
+			"--disable-safeguards=git-uncommitted",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfAlteredContents,
+		})
+	})
+
+	t.Run("disable uncommitted safeguard using -X", func(t *testing.T) {
+		AssertRunResult(t, cli.Run(
+			"run",
+			"-X",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Stdout: mainTfAlteredContents,
+		})
+
+		AssertRunResult(t, cli.Run(
+			"--quiet",
+			"--changed",
+			"run",
+			"-X",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2062,11 +2871,11 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		cli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		cli.AppendEnv = append(cli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNCOMMITTED=true")
 
-		AssertRunResult(t, cli.Run("run", HelperPath,
+		AssertRunResult(t, cli.Run("run", "--quiet", HelperPath,
 			"cat", mainTfFileName), RunExpected{
 			Stdout: mainTfAlteredContents,
 		})
-		AssertRunResult(t, cli.Run("--changed", "run", HelperPath,
+		AssertRunResult(t, cli.Run("--changed", "run", "--quiet", HelperPath,
 			"cat", mainTfFileName), RunExpected{
 			Stdout: mainTfAlteredContents,
 		})
@@ -2089,15 +2898,103 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		git.Commit("commit root config")
 
 		AssertRunResult(t, cli.Run("run",
+			"--quiet",
 			HelperPath,
 			"cat",
 			mainTfFileName), RunExpected{
 			Stdout: mainTfAlteredContents,
 		})
 		AssertRunResult(t, cli.Run(
-			"--changed", "run", HelperPath,
+			"--changed", "run", "--quiet", HelperPath,
 			"cat", mainTfFileName), RunExpected{
 			Stdout: mainTfAlteredContents,
+		})
+	})
+
+	t.Run("re-enables check using --disable-safeguards=none", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+				  # this comment is needed to make the file change.
+			      check_uncommitted = false
+			    }
+			  }
+			}
+		`)
+
+		// TODO(i4k): this test is not isolated. Needs to be moved to safeguard_test.go
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		AssertRunResult(t, cli.Run(
+			"run",
+			"--quiet",
+			"--disable-safeguards=none",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has uncommitted files",
+		})
+		AssertRunResult(t, cli.Run(
+			"run",
+			"--quiet",
+			"--changed",
+			"--disable-safeguards=none",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has uncommitted files",
+		})
+	})
+
+	t.Run("re-enables check using TM_DISABLE_SAFEGUARDS=none", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+				  # another comment is needed to make the file change.
+			      check_uncommitted = false
+			    }
+			  }
+			}
+		`)
+
+		// TODO(i4k): this test is not isolated. Needs to be moved to safeguard_test.go
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
+		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=none")
+
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has uncommitted files",
+		})
+		AssertRunResult(t, tmcli.Run(
+			"run",
+			"--quiet",
+			"--changed",
+			HelperPath,
+			"cat",
+			mainTfFileName,
+		), RunExpected{
+			Status:      defaultErrExitStatus,
+			StderrRegex: "repository has uncommitted files",
 		})
 	})
 }
@@ -2124,7 +3021,7 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	tmcli := NewCLI(t, s.RootDir())
 
-	AssertRunResult(t, tmcli.Run("run", HelperPath,
+	AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
 		"cat", testFilename), RunExpected{
 		Stdout: contentsStack1 + contentsStack2,
 	})
@@ -2177,7 +3074,7 @@ func TestRunLogsUserCommand(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 	cli.LogLevel = "info"
 	AssertRunResult(t, cli.Run("run", HelperPath, "cat", testfile.HostPath()), RunExpected{
-		StderrRegex: `cmd=`,
+		StderrRegex: `Executing command`,
 	})
 }
 
@@ -2200,13 +3097,13 @@ func TestRunContinueOnError(t *testing.T) {
 	git.Push("main")
 
 	cli := NewCLI(t, s.RootDir())
-	AssertRunResult(t, cli.Run("run", HelperPath,
+	AssertRunResult(t, cli.Run("run", "--quiet", HelperPath,
 		"cat", "main.tf"), RunExpected{
 		StderrRegex: "one or more commands failed",
 		Status:      1,
 	})
 
-	AssertRunResult(t, cli.Run("run", "--continue-on-error", HelperPath,
+	AssertRunResult(t, cli.Run("run", "--quiet", "--continue-on-error", HelperPath,
 		"cat", "main.tf"), RunExpected{
 		IgnoreStderr: true,
 		Stdout:       expectedOutput,
@@ -2240,13 +3137,13 @@ func TestRunNoRecursive(t *testing.T) {
 	git.Push("main")
 
 	cli := NewCLI(t, s.RootDir())
-	AssertRunResult(t, cli.Run("run", HelperPath,
+	AssertRunResult(t, cli.Run("run", "--quiet", HelperPath,
 		"cat", "file.txt"), RunExpected{
 		Stdout: `parentchild1child2`,
 	})
 
 	cli = NewCLI(t, parent.Path())
-	AssertRunResult(t, cli.Run("run", "--no-recursive", HelperPath,
+	AssertRunResult(t, cli.Run("run", "--quiet", "--no-recursive", HelperPath,
 		"cat", "file.txt"),
 		RunExpected{
 			Stdout: `parent`,
@@ -2254,7 +3151,7 @@ func TestRunNoRecursive(t *testing.T) {
 	)
 
 	cli = NewCLI(t, child1.Path())
-	AssertRunResult(t, cli.Run("run", "--no-recursive", HelperPath,
+	AssertRunResult(t, cli.Run("run", "--quiet", "--no-recursive", HelperPath,
 		"cat", "file.txt"),
 		RunExpected{
 			Stdout: `child1`,
@@ -2262,7 +3159,7 @@ func TestRunNoRecursive(t *testing.T) {
 	)
 
 	cli = NewCLI(t, s.RootDir())
-	AssertRunResult(t, cli.Run("run", "--no-recursive", HelperPath,
+	AssertRunResult(t, cli.Run("run", "--quiet", "--no-recursive", HelperPath,
 		"cat", "file.txt"),
 		RunExpected{
 			Status:       1,
@@ -2323,7 +3220,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 
 	tm := NewCLI(t, s.RootDir(), clienv...)
 
-	res := tm.Run("run", HelperPath, "env")
+	res := tm.Run("run", HelperPath, "env", s.RootDir())
 	if res.Status != 0 {
 		t.Errorf("unexpected status code %d", res.Status)
 		t.Logf("stdout:\n%s", res.Stdout)
@@ -2364,8 +3261,9 @@ stack "/stack":
 	TERRAMATE_OVERRIDDEN=%s
 `, exportedTerramateTest, stackGlobal, stackName, newTerramateOverriden)
 
-		AssertRunResult(t, tm.Run("experimental", "run-env"), RunExpected{
-			Stdout: want})
+		AssertRunResult(t, tm.Run("debug", "show", "runtime-env"), RunExpected{
+			IgnoreStderr: true,
+			Stdout:       want})
 	})
 }
 

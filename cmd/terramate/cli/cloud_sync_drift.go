@@ -4,16 +4,9 @@
 package cli
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"time"
+	"strings"
 
-	tfjson "github.com/hashicorp/terraform-json"
-	"github.com/hashicorp/terraform-json/sanitize"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
@@ -21,14 +14,14 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err error) {
-	st := runContext.Stack
+func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
+	st := run.Stack
 
 	logger := log.With().
 		Str("action", "cloudSyncDriftStatus").
 		Stringer("stack", st.Dir).
 		Int("exit_code", res.ExitCode).
-		Strs("command", runContext.Cmd).
+		Strs("command", run.Task.Cmd).
 		Err(err).
 		Logger()
 
@@ -46,11 +39,11 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 		return
 	}
 
-	var driftDetails *cloud.DriftDetails
+	var driftDetails *cloud.ChangesetDetails
 
-	if planfile := c.parsedArgs.Run.CloudSyncTerraformPlanFile; planfile != "" {
+	if run.Task.CloudPlanFile != "" {
 		var err error
-		driftDetails, err = c.getTerraformDriftDetails(runContext, planfile)
+		driftDetails, err = c.getTerraformChangeset(run)
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
@@ -68,7 +61,7 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 			Repository:      c.prj.prettyRepo(),
 			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 			Path:            st.Dir.String(),
-			MetaID:          st.ID,
+			MetaID:          strings.ToLower(st.ID),
 			MetaName:        st.Name,
 			MetaDescription: st.Description,
 			MetaTags:        st.Tags,
@@ -78,7 +71,7 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 		Metadata:   c.cloud.run.metadata,
 		StartedAt:  res.StartedAt,
 		FinishedAt: res.FinishedAt,
-		Command:    runContext.Cmd,
+		Command:    run.Task.Cmd,
 	})
 
 	if err != nil {
@@ -86,105 +79,4 @@ func (c *cli) cloudSyncDriftStatus(runContext ExecContext, res RunResult, err er
 	} else {
 		logger.Debug().Msg("synced drift_status successfully")
 	}
-}
-
-func (c *cli) getTerraformDriftDetails(runContext ExecContext, planfile string) (*cloud.DriftDetails, error) {
-	logger := log.With().
-		Str("action", "getTerraformDriftDetails").
-		Str("planfile", planfile).
-		Stringer("stack", runContext.Stack.Dir).
-		Logger()
-
-	if filepath.IsAbs(planfile) {
-		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
-	}
-
-	absPlanFilePath := filepath.Join(runContext.Stack.HostDir(c.cfg()), planfile)
-	_, err := os.Lstat(absPlanFilePath)
-	if err != nil {
-		return nil, errors.E(err, "checking plan file")
-	}
-
-	renderedPlan, err := c.runTerraformShow(runContext, planfile, "-no-color")
-	if err != nil {
-		logger.Warn().Err(err).Msg("failed to synchronize the ASCII plan output")
-	}
-
-	var newJSONPlanData []byte
-	jsonPlanData, err := c.runTerraformShow(runContext, planfile, "-no-color", "-json")
-	if err == nil {
-		newJSONPlanData, err = sanitizeJSONPlan([]byte(jsonPlanData))
-		if err != nil {
-			logger.Warn().Err(err).Msg("failed to sanitize the JSON plan output")
-		}
-	} else {
-		logger.Warn().Err(err).Msg("failed to synchronize the JSON plan output")
-	}
-
-	if renderedPlan == "" && len(newJSONPlanData) == 0 {
-		return nil, nil
-	}
-
-	return &cloud.DriftDetails{
-		Provisioner:    "terraform",
-		ChangesetASCII: renderedPlan,
-		ChangesetJSON:  string(newJSONPlanData),
-	}, nil
-}
-
-func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
-	var oldPlan tfjson.Plan
-	err := json.Unmarshal([]byte(jsonPlanBytes), &oldPlan)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling Terraform JSON plan")
-	}
-	err = oldPlan.Validate()
-	if err != nil {
-		return nil, errors.E(err, "validating plan file")
-	}
-
-	const replaceWith = "__terramate_redacted__"
-	newPlan, err := sanitize.SanitizePlanWithValue(&oldPlan, replaceWith)
-	if err != nil {
-		return nil, errors.E(err)
-	}
-	newJSONPlanData, err := json.Marshal(newPlan)
-	if err != nil {
-		return nil, errors.E(err, "failed to marshal sanitized Terraform JSON plan")
-	}
-	return newJSONPlanData, nil
-}
-
-func (c *cli) runTerraformShow(runContext ExecContext, planfile string, flags ...string) (string, error) {
-	var stdout, stderr bytes.Buffer
-
-	args := []string{
-		"show",
-	}
-	args = append(args, flags...)
-	args = append(args, planfile)
-
-	const tfShowTimeout = 5 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), tfShowTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "terraform", args...)
-	cmd.Dir = runContext.Stack.Dir.HostPath(c.rootdir())
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	logger := log.With().
-		Str("action", "runTerraformShow").
-		Str("planfile", planfile).
-		Stringer("stack", runContext.Stack.Dir).
-		Str("command", cmd.String()).
-		Logger()
-
-	err := cmd.Run()
-	if err != nil {
-		logger.Error().Str("stderr", stderr.String()).Msg("command stderr")
-		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "executing: %s", cmd.String())
-	}
-
-	return stdout.String(), nil
 }

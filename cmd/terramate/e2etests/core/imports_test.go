@@ -40,7 +40,7 @@ func TestImportsGlob(t *testing.T) {
 
 		tmcli := NewCLI(t, s.RootDir())
 		AssertRunResult(t,
-			tmcli.Run("experimental", "globals"),
+			tmcli.Run("debug", "show", "globals"),
 			want,
 		)
 	}

@@ -56,7 +56,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				digraph  {
 					n1[label="anotherstack"];
 					n2[label="stack"];
-					n2->n1;
+					n1->n2;
 				}`,
 				FlattenStdout: true,
 			},
@@ -72,7 +72,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				digraph  {
 					n1[label="anotherstack"];
 					n2[label="stack"];
-					n2->n1;
+					n1->n2;
 				}`,
 				FlattenStdout: true,
 			},
@@ -90,8 +90,8 @@ func TestOrderGraphAfter(t *testing.T) {
 					n1[label="stack-a"];
 					n2[label="stack-b"];
 					n3[label="stack-c"];
-					n1->n2;
-					n1->n3;
+					n2->n1;
+					n3->n1;
 				}`,
 				FlattenStdout: true,
 			},
@@ -108,9 +108,9 @@ func TestOrderGraphAfter(t *testing.T) {
 					n1[label="stack-a"];
 					n2[label="stack-b"];
 					n3[label="stack-c"];
-					n1->n2;
-					n1->n3;
-					n2->n3;
+					n2->n1;
+					n3->n2;
+					n3->n1;
 				}`,
 				FlattenStdout: true,
 			},
@@ -137,15 +137,15 @@ func TestOrderGraphAfter(t *testing.T) {
 					n4[label="stack-f"];
 					n5[label="stack-g"];
 					n8[label="stack-x"];
-					n1->n2;
-					n1->n3;
-					n1->n6;
-					n1->n7;
-					n2->n3;
-					n2->n4;
-					n3->n4;
-					n3->n5;
-					n7->n8;
+					n2->n1;
+					n3->n2;
+					n3->n1;
+					n6->n1;
+					n7->n1;
+					n4->n3;
+					n4->n2;
+					n5->n3;
+					n8->n7;
 				}`,
 				FlattenStdout: true,
 			},
@@ -174,8 +174,8 @@ func TestOrderGraphAfter(t *testing.T) {
 				Stdout: `
 				digraph  {n1[label="stack-a"];
 					n2[label="stack-b"];
-					n1->n2;
-					n2->n1[color="red"];
+					n1->n2[color="red"];
+					n2->n1;
 				}`,
 				FlattenStdout: true,
 			},
@@ -193,10 +193,10 @@ func TestOrderGraphAfter(t *testing.T) {
 					n1[label="stack-a"];
 					n2[label="stack-b"];
 					n3[label="stack-c"];
-					n1->n2;
-					n1->n3;
-					n2->n1[color="red"];
-					n3->n1[color="red"];
+					n1->n2[color="red"];
+					n1->n3[color="red"];
+					n2->n1;
+					n3->n1;
 				}`,
 				FlattenStdout: true,
 			},
@@ -218,12 +218,12 @@ func TestOrderGraphAfter(t *testing.T) {
 					n3[label="stack-c"];
 					n4[label="stack-d"];
 					n5[label="stack-z"];
-					n1->n2;
-					n1->n3;
-					n5->n1;
-					n5->n2;
-					n5->n3;
-					n5->n4;
+					n1->n5;
+					n2->n1;
+					n2->n5;
+					n3->n1;
+					n3->n5;
+					n4->n5;
 				}`,
 				FlattenStdout: true,
 			},
@@ -249,12 +249,12 @@ func TestOrderGraphAfter(t *testing.T) {
 					n4[label="stack-f"];
 					n6[label="stack-g"];
 					n7[label="stack-h"];
-					n1->n2;
-					n1->n5;
-					n2->n3;
-					n2->n4;
-					n5->n6;
-					n5->n7;
+					n2->n1;
+					n5->n1;
+					n3->n2;
+					n4->n2;
+					n6->n5;
+					n7->n5;
 				}`,
 				FlattenStdout: true,
 			},
@@ -276,12 +276,12 @@ func TestOrderGraphAfter(t *testing.T) {
 					n3[label="stack-c"];
 					n4[label="stack-d"];
 					n5[label="stack-z"];
-					n1->n2;
-					n1->n3;
-					n5->n1;
-					n5->n2;
-					n5->n3;
-					n5->n4;
+					n1->n5;
+					n2->n1;
+					n2->n5;
+					n3->n1;
+					n3->n5;
+					n4->n5;
 				}`,
 				FlattenStdout: true,
 			},
@@ -307,12 +307,12 @@ func TestOrderGraphAfter(t *testing.T) {
 					n2[label="stack-x"];
 					n3[label="stack-y"];
 					n7[label="stack-z"];
-					n1->n2;
-					n1->n3;
-					n7->n1;
-					n7->n4;
-					n7->n5;
-					n7->n6;
+					n1->n7;
+					n4->n7;
+					n5->n7;
+					n6->n7;
+					n2->n1;
+					n3->n1;
 				}`,
 				FlattenStdout: true,
 			},

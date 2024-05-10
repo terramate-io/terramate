@@ -278,7 +278,7 @@ func (s S) LoadStack(dir project.Path) *config.Stack {
 func (s S) LoadStacks() config.List[*config.SortableStack] {
 	s.t.Helper()
 
-	entries, err := stack.List(s.Config().Tree())
+	entries, err := stack.List(s.Config(), s.Config().Tree())
 	assert.NoError(s.t, err)
 
 	var stacks config.List[*config.SortableStack]
@@ -805,7 +805,7 @@ func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTr
 
 	if opts.withStrictStacks {
 		gotStrictStacks := []string{}
-		stackEntries, err := stack.List(root.Tree())
+		stackEntries, err := stack.List(root, root.Tree())
 		assert.NoError(t, err)
 
 		for _, st := range stackEntries {

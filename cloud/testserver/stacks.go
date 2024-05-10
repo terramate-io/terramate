@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"strconv"
+
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -19,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
 )
 
 func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
@@ -52,6 +53,8 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	filterStatusStr := r.FormValue("status")
 	repoStr := r.FormValue("repository")
 	metaID := r.FormValue("meta_id")
+	perPageStr := r.FormValue("per_page")
+	pageStr := r.FormValue("page")
 	filterStatus := stack.NoFilter
 
 	org, found := store.GetOrg(orguuid)
@@ -105,9 +108,52 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return true
 	}
 
+	var err error
+	var page, perPage int64
+	if perPageStr == "" {
+		perPage = 10
+	} else {
+		perPage, err = strconv.Atoi64(perPageStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E(err, "invalid per_page parameter"))
+			return
+		}
+	}
+
+	if pageStr == "" {
+		page = 1
+	} else {
+		page, err = strconv.Atoi64(pageStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E(err, "invalid page parameter"))
+			return
+		}
+	}
+
+	start := (page - 1) * perPage
+
 	stacks := org.Stacks
+	if start >= int64(len(stacks)) {
+		w.Header().Add("Content-Type", "application/json")
+		marshalWrite(w, cloud.StacksResponse{
+			Pagination: cloud.PaginatedResult{
+				Total:   int64(len(stacks)),
+				Page:    page,
+				PerPage: 0,
+			},
+		})
+		return
+	}
+
+	end := start + perPage
+	if end > int64(len(stacks)) {
+		end = int64(len(stacks))
+	}
+
 	var resp cloud.StacksResponse
-	for id, st := range stacks {
+	for id, st := range stacks[start:end] {
 		if !validateStackStatus(st) {
 			w.WriteHeader(http.StatusInternalServerError)
 			writeErr(w, invalidStackStateError(st))
@@ -115,8 +161,8 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		}
 
 		if filter(st) {
-			resp.Stacks = append(resp.Stacks, cloud.StackResponse{
-				ID:               id,
+			resp.Stacks = append(resp.Stacks, cloud.StackObject{
+				ID:               int64(id),
 				Stack:            st.Stack,
 				Status:           st.State.Status,
 				DeploymentStatus: st.State.DeploymentStatus,
@@ -130,6 +176,9 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	sort.Slice(resp.Stacks, func(i, j int) bool {
 		return resp.Stacks[i].ID < resp.Stacks[j].ID
 	})
+	resp.Pagination.Page = page
+	resp.Pagination.PerPage = int64(len(resp.Stacks))
+	resp.Pagination.Total = int64(len(stacks))
 	w.Header().Add("Content-Type", "application/json")
 	marshalWrite(w, resp)
 }
@@ -144,7 +193,7 @@ func PutStack(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p 
 
 	justClose(r.Body)
 
-	var st cloud.StackResponse
+	var st cloud.StackObject
 	err = json.Unmarshal(bodyData, &st)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -177,7 +226,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	stackid, err := strconv.Atoi(stackIDStr)
+	stackid, err := strconv.Atoi64(stackIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
@@ -190,7 +239,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 		return
 	}
 	stacks := org.Stacks
-	if stackid < 0 || stackid >= len(stacks) {
+	if stackid < 0 || stackid >= int64(len(stacks)) {
 		w.WriteHeader(http.StatusNotFound)
 		writeErr(w, errors.E("stack not found"))
 		return
@@ -233,13 +282,13 @@ func GetDeploymentLogsEvents(store *cloudstore.Data, w http.ResponseWriter, _ *h
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	stackid, err := strconv.Atoi(stackIDStr)
+	stackid, err := strconv.Atoi64(stackIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
 	}
 	stacks := org.Stacks
-	if stackid < 0 || stackid >= len(stacks) {
+	if stackid < 0 || stackid >= int64(len(stacks)) {
 		w.WriteHeader(http.StatusNotFound)
 		writeErr(w, errors.E("stack not found"))
 		return
@@ -277,7 +326,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	stackid, err := strconv.Atoi(stackIDStr)
+	stackid, err := strconv.Atoi64(stackIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
@@ -292,7 +341,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 	}
 
 	stacks := org.Stacks
-	if stackid < 0 || stackid >= len(stacks) {
+	if stackid < 0 || stackid >= int64(len(stacks)) {
 		w.WriteHeader(http.StatusNotFound)
 		writeErr(w, errors.E("stack not found"))
 		return
@@ -308,7 +357,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 
 	justClose(r.Body)
 
-	var logs cloud.DeploymentLogs
+	var logs cloud.CommandLogs
 	err = json.Unmarshal(bodyData, &logs)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -325,9 +374,11 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 }
 
 // GetStackDrifts implements the /v1/stacks/:orguuid/:stackid/drifts endpoint.
-func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
+func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	orguuid := cloud.UUID(params.ByName("orguuid"))
-	stackid, err := strconv.Atoi(params.ByName("stackid"))
+	perPageStr := r.FormValue("per_page")
+	pageStr := r.FormValue("page")
+	stackid, err := strconv.Atoi64(params.ByName("stackid"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, errors.E(err, "invalid stackid"))
@@ -341,14 +392,61 @@ func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Reque
 		return
 	}
 
+	var page, perPage int64
+	if perPageStr == "" {
+		perPage = 10
+	} else {
+		perPage, err = strconv.Atoi64(perPageStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E(err, "invalid per_page parameter"))
+			return
+		}
+	}
+
+	if pageStr == "" {
+		page = 1
+	} else {
+		page, err = strconv.Atoi64(pageStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E(err, "invalid page parameter"))
+			return
+		}
+	}
+
+	start := (page - 1) * perPage
+
+	if start >= int64(len(drifts)) {
+		w.Header().Add("Content-Type", "application/json")
+		marshalWrite(w, cloud.DriftsStackPayloadResponse{
+			Pagination: cloud.PaginatedResult{
+				Total:   int64(len(drifts)),
+				Page:    page,
+				PerPage: 0,
+			},
+		})
+		return
+	}
+
+	end := start + perPage
+	if end > int64(len(drifts)) {
+		end = int64(len(drifts))
+	}
+
 	var res cloud.DriftsStackPayloadResponse
-	for _, drift := range drifts {
+	for _, drift := range drifts[start:end] {
 		res.Drifts = append(res.Drifts, cloud.Drift{
 			ID:       drift.ID,
 			Status:   drift.Status,
 			Details:  drift.Details,
 			Metadata: drift.Metadata,
 		})
+	}
+	res.Pagination = cloud.PaginatedResult{
+		Total:   int64(len(drifts)),
+		Page:    page,
+		PerPage: int64(len(res.Drifts)),
 	}
 	// return most recent drifts first.
 	sort.Slice(res.Drifts, func(i, j int) bool {

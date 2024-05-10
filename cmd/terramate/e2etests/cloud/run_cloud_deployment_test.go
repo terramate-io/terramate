@@ -8,14 +8,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/cli/safeexec"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
@@ -27,8 +24,17 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
+const testRemoteRepoURL = "terramate.io/terramate-io/dummy-repo.git"
+
+var normalizedTestRemoteRepo string
+
+func init() {
+	normalizedTestRemoteRepo = cloud.NormalizeGitURI(testRemoteRepoURL)
+}
+
 func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 	t.Parallel()
+
 	type want struct {
 		run    RunExpected
 		events eventsResponse
@@ -37,8 +43,9 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		name       string
 		layout     []string
 		runflags   []string
-		skipIDGen  bool
 		workingDir string
+		env        []string
+		cloudData  *cloudstore.Data
 		cmd        []string
 		want       want
 	}
@@ -50,8 +57,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				"s:s1",
 				"s:s2",
 			},
-			skipIDGen: true,
-			cmd:       []string{HelperPath, "echo", "ok"},
+			cmd: []string{HelperPath, "echo", "ok"},
 			want: want{
 				run: RunExpected{
 					Status:      1,
@@ -60,25 +66,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
-			name: "using --cloud-sync-terraform-plan-file with deployment sync -- fails",
-			layout: []string{
-				"s:s1",
-				`f:s1/out.tfplan:{}`,
-			},
-			runflags: []string{
-				`--cloud-sync-terraform-plan-file=out.tfplan`,
-			},
-			cmd: []string{HelperPath, "echo", "ok"},
-			want: want{
-				run: RunExpected{
-					Status:      1,
-					StderrRegex: regexp.QuoteMeta(`--cloud-sync-terraform-plan-file can only be used with --cloud-sync-drift-status`),
-				},
-			},
-		},
-		{
 			name:   "failed command",
-			layout: []string{"s:stack"},
+			layout: []string{"s:stack:id=stack"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
 				run: RunExpected{
@@ -92,7 +81,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:   "failed cmd cancels execution of subsequent stacks",
-			layout: []string{"s:s1", "s:s2"},
+			layout: []string{"s:s1:id=s1", "s:s1/s2:id=s2"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
 				run: RunExpected{
@@ -107,7 +96,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:     "both failed stacks and continueOnError",
-			layout:   []string{"s:s1", "s:s2"},
+			layout:   []string{"s:s1:id=s1", "s:s2:id=s2"},
 			runflags: []string{"--continue-on-error"},
 			cmd:      []string{"non-existent-command"},
 			want: want{
@@ -124,17 +113,20 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "failed cmd and continueOnError",
 			layout: []string{
-				"s:s1",
-				"s:s2",
-				"f:s2/test.txt:test",
+				"s:s1:id=s1",
+				"s:s1/s2:id=s2",
+				"f:s1/s2/test.txt:test",
 			},
 			runflags: []string{"--continue-on-error"},
 			cmd:      []string{HelperPath, "cat", "test.txt"},
 			want: want{
 				run: RunExpected{
-					Status:       1,
-					Stdout:       "test",
-					IgnoreStderr: true,
+					Status: 1,
+					Stdout: "test",
+					StderrRegexes: []string{
+						"Error: one or more commands failed",
+						"execution failed",
+					},
 				},
 				events: eventsResponse{
 					"s1": []string{"pending", "running", "failed"},
@@ -144,9 +136,129 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		},
 		{
 			name:     "basic success sync",
-			layout:   []string{"s:stack"},
+			layout:   []string{"s:stack:id=stack"},
 			runflags: []string{`--eval`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			want: want{
+				run: RunExpected{
+					Stdout: "/stack\n",
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name:     "basic success sync - mixed case stack ID",
+			layout:   []string{"s:stack:id=StAcK"},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			want: want{
+				run: RunExpected{
+					Stdout: "/stack\n",
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name:     "setting TM_CLOUD_ORGANIZATION",
+			layout:   []string{"s:stack:id=stack"},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env:      []string{"TM_CLOUD_ORGANIZATION=terramate"},
+			cloudData: &cloudstore.Data{
+				Orgs: map[string]cloudstore.Org{
+					"terramate": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Name:        "terramate",
+						DisplayName: "Terramate",
+						Domain:      "terramate.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+					"mineiros": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeaf0001",
+						Name:        "mineiros",
+						DisplayName: "Mineiros",
+						Domain:      "mineiros.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+				},
+				Users: map[string]cloud.User{
+					"batman": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Email:       "batman@terramate.io",
+						DisplayName: "Batman",
+						JobTitle:    "Entrepreneur",
+					},
+				},
+			},
+			want: want{
+				run: RunExpected{
+					Stdout: "/stack\n",
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name:     "organization is case insensitive",
+			layout:   []string{"s:stack:id=stack"},
+			runflags: []string{`--eval`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env:      []string{"TM_CLOUD_ORGANIZATION=TerraMate"},
+			cloudData: &cloudstore.Data{
+				Orgs: map[string]cloudstore.Org{
+					"terramate": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Name:        "terramate",
+						DisplayName: "Terramate",
+						Domain:      "terramate.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+					"mineiros": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeaf0001",
+						Name:        "mineiros",
+						DisplayName: "Mineiros",
+						Domain:      "mineiros.io",
+						Members: []cloudstore.Member{
+							{
+								UserUUID: "deadbeef-dead-dead-dead-deaddeafbeef",
+								Role:     "member",
+								Status:   "active",
+							},
+						},
+					},
+				},
+				Users: map[string]cloud.User{
+					"batman": {
+						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
+						Email:       "batman@terramate.io",
+						DisplayName: "Batman",
+						JobTitle:    "Entrepreneur",
+					},
+				},
+			},
 			want: want{
 				run: RunExpected{
 					Status: 0,
@@ -160,8 +272,8 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 		{
 			name: "only stacks inside working dir are synced",
 			layout: []string{
-				"s:parent",
-				"s:parent/child",
+				"s:parent:id=parent",
+				"s:parent/child:id=child",
 			},
 			workingDir: "parent/child",
 			runflags:   []string{`--eval`},
@@ -172,15 +284,15 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					Stdout: "/parent/child\n",
 				},
 				events: eventsResponse{
-					"parent/child": []string{"pending", "running", "ok"},
+					"child": []string{"pending", "running", "ok"},
 				},
 			},
 		},
 		{
 			name: "multiple stacks",
 			layout: []string{
-				"s:s1",
-				"s:s2",
+				"s:s1:id=s1",
+				"s:s2:id=s2",
 			},
 			runflags: []string{`--eval`},
 			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
@@ -196,82 +308,122 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "skip missing plan",
+			layout:   []string{"s:stack:id=stack"},
+			runflags: []string{`--eval`, `--terraform-plan-file=out.tfplan`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			want: want{
+				run: RunExpected{
+					Stdout: "/stack\n",
+					StderrRegexes: []string{
+						clitest.CloudSkippingTerraformPlanSync,
+					},
+				},
+				events: eventsResponse{
+					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "multiple stacks with plans",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+				"copy:s1:testdata/cloud-sync-drift-plan-file",
+				"copy:s2:testdata/cloud-sync-drift-plan-file",
+				"run:s1:terraform init",
+				"run:s1:terraform plan -no-color -out=out.tfplan",
+				"run:s2:terraform init",
+				"run:s2:terraform plan -no-color -out=out.tfplan",
+			},
+			runflags: []string{`--eval`, `--terraform-plan-file=out.tfplan`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env: []string{
+				`TF_VAR_content=my secret`,
+			},
+			want: want{
+				run: RunExpected{
+					Stdout: "/s1\n/s2\n",
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "running", "ok"},
+				},
+			},
+		},
 	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
-			addr := startFakeTMCServer(t, cloudData)
-
-			s := sandbox.New(t)
-			var genIdsLayout []string
-			ids := []string{}
-			if !tc.skipIDGen {
-				for _, layout := range tc.layout {
-					if layout[0] == 's' {
-						if strings.Contains(layout, "id=") {
-							t.Fatalf("testcases should not contain stack IDs but found %s", layout)
-						}
-						id := strings.ToLower(strings.Replace(layout[2:]+"-id-"+t.Name(), "/", "-", -1))
-						if len(id) > 64 {
-							id = id[:64]
-						}
-						ids = append(ids, id)
-						layout += ":id=" + id
-					}
-					genIdsLayout = append(genIdsLayout, layout)
-				}
-			} else {
-				genIdsLayout = tc.layout
+		for _, isParallel := range []bool{false, true} {
+			tc := tc
+			isParallel := isParallel
+			name := tc.name
+			if isParallel {
+				name += "-parallel"
 			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 
-			s.BuildTree(genIdsLayout)
-			s.Git().CommitAll("all stacks committed")
+				cloudData := tc.cloudData
+				if cloudData == nil {
+					var err error
+					cloudData, err = cloudstore.LoadDatastore(testserverJSONFile)
+					assert.NoError(t, err)
+				}
+				addr := startFakeTMCServer(t, cloudData)
 
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, "TMC_API_URL=http://"+addr)
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				s := sandbox.New(t)
 
-			uuid, err := uuid.NewRandom()
-			assert.NoError(t, err)
-			runid := uuid.String()
-			cli.AppendEnv = []string{"TM_TEST_RUN_ID=" + runid}
+				// needed for invoking `terraform ...` commands in the sandbox
+				s.Env, _ = test.PrependToPath(os.Environ(), filepath.Dir(TerraformTestPath))
+				s.Env = append(s.Env, tc.env...)
 
-			runflags := []string{"run", "--cloud-sync-deployment"}
-			runflags = append(runflags, tc.runflags...)
-			runflags = append(runflags, "--")
-			runflags = append(runflags, tc.cmd...)
-			result := cli.Run(runflags...)
-			AssertRunResult(t, result, tc.want.run)
-			assertRunEvents(t, cloudData, runid, ids, tc.want.events)
-		})
+				s.BuildTree(tc.layout)
+				s.Git().CommitAll("all stacks committed")
+
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, "TMC_API_URL=http://"+addr)
+				env = append(env, tc.env...)
+				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli.PrependToPath(filepath.Dir(TerraformTestPath))
+
+				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
+				runflags := []string{
+					"run",
+					"--disable-safeguards=git-out-of-sync",
+					"--quiet",
+					"--sync-deployment",
+				}
+				if isParallel {
+					runflags = append(runflags, "--parallel", "5")
+					tc.want.run.IgnoreStdout = true
+					tc.want.run.IgnoreStderr = true
+				}
+				runflags = append(runflags, tc.runflags...)
+				runflags = append(runflags, "--")
+				runflags = append(runflags, tc.cmd...)
+				result := cli.Run(runflags...)
+				AssertRunResult(t, result, tc.want.run)
+				assertRunEvents(t, cloudData, s.Git().RevParse("HEAD"), tc.want.events)
+			})
+		}
 	}
 }
 
-func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, runid string, ids []string, events map[string][]string) {
-	expectedEvents := eventsResponse{}
-	if events == nil {
-		events = make(map[string][]string)
-	}
-
-	for stackpath, ev := range events {
-		found := false
-		for _, id := range ids {
-			if strings.HasPrefix(id, strings.ToLower(strings.ReplaceAll(stackpath+"-id-", "/", "-"))) {
-				expectedEvents[id] = ev
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("generated id not found for stack %s", stackpath)
-		}
+func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, commitSHA string, expectedEvents eventsResponse) {
+	if expectedEvents == nil {
+		expectedEvents = make(map[string][]string)
 	}
 
 	org := cloudData.MustOrgByName("terramate")
-	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, cloud.UUID(runid))
+	deployment, ok := cloudData.FindDeploymentForCommit(org.UUID, commitSHA)
+	if !ok {
+		if len(expectedEvents) == 0 {
+			return
+		}
+		t.Fatalf("deployment not found but expected events: %v", expectedEvents)
+	}
+	cloudEvents, err := cloudData.GetDeploymentEvents(org.UUID, deployment.UUID)
 	if err != nil && !errors.IsKind(err, cloudstore.ErrNotExists) {
 		t.Fatal(err)
 	}
@@ -349,7 +501,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", HelperPath, "true")
+			"--sync-deployment", "--", HelperPath, "true")
 		AssertRunResult(t, result, RunExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from GH_TOKEN",
@@ -365,7 +517,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", HelperPath, "true")
+			"--sync-deployment", "--", HelperPath, "true")
 		AssertRunResult(t, result, RunExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from GITHUB_TOKEN",
@@ -392,7 +544,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",
-			"--cloud-sync-deployment", "--", HelperPath, "true")
+			"--sync-deployment", "--", HelperPath, "true")
 		AssertRunResult(t, result, RunExpected{
 			Status:      0,
 			StderrRegex: "GitHub token obtained from oauth_token",

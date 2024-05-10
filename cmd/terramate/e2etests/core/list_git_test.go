@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -336,4 +338,61 @@ variable "with_optional_attribute2" {
 
 	wantList := stack.RelPath() + "\n"
 	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: wantList})
+}
+
+func TestGitGlobalConfigIsUsed(t *testing.T) {
+	t.Parallel()
+
+	// code below configures a global config with a global ignore file which
+	// ignores *.test files.
+
+	s1 := sandbox.NoGit(t, false)
+	s1.BuildTree([]string{
+		"f:.gitconfig:",
+		"f:.gitignore:*.test",
+	})
+
+	tempGlobalConfig := filepath.Join(s1.RootDir(), ".gitconfig")
+	tempGlobalGitignore := filepath.Join(s1.RootDir(), ".gitignore")
+	gw, err := git.WithConfig(git.Config{
+		AllowPorcelain: true,
+		WorkingDir:     s1.RootDir(),
+		Env: []string{
+			"GIT_CONFIG_GLOBAL=" + tempGlobalConfig,
+		},
+	})
+	assert.NoError(t, err)
+	_, err = gw.Exec("config", "--global", "core.excludesfile", tempGlobalGitignore)
+	assert.NoError(t, err)
+
+	t.Logf("config: %s", test.ReadFile(t, s1.RootDir(), ".gitconfig"))
+	t.Logf("ignore: %s", test.ReadFile(t, s1.RootDir(), ".gitignore"))
+
+	// code below creates a common case of changed files.
+	// the directory sub/dir is ignored by the global .gitignore
+
+	repo := sandbox.New(t)
+
+	stack := repo.CreateStack("stack")
+
+	git := repo.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	subdir := stack.CreateDir("sub/dir")
+
+	// this file must be ignored when using the global config.
+	_ = subdir.CreateFile("something.test", "# nothing")
+
+	// double check the repository has untracked files
+	cli := NewCLI(t, repo.RootDir())
+	AssertRunResult(t, cli.Run("run", HelperPath, "true"), RunExpected{
+		Status:      1,
+		StderrRegex: "repository has untracked files",
+	})
+
+	// use global config
+	cli = NewCLI(t, repo.RootDir())
+	cli.AppendEnv = append(cli.AppendEnv, "GIT_CONFIG_GLOBAL="+tempGlobalConfig)
+	AssertRun(t, cli.Run("run", "--quiet", "--", HelperPath, "true"))
 }

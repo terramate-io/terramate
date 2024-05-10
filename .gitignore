@@ -19,3 +19,6 @@ mem.prof
 
 # Go releaser artifacts
 dist/
+
+# MacOS
+.DS_Store

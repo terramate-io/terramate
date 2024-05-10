@@ -21,11 +21,16 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Log in to ghcr.io container registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
+      - name: install goreleaser
+        run: |
+          curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o /tmp/goreleaser.tar.gz
+          cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
+          sudo mv /tmp/goreleaser /usr/local/bin/
+      
       - name: Run GoReleaser
         run: make release
         env:
@@ -36,3 +41,5 @@ jobs:
           TWITTER_CONSUMER_SECRET: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY_SECRET }}
           TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_MINEIROS_IO_ACCESS_TOKEN_KEY }}
           TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_MINEIROS_IO_ACCESS_TOKEN_SECRET }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_API_KEY }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN}}

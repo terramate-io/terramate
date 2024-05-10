@@ -19,6 +19,9 @@ const (
 
 	// CloudSkippingTerraformPlanSync is the message displayed when a terraform plan sync is skipped.
 	CloudSkippingTerraformPlanSync = "skipping the sync of Terraform plan details"
+
+	// CloudLoginRequiredMessage is the message displayed when cloud login is required.
+	CloudLoginRequiredMessage = "This command uses Terramate Cloud features and requires you to be logged in"
 )
 
 const (
@@ -27,6 +30,9 @@ const (
 	// cloud integration.
 	ErrCloud errors.Kind = "unprocessable cloud feature"
 
+	// ErrCloudCompat is the error thrown when cloud compatibility check failed.
+	ErrCloudCompat errors.Kind = "Terramate Cloud compatibility check"
+
 	// ErrCloudOnboardingIncomplete indicates the onboarding process is incomplete.
 	ErrCloudOnboardingIncomplete errors.Kind = "cloud commands cannot be used until onboarding is complete"
 
@@ -34,8 +40,11 @@ const (
 	ErrCloudStacksWithoutID errors.Kind = "all the cloud sync features requires that selected stacks contain an ID field"
 
 	// ErrCloudTerraformPlanFile indicates there was an error gathering the plan file details.
-	ErrCloudTerraformPlanFile errors.Kind = "failed to gather drift details from plan file"
+	ErrCloudTerraformPlanFile errors.Kind = "failed to gather details from plan file"
 
 	// ErrCloudInvalidTerraformPlanFilePath indicates the plan file is not valid.
 	ErrCloudInvalidTerraformPlanFilePath errors.Kind = "invalid plan file path"
+
+	// ErrSafeguardKeywordValidation indicates the safeguard keywords validation failed.
+	ErrSafeguardKeywordValidation errors.Kind = "failed to validate safeguard keywords"
 )

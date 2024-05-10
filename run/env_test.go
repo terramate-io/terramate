@@ -5,7 +5,6 @@ package run_test
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -13,9 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
-	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/test"
 	errorstest "github.com/terramate-io/terramate/test/errors"
@@ -27,13 +24,13 @@ import (
 func TestLoadRunEnv(t *testing.T) {
 	type (
 		hclconfig struct {
-			path string
-			add  fmt.Stringer
+			path  string
+			fname string
+			add   fmt.Stringer
 		}
 		result struct {
 			env    run.EnvVars
 			enverr error
-			cfgerr error
 		}
 		testcase struct {
 			name    string
@@ -53,9 +50,6 @@ func TestLoadRunEnv(t *testing.T) {
 			name: "no env config",
 			layout: []string{
 				"s:stack",
-			},
-			want: map[string]result{
-				"stack": {},
 			},
 		},
 		{
@@ -134,25 +128,6 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 		},
 		{
-			name: "fails on invalid root config",
-			layout: []string{
-				"s:stack",
-			},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Doc(
-						Block("notvalidterramate"),
-					),
-				},
-			},
-			want: map[string]result{
-				"stack": {
-					cfgerr: errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
 			name: "fails on globals loading failure",
 			layout: []string{
 				"s:stack",
@@ -215,6 +190,352 @@ func TestLoadRunEnv(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dirs can override root env",
+			hostenv: map[string]string{
+				"TESTING_RUN_ENV_VAR": "666",
+			},
+			layout: []string{
+				"s:dir/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						Expr("testenv", "env.TESTING_RUN_ENV_VAR"),
+						Str("teststr", "plain string"),
+					),
+				},
+				{
+					path: "/dir",
+					add: runEnvCfg(
+						Str("testenv", "overridden"),
+					),
+				},
+			},
+			want: map[string]result{
+				"dir/stack-1": {
+					env: run.EnvVars{
+						"testenv=overridden",
+						"teststr=plain string",
+					},
+				},
+			},
+		},
+		{
+			name: "dirs can override other dirs",
+			layout: []string{
+				"s:dir1/dir2/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path: "/dir1",
+					add: runEnvCfg(
+						Str("teststr", "defined at /dir1"),
+					),
+				},
+				{
+					path: "/dir1/dir2",
+					add: runEnvCfg(
+						Str("teststr", "defined at /dir1/dir2"),
+					),
+				},
+			},
+			want: map[string]result{
+				"dir1/dir2/stack-1": {
+					env: run.EnvVars{
+						"teststr=defined at /dir1/dir2",
+					},
+				},
+			},
+		},
+		{
+			name: "stacks can override root env",
+			hostenv: map[string]string{
+				"TESTING_RUN_ENV_VAR": "666",
+			},
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						Expr("testenv", "env.TESTING_RUN_ENV_VAR"),
+						Str("teststr", "plain string"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: runEnvCfg(
+						Str("testenv", "overridden"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"testenv=overridden",
+						"teststr=plain string",
+					},
+				},
+				"stacks/stack-2": {
+					env: run.EnvVars{
+						"testenv=666",
+						"teststr=plain string",
+					},
+				},
+			},
+		},
+		{
+			name: "stacks can override parent stacks",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-1/stack-2",
+				"s:stacks/stack-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: runEnvCfg(
+						Str("teststr", "/stacks"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: runEnvCfg(
+						Str("teststr", "/stacks/stack-1"),
+					),
+				},
+				{
+					path: "/stacks/stack-1/stack-2",
+					add: runEnvCfg(
+						Str("teststr", "/stacks/stack-1/stack-2"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"teststr=/stacks/stack-1",
+					},
+				},
+				"stacks/stack-1/stack-2": {
+					env: run.EnvVars{
+						"teststr=/stacks/stack-1/stack-2",
+					},
+				},
+				"stacks/stack-3": {
+					env: run.EnvVars{
+						"teststr=/stacks",
+					},
+				},
+			},
+		},
+		{
+			name: "unset on lower levels",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-1/stack-2",
+				"s:stacks/stack-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: runEnvCfg(
+						Str("teststr", "/stacks"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: runEnvCfg(
+						Str("teststr", "/stacks/stack-1"),
+					),
+				},
+				{
+					path: "/stacks/stack-1/stack-2",
+					add: runEnvCfg(
+						Expr("teststr", "unset"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"teststr=/stacks/stack-1",
+					},
+				},
+				"stacks/stack-3": {
+					env: run.EnvVars{
+						"teststr=/stacks",
+					},
+				},
+			},
+		},
+		{
+			name: "unset on lower levels aaa",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-1/stack-2",
+				"s:stacks/stack-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: runEnvCfg(
+						Str("teststr", "/stacks"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: runEnvCfg(
+						Str("teststr", "/stacks/stack-1"),
+					),
+				},
+				{
+					path: "/stacks/stack-1/stack-2",
+					add: runEnvCfg(
+						Expr("teststr", "unset"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"teststr=/stacks/stack-1",
+					},
+				},
+				"stacks/stack-3": {
+					env: run.EnvVars{
+						"teststr=/stacks",
+					},
+				},
+			},
+		},
+		{
+			name: "unset on middle level dirs and re-assigning in lower level",
+			layout: []string{
+				"s:stacks/dir/stack-1",
+				"s:stacks/dir/stack-1/stack-2",
+				"s:stacks/stack-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: runEnvCfg(
+						Str("teststr", "/stacks"),
+					),
+				},
+				{
+					path: "/stacks/dir",
+					add: runEnvCfg(
+						Expr("teststr", "unset"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-3": {
+					env: run.EnvVars{
+						"teststr=/stacks",
+					},
+				},
+			},
+		},
+		{
+			name: "unset on middle level stacks and re-assigning in lower level",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-1/stack-2",
+				"s:stacks/stack-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: runEnvCfg(
+						Str("teststr", "/stacks"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: runEnvCfg(
+						Expr("teststr", "unset"),
+					),
+				},
+				{
+					path: "/stacks/stack-1/stack-2",
+					add: runEnvCfg(
+						Str("teststr", "/stacks/stack-1/stack-2"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1/stack-2": {
+					env: run.EnvVars{
+						"teststr=/stacks/stack-1/stack-2",
+					},
+				},
+				"stacks/stack-3": {
+					env: run.EnvVars{
+						"teststr=/stacks",
+					},
+				},
+			},
+		},
+		{
+			name: "set null ignores the env",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: runEnvCfg(
+						Expr("teststr", "null"),
+					),
+				},
+			},
+		},
+		{
+			name: "null on lower levels",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-1/stack-2",
+				"s:stacks/stack-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: runEnvCfg(
+						Str("teststr", "/stacks"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: runEnvCfg(
+						Str("teststr", "/stacks/stack-1"),
+					),
+				},
+				{
+					path: "/stacks/stack-1/stack-2",
+					add: runEnvCfg(
+						Expr("teststr", "null"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"teststr=/stacks/stack-1",
+					},
+				},
+				"stacks/stack-3": {
+					env: run.EnvVars{
+						"teststr=/stacks",
+					},
+				},
+			},
+		},
 	}
 
 	// TODO(i4k): these tests should not call setenv()!
@@ -225,25 +546,34 @@ func TestLoadRunEnv(t *testing.T) {
 			s.BuildTree(tcase.layout)
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, "run_env_test_cfg.tm", cfg.add.String())
+				fname := cfg.fname
+				if fname == "" {
+					fname = "run_env_test_cfg.tm"
+				}
+				test.AppendFile(t, path, fname, cfg.add.String())
 			}
 
 			for name, value := range tcase.hostenv {
 				t.Setenv(name, value)
 			}
 
-			for stackRelPath, wantres := range tcase.want {
-				root, err := config.LoadRoot(s.RootDir())
-				if wantres.cfgerr != nil {
-					errorstest.Assert(t, err, wantres.cfgerr)
-					return
-				}
+			root, err := config.LoadRoot(s.RootDir())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				stack, err := config.LoadStack(root, project.NewPath(path.Join("/", stackRelPath)))
+			for _, stackPath := range root.Stacks() {
+				stack, err := config.LoadStack(root, stackPath)
 				assert.NoError(t, err)
+
+				wantres := tcase.want[stackPath.String()[1:]]
 
 				gotvars, err := run.LoadEnv(root, stack)
 				errorstest.Assert(t, err, wantres.enverr)
+				if err != nil {
+					continue
+				}
+				t.Logf("stack: %v, vars: %v", stackPath, gotvars)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}
 		})

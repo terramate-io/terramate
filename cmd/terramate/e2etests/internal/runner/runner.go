@@ -74,7 +74,7 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 	}
 	if len(env) == 0 {
 		// by default, it's assumed human mode
-		env = RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
+		env = RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	// custom cliconfig file
@@ -207,7 +207,7 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	fakeJwt, err := token.SignedString([]byte("test"))
 	assert.NoError(t, err)
-	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd"}`, fakeJwt))
+	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd", "provider": "Google"}`, fakeJwt))
 
 	cmd := exec.Command(tm.terramatePath(), allargs...)
 	cmd.Stdout = stdout
@@ -242,6 +242,28 @@ func (tm CLI) Run(args ...string) RunResult {
 		Stderr: cmd.Stderr.String(),
 		Status: cmd.ExitCode(),
 	}
+}
+
+// RunWithStdin runs the CLI but uses the provided string as stdin.
+func (tm CLI) RunWithStdin(stdin string, args ...string) RunResult {
+	t := tm.t
+	t.Helper()
+
+	cmd := tm.NewCmd(args...)
+	cmd.Stdin.b.WriteString(stdin)
+	_ = cmd.Run()
+
+	return RunResult{
+		Cmd:    strings.Join(args, " "),
+		Stdout: cmd.Stdout.String(),
+		Stderr: cmd.Stderr.String(),
+		Status: cmd.ExitCode(),
+	}
+}
+
+// RunScript is a helper for executing `terramate run-script`.
+func (tm CLI) RunScript(args ...string) RunResult {
+	return tm.Run(append([]string{"script", "run"}, args...)...)
 }
 
 // StacksRunOrder is a helper for executing `terramate experimental run-order`.

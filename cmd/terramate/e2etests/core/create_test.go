@@ -5,8 +5,9 @@ package core_test
 
 import (
 	"fmt"
-	"os"
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -14,11 +15,84 @@ import (
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
-	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
+
+func TestCreateFailsWithIncompatibleFlags(t *testing.T) {
+	t.Parallel()
+
+	test := func(t *testing.T, stderrRegex string, args ...string) {
+		t.Helper()
+		s := sandbox.NoGit(t, true)
+		root := s.RootEntry()
+		root.CreateDir("stack")
+		cli := NewCLI(t, s.RootDir())
+
+		createArgs := []string{"create"}
+		createArgs = append(createArgs, args...)
+
+		AssertRunResult(t, cli.Run(createArgs...), RunExpected{
+			Status:      1,
+			StderrRegex: stderrRegex,
+		})
+	}
+
+	testIncompatibleFlags := func(t *testing.T, args ...string) {
+		test(t, "Invalid args", args...)
+	}
+
+	t.Run("without required arguments", func(t *testing.T) {
+		test(t, "Missing args")
+	})
+
+	scanFlags := []string{
+		"--all-terraform",
+		"--all-terragrunt",
+		"--ensure-stack-ids",
+	}
+
+	mainFlags := append([]string{
+		"./stack",
+	}, scanFlags...)
+
+	pairs := map[string]struct{}{}
+	for _, flag := range mainFlags {
+		for _, otherFlag := range mainFlags {
+			if flag == otherFlag {
+				continue
+			}
+			args := []string{flag, otherFlag}
+			sort.Strings(args)
+			pairs[strings.Join(args, " ")] = struct{}{}
+		}
+	}
+
+	for pair := range pairs {
+		args := strings.Split(pair, " ")
+		t.Run(fmt.Sprintf("%s conflicts with %s", args[0], args[1]), func(t *testing.T) {
+			testIncompatibleFlags(t, args[0], args[1])
+		})
+	}
+
+	nonScanFlags := []string{
+		"--id=test",
+		"--name=some-stack",
+		"--description=desc",
+		"--after=/test",
+		"--before=/test",
+		"--import=/test",
+		"--ignore-existing",
+	}
+
+	for _, scanFlag := range scanFlags {
+		for _, nonScanFlag := range nonScanFlags {
+			t.Run(fmt.Sprintf("%s conflicts to %s", scanFlag, nonScanFlag), func(t *testing.T) {
+				testIncompatibleFlags(t, scanFlag, nonScanFlag)
+			})
+		}
+	}
+}
 
 func TestCreateStack(t *testing.T) {
 	t.Parallel()
@@ -32,6 +106,8 @@ func TestCreateStack(t *testing.T) {
 		stackAfter2      = "stack-after-2"
 		stackBefore1     = "stack-before-1"
 		stackBefore2     = "stack-before-2"
+		watch1           = "watched1.txt"
+		watch2           = "watched2.txt"
 		stackTag1        = "a"
 		stackTag2        = "b"
 		genFilename      = "file.txt"
@@ -68,10 +144,6 @@ func TestCreateStack(t *testing.T) {
 			args = append(args, flags...)
 			res := cli.Run(args...)
 
-			t.Logf("run create stack %s", stackPath)
-			t.Logf("stdout: %s", res.Stdout)
-			t.Logf("stderr: %s", res.Stderr)
-
 			want := fmt.Sprintf("Created stack %s\n", stackPath)
 			if stackPath[0] != '/' {
 				want = fmt.Sprintf("Created stack /%s\n", stackPath)
@@ -85,11 +157,18 @@ func TestCreateStack(t *testing.T) {
 			absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
 			got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
+			stackBasePath := project.NewPath(path.Join("/", stackPath))
+			wantWatch := project.Paths{
+				stackBasePath.Join(watch1),
+				stackBasePath.Join(watch2),
+			}
+
 			assert.EqualStrings(t, stackID, got.ID)
 			assert.EqualStrings(t, stackName, got.Name, "checking stack name")
 			assert.EqualStrings(t, stackDescription, got.Description, "checking stack description")
 			test.AssertDiff(t, got.After, []string{stackAfter1, stackAfter2}, "created stack has invalid after")
 			test.AssertDiff(t, got.Before, []string{stackBefore1, stackBefore2}, "created stack has invalid before")
+			test.AssertDiff(t, got.Watch, wantWatch, "created stack has invalid watch")
 			test.AssertDiff(t, got.Tags, []string{stackTag1, stackTag2})
 
 			test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{stackImport1, stackImport2})
@@ -110,6 +189,8 @@ func TestCreateStack(t *testing.T) {
 		"--after", stackAfter2,
 		"--before", stackBefore1,
 		"--before", stackBefore2,
+		"--watch", watch1,
+		"--watch", watch2,
 		"--tags", stackTag1,
 		"--tags", stackTag2,
 	)
@@ -120,6 +201,7 @@ func TestCreateStack(t *testing.T) {
 		"--import", strings.Join([]string{stackImport1, stackImport2}, ","),
 		"--after", strings.Join([]string{stackAfter1, stackAfter2}, ","),
 		"--before", strings.Join([]string{stackBefore1, stackBefore2}, ","),
+		"--watch", strings.Join([]string{watch1, watch2}, ","),
 		"--tags", strings.Join([]string{stackTag1, stackTag2}, ","),
 	)
 }
@@ -194,197 +276,6 @@ func TestCreateStackIgnoreExistingFatalOnOtherErrors(t *testing.T) {
 		Status:       1,
 		IgnoreStderr: true,
 	})
-}
-
-func TestCreateFailsWithIncompatibleFlags(t *testing.T) {
-	t.Parallel()
-
-	test := func(t *testing.T, args ...string) {
-		s := sandbox.NoGit(t, true)
-		root := s.RootEntry()
-		root.CreateDir("stack")
-		cli := NewCLI(t, s.RootDir())
-
-		createArgs := []string{"create"}
-		createArgs = append(createArgs, args...)
-
-		AssertRunResult(t, cli.Run(createArgs...), RunExpected{
-			Status:      1,
-			StderrRegex: "incompatible",
-		})
-	}
-
-	t.Run("--all-terraform and path", func(t *testing.T) {
-		test(t, "--all-terraform", "./stack")
-	})
-
-	t.Run("--ensure-stack-ids and path", func(t *testing.T) {
-		test(t, "--ensure-stack-ids", "./stack")
-	})
-
-	t.Run("--all-terraform and --id", func(t *testing.T) {
-		test(t, "--all-terraform", "--id=test")
-	})
-
-	t.Run("--ensure-stack-ids and --id", func(t *testing.T) {
-		test(t, "--ensure-stack-ids", "--id=test")
-	})
-
-	t.Run("--all-terraform and --name", func(t *testing.T) {
-		test(t, "--all-terraform", "--name=some-stack")
-	})
-
-	t.Run("--all-terraform and --description", func(t *testing.T) {
-		test(t, "--all-terraform", "--description=desc")
-	})
-
-	t.Run("--all-terraform and --after", func(t *testing.T) {
-		test(t, "--all-terraform", "--after=/test")
-	})
-
-	t.Run("--all-terraform and --before", func(t *testing.T) {
-		test(t, "--all-terraform", "--before=/test")
-	})
-
-	t.Run("--all-terraform and --import", func(t *testing.T) {
-		test(t, "--all-terraform", "--import=/test")
-	})
-
-	t.Run("--all-terraform and --ignore-existing", func(t *testing.T) {
-		test(t, "--all-terraform", "--ignore-existing")
-	})
-}
-
-func TestCreateWithAllTerraformModuleAtRoot(t *testing.T) {
-	s := sandbox.NoGit(t, true)
-	s.BuildTree([]string{
-		`f:main.tf:terraform {
-			backend "remote" {
-				attr = "value"
-			}
-		}`,
-		`f:README.md:# My module`,
-	})
-	tm := NewCLI(t, s.RootDir())
-	AssertRunResult(t,
-		tm.Run("create", "--all-terraform"),
-		RunExpected{
-			Stdout: "Created stack /\n",
-		},
-	)
-	_, err := os.Lstat(filepath.Join(s.RootDir(), stack.DefaultFilename))
-	assert.NoError(t, err)
-}
-
-func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
-	testCase := func(t *testing.T, generate bool) {
-		s := sandbox.NoGit(t, true)
-		const backendContent = `terraform {
-		backend "remote" {
-			attr = "value"
-		}
-	}
-
-	`
-
-		const providerContent = `
-		provider "aws" {
-			attr = 1
-		}
-	`
-
-		const mixedBackendProvider = backendContent + providerContent
-
-		s.BuildTree([]string{
-			`f:prod/stacks/k8s-stack/deployment.yml:# empty file`,
-			`f:prod/stacks/A/anyfile.tf:` + backendContent,
-			`f:prod/stacks/A/README.md:# empty`,
-			`f:prod/stacks/B/main.tf:` + providerContent,
-			`f:prod/stacks/A/other-stack/main.tf:` + mixedBackendProvider,
-			`f:README.md:# My module`,
-			`f:generate.tm:generate_hcl "_generated.tf" {
-			content {
-				test = 1
-			}
-		}`,
-		})
-		tm := NewCLI(t, s.RootDir())
-		args := []string{"create", "--all-terraform"}
-		if !generate {
-			args = append(args, "--no-generate")
-		}
-		AssertRunResult(t,
-			tm.Run(args...),
-			RunExpected{
-				Stdout: `Created stack /prod/stacks/A
-Created stack /prod/stacks/A/other-stack
-Created stack /prod/stacks/B
-`,
-			},
-		)
-
-		for _, path := range []string{
-			"/prod/stacks/A",
-			"/prod/stacks/B",
-			"/prod/stacks/A/other-stack",
-		} {
-			stackPath := filepath.Join(s.RootDir(), path)
-			_, err := os.Lstat(filepath.Join(stackPath, stack.DefaultFilename))
-			assert.NoError(t, err)
-
-			_, err = os.Lstat(filepath.Join(stackPath, "_generated.tf"))
-			if generate {
-				assert.NoError(t, err)
-			} else {
-				errtest.Assert(t, err, os.ErrNotExist)
-			}
-		}
-	}
-
-	t.Run("with generation", func(t *testing.T) {
-		testCase(t, true)
-	})
-
-	t.Run("without generation", func(t *testing.T) {
-		testCase(t, false)
-	})
-}
-
-func TestCreateWithAllTerraformSkipActualStacks(t *testing.T) {
-	s := sandbox.NoGit(t, true)
-	s.BuildTree([]string{
-		`s:stack`,
-		`f:stack/main.tf:terraform {
-			backend "remote" {
-				attr = "value"
-			}
-		}`,
-		`f:README.md:# My module`,
-	})
-	tm := NewCLI(t, s.RootDir())
-	AssertRun(t, tm.Run("create", "--all-terraform"))
-}
-
-func TestCreateWithAllTerraformDetectModulesInsideStacks(t *testing.T) {
-	s := sandbox.NoGit(t, true)
-	const backendContent = `terraform {
-		backend "remote" {
-			attr = "value"
-		}
-	}`
-	s.BuildTree([]string{
-		`s:stack`,
-		`f:stack/main.tf:` + backendContent,
-		`f:stack/hidden/module/inside/stack/main.tf:` + backendContent,
-		`f:README.md:# My module`,
-	})
-	tm := NewCLI(t, s.RootDir())
-	AssertRunResult(t,
-		tm.Run("create", "--all-terraform"),
-		RunExpected{
-			Stdout: "Created stack /stack/hidden/module/inside/stack\n",
-		},
-	)
 }
 
 func TestCreateEnsureStackID(t *testing.T) {

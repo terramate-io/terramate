@@ -4,17 +4,28 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -40,7 +51,9 @@ type Root struct {
 
 	lookupCache map[string]*Tree
 
-	runtime project.Runtime
+	// hasTerragruntStacks tells if the repository has any Terragrunt stack.
+	hasTerragruntStacks *bool
+	runtime             project.Runtime
 }
 
 // Tree is the configuration tree.
@@ -55,6 +68,10 @@ type Tree struct {
 
 	// Parent is the parent node or nil if none.
 	Parent *Tree
+
+	// project root is only set if Parent == nil.
+	root  *Root
+	stack *Stack
 
 	dir string
 }
@@ -87,7 +104,7 @@ func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, e
 			}
 			rootTree := NewTree(fromdir)
 			rootTree.Node = cfg
-			_, err = loadTree(rootTree, fromdir)
+			_, err = loadTree(rootTree, fromdir, nil)
 			if err != nil {
 				return nil, fromdir, true, err
 			}
@@ -105,10 +122,11 @@ func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, e
 
 // NewRoot creates a new [Root] tree for the cfg tree.
 func NewRoot(tree *Tree) *Root {
-	r := &Root{
-		tree:        *tree,
-		lookupCache: make(map[string]*Tree),
-	}
+	r := &Root{}
+	tree.root = r
+	r.tree = *tree
+	r.lookupCache = make(map[string]*Tree)
+
 	r.initRuntime()
 	return r
 }
@@ -281,7 +299,7 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	}
 	root := NewTree(rootdir)
 	root.Node = cfg
-	return loadTree(root, cfgdir)
+	return loadTree(root, cfgdir, nil)
 }
 
 // HostDir is the node absolute directory in the host.
@@ -307,12 +325,32 @@ func (tree *Tree) Root() *Root {
 	if tree.Parent != nil {
 		return tree.Parent.Root()
 	}
-	return NewRoot(tree)
+	return tree.root
+}
+
+// RootTree returns the tree at the project root.
+func (tree *Tree) RootTree() *Tree {
+	if tree.Parent != nil {
+		return tree.Parent.RootTree()
+	}
+	return tree
 }
 
 // IsStack tells if the node is a stack.
 func (tree *Tree) IsStack() bool {
 	return tree.Node.Stack != nil
+}
+
+// Stack returns the stack object.
+func (tree *Tree) Stack() (*Stack, error) {
+	if tree.stack == nil {
+		s, err := LoadStack(tree.Root(), tree.Dir())
+		if err != nil {
+			return nil, err
+		}
+		tree.stack = s
+	}
+	return tree.stack, nil
 }
 
 // Stacks returns the stack nodes from the tree.
@@ -374,7 +412,7 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
+func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
 		Str("dir", cfgdir).
@@ -402,19 +440,30 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 		}
 	}
 
+	if parentTree != nil && rootcfg == nil {
+		rootcfg = &parentTree.RootTree().Node
+	}
+
 	if cfgdir != parentTree.RootDir() {
 		tree := NewTree(cfgdir)
-		root := parentTree.Root()
-		cfg, err := hcl.ParseDir(parentTree.RootDir(), cfgdir, root.Tree().Node.Experiments()...)
+
+		cfg, err := hcl.ParseDir(parentTree.RootDir(), cfgdir, rootcfg.Experiments()...)
 		if err != nil {
 			return nil, err
 		}
+
 		tree.Node = cfg
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
 		parentTree = tree
 	}
+
+	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, dirEntries)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, dirEntry := range dirEntries {
 		fname := dirEntry.Name()
 		if Skip(fname) || !dirEntry.IsDir() {
@@ -422,7 +471,7 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 		}
 
 		dir := filepath.Join(cfgdir, fname)
-		node, err := loadTree(parentTree, dir)
+		node, err := loadTree(parentTree, dir, rootcfg)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
 		}
@@ -431,6 +480,90 @@ func loadTree(parentTree *Tree, cfgdir string) (_ *Tree, err error) {
 		parentTree.Children[fname] = node
 	}
 	return parentTree, nil
+}
+
+func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntries []fs.DirEntry) error {
+	const tmgenSuffix = ".tmgen"
+
+	tmgenEnabled := rootTree.hasExperiment("tmgen")
+
+	// process all .tmgen files.
+	for _, dirEntry := range dirEntries {
+		fname := dirEntry.Name()
+		if !strings.HasSuffix(fname, tmgenSuffix) || fname[0] == '.' {
+			continue
+		}
+
+		absFname := filepath.Join(cfgdir, fname)
+
+		if !tmgenEnabled {
+			printer.Stderr.Warn(
+				fmt.Sprintf("found %q but `tmgen` is not enabled in the `terramate.config.experiments` attribute",
+					absFname,
+				),
+			)
+			continue
+		}
+
+		content, err := os.ReadFile(absFname)
+		if err != nil {
+			return errors.E(err, "failed to read .tmgen file")
+		}
+		parser := hclparse.NewParser()
+		hclFile, diags := parser.ParseHCL(content, fname)
+		if diags.HasErrors() {
+			return errors.E(diags, "failed to parse .tmgen file")
+		}
+
+		lines := bytes.Split(content, []byte{'\n'})
+		nLines := len(lines)
+		lastLineNColumns := len(lines[nLines-1])
+
+		label := fname[:len(fname)-len(tmgenSuffix)] // removes suffix
+
+		body, ok := hclFile.Body.(*hclsyntax.Body)
+		if !ok {
+			panic(errors.E(errors.ErrInternal, "unexpected parsed HCL body"))
+		}
+
+		block := &hhcl.Block{
+			Type: "content",
+			Body: body,
+		}
+
+		// should never fail
+		inheritFalse, diags := hclsyntax.ParseExpression([]byte("false"), "<implicit block>", hhcl.InitialPos)
+		if diags.HasErrors() {
+			panic(errors.E(errors.ErrInternal, diags))
+		}
+
+		inheritAttr := &hclsyntax.Attribute{
+			Name: "inherit",
+			Expr: inheritFalse,
+		}
+
+		implicitGenBlock := hcl.GenHCLBlock{
+			IsImplicitBlock: true,
+			Dir:             project.PrjAbsPath(rootTree.HostDir(), cfgdir),
+			Inherit:         inheritAttr,
+			Range: info.NewRange(rootTree.HostDir(), hhcl.Range{
+				Filename: absFname,
+				Start:    hhcl.InitialPos,
+				End: hhcl.Pos{
+					Line:   nLines,
+					Column: lastLineNColumns,
+					Byte:   len(content) - 1,
+				},
+			}),
+			Label:   label,
+			Lets:    ast.NewMergedBlock("lets", []string{}),
+			Asserts: nil,
+			Content: block,
+		}
+
+		cfg.Generate.HCLs = append(cfg.Generate.HCLs, implicitGenBlock)
+	}
+	return nil
 }
 
 // IsEmptyConfig tells if the configuration is empty.
@@ -458,6 +591,57 @@ func NewTree(cfgdir string) *Tree {
 	return &Tree{
 		dir:      cfgdir,
 		Children: make(map[string]*Tree),
+	}
+}
+
+func (tree *Tree) hasExperiment(name string) bool {
+	if tree.Parent != nil {
+		return tree.Parent.hasExperiment(name)
+	}
+	if tree.Node.Terramate == nil || tree.Node.Terramate.Config == nil {
+		return false
+	}
+
+	return slices.Contains(tree.Node.Terramate.Config.Experiments, name)
+}
+
+// HasExperiment returns true if the given experiment name is set.
+func (root *Root) HasExperiment(name string) bool {
+	return root.tree.hasExperiment(name)
+}
+
+// TerragruntEnabledOption returns the configured `terramate.config.change_detection.terragrunt.enabled` option.
+func (root *Root) TerragruntEnabledOption() hcl.TerragruntChangeDetectionEnabledOption {
+	if root.tree.Node.Terramate != nil &&
+		root.tree.Node.Terramate.Config != nil &&
+		root.tree.Node.Terramate.Config.ChangeDetection != nil &&
+		root.tree.Node.Terramate.Config.ChangeDetection.Terragrunt != nil {
+		return root.tree.Node.Terramate.Config.ChangeDetection.Terragrunt.Enabled
+	}
+	return hcl.TerragruntAutoOption // "auto" is the default.
+}
+
+// HasTerragruntStacks returns true if the stack loading has detected Terragrunt files.
+func (root *Root) HasTerragruntStacks() bool {
+	b := root.hasTerragruntStacks
+	if b == nil {
+		panic(errors.E(errors.ErrInternal, "root.HasTerragruntStacks should be called after stacks list is computed"))
+	}
+	return *b
+}
+
+// IsTerragruntChangeDetectionEnabled returns true if Terragrunt change detection integration
+// must be executed.
+func (root *Root) IsTerragruntChangeDetectionEnabled() bool {
+	switch opt := root.TerragruntEnabledOption(); opt {
+	case hcl.TerragruntOffOption:
+		return false
+	case hcl.TerragruntForceOption:
+		return true
+	case hcl.TerragruntAutoOption:
+		return root.HasTerragruntStacks()
+	default:
+		panic(errors.E(errors.ErrInternal, "unexpected terragrunt option: %v", opt))
 	}
 }
 

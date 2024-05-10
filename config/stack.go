@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -51,7 +50,7 @@ type (
 		WantedBy []string
 
 		// Watch is the list of files to be watched for changes.
-		Watch []project.Path
+		Watch project.Paths
 
 		// IsChanged tells if this is a changed stack.
 		IsChanged bool
@@ -93,7 +92,7 @@ func NewStackFromHCL(root string, treecfg *Tree) (*Stack, error) {
 		name = filepath.Base(treecfg.Dir().String())
 	}
 
-	watchFiles, err := validateWatchPaths(root, treecfg.HostDir(), stackcfg.Watch)
+	watchFiles, err := ValidateWatchPaths(root, treecfg.HostDir(), stackcfg.Watch)
 	if err != nil {
 		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
@@ -256,7 +255,9 @@ func (s *Stack) Sortable() *SortableStack {
 	}
 }
 
-func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
+// ValidateWatchPaths validates if the provided watch paths points to regular files
+// inside the project repository.
+func ValidateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
 	for _, pathstr := range paths {
 		var abspath string
@@ -286,12 +287,12 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 }
 
 // StacksFromTrees converts a List[*Tree] into a List[*Stack].
-func StacksFromTrees(root string, trees List[*Tree]) (List[*SortableStack], error) {
+func StacksFromTrees(trees List[*Tree]) (List[*SortableStack], error) {
 	var stacks List[*SortableStack]
 	for _, tree := range trees {
-		s, err := NewStackFromHCL(root, tree)
+		s, err := tree.Stack()
 		if err != nil {
-			return List[*SortableStack]{}, err
+			return nil, err
 		}
 		stacks = append(stacks, &SortableStack{s})
 	}
@@ -299,27 +300,28 @@ func StacksFromTrees(root string, trees List[*Tree]) (List[*SortableStack], erro
 }
 
 // LoadAllStacks loads all stacks inside the given rootdir.
-func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
-	logger := log.With().
-		Str("action", "stack.LoadAll()").
-		Str("root", cfg.RootDir()).
-		Logger()
-
+func LoadAllStacks(root *Root, cfg *Tree) (List[*SortableStack], error) {
+	falsy := false
+	root.hasTerragruntStacks = &falsy
 	stacks := List[*SortableStack]{}
 	stacksIDs := map[string]*Stack{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := NewStackFromHCL(cfg.RootDir(), stackNode)
+		stack, err := stackNode.Stack()
 		if err != nil {
-			return List[*SortableStack]{}, err
+			return nil, err
 		}
 
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Debug().Msg("Found stack")
 		stacks = append(stacks, stack.Sortable())
+
+		if !*root.hasTerragruntStacks {
+			st, err := os.Lstat(
+				filepath.Join(stack.Dir.HostPath(root.HostDir()), "terragrunt.hcl"),
+			)
+			if err == nil && st.Mode().IsRegular() {
+				*root.hasTerragruntStacks = true
+			}
+		}
 
 		if stack.ID != "" {
 			if otherStack, ok := stacksIDs[strings.ToLower(stack.ID)]; ok {
@@ -361,11 +363,8 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 		return nil, false, nil
 	}
 
-	s, err := NewStackFromHCL(root.HostDir(), tree)
-	if err != nil {
-		return nil, true, err
-	}
-	return s, true, nil
+	s, err := tree.Stack()
+	return s, true, err
 }
 
 // ReverseStacks reverses the given stacks slice.

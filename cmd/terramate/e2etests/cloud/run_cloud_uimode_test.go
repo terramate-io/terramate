@@ -14,9 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apparentlymart/go-versions/versions"
 	"github.com/julienschmidt/httprouter"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
@@ -42,6 +44,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 		endpoints       map[string]bool
 		customEndpoints testserver.Custom
 		cloudData       *cloudstore.Data
+		wellknown       *cloud.WellKnown
 		subcases        []subtestcase
 	}
 
@@ -56,9 +59,244 @@ func TestCloudSyncUIMode(t *testing.T) {
 		"job_title": ""
 	}`
 
-	const fatalErr = `FTL ` + string(clitest.ErrCloud)
+	const fatalErr = string(clitest.ErrCloud)
+
+	versionNoPrerelease := versions.MustParseVersion(terramate.Version())
+	versionNoPrerelease.Prerelease = ""
 
 	for _, tc := range []testcase{
+		{
+			name:      "/.well-known/cli.json is not found -- everything works",
+			endpoints: testserver.DisableEndpoints(cloud.WellKnownCLIPath),
+			subcases: []subtestcase{
+				{
+					name:   "syncing a deployment",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-deployment",
+						"--", HelperPath, "true",
+					},
+				},
+				{
+					name:   "syncing a deployment",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-deployment",
+						"--", HelperPath, "true",
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-drift-status",
+						"--", HelperPath, "true",
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-drift-status",
+						"--", HelperPath, "true",
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+					},
+				},
+			},
+		},
+		{
+			name:      "/.well-known/cli.json returns unsupported version constraint",
+			endpoints: testserver.EnableAllConfig(),
+			wellknown: &cloud.WellKnown{
+				RequiredVersion: "> " + versionNoPrerelease.String(),
+			},
+			subcases: []subtestcase{
+				{
+					name:   "syncing a deployment",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--sync-deployment",
+						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							string(clitest.ErrCloudCompat),
+							fatalErr,
+						},
+					},
+				},
+				{
+					name:   "syncing a deployment",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--sync-deployment",
+						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						Status: 0,
+						StderrRegexes: []string{
+							string(clitest.ErrCloudCompat),
+							string(clitest.ErrCloud),
+						},
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--sync-drift-status",
+						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							string(clitest.ErrCloudCompat),
+							fatalErr,
+						},
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--sync-drift-status",
+						"--", HelperPath, "true",
+					},
+					want: RunExpected{
+						Status: 0,
+						StderrRegexes: []string{
+							string(clitest.ErrCloudCompat),
+							string(clitest.ErrCloud),
+						},
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							string(clitest.ErrCloudCompat),
+						},
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 1,
+						StderrRegexes: []string{
+							string(clitest.ErrCloudCompat),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:      "/.well-known/cli.json with valid constraint",
+			endpoints: testserver.EnableAllConfig(),
+			wellknown: &cloud.WellKnown{
+				RequiredVersion: "= " + versionNoPrerelease.String(),
+			},
+			subcases: []subtestcase{
+				{
+					name:   "syncing a deployment",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-deployment",
+						"--", HelperPath, "true",
+					},
+				},
+				{
+					name:   "syncing a deployment",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-deployment",
+						"--", HelperPath, "true",
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.HumanMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-drift-status",
+						"--", HelperPath, "true",
+					},
+				},
+				{
+					name:   "syncing a drift",
+					uimode: cli.AutomationMode,
+					cmd: []string{
+						"run",
+						"--quiet",
+						"--sync-drift-status",
+						"--", HelperPath, "true",
+					},
+				},
+
+				// cloud info cases
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate)\n",
+					},
+				},
+			},
+		},
 		{
 			name: "/v1/users is not working",
 			endpoints: map[string]bool{
@@ -73,14 +311,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
-							fatalErr,
+							string(clitest.CloudLoginRequiredMessage),
 						},
 					},
 				},
@@ -89,12 +326,12 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.CloudLoginRequiredMessage),
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -104,14 +341,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
-							fatalErr,
+							string(clitest.CloudLoginRequiredMessage),
 						},
 					},
 				},
@@ -120,12 +356,12 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.CloudLoginRequiredMessage),
 							string(clitest.CloudDisablingMessage),
 						},
 					},
@@ -135,35 +371,30 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL failed to load credentials: ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`failed to load credentials`,
 						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL failed to load credentials: ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`failed to load credentials`,
 						},
 					},
 				},
 			},
 		},
 		{
-			name: "/v1/users returns unexpected payload",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       false,
-				cloud.MembershipsPath: true,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
-			},
+			name:      "/v1/users returns unexpected payload",
+			endpoints: testserver.DisableEndpoints(cloud.UsersPath),
 			customEndpoints: testserver.Custom{
 				Routes: map[string]testserver.Route{
 					"GET": {
@@ -182,7 +413,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -198,7 +429,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -213,7 +444,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -229,7 +460,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -244,44 +475,39 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + string(cloud.ErrUnexpectedResponseBody),
-							`FTL failed to load credentials`,
+							string(cloud.ErrUnexpectedResponseBody),
+							`failed to load credentials`,
 						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + string(cloud.ErrUnexpectedResponseBody),
-							`FTL failed to load credentials`,
+							string(cloud.ErrUnexpectedResponseBody),
+							`failed to load credentials`,
 						},
 					},
 				},
 			},
 		},
 		{
-			name: "/v1/memberships is not working",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
-			},
+			name:      "/v1/memberships is not working",
+			endpoints: testserver.DisableEndpoints(cloud.MembershipsPath),
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -294,7 +520,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -306,7 +532,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -319,7 +545,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -334,37 +560,32 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + regexp.QuoteMeta(string(cloud.ErrNotFound)),
-							`FTL failed to load credentials`,
+							regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							`failed to load credentials`,
 						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + regexp.QuoteMeta(string(cloud.ErrNotFound)),
-							`FTL failed to load credentials`,
+							regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							`failed to load credentials`,
 						},
 					},
 				},
 			},
 		},
 		{
-			name: "/v1/memberships returns no memberships",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
-			},
+			name:      "/v1/memberships returns no memberships",
+			endpoints: testserver.DisableEndpoints(cloud.MembershipsPath),
 			customEndpoints: testserver.Custom{
 				Routes: map[string]testserver.Route{
 					"GET": {
@@ -383,14 +604,14 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
 							clitest.CloudNoMembershipMessage,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -399,7 +620,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -415,14 +636,14 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
 							clitest.CloudNoMembershipMessage,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -431,7 +652,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -447,24 +668,24 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
-							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
-							`Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
 						},
 					},
 				},
@@ -517,7 +738,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -533,7 +754,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -548,7 +769,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -564,7 +785,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -579,31 +800,32 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 			},
 		},
 		{
-			name: "/v1/memberships returns no active memberships",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: false,
-				cloud.DeploymentsPath: true,
-				cloud.DriftsPath:      true,
-			},
+			name:      "/v1/memberships returns no active memberships",
+			endpoints: testserver.DisableEndpoints(cloud.MembershipsPath),
 			customEndpoints: testserver.Custom{
 				Routes: map[string]testserver.Route{
 					"GET": {
@@ -635,15 +857,15 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -652,13 +874,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -668,15 +890,15 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
-							`FTL ` + string(clitest.ErrCloudOnboardingIncomplete),
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -685,13 +907,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							`ERR ` + clitest.CloudNoMembershipMessage,
-							`WRN You have pending invitation for the following organizations: terramate-io, mineiros-io`,
+							`Error: ` + clitest.CloudNoMembershipMessage,
+							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -701,19 +923,25 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: terramate-io, mineiros-io\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 			},
@@ -765,7 +993,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--quiet",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 				},
@@ -774,7 +1003,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--quiet",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 				},
@@ -783,7 +1013,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--quiet",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 				},
@@ -792,7 +1023,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--quiet",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 				},
@@ -801,38 +1033,39 @@ func TestCloudSyncUIMode(t *testing.T) {
 				{
 					name:   "cloud info",
 					uimode: cli.HumanMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 				{
 					name:   "cloud info",
 					uimode: cli.AutomationMode,
-					cmd:    []string{"experimental", "cloud", "info"},
+					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google Social Provider\nuser: Batman\nemail: batman@terramate.io\norganizations: mineiros, terramate\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Mineiros (mineiros), Terramate (terramate)\n",
+						StderrRegexes: []string{
+							"User is member of multiple organizations but none was selected",
+						},
 					},
 				},
 			},
 		},
 		{
-			name: "/v1/deployments is not working",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: true,
-				cloud.DeploymentsPath: false,
-				cloud.DriftsPath:      true,
-			},
+			name:      "/v1/deployments is not working",
+			endpoints: testserver.DisableEndpoints(cloud.DeploymentsPath),
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -844,7 +1077,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -854,13 +1087,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 			},
 		},
 		{
-			name: "/v1/deployments returns invalid payload",
-			endpoints: map[string]bool{
-				cloud.UsersPath:       true,
-				cloud.MembershipsPath: true,
-				cloud.DeploymentsPath: false,
-				cloud.DriftsPath:      true,
-			},
+			name:      "/v1/deployments returns invalid payload",
+			endpoints: testserver.DisableEndpoints(cloud.DeploymentsPath),
 			customEndpoints: testserver.Custom{
 				Routes: map[string]testserver.Route{
 					"POST": {
@@ -884,7 +1112,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -896,7 +1124,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -918,13 +1146,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL ` + string(clitest.ErrCloudStacksWithoutID),
+							string(clitest.ErrCloudStacksWithoutID),
 						},
 					},
 				},
@@ -933,7 +1161,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-deployment",
+						"--sync-deployment",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -948,13 +1176,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							`FTL ` + string(clitest.ErrCloudStacksWithoutID),
+							string(clitest.ErrCloudStacksWithoutID),
 						},
 					},
 				},
@@ -963,7 +1191,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -989,7 +1217,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.HumanMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -1002,7 +1230,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					uimode: cli.AutomationMode,
 					cmd: []string{
 						"run",
-						"--cloud-sync-drift-status",
+						"--sync-drift-status",
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
@@ -1050,6 +1278,10 @@ func TestCloudSyncUIMode(t *testing.T) {
 						assert.NoError(t, err)
 					}
 
+					if tc.wellknown != nil {
+						store.WellKnown = tc.wellknown
+					}
+
 					router := testserver.RouterWith(store, tc.endpoints)
 					fakeserver := &http.Server{
 						Handler: router,
@@ -1087,6 +1319,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 					}
 					s.BuildTree(layout)
 					s.Git().CommitAll("created stacks")
+					if subcase.cmd[0] == "run" {
+						// allows for testing the metadata collection.
+						s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+						cmd := []string{"run", "--disable-safeguards=git-out-of-sync"}
+						cmd = append(cmd, subcase.cmd[1:]...)
+						subcase.cmd = cmd
+					}
 					tm := NewCLI(t, s.RootDir(), env...)
 					tm.LogLevel = zerolog.WarnLevel.String()
 					AssertRunResult(t, tm.Run(subcase.cmd...), subcase.want)

@@ -136,7 +136,7 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 			continue
 		}
 
-		if _, err := UpdateStackID(st.Destdir); err != nil {
+		if _, err := UpdateStackID(root, st.Destdir); err != nil {
 			return 0, err
 		}
 	}
@@ -148,8 +148,8 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 // UpdateStackID updates the stack.id of the given stack directory.
 // The functions updates just the file which defines the stack block.
 // The updated file will lose all comments.
-func UpdateStackID(stackdir string) (string, error) {
-	parser, err := hcl.NewTerramateParser(stackdir, stackdir)
+func UpdateStackID(root *config.Root, stackdir string) (string, error) {
+	parser, err := hcl.NewTerramateParser(root.HostDir(), stackdir)
 	if err != nil {
 		return "", err
 	}

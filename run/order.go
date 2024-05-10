@@ -4,27 +4,105 @@
 package run
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/run/dag"
+	"golang.org/x/exp/slices"
 )
 
 // Sort computes the final execution order for the given list of stacks.
-// In the case of multiple possible orders, it returns the lexicographic sorted
-// path.
-func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], string, error) {
-	d := dag.New()
+// In the case of multiple possible orders, it returns the lexicographic sorted path.
+func Sort[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.Stack) (string, error) {
+	d, reason, err := buildValidStackDAG(root, items, getStack)
+	if err != nil {
+		return reason, err
+	}
+
+	getStackDir := func(s E) string {
+		return getStack(s).Dir.String()
+	}
+
+	order := d.Order()
+	orderLookup := make(map[string]int, len(order))
+	for idx, id := range order {
+		s, err := d.Node(id)
+		if err != nil {
+			return "", fmt.Errorf("calculating run-order: %w", err)
+		}
+		orderLookup[s.Dir.String()] = idx
+	}
+
+	slices.SortStableFunc(items, func(a, b E) int {
+		return cmp.Compare(orderLookup[getStackDir(a)], orderLookup[getStackDir(b)])
+	})
+
+	return "", nil
+}
+
+// BuildDAGFromStacks computes the final, reduced dag for the given list of stacks.
+func BuildDAGFromStacks[S ~[]E, E any](root *config.Root, items S, getStack func(E) *config.Stack) (*dag.DAG[E], string, error) {
+	d, reason, err := buildValidStackDAG(root, items, getStack)
+	if err != nil {
+		return nil, reason, err
+	}
+
+	getStackDir := func(s E) string {
+		return getStack(s).Dir.String()
+	}
+
+	// Minimize graph by removing stacks that were only pulled in for ordering,
+	// but are not executed.
+	d.Reduce(func(id dag.ID) bool {
+		s, err := d.Node(id)
+		if err != nil {
+			return false
+		}
+		return !slices.ContainsFunc(items, func(item E) bool {
+			return getStackDir(item) == s.Dir.String()
+		})
+	})
+
+	itemLookup := make(map[string]E, len(items))
+	for _, item := range items {
+		itemLookup[getStackDir(item)] = item
+	}
+
+	// Transform from DAG of stacks to their corresponding E value.
+	// We have to build the DAG with stacks first, because for the nodes that were pulled in
+	// as depdencies, we have no E value (i.e. these are not in items).
+	// After the graph has been reduced, we can look up the corresponding E values.
+	newD, err := dag.Transform[E](d, func(id dag.ID, s *config.Stack) (E, error) {
+		e, found := itemLookup[s.Dir.String()]
+		if !found {
+			return e, fmt.Errorf("failed to transform run-order graph")
+		}
+		return e, nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
+	return newD, "", nil
+}
+
+func buildValidStackDAG[S ~[]E, E any](
+	root *config.Root,
+	items S,
+	getStack func(E) *config.Stack,
+) (*dag.DAG[*config.Stack], string, error) {
+	d := dag.New[*config.Stack]()
 
 	logger := log.With().
-		Str("action", "run.Sort()").
+		Str("action", "run.buildOrderedStackDAG()").
 		Str("root", root.HostDir()).
 		Logger()
 
@@ -32,35 +110,42 @@ func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.
 		return s1.Dir.HasPrefix(s2.Dir.String() + "/")
 	}
 
-	sort.Sort(stacks)
-	for _, stackElem := range stacks {
-		for _, otherElem := range stacks {
-			if stackElem.Dir() == otherElem.Dir() {
+	getStackDir := func(s E) string {
+		return getStack(s).Dir.String()
+	}
+
+	slices.SortStableFunc(items, func(a, b E) int {
+		return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
+	})
+
+	for _, a := range items {
+		for _, b := range items {
+			if getStack(a).Dir == getStack(b).Dir {
 				continue
 			}
 
-			if isParentStack(stackElem.Stack, otherElem.Stack) {
-				logger.Debug().Msgf("stack %q runs before %q since it is its parent", otherElem, stackElem)
+			if isParentStack(getStack(a), getStack(b)) {
+				logger.Debug().Msgf("stack %q runs before %q since it is its parent", getStackDir(a), getStackDir(b))
 
-				otherElem.AppendBefore(stackElem.Dir().String())
+				getStack(b).AppendBefore(getStack(a).Dir.String())
 			}
 		}
 	}
 
 	visited := dag.Visited{}
-	for _, elem := range stacks {
-		if _, ok := visited[dag.ID(elem.Dir().String())]; ok {
+	for _, elem := range items {
+		if _, ok := visited[dag.ID(getStack(elem).Dir.String())]; ok {
 			continue
 		}
 
 		logger.Debug().
-			Stringer("stack", elem.Dir()).
+			Stringer("stack", getStack(elem).Dir).
 			Msg("Build DAG.")
 
 		err := BuildDAG(
 			d,
 			root,
-			elem.Stack,
+			getStack(elem),
 			"before",
 			func(s config.Stack) []string { return s.Before },
 			"after",
@@ -78,42 +163,12 @@ func Sort(root *config.Root, stacks config.List[*config.SortableStack]) (config.
 		return nil, reason, err
 	}
 
-	order := d.Order()
-
-	orderedStacks := make(config.List[*config.SortableStack], 0, len(order))
-
-	isSelectedStack := func(s *config.Stack) bool {
-		// Stacks may be added on the DAG from after/before references
-		// but they should not be on the final order if they are not part
-		// of the previously selected stacks passed as a parameter.
-		// This is important for change detection to work on ordering and
-		// also for filtering by working dir.
-		for _, stack := range stacks {
-			if s.Dir == stack.Dir() {
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, id := range order {
-		val, err := d.Node(id)
-		if err != nil {
-			return nil, "", fmt.Errorf("calculating run-order: %w", err)
-		}
-		s := val.(*config.Stack)
-		if !isSelectedStack(s) {
-			continue
-		}
-		orderedStacks = append(orderedStacks, s.Sortable())
-	}
-
-	return orderedStacks, "", nil
+	return d, "", nil
 }
 
 // BuildDAG builds a run order DAG for the given stack.
 func BuildDAG(
-	d *dag.DAG,
+	d *dag.DAG[*config.Stack],
 	root *config.Root,
 	s *config.Stack,
 	descendantsName string,
@@ -162,13 +217,15 @@ func BuildDAG(
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
-				log.Warn().
-					Err(err).
-					Msgf("building dag: failed to stat %s path %s - ignoring", fieldname, abspath)
+				printer.Stderr.WarnWithDetails(
+					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
+					err,
+				)
 			} else if !st.IsDir() {
-				log.Warn().
-					Msgf("building dag: stack.%s path %s is not a directory - ignoring",
-						fieldname, pathstr)
+				printer.Stderr.WarnWithDetails(
+					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
+					errors.E("Path %s is not a directory", pathstr),
+				)
 			} else {
 				uniqPaths[pathstr] = struct{}{}
 			}
@@ -191,12 +248,12 @@ func BuildDAG(
 		return err
 	}
 
-	ancestorStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir, ancestorPaths...))
+	ancestorStacks, err := config.StacksFromTrees(root.StacksByPaths(s.Dir, ancestorPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, ancestorsName)
 	}
-	descendantStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir, descendantPaths...))
+	descendantStacks, err := config.StacksFromTrees(root.StacksByPaths(s.Dir, descendantPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, descendantsName)

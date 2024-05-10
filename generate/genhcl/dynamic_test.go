@@ -49,6 +49,39 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "tm_dynamic and .tmgen",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add:      Terramate(Config(Expr("experiments", `["tmgen"]`))),
+				},
+				{
+					path:     "/stack",
+					filename: "tm_dynamic_test.tf.tmgen",
+					add: TmDynamic(
+						Labels("my_block"),
+						Expr("for_each", `["a", "b", "c"]`),
+						Block("content"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("my_block"),
+							Block("my_block"),
+							Block("my_block"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic with content fully evaluated",
 			stack: "/stack",
 			configs: []hclconfig{

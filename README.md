@@ -67,7 +67,7 @@ Cloud Formation, Azure Resource Manager (ARM),  Kubernetes (Helm, kubectl, Kusto
 You can think about a stack as a combination of **source code**, the **current state** of the managed infrastructure
 (e.g., Terraform state file), and **configuration**.
 
-<img src="docs/cli/assets/stacks.png" width="600px" alt="Terramate Stacks Overview" />
+<img src="stacks.png" width="600px" alt="Terramate Stacks Overview" />
 
 There are several benefits to using Terramate Stacks:
 
@@ -168,7 +168,7 @@ It also provides a powerful dashboard that adds **observability** and **insights
 (e.g., **DORA**), **notifications**, **drift management**, **asset management,** and more for your stacks to provide
 the developer experience and infrastructure to build, scale and observe all your infrastructure managed with IaC.
 
-![Terramate Cloud Dashboard](docs/cli/assets/terramate-cloud-dashboard.png "Terramate Cloud Dashboard")
+![Terramate Cloud Dashboard](dashboard.png "Terramate Cloud Dashboard")
 
 ## Join the Community
 
@@ -197,7 +197,7 @@ See the [LICENSE](./LICENSE) file for licensing information.
 
 ## Terramate
 
-Terramate is a [CNCF](https://landscape.cncf.io/card-mode?organization=terramate&grouping=organization)
+Terramate is a [CNCF](https://landscape.cncf.io/?item=app-definition-and-development--continuous-integration-delivery--terramate)
 and [Linux Foundation](https://www.linuxfoundation.org/membership/members/) silver member.
 
 <img src="https://raw.githubusercontent.com/cncf/artwork/master/other/cncf-member/silver/color/cncf-member-silver-color.svg" width="300px" alt="CNCF Silver Member logo" />

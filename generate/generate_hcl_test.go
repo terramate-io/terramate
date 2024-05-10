@@ -88,6 +88,42 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			// check: https://github.com/hashicorp/hcl/pull/639
+			name: "ensure code generation supports HCL function namespaces",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("any"),
+						Content(
+							Expr("result", `foo::upper("foo")`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"any": Doc(
+							Expr("result", `foo::upper("foo")`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"any"},
+					},
+				},
+			},
+		},
+		{
 			// This is a regression test for a severe bug on extension
 			name: "multiple stacks extending imported globals on parent",
 			layout: []string{
@@ -1005,6 +1041,56 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "block with same label as implicit tmgen block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
+							),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "repeated.tmgen",
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("other_block",
+								Str("data", "parent data"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stack"),
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
 			name: "stack imports config with block with same label as parent",
 			layout: []string{
 				"s:stacks/stack",
@@ -1303,6 +1389,697 @@ EOT
 				},
 			},
 		},
+		{
+			name: "generate HCL with dotfile",
+			layout: []string{
+				"s:/",
+				"s:/stack-1",
+				"s:/stack-2",
+			},
+			configs: []hclconfig{
+				// inherited, fallthrough child stacks
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels(".tflint.hcl"),
+							Content(
+								Block("plugin",
+									Labels("terraform"),
+									Bool("enabled", true),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						".tflint.hcl": Doc(
+							Block("plugin",
+								Labels("terraform"),
+								Bool("enabled", true),
+							),
+						),
+					},
+				},
+				{
+					dir: "/stack-1",
+					files: map[string]fmt.Stringer{
+						".tflint.hcl": Doc(
+							Block("plugin",
+								Labels("terraform"),
+								Bool("enabled", true),
+							),
+						),
+					},
+				},
+				{
+					dir: "/stack-2",
+					files: map[string]fmt.Stringer{
+						".tflint.hcl": Doc(
+							Block("plugin",
+								Labels("terraform"),
+								Bool("enabled", true),
+							),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{".tflint.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/stack-1"),
+						Created: []string{".tflint.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/stack-2"),
+						Created: []string{".tflint.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=true on root stack without child stacks",
+			layout: []string{
+				"s:/",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", true),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=true on root stack with child stacks",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", true),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false on root stack with child stacks",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false on intermediate stack with child stack",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/s1",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate with inherit=false from imported file on intermediate stack with child stack",
+			layout: []string{
+				"d:modules",
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						GenerateFile(
+							Labels("root.txt"),
+							Bool("inherit", false),
+							Str("content", "hello"),
+						),
+					),
+				},
+				{
+					path:     "/s1",
+					filename: "gen.tm",
+					add: Doc(
+						Import(
+							Str("source", "/modules/imported.tm"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+						"root.txt": stringer("hello"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl", "root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false on leaf stack with child stack",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/s1/s2",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Bool("inherit", false),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl at root with inherit=global.inherit generating only in parent",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=global.inherit=false generates in child if setting overrided",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=global.inherit=false at root obey each child sibling stack config",
+			layout: []string{
+				"s:/",
+				"s:/s1",
+				"s:/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+				{
+					path: "/s2",
+					add: Doc(
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl at root with inherit=global.inherit from import generating only in parent",
+			layout: []string{
+				"d:/modules",
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+				{
+					path: "/",
+					add: Doc(
+						Import(
+							Str("source", "/modules/imported.tm"),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl at root with inherit=global.inherit from import generating in both",
+			layout: []string{
+				"d:/modules",
+				"s:/",
+				"s:/s1",
+				"s:/s1/s2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `global.inherit`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+				{
+					path: "/",
+					add: Doc(
+						Import(
+							Str("source", "/modules/imported.tm"),
+						),
+						Globals(
+							Bool("inherit", false),
+						),
+					),
+				},
+				{
+					path: "/s1/s2",
+					add: Doc(
+						Globals(
+							Bool("inherit", true),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+				{
+					dir: "/s1/s2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							Str("hello", "world"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/"),
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/s1/s2"),
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl with inherit=false outside of a stack is ignored",
+			layout: []string{
+				"s:/s1",
+				"s:/s2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Expr("inherit", `false`),
+							Content(
+								Str("hello", "world"),
+							),
+						),
+					),
+				},
+			},
+		},
 	})
 }
 
@@ -1338,6 +2115,559 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 	stack := s.StackEntry("stack")
 	actualTfCode := stack.ReadFile(genFilename)
 	assert.EqualStrings(t, manualTfCode, actualTfCode, "tf code altered by generate")
+}
+
+func TestGenerateHCLStackFilters(t *testing.T) {
+	t.Parallel()
+
+	testCodeGeneration(t, []testcase{
+		{
+			name: "no matching pattern",
+			layout: []string{
+				"s:staecks/stack-1",
+				"s:staecks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/staecks",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("stacks/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+		},
+		{
+			name: "one matching pattern",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:staecks/stack-2",
+				"s:stack/stack-3",
+				"s:stackss/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("stacks/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple matching patterns",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:staecks/stack-2",
+				"s:stack/stack-3",
+				"s:staecks/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("stacks/*", "staecks/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+				{
+					dir: "/staecks/stack-2",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+				{
+					dir: "/staecks/stack-4",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/staecks/stack-2"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/staecks/stack-4"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "escaped pattern",
+			layout: []string{
+				"s:st{a}ck\\s/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths("st{a}ck\\\\s/*"),
+						),
+						Content(
+							Backend(
+								Labels("test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/st{a}ck\\s/stack-1",
+					files: map[string]fmt.Stringer{
+						"test": Backend(
+							Labels("test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/st{a}ck\\s/stack-1"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "AND multiple attributes",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("not_generated"),
+						StackFilter(
+							ProjectPaths("stack-1"),
+							RepositoryPaths("stack-2"),
+						),
+						Content(),
+					),
+				},
+			},
+		},
+		{
+			name: "OR multiple blocks",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("generated"),
+						StackFilter(
+							ProjectPaths("stack-1"),
+						),
+						StackFilter(
+							RepositoryPaths("stack-2"),
+						),
+						Content(Expr("foo", "bar")),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack-1",
+					files: map[string]fmt.Stringer{
+						"generated": Doc(Expr("foo", "bar")),
+					},
+				},
+				{
+					dir: "/stack-2",
+					files: map[string]fmt.Stringer{
+						"generated": Doc(Expr("foo", "bar")),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack-1"),
+						Created: []string{"generated"},
+					},
+					{
+						Dir:     project.NewPath("/stack-2"),
+						Created: []string{"generated"},
+					},
+				},
+			},
+		},
+		{
+			name: "glob patterns",
+			layout: []string{
+				"s:aws/stacks/dev",
+				"s:aws/stacks/dev/substack",
+				"s:aws/stacks/prod",
+				"s:gcp/stacks/dev",
+				"s:gcp/stacks/prod",
+				"s:gcp/stacks/prod/substack",
+				"s:dev",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_match1"),
+						StackFilter(
+							ProjectPaths("prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_match2"),
+						StackFilter(
+							ProjectPaths("**/prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_prod_match1"),
+						StackFilter(
+							ProjectPaths("*/prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_substack_match1"),
+						StackFilter(
+							ProjectPaths("**/prod/*"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("prod_substack_match2"),
+						StackFilter(
+							ProjectPaths("**/prod/**"),
+						),
+						Content(),
+					),
+				},
+
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("aws_prod_match1"),
+						StackFilter(
+							ProjectPaths("aws/**/prod"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_aws_substack_match1"),
+						StackFilter(
+							ProjectPaths("aws/*/substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("aws_substack_match1"),
+						StackFilter(
+							ProjectPaths("aws/**/substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("substack_match1"),
+						StackFilter(
+							ProjectPaths("substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_substack_match1"),
+						StackFilter(
+							ProjectPaths("/substack"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("root_dev_match1"),
+						StackFilter(
+							ProjectPaths("/dev"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("all_aws_match1"),
+						StackFilter(
+							ProjectPaths("aws/**"),
+						),
+						Content(),
+					),
+				},
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("no_aws_match1"),
+						StackFilter(
+							ProjectPaths("aws/*"),
+						),
+						Content(),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/aws/stacks/dev",
+					files: map[string]fmt.Stringer{
+						"all_aws_match1": Doc(),
+					},
+				},
+				{
+					dir: "/aws/stacks/dev/substack",
+					files: map[string]fmt.Stringer{
+						"all_aws_match1":      Doc(),
+						"aws_substack_match1": Doc(),
+						"substack_match1":     Doc(),
+					},
+				},
+				{
+					dir: "/aws/stacks/prod",
+					files: map[string]fmt.Stringer{
+						"all_aws_match1":  Doc(),
+						"aws_prod_match1": Doc(),
+						"prod_match1":     Doc(),
+						"prod_match2":     Doc(),
+					},
+				},
+				{
+					dir: "/dev",
+					files: map[string]fmt.Stringer{
+						"root_dev_match1": Doc(),
+					},
+				},
+				{
+					dir: "/gcp/stacks/prod",
+					files: map[string]fmt.Stringer{
+						"prod_match1": Doc(),
+						"prod_match2": Doc(),
+					},
+				},
+				{
+					dir: "/gcp/stacks/prod/substack",
+					files: map[string]fmt.Stringer{
+						"prod_substack_match1": Doc(),
+						"prod_substack_match2": Doc(),
+						"substack_match1":      Doc(),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: project.NewPath("/aws/stacks/dev"),
+						Created: []string{
+							"all_aws_match1",
+						},
+					},
+					{
+						Dir: project.NewPath("/aws/stacks/dev/substack"),
+						Created: []string{
+							"all_aws_match1",
+							"aws_substack_match1",
+							"substack_match1",
+						},
+					},
+					{
+						Dir: project.NewPath("/aws/stacks/prod"),
+						Created: []string{
+							"all_aws_match1",
+							"aws_prod_match1",
+							"prod_match1",
+							"prod_match2",
+						},
+					},
+					{
+						Dir: project.NewPath("/dev"),
+						Created: []string{
+							"root_dev_match1",
+						},
+					},
+					{
+						Dir: project.NewPath("/gcp/stacks/prod"),
+						Created: []string{
+							"prod_match1",
+							"prod_match2",
+						},
+					},
+					{
+						Dir: project.NewPath("/gcp/stacks/prod/substack"),
+						Created: []string{
+							"prod_substack_match1",
+							"prod_substack_match2",
+							"substack_match1",
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestGenerateHCLStackFiltersSC11177(t *testing.T) {
+	t.Parallel()
+
+	testCodeGeneration(t, []testcase{
+		{
+			name: "bug-sc11177",
+			layout: []string{
+				"s:stacks/project-factory/factory-1/custom-roles/role-1",
+				"s:stackss/project-factory/factory-2/custom-roles/role-2",
+				"s:stacksss/project-factory/factory-3/custom-roles/role-3",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateHCL(
+						Labels("test"),
+						StackFilter(
+							ProjectPaths(
+								"**/project-factory/*/custom-roles/*",
+								"**/projects/*/landing-zone/custom-roles/*",
+							),
+						),
+						Content(),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/project-factory/factory-1/custom-roles/role-1",
+					files: map[string]fmt.Stringer{
+						"test": Doc(),
+					},
+				},
+				{
+					dir: "/stackss/project-factory/factory-2/custom-roles/role-2",
+					files: map[string]fmt.Stringer{
+						"test": Doc(),
+					},
+				},
+				{
+					dir: "/stacksss/project-factory/factory-3/custom-roles/role-3",
+					files: map[string]fmt.Stringer{
+						"test": Doc(),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/project-factory/factory-1/custom-roles/role-1"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/stackss/project-factory/factory-2/custom-roles/role-2"),
+						Created: []string{"test"},
+					},
+					{
+						Dir:     project.NewPath("/stacksss/project-factory/factory-3/custom-roles/role-3"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+	})
 }
 
 func TestGenerateHCLOverwriting(t *testing.T) {
@@ -1677,7 +3007,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 
 	// Creates a file with a generated header inside the symlinked directory.
 	// It should never return in the report.
-	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
+	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.DefaultHeader())
 
 	root, err := config.LoadRoot(rootEntry.Path())
 	assert.NoError(t, err)
@@ -1698,10 +3028,27 @@ func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	s := sandbox.NoGit(t, true)
 
 	// Creates a file with a generated header inside dot dirs.
-	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
-	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.Header)
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.DefaultHeader())
 
 	assertEqualReports(t, s.Generate(), generate.Report{})
+}
+
+func TestGenerateHCLCleanupOldFilesDONTIgnoreDotFiles(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+
+	// Creates a file with a generated header inside dot dirs.
+	test.WriteFile(t, filepath.Join(s.RootDir(), "somedir"), ".test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, filepath.Join(s.RootDir(), "another"), ".test.tf", genhcl.DefaultHeader())
+
+	assertEqualReports(t, s.Generate(), generate.Report{
+		Successes: []generate.Result{
+			{Dir: project.NewPath("/another"), Deleted: []string{".test.tf"}},
+			{Dir: project.NewPath("/somedir"), Deleted: []string{".test.tf"}},
+		},
+	})
 }
 
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {

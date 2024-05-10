@@ -24,12 +24,16 @@ type project struct {
 	baseRef        string
 	globals        *globals.Resolver
 	normalizedRepo string
+	stackManager   *stack.Manager
 
 	git struct {
 		wrapper                   *git.Git
 		headCommit                string
 		localDefaultBranchCommit  string
 		remoteDefaultBranchCommit string
+
+		remoteConfigured bool
+		branchConfigured bool
 
 		repoChecks stack.RepoChecks
 	}
@@ -65,19 +69,29 @@ func (p *project) localDefaultBranchCommit() string {
 	if p.git.localDefaultBranchCommit != "" {
 		return p.git.localDefaultBranchCommit
 	}
-	logger := log.With().
-		Str("action", "localDefaultBranchCommit()").
-		Logger()
-
 	gitcfg := p.gitcfg()
 	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
 	val, err := p.git.wrapper.RevParse(refName)
 	if err != nil {
-		logger.Fatal().Err(err).Send()
+		fatalWithDetails(err, "unable to git rev-parse")
 	}
 
 	p.git.localDefaultBranchCommit = val
 	return val
+}
+
+func (p *project) isGitFeaturesEnabled() bool {
+	return p.isRepo && p.hasCommit()
+}
+
+func (p *project) hasCommit() bool {
+	_, err := p.git.wrapper.RevParse("HEAD")
+	return err == nil
+}
+
+func (p *project) hasCommits() bool {
+	_, err := p.git.wrapper.RevParse("HEAD^")
+	return err == nil
 }
 
 func (p *project) headCommit() string {
@@ -85,13 +99,9 @@ func (p *project) headCommit() string {
 		return p.git.headCommit
 	}
 
-	logger := log.With().
-		Str("action", "headCommit()").
-		Logger()
-
 	val, err := p.git.wrapper.RevParse("HEAD")
 	if err != nil {
-		logger.Fatal().Err(err).Send()
+		fatalWithDetails(err, "unable to git rev-parse")
 	}
 
 	p.git.headCommit = val
@@ -103,18 +113,15 @@ func (p *project) remoteDefaultCommit() string {
 		return p.git.remoteDefaultBranchCommit
 	}
 
-	logger := log.With().
-		Str("action", "remoteDefaultCommit()").
-		Logger()
-
 	gitcfg := p.gitcfg()
 	remoteRef, err := p.git.wrapper.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
-		logger.Fatal().Err(
+		fatalWithDetails(
 			fmt.Errorf("fetching remote commit of %s/%s: %v",
 				gitcfg.DefaultRemote, gitcfg.DefaultBranch,
 				err,
-			)).Send()
+			),
+			"unable to fetch remote commit")
 	}
 
 	p.git.remoteDefaultBranchCommit = remoteRef.CommitID
@@ -137,16 +144,26 @@ func (p *project) isDefaultBranch() bool {
 
 // defaultBaseRef returns the baseRef for the current git environment.
 func (p *project) defaultBaseRef() string {
-	git := p.gitcfg()
 	if p.isDefaultBranch() &&
 		p.remoteDefaultCommit() == p.headCommit() {
-		_, err := p.git.wrapper.RevParse(git.DefaultBranchBaseRef)
+		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
 		if err == nil {
-			return git.DefaultBranchBaseRef
+			return defaultBranchBaseRef
 		}
 	}
-
 	return p.defaultBranchRef()
+}
+
+// defaultLocalBaseRef returns the baseRef in case there's no remote setup.
+func (p *project) defaultLocalBaseRef() string {
+	git := p.gitcfg()
+	if p.isDefaultBranch() {
+		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
+		if err == nil {
+			return defaultBranchBaseRef
+		}
+	}
+	return git.DefaultBranch
 }
 
 func (p project) defaultBranchRef() string {
@@ -183,15 +200,13 @@ func (p *project) setDefaults() error {
 
 	gitOpt := cfg.Terramate.Config.Git
 
-	if gitOpt.DefaultBranchBaseRef == "" {
-		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
-	}
-
-	if gitOpt.DefaultBranch == "" {
+	p.git.branchConfigured = gitOpt.DefaultBranch != ""
+	if !p.git.branchConfigured {
 		gitOpt.DefaultBranch = defaultBranch
 	}
 
-	if gitOpt.DefaultRemote == "" {
+	p.git.remoteConfigured = gitOpt.DefaultRemote != ""
+	if !p.git.remoteConfigured {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 
@@ -210,6 +225,7 @@ func (p project) checkDefaultRemote() error {
 
 	for _, remote := range remotes {
 		if remote.Name == gitcfg.DefaultRemote {
+			remote := remote
 			defRemote = &remote
 			break
 		}

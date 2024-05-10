@@ -2,7 +2,12 @@
 # SPDX-License-Identifier: MPL-2.0
 
 name: ci
+
 on:
+  push:
+    branches:
+      - main
+      - v0.4.x
   pull_request:
 
 jobs:
@@ -12,12 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
+
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
@@ -40,18 +44,23 @@ jobs:
 
     strategy:
       matrix:
-        os: ["ubuntu-20.04", "macos-11", "macos-12"]
-        go: ["1.20"]
+        os: ["ubuntu-20.04", "macos-13"]
+        go: ["1.21"]
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.2
+          tofu_wrapper: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
@@ -61,6 +70,8 @@ jobs:
 
       - name: make test
         run: terramate run --tags golang --changed -- make test
+        env:
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
 
       - name: make build
         run: terramate run --tags golang --changed -- make build
@@ -79,9 +90,10 @@ jobs:
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
-      - uses: actions/setup-go@v4
+
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
@@ -100,15 +112,28 @@ jobs:
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
 
+      - name: install cosign 
+        run: go install github.com/sigstore/cosign/v2/cmd/cosign@latest
+      - name: install goreleaser
+        run: |
+          curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o /tmp/goreleaser.tar.gz
+          cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
+          sudo mv /tmp/goreleaser /usr/local/bin/
+      
       - name: release dry run
         run: terramate run --tags golang --changed -- make release/dry-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_API_KEY }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN}}
+
 
   ci:
     needs:

@@ -8,25 +8,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
 )
 
 // GetDrift implements the /v1/drifts/:orguuid/:stackid/:driftid endpoint.
 func GetDrift(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
 	orguuid := cloud.UUID(params.ByName("orguuid"))
-	stackid, err := strconv.Atoi(params.ByName("stackid"))
+	stackid, err := strconv.Atoi64(params.ByName("stackid"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, errors.E(err, "invalid stackid"))
 		return
 	}
 
-	driftid, err := strconv.Atoi(params.ByName("driftid"))
+	driftid, err := strconv.Atoi64(params.ByName("driftid"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, errors.E(err, "invalid driftid"))
@@ -83,6 +83,13 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 
 	err = payload.Validate()
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
+	// NOTE(i4k): metadata is not required but must be present in all test cases
+	if err := validateMetadata(payload.Metadata); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
 		return

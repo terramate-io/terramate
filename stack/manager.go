@@ -10,26 +10,25 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/tf"
+	"github.com/terramate-io/terramate/tg"
 )
 
 type (
 	// Manager is the terramate stacks manager.
 	Manager struct {
-		root       *config.Root // whole config
-		gitBaseRef string       // gitBaseRef is the git ref where we compare changes.
-
-		outerGit *git.Git
+		root *config.Root // whole config
+		git  *git.Git
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -56,19 +55,25 @@ type (
 const errList errors.Kind = "listing stacks error"
 const errListChanged errors.Kind = "listing changed stacks error"
 
-// NewManager creates a new stack manager.The root is the project root config
-// and and gitBaseRef is the git reference to compare for changes.
-func NewManager(root *config.Root, gitBaseRef string) *Manager {
+// NewManager creates a new stack manager.
+func NewManager(root *config.Root) *Manager {
 	return &Manager{
-		root:       root,
-		gitBaseRef: gitBaseRef,
+		root: root,
+	}
+}
+
+// NewGitAwareManager returns a stack manager that supports change detection.
+func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
+	return &Manager{
+		root: root,
+		git:  git,
 	}
 }
 
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() (*Report, error) {
-	entries, err := List(m.root.Tree())
+	entries, err := List(m.root, m.root.Tree())
 	if err != nil {
 		return nil, err
 	}
@@ -77,22 +82,14 @@ func (m *Manager) List() (*Report, error) {
 		Stacks: entries,
 	}
 
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.HostDir(),
-	})
-	if err != nil {
-		return nil, errors.E(errList, err)
-	}
-
-	if !g.IsRepository() {
+	if m.git == nil || !m.git.IsRepository() {
 		return report, nil
 	}
 
-	report.Checks, err = checkRepoIsClean(g)
+	report.Checks, err = checkRepoIsClean(m.git)
 	if err != nil {
 		return nil, errors.E(errList, err)
 	}
-
 	return report, nil
 }
 
@@ -101,28 +98,12 @@ func (m *Manager) List() (*Report, error) {
 // system in place and that you are working on a branch that is not main.
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
-func (m *Manager) ListChanged() (*Report, error) {
+func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
 		Logger()
 
-	gOuter, err := m.globalGit()
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
-	}
-
-	globalArgs := setupInheritedGitConfigArgs(gOuter)
-
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.HostDir(),
-		GlobalArgs: globalArgs,
-	})
-
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
-	}
-
-	if !g.IsRepository() {
+	if !m.git.IsRepository() {
 		return nil, errors.E(
 			errListChanged,
 			"the path \"%s\" is not a git repository",
@@ -130,12 +111,12 @@ func (m *Manager) ListChanged() (*Report, error) {
 		)
 	}
 
-	checks, err := checkRepoIsClean(g)
+	checks, err := checkRepoIsClean(m.git)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	changedFiles, err := m.listChangedFiles(m.root.HostDir(), m.gitBaseRef)
+	changedFiles, err := m.listChangedFiles(m.root.HostDir(), gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -150,11 +131,6 @@ func (m *Manager) ListChanged() (*Report, error) {
 		logger = logger.With().
 			Stringer("path", projpath).
 			Logger()
-
-		if strings.HasPrefix(path, ".") && !isTriggerFile {
-			logger.Debug().Msg("ignoring changed file starting with .")
-			continue
-		}
 
 		if isTriggerFile {
 			logger = logger.With().
@@ -198,6 +174,7 @@ func (m *Manager) ListChanged() (*Report, error) {
 		stackTree, found := m.root.Lookup(cfgpath)
 		if !found || !stackTree.IsStack() {
 			checkdir := cfgpath
+			// check if any parent directory is a stack
 			for checkdir.String() != "/" {
 				checkdir = checkdir.Dir()
 				stackTree, found = m.root.Lookup(checkdir)
@@ -221,9 +198,24 @@ func (m *Manager) ListChanged() (*Report, error) {
 		}
 	}
 
-	allstacks, err := List(m.root.Tree())
+	allstacks, err := List(m.root, m.root.Tree())
 	if err != nil {
 		return nil, errors.E(errListChanged, "searching for stacks", err)
+	}
+
+	tgModulesMap := make(map[project.Path]*tg.Module)
+	var tgModules tg.Modules
+
+	if m.root.IsTerragruntChangeDetectionEnabled() {
+		// discover Terragrunt modules
+		tgModules, err = tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
+		if err != nil {
+			return nil, errors.E(errListChanged, err, "scanning terragrunt modules")
+		}
+
+		for _, mod := range tgModules {
+			tgModulesMap[mod.Path] = mod
+		}
 	}
 
 rangeStacks:
@@ -250,6 +242,7 @@ rangeStacks:
 			continue rangeStacks
 		}
 
+		// Terraform module change detection
 		err := m.filesApply(stack.HostDir(m.root), func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
@@ -263,7 +256,7 @@ rangeStacks:
 			}
 
 			for _, mod := range modules {
-				changed, why, err := m.moduleChanged(mod, stack.HostDir(m.root), make(map[string]bool))
+				changed, why, err := m.tfModuleChanged(mod, stack.HostDir(m.root), gitBaseRef, make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}
@@ -289,7 +282,32 @@ rangeStacks:
 		})
 
 		if err != nil {
-			return nil, errors.E(errListChanged, "checking module changes", err)
+			return nil, errors.E(errListChanged, "checking if Terraform module changes", err)
+		}
+
+		// tgModulesMap is only populated if Terragrunt is enabled.
+		tgMod, ok := tgModulesMap[stack.Dir]
+		if !ok {
+			continue
+		}
+
+		changed, why, err := m.tgModuleChanged(stack, tgMod, gitBaseRef, changedFiles, stackSet, tgModulesMap)
+		if err != nil {
+			return nil, errors.E(errListChanged, err, "checking if Terragrunt module changes")
+		}
+
+		if changed {
+			logger.Debug().
+				Stringer("stack", stack).
+				Str("changed", tgMod.Source).
+				Msg("Terragrunt module changed.")
+
+			stack.IsChanged = true
+			stackSet[stack.Dir] = Entry{
+				Stack:  stack,
+				Reason: fmt.Sprintf("stack changed because module %q changed because %s", tgMod.Path, why),
+			}
+			continue rangeStacks
 		}
 	}
 
@@ -308,12 +326,8 @@ rangeStacks:
 
 // AddWantedOf returns all wanted stacks from the given stacks.
 func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
-	logger := log.With().
-		Str("action", "manager.AddWantedOf").
-		Logger()
-
-	wantsDag := dag.New()
-	allstacks, err := config.LoadAllStacks(m.root.Tree())
+	wantsDag := dag.New[*config.Stack]()
+	allstacks, err := config.LoadAllStacks(m.root, m.root.Tree())
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
 	}
@@ -340,14 +354,15 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	reason, err := wantsDag.Validate()
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			logger.Warn().
-				Str("reason", reason).
-				Err(err).
-				Msg("The stack selection clauses (wants/wanted_by) have cycles (ignored).")
+			printer.Stderr.WarnWithDetails(
+				"Stack selection clauses (wants/wanted_by) have cycles",
+				errors.E(reason, err),
+			)
 		} else {
-			logger.Warn().
-				Err(err).
-				Msg("The stack selection clauses (wants/wanted_by) have errors (ignored)")
+			printer.Stderr.WarnWithDetails(
+				"Stack selection clauses (wants/wanted_by) have errors",
+				err,
+			)
 		}
 	}
 
@@ -369,8 +384,7 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 
 	for len(pending) > 0 {
 		id := pending[0]
-		node, _ := wantsDag.Node(id)
-		s := node.(*config.Stack)
+		s, _ := wantsDag.Node(id)
 
 		addStack(s)
 		pending = pending[1:]
@@ -414,12 +428,12 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (er
 	return nil
 }
 
-// moduleChanged recursively check if the module mod or any of the modules it
+// tfModuleChanged recursively check if the Terraform module mod or any of the modules it
 // uses has changed. All .tf files of the module are parsed and this function is
 // called recursively. The visited keep track of the modules already parsed to
 // avoid infinite loops.
-func (m *Manager) moduleChanged(
-	mod tf.Module, basedir string, visited map[string]bool,
+func (m *Manager) tfModuleChanged(
+	mod tf.Module, basedir string, gitBaseRef string, visited map[string]bool,
 ) (changed bool, why string, err error) {
 	if _, ok := visited[mod.Source]; ok {
 		return false, "", nil
@@ -441,7 +455,7 @@ func (m *Manager) moduleChanged(
 		return false, "", errors.E("\"source\" path %q is not a directory", modPath)
 	}
 
-	changedFiles, err := m.listChangedFiles(modPath, m.gitBaseRef)
+	changedFiles, err := m.listChangedFiles(modPath, gitBaseRef)
 	if err != nil {
 		return false, "", errors.E(err,
 			"listing changes in the module %q",
@@ -470,7 +484,7 @@ func (m *Manager) moduleChanged(
 		for _, mod2 := range modules {
 			var reason string
 
-			changed, reason, err = m.moduleChanged(mod2, modPath, visited)
+			changed, reason, err = m.tfModuleChanged(mod2, modPath, gitBaseRef, visited)
 			if err != nil {
 				return err
 			}
@@ -491,6 +505,75 @@ func (m *Manager) moduleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
+func (m *Manager) tgModuleChanged(
+	stack *config.Stack, tgMod *tg.Module, gitBaseRef string, changedFiles []string, stackSet map[project.Path]Entry, tgModuleMap map[project.Path]*tg.Module,
+) (changed bool, why string, err error) {
+	tfMod := tf.Module{Source: tgMod.Source}
+	if tfMod.IsLocal() {
+		changed, why, err := m.tfModuleChanged(tfMod, project.AbsPath(m.root.HostDir(), tgMod.Path.String()), gitBaseRef, make(map[string]bool))
+		if err != nil {
+			return false, "", errors.E(errListChanged, err, "checking if Terraform module changes (in Terragrunt context)")
+		}
+		if changed {
+			return true, fmt.Sprintf("module %q changed because %s", tgMod.Path, why), nil
+		}
+	}
+
+	for _, dep := range tgMod.DependsOn {
+		// if the module is a stack already detected as changed, just mark this as changed and
+		// move on. Fast path.
+		depStack, found := m.root.Lookup(dep)
+		if found && depStack.IsStack() {
+			if _, ok := stackSet[depStack.Dir()]; ok {
+				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
+			}
+		}
+
+		for _, changedFile := range changedFiles {
+			changedPath := project.PrjAbsPath(m.root.HostDir(), changedFile)
+			if dep == changedPath {
+				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
+			}
+		}
+
+		depAbsPath := project.AbsPath(m.root.HostDir(), dep.String())
+		// if the dep is a directory, check if it changed
+		info, err := os.Lstat(depAbsPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
+		}
+		if !info.IsDir() {
+			// if it's not a directory, then if changed it shall have been detected by the changedFiles.
+			continue
+		}
+
+		changedFiles, err := m.listChangedFiles(depAbsPath, gitBaseRef)
+		if err != nil {
+			return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
+		}
+		if len(changedFiles) > 0 {
+			return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
+		}
+
+		// if the dep is a Terragrunt module, check if it changed
+		depTgMod, ok := tgModuleMap[dep]
+		if ok {
+			changed, why, err := m.tgModuleChanged(stack, depTgMod, gitBaseRef, changedFiles, stackSet, tgModuleMap)
+			if err != nil {
+				return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
+			}
+			if changed {
+				return true, fmt.Sprintf("module %q changed because %q changed because %s", tgMod.Path, dep, why), nil
+			}
+		}
+	}
+
+	return false, "", nil
+}
+
 // listChangedFiles lists all changed files in the dir directory.
 func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	st, err := os.Stat(dir)
@@ -502,27 +585,14 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 		return nil, errors.E("is not a directory")
 	}
 
-	gOuter, err := m.globalGit()
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
-	}
+	dirWrapper := m.git.With().WorkingDir(dir).Wrapper()
 
-	globalArgs := setupInheritedGitConfigArgs(gOuter)
-
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: dir,
-		GlobalArgs: globalArgs,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	baseRef, err := g.RevParse(gitBaseRef)
+	baseRef, err := dirWrapper.RevParse(gitBaseRef)
 	if err != nil {
 		return nil, errors.E(err, "getting revision %q", gitBaseRef)
 	}
 
-	headRef, err := g.RevParse("HEAD")
+	headRef, err := dirWrapper.RevParse("HEAD")
 	if err != nil {
 		return nil, errors.E(err, "getting HEAD revision")
 	}
@@ -531,18 +601,7 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 		return []string{}, nil
 	}
 
-	return g.DiffNames(baseRef, headRef)
-}
-
-func (m *Manager) globalGit() (*git.Git, error) {
-	var err error
-	if m.outerGit == nil {
-		m.outerGit, err = git.WithConfig(git.Config{
-			WorkingDir: m.root.HostDir(),
-			Env:        os.Environ(),
-		})
-	}
-	return m.outerGit, err
+	return dirWrapper.DiffNames(baseRef, headRef)
 }
 
 func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
@@ -571,24 +630,6 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 		UntrackedFiles:   untracked,
 		UncommittedFiles: uncommitted,
 	}, nil
-}
-
-// setupInheritedGitConfigArgs detects git config values that have to be passed
-// on to the git wrapper used for diff-tree
-func setupInheritedGitConfigArgs(git *git.Git) []string {
-	logger := log.With().
-		Str("action", "setupInheritedGitConfigArgs").
-		Logger()
-
-	var r []string
-
-	safeDirs, err := git.GetConfigValue("safe.directory")
-	if err == nil && safeDirs != "" {
-		logger.Debug().Msgf("detected safe.directory = %s", safeDirs)
-		r = append(r, "-c", fmt.Sprintf("safe.directory=%s", safeDirs))
-	}
-
-	return r
 }
 
 // EntrySlice implements the Sort interface.

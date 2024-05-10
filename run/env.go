@@ -5,8 +5,10 @@ package run
 
 import (
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/terramate-io/terramate/runtime"
 
@@ -17,8 +19,8 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
+	"golang.org/x/exp/maps"
 
-	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -40,69 +42,90 @@ type EnvVars []string
 // LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
+// All defined `terramate.config.run.env` definitions from the provided stack dir
+// up to the root of the project are collected, and env definitions closer to the
+// stack have precedence over parent definitions.
 func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
-	logger := log.With().
-		Str("action", "run.Env()").
-		Str("root", root.HostDir()).
-		Stringer("stack", st).
-		Logger()
-
-	if !root.Tree().Node.HasRunEnv() {
-		return nil, nil
-	}
-
-	tree, _ := root.Lookup(st.Dir)
-
 	evalctx := eval.New(
-		tree.Dir(),
+		st.Dir,
 		globals.NewResolver(root),
 		runtime.NewResolver(root, st),
-		&resolver{
+		&EnvResolver{
 			rootdir: root.HostDir(),
 			env:     os.Environ(),
 		},
 	)
 	evalctx.SetFunctions(stdlib.Functions(evalctx, st.HostDir(root)))
+	envMap := map[string]string{}
+	skipMap := map[string]struct{}{}
 
-	envVars := EnvVars{}
+	tree, _ := root.Lookup(st.Dir)
 
-	attrs := root.Tree().Node.Terramate.Config.Run.Env.Attributes.SortedList()
+	for {
+		if tree.Node.HasRunEnv() {
+			attrs := tree.Node.Terramate.Config.Run.Env.Attributes.SortedList()
 
-	for _, attr := range attrs {
-		logger = logger.With().
-			Str("attribute", attr.Name).
-			Logger()
+			for _, attr := range attrs {
+				if _, skip := skipMap[attr.Name]; skip {
+					continue
+				}
+				traversal, diags := hcl.AbsTraversalForExpr(attr.Expr)
+				skip := !diags.HasErrors() && len(traversal) == 1 && (traversal.RootName() == "unset")
+				if skip {
+					skipMap[attr.Name] = struct{}{}
+					continue
+				}
+				val, err := evalctx.Eval(attr.Expr)
+				if err != nil {
+					return nil, errors.E(ErrEval, err)
+				}
 
-		val, err := evalctx.Eval(attr.Expr)
-		if err != nil {
-			return nil, errors.E(ErrEval, err)
+				if val.IsNull() {
+					skipMap[attr.Name] = struct{}{}
+					continue
+				}
+
+				if val.Type() != cty.String {
+					return nil, errors.E(
+						ErrInvalidEnvVarType,
+						attr.Range,
+						"attr has type %s but must be string",
+						val.Type().FriendlyName(),
+					)
+				}
+
+				if _, ok := envMap[attr.Name]; !ok {
+					envMap[attr.Name] = val.AsString()
+				}
+			}
 		}
 
-		if val.Type() != cty.String {
-			return nil, errors.E(
-				ErrInvalidEnvVarType,
-				attr.Range,
-				"attr has type %s but must be string",
-				val.Type().FriendlyName(),
-			)
+		tree = tree.Parent
+		if tree == nil {
+			break
 		}
-		envVars = append(envVars, attr.Name+"="+val.AsString())
-
 	}
 
+	var envVars EnvVars
+	keys := maps.Keys(envMap)
+	sort.Strings(keys)
+	for _, k := range keys {
+		envVars = append(envVars, k+"="+envMap[k])
+	}
 	return envVars, nil
 }
 
-type resolver struct {
-	rootdir string
-	env     []string
+type EnvResolver struct {
+	rootdir  string
+	scopeDir project.Path
+	env      []string
 }
 
-func (r *resolver) Name() string { return "env" }
+func (r *EnvResolver) Name() string { return "env" }
 
-func (r *resolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
+func (r *EnvResolver) Prevalue() cty.Value { return cty.EmptyObjectVal }
 
-func (r *resolver) loadStmts() (eval.Stmts, error) {
+func (r *EnvResolver) loadStmts() (eval.Stmts, error) {
 	stmts := make(eval.Stmts, len(r.env))
 	for _, env := range r.env {
 		nameval := strings.Split(env, "=")
@@ -127,7 +150,7 @@ func (r *resolver) loadStmts() (eval.Stmts, error) {
 	return stmts, nil
 }
 
-func (r *resolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
+func (r *EnvResolver) LookupRef(_ project.Path, ref eval.Ref) ([]eval.Stmts, error) {
 	stmts, err := r.loadStmts()
 	if err != nil {
 		return nil, err

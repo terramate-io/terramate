@@ -13,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -49,6 +50,33 @@ func TestGeneratedFilesListing(t *testing.T) {
 				"f:file.hcl:dont care",
 				"f:another.tm.hcl:terramate {}",
 			},
+		},
+		{
+			name: "single file generated but configured to a different comment style",
+			layout: []string{
+				"f:somefile.tf:" + genhcl.Header(genhcl.SlashComment) + "test",
+				"f:terramate.tm:" + Doc(Terramate(
+					Config(
+						Block("generate", Doc(
+							Str("hcl_magic_header_comment_style", "#"),
+						)),
+					),
+				)).String(),
+			},
+		},
+		{
+			name: "single file generated and properly configured with same comment style",
+			layout: []string{
+				"f:somefile.tf:" + genhcl.Header(genhcl.HashComment) + "test",
+				"f:terramate.tm:" + Doc(Terramate(
+					Config(
+						Block("generate", Doc(
+							Str("hcl_magic_header_comment_style", "#"),
+						)),
+					),
+				)).String(),
+			},
+			want: []string{"somefile.tf"},
 		},
 		{
 			name: "single generated file on root",
@@ -168,13 +196,24 @@ func TestGeneratedFilesListing(t *testing.T) {
 			},
 		},
 		{
-			name: "ignores dot dirs and files",
+			name: "ignores dot dirs",
 			layout: []string{
-				genfile(".name.tf"),
 				genfile(".dir/1.tf"),
 				genfile(".dir/2.tf"),
 			},
 			want: []string{},
+		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1260
+			name: "regression test: dotfiles should not be ignored if not inside a .tmskip",
+			layout: []string{
+				genfile(".name.tf"),
+				genfile("dir/.name.tf"),
+			},
+			want: []string{
+				".name.tf",
+				"dir/.name.tf",
+			},
 		},
 	}
 
@@ -201,5 +240,5 @@ func TestGeneratedFilesListing(t *testing.T) {
 }
 
 func genfile(path string, body ...string) string {
-	return fmt.Sprintf("f:%s:%s\n%s", path, genhcl.Header, strings.Join(body, ""))
+	return fmt.Sprintf("f:%s:%s\n%s", path, genhcl.DefaultHeader(), strings.Join(body, ""))
 }
