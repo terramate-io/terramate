@@ -494,9 +494,9 @@ func appendDynamicBlock(
 			if val.IsNull() {
 				return errors.E(ErrParsing, objectExpr.Range(), "attributes is null")
 			}
-			if !val.Type().IsObjectType() {
+			if !val.Type().IsObjectType() && !val.Type().IsMapType() {
 				return attrErr(attrs.attributes,
-					"tm_dynamic attributes must be an object, got %s instead", val.Type().FriendlyName())
+					"tm_dynamic attributes must be an object/map, got %s instead", val.Type().FriendlyName())
 			}
 			iter := val.ElementIterator()
 			for iter.Next() {
