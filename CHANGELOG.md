@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix the loading of `terramate.config.run.env` environment variables not considering equal signs in the value.
+
 ## v0.8.3
 
 ### Fixed

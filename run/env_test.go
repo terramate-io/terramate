@@ -85,6 +85,33 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 		},
 		{
+			// GH issue: https://github.com/terramate-io/terramate/issues/1710
+			name: "regression test: incomplete env due to equal sign split",
+			hostenv: map[string]string{
+				"TESTING_RUN_ENV_VAR": "A=B=C",
+			},
+			layout: []string{
+				"s:stacks/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						Expr("testenv", "env.TESTING_RUN_ENV_VAR"),
+						Str("teststr", "plain=with=equal=string"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"testenv=A=B=C",
+						`teststr=plain=with=equal=string`,
+					},
+				},
+			},
+		},
+		{
 			name: "stacks with env loaded from globals and metadata",
 			layout: []string{
 				"s:stacks/stack-1",

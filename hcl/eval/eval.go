@@ -57,8 +57,8 @@ func (c *Context) SetFunction(name string, fn function.Function) {
 func (c *Context) SetEnv(environ []string) {
 	env := map[string]cty.Value{}
 	for _, v := range environ {
-		parsed := strings.Split(v, "=")
-		env[parsed[0]] = cty.StringVal(parsed[1])
+		equalAt := strings.Index(v, "=") // must always find
+		env[v[:equalAt]] = cty.StringVal(v[equalAt+1:])
 	}
 	c.SetNamespace("env", env)
 }
