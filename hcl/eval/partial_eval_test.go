@@ -281,12 +281,55 @@ EOT
 			expr: `{for k, v in val : k => funcall(v) if v+1 == data.something}`,
 		},
 		{
-			expr:    `[for v in global.list : v if v+data == otherdata.val]`,
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			expr: `[for v in global.list : v if v+data == otherdata.val]`,
+			want: `[for v in [0, 1, 2, 3] : v if v + data == otherdata.val]`,
 		},
 		{
-			expr:    `[for v in global.strings : upper(v)]`,
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			expr: `[for v in global.strings : tm_upper(v)]`,
+			want: `["TERRAMATE", "IS", "FUN"]`,
+		},
+		{
+			expr: `{for k, v in global.obj : tm_upper(k) => v if k == "a"}`,
+			want: `{
+				A = 0
+			}`,
+		},
+		{
+			expr: `{for k, v in global.obj : k => v+100 if k == "a"}`,
+			want: `{
+				a = 100
+			}`,
+		},
+		{
+			// loop cannot be evaluated because `if ...` refers to unknowns
+			expr: `{for k, v in global.obj : k => v if var.data}`,
+			want: `{for k, v in {
+				a = 0
+				b = ["terramate"]
+			  } : k => v if var.data}`,
+		},
+		{
+			expr:    `{for k, v in global.obj : unknown => v if k == "a"}`,
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr:    `{for k, v in global.obj : v => v+1 if k == "a"}`,
+			wantErr: errors.E(eval.ErrPartial), // v is a number
+		},
+		{
+			expr:    `{for k, v in global.obj : v => v+1 if k == "a"}`,
+			wantErr: errors.E(eval.ErrPartial), // v is a number
+		},
+		{
+			expr: `[for v in tm_concat(global.list, [4, 5, 6]) : v if v+data == otherdata.val]`,
+			want: `[for v in [0, 1, 2, 3, 4, 5, 6] : v if v + data == otherdata.val]`,
+		},
+		{
+			expr: `{for k in data.something : k => global.obj[k]}`,
+			want: `{for k in data.something : k => {
+				a = 0
+				b = ["terramate"]
+			  }[k]}`,
 		},
 		{
 			expr: `global.list[0]`,

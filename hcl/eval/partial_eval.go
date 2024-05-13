@@ -16,9 +16,8 @@ import (
 
 // Errors returned when doing partial evaluation.
 const (
-	ErrPartial             errors.Kind = "partial evaluation failed"
-	ErrInterpolation       errors.Kind = "interpolation failed"
-	ErrForExprDisallowEval errors.Kind = "`for` expression disallow globals/terramate variables"
+	ErrPartial       errors.Kind = "partial evaluation failed"
+	ErrInterpolation errors.Kind = "interpolation failed"
 )
 
 func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, err error) {
@@ -198,15 +197,6 @@ func (c *Context) hasUnknownVars(expr hclsyntax.Expression) bool {
 	return false
 }
 
-func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
-	for _, namespace := range expr.Variables() {
-		if c.HasNamespace(namespace.RootName()) {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, error) {
 	var (
 		wrapped hhcl.Expression
@@ -239,18 +229,130 @@ func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.E
 }
 
 func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {
-	for _, expr := range []hclsyntax.Expression{
-		forExpr.KeyExpr,
-		forExpr.ValExpr,
-		forExpr.CollExpr,
-		forExpr.CondExpr,
-	} {
-		if expr != nil && c.hasTerramateVars(forExpr.CollExpr) {
-			return nil, errors.E(ErrForExprDisallowEval, "evaluating expression: %s", ast.TokensForExpression(forExpr.CollExpr).Bytes())
+	resExpr, err := c.partialEval(forExpr.CollExpr)
+	if err != nil {
+		return nil, err
+	}
+	forExpr.CollExpr = asSyntax(resExpr)
+	lit, canUnroll := forExpr.CollExpr.(*hclsyntax.LiteralValueExpr)
+	if canUnroll && forExpr.CondExpr != nil {
+		for _, traversal := range forExpr.CondExpr.Variables() {
+			name := traversal.RootName()
+			if name == forExpr.KeyVar ||
+				name == forExpr.ValVar {
+				continue
+			}
+			if _, ok := c.hclctx.Variables[name]; !ok {
+				// cond depends on partial data
+				canUnroll = false
+				break
+			}
 		}
 	}
 
+	if canUnroll {
+		return c.evalForLoop(lit, forExpr)
+	}
+
+	if forExpr.KeyExpr != nil {
+		resExpr, err := c.partialEval(forExpr.KeyExpr)
+		if err != nil {
+			return nil, err
+		}
+		forExpr.KeyExpr = asSyntax(resExpr)
+	}
+
+	if forExpr.ValExpr != nil {
+		resExpr, err := c.partialEval(forExpr.ValExpr)
+		if err != nil {
+			return nil, err
+		}
+		forExpr.ValExpr = asSyntax(resExpr)
+	}
+
+	if forExpr.CondExpr != nil {
+		resExpr, err := c.partialEval(forExpr.CondExpr)
+		if err != nil {
+			return nil, err
+		}
+		forExpr.CondExpr = asSyntax(resExpr)
+	}
+
 	return forExpr, nil
+}
+
+func (c *Context) evalForLoop(coll *hclsyntax.LiteralValueExpr, forExpr *hclsyntax.ForExpr) (*hclsyntax.LiteralValueExpr, error) {
+	if forExpr.KeyExpr != nil {
+		return c.evalForObjectLoop(coll, forExpr)
+	}
+	return c.evalForListLoop(coll, forExpr)
+}
+
+func (c *Context) evalForObjectLoop(coll *hclsyntax.LiteralValueExpr, forExpr *hclsyntax.ForExpr) (*hclsyntax.LiteralValueExpr, error) {
+	res := make(map[string]cty.Value)
+	if !coll.Val.CanIterateElements() {
+		return nil, errors.E("for-expr with non-iterable collection", coll.SrcRange)
+	}
+	iterator := coll.Val.ElementIterator()
+	for iterator.Next() {
+		k, v := iterator.Element()
+		ctx := c.hclctx.NewChild()
+		ctx.Variables = make(map[string]cty.Value)
+		ctx.Variables[forExpr.KeyVar] = k
+		ctx.Variables[forExpr.ValVar] = v
+
+		if forExpr.CondExpr != nil {
+			condVal, diags := forExpr.CondExpr.Value(ctx)
+			if diags.HasErrors() {
+				return nil, errors.E(diags)
+			}
+			if condVal.Type() != cty.Bool {
+				return nil, errors.E("condition is not a boolean but %s", condVal.Type().FriendlyNameForConstraint())
+			}
+			if condVal.False() {
+				continue
+			}
+		}
+		resKey, diags := forExpr.KeyExpr.Value(ctx)
+		if diags.HasErrors() {
+			return nil, errors.E(diags)
+		}
+		if resKey.Type() != cty.String {
+			return nil, errors.E("object key must be a string", forExpr.KeyExpr.Range())
+		}
+		resVal, diags := forExpr.ValExpr.Value(ctx)
+		if diags.HasErrors() {
+			return nil, errors.E(diags)
+		}
+		res[resKey.AsString()] = resVal
+	}
+	return &hclsyntax.LiteralValueExpr{
+		Val:      cty.ObjectVal(res),
+		SrcRange: forExpr.SrcRange,
+	}, nil
+}
+
+func (c *Context) evalForListLoop(coll *hclsyntax.LiteralValueExpr, forExpr *hclsyntax.ForExpr) (*hclsyntax.LiteralValueExpr, error) {
+	var res []cty.Value
+	iterator := coll.Val.ElementIterator()
+
+	for iterator.Next() {
+		k, v := iterator.Element()
+		ctx := c.hclctx.NewChild()
+		ctx.Variables = make(map[string]cty.Value)
+		ctx.Variables[forExpr.KeyVar] = k
+		ctx.Variables[forExpr.ValVar] = v
+
+		resVal, diags := forExpr.ValExpr.Value(ctx)
+		if diags.HasErrors() {
+			return nil, errors.E(diags)
+		}
+		res = append(res, resVal)
+	}
+	return &hclsyntax.LiteralValueExpr{
+		Val:      cty.TupleVal(res),
+		SrcRange: forExpr.SrcRange,
+	}, nil
 }
 
 func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expression, error) {

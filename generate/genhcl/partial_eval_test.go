@@ -1034,24 +1034,28 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "list for loop with global reference fails",
+			name: "list for loop with global reference",
 			globals: Globals(
 				Expr("list", `["a", "b", "c"]`),
 			),
 			config: Doc(
 				Expr("list", `[for k in global.list : k]`),
 			),
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			want: Doc(
+				Expr("list", `["a", "b", "c"]`),
+			),
 		},
 		{
-			name: "obj for loop with global reference fails",
+			name: "obj for loop with global reference",
 			globals: Globals(
 				Expr("obj", `{ a = 1}`),
 			),
 			config: Doc(
 				Expr("obj", `[for k in global.obj : k]`),
 			),
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			want: Doc(
+				Expr("obj", `[1]`),
+			),
 		},
 		{
 			name: "[for in from [for list with global references",
@@ -1061,7 +1065,9 @@ func TestPartialEval(t *testing.T) {
 			config: Doc(
 				Expr("obj", `[for s in [for s in global.list : s] : s]`),
 			),
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			want: Doc(
+				Expr("obj", `["a", "b", "c"]`),
+			),
 		},
 		{
 			name: "mixing {for and [for",
@@ -1483,6 +1489,140 @@ EOT
 				Expr("a", `{
 					a = b
 				}`),
+			),
+		},
+		{
+			name: "tm_hcl_expression with for-object loops",
+			globals: Globals(
+				Expr("role", `[
+                   {
+					  foo = "bar"
+				   },
+				   {
+					  foo = "baz"
+				   }
+				]`),
+			),
+			config: Doc(
+				Expr("main_role", `{
+					for k, v in global.role : v.foo => tm_hcl_expression("data.aws_iam_roles[${k}].${v.foo}.arn")
+				}`),
+			),
+			want: Doc(
+				Expr("main_role", `{
+					bar = data.aws_iam_roles[0].bar.arn
+					baz = data.aws_iam_roles[1].baz.arn
+				}`),
+			),
+		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1689
+			name: "regression test: tm_hcl_expression with for-object loops + tm_merge",
+			globals: Globals(
+				Expr("role", `[
+                   {
+					  foo = "bar"
+				   },
+				   {
+					  foo = "baz"
+				   }
+				]`),
+			),
+			config: Doc(
+				Expr("main_role", `tm_merge({}, {
+					for k, v in global.role : v.foo => tm_hcl_expression("data.aws_iam_roles[${k}].${v.foo}.arn")
+				})`),
+			),
+			want: Doc(
+				Expr("main_role", `{
+					bar = data.aws_iam_roles[0].bar.arn
+					baz = data.aws_iam_roles[1].baz.arn
+				}`),
+			),
+		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1676
+			name: "regression test: tm_hcl_expression with tm_dynamic",
+			globals: Globals(
+				Labels("envs"),
+				Expr("sandbox", `{
+					required = true
+					reviewers = [
+						"a-reviewer"
+					]
+				}`),
+				Expr("staging", `{
+					required = false
+					waiter = 10
+					reviewers = [
+						"another-reviewer",
+						"a-reviewer"
+					]
+				}`),
+				Expr("production", `{
+					waiter = 100
+					reviewers = [
+						"another-reviewer"
+					]
+				}`),
+			),
+			config: Doc(
+				TmDynamic(
+					Labels("resource"),
+					Expr("for_each", `global.envs`),
+					Expr("iterator", "env"),
+					Expr("labels", `["github_environment", env.key]`),
+					Expr("attributes", `{ for k, v in env.value : k => v if !tm_can(tm_keys(v)) }`),
+				),
+			),
+			want: Doc(
+				Block("resource",
+					Labels("github_environment", "production"),
+					Expr("reviewers", `[
+						"another-reviewer",
+					  ]`),
+					Number("waiter", 100),
+				),
+				Block("resource",
+					Labels("github_environment", "sandbox"),
+					Bool("required", true),
+					Expr("reviewers", `[
+						"a-reviewer",
+					  ]`),
+				),
+				Block("resource",
+					Labels("github_environment", "staging"),
+					Bool("required", false),
+					Expr("reviewers", `[
+						"another-reviewer",
+						"a-reviewer",
+					  ]`),
+					Number("waiter", 10),
+				),
+			),
+		},
+		{
+			name: "tm_hcl_expression with for-list loops",
+			globals: Globals(
+				Expr("role", `[
+                   {
+					  foo = "bar"
+				   },
+				   {
+					  foo = "baz"
+				   }
+				]`),
+			),
+			config: Doc(
+				Expr("main_role", `[
+					for k, v in global.role : tm_hcl_expression("data.whatever[${k}].other.${v.foo}")
+				]`),
+			),
+			want: Doc(
+				Expr("main_role", `[
+					data.whatever[0].other.bar,
+					data.whatever[1].other.baz,
+				]`),
 			),
 		},
 		{
