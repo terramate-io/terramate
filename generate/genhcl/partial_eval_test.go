@@ -120,7 +120,7 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					"key" = "value"	
+					key = "value"	
 				}`),
 			),
 		},
@@ -139,7 +139,7 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					"KEY" = "value"	
+					KEY = "value"	
 				}`),
 			),
 		},
@@ -616,7 +616,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("var", `1 + 1`),
 			),
 			want: Doc(
-				Expr("var", `1 + 1`),
+				Expr("var", `2`),
 			),
 		},
 		{
@@ -629,7 +629,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "plus expression evaluated",
+			name: "plus expression with strings evaluated -- fails",
 			globals: Doc(
 				Globals(
 					Str("a", "hello"),
@@ -639,32 +639,45 @@ func TestPartialEval(t *testing.T) {
 			config: Doc(
 				Expr("var", `tm_upper(global.a) + tm_upper(global.b)`),
 			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			name: "plus expression with numbers evaluated",
+			globals: Doc(
+				Globals(
+					Number("a", 2),
+					Number("b", 2),
+				),
+			),
+			config: Doc(
+				Expr("var", `global.a*global.a + global.b*global.b`),
+			),
 			want: Doc(
-				Expr("var", `"HELLO" + "WORLD"`),
+				Expr("var", `8`),
 			),
 		},
 		{
 			name: "plus expression evaluated advanced",
 			globals: Doc(
 				Globals(
-					Str("a", "hello"),
-					Str("b", "world"),
+					Number("a", 100),
+					Number("b", 200),
 				),
 			),
 			config: Doc(
-				Expr("var", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
+				Expr("var", `tm_max(global.a, global.b) + tm_min(global.b, global.a)`),
 			),
 			want: Doc(
-				Expr("var", `"hello" + "world"`),
+				Number("var", 300),
 			),
 		},
 		{
 			name: "basic minus expression",
 			config: Doc(
-				Expr("var", `1 + 1`),
+				Expr("var", `1 - 1`),
 			),
 			want: Doc(
-				Expr("var", `1 + 1`),
+				Number("var", 0),
 			),
 		},
 		{
@@ -673,7 +686,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("var", `1 == 1 ? 0 : 1`),
 			),
 			want: Doc(
-				Expr("var", `1 == 1 ? 0 : 1`),
+				Number("var", 0),
 			),
 		},
 		{
@@ -1081,10 +1094,10 @@ func TestPartialEval(t *testing.T) {
 		{
 			name: "unary operation !",
 			config: Doc(
-				Expr("num", "!0"),
+				Expr("b", "!false"),
 			),
 			want: Doc(
-				Expr("num", "!0"),
+				Expr("b", "true"),
 			),
 		},
 		{
@@ -1133,14 +1146,14 @@ func TestPartialEval(t *testing.T) {
 		{
 			name: "conditional globals evaluation",
 			globals: Globals(
-				Str("domain", "mineiros.io"),
+				Str("domain", "terramate.io"),
 				Bool("exists", true),
 			),
 			config: Doc(
 				Expr("a", `global.exists ? global.domain : "example.com"`),
 			),
 			want: Doc(
-				Expr("a", `true ? "mineiros.io" : "example.com"`),
+				Expr("a", `"terramate.io"`),
 			),
 		},
 		{

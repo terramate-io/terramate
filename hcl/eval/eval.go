@@ -11,6 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
 // ErrEval indicates a failure during the evaluation process
@@ -33,6 +34,14 @@ func NewContext(funcs map[string]function.Function) *Context {
 	return &Context{
 		hclctx: hclctx,
 	}
+}
+
+func (c *Context) newChildContext() *Context {
+	child := NewContext(c.hclctx.Functions)
+	for k, v := range c.hclctx.Variables {
+		child.hclctx.Variables[k] = v
+	}
+	return child
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -86,14 +95,37 @@ func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 
 // PartialEval evaluates only the terramate variable expressions from the list
 // of tokens, leaving all the rest as-is. It returns a modified list of tokens
-// with  no reference to terramate namespaced variables (globals and terramate)
-// and functions (tm_ prefixed functions).
-func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, error) {
-	newexpr, err := c.partialEval(expr)
+// with  no reference to terramate namespaced variables (global, let and terramate)
+// and tm_ prefixed functions. It also returns a boolean that tells if the returned
+// expression contains any unknown references (variables or functions).
+// It try to reduce the expression to its simplest form, which means expressions
+// with no unknowns are evaluated down to literals.
+func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, bool, error) {
+	newexpr, hasUnknowns, err := c.partialEval(expr)
 	if err != nil {
-		return nil, errors.E(ErrPartial, err)
+		return nil, false, errors.E(ErrPartial, err)
 	}
-	return newexpr, nil
+
+	if hasUnknowns {
+		return newexpr, hasUnknowns, nil
+	}
+	switch newexpr.(type) {
+	case *hclsyntax.LiteralValueExpr, *hclsyntax.TemplateExpr, *hclsyntax.TemplateWrapExpr:
+		// NOTE(i4k): Template*Expr are also kept because we support an special
+		// HEREDOC handling detection and then if evaluated it will be converted
+		// to plain quoted strings.
+		return newexpr, hasUnknowns, nil
+	}
+	var evaluated cty.Value
+	evaluated, err = c.Eval(newexpr)
+	if err != nil {
+		return nil, false, errors.E(ErrPartial, err)
+	}
+	newexpr = &hclsyntax.LiteralValueExpr{
+		Val:      evaluated,
+		SrcRange: newexpr.Range(),
+	}
+	return newexpr, hasUnknowns, nil
 }
 
 // Copy the eval context.

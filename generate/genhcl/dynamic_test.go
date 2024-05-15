@@ -1037,9 +1037,9 @@ func TestGenerateHCLDynamic(t *testing.T) {
 						condition: true,
 						body: Doc(
 							Block("references",
+								Bool("GLOBALKEY", true),
 								Bool("globalkey", true),
 								Bool("stack", true),
-								Bool("GLOBALKEY", true),
 								Bool("test", true),
 							),
 						),

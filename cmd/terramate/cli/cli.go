@@ -2048,7 +2048,7 @@ func (c *cli) partialEval() {
 		if err != nil {
 			fatalWithDetails(err, "unable to parse expression")
 		}
-		newexpr, err := ctx.PartialEval(expr)
+		newexpr, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			fatalWithDetails(err, "partial eval %q", exprStr)
 		}

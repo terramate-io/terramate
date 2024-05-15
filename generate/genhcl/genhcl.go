@@ -421,7 +421,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 			Expression: attr.Expr.(hclsyntax.Expression),
 		}
 
-		newexpr, err := eval.PartialEval(expr)
+		newexpr, _, err := eval.PartialEval(expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -482,7 +482,7 @@ func appendDynamicBlock(
 
 	attributeNames := map[string]struct{}{}
 	if attrs.attributes != nil {
-		attrsExpr, err := evaluator.PartialEval(attrs.attributes.Expr)
+		attrsExpr, _, err := evaluator.PartialEval(attrs.attributes.Expr)
 		if err != nil {
 			return errors.E(ErrDynamicAttrsEval, err, attrs.attributes.Range())
 		}
@@ -526,7 +526,7 @@ func appendDynamicBlock(
 						keyVal.Type().FriendlyName())
 				}
 
-				valExpr, err := evaluator.PartialEval(item.ValueExpr)
+				valExpr, _, err := evaluator.PartialEval(item.ValueExpr)
 				if err != nil {
 					return errors.E(
 						ErrDynamicAttrsEval,
