@@ -5,7 +5,9 @@ package core_test
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -104,6 +106,47 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	subfile.Write("# changed")
 	git.Add(stack.Path())
 	git.Commit("stack changed")
+
+	want := RunExpected{
+		Stdout: stack.RelPath() + "\n",
+	}
+	AssertRunResult(t, cli.ListChangedStacks(), want)
+}
+
+func TestListIgnoresChangesInSymlinksOutsideStack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink tests not supported on Windows")
+	}
+	t.Parallel()
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	symlinkedFile := s.RootEntry().CreateFile("symlinked_dir/something.tf", "# nothing")
+	err := os.Symlink(symlinkedFile.HostPath(), filepath.Join(stack.Path(), "something.tf"))
+	assert.NoError(t, err)
+
+	cli := NewCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-stack")
+
+	symlinkedFile.Write("# changed")
+	git.CommitAll("link changed")
+
+	AssertRun(t, cli.ListChangedStacks())
+
+	// Changing the symlink triggers change.
+	symlinkedFile = s.RootEntry().CreateFile("symlinked_dir/other.tf", "# other")
+	// link "something.tf" -> symlinked_dir/other.tf
+	newname := filepath.Join(stack.Path(), "something.tf")
+	assert.NoError(t, os.Remove(newname))
+	err = os.Symlink(symlinkedFile.HostPath(), newname)
+	assert.NoError(t, err)
+
+	git.CommitAll("stack changed")
 
 	want := RunExpected{
 		Stdout: stack.RelPath() + "\n",
