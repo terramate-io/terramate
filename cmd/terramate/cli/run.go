@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 
 	stdfmt "fmt"
 	"os"
@@ -53,9 +54,10 @@ type stackRun struct {
 // stackCloudRun is a stackRun, but with a single task, because the cloud API only supports
 // a single command per stack for any operation (deploy, drift, preview).
 type stackCloudRun struct {
-	Stack *config.Stack
-	Task  stackRunTask
-	Env   []string
+	Target string
+	Stack  *config.Stack
+	Task   stackRunTask
+	Env    []string
 }
 
 // stackRunTask declares a stack run context.
@@ -65,6 +67,9 @@ type stackRunTask struct {
 	ScriptIdx    int
 	ScriptJobIdx int
 	ScriptCmdIdx int
+
+	CloudTarget     string
+	CloudFromTarget string
 
 	CloudSyncDeployment  bool
 	CloudSyncDriftStatus bool
@@ -129,7 +134,7 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Run.Status))
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.Target, parseStatusFilter(c.parsedArgs.Run.Status))
 		if err != nil {
 			fatalWithDetails(err, "computing selected stacks")
 		}
@@ -161,7 +166,22 @@ func (c *cli) runOnStacks() {
 		fatal("--tofu-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
 	}
 
-	if c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview {
+	c.checkTargetsConfiguration(c.parsedArgs.Run.Target, c.parsedArgs.Run.FromTarget, func(isTargetSet bool) {
+		isStatusSet := c.parsedArgs.Run.Status != ""
+		isUsingCloudFeat := cloudSyncEnabled || isStatusSet
+
+		if isTargetSet && !isUsingCloudFeat {
+			fatal("--target must be used together with --sync-deployment, --sync-drift-status, --sync-preview, or --status")
+		} else if !isTargetSet && isUsingCloudFeat {
+			fatal("--sync-*/--status flags require --target when terramate.config.targets.enabled is true")
+		}
+	})
+
+	if c.parsedArgs.Run.FromTarget != "" && !cloudSyncEnabled {
+		fatal("--from-target must be used together with --sync-deployment, --sync-drift-status, or --sync-preview")
+	}
+
+	if cloudSyncEnabled {
 		if !c.prj.isRepo {
 			fatal("cloud features requires a git repository")
 		}
@@ -182,6 +202,8 @@ func (c *cli) runOnStacks() {
 			Tasks: []stackRunTask{
 				{
 					Cmd:                  c.parsedArgs.Run.Command,
+					CloudTarget:          c.parsedArgs.Run.Target,
+					CloudFromTarget:      c.parsedArgs.Run.FromTarget,
 					CloudSyncDeployment:  c.parsedArgs.Run.SyncDeployment,
 					CloudSyncDriftStatus: c.parsedArgs.Run.SyncDriftStatus,
 					CloudSyncPreview:     c.parsedArgs.Run.SyncPreview,
@@ -211,7 +233,7 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.SyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
-		for metaID, previewID := range c.createCloudPreview(previewRuns) {
+		for metaID, previewID := range c.createCloudPreview(previewRuns, c.parsedArgs.Run.Target, c.parsedArgs.Run.FromTarget) {
 			c.cloud.run.setMeta2PreviewID(metaID, previewID)
 		}
 	}
@@ -564,7 +586,7 @@ func (c *cli) loadAllStackEnvs(runs []stackRun) (map[prj.Path]runutil.EnvVars, e
 	return stackEnvs, nil
 }
 
-func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
+func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string) map[string]string {
 	previewRuns := make([]cloud.RunContext, len(runs))
 	for i, run := range runs {
 		previewRuns[i] = cloud.RunContext{
@@ -613,6 +635,8 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),
+			Target:          target,
+			FromTarget:      fromTarget,
 			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 			ReviewRequest:   c.cloud.run.reviewRequest,
 			Metadata:        c.cloud.run.metadata,
@@ -697,4 +721,57 @@ func (c *cli) getAffectedStacks() []stack.Entry {
 
 	c.affectedStacks = report.Stacks
 	return c.affectedStacks
+}
+
+const targetIDRegexPattern = "^[a-z0-9][-_a-z0-9]*[a-z0-9]$"
+
+var targetIDRegex = regexp.MustCompile(targetIDRegexPattern)
+
+func (c *cli) checkTargetsConfiguration(targetArg, fromTargetArg string, cloudCheckFn func(bool)) {
+	isTargetSet := targetArg != ""
+	isFromTargetSet := fromTargetArg != ""
+	isTargetsEnabled := c.cfg().HasExperiment("targets") && c.cfg().IsTargetsEnabled()
+
+	if isTargetSet {
+		if !isTargetsEnabled {
+			printer.Stderr.Error(`The "targets" feature is not enabled`)
+			printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute and set terramate.config.targets.enabled to true.`)
+			printer.Stderr.Println(`Example:
+	
+terramate {
+  config {
+    experiments = ["targets"]
+    targets {
+      enabled = true
+    }
+  }
+}`)
+			os.Exit(1)
+		}
+
+		// Here we should check if any cloud parameter is enabled for target to make sense.
+		// The error messages should be different per caller.
+		cloudCheckFn(true)
+
+	} else {
+		if isTargetsEnabled {
+			// Here we should check if any cloud parameter is enabled that would require target.
+			// The error messages should be different per caller.
+			cloudCheckFn(false)
+		}
+	}
+
+	if isFromTargetSet && !isTargetSet {
+		fatal("--from-target requires --target")
+	}
+
+	if isTargetSet && !targetIDRegex.MatchString(targetArg) {
+		fatalf("--target value has invalid format, it must match %q", targetIDRegexPattern)
+	}
+
+	if isFromTargetSet && !targetIDRegex.MatchString(fromTargetArg) {
+		fatalf("--from-target value has invalid format, it must match %q", targetIDRegexPattern)
+	}
+
+	c.cloud.run.target = targetArg
 }

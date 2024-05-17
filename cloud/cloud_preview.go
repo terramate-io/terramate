@@ -37,6 +37,8 @@ type CreatePreviewOpts struct {
 	Technology      string
 	TechnologyLayer string
 	Repository      string
+	Target          string
+	FromTarget      string
 	DefaultBranch   string
 	ReviewRequest   *ReviewRequest
 	Metadata        *DeploymentMetadata
@@ -105,6 +107,8 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 			Cmd:           []string{},
 			Stack: Stack{
 				Repository:      opts.Repository,
+				Target:          opts.Target,
+				FromTarget:      opts.FromTarget,
 				Path:            affectedStack.Dir.String(),
 				MetaID:          strings.ToLower(affectedStack.ID),
 				MetaName:        affectedStack.Name,

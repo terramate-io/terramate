@@ -52,6 +52,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	orguuid := cloud.UUID(params.ByName("orguuid"))
 	filterStatusStr := r.FormValue("status")
 	repoStr := r.FormValue("repository")
+	targetStr := r.FormValue("target")
 	metaID := r.FormValue("meta_id")
 	perPageStr := r.FormValue("per_page")
 	pageStr := r.FormValue("page")
@@ -87,6 +88,14 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		andFilters = append(andFilters,
 			func(st cloudstore.Stack) bool {
 				return st.Stack.Repository == repoStr
+			},
+		)
+	}
+
+	if targetStr != "" {
+		andFilters = append(andFilters,
+			func(st cloudstore.Stack) bool {
+				return st.Stack.Target == targetStr
 			},
 		)
 	}

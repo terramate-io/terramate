@@ -19,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stdlib"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -30,6 +31,14 @@ const (
 func (c *cli) runScript() {
 	c.gitSafeguardDefaultBranchIsReachable()
 	c.checkOutdatedGeneratedCode()
+
+	c.checkTargetsConfiguration(c.parsedArgs.Script.Run.Target, c.parsedArgs.Script.Run.FromTarget, func(isTargetSet bool) {
+		if !isTargetSet {
+			// We don't check here if any script has any sync command options enabled.
+			// We assume yes and so --target must be set.
+			fatal("--target is required when terramate.config.targets.enabled is true")
+		}
+	})
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Script.Run.NoRecursive {
@@ -45,7 +54,7 @@ func (c *cli) runScript() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true, parseStatusFilter(c.parsedArgs.Script.Run.Status))
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Script.Run.Target, parseStatusFilter(c.parsedArgs.Script.Run.Status))
 		if err != nil {
 			fatalWithDetails(err, "failed to compute selected stacks")
 		}
@@ -83,7 +92,7 @@ func (c *cli) runScript() {
 		for _, st := range result.Stacks {
 			run := stackRun{Stack: st.Stack}
 
-			ectx, err := scriptEvalContext(c.cfg(), st.Stack)
+			ectx, err := scriptEvalContext(c.cfg(), st.Stack, c.parsedArgs.Script.Run.Target)
 			if err != nil {
 				fatalWithDetails(err, "failed to get context")
 			}
@@ -96,10 +105,12 @@ func (c *cli) runScript() {
 			for jobIdx, job := range evalScript.Jobs {
 				for cmdIdx, cmd := range job.Commands() {
 					task := stackRunTask{
-						Cmd:          cmd.Args,
-						ScriptIdx:    scriptIdx,
-						ScriptJobIdx: jobIdx,
-						ScriptCmdIdx: cmdIdx,
+						Cmd:             cmd.Args,
+						CloudTarget:     c.parsedArgs.Script.Run.Target,
+						CloudFromTarget: c.parsedArgs.Script.Run.FromTarget,
+						ScriptIdx:       scriptIdx,
+						ScriptJobIdx:    jobIdx,
+						ScriptCmdIdx:    cmdIdx,
 					}
 
 					if cmd.Options != nil {
@@ -202,7 +213,8 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	}
 
 	if len(previewRuns) > 0 {
-		for metaID, previewID := range c.createCloudPreview(previewRuns) {
+		// HACK: Target and FromTarget are passed through opts for preview and not used from the runs.
+		for metaID, previewID := range c.createCloudPreview(previewRuns, c.parsedArgs.Script.Run.Target, c.parsedArgs.Script.Run.FromTarget) {
 			c.cloud.run.setMeta2PreviewID(metaID, previewID)
 		}
 	}
@@ -218,7 +230,7 @@ func printScriptCommand(w io.Writer, stack *config.Stack, run stackRunTask) {
 	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
 }
 
-func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, error) {
+func scriptEvalContext(root *config.Root, st *config.Stack, target string) (*eval.Context, error) {
 	globalsReport := globals.ForStack(root, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, err
@@ -227,6 +239,11 @@ func scriptEvalContext(root *config.Root, st *config.Stack) (*eval.Context, erro
 	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
 	runtime := root.Runtime()
 	runtime.Merge(st.RuntimeValues(root))
+
+	if target != "" {
+		runtime["target"] = cty.StringVal(target)
+	}
+
 	evalctx.SetNamespace("terramate", runtime)
 	evalctx.SetNamespace("global", globalsReport.Globals.AsValueMap())
 	evalctx.SetEnv(os.Environ())
