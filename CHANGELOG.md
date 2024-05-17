@@ -22,6 +22,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for `[for ...]` and `{for ...}` expressions containing Terramate variables and functions inside the `generate_hcl.content` block.
+
+### Changed
+
+- (**BREAKING CHANGE**) The format of the generated code may change while being still semantically the same as before. This change is marked as "breaking", because this may trigger change detection on files where the formatting changes.
+
 ## v0.8.4
 
 ### Fixed

@@ -44,7 +44,7 @@ func TestExpEval(t *testing.T) {
 				Stdout: addnl("false"),
 			},
 			wantPartial: RunExpected{
-				Stdout: addnl("true && false"),
+				Stdout: addnl("false"),
 			},
 		},
 		{
@@ -54,7 +54,7 @@ func TestExpEval(t *testing.T) {
 				Stdout: addnl("[1, 1, 2, 3, 5, 8]"),
 			},
 			wantPartial: RunExpected{
-				Stdout: addnl("[1, 1 + 0, 1 + 1, 1 + 2, 3 + 2, 5 + 3]"),
+				Stdout: addnl("[1, 1, 2, 3, 5, 8]"),
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func TestExpEval(t *testing.T) {
 				Stdout: addnl(`50`),
 			},
 			wantPartial: RunExpected{
-				Stdout: addnl(`49 + 1`),
+				Stdout: addnl(`50`),
 			},
 		},
 		{
@@ -121,7 +121,7 @@ func TestExpEval(t *testing.T) {
 				Stdout: addnl(`20`),
 			},
 			wantPartial: RunExpected{
-				Stdout: addnl(`10 + 10`),
+				Stdout: addnl(`20`),
 			},
 		},
 		{

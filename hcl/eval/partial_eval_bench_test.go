@@ -99,7 +99,7 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -118,7 +118,7 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -137,7 +137,7 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -156,7 +156,7 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -180,7 +180,7 @@ func BenchmarkPartialEvalObject(b *testing.B) {
 		if diags.HasErrors() {
 			b.Fatalf(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}

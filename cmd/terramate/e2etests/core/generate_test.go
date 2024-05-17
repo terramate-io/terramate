@@ -330,6 +330,76 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 				},
 			},
 		},
+		{
+			name: "generate_hcl with for-loops and tm_hcl_expression",
+			layout: []string{
+				"s:stack1",
+				"s:stack2",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						Globals(
+							Expr("numbers", `[1, 2, 3]`),
+							Expr("strings", `["terramate", "is", "fun"]`),
+							Expr("partials_config", `{
+								aws   = "aws.vpc.id"
+								azure = "azure.thing"
+							}`),
+						),
+						GenerateHCL(
+							Labels("example.hcl"),
+							Content(
+								Expr("square_numbers", `[for n in global.numbers : n*n]`),
+								Expr("upper_strings", `[for s in global.strings : tm_upper(s)]`),
+								Expr("config", `{for k, v in global.partials_config : k => tm_hcl_expression("${terramate.stack.name}.${v}")}`),
+							),
+						),
+					),
+				},
+			},
+			want: want{
+				run: RunExpected{
+					Stdout: `Code generation report
+
+Successes:
+
+- /stack1
+	[+] example.hcl
+
+- /stack2
+	[+] example.hcl
+
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
+`,
+				},
+				files: []file{
+					{
+						path: p("/stack1/example.hcl"),
+						body: Doc(
+							Expr("config", `{
+								aws   = stack1.aws.vpc.id
+								azure = stack1.azure.thing
+							}`),
+							Expr("square_numbers", `[1, 4, 9]`),
+							Expr("upper_strings", `["TERRAMATE", "IS", "FUN"]`),
+						),
+					},
+					{
+						path: p("/stack2/example.hcl"),
+						body: Doc(
+							Expr("config", `{
+								aws   = stack2.aws.vpc.id
+								azure = stack2.azure.thing
+							}`),
+							Expr("square_numbers", `[1, 4, 9]`),
+							Expr("upper_strings", `["TERRAMATE", "IS", "FUN"]`),
+						),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {
