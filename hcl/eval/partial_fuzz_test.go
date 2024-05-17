@@ -95,7 +95,7 @@ EOT`,
 		ctx.SetNamespace("global", globals)
 		ctx.SetNamespace("terramate", terramate)
 
-		gotExpr, err := ctx.PartialEval(parsedExpr)
+		gotExpr, _, err := ctx.PartialEval(parsedExpr)
 		if err != nil {
 			return
 		}

@@ -322,7 +322,8 @@ type Evaluator interface {
 	// tokens that form the result of the partial evaluation. Any unknown
 	// namespace access are ignored and left as is, while known namespaces
 	// are substituted by its value.
-	PartialEval(hcl.Expression) (hcl.Expression, error)
+	// If any unknowns are found, the method returns hasUnknowns as true.
+	PartialEval(hcl.Expression) (expr hcl.Expression, hasUnknowns bool, err error)
 
 	// SetNamespace adds a new namespace, replacing any with the same name.
 	SetNamespace(name string, values map[string]cty.Value)

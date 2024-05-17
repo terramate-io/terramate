@@ -416,9 +416,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -487,9 +487,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("testblock2",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},
@@ -557,9 +557,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("testblock2",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},
@@ -659,9 +659,9 @@ func TestGenerateHCL(t *testing.T) {
 								Number("number", 777),
 								Block("block3",
 									EvalExpr(t, "obj", `{
-										string = "string"
-										number = 777
 										bool   = true
+										number = 777
+										string = "string"
 									}`),
 									Str("string", "string"),
 								),
@@ -781,9 +781,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("on_parent_block",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},
@@ -1449,9 +1449,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -1504,9 +1504,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -1555,9 +1555,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -1827,9 +1827,9 @@ func TestGenHCLTmGen(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("stack_name", "stack"),
 							Str("string", "string"),

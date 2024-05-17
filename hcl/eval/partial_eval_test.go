@@ -7,10 +7,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -23,9 +23,10 @@ func TestPartialEval(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		expr    string
-		want    string
-		wantErr error
+		expr        string
+		want        string
+		hasUnknowns bool
+		wantErr     error
 	}
 
 	for _, tc := range []testcase{
@@ -34,6 +35,11 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			expr: `!1`,
+			//  Unsuitable value for unary operand: bool required.
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `true`,
 		},
 		{
 			expr: `1.5`,
@@ -52,15 +58,20 @@ EOT
 `,
 		},
 		{
-			expr: `"test ${unknown.val}"`,
+			expr:        `"test ${unknown.val}"`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `global.string`,
 			want: `"terramate"`,
 		},
 		{
-			expr: `!global.number`,
-			want: `!10`,
+			expr:    `!global.number`,
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `!global.falsy`,
+			want: `true`,
 		},
 		{
 			expr: `"test ${global.number}"`,
@@ -85,7 +96,12 @@ EOT
 		},
 		{
 			expr: `[!global.number]`,
-			want: `[!10]`,
+			// Unsuitable value for unary operand: bool required.
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `[!global.falsy]`,
+			want: `[true]`,
 		},
 		{
 			expr: `{
@@ -128,31 +144,39 @@ EOT
 		},
 		{
 			expr: `1+1`,
+			want: `2`,
 		},
 		{
-			expr: `1+data.val`,
+			expr:        `1+data.val`,
+			hasUnknowns: true,
 		},
 		{
-			expr: `data.val1+1000+data.val2`,
+			expr:        `data.val1+1000+data.val2`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `1+global.number`,
-			want: `1+10`,
+			want: `11`,
 		},
 		{
 			expr: `global.string+global.number`,
-			want: `"terramate"+10`,
+			// Unsuitable value for left operand: a number is required.
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `global.number+global.number`,
+			want: `20`,
 		},
 		{
 			expr: `[1+global.number]`,
-			want: `[1+10]`,
+			want: `[11]`,
 		},
 		{
 			expr: `{
 				a = 1+global.number
 			}`,
 			want: `{
-				a = 1+10
+				a = 11
 			}`,
 		},
 		{
@@ -160,7 +184,7 @@ EOT
 				global.string = 1
 			}`,
 			want: `{
-				"terramate" = 1	
+				terramate = 1	
 			}`,
 		},
 		{
@@ -168,7 +192,7 @@ EOT
 				global.obj.b[0] = 1
 			}`,
 			want: `{
-				"terramate" = 1	
+				terramate = 1	
 			}`,
 		},
 		{
@@ -183,9 +207,17 @@ EOT
 			expr: `{
 				(global) = 1
 			}`,
-			want: `{
-				(global) = 1	
+			// Can't use this value as a key: string required
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `{
+				(aws.vpc.id) = 1
 			}`,
+			want: `{
+				(aws.vpc.id) = 1	
+			}`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `{
@@ -194,10 +226,12 @@ EOT
 			want: `{
 				(iter) = 1	
 			}`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `global`,
 			want: `{
+				falsy  = false
 				list   = [0, 1, 2, 3]
 				number = 10
 				obj = {
@@ -206,14 +240,15 @@ EOT
 				}
 				string  = "terramate"
 				strings = ["terramate", "is", "fun"]
-			}`,
+				truer   = true
+			  }`,
 		},
 		{
 			expr: `{
 				(global.string) = 1
 			}`,
 			want: `{
-				("terramate") = 1
+				terramate = 1
 			}`,
 		},
 		{
@@ -221,7 +256,7 @@ EOT
 				tm_upper(global.string) = 1
 			}`,
 			want: `{
-				"TERRAMATE" = 1
+				TERRAMATE = 1
 			}`,
 		},
 		{
@@ -229,7 +264,7 @@ EOT
 				(tm_upper(global.string)) = 1
 			}`,
 			want: `{
-				("TERRAMATE") = 1
+				TERRAMATE = 1
 			}`,
 		},
 		{
@@ -239,6 +274,7 @@ EOT
 			want: `{
 				upper("terramate") = 1
 			}`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `{
@@ -247,6 +283,7 @@ EOT
 			want: `{
 				upper("a") = 1
 			}`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `{
@@ -255,6 +292,7 @@ EOT
 			want: `{
 				(upper("a")) = 1
 			}`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `{
@@ -263,30 +301,123 @@ EOT
 			want: `{
 				a.b.c = 1
 			}`,
+			hasUnknowns: true,
 		},
 		{
-			expr: `funcall()`,
+			expr:        `funcall()`,
+			hasUnknowns: true,
 		},
 		{
-			expr: `funcall(1, 2, data.val, "test", {}, [1, 2])`,
+			expr:        `funcall(1, 2, data.val, "test", {}, [1, 2])`,
+			hasUnknowns: true,
 		},
 		{
-			expr: `funcall(1, 2, global.number, 3)`,
-			want: `funcall(1, 2, 10, 3)`,
+			expr:        `funcall(1, 2, global.number, 3)`,
+			want:        `funcall(1, 2, 10, 3)`,
+			hasUnknowns: true,
 		},
 		{
-			expr: `[for v in val : v if v+1 == data.something]`,
+			expr:        `[for v in val : v if v+1 == data.something]`,
+			hasUnknowns: true,
 		},
 		{
-			expr: `{for k, v in val : k => funcall(v) if v+1 == data.something}`,
+			expr:        `{for k, v in val : k => funcall(v) if v+1 == data.something}`,
+			hasUnknowns: true,
 		},
 		{
-			expr:    `[for v in global.list : v if v+data == otherdata.val]`,
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			expr:        `[for v in global.list : v if v+data == otherdata.val]`,
+			want:        `[for v in [0, 1, 2, 3] : v if v + data == otherdata.val]`,
+			hasUnknowns: true,
 		},
 		{
-			expr:    `[for v in global.strings : upper(v)]`,
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			expr: `[for v in global.strings : tm_upper(v)]`,
+			want: `["TERRAMATE", "IS", "FUN"]`,
+		},
+		{
+			expr: `{for k, v in global.obj : tm_upper(k) => v if k == "a"}`,
+			want: `{
+				A = 0
+			}`,
+		},
+		{
+			expr: `{for k, v in global.obj : k => v+100 if k == "a"}`,
+			want: `{
+				a = 100
+			}`,
+		},
+		{
+			// loop cannot be evaluated because `coll` refers to unknowns
+			expr: `{for k, v in unknown_func(global.obj) : k => v if var.data}`,
+			want: `{for k, v in unknown_func({
+				a = 0
+				b = ["terramate"]
+			  }) : k => v if var.data}`,
+			hasUnknowns: true,
+		},
+		{
+			// loop cannot be evaluated because `if ...` refers to unknowns
+			expr: `{for k, v in global.obj : k => v if var.data}`,
+			want: `{for k, v in {
+				a = 0
+				b = ["terramate"]
+			  } : k => v if var.data}`,
+			hasUnknowns: true,
+		},
+		{
+			// loop cannot be evaluated because `if ...` refers to unknowns function
+			expr: `{for k, v in global.obj : k => v if unknown_func(v)}`,
+			want: `{for k, v in {
+				a = 0
+				b = ["terramate"]
+			  } : k => v if unknown_func(v)}`,
+			hasUnknowns: true,
+		},
+		{
+			// loop cannot be reduced because `key` refers to unknowns function
+			expr: `{for k, v in global.obj : unknown_func(k) => v}`,
+			want: `{for k, v in {
+				a = 0
+				b = ["terramate"]
+			  } : unknown_func(k) => v}`,
+			hasUnknowns: true,
+		},
+		{
+			// loop cannot be reduced because `value` refers to unknowns function
+			expr: `{for k, v in global.obj : k => unknown_func(v)}`,
+			want: `{for k, v in {
+				a = 0
+				b = ["terramate"]
+			  } : k => unknown_func(v)}`,
+			hasUnknowns: true,
+		},
+		{
+			expr: `{for k, v in global.obj : unknown => v if k == "a"}`,
+			want: `{ for k, v in {
+				a = 0
+				b = ["terramate"]
+			  } : unknown => v if k == "a" }`,
+			hasUnknowns: true,
+		},
+		{
+			expr:    `{for k, v in global.obj : v => v+1 if k == "a"}`,
+			wantErr: errors.E(eval.ErrPartial), // v is a number
+		},
+		{
+			expr:    `{for k, v in global.obj : v => v+1 if k == "a"}`,
+			wantErr: errors.E(eval.ErrPartial), // v is a number
+		},
+		{
+			expr:        `[for v in tm_concat(global.list, [4, 5, 6]) : v if v+data == otherdata.val]`,
+			want:        `[for v in [0, 1, 2, 3, 4, 5, 6] : v if v + data == otherdata.val]`,
+			hasUnknowns: true,
+		},
+		{
+			expr: `{for k in data.something : k => global.obj[k]}`,
+			want: `{for k in data.something : k => {
+				a = 0
+				b = ["terramate"]
+			  }[k]}`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `global.list[0]`,
@@ -302,14 +433,35 @@ EOT
 		},
 		{
 			expr: `true?[]:{}`,
+			// different branch types
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `true?"truth":"fake"`,
+			want: `"truth"`,
+		},
+		{
+			expr: `false?"truth":"fake"`,
+			want: `"fake"`,
 		},
 		{
 			expr: `global.number == 10?global.string:global.list`,
-			want: `10 == 10 ? "terramate" : [0, 1, 2, 3]`,
+			// err: eval expression: The true and false result expressions must have consistent types. The 'true' value is string, but the 'false' value is list of number.
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			expr: `global.number == 10?global.string:"test"`,
+			want: `"terramate"`,
 		},
 		{
 			expr: `[0, 1, 2][0]`,
 			want: `0`,
+		},
+		// fuzzer case
+		{
+			expr:        `A.0[0.*]`,
+			want:        `A[0][[0]]`,
+			hasUnknowns: true,
 		},
 		{
 			expr: `[0, 1, 2][1]`,
@@ -332,7 +484,7 @@ EOT
 	} {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
-			t.Parallel()
+			//t.Parallel()
 			ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
 			ctx.SetNamespace("global", map[string]cty.Value{
 				"number": cty.NumberIntVal(10),
@@ -352,12 +504,14 @@ EOT
 					"a": cty.NumberIntVal(0),
 					"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
 				}),
+				"truer": cty.True,
+				"falsy": cty.False,
 			})
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			if diags.HasErrors() {
 				t.Fatalf(diags.Error())
 			}
-			gotExpr, err := ctx.PartialEval(expr)
+			gotExpr, hasUnknowns, err := ctx.PartialEval(expr)
 			errtest.Assert(t, err, tc.wantErr)
 			if tc.wantErr != nil {
 				return
@@ -367,7 +521,16 @@ EOT
 				want = tc.want
 			}
 			got := ast.TokensForExpression(gotExpr)
-			assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
+			wantFormatted := string(hclwrite.Format([]byte(want)))
+			gotFormatted := string(hclwrite.Format(got.Bytes()))
+			t.Logf("got:  '%s'", gotFormatted)
+			t.Logf("want: '%s'", wantFormatted)
+			if diff := cmp.Diff(wantFormatted, gotFormatted); diff != "" {
+				t.Fatal(diff)
+			}
+			if hasUnknowns != tc.hasUnknowns {
+				t.Fatalf("hasUnknowns mismatch: got[%t] != want[%t]", hasUnknowns, tc.hasUnknowns)
+			}
 		})
 	}
 }
