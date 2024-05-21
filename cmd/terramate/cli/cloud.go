@@ -553,7 +553,6 @@ func (c *cli) detectCloudMetadata() {
 
 	prettyRepo := c.prj.prettyRepo()
 	if prettyRepo == "local" {
-
 		logger.Debug().Msg("skipping review_request and remote metadata for local repository")
 		return
 	}
@@ -616,21 +615,6 @@ func (c *cli) detectCloudMetadata() {
 		githubClient.BaseURL = githubBaseURL
 	}
 
-	ghToken, tokenSource := auth.TokenForHost(r.Host)
-
-	if ghToken != "" {
-		logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
-		githubClient = githubClient.WithAuthToken(ghToken)
-	}
-
-	if ghCommit, err := getGithubCommit(githubClient, r.Owner, r.Name, headCommit); err == nil {
-		setGithubCommitMetadata(md, ghCommit)
-	} else {
-		logger.Warn().
-			Err(err).
-			Msg("failed to retrieve commit information from GitHub API")
-	}
-
 	var prNumber int
 	prFromEvent, err := tmgithub.GetEventPR()
 	if err != nil {
@@ -639,6 +623,26 @@ func (c *cli) detectCloudMetadata() {
 		logger.Debug().Msg("got pull_request details from GITHUB_EVENT_PATH")
 		c.cloud.run.prFromGHAEvent = prFromEvent
 		prNumber = prFromEvent.GetNumber()
+	}
+
+	ghToken, tokenSource := auth.TokenForHost(r.Host)
+	if ghToken == "" {
+		printer.Stderr.WarnWithDetails(
+			"Export GITHUB_TOKEN with your GitHub credentials for enabling metadata collection",
+			errors.E("No GitHub token detected. Skipping the fetching of GitHub metadata."),
+		)
+		return
+	}
+
+	logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
+	githubClient = githubClient.WithAuthToken(ghToken)
+
+	if ghCommit, err := getGithubCommit(githubClient, r.Owner, r.Name, headCommit); err == nil {
+		setGithubCommitMetadata(md, ghCommit)
+	} else {
+		logger.Warn().
+			Err(err).
+			Msg("failed to retrieve commit information from GitHub API")
 	}
 
 	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, r.Owner, r.Name, prNumber, headCommit)

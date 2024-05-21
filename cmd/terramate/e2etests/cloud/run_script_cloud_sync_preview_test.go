@@ -240,6 +240,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 			env = append(env, "TMC_API_URL=http://"+addr)
 			env = append(env, "TM_GITHUB_API_URL=http://"+addr+"/")
 			env = append(env, "GITHUB_EVENT_PATH="+tc.githubEventPath)
+			env = append(env, "GITHUB_TOKEN=fake_token")
 			env = append(env, tc.env...)
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.PrependToPath(filepath.Dir(TerraformTestPath))
