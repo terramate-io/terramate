@@ -579,10 +579,10 @@ func (c *cli) createCloudPreview(runs []stackCloudRun) map[string]string {
 	}
 
 	pullRequest := c.cloud.run.prFromGHAEvent
-	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() {
+	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() || c.cloud.run.reviewRequest == nil {
 		printer.Stderr.WarnWithDetails(
 			"unable to create preview: missing pull request information",
-			errors.E("--sync-preview can only be used in a GitHub Action workflow triggered by a pull request event"),
+			errors.E("--sync-preview can only be used when GITHUB_TOKEN is exported and Terramate runs in a GitHub Action workflow triggered by a pull request event"),
 		)
 		c.disableCloudFeatures(cloudError())
 		return map[string]string{}
