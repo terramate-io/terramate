@@ -766,22 +766,16 @@ func (c *cli) setupGit() {
 		return
 	}
 
-	remoteCheckFailed := false
-
 	if err := c.prj.checkDefaultRemote(); err != nil {
 		if c.prj.git.remoteConfigured {
 			fatalWithDetails(err, "checking git default remote")
-		} else {
-			remoteCheckFailed = true
 		}
 	}
 
 	if c.parsedArgs.GitChangeBase != "" {
-		c.prj.baseRef = c.parsedArgs.GitChangeBase
-	} else if remoteCheckFailed {
-		c.prj.baseRef = c.prj.defaultLocalBaseRef()
+		c.prj.baseRev = c.parsedArgs.GitChangeBase
 	} else {
-		c.prj.baseRef = c.prj.defaultBaseRef()
+		c.prj.baseRev = c.prj.selectChangeBase()
 	}
 }
 
@@ -2248,7 +2242,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 func (c *cli) wd() string                   { return c.prj.wd }
 func (c *cli) rootdir() string              { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root            { return &c.prj.root }
-func (c *cli) baseRef() string              { return c.prj.baseRef }
+func (c *cli) baseRef() string              { return c.prj.baseRev }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
 func (c *cli) cred() credential             { return c.cloud.client.Credential.(credential) }

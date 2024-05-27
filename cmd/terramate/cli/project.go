@@ -20,7 +20,7 @@ type project struct {
 	wd             string
 	isRepo         bool
 	root           config.Root
-	baseRef        string
+	baseRev        string
 	normalizedRepo string
 	stackManager   *stack.Manager
 
@@ -61,21 +61,6 @@ func (p *project) prettyRepo() string {
 		}
 	}
 	return p.normalizedRepo
-}
-
-func (p *project) localDefaultBranchCommit() string {
-	if p.git.localDefaultBranchCommit != "" {
-		return p.git.localDefaultBranchCommit
-	}
-	gitcfg := p.gitcfg()
-	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
-	val, err := p.git.wrapper.RevParse(refName)
-	if err != nil {
-		fatalWithDetails(err, "unable to git rev-parse")
-	}
-
-	p.git.localDefaultBranchCommit = val
-	return val
 }
 
 func (p *project) isGitFeaturesEnabled() bool {
@@ -126,47 +111,58 @@ func (p *project) remoteDefaultCommit() string {
 	return p.git.remoteDefaultBranchCommit
 }
 
-func (p *project) isDefaultBranch() bool {
-	git := p.gitcfg()
-	branch, err := p.git.wrapper.CurrentBranch()
-	if err != nil {
-		// WHY?
-		// The current branch name (the symbolic-ref of the HEAD) is not always
-		// available, in this case we naively check if HEAD == local origin/main.
-		// This case usually happens in the git setup of CIs.
-		return p.localDefaultBranchCommit() == p.headCommit()
-	}
+// selectChangeBase returns the revision used for change comparison based on the current Git state.
+func (p *project) selectChangeBase() string {
+	gitcfg := p.gitcfg()
+	gw := p.git.wrapper
 
-	return branch == git.DefaultBranch
-}
+	// Try using remote default branch first
+	defaultBranchRev, _ := gw.RevParse(gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch)
+	if defaultBranchRev == "" {
+		// Fall back to local default branch
+		defaultBranchRev, _ = gw.RevParse(gitcfg.DefaultBranch)
 
-// defaultBaseRef returns the baseRef for the current git environment.
-func (p *project) defaultBaseRef() string {
-	if p.isDefaultBranch() &&
-		p.remoteDefaultCommit() == p.headCommit() {
-		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
-		if err == nil {
+		if defaultBranchRev == "" {
+			// There's no default branch available, so we can't look for a common parent with it.
 			return defaultBranchBaseRef
 		}
 	}
-	return p.defaultBranchRef()
-}
 
-// defaultLocalBaseRef returns the baseRef in case there's no remote setup.
-func (p *project) defaultLocalBaseRef() string {
-	git := p.gitcfg()
-	if p.isDefaultBranch() {
-		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
-		if err == nil {
+	branch, _ := gw.CurrentBranch()
+
+	// Either we are on a branch or at a detached HEAD.
+	if branch != "" {
+		if branch == gitcfg.DefaultBranch {
+			// We are at the tip of the default branch -> latest default commit.
 			return defaultBranchBaseRef
 		}
-	}
-	return git.DefaultBranch
-}
 
-func (p project) defaultBranchRef() string {
-	git := p.gitcfg()
-	return git.DefaultRemote + "/" + git.DefaultBranch
+		// Fallthrough to common parent if not on default branch
+	} else {
+		headRev, _ := gw.RevParse("HEAD")
+		isDetachedDefaultBranchTip := headRev == defaultBranchRev
+		if isDetachedDefaultBranchTip {
+			// We are at the latest commit of the default branch.
+			return defaultBranchBaseRef
+		}
+
+		isDefaultBranchAncestor, _ := gw.IsFirstParentAncestor("HEAD", defaultBranchRev)
+		if isDefaultBranchAncestor {
+			// We are at an older commit of the default branch.
+			return defaultBranchBaseRef
+		}
+
+		// Fallthrough to common parent if not at commit of default branch
+	}
+
+	commonParentWithDefaultBranch, _ := gw.FindNearestCommonParent(defaultBranchRev, "HEAD")
+	if commonParentWithDefaultBranch != "" {
+		// We have a nearest common parent with the default branch. Similar to the historic merge base.
+		return commonParentWithDefaultBranch
+	}
+
+	// Fall back to default. Should never happen unless running on an isolated commit.
+	return defaultBranchBaseRef
 }
 
 func (p *project) setDefaults() error {
