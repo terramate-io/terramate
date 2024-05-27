@@ -115,6 +115,7 @@ type cloudRunState struct {
 	runUUID cloud.UUID
 	orgName string
 	orgUUID cloud.UUID
+	target  string
 
 	stackMeta2ID map[string]int64
 	// stackPreviews is a map of stack.ID to stackPreview.ID
@@ -503,15 +504,28 @@ func (c *cli) cloudDriftShow() {
 	if st.ID == "" {
 		fatal("The stack must have an ID for using TMC features")
 	}
+
+	target := c.parsedArgs.Cloud.Drift.Show.Target
+
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), st.ID)
+	c.checkTargetsConfiguration(target, "", func(isTargetSet bool) {
+		if !isTargetSet {
+			fatal("--target must be set when terramate.config.targets.enabled is true")
+		}
+	})
+
+	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), target, st.ID)
 	if err != nil {
 		fatalWithDetails(err, "unable to fetch stack")
 	}
 	if !found {
-		fatalf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String())
+		if target != "" {
+			fatalf("Stack %s was not yet synced for target %s with the Terramate Cloud.", st.Dir.String(), target)
+		} else {
+			fatalf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String())
+		}
 	}
 
 	if stackResp.Status != stack.Drifted && stackResp.DriftStatus != drift.Drifted {

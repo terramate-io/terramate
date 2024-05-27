@@ -134,10 +134,13 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 
 // StacksByStatus returns all stacks for the given organization.
 // It paginates as needed and returns the total stacks response.
-func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository string, status stack.FilterStatus) ([]StackObject, error) {
+func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository string, target string, status stack.FilterStatus) ([]StackObject, error) {
 	path := path.Join(StacksPath, string(orgUUID))
 	query := url.Values{}
 	query.Set("repository", repository)
+	if target != "" {
+		query.Set("target", target)
+	}
 	if status != stack.NoFilter {
 		query.Set("status", status.String())
 	}
@@ -186,9 +189,10 @@ func (c *Client) ListReviewRequests(ctx context.Context, orgUUID UUID) (ReviewRe
 }
 
 // GetStack retrieves the details of the stack with given repo and metaID.
-func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, metaID string) (StackObject, bool, error) {
+func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, target, metaID string) (StackObject, bool, error) {
 	query := url.Values{
 		"repository": []string{repo},
+		"target":     []string{target},
 		"meta_id":    []string{strings.ToLower(metaID)},
 	}
 
@@ -201,7 +205,7 @@ func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, metaID string
 		return StackObject{}, false, nil
 	}
 	if len(stacks.Stacks) != 1 {
-		return StackObject{}, false, errors.E("org+repo+meta_id must be unique. Unexpected TMC backend response")
+		return StackObject{}, false, errors.E("org+repo+target+meta_id must be unique. Unexpected TMC backend response")
 	}
 	return stacks.Stacks[0], true, nil
 }

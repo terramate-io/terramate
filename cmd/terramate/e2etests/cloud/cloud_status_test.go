@@ -17,21 +17,24 @@ import (
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/cmd/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
+	"github.com/terramate-io/terramate/test/hclwrite"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 type cloudStatusTestcase struct {
-	name       string
-	layout     []string
-	repository string
-	stacks     []cloudstore.Stack
-	flags      []string
-	workingDir string
-	perPage    int
-	want       RunExpected
+	name          string
+	layout        []string
+	repository    string
+	enableTargets bool
+	stacks        []cloudstore.Stack
+	flags         []string
+	workingDir    string
+	perPage       int
+	want          RunExpected
 }
 
 func TestCloudStatus(t *testing.T) {
@@ -363,6 +366,103 @@ func TestCloudStatus(t *testing.T) {
 				Stdout: nljoin("s1", "s2"),
 			},
 		},
+		{
+			name: "same stack in different targets, return the selected one",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			enableTargets: true,
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+						Target:     "default",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+						Target:     "stage",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+						Target:     "stage",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--status=healthy`, "--target", "stage"},
+			want: RunExpected{
+				Stdout: nljoin("s2"),
+			},
+		},
+		{
+			name: "unknown target returns nothing",
+			layout: []string{
+				"s:s1:id=s1",
+			},
+			enableTargets: true,
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+						Target:     "default",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--status=healthy`, "--target", "foobar"},
+			want:  RunExpected{},
+		},
+		{
+			name: "targets not enabled with target fails",
+			layout: []string{
+				"s:s1:id=s1",
+			},
+			enableTargets: false,
+			flags:         []string{`--status=healthy`, "--target", "default"},
+			want: RunExpected{
+				Status:      1,
+				StderrRegex: clitest.CloudTargetsNotEnabledMessage,
+			},
+		},
+		{
+			name: "invalid target id",
+			layout: []string{
+				"s:s1:id=s1",
+			},
+			enableTargets: true,
+			flags:         []string{`--status=healthy`, "--target", "this*is*all*wrong"},
+			want: RunExpected{
+				Status:      1,
+				StderrRegex: clitest.CloudTargetsInvalidFormat,
+			},
+		},
 		paginationTestcase(10), // default per_page
 		paginationTestcase(3),
 		paginationTestcase(17),
@@ -375,14 +475,24 @@ func TestCloudStatus(t *testing.T) {
 			assert.NoError(t, err)
 			addr := startFakeTMCServer(t, store)
 
+			var configBlk *hclwrite.Block
+			if tc.enableTargets {
+				configBlk = Block("config",
+					Expr("experiments", `["scripts", "targets"]`),
+					Block("targets",
+						Expr("enabled", `true`),
+					),
+				)
+			} else {
+				configBlk = Block("config",
+					Expr("experiments", `["scripts"]`),
+				)
+			}
+
 			s := sandbox.New(t)
 			tc.layout = append(tc.layout,
 				"f:command.tm:"+Doc(
-					Block("terramate",
-						Block("config",
-							Expr("experiments", `["scripts"]`),
-						),
-					),
+					Block("terramate", configBlk),
 					Block("script",
 						Labels("test"),
 						Str("description", "test"),

@@ -179,6 +179,11 @@ type CloudConfig struct {
 	Organization string
 }
 
+// TargetsConfig represents Terramate targets configuration.
+type TargetsConfig struct {
+	Enabled bool
+}
+
 // RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
 	Git               *GitConfig
@@ -187,6 +192,7 @@ type RootConfig struct {
 	Run               *RunConfig
 	Cloud             *CloudConfig
 	Experiments       []string
+	Targets           *TargetsConfig
 	DisableSafeguards safeguard.Keywords
 }
 
@@ -1682,7 +1688,7 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "change_detection", "run", "cloud"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "change_detection", "run", "cloud", "targets"))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
@@ -1712,6 +1718,13 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 	if ok {
 		cfg.ChangeDetection = &ChangeDetectionConfig{}
 		errs.Append(parseChangeDetectionConfig(cfg.ChangeDetection, changeDetectionBlock))
+	}
+
+	targetsBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("targets")]
+	if ok {
+		cfg.Targets = &TargetsConfig{}
+
+		errs.Append(parseTargetsConfig(cfg.Targets, targetsBlock))
 	}
 
 	return errs.AsError()
@@ -2022,6 +2035,44 @@ func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
 			errs.Append(errors.E(
 				attr.NameRange,
 				"unrecognized attribute terramate.config.cloud.%s",
+				attr.Name,
+			))
+		}
+	}
+	return errs.AsError()
+}
+
+func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) error {
+	errs := errors.L()
+
+	errs.AppendWrap(ErrTerramateSchema, targetsBlock.ValidateSubBlocks())
+
+	for _, attr := range targetsBlock.Attributes.SortedList() {
+		value, diags := attr.Expr.Value(nil)
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags,
+				"failed to evaluate terramate.config.targets.%s attribute", attr.Name,
+			))
+			continue
+		}
+
+		switch attr.Name {
+		case "enabled":
+			if value.Type() != cty.Bool {
+				errs.Append(attrErr(attr,
+					"terramate.config.targets.enabled is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+
+				continue
+			}
+
+			targets.Enabled = value.True()
+
+		default:
+			errs.Append(errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.targets.%s",
 				attr.Name,
 			))
 		}

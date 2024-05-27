@@ -22,6 +22,12 @@ const (
 
 	// CloudLoginRequiredMessage is the message displayed when cloud login is required.
 	CloudLoginRequiredMessage = "This command uses Terramate Cloud features and requires you to be logged in"
+
+	// CloudTargetsNotEnabledMessage is the message displayed when the targets feature is not enabled.
+	CloudTargetsNotEnabledMessage = `The \"targets\" feature is not enabled`
+
+	// CloudTargetsInvalidFormat is the message displayed when the target value format is wrong.
+	CloudTargetsInvalidFormat = `--target value has invalid format`
 )
 
 const (
