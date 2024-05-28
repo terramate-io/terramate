@@ -4,6 +4,7 @@
 package core_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
-func TestRunScript(t *testing.T) {
+func TestScriptRun(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
@@ -21,6 +22,7 @@ func TestRunScript(t *testing.T) {
 		runScript  []string
 		args       []string
 		workingDir string
+		env        []string
 		want       RunExpected
 	}
 
@@ -74,6 +76,46 @@ func TestRunScript(t *testing.T) {
 				},
 				Stdout: "hello" + "\n" +
 					"some message" + "\n",
+			},
+		},
+		{
+			name: "script with lets referencing globals, env and terramate.* variables",
+			layout: []string{
+				terramateConfig,
+				"s:stack-a",
+				`f:stack-a/globals.tm:
+				globals {
+				  msg = "some message"
+				}`,
+				`f:stack-a/script.tm:
+				script "somescript" {
+				  description = "some description"
+				  lets {
+					msg = "run with global: ${global.msg}, terramate stack path: ${terramate.stack.path.absolute} and env: ${env.SOME_ENV}"
+				  }
+				  job {
+					command = ["echo", "hello"]
+				  }
+				  job {
+					command = ["echo", "${let.msg}"]
+				  }
+				}`,
+				"s:stack-b",
+			},
+			env: []string{
+				"SOME_ENV=SOME_ENV_VALUE",
+			},
+			runScript: []string{"somescript"},
+			want: RunExpected{
+				StderrRegexes: []string{
+					"Script 0 at /stack-a/script.tm:.* having 2 job\\(s\\)",
+					"/stack-a \\(script:0 job:0.0\\)> echo hello",
+					"/stack-a \\(script:0 job:1.0\\)> echo run with global: some message, terramate stack path: /stack-a and env: SOME_ENV_VALUE",
+				},
+				Stdout: nljoin(
+					"hello",
+					"run with global: some message, terramate stack path: /stack-a and env: SOME_ENV_VALUE",
+				),
 			},
 		},
 		{
@@ -443,7 +485,10 @@ func TestRunScript(t *testing.T) {
 					git := s.Git()
 					git.CommitAll("everything")
 
-					cli := NewCLI(t, wd)
+					env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
+					env = append(env, tc.env...)
+
+					cli := NewCLI(t, wd, env...)
 					args := tc.args
 					args = append(args, tc.runScript...)
 					AssertRunResult(t, cli.RunScript(args...), tc.want)

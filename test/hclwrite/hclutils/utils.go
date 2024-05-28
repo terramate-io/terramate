@@ -4,6 +4,7 @@
 package hclutils
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -30,6 +31,31 @@ func Config(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 // Run is a helper for a "run" block.
 func Run(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("run", builders...)
+}
+
+// Script is a helper for a "script" block.
+func Script(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("script", builders...)
+}
+
+// Command is a helper for a "command" attribute.
+func Command(args ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(args, `","`) + `"]`
+	return Expr("command", expr)
+}
+
+// Commands is a helper for a "commands" attribute.
+func Commands(args ...[]string) hclwrite.BlockBuilder {
+	buf := bytes.Buffer{}
+	buf.WriteString("[")
+	for i, arg := range args {
+		buf.WriteString(`[` + strings.Join(arg, ",") + `]`)
+		if i != len(args)-1 {
+			buf.WriteString(",")
+		}
+	}
+	buf.WriteString("]")
+	return Expr("commands", buf.String())
 }
 
 // Vendor is a helper for a "vendor" block.

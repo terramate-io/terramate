@@ -30,9 +30,10 @@ import (
 
 // Errors returned during the HCL parsing.
 const (
-	ErrHCLSyntax       errors.Kind = "HCL syntax error"
-	ErrTerramateSchema errors.Kind = "terramate schema error"
-	ErrImport          errors.Kind = "import error"
+	ErrHCLSyntax         errors.Kind = "HCL syntax error"
+	ErrTerramateSchema   errors.Kind = "terramate schema error"
+	ErrUnrecognizedBlock errors.Kind = "terramate schema error: unrecognized block"
+	ErrImport            errors.Kind = "import error"
 )
 
 const (
@@ -1217,13 +1218,12 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 }
 
 func validateLets(block *ast.MergedBlock) error {
-	if block.Type != "lets" {
-		return errors.E(block.RawOrigins[0].TypeRange,
-			"unexpected block type %q", block.Type)
-	}
 	errs := errors.L()
 	for _, subBlock := range block.Blocks {
 		for _, raw := range subBlock.RawOrigins {
+			if raw.Type != "map" {
+				return errors.E(ErrUnrecognizedBlock, "the block %s is not expected here", raw.Type)
+			}
 			errs.Append(validateMap(raw))
 		}
 	}
@@ -2339,10 +2339,6 @@ func validateGlobals(block *ast.MergedBlock) error {
 }
 
 func validateMap(block *ast.Block) (err error) {
-	if block.Type != "map" {
-		return errors.E(block.TypeRange,
-			"unexpected block type %s", block.Type)
-	}
 	if len(block.Labels) == 0 {
 		return errors.E(block.LabelRanges(),
 			"map block requires a label")
@@ -2370,6 +2366,9 @@ func validateMap(block *ast.Block) (err error) {
 			)
 		}
 		for _, valueSubBlock := range subBlock.Blocks {
+			if valueSubBlock.Type != "map" {
+				return errors.E(ErrTerramateSchema, "unexpected block type %s", valueSubBlock.Type)
+			}
 			err := validateMap(valueSubBlock)
 			if err != nil {
 				return err

@@ -41,10 +41,11 @@ type ScriptJob struct {
 // Script represents a parsed script block
 type Script struct {
 	Range       info.Range
-	Labels      []string       // Labels of the script block used for grouping scripts
-	Name        *ast.Attribute // Name of the script
-	Description *ast.Attribute // Description is a human readable description of a script
-	Jobs        []*ScriptJob   // Job represents the command(s) part of this script
+	Labels      []string         // Labels of the script block used for grouping scripts
+	Name        *ast.Attribute   // Name of the script
+	Description *ast.Attribute   // Description is a human readable description of a script
+	Jobs        []*ScriptJob     // Job represents the command(s) part of this script
+	Lets        *ast.MergedBlock // Lets are script local variables.
 }
 
 // NewScriptCommand returns a *Command encapsulating an ast.Attribute
@@ -97,6 +98,10 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 		}
 	}
 
+	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
+		"lets": (*RawConfig).mergeLabeledBlock,
+	})
+
 	for _, nestedBlock := range block.Blocks {
 		switch nestedBlock.Type {
 		case "job":
@@ -106,6 +111,8 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 				continue
 			}
 			parsedScript.Jobs = append(parsedScript.Jobs, parsedJobBlock)
+		case "lets":
+			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{nestedBlock}))
 		default:
 			errs.Append(errors.E(ErrScriptUnrecognizedBlock, nestedBlock.TypeRange, nestedBlock.Type))
 		}
@@ -119,10 +126,24 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 		errs.Append(errors.E(ErrScriptMissingOrInvalidJob, block.Range))
 	}
 
+	mergedLets := ast.MergedLabelBlocks{}
+	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
+		if labelType.Type == "lets" {
+			mergedLets[labelType] = mergedBlock
+
+			errs.Append(validateLets(mergedBlock))
+		}
+	}
+
 	if err := errs.AsError(); err != nil {
 		return nil, err
 	}
 
+	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
+	if !ok {
+		lets = ast.NewMergedBlock("lets", []string{})
+	}
+	parsedScript.Lets = lets
 	return parsedScript, nil
 }
 
