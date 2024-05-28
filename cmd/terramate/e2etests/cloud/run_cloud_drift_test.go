@@ -59,6 +59,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 		env           []string
 		workingDir    string
 		defaultBranch string
+		target        string
 		cmd           []string
 		want          want
 		tofu          bool
@@ -585,6 +586,58 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "target without target enabled fails",
+			layout: []string{
+				"s:stack:id=stack",
+			},
+			cmd: []string{
+				HelperPath, "exit", "2",
+			},
+			target: "non-default-target",
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: clitest.CloudTargetsNotEnabledMessage,
+				},
+			},
+		},
+		{
+			name: "drift with custom target",
+			layout: []string{
+				"s:stack:id=stack",
+				`f:cfg.tm.hcl:terramate {
+					config {
+						experiments = ["targets"]
+						targets {
+							enabled = true
+						}
+					}
+				}`,
+			},
+			cmd: []string{
+				HelperPath, "exit", "2",
+			},
+			target: "non-default-target",
+			want: want{
+				drifts: expectedDriftStackPayloadRequests{
+					{
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository:    normalizedTestRemoteRepo,
+								DefaultBranch: "main",
+								Target:        "non-default-target",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
+							},
+							Status:   drift.Drifted,
+							Metadata: expectedMetadata,
+						},
+					},
+				},
+			},
+		},
 	} {
 		for _, isParallel := range []bool{false, true} {
 			tc := tc
@@ -634,6 +687,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					tc.want.run.IgnoreStderr = true
 				}
 				runflags = append(runflags, tc.runflags...)
+				if tc.target != "" {
+					runflags = append(runflags, "--target", tc.target)
+				}
 				runflags = append(runflags, "--")
 				runflags = append(runflags, tc.cmd...)
 
@@ -645,7 +701,13 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 
 				for _, wantDrift := range tc.want.drifts {
 					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(wantDrift.Stack.Path[1:])), env...)
-					res := cli.Run("cloud", "drift", "show")
+
+					showArgs := []string{"cloud", "drift", "show"}
+					if tc.target != "" {
+						showArgs = append(showArgs, "--target", tc.target)
+					}
+
+					res := cli.Run(showArgs...)
 
 					if wantDrift.Status != drift.Drifted {
 						AssertRunResult(t, res, RunExpected{

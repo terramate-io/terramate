@@ -159,6 +159,93 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			},
 		},
 		{
+			name: "basic success sync with custom target",
+			layout: []string{
+				"s:stack:id=stack",
+				`f:stack/main.tf:
+				  resource "local_file" "foo" {
+					content  = "test content"
+					filename = "${path.module}/foo.bar"
+				  }`,
+				"run:stack:terraform init",
+				`f:cfg.tm.hcl:terramate {
+					config {
+						experiments = ["targets"]
+						targets {
+							enabled = true
+						}
+					}
+				}`,
+			},
+			runflags: []string{`--terraform-plan-file=out.tfplan`, "--target", "custom_target"},
+			cmd:      []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+			env: []string{
+				"GITHUB_ACTIONS=1",
+			},
+			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					StdoutRegexes: []string{
+						"Plan: 1 to add, 0 to change, 0 to destroy.",
+					},
+					StderrRegexes: []string{
+						"Preview created",
+					},
+				},
+				preview: &cloudstore.Preview{
+					PreviewID:       "1",
+					Technology:      "terraform",
+					TechnologyLayer: "default",
+					UpdatedAt:       1707482312,
+					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
+					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
+					StackPreviews: []*cloudstore.StackPreview{
+						{
+							ID:     "1",
+							Status: "changed",
+							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+							Stack: cloudstore.Stack{
+								Stack: cloud.Stack{
+									Repository:    "github.com/terramate-io/dummy-repo.git",
+									Target:        "custom_target",
+									DefaultBranch: "main",
+									Path:          "/stack",
+									MetaID:        "stack",
+									MetaName:      "stack",
+								},
+							},
+						},
+					},
+					ReviewRequest: &cloud.ReviewRequest{
+						Platform:    "github",
+						Repository:  testPreviewRemoteRepoURL,
+						CommitSHA:   "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+						Number:      1347,
+						Title:       "Amazing new feature",
+						Description: "Please pull these awesome changes in!",
+						URL:         "https://github.com/octocat/Hello-World/pull/1347",
+						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Status:      "open",
+						UpdatedAt:   toTime("2011-01-26T19:01:12Z"),
+						PushedAt:    toTime("2024-02-09T12:38:30Z"),
+					},
+				},
+				Metadata: &Metadata{
+					GithubPullRequestURL:       "https://github.com/octocat/Hello-World/pull/1347",
+					GithubPullRequestNumber:    1347,
+					GithubPullRequestTitle:     "Amazing new feature",
+					GithubPullRequestUpdatedAt: "2011-01-26T19:01:12Z",
+				},
+				ignoreTypes: cmpopts.IgnoreTypes(
+					cloud.CommandLogs{},
+					&cloud.ChangesetDetails{},
+					cloudstore.StackState{},
+					&cloud.DeploymentMetadata{},
+				),
+			},
+		},
+		{
 			name: "failure of command should still create preview with stack preview status failed",
 			layout: []string{
 				"s:stack:id=stack",

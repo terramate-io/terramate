@@ -86,6 +86,8 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 				MetaDescription: run.Stack.Description,
 				MetaTags:        tags,
 				Repository:      c.prj.prettyRepo(),
+				Target:          run.Task.CloudTarget,
+				FromTarget:      run.Task.CloudFromTarget,
 				DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 				Path:            run.Stack.Dir.String(),
 			},

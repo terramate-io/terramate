@@ -25,6 +25,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add support for `[for ...]` and `{for ...}` expressions containing Terramate variables and functions inside the `generate_hcl.content` block.
+- Add experimental support for deployment targets. This allows to keep separate stack information when the same stacks are deployed to multiple environments, i.e. production and staging.
+  - Can be enabled with `terramate.config.experiments = ["targets"]` and `terramate.config.targets.enabled = true`.
+  - Once enabled, commands that synchronize or read stack information to Terramate Cloud require a `--target <target_id>` parameter. These include:
+    - `terramate run --sync-deployment/--sync-drift-status/--sync-preview`
+    - `terramate script run`
+    - `terramate run --status`
+    - `terramate list --status`
+    - `terramate cloud drift show`
 
 ### Fixed
 

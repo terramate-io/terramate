@@ -50,6 +50,9 @@ const (
 	NoFilter FilterStatus = 0
 )
 
+// AnyTarget is the empty deployment target filter that includes any target.
+const AnyTarget = ""
+
 // NewStatus creates a new stack status from a string.
 func NewStatus(str string) Status {
 	var s Status

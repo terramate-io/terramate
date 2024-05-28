@@ -309,6 +309,50 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "target without targets enabled fails",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			runflags: []string{`--eval`, "--target", "custom-target"},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: clitest.CloudTargetsNotEnabledMessage,
+				},
+			},
+		},
+		{
+			name: "multiple stacks with custom target",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+				`f:cfg.tm.hcl:terramate {
+					config {
+						experiments = ["targets"]
+						targets {
+							enabled = true
+						}
+					}
+				}`,
+			},
+			runflags: []string{`--eval`, "--target", "custom-target"},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+
+			want: want{
+				run: RunExpected{
+					Status: 0,
+					Stdout: "/s1\n/s2\n",
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
 			name:     "skip missing plan",
 			layout:   []string{"s:stack:id=stack"},
 			runflags: []string{`--eval`, `--terraform-plan-file=out.tfplan`},

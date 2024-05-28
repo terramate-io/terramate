@@ -145,18 +145,22 @@ type cliSpec struct {
 		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
 		CloudStatus        string `hidden:""`
 		Status             string `help:"Filter by Terramate Cloud status of the stack."`
+		Target             string `help:"Select the deployment target of the filtered stacks."`
 		RunOrder           bool   `default:"false" help:"Sort listed stacks by order of execution"`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		CloudStatus                string        `hidden:""`
-		Status                     string        `help:"Filter by Terramate Cloud status of the stack."`
-		CloudSyncDeployment        bool          `hidden:""`
-		SyncDeployment             bool          `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
-		CloudSyncDriftStatus       bool          `hidden:""`
-		SyncDriftStatus            bool          `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
-		CloudSyncPreview           bool          `hidden:""`
-		SyncPreview                bool          `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+		CloudStatus          string `hidden:""`
+		Status               string `help:"Filter by Terramate Cloud status of the stack."`
+		Target               string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
+		FromTarget           string `help:"Migrate stacks from given deployment target."`
+		CloudSyncDeployment  bool   `hidden:""`
+		SyncDeployment       bool   `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
+		CloudSyncDriftStatus bool   `hidden:""`
+		SyncDriftStatus      bool   `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
+		CloudSyncPreview     bool   `hidden:""`
+		SyncPreview          bool   `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+
 		CloudSyncLayer             preview.Layer `hidden:""`
 		Layer                      preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
 		CloudSyncTerraformPlanFile string        `hidden:""`
@@ -193,6 +197,8 @@ type cliSpec struct {
 		Run struct {
 			CloudStatus     string `hidden:""`
 			Status          string `help:"Filter by Terramate Cloud status of the stack."`
+			Target          string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
+			FromTarget      string `help:"Migrate stacks from given deployment target."`
 			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
 			ContinueOnError bool   `default:"false" help:"Continue executing next stacks when a command returns an error."`
 			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
@@ -225,6 +231,7 @@ type cliSpec struct {
 		Info  struct{} `cmd:"" help:"Show your current Terramate Cloud login status."`
 		Drift struct {
 			Show struct {
+				Target string `help:"Show stacks from the given deployment target."`
 			} `cmd:"" help:"Show the current drift of a stack."`
 		} `cmd:"" help:"Interact with Terramate Cloud Drift Detection."`
 	} `cmd:"" help:"Interact with Terramate Cloud"`
@@ -947,7 +954,7 @@ func (c *cli) triggerStackByFilter() {
 	}
 
 	status := parseStatusFilter(statusStr)
-	stacksReport, err := c.listStacks(false, status)
+	stacksReport, err := c.listStacks(false, "", status)
 	if err != nil {
 		fatalWithDetails(err, "unable to list stacks")
 	}
@@ -1159,7 +1166,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 }
 
-func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack.Report, error) {
+func (c *cli) listStacks(isChanged bool, target string, status cloudstack.FilterStatus) (*stack.Report, error) {
 	var (
 		err    error
 		report *stack.Report
@@ -1197,7 +1204,7 @@ func (c *cli) listStacks(isChanged bool, status cloudstack.FilterStatus) (*stack
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, status)
+		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, target, status)
 		if err != nil {
 			return nil, err
 		}
@@ -1630,8 +1637,18 @@ func (c *cli) printStacks() {
 		statusStr = cloudStatus
 	}
 
+	c.checkTargetsConfiguration(c.parsedArgs.List.Target, "", func(isTargetSet bool) {
+		isStatusSet := statusStr != ""
+
+		if isTargetSet && !isStatusSet {
+			fatalWithDetails(errors.E("--target must be used together with --status"), "Invalid args")
+		} else if !isTargetSet && isStatusSet {
+			fatalWithDetails(errors.E("--status requires --target when terramate.config.targets.enabled is true"), "Invalid args")
+		}
+	})
+
 	status := parseStatusFilter(statusStr)
-	report, err := c.listStacks(c.parsedArgs.Changed, status)
+	report, err := c.listStacks(c.parsedArgs.Changed, c.parsedArgs.List.Target, status)
 	if err != nil {
 		fatal(err)
 	}
@@ -1688,7 +1705,7 @@ func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
 }
 
 func (c *cli) printRuntimeEnv() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloudstack.NoFilter)
 	if err != nil {
 		fatalWithDetails(err, "listing stacks")
 	}
@@ -1838,7 +1855,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(false, "", cloudstack.NoFilter)
 	if err != nil {
 		fatalWithDetails(err, "computing selected stacks")
 	}
@@ -1875,7 +1892,7 @@ func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(false, cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(false, "", cloudstack.NoFilter)
 	if err != nil {
 		fatalWithDetails(err, "generate debug: selecting stacks")
 	}
@@ -1919,7 +1936,7 @@ func (c *cli) generateDebug() {
 }
 
 func (c *cli) printStacksGlobals() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloudstack.NoFilter)
 	if err != nil {
 		fatalWithDetails(err, "listing stacks globals: listing stacks")
 	}
@@ -1948,7 +1965,7 @@ func (c *cli) printMetadata() {
 		Str("action", "cli.printMetadata()").
 		Logger()
 
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloudstack.NoFilter)
 	if err != nil {
 		fatalWithDetails(err, "loading metadata: listing stacks")
 	}
@@ -2007,7 +2024,7 @@ func (c *cli) checkGenCode() bool {
 }
 
 func (c *cli) ensureStackID() {
-	report, err := c.listStacks(false, cloudstack.NoFilter)
+	report, err := c.listStacks(false, cloudstack.AnyTarget, cloudstack.NoFilter)
 	if err != nil {
 		fatalWithDetails(err, "listing stacks")
 	}
@@ -2140,6 +2157,10 @@ func (c *cli) detectEvalContext(overrideGlobals map[string]string) *eval.Context
 func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]string) *eval.Context {
 	runtime := c.cfg().Runtime()
 
+	if c.cloud.run.target != "" {
+		runtime["target"] = cty.StringVal(c.cloud.run.target)
+	}
+
 	var tdir string
 	if st != nil {
 		tdir = st.HostDir(c.cfg())
@@ -2257,8 +2278,8 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudStatus)
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, target string, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
+	report, err := c.listStacks(c.parsedArgs.Changed, target, cloudStatus)
 	if err != nil {
 		return nil, err
 	}

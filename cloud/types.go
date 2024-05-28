@@ -66,6 +66,8 @@ type (
 	// Stack represents the stack as defined by the user HCL code.
 	Stack struct {
 		Repository      string   `json:"repository"`
+		Target          string   `json:"target,omitempty"`
+		FromTarget      string   `json:"from_target,omitempty"`
 		DefaultBranch   string   `json:"default_branch"`
 		Path            string   `json:"path"`
 		MetaID          string   `json:"meta_id"`
@@ -100,9 +102,12 @@ type (
 
 	// DeploymentStackResponse represents the deployment creation response item.
 	DeploymentStackResponse struct {
-		StackID     int64             `json:"stack_id"`
-		StackMetaID string            `json:"meta_id"`
-		Status      deployment.Status `json:"status"`
+		StackID     int64  `json:"stack_id"`
+		StackMetaID string `json:"meta_id"`
+		// TODO(snk): The target in the response is not handled yet. This needs to happen once we
+		// support creating deployments with the same stack/meta_id on multiple targets.
+		Target string            `json:"target"`
+		Status deployment.Status `json:"status"`
 	}
 
 	// DeploymentStacksResponse represents the list of DeploymentStackResponse.
