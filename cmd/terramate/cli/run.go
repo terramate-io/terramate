@@ -366,6 +366,16 @@ func (c *cli) runAll(
 		errs := errors.L()
 
 		for _, task := range run.Tasks {
+			acquireResource()
+
+			if !opts.Quiet && !opts.ScriptRun {
+				printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
+			}
+
+			if !opts.Quiet && opts.ScriptRun {
+				printScriptCommand(c.stderr, run.Stack, task)
+			}
+
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
 
 			// For cloud sync, we always assume that there's a single task per stack.
@@ -384,16 +394,6 @@ func (c *cli) runAll(
 				Stringer("stack", run.Stack).
 				Logger()
 
-			if opts.ScriptRun && !c.parsedArgs.Quiet {
-				printScriptCommand(c.stderr, run.Stack, task)
-			}
-
-			if !opts.Quiet && !opts.ScriptRun {
-				printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
-			}
-
-			c.cloudSyncBefore(cloudRun)
-
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
 			if err != nil {
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
@@ -404,14 +404,6 @@ func (c *cli) runAll(
 
 				cancel()
 				return errs.AsError()
-			}
-
-			if !opts.Quiet && !opts.ScriptRun {
-				printer.Stderr.Println(printPrefix + " Executing command " + strconv.Quote(cmdStr))
-			}
-
-			if opts.DryRun {
-				continue
 			}
 
 			cmd := exec.Command(cmdPath, task.Cmd[1:]...)
@@ -436,7 +428,15 @@ func (c *cli) runAll(
 			cmd.Stdout = stdout
 			cmd.Stderr = stderr
 
-			acquireResource()
+			c.cloudSyncBefore(cloudRun)
+
+			if !opts.Quiet && !opts.ScriptRun {
+				printer.Stderr.Println(printPrefix + " Executing command " + strconv.Quote(cmdStr))
+			}
+
+			if opts.DryRun {
+				continue
+			}
 
 			startTime := time.Now().UTC()
 

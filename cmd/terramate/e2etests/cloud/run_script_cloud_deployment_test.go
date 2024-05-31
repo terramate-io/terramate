@@ -84,7 +84,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 					StderrRegex: "executable file not found",
 				},
 				events: eventsResponse{
-					"stack": []string{"pending", "running", "failed"},
+					"stack": []string{"pending", "failed"},
 				},
 			},
 		},
@@ -109,7 +109,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 					StderrRegex: "executable file not found",
 				},
 				events: eventsResponse{
-					"s1":    []string{"pending", "running", "failed"},
+					"s1":    []string{"pending", "failed"},
 					"s1_s2": []string{"pending", "canceled"},
 				},
 			},

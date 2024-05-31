@@ -35,6 +35,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `terramate cloud drift show`
 - Add `script.lets` block for declaring variables that are local to the script.
 
+### Fixed
+
+- Fix the update of stack status to respect the configured parallelism option and only set stack status to be `running` before the command starts.
+
 ### Changed
 
 - (**BREAKING CHANGE**) The format of the generated code may change while being still semantically the same as before. This change is marked as "breaking", because this may trigger change detection on files where the formatting changes.
