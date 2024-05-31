@@ -959,7 +959,7 @@ func (c *cli) triggerStackByFilter() {
 		fatalWithDetails(err, "unable to list stacks")
 	}
 
-	for _, st := range stacksReport.Stacks {
+	for _, st := range c.filterStacksByWorkingDir(stacksReport.Stacks) {
 		c.triggerStack(st.Stack.Dir.String())
 	}
 }
