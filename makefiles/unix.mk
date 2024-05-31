@@ -31,14 +31,13 @@ test/testserver:
 ## build the helper binary
 .PHONY: test/helper
 test/helper:
-	go build -o bin/helper ./cmd/terramate/e2etests/cmd/helper
+	go build -o bin/helper ./e2etests/cmd/helper
 
 ## test code
 .PHONY: test
 tempdir=$(shell ./bin/helper tempdir)
 test: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
-	./bin/terramate run --no-recursive -- go test -c -tags interop ./cmd/terramate/e2etests/cloud/interop/...
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
 	./bin/helper rm $(tempdir)
 
@@ -47,7 +46,7 @@ test: test/helper build
 test/interop: org?=test
 test/interop: backend_host?=api.stg.terramate.io
 test/interop:
-	TM_CLOUD_ORGANIZATION=$(org) TMC_API_HOST=$(backend_host) go test -v -count=1 -tags interop ./cmd/terramate/e2etests/cloud/interop/...
+	TM_CLOUD_ORGANIZATION=$(org) TMC_API_HOST=$(backend_host) go test -v -count=1 -tags interop ./e2etests/cloud/interop/...
 
 ## graph2png
 .PHONY: graph2png
