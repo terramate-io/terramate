@@ -36,7 +36,8 @@ func NewContext(funcs map[string]function.Function) *Context {
 	}
 }
 
-func (c *Context) newChildContext() *Context {
+// ChildContext creates a new child HCL context that inherits all parent HCL variables and functions.
+func (c *Context) ChildContext() *Context {
 	child := NewContext(c.hclctx.Functions)
 	for k, v := range c.hclctx.Variables {
 		child.hclctx.Variables[k] = v

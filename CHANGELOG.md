@@ -33,6 +33,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `terramate run --status`
     - `terramate list --status`
     - `terramate cloud drift show`
+- Add `script.lets` block for declaring variables that are local to the script.
 
 ### Fixed
 

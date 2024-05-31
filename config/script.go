@@ -13,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -21,8 +22,8 @@ import (
 const (
 	ErrScriptSchema              errors.Kind = "script config has an invalid schema"
 	ErrScriptInvalidType         errors.Kind = "invalid type for script field"
-	ErrScriptInvalidTypeCommand  errors.Kind = "invalid type for script.command"
-	ErrScriptInvalidTypeCommands errors.Kind = "invalid type for script.commands"
+	ErrScriptInvalidTypeCommand  errors.Kind = "invalid type for script.job.command"
+	ErrScriptInvalidTypeCommands errors.Kind = "invalid type for script.job.commands"
 	ErrScriptEmptyCmds           errors.Kind = "job command or commands evaluated to empty list"
 	ErrScriptInvalidCmdOptions   errors.Kind = "invalid options for script command"
 )
@@ -86,8 +87,17 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 	}
 
 	errs := errors.L()
+
+	localctx := evalctx.ChildContext()
+	localctx.SetNamespace("let", map[string]cty.Value{})
+
+	errs.Append(lets.Load(script.Lets, localctx))
+	if err := errs.AsError(); err != nil {
+		return Script{}, err
+	}
+
 	if script.Name != nil {
-		name, err := evalScriptStringField(evalctx, script.Name.Expr, "script.name")
+		name, err := evalScriptStringField(localctx, script.Name.Expr, "script.name")
 		errs.Append(err)
 		if len(name) > MaxScriptNameRunes {
 			name = name[:MaxScriptNameRunes]
@@ -100,7 +110,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 	}
 
 	if script.Description != nil {
-		desc, err := evalScriptStringField(evalctx, script.Description.Expr, "script.description")
+		desc, err := evalScriptStringField(localctx, script.Description.Expr, "script.description")
 		errs.Append(err)
 		if len(desc) > MaxScriptDescRunes {
 			desc = desc[:MaxScriptDescRunes]
@@ -116,7 +126,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		evaluatedJob := ScriptJob{}
 
 		if job.Name != nil {
-			name, err := evalScriptStringField(evalctx, job.Name.Expr, "script.job.name")
+			name, err := evalScriptStringField(localctx, job.Name.Expr, "script.job.name")
 			errs.Append(err)
 			if len(name) > MaxScriptNameRunes {
 				name = name[:MaxScriptNameRunes]
@@ -129,7 +139,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 		}
 
 		if job.Description != nil {
-			desc, err := evalScriptStringField(evalctx, job.Description.Expr, "script.job.description")
+			desc, err := evalScriptStringField(localctx, job.Description.Expr, "script.job.description")
 			errs.Append(err)
 			if len(desc) > MaxScriptDescRunes {
 				desc = desc[:MaxScriptDescRunes]
@@ -144,7 +154,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 
 		if job.Command != nil {
 			expr := job.Command.Expr
-			v, err := evalctx.Eval(expr)
+			v, err := localctx.Eval(expr)
 			if err != nil {
 				errs.Append(errors.E(ErrScriptSchema, expr.Range(), err, "evaluating command"))
 				continue
@@ -160,7 +170,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 
 		if job.Commands != nil {
 			expr := job.Commands.Expr
-			v, err := evalctx.Eval(expr)
+			v, err := localctx.Eval(expr)
 			if err != nil {
 				errs.Append(errors.E(ErrScriptSchema, expr.Range(), err, "evaluating commands"))
 				continue
