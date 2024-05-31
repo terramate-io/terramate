@@ -536,6 +536,112 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "triggers stacks relative to workingDir",
+			workingDir: "dir1/s1",
+			layout: []string{
+				"s:dir1/s1:id=s1",
+				"s:dir1/s1/s1a:id=s1a",
+				"s:dir2/s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1a",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+			},
+			flags: []string{`--status=unhealthy`},
+			want: want{
+				trigger: RunExpected{
+					StdoutRegex: "Created trigger for stack",
+				},
+				list: RunExpected{
+					Stdout: nljoin("dir1/s1", "dir1/s1/s1a"),
+				},
+			},
+		},
+		{
+			name:       "triggers stacks relative to workingDir inside leaf stack",
+			workingDir: "dir2/s2",
+			layout: []string{
+				"s:dir1/s1:id=s1",
+				"s:dir1/s1/s1a:id=s1a",
+				"s:dir2/s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1a",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+			},
+			flags: []string{`--status=unhealthy`},
+			want: want{
+				trigger: RunExpected{
+					StdoutRegex: "Created trigger for stack",
+				},
+				list: RunExpected{
+					Stdout: nljoin("dir2/s2"),
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -580,6 +686,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 
 			if tc.want.trigger.Status == 0 {
 				s.Git().CommitAll("stacks triggered", true)
+				cli = NewCLI(t, filepath.Join(s.RootDir()), env...)
 				AssertRunResult(t, cli.ListChangedStacks(), tc.want.list)
 			}
 		})
