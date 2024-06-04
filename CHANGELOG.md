@@ -42,6 +42,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Fix `terramate experimental trigger --status` to respect the `-C <dir>` flag.
 	- Now using `-C <dir>` (or `--chdir <dir>`) only triggers stacks inside the provided dir.
 - Fix the update of stack status to respect the configured parallelism option and only set stack status to be `running` before the command starts.
+- Fix `terramate experimental trigger` gives a misleading error message when a stack is not found.
 
 ### Changed
 
