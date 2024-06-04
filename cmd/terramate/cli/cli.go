@@ -996,15 +996,20 @@ func (c *cli) triggerStack(stack string) {
 	}
 
 	stack = filepath.Clean(stack)
-
-	if tmp, err := filepath.EvalSymlinks(stack); err != nil || tmp != stack {
-		fatal("symlinks are disallowed in the stack path")
+	_, err := os.Lstat(stack)
+	if errors.Is(err, os.ErrNotExist) {
+		fatalWithDetails(err, "stack not found")
 	}
-
+	tmp, err := filepath.EvalSymlinks(stack)
+	if err != nil {
+		fatalWithDetails(err, "failed to evaluate stack path symlinks")
+	}
+	if tmp != stack {
+		fatal(stdfmt.Sprintf("symlinks are disallowed in the stack path: %s links to %s", stack, tmp))
+	}
 	if !strings.HasPrefix(stack, c.rootdir()) {
 		fatalf("stack %s is outside project", stack)
 	}
-
 	stackPath := prj.PrjAbsPath(c.rootdir(), stack)
 	if err := trigger.Create(c.cfg(), stackPath, kind, reason); err != nil {
 		fatalWithDetails(err, "unable to create trigger")
