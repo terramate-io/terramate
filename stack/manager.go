@@ -122,28 +122,47 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 	}
 
 	stackSet := map[project.Path]Entry{}
+	ignoreSet := map[project.Path]struct{}{}
 
 	for _, path := range changedFiles {
 		abspath := filepath.Join(m.root.HostDir(), path)
 		projpath := project.PrjAbsPath(m.root.HostDir(), abspath)
-		triggeredStack, isTriggerFile := trigger.StackPath(projpath)
 
 		logger = logger.With().
 			Stringer("path", projpath).
 			Logger()
 
+		triggerInfo, triggeredStack, isTriggerFile, errTriggerParse := trigger.Is(m.root, projpath)
 		if isTriggerFile {
 			logger = logger.With().
 				Stringer("trigger", triggeredStack).
 				Logger()
-
-			logger.Debug().Msg("trigger file change detected")
 
 			if _, err := os.Stat(abspath); err != nil {
 				if errors.Is(err, fs.ErrNotExist) {
 					logger.Debug().Msg("ignoring deleted trigger file")
 					continue
 				}
+			}
+
+			if errTriggerParse != nil {
+				printer.Stderr.WarnWithDetails(
+					fmt.Sprintf("skipping malformed trigger file: %s", projpath),
+					errTriggerParse,
+				)
+				continue
+			}
+
+			logger.Debug().Msg("trigger file change detected")
+
+			if triggerInfo.Type == trigger.Ignored {
+				ignoreSet[triggeredStack] = struct{}{}
+				continue
+			}
+
+			if triggerInfo.Type != trigger.Changed {
+				printer.Stderr.Warnf("skipping unsupported trigger type: %s", triggerInfo.Type)
+				continue
 			}
 
 			cfg, found := m.root.Lookup(triggeredStack)
@@ -196,6 +215,10 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 			Stack:  s,
 			Reason: "stack has unmerged changes",
 		}
+	}
+
+	for ignored := range ignoreSet {
+		delete(stackSet, ignored)
 	}
 
 	allstacks, err := List(m.root, m.root.Tree())
