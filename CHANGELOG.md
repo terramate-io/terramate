@@ -34,6 +34,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `terramate list --status`
     - `terramate cloud drift show`
 - Add `script.lets` block for declaring variables that are local to the script.
+- Add `--ignore-change` flag to `terramate experimental trigger`, which makes the change detection ignore the given stacks.
+  - It inverts the default trigger behavior.
 
 ### Fixed
 

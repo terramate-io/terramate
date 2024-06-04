@@ -18,6 +18,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/test"
 )
 
@@ -287,8 +288,18 @@ func (tm CLI) ListChangedStacks(args ...string) RunResult {
 }
 
 // TriggerStack is a helper for executing `terramate experimental trigger`.
-func (tm CLI) TriggerStack(stack string) RunResult {
-	return tm.Run([]string{"experimental", "trigger", stack}...)
+func (tm CLI) TriggerStack(kind trigger.Kind, stack string) RunResult {
+	var kindFlag string
+	switch kind {
+	case trigger.Changed:
+		kindFlag = "--change"
+	case trigger.Ignored:
+		kindFlag = "--ignore-change"
+	default:
+		panic(fmt.Sprintf("unsupported trigger kind: %s", kind))
+	}
+
+	return tm.Run([]string{"experimental", "trigger", kindFlag, stack}...)
 }
 
 // AssertRun asserts that the provided run result is successfully and with no output.
