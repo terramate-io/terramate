@@ -37,6 +37,16 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
 
+func TestTriggerCorrectErrorWhenStackDoesNotExists(t *testing.T) {
+	t.Parallel()
+	s := sandbox.New(t)
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "non-existent"), RunExpected{
+		StderrRegex: "Error: stack not found",
+		Status:      1,
+	})
+}
+
 func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink tests skipped on windows")

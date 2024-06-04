@@ -165,7 +165,7 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, configPath string, d
 
 	// We update the ctx of terragruntOptions to the config being read in.
 	ctx = ctx.WithTerragruntOptions(ctx.TerragruntOptions.Clone(targetConfig))
-	cfg, err := tgconfig.ParseConfigFile(ctx, targetConfig, nil)
+	cfg, err := tgconfig.ParseConfigFile(ctx.TerragruntOptions, ctx, targetConfig, nil)
 	if err != nil {
 		return cty.NilVal, err
 	}
