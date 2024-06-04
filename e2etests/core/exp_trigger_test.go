@@ -28,7 +28,7 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 
 	// execute terramate from `dir/` directory.
 	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
-	AssertRunResult(t, cli.TriggerStack("stacks/stack"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "stacks/stack"), RunExpected{
 		IgnoreStdout: true,
 	})
 
@@ -54,19 +54,19 @@ func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
 	git.CheckoutNew("trigger-the-stack")
 
 	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
-	AssertRunResult(t, cli.TriggerStack("link-to-stack"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "link-to-stack"), RunExpected{
 		Status:      1,
 		StderrRegex: "symlinks are disallowed",
 	})
 
 	cli = NewCLI(t, s.RootDir())
-	AssertRunResult(t, cli.TriggerStack("/dir/link-to-stack"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/dir/link-to-stack"), RunExpected{
 		Status:      1,
 		StderrRegex: "symlinks are disallowed",
 	})
 
 	cli = NewCLI(t, s.RootDir())
-	AssertRunResult(t, cli.TriggerStack("/link-to-dir/stack"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/link-to-dir/stack"), RunExpected{
 		Status:      1,
 		StderrRegex: "symlinks are disallowed",
 	})
@@ -90,14 +90,14 @@ func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
 	assert.NoError(t, err)
 
 	cli := NewCLI(t, project1.RootDir())
-	AssertRunResult(t, cli.TriggerStack(filepath.Join(relpath, "project2-stack")),
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, filepath.Join(relpath, "project2-stack")),
 		RunExpected{
 			Status:      1,
 			StderrRegex: "outside project",
 		})
 }
 
-func TestListDetectAsChangedTriggeredStack(t *testing.T) {
+func TestTriggerListsStacksAsChangedWhenTriggeredForChange(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -111,7 +111,7 @@ func TestListDetectAsChangedTriggeredStack(t *testing.T) {
 
 	cli := NewCLI(t, s.RootDir())
 
-	AssertRunResult(t, cli.TriggerStack("/stack"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack"), RunExpected{
 		IgnoreStdout: true,
 	})
 
@@ -123,13 +123,55 @@ func TestListDetectAsChangedTriggeredStack(t *testing.T) {
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
 
-func TestRunChangedDetectionIgnoresDeletedTrigger(t *testing.T) {
+func TestTriggerIgnoresDeletedTriggerForChange(t *testing.T) {
 	t.Parallel()
 
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:stack\n", testfile),
+	})
 
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack"), RunExpected{
+		IgnoreStdout: true,
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("delete-stack-trigger")
+
+	assertNoChanges := func() {
+		t.Helper()
+
+		AssertRunResult(t, cli.Run(
+			"run",
+			"--changed",
+			HelperPath,
+			"cat",
+			testfile,
+		), RunExpected{Stdout: ""})
+	}
+
+	assertNoChanges()
+
+	triggerDir := trigger.Dir(s.RootDir())
+	test.RemoveAll(t, triggerDir)
+
+	git.CommitAll("removed trigger")
+	assertNoChanges()
+}
+
+func TestTriggerIgnoresDeletedTriggerForIgnore(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:stack",
 		fmt.Sprintf("f:stack/%s:stack\n", testfile),
@@ -137,7 +179,7 @@ func TestRunChangedDetectionIgnoresDeletedTrigger(t *testing.T) {
 
 	cli := NewCLI(t, s.RootDir())
 
-	AssertRunResult(t, cli.TriggerStack("/stack"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Ignored, "/stack"), RunExpected{
 		IgnoreStdout: true,
 	})
 
@@ -169,13 +211,12 @@ func TestRunChangedDetectionIgnoresDeletedTrigger(t *testing.T) {
 	assertNoChanges()
 }
 
-func TestRunChangedDetectsTriggeredStack(t *testing.T) {
+func TestTriggerDetectsChangedStacksWhenTriggeredForChange(t *testing.T) {
 	t.Parallel()
 
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
-
 	s.BuildTree([]string{
 		"s:stack-1",
 		"s:stack-2",
@@ -190,7 +231,6 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 	git.CheckoutNew("trigger-the-stack")
 
 	cli := NewCLI(t, s.RootDir())
-
 	AssertRunResult(t, cli.Run(
 		"run",
 		"--changed",
@@ -199,7 +239,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 		testfile,
 	), RunExpected{Stdout: ""})
 
-	AssertRunResult(t, cli.TriggerStack("/stack-1"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack-1"), RunExpected{
 		IgnoreStdout: true,
 	})
 	git.CommitAll("commit the trigger file for stack-1")
@@ -213,7 +253,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 		testfile,
 	), RunExpected{Stdout: nljoin("stack-1")})
 
-	AssertRunResult(t, cli.TriggerStack("/stack-2"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack-2"), RunExpected{
 		IgnoreStdout: true,
 	})
 	git.CommitAll("commit the trigger file for stack-2")
@@ -228,7 +268,74 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 	), RunExpected{Stdout: nljoin("stack-1", "stack-2")})
 }
 
-func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {
+func TestTriggerDoNotDetectsChangedStacksWhenTriggeredForIgnore(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stack-1",
+		"s:stack-2",
+		fmt.Sprintf("f:stack-1/%s:stack-1\n", testfile),
+		fmt.Sprintf("f:stack-2/%s:stack-2\n", testfile),
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("trigger-the-stack")
+
+	// change stack-1 and stack-2
+	test.WriteFile(t, s.RootDir(), "stack-1/main.tf", "# changed")
+	test.WriteFile(t, s.RootDir(), "stack-2/main.tf", "# changed")
+	git.CommitAll("changed stack-1 and stack-2")
+
+	// ensure stacks are detected as changed.
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, cli.Run(
+		"--quiet",
+		"run",
+		"--changed",
+		HelperPath,
+		"cat",
+		testfile,
+	), RunExpected{Stdout: nljoin("stack-1", "stack-2")})
+
+	// ignore the stack-1 stack
+	AssertRunResult(t, cli.TriggerStack(trigger.Ignored, "/stack-1"), RunExpected{
+		IgnoreStdout: true,
+	})
+	git.CommitAll("commit the ignore trigger file for stack-1")
+
+	// ONLY stack-2 must be detected as changed.
+	AssertRunResult(t, cli.Run(
+		"run",
+		"--quiet",
+		"--changed",
+		HelperPath,
+		"cat",
+		testfile,
+	), RunExpected{Stdout: nljoin("stack-2")})
+
+	// let's also ignore stack-2
+	AssertRunResult(t, cli.TriggerStack(trigger.Ignored, "/stack-2"), RunExpected{
+		IgnoreStdout: true,
+	})
+	git.CommitAll("commit the trigger file for stack-2")
+
+	// NO stack must be detected.
+	AssertRunResult(t, cli.Run(
+		"run",
+		"--quiet",
+		"--changed",
+		HelperPath,
+		"cat",
+		testfile,
+	), RunExpected{Stdout: ""})
+}
+
+func TestRunWontDetectAsChangeDeletedChangedTrigger(t *testing.T) {
 	t.Parallel()
 
 	const testfile = "testfile"
@@ -243,7 +350,7 @@ func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {
 	})
 
 	cli := NewCLI(t, s.RootDir())
-	AssertRunResult(t, cli.TriggerStack("/stack-1"), RunExpected{
+	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack-1"), RunExpected{
 		IgnoreStdout: true,
 	})
 

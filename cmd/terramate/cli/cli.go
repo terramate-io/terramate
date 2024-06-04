@@ -245,6 +245,8 @@ type cliSpec struct {
 
 		Trigger struct {
 			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
+			Change             bool   `default:"false" help:"Trigger stacks as changed"`
+			IgnoreChange       bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
 			Reason             string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
 			ExperimentalStatus string `hidden:"" help:"Filter by Terramate Cloud status of the stack. (deprecated)"`
 			CloudStatus        string `hidden:""`
@@ -965,15 +967,27 @@ func (c *cli) triggerStackByFilter() {
 }
 
 func (c *cli) triggerStack(stack string) {
+	changeFlag := c.parsedArgs.Experimental.Trigger.Change
+	ignoreFlag := c.parsedArgs.Experimental.Trigger.IgnoreChange
+
+	if changeFlag && ignoreFlag {
+		fatal("flags --change and --ignore-change are conflicting")
+	}
+
+	var kind trigger.Kind
+	switch {
+	case ignoreFlag:
+		kind = trigger.Ignored
+	case changeFlag:
+		fallthrough
+	default:
+		kind = trigger.Changed
+	}
+
 	reason := c.parsedArgs.Experimental.Trigger.Reason
 	if reason == "" {
 		reason = "Created using Terramate CLI without setting specific reason."
 	}
-	logger := log.With().
-		Str("stack", stack).
-		Logger()
-
-	logger.Debug().Msg("creating stack trigger")
 
 	if !path.IsAbs(stack) {
 		stack = filepath.Join(c.wd(), filepath.FromSlash(stack))
@@ -992,7 +1006,7 @@ func (c *cli) triggerStack(stack string) {
 	}
 
 	stackPath := prj.PrjAbsPath(c.rootdir(), stack)
-	if err := trigger.Create(c.cfg(), stackPath, reason); err != nil {
+	if err := trigger.Create(c.cfg(), stackPath, kind, reason); err != nil {
 		fatalWithDetails(err, "unable to create trigger")
 	}
 
