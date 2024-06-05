@@ -22,24 +22,42 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
+type want struct {
+	kind trigger.Kind
+	err  error
+}
+
 type testcase struct {
 	name   string
 	layout []string
 	path   string
+	kind   trigger.Kind
 	reason string
-	want   error
+	want   want
 }
 
 func TestTriggerStacks(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []testcase{
 		{
-			name: "stack on root",
+			name: "trigger-changed - stack on root",
 			layout: []string{
 				"s:stack",
 			},
 			path:   "/stack",
+			kind:   trigger.Changed,
 			reason: "stack inside root",
+			want:   want{kind: trigger.Changed},
+		},
+		{
+			name: "trigger-ignored - stack on root",
+			layout: []string{
+				"s:stack",
+			},
+			path:   "/stack",
+			kind:   trigger.Ignored,
+			reason: "stack inside root",
+			want:   want{kind: trigger.Ignored},
 		},
 		{
 			name: "stack on subdir",
@@ -47,7 +65,9 @@ func TestTriggerStacks(t *testing.T) {
 				"s:dir/stack",
 			},
 			path:   "/dir/stack",
+			kind:   trigger.Changed,
 			reason: "subdir stack",
+			want:   want{kind: trigger.Changed},
 		},
 		{
 			name: "root is stack",
@@ -55,13 +75,18 @@ func TestTriggerStacks(t *testing.T) {
 				"s:.",
 			},
 			path:   "/",
+			kind:   trigger.Changed,
 			reason: "root is stack",
+			want:   want{kind: trigger.Changed},
 		},
 		{
 			name:   "stack doesnt exist",
 			path:   "/non-existent-stack",
+			kind:   trigger.Changed,
 			reason: "should not trigger",
-			want:   errors.E(trigger.ErrTrigger),
+			want: want{
+				err: errors.E(trigger.ErrTrigger),
+			},
 		},
 		{
 			name: "subdir of a stack is not valid",
@@ -70,7 +95,10 @@ func TestTriggerStacks(t *testing.T) {
 				"s:stack",
 				"d:stack/dir",
 			},
-			want: errors.E(trigger.ErrTrigger),
+			kind: trigger.Changed,
+			want: want{
+				err: errors.E(trigger.ErrTrigger),
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -84,8 +112,8 @@ func testTrigger(t *testing.T, tc testcase) {
 	s.BuildTree(tc.layout)
 	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(t, err)
-	err = trigger.Create(root, project.NewPath(tc.path), tc.reason)
-	errtest.Assert(t, err, tc.want)
+	err = trigger.Create(root, project.NewPath(tc.path), tc.kind, tc.reason)
+	errtest.Assert(t, err, tc.want.err)
 
 	if err != nil {
 		return
@@ -106,42 +134,66 @@ func testTrigger(t *testing.T, tc testcase) {
 
 	assert.IsTrue(t, triggerInfo.Ctime > 0)
 	assert.IsTrue(t, triggerInfo.Ctime < math.MaxInt64)
-
 	assert.EqualStrings(t, trigger.DefaultContext, triggerInfo.Context)
-	assert.EqualStrings(t, trigger.DefaultType, triggerInfo.Type)
+	assert.EqualStrings(t, string(tc.want.kind), string(triggerInfo.Type))
 
 	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.HostDir(), triggerFile))
-
 	assert.IsTrue(t, ok)
 	assert.EqualStrings(t, tc.path, gotPath.String())
 }
 
 func TestTriggerParser(t *testing.T) {
 	t.Parallel()
+
+	type want struct {
+		info trigger.Info
+		err  error
+	}
 	type testcase struct {
 		name string
 		body fmt.Stringer
-		err  error
+		want want
 	}
 	for _, tc := range []testcase{
 		{
 			name: "no config",
 			body: Doc(),
-			err:  errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "missing required attributes",
 			body: Trigger(),
-			err:  errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
-			name: "valid file",
+			name: "valid changed file",
 			body: Trigger(
 				Number("ctime", 1000000),
 				Str("reason", "something"),
 				Expr("type", "changed"),
 				Expr("context", "stack"),
 			),
+			want: want{
+				info: trigger.Info{
+					Type:    trigger.Changed,
+					Context: trigger.DefaultContext,
+				},
+			},
+		},
+		{
+			name: "valid ignored file",
+			body: Trigger(
+				Number("ctime", 1000000),
+				Str("reason", "something"),
+				Expr("type", "ignore-change"),
+				Expr("context", "stack"),
+			),
+			want: want{
+				info: trigger.Info{
+					Type:    trigger.Ignored,
+					Context: trigger.DefaultContext,
+				},
+			},
 		},
 		{
 			name: "valid file (backward compatibility)",
@@ -149,6 +201,12 @@ func TestTriggerParser(t *testing.T) {
 				Number("ctime", 1000000),
 				Str("reason", "something"),
 			),
+			want: want{
+				info: trigger.Info{
+					Type:    trigger.Changed,
+					Context: trigger.DefaultContext,
+				},
+			},
 		},
 		{
 			name: "multiple trigger blocks - fails",
@@ -166,7 +224,7 @@ func TestTriggerParser(t *testing.T) {
 					Expr("context", "stack"),
 				),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "unexpected block",
@@ -176,7 +234,7 @@ func TestTriggerParser(t *testing.T) {
 				Expr("type", "changed"),
 				Expr("context", "stack"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "invalid attribute",
@@ -187,7 +245,7 @@ func TestTriggerParser(t *testing.T) {
 				Expr("context", "stack"),
 				Str("invalid", "value"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "ctime not number",
@@ -197,7 +255,7 @@ func TestTriggerParser(t *testing.T) {
 				Expr("type", "changed"),
 				Expr("context", "stack"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "funcall not supported",
@@ -207,7 +265,7 @@ func TestTriggerParser(t *testing.T) {
 				Expr("type", "changed"),
 				Expr("context", "stack"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "reason not string",
@@ -217,7 +275,7 @@ func TestTriggerParser(t *testing.T) {
 				Expr("type", "changed"),
 				Expr("context", "stack"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "type not a keyword",
@@ -227,7 +285,7 @@ func TestTriggerParser(t *testing.T) {
 				Str("type", "changed"),
 				Expr("context", "stack"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 		{
 			name: "context not a keyword",
@@ -237,13 +295,20 @@ func TestTriggerParser(t *testing.T) {
 				Expr("type", "changed"),
 				Str("context", "stack"),
 			),
-			err: errors.E(trigger.ErrParsing),
+			want: want{err: errors.E(trigger.ErrParsing)},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			file := test.WriteFile(t, test.TempDir(t), "test-trigger.hcl", tc.body.String())
-			_, err := trigger.ParseFile(file)
-			errtest.Assert(t, err, tc.err, "when parsing: %s", tc.body)
+			info, err := trigger.ParseFile(file)
+			errtest.Assert(t, err, tc.want.err, "when parsing: %s", tc.body)
+			if err != nil {
+				return
+			}
+			assert.EqualStrings(t, string(info.Type), string(tc.want.info.Type))
+			assert.EqualStrings(t, info.Context, tc.want.info.Context)
 		})
 	}
 }

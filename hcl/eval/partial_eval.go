@@ -299,7 +299,7 @@ func (c *Context) evalForObjectLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression
 	iterator := coll.ElementIterator()
 	for iterator.Next() {
 		k, v := iterator.Element()
-		childCtx := c.newChildContext()
+		childCtx := c.ChildContext()
 		childCtx.hclctx.Variables[forExpr.KeyVar] = k
 		childCtx.hclctx.Variables[forExpr.ValVar] = v
 
@@ -375,7 +375,7 @@ func (c *Context) evalForListLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression, 
 	iterator := coll.ElementIterator()
 	for iterator.Next() {
 		k, v := iterator.Element()
-		childCtx := c.newChildContext()
+		childCtx := c.ChildContext()
 		childCtx.hclctx.Variables[forExpr.KeyVar] = k
 		childCtx.hclctx.Variables[forExpr.ValVar] = v
 

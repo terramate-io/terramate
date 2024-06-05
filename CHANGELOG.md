@@ -33,10 +33,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `terramate run --status`
     - `terramate list --status`
     - `terramate cloud drift show`
+- Add `script.lets` block for declaring variables that are local to the script.
+- Add `--ignore-change` flag to `terramate experimental trigger`, which makes the change detection ignore the given stacks.
+  - It inverts the default trigger behavior.
 
 ### Fixed
 
+- Fix `terramate experimental trigger --status` to respect the `-C <dir>` flag.
+	- Now using `-C <dir>` (or `--chdir <dir>`) only triggers stacks inside the provided dir.
 - Fix the update of stack status to respect the configured parallelism option and only set stack status to be `running` before the command starts.
+- Fix `terramate experimental trigger` gives a misleading error message when a stack is not found.
 
 ### Changed
 

@@ -515,6 +515,42 @@ func TestHCLScript(t *testing.T) {
 			},
 		},
 		{
+			name: "script with lets with unrecognized subblocks -- fails",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+					  terramate {
+						  config {
+							  experiments = ["scripts"]
+						  }
+					  }
+					`,
+				},
+				{
+					filename: "script.tm",
+					body: `
+					  script "group1" "script1" {
+						description = "some description"
+						lets {
+							whatever {
+
+							}
+						}
+						job {
+						  command = ["ls", "-l"]
+						}
+					  }
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrUnrecognizedBlock),
+				},
+			},
+		},
+		{
 			name: "script with multiple jobs",
 			input: []cfgfile{
 				{
