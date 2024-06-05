@@ -5,10 +5,10 @@
     </picture>
   <h1 align="center">Terramate</h1>
   <p align="center">
-    ✨ <a href="https://terramate.io/docs/cli">https://terramate.io</a> ✨
-    <br/>
-    Terramate CLI is an open-source Infrastructure as Code (IaC) orchestration tool that <strong>unifies</strong>,
-    <strong>simplifies</strong>, and <strong>scales</strong> all your infrastructure code, tools, and workflows.
+    <!-- ✨ <a href="https://terramate.io/docs/cli">https://terramate.io</a> ✨ -->
+    <!-- <br/> -->
+    <!-- Terramate CLI is an open-source Infrastructure as Code (IaC) orchestration tool that <strong>unifies</strong>,
+    <strong>simplifies</strong>, and <strong>scales</strong> all your infrastructure code, tools, and workflows. -->
   </p>
 </p>
 <br/>
@@ -18,12 +18,12 @@
   <a href="https://pkg.go.dev/github.com/terramate-io/terramate"><img src="https://pkg.go.dev/badge/github.com/terramate-io/terramate" alt="Go Docs" /></a>
   <a href="https://goreportcard.com/report/github.com/terramate-io/terramate"><img src="https://goreportcard.com/badge/github.com/terramate-io/terramate" alt="Go Report Card" /></a>
   <a href="https://github.com/terramate-io/terramate/actions?query=branch%3Amain"><img src="https://github.com/terramate-io/terramate/actions/workflows/ci.yml/badge.svg" alt="Terramate CI Status" /></a>
-  <a href="https://github.com/terramate-io/terramate/stargazers" rel="nofollow"><img src="https://img.shields.io/github/stars/terramate-io/terramate" alt="Stars"></a>
   <a href="https://terramate.io/discord" rel="nofollow"><img src="https://img.shields.io/discord/1088753599951151154?label=Discord&logo=discord&logoColor=white" alt="Discord Server"></a>
 </p>
 
 <p align="center">
-  <a href="https://terramate.io/docs/cli">📖 Documentation</a> | <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://play.terramate.io">💻 Playground</a> | <a href="https://jobs.ashbyhq.com/terramate" title="Terramate Job Board">🙌 Join Us</a>
+  <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/docs/cli">📖 Documentation</a> |  <a href="https://play.terramate.io">💻 Playground</a>
+   <!-- | <a href="https://jobs.ashbyhq.com/terramate" title="Terramate Job Board">🙌 Join Us</a> -->
 </p>
 
 <br>
@@ -31,14 +31,18 @@
 
 ## What is Terramate CLI?
 
-Terramate CLI is an open-source Infrastructure as Code (IaC) **orchestration tool** for Terraform, OpenTofu, Terragrunt,
-Pulumi, Cloud Formation, CDK, Azure Resource Manager (ARM), Kubernetes, and others, that **unifies**, **simplifies** and
-**scales** all your infrastructure code, tools, and workflows.  
+Terramate CLI is an open-source Infrastructure as Code (IaC) code generation and orchestration tool for Terraform,
+OpenTofu and Terragrunt. With Terramate, you can:
 
-The main value proposition of Terramate CLI is to simplify the management and improve the scalability of your
-Infrastructure as Code projects by using a modular and efficient approach called Terramate Stacks.
+(a) **Simplify complex codebases** to make your work more productive and reliable. Break down large state files with
+stacks to reduce run-time and blast radius and keep them DRY with native code generation.
 
-## Quick Install
+(b) **Automate and orchestrate Terraform, OpenTofu and Terragrunt in any CI/CD** using Pull Request automation, GitOps
+blueprints, and workflow tooling with zero-config orchestration and change detection.
+
+(c) **Provide the foundation to later leverage Terramate Cloud**, a management layer that gives you visibility, control, and actionable insights into your infra.
+
+## Installation
 
 With brew:
 
@@ -52,115 +56,48 @@ With Go:
 go install github.com/terramate-io/terramate/cmd/...@latest
 ```
 
+For other installation methods, please see the [documentation](https://terramate.io/docs/cli/installation).
+
+
 ## Getting Started
 
 The fastest way to get started with Terramate is our [getting started guide](https://terramate.io/docs/cli/getting-started/).
 
+## Why simply complex codebases?
 
-## **What are Terramate Stacks?**
+As Terraform and OpenTofu offer no standard pattern on how to organize code efficiently, projects quickly sprawl out of
+control. The consequences are ***code complexity***, ***long-running pipelines***, ***poor governance***,
+***drifts***, and ***high blast radius***.
 
-Terramate Stacks are **modular**, **standardized,** and **tooling-agnostic units** that represent a set of
-infrastructure resources. They are often used to group, organize and manage various isolated components of an
-application or infrastructure and support technologies such as Terraform, OpenTofu, Terragrunt, CDK, Pulumi,
-Cloud Formation, Azure Resource Manager (ARM),  Kubernetes (Helm, kubectl, Kustomize), and others. 
+Terramate CLI enables a new approach to eliminating the root cause of these consequences: using a modular and efficient
+approach called Terramate Stacks. A stack is a combination of infrastructure code, state and configuration, which can be
+nested to split state further.
 
-You can think about a stack as a combination of **source code**, the **current state** of the managed infrastructure
-(e.g., Terraform state file), and **configuration**.
+Organisationally, a stack is a way to establish an ownership model. By consistently sizing stacks into isolated units
+that your team members can quickly understand, assuming ownership of your infra becomes a lot simpler.
+Terramate CLI supports Terraform, OpenTofu and Terragrunt, and can be run locally as well as in your existing VCS
+(Github, Gitlab) CI/CD.
 
-<img src="stacks.png" width="600px" alt="Terramate Stacks Overview" />
+Terramate CLI is designed to work especially well with [Terramate Cloud](https://cloud.terramate.io), which provides
+an IaC management layer and offers a generous free tier. 
 
-There are several benefits to using Terramate Stacks:
+## Features
 
-✅ **Limit the blast radius and risk of infrastructure changes**
+- **Orchestration:** Run any command and configurable workflows in stacks with unlimited concurrency.
+- **Change Detection:** Only execute stacks that contain changes. Allows to detect changes in referenced Terraform and
+OpenTofu modules as well as Terragrunt dependencies.
+- **Code Generation:** Generate code such **HCL**, **JSON** and **YAML** to keep your stacks DRY (Don't repeat yourself). Comes with
+support for global variables and functions.
+- **Automation Blueprints:** Pre-configured GitOps workflows for GitHub, GitLab, BitBucket and Atlantis to enable Pull
+Automation with plan previews in your existing CI/CD.
+- **Drift Management:** Detect and reconcile drift with scheduled workflows.
+- **Observability, Visibility and Insights:** Provides actionable insights and observability into your stacks, deployments,
+and resources.
 
-✅ **Significantly faster run times and lower costs**
-
-✅ **Better ownership management and governance**
-
-✅ **Improved productivity and developer experience while reducing complexity**
-
-✅ **Better observability and security**
-
-✅ **Enables multi-step and multi-IaC use cases**
-
-Terramate Stacks can be cloned, nested, compared and orchestrated. You can also generate code in stacks to keep them
-DRY (e.g., generate files such as the Terraform backend configuration for all stacks that manage Terraform resources).
-
-Terramate Stacks are created using a single command.
-
-```sh
-terramate create path/to/new/stack
-```
-
-## What is an IaC orchestrator?
-
-An orchestrator allows you to execute commands in stacks while defining the order of execution, dependencies, and more.
-Terramate CLI comes with a powerful orchestration and execution engine that allows you to easily invoke commands in stacks.
-
-```sh
-terramate run <CMD>
-```
-
-Terramate CLI also comes with a change detection, that seamlessly integrates with git enabling you to execute commands
-in stacks that contain changes only.
-
-E.g., invoke `terraform apply` in all stacks that contain changes:
-
-```sh
-terramate run --changed -- terraform plan
-```
-
-Another example is to invoke a command in all stacks that have the tags `k8s`and`prd`, and that contain changes.
-
-```sh
-terramate run --changed --tags k8s:prd -- kubectl apply
-```
-
-Terramate CLI is designed and implemented by long-time DevOps, Cloud and Platform Engineering practitioners based on
-previous experience working with large-scale platforms in some of the most sophisticated companies in the world.
-It focuses on significantly improving the developer experience and productivity and integrates with existing tooling
-in a non-intrusive way without major lock-ins and for a broader audience.
-
-If you like Terramate CLI, please give the project a ⭐ and join our [Discord Community](https://discord.gg/CyzcScEPkc).
-
-## What are the most common use cases of Terramate CLI?
-
-📈 **Implement and maintain highly scalable IaC projects**
-
-Stacks unlock faster execution, better collaboration, and lower blast radius risk. With stacks, parallel deployment
-ensures no more pipeline run bottlenecks.
-
-🔗 **GitOps workflows that run in your existing CI/CD platform**
-
-Unlock CI/CD workflows to orchestrate your stacks in your existing CI/CD platform, such as GitHub Actions, GitLab and
-Bitbucket Pipelines. Can be used to **preview changes and plans in Pull Requests** or to **detect infrastructure drift**
-with scheduled runs.
-
-🏎 **Deploy significantly faster and more often**
-
-Change detection allows you to execute only commands in stacks that have been changed in the current branch or since
-the last merge, reducing CI/CD runtimes to a bare minimum, even in complex environments, **saving costs** and
-**improving throughput.**
-
-👷 **Better developer productivity and experience**
-
-Simplified management and improved productivity by providing developer-centric workflows like one-click cloning stacks
-and environments. Enable developers to use templates to deploy complex infrastructure without requiring them to
-learn the complexity of IaC.
-
-⚒️ **Data Sharing**
-
-Share data across stacks with globals that can be inherited, merged, or overwritten in your stack hierarchy. Use input
-and output data from one stack and IaC technology as input data in another. 
-
-💫 **Code Generation**
-
-Keep your code DRY by automatically generating and updating repetitive code, such as the Terraform provider and
-backend configuration. Always generates native code that integrates seamlessly with third-party tooling.
 
 ## Terramate Cloud
 
-**Terramate Cloud** provides you with the best IaC management experience possible. It helps you orchestrate your stacks
+[Terramate Cloud](https://cloud.terramate.io?ref=github) provides you with the best IaC management experience possible. It helps you orchestrate your stacks
 in your existing CI/CD platform, such as GitHub Actions, GitLab and Bitbucket Pipelines, so you don't need to buy yet
 another CI/CD vendor.
 
@@ -179,11 +116,10 @@ the developer experience and infrastructure to build, scale and observe all your
 
 ## Additional Resources
 
-- [Documentation](https://terramate.io/docs/cli/)
+- [Documentation](https://terramate.io/docs)
 - [Playground](https://play.terramate.io/)
 - [Getting started guide](https://terramate.io/docs/cli/getting-started/)
-- [Terramate Blog](https://blog.terramate.io/)
-- [Terramate VSCode Extension](https://github.com/mineiros-io/vscode-terramate)
+- [Terramate Blog](https://terramate.io/rethinking-iac/)
 
 ## Reporting Bugs, Requesting Features, or Contributing to Terramate
 
