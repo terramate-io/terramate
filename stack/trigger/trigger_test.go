@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -126,6 +127,10 @@ func testTrigger(t *testing.T, tc testcase) {
 		t.Fatalf("want 1 trigger file, got %d: %+v", len(entries), entries)
 	}
 
+	filename := entries[0].Name()
+	if !strings.HasPrefix(filename, string(tc.kind)) {
+		t.Fatalf("wrong trigger filename: %s (it must have a %q prefix)", filename, tc.kind)
+	}
 	triggerFile := filepath.Join(triggerDir, entries[0].Name())
 	triggerInfo, err := trigger.ParseFile(triggerFile)
 

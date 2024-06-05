@@ -223,12 +223,12 @@ func Dir(rootdir string) string {
 	return filepath.Join(rootdir, triggersDir)
 }
 
-func triggerFilename() (string, error) {
+func triggerFilename(kind Kind) (string, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return "", errors.E(err, "creating trigger UUID")
 	}
-	return fmt.Sprintf("changed-%s.tm.hcl", id.String()), nil
+	return fmt.Sprintf("%s-%s.tm.hcl", kind, id.String()), nil
 }
 
 // Create creates a trigger for a stack with the given path and the given reason
@@ -238,7 +238,7 @@ func Create(root *config.Root, path project.Path, kind Kind, reason string) erro
 	if !ok || !tree.IsStack() {
 		return errors.E(ErrTrigger, "path %s is not a stack directory", path)
 	}
-	filename, err := triggerFilename()
+	filename, err := triggerFilename(kind)
 	if err != nil {
 		return errors.E(ErrTrigger, err)
 	}
