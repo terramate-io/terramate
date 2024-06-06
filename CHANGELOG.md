@@ -36,6 +36,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `script.lets` block for declaring variables that are local to the script.
 - Add `--ignore-change` flag to `terramate experimental trigger`, which makes the change detection ignore the given stacks.
   - It inverts the default trigger behavior.
+- Add `--recursive` flag to `terramate experimental trigger` for triggering all child stacks of given path.
 
 ### Fixed
 
