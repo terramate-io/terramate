@@ -287,8 +287,7 @@ func (tm CLI) ListChangedStacks(args ...string) RunResult {
 	return tm.ListStacks(append([]string{"--changed"}, args...)...)
 }
 
-// TriggerStack is a helper for executing `terramate experimental trigger`.
-func (tm CLI) TriggerStack(kind trigger.Kind, stack string) RunResult {
+func triggerKindFlag(kind trigger.Kind) string {
 	var kindFlag string
 	switch kind {
 	case trigger.Changed:
@@ -298,8 +297,25 @@ func (tm CLI) TriggerStack(kind trigger.Kind, stack string) RunResult {
 	default:
 		panic(fmt.Sprintf("unsupported trigger kind: %s", kind))
 	}
+	return kindFlag
+}
 
+// TriggerStack is a helper for executing `terramate experimental trigger`.
+func (tm CLI) TriggerStack(kind trigger.Kind, stack string) RunResult {
+	kindFlag := triggerKindFlag(kind)
 	return tm.Run([]string{"experimental", "trigger", kindFlag, stack}...)
+}
+
+// TriggerRecursively is a helper for executing `terramate experimental trigger --recursively`.
+func (tm CLI) TriggerRecursively(kind trigger.Kind, base string) RunResult {
+	return tm.Trigger(triggerKindFlag(kind), "--recursive", base)
+}
+
+// Trigger is a helper for executing `terramate experimental trigger ...`.
+func (tm CLI) Trigger(flags ...string) RunResult {
+	args := []string{"experimental", "trigger"}
+	args = append(args, flags...)
+	return tm.Run(args...)
 }
 
 // AssertRun asserts that the provided run result is successfully and with no output.

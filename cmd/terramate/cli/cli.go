@@ -245,6 +245,7 @@ type cliSpec struct {
 
 		Trigger struct {
 			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
+			Recursive          bool   `default:"false" help:"Recursively triggers all child stacks of the given path"`
 			Change             bool   `default:"false" help:"Trigger stacks as changed"`
 			IgnoreChange       bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
 			Reason             string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
@@ -956,6 +957,9 @@ func (c *cli) triggerStackByFilter() {
 	}
 
 	status := parseStatusFilter(statusStr)
+	if status != cloudstack.NoFilter && c.parsedArgs.Experimental.Trigger.Recursive {
+		fatal("cloud filters such as --status are incompatible with --recursive flag")
+	}
 	stacksReport, err := c.listStacks(false, "", status)
 	if err != nil {
 		fatalWithDetails(err, "unable to list stacks")
@@ -966,7 +970,7 @@ func (c *cli) triggerStackByFilter() {
 	}
 }
 
-func (c *cli) triggerStack(stack string) {
+func (c *cli) triggerStack(basePath string) {
 	changeFlag := c.parsedArgs.Experimental.Trigger.Change
 	ignoreFlag := c.parsedArgs.Experimental.Trigger.IgnoreChange
 
@@ -988,34 +992,56 @@ func (c *cli) triggerStack(stack string) {
 	if reason == "" {
 		reason = "Created using Terramate CLI without setting specific reason."
 	}
-
-	if !path.IsAbs(stack) {
-		stack = filepath.Join(c.wd(), filepath.FromSlash(stack))
+	if !path.IsAbs(basePath) {
+		basePath = filepath.Join(c.wd(), filepath.FromSlash(basePath))
 	} else {
-		stack = filepath.Join(c.rootdir(), filepath.FromSlash(stack))
+		basePath = filepath.Join(c.rootdir(), filepath.FromSlash(basePath))
 	}
-
-	stack = filepath.Clean(stack)
-	_, err := os.Lstat(stack)
+	basePath = filepath.Clean(basePath)
+	_, err := os.Lstat(basePath)
 	if errors.Is(err, os.ErrNotExist) {
-		fatalWithDetails(err, "stack not found")
+		fatalWithDetails(err, "path not found")
 	}
-	tmp, err := filepath.EvalSymlinks(stack)
+	tmp, err := filepath.EvalSymlinks(basePath)
 	if err != nil {
 		fatalWithDetails(err, "failed to evaluate stack path symlinks")
 	}
-	if tmp != stack {
-		fatal(stdfmt.Sprintf("symlinks are disallowed in the stack path: %s links to %s", stack, tmp))
+	if tmp != basePath {
+		fatal(stdfmt.Sprintf("symlinks are disallowed in the path: %s links to %s", basePath, tmp))
 	}
-	if !strings.HasPrefix(stack, c.rootdir()) {
-		fatalf("stack %s is outside project", stack)
+	if !strings.HasPrefix(basePath, c.rootdir()) {
+		fatalf("path %s is outside project", basePath)
 	}
-	stackPath := prj.PrjAbsPath(c.rootdir(), stack)
-	if err := trigger.Create(c.cfg(), stackPath, kind, reason); err != nil {
-		fatalWithDetails(err, "unable to create trigger")
+	prjBasePath := prj.PrjAbsPath(c.rootdir(), basePath)
+	if c.parsedArgs.Experimental.Trigger.Status != "" && c.parsedArgs.Experimental.Trigger.Recursive {
+		fatal("cloud filters such as --status are incompatible with --recursive flag")
 	}
-
-	c.output.MsgStdOut("Created trigger for stack %q", stackPath)
+	var stacks config.List[*config.SortableStack]
+	if !c.parsedArgs.Experimental.Trigger.Recursive {
+		st, found, err := config.TryLoadStack(c.cfg(), prjBasePath)
+		if err != nil {
+			fatalWithDetails(err, "loading stack in current directory")
+		}
+		if !found {
+			fatal("path is not a stack and --recursive is not provided")
+		}
+		stacks = append(stacks, st.Sortable())
+	} else {
+		var err error
+		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloudstack.NoFilter)
+		if err != nil {
+			fatalWithDetails(err, "computing selected stacks")
+		}
+		for _, entry := range c.filterStacksByBasePath(prjBasePath, stacksReport.Stacks) {
+			stacks = append(stacks, entry.Stack.Sortable())
+		}
+	}
+	for _, st := range stacks {
+		if err := trigger.Create(c.cfg(), st.Dir(), kind, reason); err != nil {
+			fatalWithDetails(err, "unable to create trigger")
+		}
+		c.output.MsgStdOut("Created trigger for stack %q", st.Dir())
+	}
 }
 
 func (c *cli) cloneStack() {
@@ -2322,10 +2348,10 @@ func (c *cli) filterStacks(stacks []stack.Entry) []stack.Entry {
 	return c.filterStacksByTags(c.filterStacksByWorkingDir(stacks))
 }
 
-func (c *cli) filterStacksByWorkingDir(stacks []stack.Entry) []stack.Entry {
-	relwd := prj.PrjAbsPath(c.rootdir(), c.wd()).String()
-	if relwd != "/" {
-		relwd += "/"
+func (c *cli) filterStacksByBasePath(basePath prj.Path, stacks []stack.Entry) []stack.Entry {
+	baseStr := basePath.String()
+	if baseStr != "/" {
+		baseStr += "/"
 	}
 	filtered := []stack.Entry{}
 	for _, e := range stacks {
@@ -2333,13 +2359,15 @@ func (c *cli) filterStacksByWorkingDir(stacks []stack.Entry) []stack.Entry {
 		if stackdir != "/" {
 			stackdir += "/"
 		}
-
-		if strings.HasPrefix(stackdir, relwd) {
+		if strings.HasPrefix(stackdir, baseStr) {
 			filtered = append(filtered, e)
 		}
 	}
-
 	return filtered
+}
+
+func (c *cli) filterStacksByWorkingDir(stacks []stack.Entry) []stack.Entry {
+	return c.filterStacksByBasePath(prj.PrjAbsPath(c.rootdir(), c.wd()), stacks)
 }
 
 func (c *cli) filterStacksByTags(entries []stack.Entry) []stack.Entry {

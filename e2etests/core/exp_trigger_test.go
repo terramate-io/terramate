@@ -6,6 +6,7 @@ package core_test
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"testing"
 
@@ -37,12 +38,73 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
 
+func TestTriggerWorksRecursivelyFromRelativeStackPath(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.CreateStack("dir/stacks/stack1")
+	s.CreateStack("dir/stacks/stack2")
+	s.CreateStack("other-stack")
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+	AssertRunResult(t, cli.Trigger("--recursive", "--status=ok"), RunExpected{
+		Status:      1,
+		StderrRegex: regexp.QuoteMeta("cloud filters such as --status are incompatible with --recursive flag"),
+	})
+
+	AssertRunResult(t, cli.Trigger("--recursive", "--status=ok", "stacks"), RunExpected{
+		Status:      1,
+		StderrRegex: regexp.QuoteMeta("cloud filters such as --status are incompatible with --recursive flag"),
+	})
+
+	AssertRunResult(t, cli.Trigger("--changed", "stacks"), RunExpected{
+		Status:      1,
+		StderrRegex: regexp.QuoteMeta("path is not a stack and --recursive is not provided"),
+	})
+
+	AssertRunResult(t, cli.TriggerRecursively(trigger.Changed, "stacks"), RunExpected{
+		IgnoreStdout: true,
+	})
+
+	git.CommitAll("commit the trigger file")
+	want := RunExpected{Stdout: nljoin("stacks/stack1", "stacks/stack2")}
+	AssertRunResult(t, cli.ListChangedStacks(), want)
+}
+
+func TestTriggerRecursivelyFromParentStackPath(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.CreateStack("dir/stacks/stack1")
+	s.CreateStack("dir/stacks/stack2")
+	s.CreateStack("dir/stacks/stack1/stacka")
+	s.CreateStack("other-stack")
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+	AssertRunResult(t, cli.TriggerRecursively(trigger.Changed, "stacks/stack1"), RunExpected{
+		IgnoreStdout: true,
+	})
+
+	git.CommitAll("commit the trigger file")
+	want := RunExpected{Stdout: nljoin("stacks/stack1", "stacks/stack1/stacka")}
+	AssertRunResult(t, cli.ListChangedStacks(), want)
+}
+
 func TestTriggerCorrectErrorWhenStackDoesNotExists(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)
 	cli := NewCLI(t, s.RootDir())
 	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "non-existent"), RunExpected{
-		StderrRegex: "Error: stack not found",
+		StderrRegex: "Error: path not found",
 		Status:      1,
 	})
 }
