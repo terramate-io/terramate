@@ -516,12 +516,16 @@ func (c *cli) cloudDriftShow() {
 		}
 	})
 
+	if target == "" {
+		target = "default"
+	}
+
 	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), target, st.ID)
 	if err != nil {
 		fatalWithDetails(err, "unable to fetch stack")
 	}
 	if !found {
-		if target != "" {
+		if target != "default" {
 			fatalf("Stack %s was not yet synced for target %s with the Terramate Cloud.", st.Dir.String(), target)
 		} else {
 			fatalf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String())
