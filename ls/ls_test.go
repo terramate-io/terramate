@@ -15,6 +15,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	stackpkg "github.com/terramate-io/terramate/stack"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	lstest "github.com/terramate-io/terramate/test/ls"
 	"go.lsp.dev/jsonrpc2"
 	lsp "go.lsp.dev/protocol"
@@ -43,6 +44,36 @@ func TestDocumentOpen(t *testing.T) {
 	assert.EqualInts(t, 0, len(params.Diagnostics))
 	assert.EqualStrings(t, filepath.Join(stack.Path(), stackpkg.DefaultFilename),
 		params.URI.Filename())
+}
+
+func TestDocumentOpenWithExperimentsConfig(t *testing.T) {
+	t.Parallel()
+	f := lstest.SetupNoRootConfig(t)
+	f.Sandbox.BuildTree([]string{
+		"f:dir/script.tm:" + Doc(
+			Script(
+				Labels("test"),
+				Block("job",
+					Expr("command", `["echo", "ok"]`),
+				),
+			),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Block("config",
+				Expr("experiments", `["scripts"]`),
+			),
+		).String(),
+	})
+	f.Editor.CheckInitialize(f.Sandbox.RootDir())
+	f.Editor.Open("dir/script.tm")
+	r := <-f.Editor.Requests
+	assert.EqualStrings(t, "textDocument/publishDiagnostics", r.Method(),
+		"unexpected notification request")
+
+	var params lsp.PublishDiagnosticsParams
+	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
+	assert.EqualInts(t, 0, len(params.Diagnostics))
+	assert.EqualStrings(t, filepath.Join(f.Sandbox.RootDir(), "dir/script.tm"), params.URI.Filename())
 }
 
 func TestDocumentOpenWithoutRootConfig(t *testing.T) {
