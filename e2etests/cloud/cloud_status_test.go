@@ -479,8 +479,10 @@ func TestCloudStatus(t *testing.T) {
 			if tc.enableTargets {
 				configBlk = Block("config",
 					Expr("experiments", `["scripts", "targets"]`),
-					Block("targets",
-						Expr("enabled", `true`),
+					Block("cloud",
+						Block("targets",
+							Expr("enabled", `true`),
+						),
 					),
 				)
 			} else {

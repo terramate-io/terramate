@@ -173,7 +173,7 @@ func (c *cli) runOnStacks() {
 		if isTargetSet && !isUsingCloudFeat {
 			fatal("--target must be used together with --sync-deployment, --sync-drift-status, --sync-preview, or --status")
 		} else if !isTargetSet && isUsingCloudFeat {
-			fatal("--sync-*/--status flags require --target when terramate.config.targets.enabled is true")
+			fatal("--sync-*/--status flags require --target when terramate.config.cloud.targets.enabled is true")
 		}
 	})
 
@@ -735,14 +735,16 @@ func (c *cli) checkTargetsConfiguration(targetArg, fromTargetArg string, cloudCh
 	if isTargetSet {
 		if !isTargetsEnabled {
 			printer.Stderr.Error(`The "targets" feature is not enabled`)
-			printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute and set terramate.config.targets.enabled to true.`)
+			printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute and set terramate.config.cloud.targets.enabled to true.`)
 			printer.Stderr.Println(`Example:
 	
 terramate {
   config {
     experiments = ["targets"]
-    targets {
-      enabled = true
+    cloud {
+      targets {
+        enabled = true
+      }
     }
   }
 }`)

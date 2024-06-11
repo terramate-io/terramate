@@ -178,6 +178,8 @@ type GenerateRootConfig struct {
 type CloudConfig struct {
 	// Organization is the name of the cloud organization
 	Organization string
+
+	Targets *TargetsConfig
 }
 
 // TargetsConfig represents Terramate targets configuration.
@@ -193,7 +195,6 @@ type RootConfig struct {
 	Run               *RunConfig
 	Cloud             *CloudConfig
 	Experiments       []string
-	Targets           *TargetsConfig
 	DisableSafeguards safeguard.Keywords
 }
 
@@ -1720,13 +1721,6 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		errs.Append(parseChangeDetectionConfig(cfg.ChangeDetection, changeDetectionBlock))
 	}
 
-	targetsBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("targets")]
-	if ok {
-		cfg.Targets = &TargetsConfig{}
-
-		errs.Append(parseTargetsConfig(cfg.Targets, targetsBlock))
-	}
-
 	return errs.AsError()
 }
 
@@ -2007,8 +2001,6 @@ func checkSafeguardConfigConflict(cfg *RootConfig, attr ast.Attribute) error {
 func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
 	errs := errors.L()
 
-	errs.AppendWrap(ErrTerramateSchema, cloudBlock.ValidateSubBlocks())
-
 	for _, attr := range cloudBlock.Attributes.SortedList() {
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
@@ -2039,6 +2031,16 @@ func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
 			))
 		}
 	}
+
+	errs.AppendWrap(ErrTerramateSchema, cloudBlock.ValidateSubBlocks("targets"))
+
+	targetsBlock, ok := cloudBlock.Blocks[ast.NewEmptyLabelBlockType("targets")]
+	if ok {
+		cloud.Targets = &TargetsConfig{}
+
+		errs.Append(parseTargetsConfig(cloud.Targets, targetsBlock))
+	}
+
 	return errs.AsError()
 }
 
@@ -2051,7 +2053,7 @@ func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) e
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
-				"failed to evaluate terramate.config.targets.%s attribute", attr.Name,
+				"failed to evaluate terramate.config.cloud.targets.%s attribute", attr.Name,
 			))
 			continue
 		}
@@ -2060,7 +2062,7 @@ func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) e
 		case "enabled":
 			if value.Type() != cty.Bool {
 				errs.Append(attrErr(attr,
-					"terramate.config.targets.enabled is not a boolean but %q",
+					"terramate.config.cloud.targets.enabled is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
 
@@ -2072,7 +2074,7 @@ func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) e
 		default:
 			errs.Append(errors.E(
 				attr.NameRange,
-				"unrecognized attribute terramate.config.targets.%s",
+				"unrecognized attribute terramate.config.cloud.targets.%s",
 				attr.Name,
 			))
 		}

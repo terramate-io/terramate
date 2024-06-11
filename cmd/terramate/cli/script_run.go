@@ -36,7 +36,7 @@ func (c *cli) runScript() {
 		if !isTargetSet {
 			// We don't check here if any script has any sync command options enabled.
 			// We assume yes and so --target must be set.
-			fatal("--target is required when terramate.config.targets.enabled is true")
+			fatal("--target is required when terramate.config.cloud.targets.enabled is true")
 		}
 	})
 
