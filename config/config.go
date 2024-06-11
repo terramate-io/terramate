@@ -637,12 +637,13 @@ func (root *Root) IsTerragruntChangeDetectionEnabled() bool {
 	}
 }
 
-// IsTargetsEnabled returns the configured `terramate.config.targets.enabled` option.
+// IsTargetsEnabled returns the configured `terramate.config.cloud.targets.enabled` option.
 func (root *Root) IsTargetsEnabled() bool {
 	if root.tree.Node.Terramate != nil &&
 		root.tree.Node.Terramate.Config != nil &&
-		root.tree.Node.Terramate.Config.Targets != nil {
-		return root.tree.Node.Terramate.Config.Targets.Enabled
+		root.tree.Node.Terramate.Config.Cloud != nil &&
+		root.tree.Node.Terramate.Config.Cloud.Targets != nil {
+		return root.tree.Node.Terramate.Config.Cloud.Targets.Enabled
 	}
 	return false
 }

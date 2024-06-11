@@ -332,8 +332,10 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				`f:cfg.tm.hcl:terramate {
 					config {
 						experiments = ["targets"]
-						targets {
-							enabled = true
+						cloud {
+							targets {
+								enabled = true
+							}
 						}
 					}
 				}`,

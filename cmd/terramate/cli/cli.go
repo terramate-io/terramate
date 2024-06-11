@@ -1693,7 +1693,7 @@ func (c *cli) printStacks() {
 		if isTargetSet && !isStatusSet {
 			fatalWithDetails(errors.E("--target must be used together with --status"), "Invalid args")
 		} else if !isTargetSet && isStatusSet {
-			fatalWithDetails(errors.E("--status requires --target when terramate.config.targets.enabled is true"), "Invalid args")
+			fatalWithDetails(errors.E("--status requires --target when terramate.config.cloud.targets.enabled is true"), "Invalid args")
 		}
 	})
 

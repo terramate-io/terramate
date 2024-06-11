@@ -512,7 +512,7 @@ func (c *cli) cloudDriftShow() {
 
 	c.checkTargetsConfiguration(target, "", func(isTargetSet bool) {
 		if !isTargetSet {
-			fatal("--target must be set when terramate.config.targets.enabled is true")
+			fatal("--target must be set when terramate.config.cloud.targets.enabled is true")
 		}
 	})
 
