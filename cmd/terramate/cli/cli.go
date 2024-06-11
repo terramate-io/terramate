@@ -1118,7 +1118,8 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
+	report := generate.Do(c.cfg(), cwd, c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 

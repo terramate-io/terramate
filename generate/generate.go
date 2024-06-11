@@ -178,17 +178,25 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // obtained and the report needs to be inspected to check.
 func Do(
 	root *config.Root,
+	dir project.Path,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
-	stackReport := doStackGeneration(root, vendorDir, vendorRequests)
-	rootReport := doRootGeneration(root)
+	tree, ok := root.Lookup(dir)
+	if !ok {
+		return Report{
+			BootstrapErr: errors.E("directory %s not found", dir),
+		}
+	}
+	stackReport := doStackGeneration(root, tree, vendorDir, vendorRequests)
+	rootReport := doRootGeneration(root, tree)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
 }
 
 func doStackGeneration(
 	root *config.Root,
+	tree *config.Tree,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
@@ -198,7 +206,7 @@ func doStackGeneration(
 
 	report := Report{}
 
-	for _, cfg := range root.Tree().Stacks() {
+	for _, cfg := range tree.Stacks() {
 		stack, err := cfg.Stack()
 		if err != nil {
 			report.BootstrapErr = err
@@ -315,7 +323,7 @@ func doStackGeneration(
 	return report
 }
 
-func doRootGeneration(root *config.Root) Report {
+func doRootGeneration(root *config.Root, tree *config.Tree) Report {
 	logger := log.With().
 		Str("action", "generate.doRootGeneration").
 		Logger()
@@ -325,7 +333,7 @@ func doRootGeneration(root *config.Root) Report {
 	evalctx.SetNamespace("terramate", root.Runtime())
 
 	var files []GenFile
-	for _, cfg := range root.Tree().AsList() {
+	for _, cfg := range tree.AsList() {
 		logger = logger.With().
 			Stringer("configDir", cfg.Dir()).
 			Bool("isEmpty", cfg.IsEmptyConfig()).
