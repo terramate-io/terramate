@@ -131,7 +131,13 @@ func NewRoot(tree *Tree) *Root {
 
 // LoadRoot loads the root configuration tree.
 func LoadRoot(rootdir string) (*Root, error) {
-	cfgtree, err := LoadTree(rootdir, rootdir)
+	rootcfg, err := hcl.ParseDir(rootdir, rootdir)
+	if err != nil {
+		return nil, err
+	}
+	root := NewTree(rootdir)
+	root.Node = rootcfg
+	cfgtree, err := loadTree(root, rootdir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +237,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	nextComponent := components[0]
 	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
 
-	node, err := LoadTree(rootdir, subtreeDir)
+	node, err := loadTree(root.Tree(), subtreeDir, nil)
 	if err != nil {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
@@ -280,18 +286,6 @@ func (root *Root) initRuntime() {
 		"stacks":  stacksNs,
 		"version": cty.StringVal(terramate.Version()),
 	}
-}
-
-// LoadTree loads the whole hierarchical configuration from cfgdir downwards
-// using rootdir as project root.
-func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
-	cfg, err := hcl.ParseDir(rootdir, rootdir)
-	if err != nil {
-		return nil, err
-	}
-	root := NewTree(rootdir)
-	root.Node = cfg
-	return loadTree(root, cfgdir, nil)
 }
 
 // HostDir is the node absolute directory in the host.
