@@ -120,6 +120,7 @@ type (
 	Drift struct {
 		ID          int64                     `json:"id"`
 		StackMetaID string                    `json:"stack_meta_id"`
+		StackTarget string                    `json:"stack_target"`
 		Status      drift.Status              `json:"status"`
 		Details     *cloud.ChangesetDetails   `json:"details"`
 		Metadata    *cloud.DeploymentMetadata `json:"metadata"`
@@ -251,11 +252,11 @@ outer:
 }
 
 // GetStackByMetaID returns the given stack.
-func (d *Data) GetStackByMetaID(org Org, id string) (Stack, int64, bool) {
+func (d *Data) GetStackByMetaID(org Org, id string, target string) (Stack, int64, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for i, st := range org.Stacks {
-		if st.Stack.MetaID == id {
+		if st.Stack.MetaID == id && target == st.Stack.Target {
 			return st, int64(i), true
 		}
 	}
@@ -293,7 +294,7 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int64, error) {
 	st.State.UpdatedAt = &t
 	st.State.SeenAt = &t
 
-	_, id, found := d.GetStackByMetaID(org, st.Stack.MetaID)
+	_, id, found := d.GetStackByMetaID(org, st.Stack.MetaID, st.Stack.Target)
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -535,7 +536,9 @@ func (d *Data) GetDeploymentEvents(orgID, deploymentID cloud.UUID) (map[string][
 	}
 	eventsPerStack := map[string][]deployment.Status{}
 	for stackID, events := range deploy.State.StackStatusEvents {
-		eventsPerStack[org.Stacks[stackID].MetaID] = events
+		metaid := org.Stacks[stackID].MetaID
+		target := org.Stacks[stackID].Target
+		eventsPerStack[target+"|"+metaid] = events
 	}
 	return eventsPerStack, nil
 }
@@ -544,6 +547,7 @@ func (d *Data) GetDeploymentEvents(orgID, deploymentID cloud.UUID) (map[string][
 func (d *Data) InsertDeploymentLogs(
 	orgID cloud.UUID,
 	stackMetaID string,
+	stackTarget string,
 	deploymentID cloud.UUID,
 	logs cloud.CommandLogs,
 ) error {
@@ -551,7 +555,7 @@ func (d *Data) InsertDeploymentLogs(
 	if !found {
 		return errors.E(ErrNotExists, "org uuid %s", orgID)
 	}
-	_, stackID, found := d.GetStackByMetaID(org, stackMetaID)
+	_, stackID, found := d.GetStackByMetaID(org, stackMetaID, stackTarget)
 	if !found {
 		return errors.E(ErrNotExists, "stack id %s", stackMetaID)
 	}
@@ -566,12 +570,12 @@ func (d *Data) InsertDeploymentLogs(
 }
 
 // GetDeploymentLogs returns the logs of the given deployment.
-func (d *Data) GetDeploymentLogs(orgID cloud.UUID, stackMetaID string, deploymentID cloud.UUID, fromLine int) (cloud.CommandLogs, error) {
+func (d *Data) GetDeploymentLogs(orgID cloud.UUID, stackMetaID string, stackTarget string, deploymentID cloud.UUID, fromLine int) (cloud.CommandLogs, error) {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return nil, errors.E(ErrNotExists, "org uuid %s", orgID)
 	}
-	_, stackID, found := d.GetStackByMetaID(org, stackMetaID)
+	_, stackID, found := d.GetStackByMetaID(org, stackMetaID, stackTarget)
 	if !found {
 		return nil, errors.E(ErrNotExists, "stack meta_id %s", stackMetaID)
 	}
