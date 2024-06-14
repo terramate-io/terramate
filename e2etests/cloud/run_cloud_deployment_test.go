@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -475,8 +476,11 @@ func assertRunEvents(t *testing.T, cloudData *cloudstore.Data, commitSHA string,
 	}
 
 	gotEvents := eventsResponse{}
-	for id, events := range cloudEvents {
-		st, _, found := cloudData.GetStackByMetaID(org, id)
+	for mangled, events := range cloudEvents {
+		parts := strings.Split(mangled, "|")
+		target := parts[0]
+		metaid := parts[1]
+		st, _, found := cloudData.GetStackByMetaID(org, metaid, target)
 		if !found {
 			t.Fatal("stack not found")
 		}
