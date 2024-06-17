@@ -63,7 +63,7 @@ For other installation methods, please see the [documentation](https://terramate
 
 The fastest way to get started with Terramate is our [getting started guide](https://terramate.io/docs/cli/getting-started/).
 
-## Why simply complex codebases?
+## Why simplify complex codebases?
 
 As Terraform and OpenTofu offer no standard pattern on how to organize code efficiently, projects quickly sprawl out of
 control. The consequences are ***code complexity***, ***long-running pipelines***, ***poor governance***,
