@@ -1,0 +1,26 @@
+name: Terramate Group
+
+on:
+    push:
+      branches:
+        - main
+        - v0.4.x
+    pull_request:
+  
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Save Terramate Run ID
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          mkdir -p ./.terramate
+          echo $PR_NUMBER > ./.terramate/PR_NUMBER
+          uuidgen | tr 'A-Z' 'a-z' > ./.terramate/RUN_ID
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terramate-group
+          path: ./.terramate
