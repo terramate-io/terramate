@@ -4,12 +4,6 @@
       <img alt="Terramate" src="https://raw.githubusercontent.com/terramate-io/brand/5a799813d429116741243b9b06a9f034a3991bf3/whitemode/stamp.svg" width="160px" align="center">
     </picture>
   <h1 align="center">Terramate</h1>
-  <p align="center">
-    <!-- ✨ <a href="https://terramate.io/docs/cli">https://terramate.io</a> ✨ -->
-    <!-- <br/> -->
-    <!-- Terramate CLI is an open-source Infrastructure as Code (IaC) orchestration tool that <strong>unifies</strong>,
-    <strong>simplifies</strong>, and <strong>scales</strong> all your infrastructure code, tools, and workflows. -->
-  </p>
 </p>
 <br/>
 
@@ -63,17 +57,17 @@ For other installation methods, please see the [documentation](https://terramate
 
 The fastest way to get started with Terramate is our [getting started guide](https://terramate.io/docs/cli/getting-started/).
 
-## Why simply complex codebases?
+## Why simplify complex codebases?
 
 As Terraform and OpenTofu offer no standard pattern on how to organize code efficiently, projects quickly sprawl out of
-control. The consequences are ***code complexity***, ***long-running pipelines***, ***poor governance***,
-***drifts***, and ***high blast radius***.
+control. The consequences are ***code complexity***, ***long-running pipelines***,
+***large blast radius***, ***drift***, and ***poor governance***.
 
 Terramate CLI enables a new approach to eliminating the root cause of these consequences: using a modular and efficient
 approach called Terramate Stacks. A stack is a combination of infrastructure code, state and configuration, which can be
 nested to split state further.
 
-Organisationally, a stack is a way to establish an ownership model. By consistently sizing stacks into isolated units
+Organizationally, a stack is a way to establish an ownership model. By consistently sizing stacks into isolated units
 that your team members can quickly understand, assuming ownership of your infra becomes a lot simpler.
 Terramate CLI supports Terraform, OpenTofu and Terragrunt, and can be run locally as well as in your existing VCS
 (Github, Gitlab) CI/CD.
