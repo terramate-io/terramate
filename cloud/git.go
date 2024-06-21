@@ -5,9 +5,8 @@ package cloud
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/cli/go-gh/v2/pkg/repository"
+	"os"
 )
 
 // NormalizeGitURI normalizes the raw uri in a Terramate Cloud
