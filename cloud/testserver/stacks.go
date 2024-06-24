@@ -50,13 +50,17 @@ func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
 // GetStacks is the GET /stacks handler.
 func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	orguuid := cloud.UUID(params.ByName("orguuid"))
-	filterStatusStr := r.FormValue("status")
 	repoStr := r.FormValue("repository")
 	targetStr := r.FormValue("target")
 	metaID := r.FormValue("meta_id")
 	perPageStr := r.FormValue("per_page")
 	pageStr := r.FormValue("page")
-	filterStatus := stack.NoFilter
+	stackStatusStr := r.FormValue("status")
+	deploymentStatusStr := r.FormValue("deployment_status")
+	driftStatusStr := r.FormValue("drift_status")
+	stackFilterStatus := stack.NoFilter
+	deploymentFilterStatus := deployment.NoFilter
+	driftFilterStatus := drift.NoFilter
 
 	org, found := store.GetOrg(orguuid)
 	if !found {
@@ -65,21 +69,58 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	if filterStatusStr != "" {
-		filterStatus = stack.NewStatusFilter(filterStatusStr)
-		if filterStatus.Is(stack.Unrecognized) {
+	if stackStatusStr != "" {
+		var err error
+		stackFilterStatus, err = stack.NewStatusFilter(stackStatusStr)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			writeErr(w, errors.E("invalid status: %s", filterStatusStr))
+			writeErr(w, errors.E("invalid status: %s", stackStatusStr))
+			return
+		}
+	}
+
+	if deploymentStatusStr != "" {
+		var err error
+		deploymentFilterStatus, err = deployment.NewStatusFilter(deploymentStatusStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E("invalid deployment status: %s", deploymentStatusStr))
+			return
+		}
+	}
+
+	if driftStatusStr != "" {
+		var err error
+		driftFilterStatus, err = drift.NewStatusFilter(driftStatusStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			writeErr(w, errors.E("invalid drift status: %s", driftStatusStr))
 			return
 		}
 	}
 
 	var andFilters []func(st cloudstore.Stack) bool
 
-	if filterStatus != stack.NoFilter {
+	if stackFilterStatus != stack.NoFilter {
 		andFilters = append(andFilters,
 			func(st cloudstore.Stack) bool {
-				return stack.FilterStatus(st.State.Status)&filterStatus != 0
+				return stack.FilterStatus(st.State.Status)&stackFilterStatus != 0
+			},
+		)
+	}
+
+	if deploymentFilterStatus != deployment.NoFilter {
+		andFilters = append(andFilters,
+			func(st cloudstore.Stack) bool {
+				return deployment.FilterStatus(st.State.DeploymentStatus)&deploymentFilterStatus != 0
+			},
+		)
+	}
+
+	if driftFilterStatus != drift.NoFilter {
+		andFilters = append(andFilters,
+			func(st cloudstore.Stack) bool {
+				return drift.FilterStatus(st.State.DriftStatus)&driftFilterStatus != 0
 			},
 		)
 	}

@@ -48,7 +48,7 @@ func TestCloudStatus(t *testing.T) {
 			flags:      []string{`--status=unhealthy`},
 			want: RunExpected{
 				Status:      1,
-				StderrRegex: "unhealthy status filter does not work with filesystem based remotes",
+				StderrRegex: "status filters does not work with filesystem based remotes",
 			},
 		},
 		{
@@ -70,6 +70,61 @@ func TestCloudStatus(t *testing.T) {
 			flags: []string{"--status=unhealthy"},
 		},
 		{
+			name: "invalid --deployment-status flag",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			flags: []string{"--deployment-status=unknown"},
+			want: RunExpected{
+				StderrRegex: `unrecognized deployment filter`,
+				Status:      1,
+			},
+		},
+		{
+			name: "unknown is a valid --drift-status flag",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{"--drift-status=unknown"},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "no cloud stacks, asking for unhealthy deployment stacks: return nothing",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			flags: []string{"--deployment-status=unhealthy"},
+		},
+		{
 			name: "1 cloud stack healthy, others absent, asking for unhealthy: return nothing",
 			layout: []string{
 				"s:s1:id=s1",
@@ -84,11 +139,32 @@ func TestCloudStatus(t *testing.T) {
 					State: cloudstore.StackState{
 						Status:           stack.OK,
 						DeploymentStatus: deployment.OK,
-						DriftStatus:      drift.OK,
+						DriftStatus:      drift.Failed,
 					},
 				},
 			},
 			flags: []string{`--status=unhealthy`},
+		},
+		{
+			name: "1 cloud stack healthy, others absent, asking for deployment unhealthy: return nothing",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Failed,
+					},
+				},
+			},
+			flags: []string{`--deployment-status=unhealthy`},
 		},
 		{
 			name: "1 cloud stack healthy, others absent, asking for ok: return ok",
@@ -110,6 +186,54 @@ func TestCloudStatus(t *testing.T) {
 				},
 			},
 			flags: []string{`--status=ok`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack healthy, others absent, asking for deployment ok: return ok",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--deployment-status=ok`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
+			name: "1 cloud stack healthy, others absent, asking for deployment healthy: return ok",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.OK,
+					},
+				},
+			},
+			flags: []string{`--deployment-status=healthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1"),
 			},
@@ -184,7 +308,7 @@ func TestCloudStatus(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 		},
 		{
-			name: "1 cloud stack drifted, other absent, asking for unhealthy: return drifted",
+			name: "1 cloud stack drifted, other absent, asking for unhealthy: return failed",
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s2:id=s2",
@@ -206,6 +330,27 @@ func TestCloudStatus(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin("s1"),
 			},
+		},
+		{
+			name: "1 cloud stack ok, other absent, asking for deployment=failed: return nothing",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--deployment-status=failed`},
 		},
 		{
 			name: "1 cloud stack failed, other absent, asking for failed: return failed",
@@ -328,6 +473,76 @@ func TestCloudStatus(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: RunExpected{
 				Stdout: nljoin("s1", "s2"),
+			},
+		},
+		{
+			name: "2 local stacks, combining --deployment-status and --drift-status flags",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--drift-status=drifted`, `--deployment-status=ok`},
+			want: RunExpected{
+				Stdout: nljoin("s2"),
+			},
+		},
+		{
+			name: "2 local stacks, combining --status, --deployment-status and --drift-status flags",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--status=ok`, `--drift-status=drifted`, `--deployment-status=ok`},
+			want: RunExpected{
+				Stdout: nljoin("s2"),
 			},
 		},
 		{
@@ -552,7 +767,6 @@ func TestCloudStatus(t *testing.T) {
 				args = append(args, "test")
 				result := cli.Run(args...)
 				want := tc.want
-				want.IgnoreStderr = true
 				AssertRunResult(t, result, want)
 			})
 		})
