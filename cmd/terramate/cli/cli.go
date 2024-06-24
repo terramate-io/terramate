@@ -978,14 +978,19 @@ func (c *cli) triggerStack(basePath string) {
 		fatal("flags --change and --ignore-change are conflicting")
 	}
 
-	var kind trigger.Kind
+	var (
+		kind     trigger.Kind
+		kindName string
+	)
 	switch {
 	case ignoreFlag:
 		kind = trigger.Ignored
+		kindName = "ignore"
 	case changeFlag:
 		fallthrough
 	default:
 		kind = trigger.Changed
+		kindName = "change"
 	}
 
 	reason := c.parsedArgs.Experimental.Trigger.Reason
@@ -1040,7 +1045,7 @@ func (c *cli) triggerStack(basePath string) {
 		if err := trigger.Create(c.cfg(), st.Dir(), kind, reason); err != nil {
 			fatalWithDetails(err, "unable to create trigger")
 		}
-		c.output.MsgStdOut("Created trigger for stack %q", st.Dir())
+		c.output.MsgStdOut("Created %s trigger for stack %q", kindName, st.Dir())
 	}
 }
 
@@ -1108,7 +1113,8 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
+	report := generate.Do(c.cfg(), cwd, c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 

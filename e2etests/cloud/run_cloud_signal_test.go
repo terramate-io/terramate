@@ -164,6 +164,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Failed,
 							Metadata: expectedMetadata,

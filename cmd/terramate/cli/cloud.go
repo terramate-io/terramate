@@ -510,18 +510,24 @@ func (c *cli) cloudDriftShow() {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	c.checkTargetsConfiguration(target, "", func(isTargetSet bool) {
-		if !isTargetSet {
+	isTargetConfigEnabled := false
+	c.checkTargetsConfiguration(target, "", func(isTargetEnabled bool) {
+		if !isTargetEnabled {
 			fatal("--target must be set when terramate.config.cloud.targets.enabled is true")
 		}
+		isTargetConfigEnabled = isTargetEnabled
 	})
+
+	if target == "" {
+		target = "default"
+	}
 
 	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), target, st.ID)
 	if err != nil {
 		fatalWithDetails(err, "unable to fetch stack")
 	}
 	if !found {
-		if target != "" {
+		if isTargetConfigEnabled {
 			fatalf("Stack %s was not yet synced for target %s with the Terramate Cloud.", st.Dir.String(), target)
 		} else {
 			fatalf("Stack %s was not yet synced with the Terramate Cloud.", st.Dir.String())

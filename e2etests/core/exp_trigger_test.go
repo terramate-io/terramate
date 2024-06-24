@@ -30,7 +30,7 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 	// execute terramate from `dir/` directory.
 	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
 	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "stacks/stack"), RunExpected{
-		IgnoreStdout: true,
+		StdoutRegex: "Created change trigger",
 	})
 
 	git.CommitAll("commit the trigger file")
@@ -67,7 +67,7 @@ func TestTriggerWorksRecursivelyFromRelativeStackPath(t *testing.T) {
 	})
 
 	AssertRunResult(t, cli.TriggerRecursively(trigger.Changed, "stacks"), RunExpected{
-		IgnoreStdout: true,
+		StdoutRegex: "Created change trigger",
 	})
 
 	git.CommitAll("commit the trigger file")
@@ -184,7 +184,7 @@ func TestTriggerListsStacksAsChangedWhenTriggeredForChange(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 
 	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack"), RunExpected{
-		IgnoreStdout: true,
+		StdoutRegex: "Created change trigger",
 	})
 
 	git.CommitAll("commit the trigger file")
@@ -252,7 +252,7 @@ func TestTriggerIgnoresDeletedTriggerForIgnore(t *testing.T) {
 	cli := NewCLI(t, s.RootDir())
 
 	AssertRunResult(t, cli.TriggerStack(trigger.Ignored, "/stack"), RunExpected{
-		IgnoreStdout: true,
+		StdoutRegex: "Created ignore trigger",
 	})
 
 	git := s.Git()
@@ -312,7 +312,7 @@ func TestTriggerDetectsChangedStacksWhenTriggeredForChange(t *testing.T) {
 	), RunExpected{Stdout: ""})
 
 	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "/stack-1"), RunExpected{
-		IgnoreStdout: true,
+		StdoutRegex: "Created change trigger",
 	})
 	git.CommitAll("commit the trigger file for stack-1")
 
@@ -376,7 +376,7 @@ func TestTriggerDoNotDetectsChangedStacksWhenTriggeredForIgnore(t *testing.T) {
 
 	// ignore the stack-1 stack
 	AssertRunResult(t, cli.TriggerStack(trigger.Ignored, "/stack-1"), RunExpected{
-		IgnoreStdout: true,
+		StdoutRegex: "Created ignore trigger",
 	})
 	git.CommitAll("commit the ignore trigger file for stack-1")
 

@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## v0.9.0
+
 ### Added
 
 - Add support for `[for ...]` and `{for ...}` expressions containing Terramate variables and functions inside the `generate_hcl.content` block.
@@ -37,6 +39,9 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `--ignore-change` flag to `terramate experimental trigger`, which makes the change detection ignore the given stacks.
   - It inverts the default trigger behavior.
 - Add `--recursive` flag to `terramate experimental trigger` for triggering all child stacks of given path.
+- Add support for generating files relative to working directory. Both examples below only generate files inside `some/dir`:
+  - `terramate -C some/dir generate`
+  - `cd some/dir && terramate generate`
 
 ### Fixed
 

@@ -190,7 +190,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1"),
@@ -219,7 +219,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--cloud-status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1"),
@@ -259,7 +259,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1"),
@@ -299,7 +299,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=ok`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s2"),
@@ -339,7 +339,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=ok`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s2"),
@@ -379,7 +379,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=failed`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1"),
@@ -419,7 +419,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=drifted`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1"),
@@ -488,7 +488,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1", "s2"),
@@ -529,7 +529,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1", "s2"),
@@ -582,7 +582,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("dir1/s1", "dir1/s1/s1a"),
@@ -635,7 +635,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			flags: []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
-					StdoutRegex: "Created trigger for stack",
+					StdoutRegex: "Created change trigger for stack",
 				},
 				list: RunExpected{
 					Stdout: nljoin("dir2/s2"),
