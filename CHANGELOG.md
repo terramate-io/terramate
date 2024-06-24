@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## v0.9.0
+
 ### Added
 
 - Add support for `[for ...]` and `{for ...}` expressions containing Terramate variables and functions inside the `generate_hcl.content` block.

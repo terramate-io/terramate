@@ -978,14 +978,19 @@ func (c *cli) triggerStack(basePath string) {
 		fatal("flags --change and --ignore-change are conflicting")
 	}
 
-	var kind trigger.Kind
+	var (
+		kind     trigger.Kind
+		kindName string
+	)
 	switch {
 	case ignoreFlag:
 		kind = trigger.Ignored
+		kindName = "ignore"
 	case changeFlag:
 		fallthrough
 	default:
 		kind = trigger.Changed
+		kindName = "change"
 	}
 
 	reason := c.parsedArgs.Experimental.Trigger.Reason
@@ -1040,7 +1045,7 @@ func (c *cli) triggerStack(basePath string) {
 		if err := trigger.Create(c.cfg(), st.Dir(), kind, reason); err != nil {
 			fatalWithDetails(err, "unable to create trigger")
 		}
-		c.output.MsgStdOut("Created trigger for stack %q", st.Dir())
+		c.output.MsgStdOut("Created %s trigger for stack %q", kindName, st.Dir())
 	}
 }
 

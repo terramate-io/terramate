@@ -95,7 +95,10 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	st, _, found := store.GetStackByMetaID(org, payload.Stack.MetaID)
+	if payload.Stack.Target == "" {
+		payload.Stack.Target = "default"
+	}
+	st, _, found := store.GetStackByMetaID(org, payload.Stack.MetaID, payload.Stack.Target)
 	if !found {
 		st = cloudstore.Stack{
 			Stack: payload.Stack,
@@ -104,6 +107,7 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	}
 	_, err = store.InsertDrift(cloud.UUID(orguuid), cloudstore.Drift{
 		StackMetaID: payload.Stack.MetaID,
+		StackTarget: payload.Stack.Target,
 		Metadata:    payload.Metadata,
 		Details:     payload.Details,
 		Status:      payload.Status,
@@ -146,10 +150,10 @@ func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p
 	}
 	res := cloud.DriftStackPayloadRequests{}
 	for _, drift := range org.Drifts {
-		st, _, ok := store.GetStackByMetaID(org, drift.StackMetaID)
+		st, _, ok := store.GetStackByMetaID(org, drift.StackMetaID, drift.StackTarget)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
-			writeString(w, fmt.Sprintf("stack not found %s", drift.StackMetaID))
+			writeString(w, fmt.Sprintf("stack not found %s:%s", drift.StackMetaID, drift.StackTarget))
 			return
 		}
 		res = append(res, cloud.DriftStackPayloadRequest{

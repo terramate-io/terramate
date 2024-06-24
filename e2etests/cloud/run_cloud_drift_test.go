@@ -100,6 +100,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
+								Target:        "default",
 							},
 							Status:   drift.Failed,
 							Metadata: expectedMetadata,
@@ -129,6 +130,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Failed,
 							Metadata: expectedMetadata,
@@ -159,6 +161,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Failed,
 							Metadata: expectedMetadata,
@@ -172,6 +175,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
+								Target:        "default",
 							},
 							Status:   drift.Failed,
 							Metadata: expectedMetadata,
@@ -204,6 +208,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Failed,
 							Metadata: expectedMetadata,
@@ -217,6 +222,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
+								Target:        "default",
 							},
 							Status:   drift.OK,
 							Metadata: expectedMetadata,
@@ -241,6 +247,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -265,6 +272,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -296,6 +304,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/parent/child",
 								MetaName:      "child",
 								MetaID:        "child",
+								Target:        "default",
 							},
 							Status:   drift.OK,
 							Metadata: expectedMetadata,
@@ -321,6 +330,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -334,6 +344,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -366,6 +377,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -399,6 +411,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -442,6 +455,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status: drift.Drifted,
 							Details: &cloud.ChangesetDetails{
@@ -463,6 +477,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
+								Target:        "default",
 							},
 							Status: drift.Drifted,
 							Details: &cloud.ChangesetDetails{
@@ -515,6 +530,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1",
 								MetaName:      "s1",
 								MetaID:        "s1",
+								Target:        "default",
 							},
 							Status: drift.Drifted,
 							Details: &cloud.ChangesetDetails{
@@ -536,6 +552,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/s1/s2",
 								MetaName:      "s2",
 								MetaID:        "s2",
+								Target:        "default",
 							},
 							Status: drift.Drifted,
 							Details: &cloud.ChangesetDetails{
@@ -578,6 +595,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Path:          "/stack",
 								MetaName:      "stack",
 								MetaID:        "stack",
+								Target:        "default",
 							},
 							Status:   drift.Drifted,
 							Metadata: expectedMetadata,
@@ -685,8 +703,6 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				}
 				if isParallel {
 					runflags = append(runflags, "-j", "5")
-					tc.want.run.IgnoreStdout = true
-					tc.want.run.IgnoreStderr = true
 				}
 				runflags = append(runflags, tc.runflags...)
 				if tc.target != "" {

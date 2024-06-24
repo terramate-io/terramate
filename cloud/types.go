@@ -493,7 +493,7 @@ func (d Drift) Validate() error {
 
 // Validate a list of drifts.
 func (ds Drifts) Validate() error {
-	return validateResourceList[Drift](ds...)
+	return validateResourceList(ds...)
 }
 
 // Validate the drift request payload.
