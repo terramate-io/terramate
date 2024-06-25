@@ -411,6 +411,22 @@ func TestFilterParserTags(t *testing.T) {
 			filters: []string{"valid:_invalid,validagain"},
 			err:     errors.E(tag.ErrInvalidTag),
 		},
+		{
+			filters: []string{"dont,crash,"},
+			want: TagClause{
+				Op: OR,
+				Children: []TagClause{
+					{
+						Op:  EQ,
+						Tag: "dont",
+					},
+					{
+						Op:  EQ,
+						Tag: "crash",
+					},
+				},
+			},
+		},
 	} {
 		t.Run(fmt.Sprintf("filters:%v", tc.filters), func(t *testing.T) {
 			got, hasClauses, err := parseInternalTagClauses(tc.filters...)
