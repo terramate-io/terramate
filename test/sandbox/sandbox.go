@@ -257,7 +257,7 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root, vendorDir, nil)
+	report := generate.Do(root, project.NewPath("/"), vendorDir, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}

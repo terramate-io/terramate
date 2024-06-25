@@ -162,6 +162,9 @@ func parseTagClause(filter string) (TagClause, error) {
 	}
 	orBranches := strings.Split(filter, orSymbol)
 	for _, orNode := range orBranches {
+		if len(orNode) == 0 {
+			continue
+		}
 		andNodes := strings.Split(orNode, andSymbol)
 		if len(andNodes) == 1 {
 			op := EQ
