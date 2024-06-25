@@ -70,8 +70,6 @@ const (
 	ErrCurrentHeadIsOutOfDate errors.Kind = "current HEAD is out-of-date with the remote base branch"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
-	// ErrRootCfgInvalidDir indicates that a root configuration was found outside root
-	ErrRootCfgInvalidDir errors.Kind = "root config found outside root dir"
 )
 
 const (
@@ -2518,57 +2516,48 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		wd: wd,
 	}
 
-	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
+	var gitdir string
+	gw, err := newGit(wd)
+	if err == nil {
+		gitdir, err = gw.Root()
+	}
+	if err == nil {
+		gitabs := gitdir
+		if !filepath.IsAbs(gitabs) {
+			gitabs = filepath.Join(wd, gitdir)
+		}
+
+		rootdir, err := filepath.EvalSymlinks(gitabs)
+		if err != nil {
+			return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
+		}
+
+		cfg, err := config.LoadRoot(rootdir)
+		if err != nil {
+			return project{}, false, err
+		}
+
+		gw = gw.With().WorkingDir(rootdir).Wrapper()
+
+		prj.isRepo = true
+		prj.root = *cfg
+		prj.rootdir = rootdir
+		prj.git.wrapper = gw
+
+		mgr := stack.NewGitAwareManager(&prj.root, gw)
+		prj.stackManager = mgr
+
+		return prj, true, nil
+	}
+
+	rootcfg, rootcfgpath, rootfound, err := config.TryLoadConfig(wd)
 	if err != nil {
 		return project{}, false, err
 	}
-
-	gw, err := newGit(wd)
-	if err == nil {
-		gitdir, err := gw.Root()
-		if err == nil {
-			gitabs := gitdir
-			if !filepath.IsAbs(gitabs) {
-				gitabs = filepath.Join(wd, gitdir)
-			}
-
-			rootdir, err := filepath.EvalSymlinks(gitabs)
-			if err != nil {
-				return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
-			}
-
-			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
-				log.Warn().
-					Str("rootConfig", rootCfgPath).
-					Str("projectRoot", rootdir).
-					Err(errors.E(ErrRootCfgInvalidDir)).
-					Msg("ignoring root config")
-			}
-
-			cfg, err := config.LoadRoot(rootdir)
-			if err != nil {
-				return project{}, false, err
-			}
-
-			gw = gw.With().WorkingDir(rootdir).Wrapper()
-
-			prj.isRepo = true
-			prj.root = *cfg
-			prj.rootdir = rootdir
-			prj.git.wrapper = gw
-
-			mgr := stack.NewGitAwareManager(&prj.root, gw)
-			prj.stackManager = mgr
-
-			return prj, true, nil
-		}
-	}
-
 	if !rootfound {
 		return project{}, false, nil
 	}
-
-	prj.rootdir = rootCfgPath
+	prj.rootdir = rootcfgpath
 	prj.root = *rootcfg
 	prj.stackManager = stack.NewManager(&prj.root)
 	return prj, true, nil

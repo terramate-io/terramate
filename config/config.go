@@ -430,12 +430,17 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		rootcfg = &parentTree.RootTree().Node
 	}
 
-	if cfgdir != parentTree.RootDir() {
+	rootdir := parentTree.RootDir()
+	if cfgdir != rootdir {
 		tree := NewTree(cfgdir)
 
-		cfg, err := hcl.ParseDir(parentTree.RootDir(), cfgdir, rootcfg.Experiments()...)
+		cfg, err := hcl.ParseDir(rootdir, cfgdir, rootcfg.Experiments()...)
 		if err != nil {
 			return nil, err
+		}
+
+		if cfg.IsRootConfig() {
+			printer.Stderr.Warnf("root config found outside root dir: %s", cfgdir)
 		}
 
 		tree.Node = cfg
