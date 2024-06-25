@@ -23,50 +23,38 @@ func TestDriftStatus(t *testing.T) {
 	errtest.Assert(t, s.Validate(), errors.E(drift.ErrInvalidStatus))
 
 	type testcase struct {
-		str string
-		err error
+		str  string
+		want drift.Status
 	}
 	for _, tc := range []testcase{
-		{str: "ok"},
-		{str: "unknown"},
-		{str: "failed"},
-		{str: "drifted"},
-		{
-			str: "okay",
-			err: errors.E(drift.ErrInvalidStatus),
-		},
-		{
-			str: "OK",
-			err: errors.E(drift.ErrInvalidStatus),
-		},
-		{
-			str: "Ok",
-			err: errors.E(drift.ErrInvalidStatus),
-		},
-		{
-			str: "Drifted",
-			err: errors.E(drift.ErrInvalidStatus),
-		},
-		{
-			str: "",
-			err: errors.E(drift.ErrInvalidStatus),
-		},
+		{str: "ok", want: drift.OK},
+		{str: "unknown", want: drift.Unknown},
+		{str: "failed", want: drift.Failed},
+		{str: "drifted", want: drift.Drifted},
+		{str: "okay", want: drift.Unrecognized},
+		{str: "OK", want: drift.Unrecognized},
+		{str: "Ok", want: drift.Unrecognized},
+		{str: "Drifted", want: drift.Unrecognized},
+		{str: "", want: drift.Unrecognized},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("drift status %s", tc.str), func(t *testing.T) {
 			t.Parallel()
-			s, err := drift.NewStatus(tc.str)
-			errtest.Assert(t, err, tc.err)
-			if err == nil {
-				assert.EqualStrings(t, s.String(), tc.str)
-				assert.NoError(t, s.Validate())
-				var s drift.Status
-				assert.NoError(t, s.UnmarshalJSON([]byte(strconv.Quote(tc.str))))
-				assert.NoError(t, s.Validate())
-				marshaled, err := s.MarshalJSON()
-				assert.NoError(t, err)
-				assert.EqualStrings(t, strconv.Quote(tc.str), string(marshaled))
+			got := drift.NewStatus(tc.str)
+			if got != tc.want {
+				t.Fatalf("unexpected status: %s != %s", tc.want, got)
 			}
+			if tc.want == drift.Unrecognized {
+				return
+			}
+			assert.EqualStrings(t, got.String(), tc.str)
+			assert.NoError(t, got.Validate())
+			var s drift.Status
+			assert.NoError(t, s.UnmarshalJSON([]byte(strconv.Quote(tc.str))))
+			assert.NoError(t, s.Validate())
+			marshaled, err := s.MarshalJSON()
+			assert.NoError(t, err)
+			assert.EqualStrings(t, strconv.Quote(tc.str), string(marshaled))
 		})
 	}
 }

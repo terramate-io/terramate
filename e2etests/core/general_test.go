@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -579,7 +578,7 @@ func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 	tmcli.LogLevel = "warn"
 	AssertRunResult(t, tmcli.ListStacks(), RunExpected{
 		Stdout:      "stack\n",
-		StderrRegex: string(cli.ErrRootCfgInvalidDir),
+		StderrRegex: "root config found outside root dir",
 	})
 }
 

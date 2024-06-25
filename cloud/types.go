@@ -317,6 +317,13 @@ type (
 		PerPage int64 `json:"per_page"`
 	}
 
+	// StatusFilters defines multiple statuses stack filters.
+	StatusFilters struct {
+		StackStatus      stack.FilterStatus
+		DeploymentStatus deployment.FilterStatus
+		DriftStatus      drift.FilterStatus
+	}
+
 	// UUID represents an UUID string.
 	UUID string
 )
@@ -697,4 +704,18 @@ func (c LogChannel) String() string {
 		return "stderr"
 	}
 	return "unknown"
+}
+
+// NoStatusFilters returns a StatusFilters with no filter.
+func NoStatusFilters() StatusFilters {
+	return StatusFilters{
+		StackStatus:      stack.NoFilter,
+		DeploymentStatus: deployment.NoFilter,
+		DriftStatus:      drift.NoFilter,
+	}
+}
+
+// HasFilter tells if StackFilter has any filter set.
+func (f StatusFilters) HasFilter() bool {
+	return f.StackStatus != stack.NoFilter || f.DeploymentStatus != deployment.NoFilter || f.DriftStatus != drift.NoFilter
 }

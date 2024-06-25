@@ -21,6 +21,8 @@ import (
 	hversion "github.com/apparentlymart/go-versions/versions"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/strconv"
@@ -134,15 +136,21 @@ func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizati
 
 // StacksByStatus returns all stacks for the given organization.
 // It paginates as needed and returns the total stacks response.
-func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository string, target string, status stack.FilterStatus) ([]StackObject, error) {
+func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository string, target string, stackFilters StatusFilters) ([]StackObject, error) {
 	path := path.Join(StacksPath, string(orgUUID))
 	query := url.Values{}
 	query.Set("repository", repository)
 	if target != "" {
 		query.Set("target", target)
 	}
-	if status != stack.NoFilter {
-		query.Set("status", status.String())
+	if stackFilters.StackStatus != stack.NoFilter {
+		query.Set("status", stackFilters.StackStatus.String())
+	}
+	if stackFilters.DeploymentStatus != deployment.NoFilter {
+		query.Set("deployment_status", stackFilters.DeploymentStatus.String())
+	}
+	if stackFilters.DriftStatus != drift.NoFilter {
+		query.Set("drift_status", stackFilters.DriftStatus.String())
 	}
 	query.Set("per_page", strconv.Itoa64(pageSize))
 	url := c.URL(path)
