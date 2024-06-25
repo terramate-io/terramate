@@ -23,43 +23,37 @@ func TestDeploymentStatus(t *testing.T) {
 	errtest.Assert(t, s.Validate(), errors.E(deployment.ErrInvalidStatus))
 
 	type testcase struct {
-		str string
-		err error
+		str  string
+		want deployment.Status
 	}
 	for _, tc := range []testcase{
-		{str: "pending"},
-		{str: "running"},
-		{str: "ok"},
-		{str: "failed"},
-		{str: "canceled"},
-		{
-			str: "okay",
-			err: errors.E(deployment.ErrInvalidStatus),
-		},
-		{
-			str: "OK",
-			err: errors.E(deployment.ErrInvalidStatus),
-		},
-		{
-			str: "Ok",
-			err: errors.E(deployment.ErrInvalidStatus),
-		},
+		{str: "pending", want: deployment.Pending},
+		{str: "running", want: deployment.Running},
+		{str: "ok", want: deployment.OK},
+		{str: "failed", want: deployment.Failed},
+		{str: "canceled", want: deployment.Canceled},
+		{str: "okay", want: deployment.Unrecognized},
+		{str: "OK", want: deployment.Unrecognized},
+		{str: "Ok", want: deployment.Unrecognized},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("deployment %s", tc.str), func(t *testing.T) {
 			t.Parallel()
-			s, err := deployment.NewStatus(tc.str)
-			errtest.Assert(t, err, tc.err)
-			if err == nil {
-				assert.EqualStrings(t, s.String(), tc.str)
-				assert.NoError(t, s.Validate())
-				var s deployment.Status
-				assert.NoError(t, s.UnmarshalJSON([]byte(strconv.Quote(tc.str))))
-				assert.NoError(t, s.Validate())
-				marshaled, err := s.MarshalJSON()
-				assert.NoError(t, err)
-				assert.EqualStrings(t, strconv.Quote(tc.str), string(marshaled))
+			got := deployment.NewStatus(tc.str)
+			if got != tc.want {
+				t.Fatalf("%s != %s", got, tc.want)
 			}
+			if tc.want == deployment.Unrecognized {
+				return
+			}
+			assert.EqualStrings(t, got.String(), tc.str)
+			assert.NoError(t, got.Validate())
+			var s deployment.Status
+			assert.NoError(t, s.UnmarshalJSON([]byte(strconv.Quote(tc.str))))
+			assert.NoError(t, s.Validate())
+			marshaled, err := s.MarshalJSON()
+			assert.NoError(t, err)
+			assert.EqualStrings(t, strconv.Quote(tc.str), string(marshaled))
 		})
 	}
 }

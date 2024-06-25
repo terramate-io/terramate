@@ -117,22 +117,17 @@ func (s Status) Is(filter FilterStatus) bool {
 }
 
 // NewStatusFilter creates a new filter for stack statuses.
-func NewStatusFilter(str string) FilterStatus {
+func NewStatusFilter(str string) (FilterStatus, error) {
 	if str == "unhealthy" {
-		return UnhealthyFilter
+		return UnhealthyFilter, nil
 	} else if str == "healthy" {
-		return HealthyFilter
+		return HealthyFilter, nil
 	}
-
-	return FilterStatus(NewStatus(str))
-}
-
-// Validate the status filter.
-func (f FilterStatus) Validate() error {
-	if f > UnhealthyFilter {
-		return errors.E(ErrInvalidFilterStatus)
+	s := NewStatus(str)
+	if s == Unrecognized {
+		return FilterStatus(0), errors.E("unrecognized status filter: %s", str)
 	}
-	return nil
+	return FilterStatus(s), nil
 }
 
 // Is tells if the filter matches the provided status.

@@ -19,6 +19,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/preview"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
@@ -139,17 +141,15 @@ type cliSpec struct {
 	} `cmd:"" help:"Format configuration files."`
 
 	List struct {
-		Why                bool   `help:"Shows the reason why the stack has changed."`
-		ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
-		CloudStatus        string `hidden:""`
-		Status             string `help:"Filter by Terramate Cloud status of the stack."`
-		Target             string `help:"Select the deployment target of the filtered stacks."`
-		RunOrder           bool   `default:"false" help:"Sort listed stacks by order of execution"`
+		Why bool `help:"Shows the reason why the stack has changed."`
+
+		cloudFilterFlags
+		Target   string `help:"Select the deployment target of the filtered stacks."`
+		RunOrder bool   `default:"false" help:"Sort listed stacks by order of execution"`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		CloudStatus          string `hidden:""`
-		Status               string `help:"Filter by Terramate Cloud status of the stack."`
+		cloudFilterFlags
 		Target               string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
 		FromTarget           string `help:"Migrate stacks from given deployment target."`
 		CloudSyncDeployment  bool   `hidden:""`
@@ -193,8 +193,7 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info for."`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			CloudStatus     string `hidden:""`
-			Status          string `help:"Filter by Terramate Cloud status of the stack."`
+			cloudFilterFlags
 			Target          string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
 			FromTarget      string `help:"Migrate stacks from given deployment target."`
 			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
@@ -242,14 +241,12 @@ type cliSpec struct {
 		} `cmd:"" help:"Clone a stack."`
 
 		Trigger struct {
-			Stack              string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
-			Recursive          bool   `default:"false" help:"Recursively triggers all child stacks of the given path"`
-			Change             bool   `default:"false" help:"Trigger stacks as changed"`
-			IgnoreChange       bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
-			Reason             string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
-			ExperimentalStatus string `hidden:"" help:"Filter by Terramate Cloud status of the stack. (deprecated)"`
-			CloudStatus        string `hidden:""`
-			Status             string `help:"Filter by Terramate Cloud status of the stack."`
+			Stack        string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
+			Recursive    bool   `default:"false" help:"Recursively triggers all child stacks of the given path"`
+			Change       bool   `default:"false" help:"Trigger stacks as changed"`
+			IgnoreChange bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
+			Reason       string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
+			cloudFilterFlags
 		} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 		RunGraph struct {
@@ -321,6 +318,14 @@ type safeguards struct {
 	DisableCheckGenerateOutdatedCheck bool
 
 	reEnabled bool
+}
+
+type cloudFilterFlags struct {
+	ExperimentalStatus string `hidden:"" help:"Filter by status (Deprecated)"`
+	CloudStatus        string `hidden:""`
+	Status             string `help:"Filter by Terramate Cloud status of the stack."`
+	DeploymentStatus   string `help:"Filter by Terramate Cloud deployment status of the stack"`
+	DriftStatus        string `help:"Filter by Terramate Cloud drift status of the stack"`
 }
 
 // Exec will execute terramate with the provided flags defined on args.
@@ -953,12 +958,14 @@ func (c *cli) triggerStackByFilter() {
 	if statusStr == "" {
 		fatal("trigger command expects either a stack path or the --status flag")
 	}
-
-	status := parseStatusFilter(statusStr)
-	if status != cloudstack.NoFilter && c.parsedArgs.Experimental.Trigger.Recursive {
+	statusFilter := parseStatusFilter(statusStr)
+	if statusFilter != cloudstack.NoFilter && c.parsedArgs.Experimental.Trigger.Recursive {
 		fatal("cloud filters such as --status are incompatible with --recursive flag")
 	}
-	stacksReport, err := c.listStacks(false, "", status)
+	stackFilter := cloud.StatusFilters{
+		StackStatus: statusFilter,
+	}
+	stacksReport, err := c.listStacks(false, "", stackFilter)
 	if err != nil {
 		fatalWithDetails(err, "unable to list stacks")
 	}
@@ -1031,7 +1038,7 @@ func (c *cli) triggerStack(basePath string) {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloudstack.NoFilter)
+		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 		if err != nil {
 			fatalWithDetails(err, "computing selected stacks")
 		}
@@ -1215,7 +1222,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 }
 
-func (c *cli) listStacks(isChanged bool, target string, status cloudstack.FilterStatus) (*stack.Report, error) {
+func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.StatusFilters) (*stack.Report, error) {
 	var (
 		err    error
 		report *stack.Report
@@ -1235,7 +1242,7 @@ func (c *cli) listStacks(isChanged bool, target string, status cloudstack.Filter
 		c.affectedStacks = report.Stacks
 	}
 
-	if status != cloudstack.NoFilter {
+	if stackFilters.HasFilter() {
 		err := c.setupCloudConfig([]string{cloudFeatStatus})
 		if err != nil {
 			return nil, err
@@ -1248,12 +1255,12 @@ func (c *cli) listStacks(isChanged bool, target string, status cloudstack.Filter
 
 		repository := cloud.NormalizeGitURI(repoURL)
 		if repository == "local" {
-			return nil, errors.E("%s status filter does not work with filesystem based remotes: %s", status.String(), repoURL)
+			return nil, errors.E("status filters does not work with filesystem based remotes")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, target, status)
+		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, target, stackFilters)
 		if err != nil {
 			return nil, err
 		}
@@ -1685,19 +1692,27 @@ func (c *cli) printStacks() {
 	if cloudStatus != "" {
 		statusStr = cloudStatus
 	}
-
+	deploymentStatusStr := c.parsedArgs.List.DeploymentStatus
+	driftStatusStr := c.parsedArgs.List.DriftStatus
 	c.checkTargetsConfiguration(c.parsedArgs.List.Target, "", func(isTargetSet bool) {
 		isStatusSet := statusStr != ""
+		isDeploymentStatusSet := deploymentStatusStr != ""
+		isDriftStatusSet := driftStatusStr != ""
 
-		if isTargetSet && !isStatusSet {
-			fatalWithDetails(errors.E("--target must be used together with --status"), "Invalid args")
-		} else if !isTargetSet && isStatusSet {
-			fatalWithDetails(errors.E("--status requires --target when terramate.config.cloud.targets.enabled is true"), "Invalid args")
+		if isTargetSet && (!isStatusSet && !isDeploymentStatusSet && !isDriftStatusSet) {
+			fatalWithDetails(errors.E("--target must be used together with --status or --deployment-status or --drift-status"), "Invalid args")
+		} else if !isTargetSet && (isStatusSet || isDeploymentStatusSet || isDriftStatusSet) {
+			fatalWithDetails(errors.E("--status, --deployment-status and --drift-status requires --target when terramate.config.cloud.targets.enabled is true"), "Invalid args")
 		}
 	})
 
-	status := parseStatusFilter(statusStr)
-	report, err := c.listStacks(c.parsedArgs.Changed, c.parsedArgs.List.Target, status)
+	cloudFilters := cloud.StatusFilters{
+		StackStatus:      parseStatusFilter(statusStr),
+		DeploymentStatus: parseDeploymentStatusFilter(deploymentStatusStr),
+		DriftStatus:      parseDriftStatusFilter(driftStatusStr),
+	}
+
+	report, err := c.listStacks(c.parsedArgs.Changed, c.parsedArgs.List.Target, cloudFilters)
 	if err != nil {
 		fatal(err)
 	}
@@ -1742,19 +1757,41 @@ func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) 
 	}
 }
 
-func parseStatusFilter(strStatus string) cloudstack.FilterStatus {
-	status := cloudstack.NoFilter
-	if strStatus != "" {
-		status = cloudstack.NewStatusFilter(strStatus)
-		if status.Is(cloudstack.Unrecognized) {
-			fatalf("unrecognized stack filter: %s", strStatus)
-		}
+func parseStatusFilter(filterStr string) cloudstack.FilterStatus {
+	if filterStr == "" {
+		return cloudstack.NoFilter
 	}
-	return status
+	filter, err := cloudstack.NewStatusFilter(filterStr)
+	if err != nil {
+		fatalWithDetails(err, "unrecognized stack filter")
+	}
+	return filter
+}
+
+func parseDeploymentStatusFilter(filterStr string) deployment.FilterStatus {
+	if filterStr == "" {
+		return deployment.NoFilter
+	}
+	filter, err := deployment.NewStatusFilter(filterStr)
+	if err != nil {
+		fatalWithDetails(err, "unrecognized deployment filter")
+	}
+	return filter
+}
+
+func parseDriftStatusFilter(filterStr string) drift.FilterStatus {
+	if filterStr == "" {
+		return drift.NoFilter
+	}
+	filter, err := drift.NewStatusFilter(filterStr)
+	if err != nil {
+		fatalWithDetails(err, "unrecognized drift filter")
+	}
+	return filter
 }
 
 func (c *cli) printRuntimeEnv() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetails(err, "listing stacks")
 	}
@@ -1904,7 +1941,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(false, "", cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetails(err, "computing selected stacks")
 	}
@@ -1941,7 +1978,7 @@ func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(false, "", cloudstack.NoFilter)
+	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetails(err, "generate debug: selecting stacks")
 	}
@@ -1985,7 +2022,7 @@ func (c *cli) generateDebug() {
 }
 
 func (c *cli) printStacksGlobals() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetails(err, "listing stacks globals: listing stacks")
 	}
@@ -2014,7 +2051,7 @@ func (c *cli) printMetadata() {
 		Str("action", "cli.printMetadata()").
 		Logger()
 
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloudstack.NoFilter)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetails(err, "loading metadata: listing stacks")
 	}
@@ -2073,7 +2110,7 @@ func (c *cli) checkGenCode() bool {
 }
 
 func (c *cli) ensureStackID() {
-	report, err := c.listStacks(false, cloudstack.AnyTarget, cloudstack.NoFilter)
+	report, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetails(err, "listing stacks")
 	}
@@ -2327,8 +2364,8 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool, target string, cloudStatus cloudstack.FilterStatus) (config.List[*config.SortableStack], error) {
-	report, err := c.listStacks(c.parsedArgs.Changed, target, cloudStatus)
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, target string, stackFilters cloud.StatusFilters) (config.List[*config.SortableStack], error) {
+	report, err := c.listStacks(c.parsedArgs.Changed, target, stackFilters)
 	if err != nil {
 		return nil, err
 	}

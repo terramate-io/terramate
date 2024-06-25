@@ -134,7 +134,14 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.Target, parseStatusFilter(c.parsedArgs.Run.Status))
+		stackFilter := parseStatusFilter(c.parsedArgs.Run.Status)
+		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Run.DeploymentStatus)
+		driftFilter := parseDriftStatusFilter(c.parsedArgs.Run.DriftStatus)
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.Target, cloud.StatusFilters{
+			StackStatus:      stackFilter,
+			DeploymentStatus: deploymentFilter,
+			DriftStatus:      driftFilter,
+		})
 		if err != nil {
 			fatalWithDetails(err, "computing selected stacks")
 		}

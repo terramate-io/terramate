@@ -101,7 +101,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			want: want{
 				trigger: RunExpected{
 					Status:      1,
-					StderrRegex: "unhealthy status filter does not work with filesystem based remotes",
+					StderrRegex: "status filters does not work with filesystem based remotes",
 				},
 			},
 		},
