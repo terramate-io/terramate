@@ -852,6 +852,11 @@ func NewConfig(dir string) (Config, error) {
 	}, nil
 }
 
+// IsRootConfig tells if the Config is a root configuration.
+func (c Config) IsRootConfig() bool {
+	return c.Terramate != nil && c.Terramate.RequiredVersion != ""
+}
+
 // HasRunEnv returns true if the config has a terramate.config.run.env block defined
 func (c Config) HasRunEnv() bool {
 	return c.Terramate != nil &&
