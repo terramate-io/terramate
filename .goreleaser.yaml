@@ -75,7 +75,6 @@ signs:
           "${artifact}",
         ]
 
-
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
