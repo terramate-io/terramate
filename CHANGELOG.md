@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix crash when supplying a tag list with a trailing comma separator.
+
 ## v0.9.0
 
 ### Added
