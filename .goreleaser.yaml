@@ -63,6 +63,18 @@ dockers:
 checksum:
   name_template: 'checksums.txt'
 
+signs:
+  - artifacts: all
+    args:
+        [
+          "-u",
+          "github@terramate.io",
+          "--output",
+          "${signature}",
+          "--detach-sign",
+          "${artifact}",
+        ]
+
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
