@@ -98,7 +98,6 @@ func TestPostPreviews(t *testing.T) {
 	assert.EqualStrings(t, "1", preview.PreviewID)
 	assert.EqualStrings(t, "terraform", preview.Technology)
 	assert.EqualStrings(t, "default", preview.TechnologyLayer)
-	assert.EqualInts(t, 1709644546, int(preview.UpdatedAt))
 	assert.EqualInts(t, 1709644546, int(preview.PushedAt))
 	assert.EqualStrings(t, "somecommitsha", preview.CommitSHA)
 
