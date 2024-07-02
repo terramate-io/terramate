@@ -54,7 +54,6 @@ type (
 	Preview struct {
 		PreviewID string `json:"preview_id"`
 
-		UpdatedAt       int64                     `json:"updated_at"`
 		PushedAt        int64                     `json:"pushed_at"`
 		CommitSHA       string                    `json:"commit_sha"`
 		Technology      string                    `json:"technology"`
@@ -340,7 +339,7 @@ func (d *Data) UpsertPreview(orguuid cloud.UUID, p Preview) (string, error) {
 		}
 	}
 
-	_, id, found := d.getPreview(org, p.ReviewRequest.Number, p.UpdatedAt)
+	_, id, found := d.getPreview(org, p.ReviewRequest.Number, p.PushedAt)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -667,11 +666,11 @@ func (d *Data) getReviewRequest(org Org, rrNumber int) (int64, bool) {
 	return 0, false
 }
 
-func (d *Data) getPreview(org Org, rrNumber int, updatedAt int64) (Preview, int64, bool) {
+func (d *Data) getPreview(org Org, rrNumber int, pushedAt int64) (Preview, int64, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for i, p := range org.Previews {
-		if org.Previews[i].ReviewRequest.Number == rrNumber && org.Previews[i].UpdatedAt == updatedAt {
+		if org.Previews[i].ReviewRequest.Number == rrNumber && org.Previews[i].PushedAt == pushedAt {
 			return p, int64(i), true
 		}
 	}

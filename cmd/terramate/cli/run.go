@@ -608,7 +608,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 	}
 
 	pullRequest := c.cloud.run.prFromGHAEvent
-	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() || c.cloud.run.reviewRequest == nil {
+	if pullRequest == nil || pullRequest.GetHead().GetRepo().GetPushedAt().IsZero() || c.cloud.run.reviewRequest == nil {
 		printer.Stderr.WarnWithDetails(
 			"unable to create preview: missing pull request information",
 			errors.E("--sync-preview can only be used when GITHUB_TOKEN is exported and Terramate runs in a GitHub Action workflow triggered by a pull request event"),
@@ -636,7 +636,6 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
-			UpdatedAt:       pullRequest.GetUpdatedAt().Unix(),
 			PushedAt:        pullRequest.GetHead().GetRepo().GetPushedAt().Unix(),
 			CommitSHA:       pullRequest.GetHead().GetSHA(),
 			Technology:      technology,

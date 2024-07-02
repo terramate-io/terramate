@@ -114,9 +114,6 @@ func (r CreatePreviewPayloadRequest) Validate() error {
 	if r.TechnologyLayer == "" {
 		errs.Append(errors.E(`missing "technology_layer" field`))
 	}
-	if r.UpdatedAt == 0 {
-		errs.Append(errors.E(`missing "updated_at" field`))
-	}
 	if r.PushedAt == 0 {
 		errs.Append(errors.E(`missing "pushed_at" field`))
 	}

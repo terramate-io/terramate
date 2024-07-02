@@ -120,7 +120,6 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
 					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
@@ -199,7 +198,6 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
 					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
@@ -275,7 +273,6 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
 					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
