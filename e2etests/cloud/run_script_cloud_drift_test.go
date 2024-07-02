@@ -36,6 +36,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 		want          want
 	}
 
+	makeSerial := func(serial int64) *int64 {
+		return &serial
+	}
+
 	absPlanFilePath := test.WriteFile(t, test.TempDir(t), "out.tfplan", ``)
 	absPlanFilePathAsHCL := fmt.Sprintf(`${tm_chomp(<<-EOF
 		%s
@@ -398,6 +402,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 							Details: &cloud.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								Serial:        makeSerial(0),
 							},
 							Metadata: expectedMetadata,
 						},
@@ -420,6 +425,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 							Details: &cloud.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								Serial:        makeSerial(0),
 							},
 							Metadata: expectedMetadata,
 						},

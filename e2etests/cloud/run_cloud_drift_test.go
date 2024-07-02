@@ -461,6 +461,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Details: &cloud.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								Serial:        makeSerial(0),
 							},
 							Metadata: expectedMetadata,
 						},
@@ -483,6 +484,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Details: &cloud.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								Serial:        makeSerial(0),
 							},
 							Metadata: expectedMetadata,
 						},
@@ -536,6 +538,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Details: &cloud.ChangesetDetails{
 								Provisioner:   "opentofu",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								Serial:        makeSerial(0),
 							},
 							Metadata: expectedMetadata,
 						},
@@ -558,6 +561,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 							Details: &cloud.ChangesetDetails{
 								Provisioner:   "opentofu",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+								Serial:        makeSerial(0),
 							},
 							Metadata: expectedMetadata,
 						},
@@ -758,6 +762,70 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	}
 }
 
+func TestSyncPlanSerial(t *testing.T) {
+	layout := []string{
+		"s:s1:id=s1",
+		"copy:s1:testdata/cloud-sync-drift-plan-file",
+		"run:s1:terraform init",
+		"run:s1:terraform apply -auto-approve",
+	}
+
+	t.Parallel()
+
+	cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+	assert.NoError(t, err)
+	addr := startFakeTMCServer(t, cloudData)
+
+	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
+		LocalBranchName:         "main",
+		DefaultRemoteName:       "origin",
+		DefaultRemoteBranchName: "main",
+	})
+
+	env := RemoveEnv(os.Environ(), "CI")
+	env = append(env, `TF_VAR_content=my secret`)
+	env = append(env, "TMC_API_URL=http://"+addr)
+
+	s.Env, _ = test.PrependToPath(env, filepath.Dir(TerraformTestPath))
+
+	s.BuildTree(layout)
+	s.Git().CommitAll("all stacks committed")
+
+	cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash("")), env...)
+	cli.PrependToPath(filepath.Dir(TerraformTestPath))
+	s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+	runflags := []string{
+		"run",
+		"--disable-safeguards=git-out-of-sync",
+		"--quiet",
+		"--sync-drift-status",
+		`--terraform-plan-file=out.tfplan`,
+	}
+	cmd := []string{
+		"terraform", "plan", "-no-color", "-detailed-exitcode", "-out=out.tfplan",
+	}
+	runflags = append(runflags, "--")
+	runflags = append(runflags, cmd...)
+
+	result := cli.Run(runflags...)
+	AssertRunResult(t, result, RunExpected{
+		IgnoreStdout: true,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	client := &cloud.Client{
+		BaseURL:    "http://" + addr,
+		Credential: &credential{},
+	}
+	res, err := cloud.Request[cloud.DriftStackPayloadRequests](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
+	assert.NoError(t, err)
+
+	got := res[0]
+	assertPlanSerial(t, got.Details.Serial, makeSerial(1))
+}
+
 func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests, minStartTime, maxEndTime time.Time) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -832,6 +900,8 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 				"changeset_ascii mismatch")
 		}
 
+		assertPlanSerial(t, got.Details.Serial, expected.Details.Serial)
+
 		if got.Details.ChangesetJSON == expected.Details.ChangesetJSON {
 			continue
 		}
@@ -851,6 +921,18 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			t.Logf("got: %+v", got.Details.ChangesetJSON)
 			t.Fatal(diff)
 		}
+	}
+}
+
+func assertPlanSerial(t *testing.T, got, want *int64) {
+	if got != nil && want != nil {
+		if *got != *want {
+			t.Fatalf("expected serial %v but found %v", *want, *got)
+		}
+	} else if want != nil {
+		t.Fatalf("expected serial %v but found no serial", *want)
+	} else if got != nil {
+		t.Fatalf("expected no serial but found %v", *got)
 	}
 }
 
@@ -881,4 +963,8 @@ func loadJSONPlan(t *testing.T, fname string) string {
 	jsonNewBytes, err := json.Marshal(&plan)
 	assert.NoError(t, err)
 	return string(jsonNewBytes)
+}
+
+func makeSerial(serial int64) *int64 {
+	return &serial
 }

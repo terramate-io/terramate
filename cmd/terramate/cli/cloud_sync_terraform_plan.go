@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -44,9 +45,10 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
+	absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
+
 	// Terragrunt writes the plan to a temporary directory, so we cannot check for its existence.
 	if !run.Task.UseTerragrunt {
-		absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
 		_, err := os.Lstat(absPlanFilePath)
 		if err != nil {
 			return nil, errors.E(err, "checking plan file")
@@ -73,10 +75,16 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 		return nil, nil
 	}
 
+	var optSerial *int64
+	if serial, found := extractTFStateSerial(absPlanFilePath); found {
+		optSerial = &serial
+	}
+
 	return &cloud.ChangesetDetails{
 		Provisioner:    provisioner,
 		ChangesetASCII: renderedPlan,
 		ChangesetJSON:  string(newJSONPlanData),
+		Serial:         optSerial,
 	}, nil
 }
 
@@ -152,4 +160,60 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 	}
 
 	return stdout.String(), nil
+}
+
+func extractTFStateSerial(planfile string) (int64, bool) {
+	logger := log.With().
+		Str("action", "extractTFStateSerial").
+		Str("planfile", planfile).
+		Logger()
+
+	planReader, err := zip.OpenReader(planfile)
+	if err != nil {
+		if b, err := os.ReadFile(planfile); err == nil {
+			if bytes.HasPrefix(b, []byte("tfplan")) {
+				logger.Debug().Msg("plan serial extraction failed: plan file was created with a pre 1.22 version of terraform")
+			} else {
+				logger.Debug().Err(err).Msg("plan serial extraction failed")
+			}
+			return 0, false
+		}
+		return 0, false
+	}
+	defer planReader.Close() // nolint:errcheck
+
+	var stateFile *zip.File
+	for _, file := range planReader.File {
+		if file.Name == "tfstate" {
+			stateFile = file
+			break
+		}
+	}
+	if stateFile == nil {
+		logger.Debug().Msg("plan serial extraction failed: no tfstate found")
+		return 0, false
+	}
+
+	stateReader, err := stateFile.Open()
+	if err != nil {
+		return 0, false
+	}
+	defer stateReader.Close() // nolint:errcheck
+
+	type tfstateJSON struct {
+		Serial *int64 `json:"serial"`
+	}
+	var tfstate tfstateJSON
+
+	if err := json.NewDecoder(stateReader).Decode(&tfstate); err != nil {
+		logger.Debug().Err(err).Msg("plan serial extraction failed: failed to decode tfstate")
+		return 0, false
+	}
+
+	if tfstate.Serial == nil {
+		logger.Debug().Err(err).Msg("plan serial extraction failed: serial field not found")
+		return 0, false
+	}
+
+	return *tfstate.Serial, true
 }

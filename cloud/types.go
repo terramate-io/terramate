@@ -81,6 +81,7 @@ type (
 		Provisioner    string `json:"provisioner"`
 		ChangesetASCII string `json:"changeset_ascii,omitempty"`
 		ChangesetJSON  string `json:"changeset_json,omitempty"`
+		Serial         *int64 `json:"serial,omitempty"`
 	}
 
 	// StacksResponse represents the stacks object response.
