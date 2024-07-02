@@ -1,6 +1,7 @@
 # Copyright 2023 Terramate GmbH
 # SPDX-License-Identifier: MPL-2.0
 
+      
 builds:
   - id: terramate
     binary: terramate
@@ -24,6 +25,7 @@ builds:
       - linux
       - darwin
       - windows
+
 archives:
   -
     name_template: >-
@@ -36,6 +38,9 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+
+    files: 
+      - ./cosign.pub
 
 nfpms:
   - maintainer: terramate.io 
@@ -64,16 +69,15 @@ checksum:
   name_template: 'checksums.txt'
 
 signs:
-  - artifacts: all
+  - cmd: cosign
     args:
-        [
-          "-u",
-          "github@terramate.io",
-          "--output",
-          "${signature}",
-          "--detach-sign",
-          "${artifact}",
-        ]
+      - "sign-blob"
+      - "--key=env://COSIGN_PRIVATE_KEY"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes" # needed on cosign 2.0.0+
+    artifacts: all
+
 
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
@@ -92,6 +96,16 @@ changelog:
 
 release:
   prerelease: auto
+
+  github:
+    owner: terramate-io
+    name: terramate
+
+  extra_files:
+    - glob: "./cosign.pub"
+      # Optionally, specify the destination filename at release
+      # If you omit this, it defaults to the base name of the file
+      name_template: "cosign.pub"
 
 announce:
   twitter:
