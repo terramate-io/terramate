@@ -25,7 +25,6 @@ type (
 	CreatePreviewPayloadRequest struct {
 		CommitSHA       string              `json:"commit_sha"`
 		PushedAt        int64               `json:"pushed_at"`
-		UpdatedAt       int64               `json:"updated_at"`
 		Technology      string              `json:"technology"`
 		TechnologyLayer string              `json:"technology_layer"`
 		ReviewRequest   *ReviewRequest      `json:"review_request,omitempty"`
@@ -113,9 +112,6 @@ func (r CreatePreviewPayloadRequest) Validate() error {
 	}
 	if r.TechnologyLayer == "" {
 		errs.Append(errors.E(`missing "technology_layer" field`))
-	}
-	if r.UpdatedAt == 0 {
-		errs.Append(errors.E(`missing "updated_at" field`))
 	}
 	if r.PushedAt == 0 {
 		errs.Append(errors.E(`missing "pushed_at" field`))
