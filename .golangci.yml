@@ -14,3 +14,6 @@ issues:
   exclude:
     - EXC0012
   exclude-use-default: false
+
+run:
+  timeout: 15m
