@@ -90,7 +90,6 @@ func TestCreatePreview(t *testing.T) {
 				Runs:            makeRunContexts(tc.numRunContexts, []string{"terraform", "plan", "-out", "plan.tfout"}),
 				AffectedStacks:  makeAffectedStacks(tc.numRunContexts),
 				OrgUUID:         cloud.UUID(tc.orgUUID),
-				UpdatedAt:       now.Unix(),
 				PushedAt:        now.Unix(),
 				CommitSHA:       "2fef3ab48c543322e911bc53baec6196231e95bc",
 				Technology:      "terraform",
