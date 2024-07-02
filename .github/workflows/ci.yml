@@ -131,13 +131,35 @@ jobs:
         run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub      
         
       - name: release dry run
-        run: terramate run --tags golang --changed -- make release/dry-run
+        run: make release/dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_API_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN}}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD}}
-          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY }}          
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY }}
+
+      - name: Locate checksum file
+        id: find_checksum
+        run: |
+          if [ -z "$(ls dist/*checksums.txt)" ]; then
+            echo "Error: Checksum file not found."
+            exit 1
+          fi
+          echo "CHECKSUM_FILE=$(ls dist/*checksums.txt)" >> $GITHUB_ENV
+
+      - name: Locate signature file
+        id: find_signature
+        run: |
+          if [ -z "$(ls dist/*checksum*.txt.sig)" ]; then
+            echo "Error: Signature file not found."
+            exit 1
+          fi
+          echo "SIGNATURE_FILE=$(ls dist/*checksum*.txt.sig)" >> $GITHUB_ENV
+
+      - name: Verify checksums with cosign
+        run: |
+          cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}       
   ci:
     needs:
       - checks
