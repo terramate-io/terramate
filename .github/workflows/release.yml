@@ -31,12 +31,12 @@ jobs:
           cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
           sudo mv /tmp/goreleaser /usr/local/bin/
 
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@ea88154188003ca5aeb616063b2d0dd6a9cf86e2
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      
+      - name: install cosign 
+        run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
+
+      - name: Create cosign.pub file
+        run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub
       
       - name: Run GoReleaser
         run: make release
@@ -50,4 +50,26 @@ jobs:
           TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_MINEIROS_IO_ACCESS_TOKEN_SECRET }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_API_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN}}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD}}
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY }}          
+      - name: Locate checksum file
+        id: find_checksum
+        run: |
+          if [ -z "$(ls dist/*checksums.txt)" ]; then
+            echo "Error: Checksum file not found."
+            exit 1
+          fi
+          echo "CHECKSUM_FILE=$(ls dist/*checksums.txt)" >> $GITHUB_ENV
+
+      - name: Locate signature file
+        id: find_signature
+        run: |
+          if [ -z "$(ls dist/*checksum*.txt.sig)" ]; then
+            echo "Error: Signature file not found."
+            exit 1
+          fi
+          echo "SIGNATURE_FILE=$(ls dist/*checksum*.txt.sig)" >> $GITHUB_ENV
+
+      - name: Verify checksums with cosign
+        run: |
+          cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}

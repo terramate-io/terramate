@@ -116,32 +116,28 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@ea88154188003ca5aeb616063b2d0dd6a9cf86e2
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-
       - name: Configure asdf and plugins needed
         uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
 
       - name: install cosign 
-        run: go install github.com/sigstore/cosign/v2/cmd/cosign@latest
+        run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
       - name: install goreleaser
         run: |
           curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o /tmp/goreleaser.tar.gz
           cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
           sudo mv /tmp/goreleaser /usr/local/bin/
       
+      - name: Create cosign.pub file
+        run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub      
+        
       - name: release dry run
         run: terramate run --tags golang --changed -- make release/dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_API_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN}}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD}}
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY }}          
   ci:
     needs:
       - checks
