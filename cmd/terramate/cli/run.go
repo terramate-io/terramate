@@ -42,7 +42,7 @@ const (
 	// in the system.
 	ErrRunCommandNotFound errors.Kind = "command not found"
 
-	cloudSyncPreviewGHAWarning = "--sync-preview is only supported in GitHub Actions workflows"
+	cloudSyncPreviewCICDWarning = "--sync-preview is only supported in GitHub Actions workflows or Gitlab CICD pipelines"
 )
 
 // stackRun contains a list of tasks to be run per stack.
@@ -196,9 +196,10 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
-	if c.parsedArgs.Run.SyncPreview && os.Getenv("GITHUB_ACTIONS") == "" {
-		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
-		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
+	isCICD := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != ""
+	if c.parsedArgs.Run.SyncPreview && !isCICD {
+		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
+		c.disableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
 	}
 
 	var runs []stackRun
@@ -607,11 +608,10 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 		affectedStacksMap[st.Stack.ID] = st.Stack
 	}
 
-	pullRequest := c.cloud.run.prFromGHAEvent
-	if pullRequest == nil || pullRequest.GetUpdatedAt().IsZero() || c.cloud.run.reviewRequest == nil {
+	if c.cloud.run.reviewRequest == nil || c.cloud.run.rrEvent.pushedAt == nil {
 		printer.Stderr.WarnWithDetails(
-			"unable to create preview: missing pull request information",
-			errors.E("--sync-preview can only be used when GITHUB_TOKEN is exported and Terramate runs in a GitHub Action workflow triggered by a pull request event"),
+			"unable to create preview: missing review request information",
+			errors.E("--sync-preview can only be used when GITHUB_TOKEN or GITLAB_TOKEN is exported and Terramate runs in a CI/CD environment triggered by a Pull/Merge Request event"),
 		)
 		c.disableCloudFeatures(cloudError())
 		return map[string]string{}
@@ -636,9 +636,8 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
-			UpdatedAt:       pullRequest.GetUpdatedAt().Unix(),
-			PushedAt:        pullRequest.GetHead().GetRepo().GetPushedAt().Unix(),
-			CommitSHA:       pullRequest.GetHead().GetSHA(),
+			PushedAt:        c.cloud.run.rrEvent.pushedAt.Unix(),
+			CommitSHA:       c.cloud.run.rrEvent.commitSHA,
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
 			Repository:      c.prj.prettyRepo(),

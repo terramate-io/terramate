@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add synchronization of Gitlab Merge Request and CI/CD Metadata.
+
 ### Fixed
 
 - Fix crash when supplying a tag list with a trailing comma separator.

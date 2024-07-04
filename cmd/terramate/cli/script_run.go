@@ -180,8 +180,8 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	}
 
 	if len(previewRuns) > 0 && os.Getenv("GITHUB_ACTIONS") == "" {
-		printer.Stderr.Warn(cloudSyncPreviewGHAWarning)
-		c.disableCloudFeatures(errors.E(cloudSyncPreviewGHAWarning))
+		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
+		c.disableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
 	}
 
 	if !c.prj.isRepo {

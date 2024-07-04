@@ -155,7 +155,6 @@ func PostPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.Request
 	}
 
 	previewID, err := store.UpsertPreview(orguuid, cloudstore.Preview{
-		UpdatedAt:       rPayload.UpdatedAt,
 		PushedAt:        rPayload.PushedAt,
 		CommitSHA:       rPayload.CommitSHA,
 		Technology:      rPayload.Technology,
