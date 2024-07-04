@@ -9,6 +9,7 @@ import (
 	stdfmt "fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
+
 	"golang.org/x/oauth2"
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
@@ -41,6 +44,7 @@ const (
 	defaultCloudTimeout  = 60 * time.Second
 	defaultGoogleTimeout = defaultCloudTimeout
 	defaultGithubTimeout = defaultCloudTimeout
+	defaultGitlabTimeout = defaultCloudTimeout
 )
 
 const (
@@ -51,6 +55,7 @@ const (
 )
 
 const githubDomain = "github.com"
+const gitlabDomain = "gitlab.com"
 
 const (
 	githubErrNotFound            errors.Kind = "resource not found (HTTP Status: 404)"
@@ -121,8 +126,11 @@ type cloudRunState struct {
 	// stackPreviews is a map of stack.ID to stackPreview.ID
 	stackMeta2PreviewIDs map[string]string
 	reviewRequest        *cloud.ReviewRequest
-	prFromGHAEvent       *github.PullRequest
-	metadata             *cloud.DeploymentMetadata
+	rrEvent              struct {
+		pushedAt  *time.Time
+		commitSHA string
+	}
+	metadata *cloud.DeploymentMetadata
 }
 
 type cloudConfig struct {
@@ -569,6 +577,7 @@ func (c *cli) detectCloudMetadata() {
 	logger := log.With().
 		Str("normalized_repository", c.prj.prettyRepo()).
 		Str("head_commit", c.prj.headCommit()).
+		Str("action", "detectCloudMetadata").
 		Logger()
 
 	prettyRepo := c.prj.prettyRepo()
@@ -577,10 +586,8 @@ func (c *cli) detectCloudMetadata() {
 		return
 	}
 
-	headCommit := c.prj.headCommit()
-
 	c.cloud.run.metadata = &cloud.DeploymentMetadata{}
-	c.cloud.run.metadata.GitCommitSHA = headCommit
+	c.cloud.run.metadata.GitCommitSHA = c.prj.headCommit()
 
 	md := c.cloud.run.metadata
 
@@ -595,6 +602,17 @@ func (c *cli) detectCloudMetadata() {
 		} else {
 			logger.Debug().Msg("no provider metadata detected")
 		}
+
+		if c.cloud.run.reviewRequest != nil {
+			data, err := stdjson.Marshal(c.cloud.run.reviewRequest)
+			if err == nil {
+				logger.Debug().RawJSON("provider_review_request", data).Msg("detected review request")
+			} else {
+				logger.Warn().Err(err).Msg("failed to encode deployment metadata")
+			}
+		} else {
+			logger.Debug().Msg("no provider review request detected")
+		}
 	}()
 
 	if commit, err := c.prj.git.wrapper.ShowCommitMetadata("HEAD"); err == nil {
@@ -608,18 +626,33 @@ func (c *cli) detectCloudMetadata() {
 	r, err := repository.Parse(prettyRepo)
 	if err != nil {
 		logger.Debug().
-			Msg("repository cannot be normalized: skipping pull request retrievals for commit")
+			Msg("repository cannot be normalized: skipping PR/MR retrievals for commit")
 
 		return
 	}
 
-	if r.Host != githubDomain {
-		return
+	switch r.Host {
+	case githubDomain:
+		c.detectGithubMetadata(r.Owner, r.Name)
+	case gitlabDomain:
+		c.detectGitlabMetadata(r.Owner, r.Name)
+	default:
+		logger.Debug().Msgf("Skipping metadata collection for git provider: %s", r.Host)
 	}
+}
+
+func (c *cli) detectGithubMetadata(owner, reponame string) {
+	logger := log.With().
+		Str("normalized_repository", c.prj.prettyRepo()).
+		Str("head_commit", c.prj.headCommit()).
+		Str("action", "detectGithubMetadata").
+		Logger()
+
+	md := c.cloud.run.metadata
 
 	setGithubActionsMetadata(md)
 
-	ghRepo := r.Owner + "/" + r.Name
+	ghRepo := owner + "/" + reponame
 
 	logger = logger.With().Str("github_repository", ghRepo).Logger()
 
@@ -641,11 +674,13 @@ func (c *cli) detectCloudMetadata() {
 		logger.Debug().Err(err).Msg("unable to get pull_request details from GITHUB_EVENT_PATH")
 	} else {
 		logger.Debug().Msg("got pull_request details from GITHUB_EVENT_PATH")
-		c.cloud.run.prFromGHAEvent = prFromEvent
+		pushedAt := prFromEvent.GetHead().GetRepo().GetPushedAt()
+		c.cloud.run.rrEvent.pushedAt = pushedAt.GetTime()
+		c.cloud.run.rrEvent.commitSHA = prFromEvent.GetHead().GetSHA()
 		prNumber = prFromEvent.GetNumber()
 	}
 
-	ghToken, tokenSource := auth.TokenForHost(r.Host)
+	ghToken, tokenSource := auth.TokenForHost(githubDomain)
 	if ghToken == "" {
 		printer.Stderr.WarnWithDetails(
 			"Export GITHUB_TOKEN with your GitHub credentials for enabling metadata collection",
@@ -657,7 +692,9 @@ func (c *cli) detectCloudMetadata() {
 	logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
 	githubClient = githubClient.WithAuthToken(ghToken)
 
-	if ghCommit, err := getGithubCommit(githubClient, r.Owner, r.Name, headCommit); err == nil {
+	headCommit := c.prj.headCommit()
+
+	if ghCommit, err := getGithubCommit(githubClient, owner, reponame, headCommit); err == nil {
 		setGithubCommitMetadata(md, ghCommit)
 	} else {
 		logger.Warn().
@@ -665,7 +702,7 @@ func (c *cli) detectCloudMetadata() {
 			Msg("failed to retrieve commit information from GitHub API")
 	}
 
-	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, r.Owner, r.Name, prNumber, headCommit)
+	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, owner, reponame, prNumber, headCommit)
 	if err != nil {
 		logger.Debug().Err(err).
 			Int("number", prNumber).
@@ -679,21 +716,21 @@ func (c *cli) detectCloudMetadata() {
 
 	setGithubPRMetadata(md, pull)
 
-	reviews, err := listGithubPullReviews(githubClient, r.Owner, r.Name, pull.GetNumber())
+	reviews, err := listGithubPullReviews(githubClient, owner, reponame, pull.GetNumber())
 	if err != nil {
 		logger.Warn().
 			Err(err).
 			Msg("failed to retrieve PR reviews")
 	}
 
-	checks, err := listGithubChecks(githubClient, r.Owner, r.Name, headCommit)
+	checks, err := listGithubChecks(githubClient, owner, reponame, headCommit)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to retrieve GHA checks")
 	}
 
 	merged := false
 	if pull.GetState() == "closed" {
-		merged, err = isGithubPRMerged(githubClient, r.Owner, r.Name, pull.GetNumber())
+		merged, err = isGithubPRMerged(githubClient, owner, reponame, pull.GetNumber())
 		if err != nil {
 			logger.Warn().Err(err).Msg("failed to retrieve PR merged status")
 		}
@@ -709,13 +746,137 @@ func (c *cli) detectCloudMetadata() {
 			))
 
 		githubQLClient := githubql.NewClient(httpClient)
-		reviewDecision, err = getGithubPRReviewDecision(githubQLClient, r.Owner, r.Name, pull.GetNumber())
+		reviewDecision, err = getGithubPRReviewDecision(githubQLClient, owner, reponame, pull.GetNumber())
 		if err != nil {
 			logger.Warn().Err(err).Msg("failed to retrieve review decision")
 		}
 	}
 
-	c.cloud.run.reviewRequest = c.newReviewRequest(pull, reviews, checks, merged, reviewDecision)
+	c.cloud.run.reviewRequest = c.newGithubReviewRequest(pull, reviews, checks, merged, reviewDecision)
+}
+
+func (c *cli) detectGitlabMetadata(group string, projectName string) {
+	logger := log.With().
+		Str("normalized_repository", c.prj.prettyRepo()).
+		Str("head_commit", c.prj.headCommit()).
+		Str("action", "detectGitlabMetadata").
+		Logger()
+
+	md := c.cloud.run.metadata
+	c.setGitlabCIMetadata(md)
+
+	token := os.Getenv("GITLAB_TOKEN")
+	if token == "" {
+		printer.Stderr.WarnWithDetails(
+			"Export GITLAB_TOKEN with your Gitlab credentials for enabling metadata collection",
+			errors.E("No Gitlab token detected. Some relevant data cannot be collected."),
+		)
+	}
+
+	client := gitlab.Client{
+		HTTPClient: &c.httpClient,
+		Group:      group,
+		Project:    projectName,
+		Token:      token,
+	}
+
+	if idStr := os.Getenv("CI_PROJECT_ID"); idStr != "" {
+		client.ProjectID, _ = strconv.Atoi(idStr)
+	}
+
+	if gitlabAPIURL := os.Getenv("TM_GITLAB_API_URL"); gitlabAPIURL != "" {
+		gitlabBaseURL, err := url.Parse(gitlabAPIURL)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to parse gitlab api url")
+			return
+		}
+		client.BaseURL = gitlabBaseURL.String()
+	}
+
+	headCommit := c.prj.headCommit()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGitlabTimeout)
+	defer cancel()
+	mr, found, err := client.MRForCommit(ctx, headCommit)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to retrieve Merge Requests associated with commit")
+		return
+	}
+	if !found {
+		logger.Warn().Msg("No merge request associated with commit")
+		return
+	}
+	md.GitlabMergeRequestAuthorID = mr.Author.ID
+	md.GitlabMergeRequestAuthorName = mr.Author.Name
+	md.GitlabMergeRequestAuthorUsername = mr.Author.Username
+	md.GitlabMergeRequestAuthorAvatarURL = mr.Author.AvatarURL
+	md.GitlabMergeRequestAuthorState = mr.Author.State
+	md.GitlabMergeRequestAuthorWebURL = mr.Author.WebURL
+
+	md.GitlabMergeRequestID = mr.ID
+	md.GitlabMergeRequestIID = mr.IID
+	md.GitlabMergeRequestState = mr.State
+	md.GitlabMergeRequestCreatedAt = mr.CreatedAt
+	md.GitlabMergeRequestUpdatedAt = mr.UpdatedAt
+	md.GitlabMergeRequestTargetBranch = mr.TargetBranch
+	md.GitlabMergeRequestSourceBranch = mr.SourceBranch
+	md.GitlabMergeRequestMergeStatus = mr.MergeStatus
+	md.GitlabMergeRequestWebURL = mr.WebURL
+
+	if md.GitlabCICDBranch == "" {
+		md.GitlabCICDBranch = md.GitlabMergeRequestSourceBranch
+	}
+
+	pushedAt, err := time.Parse(time.RFC3339, md.GitlabCICDJobStartedAt)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse job `started_at` field: fallback to MR `updated_at` field", err)
+		pushedAt, err = time.Parse(time.RFC3339, mr.UpdatedAt)
+		if err != nil {
+			printer.Stderr.WarnWithDetails("failed to parse MR `updated_at` field", err)
+		}
+	}
+	if !pushedAt.IsZero() {
+		c.cloud.run.rrEvent.pushedAt = &pushedAt
+	}
+
+	c.cloud.run.rrEvent.commitSHA = mr.SHA
+	c.cloud.run.reviewRequest = c.newGitlabReviewRequest(mr)
+}
+
+func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
+	envBool := func(name string) bool {
+		val := os.Getenv(name)
+		return val == "true"
+	}
+	md.GitlabCICDJobManual = envBool("CI_JOB_MANUAL")
+
+	// sent as string for forward-compatibility.
+	md.GitlabCICDPipelineID = os.Getenv("CI_PIPELINE_ID")
+	md.GitlabCICDPipelineSource = os.Getenv("CI_PIPELINE_SOURCE")
+	md.GitlabCICDPipelineTriggered = envBool("CI_PIPELINE_TRIGGERED")
+	md.GitlabCICDPipelineURL = os.Getenv("CI_PIPELINE_URL")
+	md.GitlabCICDPipelineName = os.Getenv("CI_PIPELINE_NAME")
+	md.GitlabCICDPipelineCreatedAt = os.Getenv("CI_PIPELINE_CREATED_AT")
+	md.GitlabCICDJobID = os.Getenv("CI_JOB_ID")
+	md.GitlabCICDJobName = os.Getenv("CI_JOB_NAME")
+	md.GitlabCICDJobStartedAt = os.Getenv("CI_JOB_STARTED_AT")
+	md.GitlabCICDUserEmail = os.Getenv("GITLAB_USER_EMAIL")
+	md.GitlabCICDUserName = os.Getenv("GITLAB_USER_NAME")
+	md.GitlabCICDUserLogin = os.Getenv("GITLAB_USER_LOGIN")
+	md.GitlabCICDCommitBranch = os.Getenv("CI_COMMIT_BRANCH")
+	md.GitlabCICDBranch = md.GitlabCICDCommitBranch
+
+	createdAt, err := time.Parse(time.RFC3339, md.GitlabCICDPipelineCreatedAt)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse CI_PIPELINE_CREATED_AT time", err)
+	} else {
+		c.cloud.run.rrEvent.pushedAt = &createdAt
+	}
+	var mrApproved *bool
+	if str := os.Getenv("CI_MERGE_REQUEST_APPROVED"); str != "" {
+		b := str == "true"
+		mrApproved = &b
+	}
+	md.GitlabCICDMergeRequestApproved = mrApproved
 }
 
 func getGithubPRByNumberOrCommit(githubClient *github.Client, ghToken, owner, repo string, number int, commit string) (*github.PullRequest, error) {
@@ -973,13 +1134,19 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 	md.GithubPullRequestAuthorGravatarID = pull.GetUser().GetGravatarID()
 }
 
-func (c *cli) newReviewRequest(
+func (c *cli) newGithubReviewRequest(
 	pull *github.PullRequest,
 	reviews []*github.PullRequestReview,
 	checks []*github.CheckRun,
 	merged bool,
 	reviewDecision string,
 ) *cloud.ReviewRequest {
+	author := cloud.Author{}
+	if user := pull.GetUser(); user != nil {
+		author.Login = user.GetLogin()
+		author.AvatarURL = user.GetAvatarURL()
+	}
+	pullCreatedAt := pull.GetCreatedAt()
 	pullUpdatedAt := pull.GetUpdatedAt()
 	rr := &cloud.ReviewRequest{
 		Platform:       "github",
@@ -991,13 +1158,12 @@ func (c *cli) newReviewRequest(
 		CommitSHA:      pull.GetHead().GetSHA(),
 		Draft:          pull.GetDraft(),
 		ReviewDecision: reviewDecision,
+		CreatedAt:      pullCreatedAt.GetTime(),
 		UpdatedAt:      pullUpdatedAt.GetTime(),
-	}
-
-	prFromEvent := c.cloud.run.prFromGHAEvent
-	if prFromEvent.GetHead() != nil && prFromEvent.GetHead().GetRepo() != nil {
-		pushedAt := prFromEvent.GetHead().GetRepo().GetPushedAt()
-		rr.PushedAt = pushedAt.GetTime()
+		PushedAt:       c.cloud.run.rrEvent.pushedAt,
+		Author:         author,
+		Branch:         pull.GetHead().GetRef(),
+		BaseBranch:     pull.GetBase().GetRef(),
 	}
 
 	if pull.GetState() == "closed" {
@@ -1050,6 +1216,52 @@ func (c *cli) newReviewRequest(
 		}
 	}
 
+	return rr
+}
+
+func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
+	if c.cloud.run.rrEvent.pushedAt == nil {
+		panic(errors.E(errors.ErrInternal, "CI pushed_at is nil"))
+	}
+	mrUpdatedAt, err := time.Parse(time.RFC3339, mr.UpdatedAt)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse MR.updated_at field", err)
+
+		t := *c.cloud.run.rrEvent.pushedAt
+		mrUpdatedAt = t
+	}
+	var mrCreatedAt *time.Time
+	if mrCreatedAtVal, err := time.Parse(time.RFC3339, mr.CreatedAt); err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse MR.created_at field", err)
+	} else {
+		mrCreatedAt = &mrCreatedAtVal
+	}
+	rr := &cloud.ReviewRequest{
+		Platform:    "gitlab",
+		Repository:  c.prj.prettyRepo(),
+		URL:         mr.WebURL,
+		Number:      mr.IID,
+		Title:       mr.Title,
+		Description: mr.Description,
+		CommitSHA:   c.prj.headCommit(),
+		Draft:       mr.Draft,
+		CreatedAt:   mrCreatedAt,
+		PushedAt:    c.cloud.run.rrEvent.pushedAt,
+		UpdatedAt:   &mrUpdatedAt,
+		Status:      mr.State,
+		Author: cloud.Author{
+			Login:     mr.Author.Username,
+			AvatarURL: mr.Author.AvatarURL,
+		},
+		Branch:     mr.SourceBranch,
+		BaseBranch: mr.TargetBranch,
+	}
+
+	for _, l := range mr.Labels {
+		rr.Labels = append(rr.Labels, cloud.Label{
+			Name: l,
+		})
+	}
 	return rr
 }
 

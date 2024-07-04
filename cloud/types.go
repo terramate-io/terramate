@@ -160,7 +160,22 @@ type (
 	// Note: no sensitive information must be stored here because it could be logged.
 	DeploymentMetadata struct {
 		GitMetadata
+		GithubMetadata
+		GitlabMetadata
+	}
 
+	// GitMetadata are the git related metadata.
+	GitMetadata struct {
+		GitCommitSHA         string     `json:"git_commit_sha,omitempty"`
+		GitCommitAuthorName  string     `json:"git_commit_author_name,omitempty"`
+		GitCommitAuthorEmail string     `json:"git_commit_author_email,omitempty"`
+		GitCommitAuthorTime  *time.Time `json:"git_commit_author_time,omitempty"`
+		GitCommitTitle       string     `json:"git_commit_title,omitempty"`
+		GitCommitDescription string     `json:"git_commit_description,omitempty"`
+	}
+
+	// GithubMetadata is the GitHub related metadata
+	GithubMetadata struct {
 		GithubPullRequestAuthorLogin      string `json:"github_pull_request_author_login,omitempty"`
 		GithubPullRequestAuthorAvatarURL  string `json:"github_pull_request_author_avatar_url,omitempty"`
 		GithubPullRequestAuthorGravatarID string `json:"github_pull_request_author_gravatar_id,omitempty"`
@@ -219,14 +234,46 @@ type (
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
 	}
 
-	// GitMetadata are the git related metadata.
-	GitMetadata struct {
-		GitCommitSHA         string     `json:"git_commit_sha,omitempty"`
-		GitCommitAuthorName  string     `json:"git_commit_author_name,omitempty"`
-		GitCommitAuthorEmail string     `json:"git_commit_author_email,omitempty"`
-		GitCommitAuthorTime  *time.Time `json:"git_commit_author_time,omitempty"`
-		GitCommitTitle       string     `json:"git_commit_title,omitempty"`
-		GitCommitDescription string     `json:"git_commit_description,omitempty"`
+	// GitlabMetadata holds the Gitlab specific metadata.
+	GitlabMetadata struct {
+		GitlabMergeRequestAuthorID        int    `json:"gitlab_merge_request_author_id,omitempty"`
+		GitlabMergeRequestAuthorName      string `json:"gitlab_merge_request_author_name,omitempty"`
+		GitlabMergeRequestAuthorWebURL    string `json:"gitlab_merge_request_author_web_url,omitempty"`
+		GitlabMergeRequestAuthorUsername  string `json:"gitlab_merge_request_author_username,omitempty"`
+		GitlabMergeRequestAuthorAvatarURL string `json:"gitlab_merge_request_author_avatar_url,omitempty"`
+		GitlabMergeRequestAuthorState     string `json:"gitlab_merge_request_author_state,omitempty"`
+
+		GitlabMergeRequestID           int    `json:"gitlab_merge_request_id,omitempty"`
+		GitlabMergeRequestIID          int    `json:"gitlab_merge_request_iid,omitempty"`
+		GitlabMergeRequestState        string `json:"gitlab_merge_request_state,omitempty"`
+		GitlabMergeRequestCreatedAt    string `json:"gitlab_merge_request_created_at,omitempty"`
+		GitlabMergeRequestUpdatedAt    string `json:"gitlab_merge_request_updated_at,omitempty"`
+		GitlabMergeRequestTargetBranch string `json:"gitlab_merge_request_target_branch,omitempty"`
+		GitlabMergeRequestSourceBranch string `json:"gitlab_merge_request_source_branch,omitempty"`
+		GitlabMergeRequestMergeStatus  string `json:"gitlab_merge_request_merge_status,omitempty"`
+		GitlabMergeRequestWebURL       string `json:"gitlab_merge_request_web_url,omitempty"`
+
+		// CICD
+		GitlabCICDJobManual         bool   `json:"gitlab_cicd_job_manual,omitempty"`          // CI_JOB_MANUAL
+		GitlabCICDPipelineID        string `json:"gitlab_cicd_pipeline_id,omitempty"`         // CI_PIPELINE_ID
+		GitlabCICDPipelineSource    string `json:"gitlab_cicd_pipeline_source,omitempty"`     // CI_PIPELINE_SOURCE
+		GitlabCICDPipelineName      string `json:"gitlab_cicd_pipeline_name,omitempty"`       // CI_PIPELINE_NAME
+		GitlabCICDPipelineTriggered bool   `json:"gitlan_cicd_pipeline_triggered,omitempty"`  // CI_PIPELINE_TRIGGERED
+		GitlabCICDPipelineURL       string `json:"gitlab_cicd_pipeline_url,omitempty"`        // CI_PIPELINE_URL
+		GitlabCICDPipelineCreatedAt string `json:"gitlab_cicd_pipeline_created_at,omitempty"` // CI_PIPELINE_CREATED_AT
+		GitlabCICDJobID             string `json:"gitlab_cicd_job_id,omitempty"`              // CI_JOB_ID
+		GitlabCICDJobName           string `json:"gitlab_cicd_job_name,omitempty"`            // CI_JOB_NAME
+		GitlabCICDJobStartedAt      string `json:"gitlab_cicd_job_started_at,omitempty"`      // CI_JOB_STARTED_AT
+		GitlabCICDUserEmail         string `json:"gitlab_cicd_user_email,omitempty"`          // GITLAB_USER_EMAIL
+		GitlabCICDUserName          string `json:"gitlab_cicd_user_name,omitempty"`           // GITLAB_USER_NAME
+		GitlabCICDUserLogin         string `json:"gitlab_cicd_user_login,omitempty"`          // GITLAB_USER_LOGIN
+		GitlabCICDCommitBranch      string `json:"gitlab_cicd_commit_branch,omitempty"`       // CI_COMMIT_BRANCH
+
+		// either CI_COMMIT_BRANCH or CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+		GitlabCICDBranch string `json:"gitlab_cicd_branch,omitempty"`
+
+		// Only available for merge request pipelines
+		GitlabCICDMergeRequestApproved *bool `json:"gitlab_cicd_merge_request_approved,omitempty"` // CI_MERGE_REQUEST_APPROVED
 	}
 
 	// ReviewRequest is the review_request object.
@@ -239,6 +286,7 @@ type (
 		Description           string     `json:"description"`
 		URL                   string     `json:"url"`
 		Labels                []Label    `json:"labels,omitempty"`
+		Author                Author     `json:"author"`
 		Reviewers             Reviewers  `json:"reviewers,omitempty"`
 		Status                string     `json:"status"`
 		Draft                 bool       `json:"draft"`
@@ -248,8 +296,11 @@ type (
 		ChecksTotalCount      int        `json:"checks_total_count"`
 		ChecksFailureCount    int        `json:"checks_failure_count"`
 		ChecksSuccessCount    int        `json:"checks_success_count"`
+		CreatedAt             *time.Time `json:"created_at,omitempty"`
 		UpdatedAt             *time.Time `json:"updated_at,omitempty"`
 		PushedAt              *time.Time `json:"pushed_at,omitempty"`
+		Branch                string     `json:"branch"`
+		BaseBranch            string     `json:"base_branch"`
 	}
 
 	// Label of a review request.
@@ -259,11 +310,14 @@ type (
 		Description string `json:"description,omitempty"`
 	}
 
-	// Reviewer is the user's reviewer of a Pull/Merge Request.
-	Reviewer struct {
+	// Author of the change.
+	Author struct {
 		Login     string `json:"login"`
 		AvatarURL string `json:"avatar_url,omitempty"`
 	}
+
+	// Reviewer is the user's reviewer of a Pull/Merge Request.
+	Reviewer Author
 
 	// Reviewers is a list of reviewers.
 	Reviewers []Reviewer

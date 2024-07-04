@@ -42,7 +42,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 		run         RunExpected
 		preview     *cloudstore.Preview
 		Metadata    *Metadata
-		ignoreTypes cmp.Option
+		ignoreTypes []cmp.Option
 	}
 	type testcase struct {
 		name            string
@@ -55,6 +55,10 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 		cmd             []string
 		want            want
 	}
+
+	createdAt := toTime(t, "2011-01-26T19:01:12Z")
+	updatedAt := toTime(t, "2011-01-26T19:01:12Z")
+	pushedAt := toTime(t, "2024-02-09T12:38:30Z")
 
 	for _, tc := range []testcase{
 		{
@@ -81,12 +85,15 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						"--sync-preview is only supported in GitHub Actions workflows",
 					},
 				},
-				ignoreTypes: cmpopts.IgnoreTypes(
-					cloud.CommandLogs{},
-					&cloud.ChangesetDetails{},
-					cloudstore.Stack{},
-					&cloud.DeploymentMetadata{},
-				),
+				ignoreTypes: []cmp.Option{
+					cmpopts.IgnoreTypes(
+						cloud.CommandLogs{},
+						&cloud.ChangesetDetails{},
+						cloudstore.Stack{},
+						&cloud.DeploymentMetadata{},
+					),
+					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+				},
 			},
 		},
 		{
@@ -120,8 +127,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
-					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
+					PushedAt:        pushedAt.Unix(),                            // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
 						{
@@ -133,15 +139,21 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					ReviewRequest: &cloud.ReviewRequest{
 						Platform:    "github",
 						Repository:  testPreviewRemoteRepoURL,
-						CommitSHA:   "6dcb09b5b57875f334f61aebed695e2e4193db5e",
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
 						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
 						Status:      "open",
-						UpdatedAt:   toTime("2011-01-26T19:01:12Z"),
-						PushedAt:    toTime("2024-02-09T12:38:30Z"),
+						CreatedAt:   createdAt,
+						UpdatedAt:   updatedAt,
+						PushedAt:    pushedAt,
+						Author: cloud.Author{
+							Login:     "octocat",
+							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+						},
+						Branch:     "new-topic",
+						BaseBranch: "master",
 					},
 				},
 				Metadata: &Metadata{
@@ -150,12 +162,15 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					GithubPullRequestTitle:     "Amazing new feature",
 					GithubPullRequestUpdatedAt: "2011-01-26T19:01:12Z",
 				},
-				ignoreTypes: cmpopts.IgnoreTypes(
-					cloud.CommandLogs{},
-					&cloud.ChangesetDetails{},
-					cloudstore.Stack{},
-					&cloud.DeploymentMetadata{},
-				),
+				ignoreTypes: []cmp.Option{
+					cmpopts.IgnoreTypes(
+						cloud.CommandLogs{},
+						&cloud.ChangesetDetails{},
+						cloudstore.Stack{},
+						&cloud.DeploymentMetadata{},
+					),
+					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+				},
 			},
 		},
 		{
@@ -199,8 +214,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
-					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
+					PushedAt:        pushedAt.Unix(),                            // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
 						{
@@ -222,15 +236,21 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					ReviewRequest: &cloud.ReviewRequest{
 						Platform:    "github",
 						Repository:  testPreviewRemoteRepoURL,
-						CommitSHA:   "6dcb09b5b57875f334f61aebed695e2e4193db5e",
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
 						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
 						Status:      "open",
-						UpdatedAt:   toTime("2011-01-26T19:01:12Z"),
-						PushedAt:    toTime("2024-02-09T12:38:30Z"),
+						CreatedAt:   createdAt,
+						UpdatedAt:   updatedAt,
+						PushedAt:    pushedAt,
+						Author: cloud.Author{
+							Login:     "octocat",
+							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+						},
+						Branch:     "new-topic",
+						BaseBranch: "master",
 					},
 				},
 				Metadata: &Metadata{
@@ -239,12 +259,15 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					GithubPullRequestTitle:     "Amazing new feature",
 					GithubPullRequestUpdatedAt: "2011-01-26T19:01:12Z",
 				},
-				ignoreTypes: cmpopts.IgnoreTypes(
-					cloud.CommandLogs{},
-					&cloud.ChangesetDetails{},
-					cloudstore.StackState{},
-					&cloud.DeploymentMetadata{},
-				),
+				ignoreTypes: []cmp.Option{
+					cmpopts.IgnoreTypes(
+						cloud.CommandLogs{},
+						&cloud.ChangesetDetails{},
+						cloudstore.Stack{},
+						&cloud.DeploymentMetadata{},
+					),
+					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+				},
 			},
 		},
 		{
@@ -275,9 +298,24 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					UpdatedAt:       1707482312,
 					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
+					ReviewRequest: &cloud.ReviewRequest{
+						Platform:    "github",
+						Repository:  "github.com/terramate-io/dummy-repo.git",
+						Number:      1347,
+						Title:       "Amazing new feature",
+						Description: "Please pull these awesome changes in!",
+						URL:         "https://github.com/octocat/Hello-World/pull/1347",
+						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Author:      cloud.Author{Login: "octocat", AvatarURL: "https://github.com/images/error/octocat_happy.gif"},
+						Status:      "open",
+						CreatedAt:   createdAt,
+						UpdatedAt:   updatedAt,
+						PushedAt:    pushedAt,
+						Branch:      "new-topic",
+						BaseBranch:  "master",
+					},
 					StackPreviews: []*cloudstore.StackPreview{
 						{
 							ID:     "1",
@@ -286,13 +324,15 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						},
 					},
 				},
-				ignoreTypes: cmpopts.IgnoreTypes(
-					cloud.CommandLogs{},
-					&cloud.ChangesetDetails{},
-					cloudstore.Stack{},
-					&cloud.ReviewRequest{},
-					&cloud.DeploymentMetadata{},
-				),
+				ignoreTypes: []cmp.Option{
+					cmpopts.IgnoreTypes(
+						cloud.CommandLogs{},
+						&cloud.ChangesetDetails{},
+						cloudstore.Stack{},
+						&cloud.DeploymentMetadata{},
+					),
+					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+				},
 			},
 		},
 	} {
@@ -362,7 +402,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					t.Fatalf("failed to decode response: %v", err)
 				}
 
-				if diff := cmp.Diff(*(tc.want.preview), previewResp, tc.want.ignoreTypes); diff != "" {
+				if diff := cmp.Diff(*(tc.want.preview), previewResp, tc.want.ignoreTypes...); diff != "" {
 					t.Errorf("unexpected  preview: %s", diff)
 				}
 			}
@@ -383,10 +423,9 @@ func datapath(t *testing.T, path string) string {
 	return filepath.Join(wd, filepath.FromSlash(path))
 }
 
-func toTime(s string) *time.Time {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		panic(err)
-	}
-	return &t
+func toTime(t *testing.T, s string) *time.Time {
+	t.Helper()
+	tm, err := time.Parse(time.RFC3339, s)
+	assert.NoError(t, err)
+	return &tm
 }

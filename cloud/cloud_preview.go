@@ -31,7 +31,6 @@ type CreatePreviewOpts struct {
 	Runs            []RunContext
 	AffectedStacks  map[string]*config.Stack
 	OrgUUID         UUID
-	UpdatedAt       int64
 	PushedAt        int64
 	CommitSHA       string
 	Technology      string
@@ -84,7 +83,6 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 	}
 
 	payload := CreatePreviewPayloadRequest{
-		UpdatedAt:       opts.UpdatedAt,
 		PushedAt:        opts.PushedAt,
 		CommitSHA:       opts.CommitSHA,
 		Technology:      opts.Technology,
