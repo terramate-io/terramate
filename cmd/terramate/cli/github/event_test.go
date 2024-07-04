@@ -50,7 +50,7 @@ func TestGetEventPR(t *testing.T) {
 				body:      "test",
 				headSHA:   "ea61b5bd72dec0878ae388b04d76a988439d1e28",
 				draft:     false,
-				updatedAt: "2024-02-09 12:38:32 +0000 UTC",
+				updatedAt: "2024-02-09 12:38:30 +0000 UTC",
 			},
 		},
 		{

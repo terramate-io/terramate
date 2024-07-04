@@ -22,6 +22,17 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add cloud filters `--deployment-status=<status>` and `--drift-status` to commands below:
+  - `terramate list`
+  - `terramate run`
+  - `terramate experimental trigger`
+- Add support for generating files relative to working directory. Both examples below only generate files inside `some/dir`:
+  - `terramate -C some/dir generate`
+  - `cd some/dir && terramate generate`
+- Add synchronization of Gitlab Merge Request and CI/CD Metadata.
+
 ### Fixed
 
 - Fix crash when supplying a tag list with a trailing comma separator.
@@ -43,13 +54,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `--ignore-change` flag to `terramate experimental trigger`, which makes the change detection ignore the given stacks.
   - It inverts the default trigger behavior.
 - Add `--recursive` flag to `terramate experimental trigger` for triggering all child stacks of given path.
-- Add cloud filters `--deployment-status=<status>` and `--drift-status` to commands below:
-  - `terramate list`
-  - `terramate run`
-  - `terramate experimental trigger`
-- Add support for generating files relative to working directory. Both examples below only generate files inside `some/dir`:
-  - `terramate -C some/dir generate`
-  - `cd some/dir && terramate generate`
 
 ### Fixed
 

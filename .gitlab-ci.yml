@@ -1,0 +1,15 @@
+# Copyright 2024 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+image: "golang:1.21"
+
+ci:
+  stage: test
+  script:
+    - apt-get update && apt-get install -y unzip
+    - curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh
+    - chmod +x install-opentofu.sh
+    - ./install-opentofu.sh --install-method standalone && rm install-opentofu.sh
+    - tofu version
+    - go test -v -count=1 -tags gitlabci ./cmd/terramate/cli/gitlab/...
+    - make test
