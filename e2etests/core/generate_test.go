@@ -25,7 +25,7 @@ import (
 // changing so testing this in an e2e manner makes it less liable to
 // break because of structural changes.
 
-func TestE2EGenerate(t *testing.T) {
+func TestGenerate(t *testing.T) {
 	t.Parallel()
 
 	type (
@@ -42,7 +42,6 @@ func TestE2EGenerate(t *testing.T) {
 		testcase struct {
 			name             string
 			layout           []string
-			fromdir          string
 			files            []file
 			detailedExitCode bool
 			want             want
@@ -81,19 +80,6 @@ func TestE2EGenerate(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			want: want{
-				run: RunExpected{
-					Stdout: noCodegenMsg,
-				},
-			},
-		},
-		{
-			name: "stacks with no codegen - run from dir",
-			layout: []string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-			},
-			fromdir: "/stacks",
 			want: want{
 				run: RunExpected{
 					Stdout: noCodegenMsg,
@@ -159,36 +145,6 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 						path: p("/stack/file.txt"),
 						body: str("hi"),
 					},
-				},
-			},
-		},
-		{
-			name: "generate file and hcl - from empty dir",
-			layout: []string{
-				"s:stack",
-				"d:empty",
-			},
-			fromdir: "/empty",
-			files: []file{
-				{
-					path: p("/config.tm"),
-					body: Doc(
-						GenerateHCL(
-							Labels("file.hcl"),
-							Content(
-								Str("a", "hi"),
-							),
-						),
-						GenerateFile(
-							Labels("file.txt"),
-							Str("content", "hi"),
-						),
-					),
-				},
-			},
-			want: want{
-				run: RunExpected{
-					Stdout: noCodegenMsg,
 				},
 			},
 		},
@@ -462,7 +418,7 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 				)
 			}
 
-			tmcli := NewCLI(t, filepath.Join(s.RootDir(), tcase.fromdir))
+			tmcli := NewCLI(t, s.RootDir())
 			args := []string{"generate"}
 			if tcase.detailedExitCode {
 				args = append(args, "--detailed-exit-code")
@@ -491,52 +447,9 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 	}
 }
 
-func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
+func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
 	t.Parallel()
-
-	configStr := Doc(
-		GenerateFile(
-			Labels("stack.name.txt"),
-			Expr("content", "terramate.stack.name"),
-		),
-		GenerateHCL(
-			Labels("stack.hcl"),
-			Content(
-				Expr("name", "terramate.stack.name"),
-				Expr("path", "terramate.stack.path"),
-			),
-		),
-		GenerateFile(
-			Labels("/root.stacks.txt"),
-			Expr("context", "root"),
-			Str("content", "stack terramate.stacks.list[0]"),
-		),
-	).String()
-
-	runFromDir := func(t *testing.T, wd string, want generate.Report) {
-		t.Run(fmt.Sprintf("terramate -C %s generate", wd), func(t *testing.T) {
-			t.Parallel()
-			s := sandbox.NoGit(t, true)
-			s.BuildTree([]string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-			})
-
-			s.RootEntry().CreateFile(
-				config.DefaultFilename,
-				configStr,
-			)
-
-			tmcli := NewCLI(t, filepath.Join(s.RootDir(), wd))
-			res := tmcli.Run("generate")
-			expected := RunExpected{
-				Stdout: nljoin(want.Full()),
-			}
-			AssertRunResult(t, res, expected)
-		})
-	}
-
-	runFromDir(t, "/", generate.Report{
+	wantStdout := generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir: project.NewPath("/"),
@@ -557,33 +470,53 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 				},
 			},
 		},
-	})
-	runFromDir(t, "/stacks", generate.Report{
-		Successes: []generate.Result{
-			{
-				Dir: project.NewPath("/stacks/stack-1"),
-				Created: []string{
-					"stack.hcl", "stack.name.txt",
-				},
-			},
-			{
-				Dir: project.NewPath("/stacks/stack-2"),
-				Created: []string{
-					"stack.hcl", "stack.name.txt",
-				},
-			},
-		},
-	})
-	runFromDir(t, "/stacks/stack-1", generate.Report{
-		Successes: []generate.Result{
-			{
-				Dir: project.NewPath("/stacks/stack-1"),
-				Created: []string{
-					"stack.hcl", "stack.name.txt",
-				},
-			},
-		},
-	})
+	}.Full() + "\n"
+
+	configStr := Doc(
+		GenerateFile(
+			Labels("stack.name.txt"),
+			Expr("content", "terramate.stack.name"),
+		),
+		GenerateHCL(
+			Labels("stack.hcl"),
+			Content(
+				Expr("name", "terramate.stack.name"),
+				Expr("path", "terramate.stack.path"),
+			),
+		),
+		GenerateFile(
+			Labels("/root.stacks.txt"),
+			Expr("context", "root"),
+			Str("content", "stack terramate.stacks.list[0]"),
+		),
+	).String()
+
+	runFromDir := func(t *testing.T, wd string) {
+		t.Run(fmt.Sprintf("terramate -C %s generate", wd), func(t *testing.T) {
+			t.Parallel()
+			s := sandbox.NoGit(t, true)
+			s.BuildTree([]string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			})
+
+			s.RootEntry().CreateFile(
+				config.DefaultFilename,
+				configStr,
+			)
+
+			tmcli := NewCLI(t, filepath.Join(s.RootDir(), wd))
+			res := tmcli.Run("generate")
+			expected := RunExpected{
+				Stdout: wantStdout,
+			}
+			AssertRunResult(t, res, expected)
+		})
+	}
+
+	runFromDir(t, "/")
+	runFromDir(t, "/stacks")
+	runFromDir(t, "/stacks/stack-1")
 }
 
 type str string
