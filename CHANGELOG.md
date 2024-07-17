@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Changed
+
+- Reverted: feat: generate files in working directory. (#1756)
+  - This change was reverted due to an unaccounted breaking change.
+
 ## v0.9.1
 
 ### Added
