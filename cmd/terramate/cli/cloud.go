@@ -1246,7 +1246,6 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 		CommitSHA:   mr.SHA,
 		Draft:       mr.Draft,
 		CreatedAt:   mrCreatedAt,
-		PushedAt:    c.cloud.run.rrEvent.pushedAt,
 		UpdatedAt:   &mrUpdatedAt,
 		Status:      mr.State,
 		Author: cloud.Author{
@@ -1255,6 +1254,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 		},
 		Branch:     mr.SourceBranch,
 		BaseBranch: mr.TargetBranch,
+		// Note(i4k): PushedAt will be set only in previews.
 	}
 
 	for _, l := range mr.Labels {

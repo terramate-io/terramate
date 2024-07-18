@@ -617,6 +617,8 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 		return map[string]string{}
 	}
 
+	c.cloud.run.reviewRequest.PushedAt = c.cloud.run.rrEvent.pushedAt
+
 	technology := "other"
 	technologyLayer := "default"
 	for _, run := range runs {
