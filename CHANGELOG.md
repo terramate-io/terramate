@@ -26,7 +26,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix a missing check for `GITLAB_CI` environment variable.
   - The previews feature can only be used in _Github Actions_ and _Gitlab CI/CD_ and a check for the latter was missing.
-
+- Fix the synchronization of the GitLab Merge Request commit SHA.
 
 ## v0.9.2
 
