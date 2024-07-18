@@ -1243,7 +1243,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 		Number:      mr.IID,
 		Title:       mr.Title,
 		Description: mr.Description,
-		CommitSHA:   c.prj.headCommit(),
+		CommitSHA:   mr.SHA,
 		Draft:       mr.Draft,
 		CreatedAt:   mrCreatedAt,
 		PushedAt:    c.cloud.run.rrEvent.pushedAt,
