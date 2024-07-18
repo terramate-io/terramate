@@ -179,9 +179,11 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 		feats = append(feats, cloudFeatScriptSyncPreview)
 	}
 
-	if len(previewRuns) > 0 && os.Getenv("GITHUB_ACTIONS") == "" {
+	isCI := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != ""
+	if len(previewRuns) > 0 && !isCI {
 		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
 		c.disableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
+		return
 	}
 
 	if !c.prj.isRepo {
