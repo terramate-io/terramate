@@ -22,6 +22,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix a missing check for `GITLAB_CI` environment variable.
+  - The previews feature can only be used in _Github Actions_ and _Gitlab CI/CD_ and a check for the latter was missing.
+
+
 ## v0.9.2
 
 ### Changed
