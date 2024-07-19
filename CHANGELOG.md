@@ -20,13 +20,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.9.3
 
 ### Fixed
 
 - Fix a missing check for `GITLAB_CI` environment variable.
   - The previews feature can only be used in _Github Actions_ and _Gitlab CI/CD_ and a check for the latter was missing.
-- Fix the synchronization of the GitLab Merge Request commit SHA.
+- Fix the synchronization of the GitLab Merge Request commit SHA and pushed_at.
 
 ## v0.9.2
 
