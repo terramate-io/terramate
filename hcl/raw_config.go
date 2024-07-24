@@ -48,6 +48,7 @@ func NewTopLevelRawConfig() RawConfig {
 		"assert":          (*RawConfig).addBlock,
 		"import":          func(r *RawConfig, b *ast.Block) error { return nil },
 		"sharing_backend": (*RawConfig).addBlock,
+		"input":           (*RawConfig).addBlock,
 	})
 }
 
