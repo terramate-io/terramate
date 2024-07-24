@@ -71,13 +71,14 @@ func ToOptionalCheck(v bool) OptionalCheck {
 
 // Config represents a Terramate configuration.
 type Config struct {
-	Terramate *Terramate
-	Stack     *Stack
-	Globals   ast.MergedLabelBlocks
-	Vendor    *VendorConfig
-	Asserts   []AssertConfig
-	Generate  GenerateConfig
-	Scripts   []*Script
+	Terramate       *Terramate
+	Stack           *Stack
+	Globals         ast.MergedLabelBlocks
+	Vendor          *VendorConfig
+	Asserts         []AssertConfig
+	Generate        GenerateConfig
+	Scripts         []*Script
+	SharingBackends SharingBackends
 
 	Imported RawConfig
 
@@ -104,6 +105,33 @@ type AssertConfig struct {
 type StackFilterConfig struct {
 	ProjectPaths    []glob.Glob
 	RepositoryPaths []glob.Glob
+}
+
+// SharingBackendType is the type of the sharing backend.
+type SharingBackendType int
+
+// SharingBackends is a list of SharingBackend blocks.
+type SharingBackends []SharingBackend
+
+// SharingBackend holds the parsed values for the `sharing_backend` block.
+type SharingBackend struct {
+	Name     string
+	Type     SharingBackendType
+	Command  []string
+	Filename string
+}
+
+// These are the valid sharing_backend types.
+const (
+	TerraformSharingBackend SharingBackendType = iota + 1
+)
+
+func (st SharingBackendType) String() string {
+	switch st {
+	case TerraformSharingBackend:
+		return "terraform"
+	}
+	return "<unknown>"
 }
 
 // MatchAnyGlob is a helper function to test if s matches any of the given patterns.
@@ -2195,6 +2223,13 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				continue
 			}
 			config.Scripts = append(config.Scripts, scriptCfg)
+		case "sharing_backend":
+			shr, err := p.parseSharingBackendBlock(block)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			config.SharingBackends = append(config.SharingBackends, shr)
 		}
 	}
 
@@ -2459,6 +2494,31 @@ func (p *TerramateParser) parseTerramateBlock(block *ast.MergedBlock) (Terramate
 		return Terramate{}, err
 	}
 	return tm, nil
+}
+
+func (p *TerramateParser) evalStringList(expr hcl.Expression, name string) ([]string, error) {
+	list, err := p.evalctx.Eval(expr)
+	if err != nil {
+		return nil, err
+	}
+	if !list.Type().IsListType() && !list.Type().IsTupleType() {
+		return nil, errors.E(`%q must be a list(string) but %q given`, name, list.Type().FriendlyName())
+	}
+	if list.LengthInt() == 0 {
+		return nil, errors.E(`%q must be a non-empty list of strings`, name)
+	}
+	var command []string
+	it := list.ElementIterator()
+	index := 0
+	for it.Next() {
+		_, val := it.Element()
+		if !val.Type().Equals(cty.String) {
+			return nil, errors.E(`element %d of attribute %s is not a string but %s`, index, name, val.Type().FriendlyName())
+		}
+		command = append(command, val.AsString())
+		index++
+	}
+	return command, nil
 }
 
 // HasSafeguardDisabled checks if the configuration (including the deprecated) has
