@@ -49,6 +49,7 @@ func NewTopLevelRawConfig() RawConfig {
 		"import":          func(r *RawConfig, b *ast.Block) error { return nil },
 		"sharing_backend": (*RawConfig).addBlock,
 		"input":           (*RawConfig).addBlock,
+		"output":          (*RawConfig).addBlock,
 	})
 }
 

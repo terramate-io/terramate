@@ -261,6 +261,82 @@ func TestParserSharingInput(t *testing.T) {
 	})
 }
 
+func TestParserSharingOutput(t *testing.T) {
+	t.Run("output with no label", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Doc(
+				Block("output",
+					Expr("backend", "something"),
+					Expr("value", `outputs.something`),
+				),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 0 given"))
+	})
+
+	t.Run("output with more than 1 label", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("output",
+				Labels("label_1", "label_2"),
+				Expr("backend", "something"),
+				Expr("value", `outputs.something`),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 2 given"))
+	})
+
+	t.Run("input with no backend", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("output",
+				Labels("var_name"),
+				Expr("value", `outputs.someval`),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.backend" is required`))
+	})
+
+	t.Run("input with no value", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("output",
+				Labels("var_name"),
+				Str("backend", "some-backend"),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.value" is required`))
+	})
+
+	t.Run("basic working outputs", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Doc(
+				Block("output",
+					Labels("var_name"),
+					Str("backend", "some-backend"),
+					Expr("value", `outputs.someval`),
+				),
+
+				Block("output",
+					Labels("var_name_2"),
+					Str("backend", "some-backend"),
+					Expr("value", `outputs.someval2`),
+				),
+			).String(),
+		})
+		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		assert.NoError(t, err)
+		assert.EqualInts(t, 2, len(cfg.Outputs))
+		// cfg.Outputs will be validated later when evaluated in the config/input.go
+	})
+}
+
 // this comes from using sandbox.NoGit(t, true)
 func expectedRootTerramate() *hcl.Terramate {
 	return &hcl.Terramate{
