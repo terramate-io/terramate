@@ -148,9 +148,13 @@ func (s Stack) validateID() error {
 	if s.ID == "" {
 		return nil
 	}
+	return validateID(s.ID, "stack.id")
+}
+
+func validateID(id string, field string) error {
 	stackIDRegex := regexp.MustCompile(stackIDRegexPattern)
-	if !stackIDRegex.MatchString(s.ID) {
-		return errors.E("stack ID %q doesn't match %q", s.ID, stackIDRegexPattern)
+	if !stackIDRegex.MatchString(id) {
+		return errors.E("%q %q doesn't match %q", field, id, stackIDRegexPattern)
 	}
 	return nil
 }
