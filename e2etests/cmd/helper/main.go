@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	tfjson "github.com/hashicorp/terraform-json"
-	"github.com/hashicorp/terraform-json/sanitize"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/tfjson"
+	"github.com/terramate-io/tfjson/sanitize"
 )
 
 func main() {
