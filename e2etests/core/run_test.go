@@ -3050,13 +3050,12 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
-	// Check that if inside cwd it should still detect changes outside
+	// stack2 has no file generation, then it must work.
 	tmcli = NewCLI(t, stack2.Path())
 
-	AssertRunResult(t, tmcli.Run("run", HelperPath,
+	AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
 		"cat", testFilename), RunExpected{
-		Status:      defaultErrExitStatus,
-		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		Stdout: contentsStack2,
 	})
 }
 

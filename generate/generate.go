@@ -516,42 +516,41 @@ processSubdirs:
 	return genfiles, nil
 }
 
-// DetectOutdated will verify if the given config has outdated code
+// DetectOutdated will verify if the given config has outdated code in the target tree
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error) {
+func DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
+		Stringer("dir", target.Dir()).
 		Logger()
-
-	stacks, err := config.LoadAllStacks(root, root.Tree())
-	if err != nil {
-		return nil, err
-	}
 
 	outdatedFiles := []string{}
 	errs := errors.L()
 
 	logger.Debug().Msg("checking outdated code inside stacks")
 
-	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
+	for _, stackTree := range target.Stacks() {
+		st, err := stackTree.Stack()
+		if err != nil {
+			return nil, err
+		}
+		outdated, err := stackOutdated(root, st, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
 		// We want results relative to root
-		stackRelPath := stack.Dir().String()[1:]
+		stackRelPath := st.Dir.String()[1:]
 		for _, file := range outdated {
 			outdatedFiles = append(outdatedFiles,
 				path.Join(stackRelPath, file))
 		}
 	}
 
-	// If the root of the project is a stack then there is no
-	// need to check orphaned files. All files are owned by
-	// the parent stack or its children.
-	if root.Tree().IsStack() {
+	// If the base dir is a stack then there is no need to check orphaned files.
+	// All files are owned by the parent stack or its children.
+	if target.IsStack() {
 		logger.Debug().Msg("project root is stack, no need to check for orphaned files")
 
 		sort.Strings(outdatedFiles)
@@ -560,7 +559,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 
 	logger.Debug().Msg("checking for orphaned files")
 
-	orphanedFiles, err := ListGenFiles(root, root.HostDir())
+	orphanedFiles, err := ListGenFiles(root, target.HostDir())
 	if err != nil {
 		errs.Append(err)
 	}

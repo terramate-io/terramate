@@ -2307,7 +2307,12 @@ func (c *cli) checkOutdatedGeneratedCode() {
 		return
 	}
 
-	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
+	targetTree, ok := c.cfg().Lookup(prj.PrjAbsPath(c.rootdir(), c.wd()))
+	if !ok {
+		return
+	}
+
+	outdatedFiles, err := generate.DetectOutdated(c.cfg(), targetTree, c.vendorDir())
 	if err != nil {
 		fatalWithDetails(err, "failed to check outdated code on project")
 	}

@@ -513,8 +513,10 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 		),
 	).String()
 
-	runFromDir := func(t *testing.T, wd string, want generate.Report) {
-		t.Run(fmt.Sprintf("terramate -C %s generate", wd), func(t *testing.T) {
+	runFromDir := func(t *testing.T, generateWd string, runWd string, wantGenerate generate.Report, wantRun RunExpected) {
+		t.Helper()
+		t.Run(fmt.Sprintf("terramate -C %s generate", generateWd), func(t *testing.T) {
+			t.Helper()
 			t.Parallel()
 			s := sandbox.NoGit(t, true)
 			s.BuildTree([]string{
@@ -527,16 +529,20 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 				configStr,
 			)
 
-			tmcli := NewCLI(t, filepath.Join(s.RootDir(), wd))
-			res := tmcli.Run("generate")
+			gencli := NewCLI(t, filepath.Join(s.RootDir(), generateWd))
+			res := gencli.Run("generate")
 			expected := RunExpected{
-				Stdout: nljoin(want.Full()),
+				Stdout: nljoin(wantGenerate.Full()),
 			}
 			AssertRunResult(t, res, expected)
+
+			runcli := NewCLI(t, filepath.Join(s.RootDir(), runWd))
+			res = runcli.Run("run", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
+			AssertRunResult(t, res, wantRun)
 		})
 	}
 
-	runFromDir(t, "/", generate.Report{
+	runFromDir(t, "/", "/", generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir: project.NewPath("/"),
@@ -557,8 +563,11 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 				},
 			},
 		},
+	}, RunExpected{
+		Stdout:       nljoin("/stacks/stack-1", "/stacks/stack-2"),
+		IgnoreStderr: true,
 	})
-	runFromDir(t, "/stacks", generate.Report{
+	runFromDir(t, "/stacks", "/stacks", generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir: project.NewPath("/stacks/stack-1"),
@@ -573,8 +582,11 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 				},
 			},
 		},
+	}, RunExpected{
+		Stdout:       nljoin("/stacks/stack-1", "/stacks/stack-2"),
+		IgnoreStderr: true,
 	})
-	runFromDir(t, "/stacks/stack-1", generate.Report{
+	runFromDir(t, "/stacks/stack-1", "/stacks/stack-1", generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir: project.NewPath("/stacks/stack-1"),
@@ -583,6 +595,39 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 				},
 			},
 		},
+	}, RunExpected{
+		Stdout:       nljoin("/stacks/stack-1"),
+		IgnoreStderr: true,
+	})
+
+	// if generateWd and runWd are different then outdated detection must
+	// still kick-in.
+	runFromDir(t, "/stacks/stack-1", "/", generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir: project.NewPath("/stacks/stack-1"),
+				Created: []string{
+					"stack.hcl", "stack.name.txt",
+				},
+			},
+		},
+	}, RunExpected{
+		Status:      1,
+		StderrRegex: "outdated generated code detected",
+	})
+
+	runFromDir(t, "/stacks/stack-1", "/stacks", generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir: project.NewPath("/stacks/stack-1"),
+				Created: []string{
+					"stack.hcl", "stack.name.txt",
+				},
+			},
+		},
+	}, RunExpected{
+		Status:      1,
+		StderrRegex: "outdated generated code detected",
 	})
 }
 
