@@ -1118,7 +1118,8 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
+	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
+	report := generate.Do(c.cfg(), cwd, c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
@@ -2306,7 +2307,12 @@ func (c *cli) checkOutdatedGeneratedCode() {
 		return
 	}
 
-	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
+	targetTree, ok := c.cfg().Lookup(prj.PrjAbsPath(c.rootdir(), c.wd()))
+	if !ok {
+		return
+	}
+
+	outdatedFiles, err := generate.DetectOutdated(c.cfg(), targetTree, c.vendorDir())
 	if err != nil {
 		fatalWithDetails(err, "failed to check outdated code on project")
 	}

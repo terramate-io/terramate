@@ -22,6 +22,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for generating files relative to working directory. Both examples below only generate files inside `some/dir`:
+  - `terramate -C some/dir generate`
+  - `cd some/dir && terramate generate`
+
 ## v0.9.4
 
 ### Changed
