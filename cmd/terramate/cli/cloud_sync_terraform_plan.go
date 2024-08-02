@@ -13,12 +13,12 @@ import (
 	"path/filepath"
 	"time"
 
-	tfjson "github.com/hashicorp/terraform-json"
-	"github.com/hashicorp/terraform-json/sanitize"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/tfjson"
+	"github.com/terramate-io/tfjson/sanitize"
 )
 
 const terraformShowTimeout = 300 * time.Second
