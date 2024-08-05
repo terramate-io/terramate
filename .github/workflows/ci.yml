@@ -69,6 +69,7 @@ jobs:
         run: terramate generate
 
       - name: make test
+        timeout-minutes: 30
         run: terramate run --tags golang --changed -- make test
         env:
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
