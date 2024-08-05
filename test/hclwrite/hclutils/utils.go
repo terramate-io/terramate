@@ -120,6 +120,12 @@ func RepositoryPaths(paths ...string) hclwrite.BlockBuilder {
 	return hclwrite.Expression("repository_paths", expr)
 }
 
+// Experiments is a helper for adding an `experiments` attribute.
+func Experiments(names ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(names, `","`) + `"]`
+	return hclwrite.Expression("experiments", expr)
+}
+
 // Lets is a helper for a "lets" block.
 func Lets(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("lets", builders...)
