@@ -10,20 +10,23 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/generate/genhcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
 )
 
 // File is a sharing backend generated file.
 type File struct {
-	filename  string
-	origin    info.Range
-	body      string
-	condition bool
+	magicCommentStyle genhcl.CommentStyle
+	filename          string
+	origin            info.Range
+	body              string
+	condition         bool
 }
 
 // PrepareFile prepares a sharing backend generated file.
-func PrepareFile(filename string, inputs config.Inputs, outputs config.Outputs) (File, error) {
+func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outputs config.Outputs) (File, error) {
+	commentStyle := genhcl.CommentStyleFromConfig(root.Tree())
 	gen := hclwrite.NewEmptyFile()
 	body := gen.Body()
 	var info info.Range
@@ -52,10 +55,11 @@ func PrepareFile(filename string, inputs config.Inputs, outputs config.Outputs) 
 	}
 
 	return File{
-		origin:    info,
-		filename:  filename,
-		condition: (len(inputs) + len(outputs)) != 0,
-		body:      string(hclwrite.Format(gen.Bytes())),
+		magicCommentStyle: commentStyle,
+		origin:            info,
+		filename:          filename,
+		condition:         (len(inputs) + len(outputs)) != 0,
+		body:              string(hclwrite.Format(gen.Bytes())),
 	}, nil
 }
 
@@ -74,7 +78,7 @@ func (f File) Asserts() []config.Assert {
 
 // Header returns the header of the generated HCL file.
 func (f File) Header() string {
-	return ""
+	return genhcl.Header(f.magicCommentStyle)
 }
 
 // Body returns a string representation of the HCL code

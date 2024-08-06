@@ -1267,7 +1267,7 @@ func loadStackCodeCfgs(
 		if !ok {
 			return nil, errors.E("backend %s not found", backendName)
 		}
-		sharingFile, err := sharing.PrepareFile(backend.Filename, file.inputs, file.outputs)
+		sharingFile, err := sharing.PrepareFile(root, backend.Filename, file.inputs, file.outputs)
 		if err != nil {
 			return nil, err
 		}
