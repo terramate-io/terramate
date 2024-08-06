@@ -5,12 +5,16 @@ package generate_test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/genhcl"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/project"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestGenerateSharing(t *testing.T) {
@@ -409,4 +413,67 @@ func TestGenerateSharing(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestSharingOrphanedFilesAreDeleted(t *testing.T) {
+	t.Parallel()
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		`s:s1`,
+		`s:s2`,
+		`f:exp.tm:` + Terramate(
+			Config(
+				Experiments("sharing-is-caring"),
+			),
+		).String(),
+		`f:backend.tm:` + Block("sharing_backend",
+			Labels("terraform"),
+			Expr("type", "terraform"),
+			Str("filename", "sharing.tf"),
+			Command("echo", "whatever"),
+		).String(),
+		`f:s1/outputs.tm:` + Output(
+			Labels("name"),
+			Expr("value", "module.test"),
+			Str("backend", "terraform"),
+		).String(),
+		`f:s2/inputs.tm:` + Input(
+			Labels("name"),
+			Expr("value", "outputs.name.value"),
+			Str("backend", "terraform"),
+			Str("from_stack_id", "whatever"),
+		).String(),
+	})
+	s.Generate()
+	expectedOutput := genhcl.Header(genhcl.DefaultComment) + Block("output",
+		Labels("name"),
+		Expr("value", "module.test"),
+	).String() + "\n"
+	gotOutput := s.RootEntry().ReadFile("s1/sharing.tf")
+	assert.EqualStrings(t, expectedOutput, string(gotOutput))
+
+	expectedInput := genhcl.Header(genhcl.DefaultComment) + Block("variable",
+		Labels("name"),
+		Expr("type", "string"),
+	).String() + "\n"
+	gotInput := s.RootEntry().ReadFile("s2/sharing.tf")
+	assert.EqualStrings(t, expectedInput, string(gotInput))
+
+	s.RootEntry().RemoveFile("s1/outputs.tm")
+	s.Generate()
+	// s1/sharing.tf must be deleted
+	assertFileDeleted(t, "s1/sharing.tf")
+	gotInput = s.RootEntry().ReadFile("s2/sharing.tf")
+	assert.EqualStrings(t, expectedInput, string(gotInput))
+
+	s.RootEntry().RemoveFile("s2/inputs.tm")
+	assertFileDeleted(t, "s1/sharing.tf")
+	assertFileDeleted(t, "s2/sharing.tf")
+}
+
+func assertFileDeleted(t *testing.T, name string) {
+	_, err := os.Lstat(name)
+	if !os.IsNotExist(err) {
+		t.Fatalf("file %s is still present", name)
+	}
 }
