@@ -134,3 +134,47 @@ func (p *TerramateParser) parseInput(block *ast.Block) (Input, error) {
 	}
 	return input, nil
 }
+
+func (p *TerramateParser) parseOutput(block *ast.Block) (Output, error) {
+	if !p.hasExperimentalFeature(SharingIsCaringExperimentName) {
+		return Output{}, errors.E(ErrTerramateSchema, block.DefRange(),
+			"unrecognized block %q (sharing-is-caring is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [%q]`)", block.Type, SharingIsCaringExperimentName)
+	}
+	output := Output{}
+	errs := errors.L()
+	if len(block.Labels) != 1 {
+		errs.Append(errors.E(
+			ErrTerramateSchema,
+			block.Range,
+			"expected a single label but %d given",
+			len(block.Labels),
+		))
+	} else {
+		output.Name = block.Labels[0]
+	}
+	for _, attr := range block.Attributes {
+		attr := attr
+		switch attr.Name {
+		case "backend":
+			output.Backend = attr.Expr
+		case "value":
+			output.Value = attr.Expr
+		case "description":
+			output.Description = attr.Expr
+		case "sensitive":
+			output.Sensitive = attr.Expr
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange, "unrecognized attribute %s", attr.Name))
+		}
+	}
+	if output.Backend == nil {
+		errs.Append(errors.E(ErrTerramateSchema, block.Range, `attribute "input.backend" is required`))
+	}
+	if output.Value == nil {
+		errs.Append(errors.E(ErrTerramateSchema, block.Range, `attribute "input.value" is required`))
+	}
+	if err := errs.AsError(); err != nil {
+		return Output{}, err
+	}
+	return output, nil
+}
