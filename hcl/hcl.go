@@ -131,6 +131,7 @@ type SharingBackend struct {
 
 // Input holds the parsed values for the `input` block.
 type Input struct {
+	info.Range
 	Name        string
 	Backend     hcl.Expression
 	FromStackID hcl.Expression
@@ -141,6 +142,7 @@ type Input struct {
 
 // Output holds the parsed value for the `output` block.
 type Output struct {
+	info.Range
 	Name        string
 	Backend     hcl.Expression
 	Description hcl.Expression

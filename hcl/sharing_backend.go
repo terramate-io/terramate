@@ -91,7 +91,9 @@ func (p *TerramateParser) parseInput(block *ast.Block) (Input, error) {
 		return Input{}, errors.E(ErrTerramateSchema, block.DefRange(),
 			"unrecognized block %q (sharing-is-caring is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [%q]`)", block.Type, SharingIsCaringExperimentName)
 	}
-	input := Input{}
+	input := Input{
+		Range: block.Range,
+	}
 	errs := errors.L()
 	if len(block.Labels) != 1 {
 		errs.Append(errors.E(
@@ -140,7 +142,9 @@ func (p *TerramateParser) parseOutput(block *ast.Block) (Output, error) {
 		return Output{}, errors.E(ErrTerramateSchema, block.DefRange(),
 			"unrecognized block %q (sharing-is-caring is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [%q]`)", block.Type, SharingIsCaringExperimentName)
 	}
-	output := Output{}
+	output := Output{
+		Range: block.Range,
+	}
 	errs := errors.L()
 	if len(block.Labels) != 1 {
 		errs.Append(errors.E(

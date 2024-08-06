@@ -38,6 +38,16 @@ func Script(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("script", builders...)
 }
 
+// Input is a helper for an "input" block.
+func Input(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("input", builders...)
+}
+
+// Output is a helper for an "output" block.
+func Output(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("output", builders...)
+}
+
 // Command is a helper for a "command" attribute.
 func Command(args ...string) hclwrite.BlockBuilder {
 	expr := `["` + strings.Join(args, `","`) + `"]`
