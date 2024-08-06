@@ -29,6 +29,10 @@ type (
 	Manager struct {
 		root *config.Root // whole config
 		git  *git.Git
+
+		cache struct {
+			stacks []Entry
+		}
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -71,15 +75,34 @@ func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 }
 
 // List walks the basedir directory looking for terraform stacks.
-// It returns a lexicographic sorted list of stack directories.
-func (m *Manager) List() (*Report, error) {
+// The stacks are cached and sorted lexicographicly by the directory.
+func (m *Manager) List(checkRepo bool) (*Report, error) {
+	if m.cache.stacks != nil {
+		report := &Report{
+			Stacks: m.cache.stacks,
+		}
+		if !checkRepo {
+			return report, nil
+		}
+		var err error
+		report.Checks, err = checkRepoIsClean(m.git)
+		if err != nil {
+			return nil, errors.E(errList, err)
+		}
+		return report, nil
+	}
 	entries, err := List(m.root, m.root.Tree())
 	if err != nil {
 		return nil, err
 	}
 
+	m.cache.stacks = entries
 	report := &Report{
 		Stacks: entries,
+	}
+
+	if !checkRepo {
+		return report, nil
 	}
 
 	if m.git == nil || !m.git.IsRepository() {
@@ -93,11 +116,12 @@ func (m *Manager) List() (*Report, error) {
 	return report, nil
 }
 
-// ListChanged lists the stacks that have changed on the current branch,
+// ListChanged lists the stacks that have changed on the current HEAD,
 // compared to the main branch. This method assumes a version control
 // system in place and that you are working on a branch that is not main.
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
+// It never returns cached values.
 func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
@@ -221,9 +245,15 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		delete(stackSet, ignored)
 	}
 
-	allstacks, err := List(m.root, m.root.Tree())
-	if err != nil {
-		return nil, errors.E(errListChanged, "searching for stacks", err)
+	var allstacks []Entry
+	if m.cache.stacks != nil {
+		allstacks = m.cache.stacks
+	} else {
+		allstacks, err = List(m.root, m.root.Tree())
+		if err != nil {
+			return nil, errors.E(errListChanged, "searching for stacks", err)
+		}
+		m.cache.stacks = allstacks
 	}
 
 	tgModulesMap := make(map[project.Path]*tg.Module)
@@ -345,6 +375,20 @@ rangeStacks:
 		Checks: checks,
 		Stacks: changedStacks,
 	}, nil
+}
+
+// StackByID returns the stack with the given id.
+func (m *Manager) StackByID(id string) (*config.Stack, bool, error) {
+	report, err := m.List(false)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, entry := range report.Stacks {
+		if entry.Stack.ID == id {
+			return entry.Stack, true, nil
+		}
+	}
+	return nil, false, nil
 }
 
 // AddWantedOf returns all wanted stacks from the given stacks.
