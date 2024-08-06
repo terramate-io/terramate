@@ -140,12 +140,6 @@ func TestParserSharingBackend(t *testing.T) {
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `element 1 of attribute sharing_backend.command is not a string but bool`))
 	})
 
-	// this comes from using sandbox.NoGit(t, true)
-	expectedRootTerramate := &hcl.Terramate{
-		RequiredVersion:                 "> 0.0.1",
-		RequiredVersionAllowPreReleases: true,
-	}
-
 	t.Run("basic working sharing_backend", func(t *testing.T) {
 		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{
@@ -159,7 +153,7 @@ func TestParserSharingBackend(t *testing.T) {
 		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
 		assert.NoError(t, err)
 		test.AssertTerramateConfig(t, cfg, hcl.Config{
-			Terramate: expectedRootTerramate,
+			Terramate: expectedRootTerramate(),
 			SharingBackends: hcl.SharingBackends{
 				{
 					Name:     "common-backend",
@@ -170,4 +164,107 @@ func TestParserSharingBackend(t *testing.T) {
 			},
 		})
 	})
+}
+
+func TestParserSharingInput(t *testing.T) {
+	t.Run("input with no label", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Doc(
+				Block("input",
+					Expr("backend", "something"),
+					Expr("value", `outputs.something`),
+					Str("from_stack_id", "other-stack"),
+				),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 0 given"))
+	})
+
+	t.Run("input with more than 1 label", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("input",
+				Labels("label_1", "label_2"),
+				Expr("backend", "something"),
+				Expr("value", `outputs.something`),
+				Str("from_stack_id", "other-stack"),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 2 given"))
+	})
+
+	t.Run("input with no backend", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("input",
+				Labels("var_name"),
+				Expr("value", `outputs.someval`),
+				Str("from_stack_id", "somestack"),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.backend" is required`))
+	})
+
+	t.Run("input with no value", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("input",
+				Labels("var_name"),
+				Str("backend", "some-backend"),
+				Str("from_stack_id", "somestack"),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.value" is required`))
+	})
+
+	t.Run("input with no from_stack_id", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Block("input",
+				Labels("var_name"),
+				Str("backend", "some-backend"),
+				Expr("value", `outputs.someval`),
+			).String(),
+		})
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.from_stack_id" is required`))
+	})
+
+	t.Run("basic working inputs", func(t *testing.T) {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{
+			`f:cfg.tm:` + Doc(
+				Block("input",
+					Labels("var_name"),
+					Str("backend", "some-backend"),
+					Expr("value", `outputs.someval`),
+					Str("from_stack_id", "somestack"),
+				),
+
+				Block("input",
+					Labels("var_name_2"),
+					Str("backend", "some-backend"),
+					Expr("value", `outputs.someval2`),
+					Str("from_stack_id", "somestack"),
+				),
+			).String(),
+		})
+		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		assert.NoError(t, err)
+		assert.EqualInts(t, 2, len(cfg.Inputs))
+		// cfg.Inputs will be validated later when evaluated in the config/input.go
+	})
+}
+
+// this comes from using sandbox.NoGit(t, true)
+func expectedRootTerramate() *hcl.Terramate {
+	return &hcl.Terramate{
+		RequiredVersion:                 "> 0.0.1",
+		RequiredVersionAllowPreReleases: true,
+	}
 }

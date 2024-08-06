@@ -79,6 +79,7 @@ type Config struct {
 	Generate        GenerateConfig
 	Scripts         []*Script
 	SharingBackends SharingBackends
+	Inputs          Inputs
 
 	Imported RawConfig
 
@@ -113,12 +114,25 @@ type SharingBackendType int
 // SharingBackends is a list of SharingBackend blocks.
 type SharingBackends []SharingBackend
 
+// Inputs is a list of Input blocks.
+type Inputs []Input
+
 // SharingBackend holds the parsed values for the `sharing_backend` block.
 type SharingBackend struct {
 	Name     string
 	Type     SharingBackendType
 	Command  []string
 	Filename string
+}
+
+// Input holds the parsed values for the `input` block.
+type Input struct {
+	Name        string
+	Backend     hcl.Expression
+	FromStackID hcl.Expression
+	Value       hcl.Expression
+	Sensitive   hcl.Expression
+	Mock        hcl.Expression
 }
 
 // These are the valid sharing_backend types.
@@ -2230,6 +2244,13 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				continue
 			}
 			config.SharingBackends = append(config.SharingBackends, shr)
+		case "input":
+			input, err := p.parseInput(block)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			config.Inputs = append(config.Inputs, input)
 		}
 	}
 

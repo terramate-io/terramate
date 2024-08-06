@@ -85,7 +85,7 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 		cmpopts.IgnoreFields(hcl.Config{}, "Imported"),
 
 		// Globals/Asserts/Scripts are mostly Attribute and Expr, which cannot be easily compared with cmp.Diff.
-		cmpopts.IgnoreFields(hcl.Config{}, "Globals", "Asserts", "Scripts"),
+		cmpopts.IgnoreFields(hcl.Config{}, "Globals", "Asserts", "Scripts", "Inputs"),
 		cmpopts.IgnoreFields(hcl.RunEnv{}, "Attributes"), // because Expr and Range
 		cmpopts.IgnoreFields(hcl.Config{}, "Generate"),
 	); diff != "" {
