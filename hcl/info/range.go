@@ -28,6 +28,9 @@ type Range struct {
 	start, end Pos
 }
 
+// Ranges is a list of range.
+type Ranges []Range
+
 // NewRange creates a new Range from the given [hcl.Range] and the rootdir.
 // This function assumes that the filename on the given [hcl.Range] is
 // absolute and inside rootdir.
@@ -132,4 +135,13 @@ func (r Range) ToHCLRange() hcl.Range {
 			Column: r.End().Column(),
 		},
 	}
+}
+
+// Paths returns the list of paths of the ranges.
+func (rrs Ranges) Paths() project.Paths {
+	var paths project.Paths
+	for _, r := range rrs {
+		paths = append(paths, r.Path())
+	}
+	return paths
 }

@@ -253,7 +253,7 @@ func TestListChangedStacks(t *testing.T) {
 			changedStacks := report.Stacks
 			assertStacks(t, tc.want.changed, changedStacks, true)
 
-			report, err = m.List()
+			report, err = m.List(true)
 			assert.EqualErrs(t, tc.want.err, err, "List() error")
 
 			allstacks := report.Stacks

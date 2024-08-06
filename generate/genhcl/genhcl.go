@@ -26,7 +26,6 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -98,6 +97,9 @@ const (
 	// ErrDynamicAttrsConflict indicates fields of tm_dynamic conflicts.
 	ErrDynamicAttrsConflict errors.Kind = "tm_dynamic.attributes and tm_dynamic.content have conflicting fields"
 )
+
+// Builtin returns false for generate_hcl blocks.
+func (h HCL) Builtin() bool { return false }
 
 // Label of the original generate_hcl block.
 func (h HCL) Label() string {
@@ -191,7 +193,7 @@ func CommentStyleFromConfig(tree *config.Tree) CommentStyle {
 func Load(
 	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
@@ -234,7 +236,7 @@ func Load(
 			continue
 		}
 
-		evalctx := stack.NewEvalCtx(root, st, globals)
+		evalctx := evalctx.Copy()
 
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
@@ -245,7 +247,7 @@ func Load(
 			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 		)
 
-		err := lets.Load(hclBlock.Lets, evalctx.Context)
+		err := lets.Load(hclBlock.Lets, evalctx)
 		if err != nil {
 			return nil, err
 		}
@@ -304,7 +306,7 @@ func Load(
 		assertFailed := false
 
 		for i, assertCfg := range hclBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			assert, err := config.EvalAssert(evalctx, assertCfg)
 			if err != nil {
 				assertsErrs.Append(err)
 				continue

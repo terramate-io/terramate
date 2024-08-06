@@ -152,6 +152,8 @@ type cliSpec struct {
 		cloudFilterFlags
 		Target               string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
 		FromTarget           string `help:"Migrate stacks from given deployment target."`
+		EnableSharing        bool   `help:"Enable sharing of stack outputs as stack inputs."`
+		MockOnFail           bool   `help:"Mock the output values if command fails."`
 		CloudSyncDeployment  bool   `hidden:""`
 		SyncDeployment       bool   `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
 		CloudSyncDriftStatus bool   `hidden:""`
@@ -1233,7 +1235,7 @@ func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.Statu
 	if isChanged {
 		report, err = mgr.ListChanged(c.baseRef())
 	} else {
-		report, err = mgr.List()
+		report, err = mgr.List(true)
 	}
 
 	if report != nil {

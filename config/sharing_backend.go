@@ -24,6 +24,9 @@ type (
 		Mock        cty.Value
 	}
 
+	// Inputs is a list of Input.
+	Inputs []Input
+
 	// Output represents an evaluated output block
 	Output struct {
 		info.Range
@@ -33,6 +36,9 @@ type (
 		Value       hhcl.Expression
 		Sensitive   bool
 	}
+
+	// Outputs is a list of outputs.
+	Outputs []Output
 )
 
 // EvalInput evaluates an input block using the provided evaluation context.
@@ -72,7 +78,7 @@ func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 func (i *Input) Value(evalctx *eval.Context) (cty.Value, error) {
 	value, err := evalctx.Eval(i.value)
 	if err != nil {
-		return cty.NilVal, errors.E(err, `evaluating "input.value"`)
+		return cty.NilVal, errors.E(err, `evaluating input value`)
 	}
 	return value, nil
 }

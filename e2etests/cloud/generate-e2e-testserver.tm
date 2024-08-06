@@ -59,7 +59,7 @@ generate_file "/e2etests/cloud/testdata/cloud.data.json" {
 
   lets {
     github_get_pull_request_response = tm_jsondecode(tm_file("e2etests/cloud/testdata/github/get_pull_request_response.json"))
-    github_get_commit_response = tm_jsondecode(tm_file("e2etests/cloud/testdata/github/get_commit_response.json"))
+    github_get_commit_response       = tm_jsondecode(tm_file("e2etests/cloud/testdata/github/get_commit_response.json"))
   }
 
   content = tm_jsonencode({
@@ -68,7 +68,7 @@ generate_file "/e2etests/cloud/testdata/cloud.data.json" {
     well_known = let.well_known,
     github = {
       get_pull_request_response = let.github_get_pull_request_response,
-      get_commit_response = let.github_get_commit_response,
+      get_commit_response       = let.github_get_commit_response,
     }
   })
 }

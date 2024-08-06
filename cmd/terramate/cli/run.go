@@ -4,8 +4,9 @@
 package cli
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
+	stdjson "encoding/json"
 	"regexp"
 
 	stdfmt "fmt"
@@ -29,6 +30,8 @@ import (
 	"github.com/terramate-io/terramate/scheduler"
 	"github.com/terramate-io/terramate/scheduler/resource"
 	"github.com/terramate-io/terramate/stack"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/json"
 )
 
 const (
@@ -370,6 +373,11 @@ func (c *cli) runAll(
 		}
 	}()
 
+	// map of stackName -> map of backendName -> outputs
+	type stackOutputs map[prj.Path]map[string]cty.Value
+
+	allOutputs := stackOutputs{}
+
 	err = sched.Run(func(run stackRun) error {
 		errs := errors.L()
 
@@ -384,7 +392,75 @@ func (c *cli) runAll(
 				printScriptCommand(c.stderr, run.Stack, task)
 			}
 
+			cfg, _ := c.cfg().Lookup(run.Stack.Dir)
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
+			if c.parsedArgs.Run.EnableSharing {
+				for _, in := range cfg.Node.Inputs {
+					evalctx := c.setupEvalContext(run.Stack, map[string]string{})
+					input, err := config.EvalInput(evalctx, in)
+					if err != nil {
+						fatalWithDetails(err, "failed to evaluate input block")
+					}
+					otherStack, found, err := c.stackManager().StackByID(input.FromStackID)
+					if err != nil {
+						fatalWithDetails(err, "populating stack inputs from stack.id %s", input.FromStackID)
+					}
+					if !found {
+						printer.Stderr.Fatal(errors.E("input.%s.from_stack_id=%s not found", input.Name, input.FromStackID))
+					}
+					backend, ok := cfg.SharingBackend(input.Backend)
+					if !ok {
+						printer.Stderr.Fatal(errors.E("backend %s not found", input.Backend))
+					}
+					_, ok = allOutputs[otherStack.Dir]
+					if !ok {
+						allOutputs[otherStack.Dir] = make(map[string]cty.Value)
+					}
+					_, ok = allOutputs[otherStack.Dir][backend.Name]
+					if !ok {
+						var stdout bytes.Buffer
+						var stderr bytes.Buffer
+						cmd := exec.Command(backend.Command[0], backend.Command[1:]...)
+						cmd.Stdout = &stdout
+						cmd.Stderr = &stderr
+						cmd.Dir = otherStack.HostDir(c.cfg())
+						var inputVal cty.Value
+						err := cmd.Run()
+						if err != nil {
+							if !c.parsedArgs.Run.MockOnFail {
+								fatalWithDetails(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes())
+							}
+
+							printer.Stderr.Warnf("failed to execute `sharing_backend` command: %v", err)
+						} else {
+							stdoutBytes := stdout.Bytes()
+							typ, err := json.ImpliedType(stdoutBytes)
+							if err != nil {
+								fatalWithDetails(err, "unmashaling sharing_backend output")
+							}
+							inputVal, err = json.Unmarshal(stdoutBytes, typ)
+							if err != nil {
+								fatalWithDetails(err, "unmashaling sharing_backend output")
+							}
+						}
+						allOutputs[otherStack.Dir][backend.Name] = inputVal
+					}
+					stackOutputs := allOutputs[otherStack.Dir][backend.Name]
+					evalctx.SetNamespaceRaw("outputs", stackOutputs)
+					inputVal, err := input.Value(evalctx)
+					if err != nil {
+						if !c.parsedArgs.Run.MockOnFail || input.Mock.IsNull() {
+							fatalWithDetails(err, "evaluating input value")
+						}
+
+						inputVal = input.Mock
+					}
+					if !inputVal.Type().Equals(cty.String) {
+						printer.Stderr.Fatal(errors.E("output type is not string but %s", inputVal.Type().FriendlyName()))
+					}
+					environ = append(environ, stdfmt.Sprintf("TF_VAR_%s=%s", input.Name, inputVal.AsString()))
+				}
+			}
 
 			// For cloud sync, we always assume that there's a single task per stack.
 			cloudRun := stackCloudRun{Stack: run.Stack, Task: task, Env: environ}
@@ -536,7 +612,7 @@ func (c *cli) runAll(
 }
 
 func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandLogs) {
-	data, _ := json.Marshal(logs)
+	data, _ := stdjson.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
@@ -721,7 +797,7 @@ func (c *cli) getAffectedStacks() []stack.Entry {
 		}
 
 	} else {
-		report, err = mgr.List()
+		report, err = mgr.List(true)
 		if err != nil {
 			fatalWithDetails(err, "listing stacks")
 		}
