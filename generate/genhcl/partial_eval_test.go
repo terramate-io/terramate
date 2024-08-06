@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/terramate-io/terramate/test/hclwrite"
@@ -1868,7 +1869,7 @@ EOT
 
 			s := sandbox.NoGit(t, true)
 			stackEntry := s.CreateStack(stackname)
-			stack := stackEntry.Load(s.Config())
+			st := stackEntry.Load(s.Config())
 			path := filepath.Join(s.RootDir(), stackname)
 			if tcase.globals == nil {
 				tcase.globals = Globals()
@@ -1894,9 +1895,10 @@ EOT
 
 			assert.NoError(t, err)
 
-			globals := s.LoadStackGlobals(root, stack)
+			globals := s.LoadStackGlobals(root, st)
 			vendorDir := project.NewPath("/modules")
-			got, err := genhcl.Load(root, stack, globals, vendorDir, nil)
+			evalctx := stack.NewEvalCtx(root, st, globals)
+			got, err := genhcl.Load(root, st, evalctx.Context, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return
