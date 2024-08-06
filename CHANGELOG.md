@@ -20,6 +20,22 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+## v0.10.0
+
+### Added
+
+- Add support for generating files relative to working directory. Both examples below only generate files inside `some/dir`:
+  - `terramate -C some/dir generate`
+  - `cd some/dir && terramate generate`
+
+## v0.9.4
+
+### Changed
+
+- Use [terramate-io/tfjson](https://github.com/terramate-io/tfjson) in replacement of [hashicorp/terraform-json](https://github.com/hashicorp/terraform-json) for the JSON representation of the plan file.
+
 ## v0.9.3
 
 ### Fixed

@@ -178,17 +178,25 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // obtained and the report needs to be inspected to check.
 func Do(
 	root *config.Root,
+	dir project.Path,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
-	stackReport := doStackGeneration(root, vendorDir, vendorRequests)
-	rootReport := doRootGeneration(root)
+	tree, ok := root.Lookup(dir)
+	if !ok {
+		return Report{
+			BootstrapErr: errors.E("directory %s not found", dir),
+		}
+	}
+	stackReport := doStackGeneration(root, tree, vendorDir, vendorRequests)
+	rootReport := doRootGeneration(root, tree)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(root, report)
 }
 
 func doStackGeneration(
 	root *config.Root,
+	tree *config.Tree,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
@@ -198,7 +206,7 @@ func doStackGeneration(
 
 	report := Report{}
 
-	for _, cfg := range root.Tree().Stacks() {
+	for _, cfg := range tree.Stacks() {
 		stack, err := cfg.Stack()
 		if err != nil {
 			report.BootstrapErr = err
@@ -315,7 +323,7 @@ func doStackGeneration(
 	return report
 }
 
-func doRootGeneration(root *config.Root) Report {
+func doRootGeneration(root *config.Root, tree *config.Tree) Report {
 	logger := log.With().
 		Str("action", "generate.doRootGeneration").
 		Logger()
@@ -325,7 +333,7 @@ func doRootGeneration(root *config.Root) Report {
 	evalctx.SetNamespace("terramate", root.Runtime())
 
 	var files []GenFile
-	for _, cfg := range root.Tree().AsList() {
+	for _, cfg := range tree.AsList() {
 		logger = logger.With().
 			Stringer("configDir", cfg.Dir()).
 			Bool("isEmpty", cfg.IsEmptyConfig()).
@@ -508,42 +516,41 @@ processSubdirs:
 	return genfiles, nil
 }
 
-// DetectOutdated will verify if the given config has outdated code
+// DetectOutdated will verify if the given config has outdated code in the target tree
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error) {
+func DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
+		Stringer("dir", target.Dir()).
 		Logger()
-
-	stacks, err := config.LoadAllStacks(root, root.Tree())
-	if err != nil {
-		return nil, err
-	}
 
 	outdatedFiles := []string{}
 	errs := errors.L()
 
 	logger.Debug().Msg("checking outdated code inside stacks")
 
-	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
+	for _, stackTree := range target.Stacks() {
+		st, err := stackTree.Stack()
+		if err != nil {
+			return nil, err
+		}
+		outdated, err := stackOutdated(root, st, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
 		// We want results relative to root
-		stackRelPath := stack.Dir().String()[1:]
+		stackRelPath := st.Dir.String()[1:]
 		for _, file := range outdated {
 			outdatedFiles = append(outdatedFiles,
 				path.Join(stackRelPath, file))
 		}
 	}
 
-	// If the root of the project is a stack then there is no
-	// need to check orphaned files. All files are owned by
-	// the parent stack or its children.
-	if root.Tree().IsStack() {
+	// If the base dir is a stack then there is no need to check orphaned files.
+	// All files are owned by the parent stack or its children.
+	if target.IsStack() {
 		logger.Debug().Msg("project root is stack, no need to check for orphaned files")
 
 		sort.Strings(outdatedFiles)
@@ -552,7 +559,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 
 	logger.Debug().Msg("checking for orphaned files")
 
-	orphanedFiles, err := ListGenFiles(root, root.HostDir())
+	orphanedFiles, err := ListGenFiles(root, target.HostDir())
 	if err != nil {
 		errs.Append(err)
 	}

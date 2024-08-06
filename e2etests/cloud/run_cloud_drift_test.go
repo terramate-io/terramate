@@ -16,7 +16,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
@@ -25,6 +24,7 @@ import (
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/tfjson"
 )
 
 type expectedDriftStackPayloadRequests []expectedDriftStackPayloadRequest
@@ -912,6 +912,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		assert.NoError(t, json.Unmarshal([]byte(expected.Details.ChangesetJSON), &wantPlan))
 
 		if diff := cmp.Diff(gotPlan, wantPlan,
+			cmpopts.IgnoreUnexported(tfjson.Plan{}),
 			// TODO (snk): Could also supply two planfiles, but I think this is fine, too.
 			cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp", "FormatVersion", "TerraformVersion"),
 			cmpopts.IgnoreFields(tfjson.ResourceChange{}, "ProviderName"),
