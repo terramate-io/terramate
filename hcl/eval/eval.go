@@ -51,6 +51,12 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
 	c.hclctx.Variables[name] = cty.ObjectVal(vals)
 }
 
+// SetNamespaceRaw set the given namespace name with the provided value, no
+// matter what value type is it.
+func (c *Context) SetNamespaceRaw(name string, val cty.Value) {
+	c.hclctx.Variables[name] = val
+}
+
 // GetNamespace will retrieve the value for the given namespace.
 func (c *Context) GetNamespace(name string) (cty.Value, bool) {
 	val, ok := c.hclctx.Variables[name]

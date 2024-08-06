@@ -78,7 +78,7 @@ func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 func (i *Input) Value(evalctx *eval.Context) (cty.Value, error) {
 	value, err := evalctx.Eval(i.value)
 	if err != nil {
-		return cty.NilVal, errors.E(err, `evaluating "input.value"`)
+		return cty.NilVal, errors.E(err, `evaluating input value`)
 	}
 	return value, nil
 }

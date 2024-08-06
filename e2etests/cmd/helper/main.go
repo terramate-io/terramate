@@ -53,6 +53,8 @@ func main() {
 		sleep(os.Args[2])
 	case "env":
 		env(os.Args[2], os.Args[3:]...)
+	case "env-prefix":
+		envPrefix(os.Args[2], os.Args[3])
 	case "cat":
 		cat(os.Args[2])
 	case "rm":
@@ -121,6 +123,18 @@ func env(rootdir string, names ...string) {
 	}
 	for _, env := range os.Environ() {
 		fmt.Println(env)
+	}
+}
+
+func envPrefix(rootdir string, prefix string) {
+	cwd, err := os.Getwd()
+	checkerr(err)
+	dir := project.PrjAbsPath(rootdir, cwd)
+	for _, env := range os.Environ() {
+		parts := strings.Split(env, "=")
+		if strings.HasPrefix(parts[0], prefix) {
+			fmt.Printf("%s: %s\n", dir, env)
+		}
 	}
 }
 
