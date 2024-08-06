@@ -322,6 +322,19 @@ func (tree *Tree) RootTree() *Tree {
 	return tree
 }
 
+// SharingBackend returns the backend with given name.
+func (tree *Tree) SharingBackend(name string) (hcl.SharingBackend, bool) {
+	for _, backend := range tree.Node.SharingBackends {
+		if backend.Name == name {
+			return backend, true
+		}
+	}
+	if tree.Parent != nil {
+		return tree.Parent.SharingBackend(name)
+	}
+	return hcl.SharingBackend{}, false
+}
+
 // IsStack tells if the node is a stack.
 func (tree *Tree) IsStack() bool {
 	return tree.Node.Stack != nil

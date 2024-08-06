@@ -21,7 +21,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -68,6 +67,9 @@ type File struct {
 	condition bool
 	asserts   []config.Assert
 }
+
+// Builtin returns false for generate_file blocks.
+func (f File) Builtin() bool { return false }
 
 // Label of the original generate_file block.
 func (f File) Label() string {
@@ -128,7 +130,7 @@ func (f File) String() string {
 func Load(
 	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	parentctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
@@ -173,16 +175,16 @@ func Load(
 			continue
 		}
 
-		evalctx := stack.NewEvalCtx(root, st, globals)
-
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
 
+		evalctx := parentctx.Copy()
+
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
 		dircfg, _ := root.Lookup(st.Dir)
-		file, skip, err := Eval(genFileBlock, dircfg, evalctx.Context)
+		file, skip, err := Eval(genFileBlock, dircfg, evalctx)
 		if err != nil {
 			return nil, err
 		}

@@ -19,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	infotest "github.com/terramate-io/terramate/test/hclutils/info"
@@ -1875,7 +1876,7 @@ func (tcase testcase) run(t *testing.T) {
 		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
-		stack := stacks[0].Stack
+		st := stacks[0].Stack
 
 		for _, cfg := range tcase.configs {
 			filename := cfg.filename
@@ -1894,9 +1895,10 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, stack)
+		globals := s.LoadStackGlobals(cfg, st)
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(cfg, stack, globals, vendorDir, nil)
+		evalctx := stack.NewEvalCtx(cfg, st, globals)
+		got, err := genhcl.Load(cfg, st, evalctx.Context, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {
