@@ -7,22 +7,22 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/stack"
 )
 
 type project struct {
-	rootdir        string
-	wd             string
-	isRepo         bool
-	root           config.Root
-	baseRef        string
-	normalizedRepo string
-	stackManager   *stack.Manager
+	rootdir      string
+	wd           string
+	isRepo       bool
+	root         config.Root
+	baseRef      string
+	repository   *git.Repository
+	stackManager *stack.Manager
 
 	git struct {
 		wrapper                   *git.Git
@@ -41,26 +41,32 @@ func (p project) gitcfg() *hcl.GitConfig {
 	return p.root.Tree().Node.Terramate.Config.Git
 }
 
-func (p *project) prettyRepo() string {
-	if p.normalizedRepo != "" {
-		return p.normalizedRepo
+func (p *project) repo() (*git.Repository, error) {
+	if !p.isRepo {
+		panic(errors.E(errors.ErrInternal, "called without a repository"))
 	}
-	if p.isRepo {
-		repoURL, err := p.git.wrapper.URL(p.gitcfg().DefaultRemote)
-		if err == nil {
-			p.normalizedRepo = cloud.NormalizeGitURI(repoURL)
-		} else {
-			logger := log.With().
-				Str("action", "project.prettyRepo").
-				Logger()
+	if p.repository != nil {
+		return p.repository, nil
+	}
+	repoURL, err := p.git.wrapper.URL(p.gitcfg().DefaultRemote)
+	if err != nil {
+		return nil, err
+	}
+	r, err := git.NormalizeGitURI(repoURL)
+	if err != nil {
+		return nil, err
+	}
+	p.repository = &r
+	return p.repository, nil
+}
 
-			logger.
-				Warn().
-				Err(err).
-				Msg("failed to retrieve repository URL")
-		}
+func (p *project) prettyRepo() string {
+	r, err := p.repo()
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to retrieve repository URL", err)
+		return "<invalid>"
 	}
-	return p.normalizedRepo
+	return r.Repo
 }
 
 func (p *project) localDefaultBranchCommit() string {
