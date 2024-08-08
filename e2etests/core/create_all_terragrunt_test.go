@@ -335,6 +335,33 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			wantOrder: []string{"3", "2", "1"},
 		},
 		{
+			name: "nested terragrunt modules",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+				hclfile("1/2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module3"),
+						Str("config_path", `..`),
+					),
+				),
+				),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /1",
+					"Created stack /1/2",
+				),
+			},
+			wantOrder: []string{"1", "1/2"},
+		},
+		{
 			name: "Terragrunt definitions with ciclic ordering",
 			layout: []string{
 				hclfile("1/terragrunt.hcl", Doc(
