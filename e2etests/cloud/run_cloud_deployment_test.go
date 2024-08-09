@@ -21,16 +21,24 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
-const testRemoteRepoURL = "terramate.io/terramate-io/dummy-repo.git"
+const testRemoteRepoURL = "https://terramate.io/terramate-io/terramate.git"
 
 var normalizedTestRemoteRepo string
 
 func init() {
-	normalizedTestRemoteRepo = cloud.NormalizeGitURI(testRemoteRepoURL)
+	r, err := git.NormalizeGitURI(testRemoteRepoURL)
+	if err != nil {
+		panic(err)
+	}
+	normalizedTestRemoteRepo = r.Repo
+	if normalizedTestRemoteRepo == "" {
+		panic("empty normalized repo")
+	}
 }
 
 func TestCLIRunWithCloudSyncDeployment(t *testing.T) {

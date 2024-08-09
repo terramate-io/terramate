@@ -27,6 +27,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `sharing_backend`, `input` and `output` blocks for the sharing of stack outputs as inputs to other stacks.
   - The feature is part of the `outputs-sharing` experiment and can be enabled by setting `terramate.config.experiments = ["outputs-sharing"]`.
 
+### Fixed
+
+- Fix the repository normalization for Gitlab subgroups.
+  - Now it supports repository URLs like `https://gitlab.com/my-company-name/my-group-name/my-other-group/repo-name`.
+
 ## v0.10.0
 
 ### Added
