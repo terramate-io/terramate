@@ -423,7 +423,7 @@ func TestSharingOrphanedFilesAreDeleted(t *testing.T) {
 		`s:s2`,
 		`f:exp.tm:` + Terramate(
 			Config(
-				Experiments("sharing-is-caring"),
+				Experiments(hcl.SharingIsCaringExperimentName),
 			),
 		).String(),
 		`f:backend.tm:` + Block("sharing_backend",

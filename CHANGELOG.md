@@ -25,7 +25,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add `sharing_backend`, `input` and `output` blocks for the sharing of stack outputs as inputs to other stacks.
-  - The feature is part of the `sharing-is-caring` experiment and can be enabled by setting `terramate.config.experiments = ["sharing-is-caring"]`.
+  - The feature is part of the `outputs-sharing` experiment and can be enabled by setting `terramate.config.experiments = ["outputs-sharing"]`.
 
 ## v0.10.0
 
