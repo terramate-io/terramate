@@ -22,6 +22,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix the repository normalization for Gitlab subgroups.
+  - Now it supports repository URLs like `https://gitlab.com/my-company-name/my-group-name/my-other-group/repo-name`.
+
+
 ## v0.9.4
 
 ### Changed
