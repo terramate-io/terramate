@@ -26,11 +26,6 @@ func TestRunSharing(t *testing.T) {
 		{
 			name: "basic sharing - 1 output and 1 input",
 			layout: []string{
-				"f:exp.tm:" + Terramate(
-					Config(
-						Experiments(hcl.SharingIsCaringExperimentName),
-					),
-				).String(),
 				"f:backend.tm:" + Block("sharing_backend",
 					Labels("name"),
 					Expr("type", "terraform"),
@@ -77,11 +72,6 @@ func TestRunSharing(t *testing.T) {
 		{
 			name: "input with no output counterpart",
 			layout: []string{
-				"f:exp.tm:" + Terramate(
-					Config(
-						Experiments(hcl.SharingIsCaringExperimentName),
-					),
-				).String(),
 				"f:backend.tm:" + Block("sharing_backend",
 					Labels("name"),
 					Expr("type", "terraform"),
@@ -122,11 +112,6 @@ func TestRunSharing(t *testing.T) {
 		{
 			name: "stacks needs to be ordered manually",
 			layout: []string{
-				"f:exp.tm:" + Terramate(
-					Config(
-						Experiments(hcl.SharingIsCaringExperimentName),
-					),
-				).String(),
 				"f:backend.tm:" + Block("sharing_backend",
 					Labels("name"),
 					Expr("type", "terraform"),
@@ -173,11 +158,6 @@ func TestRunSharing(t *testing.T) {
 		{
 			name: "mocking unknown values",
 			layout: []string{
-				"f:exp.tm:" + Terramate(
-					Config(
-						Experiments(hcl.SharingIsCaringExperimentName),
-					),
-				).String(),
 				"f:backend.tm:" + Block("sharing_backend",
 					Labels("name"),
 					Expr("type", "terraform"),
@@ -219,11 +199,6 @@ func TestRunSharing(t *testing.T) {
 		{
 			name: "multiple outputs",
 			layout: []string{
-				"f:exp.tm:" + Terramate(
-					Config(
-						Experiments(hcl.SharingIsCaringExperimentName),
-					),
-				).String(),
 				"f:backend.tm:" + Block("sharing_backend",
 					Labels("name"),
 					Expr("type", "terraform"),
@@ -292,29 +267,69 @@ func TestRunSharing(t *testing.T) {
 		},
 	} {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tc.layout)
-			tmcli := NewCLI(t, s.RootDir())
-			tmcli.PrependToPath(filepath.Dir(TerraformTestPath))
-			res := tmcli.Run("run", HelperPath, "echo", "hello")
-			if res.Status == 0 {
-				// generate safeguard must trigger
-				t.Fatal("run must fail if sharing is not generated")
+		runCases := []bool{false, true}
+		for _, isScript := range runCases {
+			layout := append([]string{}, tc.layout...)
+			name := tc.name
+			if isScript {
+				name += "/script"
 			}
-			AssertRunResult(t, tmcli.Run("generate"), RunExpected{
-				IgnoreStdout: true,
-			})
-			AssertRunResult(t, tmcli.Run("run", "--quiet", "-X", "terraform", "init"),
-				RunExpected{
+			t.Run(name, func(t *testing.T) {
+				experiments := []string{hcl.SharingIsCaringExperimentName}
+				if isScript {
+					experiments = append(experiments, "scripts")
+
+					layout = append(layout,
+						`f:script.tm:`+Script(
+							Labels("apply"),
+							Str("name", "apply iac"),
+							Block("job",
+								Expr("command", `[
+							"terraform", "apply", "-auto-approve", {
+								enable_sharing = true
+								mock_sharing_on_fail = true
+							}
+						]`),
+							),
+						).String(),
+					)
+				}
+				layout = append(layout,
+					"f:exp.tm:"+Terramate(
+						Config(
+							Experiments(experiments...),
+						),
+					).String(),
+				)
+
+				s := sandbox.New(t)
+				s.BuildTree(layout)
+				tmcli := NewCLI(t, s.RootDir())
+				tmcli.PrependToPath(filepath.Dir(TerraformTestPath))
+				res := tmcli.Run("run", HelperPath, "echo", "hello")
+				if res.Status == 0 {
+					// generate safeguard must trigger
+					t.Fatal("run must fail if sharing is not generated")
+				}
+				AssertRunResult(t, tmcli.Run("generate"), RunExpected{
 					IgnoreStdout: true,
-				},
-			)
-			s.Git().CommitAll("all")
-			tc.check(t, &s, tmcli.Run(
-				"run", "--quiet", "--enable-sharing", "--mock-on-fail",
-				"terraform", "apply", "-auto-approve",
-			))
-		})
+				})
+				AssertRunResult(t, tmcli.Run("run", "--quiet", "-X", "terraform", "init"),
+					RunExpected{
+						IgnoreStdout: true,
+					},
+				)
+				s.Git().CommitAll("all")
+				if isScript {
+					res = tmcli.Run("script", "run", "--quiet", "apply")
+				} else {
+					res = tmcli.Run(
+						"run", "--quiet", "--enable-sharing", "--mock-on-fail",
+						"terraform", "apply", "-auto-approve",
+					)
+				}
+				tc.check(t, &s, res)
+			})
+		}
 	}
 }

@@ -83,6 +83,8 @@ type stackRunTask struct {
 	CloudPlanProvisioner string
 
 	UseTerragrunt bool
+	EnableSharing bool
+	MockOnFail    bool
 }
 
 // runResult contains exit code and duration of a completed run.
@@ -222,6 +224,8 @@ func (c *cli) runOnStacks() {
 					CloudPlanProvisioner: planProvisioner,
 					CloudSyncLayer:       c.parsedArgs.Run.Layer,
 					UseTerragrunt:        c.parsedArgs.Run.Terragrunt,
+					EnableSharing:        c.parsedArgs.Run.EnableSharing,
+					MockOnFail:           c.parsedArgs.Run.MockOnFail,
 				},
 			},
 		}
@@ -394,7 +398,7 @@ func (c *cli) runAll(
 
 			cfg, _ := c.cfg().Lookup(run.Stack.Dir)
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
-			if c.parsedArgs.Run.EnableSharing {
+			if task.EnableSharing {
 				for _, in := range cfg.Node.Inputs {
 					evalctx := c.setupEvalContext(run.Stack, map[string]string{})
 					input, err := config.EvalInput(evalctx, in)
@@ -427,7 +431,7 @@ func (c *cli) runAll(
 						var inputVal cty.Value
 						err := cmd.Run()
 						if err != nil {
-							if !c.parsedArgs.Run.MockOnFail {
+							if !task.MockOnFail {
 								fatalWithDetails(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes())
 							}
 
@@ -449,7 +453,7 @@ func (c *cli) runAll(
 					evalctx.SetNamespaceRaw("outputs", stackOutputs)
 					inputVal, err := input.Value(evalctx)
 					if err != nil {
-						if !c.parsedArgs.Run.MockOnFail || input.Mock.IsNull() {
+						if !task.MockOnFail || input.Mock.IsNull() {
 							fatalWithDetails(err, "evaluating input value")
 						}
 
