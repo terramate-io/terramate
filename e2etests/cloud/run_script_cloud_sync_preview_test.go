@@ -182,7 +182,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					},
 					ReviewRequest: &cloud.ReviewRequest{
 						Platform:    "github",
-						Repository:  testPreviewRemoteRepoURL,
+						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						CommitSHA:   "aaa",
 						Title:       "Amazing new feature",
@@ -261,7 +261,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
-			s.Git().SetRemoteURL("origin", normalizedPreviewTestRemoteRepo)
+			s.Git().SetRemoteURL("origin", testPreviewRemoteRepoURL)
 
 			result := cli.Run(tc.cmd...)
 			AssertRunResult(t, result, tc.want.run)

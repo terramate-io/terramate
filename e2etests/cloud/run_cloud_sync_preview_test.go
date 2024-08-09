@@ -17,16 +17,24 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
-const testPreviewRemoteRepoURL = "github.com/terramate-io/dummy-repo.git"
+const testPreviewRemoteRepoURL = "git@github.com:terramate-io/dummy-repo.git"
 
 var normalizedPreviewTestRemoteRepo string
 
 func init() {
-	normalizedPreviewTestRemoteRepo = cloud.NormalizeGitURI(testPreviewRemoteRepoURL)
+	r, err := git.NormalizeGitURI(testPreviewRemoteRepoURL)
+	if err != nil {
+		panic(err)
+	}
+	if r.Repo == "" {
+		panic("empty repo")
+	}
+	normalizedPreviewTestRemoteRepo = r.Repo
 }
 
 func TestCLIRunWithCloudSyncPreview(t *testing.T) {
@@ -138,7 +146,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					},
 					ReviewRequest: &cloud.ReviewRequest{
 						Platform:    "github",
-						Repository:  testPreviewRemoteRepoURL,
+						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
@@ -223,7 +231,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 							Stack: cloudstore.Stack{
 								Stack: cloud.Stack{
-									Repository:    "github.com/terramate-io/dummy-repo.git",
+									Repository:    normalizedPreviewTestRemoteRepo,
 									Target:        "custom_target",
 									DefaultBranch: "main",
 									Path:          "/stack",
@@ -235,7 +243,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					},
 					ReviewRequest: &cloud.ReviewRequest{
 						Platform:    "github",
-						Repository:  testPreviewRemoteRepoURL,
+						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
@@ -302,7 +310,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					ReviewRequest: &cloud.ReviewRequest{
 						Platform:    "github",
-						Repository:  "github.com/terramate-io/dummy-repo.git",
+						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
@@ -368,7 +376,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
-			s.Git().SetRemoteURL("origin", normalizedPreviewTestRemoteRepo)
+			s.Git().SetRemoteURL("origin", testPreviewRemoteRepoURL)
 
 			runflags := []string{
 				"run",

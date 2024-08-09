@@ -1245,24 +1245,25 @@ func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.Statu
 	}
 
 	if stackFilters.HasFilter() {
+		if !c.prj.isRepo {
+			fatal(errors.E("cloud filters requires a git repository"))
+		}
 		err := c.setupCloudConfig([]string{cloudFeatStatus})
 		if err != nil {
 			return nil, err
 		}
 
-		repoURL, err := c.prj.git.wrapper.URL(c.prj.gitcfg().DefaultRemote)
+		repository, err := c.prj.repo()
 		if err != nil {
-			return nil, errors.E("failed to retrieve repository URL but it's needed for filtering stacks", err)
+			fatal(err)
 		}
-
-		repository := cloud.NormalizeGitURI(repoURL)
-		if repository == "local" {
+		if repository.Host == "local" {
 			return nil, errors.E("status filters does not work with filesystem based remotes")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository, target, stackFilters)
+		cloudStacks, err := c.cloud.client.StacksByStatus(ctx, c.cloud.run.orgUUID, repository.Repo, target, stackFilters)
 		if err != nil {
 			return nil, err
 		}
