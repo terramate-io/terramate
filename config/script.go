@@ -441,7 +441,7 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 			}
 			r.EnableSharing = v.True()
 
-		case "mock_sharing_on_fail":
+		case "mock_on_fail":
 			if v.Type() != cty.Bool {
 				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
 					"command option '%s' must be a bool, but has type %s",

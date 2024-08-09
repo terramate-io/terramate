@@ -349,7 +349,7 @@ func TestRunSharing(t *testing.T) {
 								Expr("command", `[
 							"terraform", "apply", "-auto-approve", {
 								enable_sharing = true
-								mock_sharing_on_fail = true
+								mock_on_fail = true
 							}
 						]`),
 							),
