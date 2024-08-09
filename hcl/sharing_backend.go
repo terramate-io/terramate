@@ -10,13 +10,19 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// SharingIsCaringExperimentName is the name of the sharing-is-caring experiment.
-const SharingIsCaringExperimentName = "sharing-is-caring"
+// SharingIsCaringExperimentName is the name of the outputs-sharing experiment.
+const SharingIsCaringExperimentName = "outputs-sharing"
 
 func (p *TerramateParser) parseSharingBackendBlock(block *ast.Block) (SharingBackend, error) {
 	if !p.hasExperimentalFeature(SharingIsCaringExperimentName) {
-		return SharingBackend{}, errors.E(ErrTerramateSchema, block.DefRange(),
-			"unrecognized block %q (sharing-is-caring is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [%q]`)", block.Type, SharingIsCaringExperimentName)
+		return SharingBackend{}, errors.E(
+			ErrTerramateSchema,
+			block.DefRange(),
+			"unrecognized block %q (%s is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [%q]`)",
+			block.Type,
+			SharingIsCaringExperimentName,
+			SharingIsCaringExperimentName,
+		)
 	}
 	shr := SharingBackend{}
 	errs := errors.L()

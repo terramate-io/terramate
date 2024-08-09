@@ -132,6 +132,8 @@ func (c *cli) runScript() {
 						task.CloudPlanFile = planFile
 						task.CloudPlanProvisioner = planProvisioner
 						task.UseTerragrunt = cmd.Options.UseTerragrunt
+						task.EnableSharing = cmd.Options.EnableSharing
+						task.MockOnFail = cmd.Options.MockOnFail
 					}
 					run.Tasks = append(run.Tasks, task)
 				}

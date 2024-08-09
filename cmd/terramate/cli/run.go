@@ -83,6 +83,8 @@ type stackRunTask struct {
 	CloudPlanProvisioner string
 
 	UseTerragrunt bool
+	EnableSharing bool
+	MockOnFail    bool
 }
 
 // runResult contains exit code and duration of a completed run.
@@ -222,6 +224,8 @@ func (c *cli) runOnStacks() {
 					CloudPlanProvisioner: planProvisioner,
 					CloudSyncLayer:       c.parsedArgs.Run.Layer,
 					UseTerragrunt:        c.parsedArgs.Run.Terragrunt,
+					EnableSharing:        c.parsedArgs.Run.EnableSharing,
+					MockOnFail:           c.parsedArgs.Run.MockOnFail,
 				},
 			},
 		}
@@ -392,25 +396,58 @@ func (c *cli) runAll(
 				printScriptCommand(c.stderr, run.Stack, task)
 			}
 
+			logger := log.With().
+				Stringer("stack", run.Stack).
+				Bool("enable_sharing", task.EnableSharing).
+				Bool("mock_on_fail", task.MockOnFail).
+				Logger()
+
 			cfg, _ := c.cfg().Lookup(run.Stack.Dir)
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
-			if c.parsedArgs.Run.EnableSharing {
+			if task.EnableSharing {
 				for _, in := range cfg.Node.Inputs {
 					evalctx := c.setupEvalContext(run.Stack, map[string]string{})
 					input, err := config.EvalInput(evalctx, in)
 					if err != nil {
-						fatalWithDetails(err, "failed to evaluate input block")
+						errs.Append(errors.E(err, "failed to evaluate input block"))
+						if continueOnError {
+							break
+						}
+						cancel()
+						return errs.AsError()
 					}
 					otherStack, found, err := c.stackManager().StackByID(input.FromStackID)
 					if err != nil {
-						fatalWithDetails(err, "populating stack inputs from stack.id %s", input.FromStackID)
+						errs.Append(errors.E(err, "populating stack inputs from stack.id %s", input.FromStackID))
+						if continueOnError {
+							break
+						}
+						cancel()
+						return errs.AsError()
 					}
 					if !found {
-						printer.Stderr.Fatal(errors.E("input.%s.from_stack_id=%s not found", input.Name, input.FromStackID))
+						errs.Append(errors.E(
+							"Stack %s needs output from stack ID %q but it cannot be found",
+							run.Stack.Dir,
+							input.FromStackID))
+
+						if continueOnError {
+							break
+						}
+						cancel()
+						return errs.AsError()
 					}
+
+					logger.Debug().Msgf("Stack depends on outputs from stack %s", otherStack.Dir)
+
 					backend, ok := cfg.SharingBackend(input.Backend)
 					if !ok {
-						printer.Stderr.Fatal(errors.E("backend %s not found", input.Backend))
+						errs.Append(errors.E("backend %s not found", input.Backend))
+						if continueOnError {
+							break
+						}
+						cancel()
+						return errs.AsError()
 					}
 					_, ok = allOutputs[otherStack.Dir]
 					if !ok {
@@ -427,8 +464,14 @@ func (c *cli) runAll(
 						var inputVal cty.Value
 						err := cmd.Run()
 						if err != nil {
-							if !c.parsedArgs.Run.MockOnFail {
-								fatalWithDetails(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes())
+							if !task.MockOnFail {
+								errs.Append(errors.E(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes()))
+								if continueOnError {
+									break
+								}
+
+								cancel()
+								return errs.AsError()
 							}
 
 							printer.Stderr.Warnf("failed to execute `sharing_backend` command: %v", err)
@@ -436,11 +479,21 @@ func (c *cli) runAll(
 							stdoutBytes := stdout.Bytes()
 							typ, err := json.ImpliedType(stdoutBytes)
 							if err != nil {
-								fatalWithDetails(err, "unmashaling sharing_backend output")
+								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
+								if continueOnError {
+									break
+								}
+								cancel()
+								return errs.AsError()
 							}
 							inputVal, err = json.Unmarshal(stdoutBytes, typ)
 							if err != nil {
-								fatalWithDetails(err, "unmashaling sharing_backend output")
+								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
+								if continueOnError {
+									break
+								}
+								cancel()
+								return errs.AsError()
 							}
 						}
 						allOutputs[otherStack.Dir][backend.Name] = inputVal
@@ -449,14 +502,23 @@ func (c *cli) runAll(
 					evalctx.SetNamespaceRaw("outputs", stackOutputs)
 					inputVal, err := input.Value(evalctx)
 					if err != nil {
-						if !c.parsedArgs.Run.MockOnFail || input.Mock.IsNull() {
-							fatalWithDetails(err, "evaluating input value")
+						if !task.MockOnFail || input.Mock.IsNull() {
+							errs.Append(errors.E(err, "evaluating input value"))
+							if continueOnError {
+								break
+							}
+							cancel()
+							return errs.AsError()
 						}
-
 						inputVal = input.Mock
 					}
 					if !inputVal.Type().Equals(cty.String) {
-						printer.Stderr.Fatal(errors.E("output type is not string but %s", inputVal.Type().FriendlyName()))
+						errs.Append(errors.E("output type is not string but %s", inputVal.Type().FriendlyName()))
+						if continueOnError {
+							break
+						}
+						cancel()
+						return errs.AsError()
 					}
 					environ = append(environ, stdfmt.Sprintf("TF_VAR_%s=%s", input.Name, inputVal.AsString()))
 				}
@@ -473,9 +535,8 @@ func (c *cli) runAll(
 			}
 
 			cmdStr := strings.Join(task.Cmd, " ")
-			logger := log.With().
+			logger = logger.With().
 				Str("cmd", cmdStr).
-				Stringer("stack", run.Stack).
 				Logger()
 
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
@@ -485,7 +546,6 @@ func (c *cli) runAll(
 				if continueOnError {
 					break
 				}
-
 				cancel()
 				return errs.AsError()
 			}
@@ -540,7 +600,6 @@ func (c *cli) runAll(
 				if continueOnError {
 					break
 				}
-
 				cancel()
 				return errs.AsError()
 			}
