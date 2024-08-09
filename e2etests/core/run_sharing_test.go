@@ -5,6 +5,7 @@ package core_test
 
 import (
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -17,9 +18,10 @@ import (
 func TestRunSharing(t *testing.T) {
 	t.Parallel()
 	type testcase struct {
-		name   string
-		layout []string
-		check  func(t *testing.T, s *sandbox.S, res RunResult)
+		name         string
+		layout       []string
+		extraRunArgs []string
+		check        func(t *testing.T, s *sandbox.S, res RunResult)
 	}
 
 	for _, tc := range []testcase{
@@ -265,6 +267,66 @@ func TestRunSharing(t *testing.T) {
 				assert.EqualStrings(t, s2expected, string(s.RootEntry().ReadFile("s2/file.txt")))
 			},
 		},
+		{
+			name: "sharing config with --continue-on-error",
+			layout: []string{
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command(HelperPath, "exit", "1"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/foo.bar"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Doc(
+					Output(
+						Labels("s1_output"),
+						Str("backend", "name"),
+						Expr("value", "resource.local_file.s1_file.content"),
+					),
+				).String(),
+				"s:s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "s1"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Str("content", "not using output"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"s:s3:id=s3",
+				"f:s3/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s3_file"),
+						Str("content", "s3_content"),
+						Str("filename", "${path.module}/foo.bar"),
+					),
+				).String(),
+			},
+			extraRunArgs: []string{"--continue-on-error"},
+			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+				AssertRunResult(t, res, RunExpected{
+					Status: 1,
+					StdoutRegexes: []string{
+						"Terraform will perform the following actions",
+						"local_file.s1_file",
+						"local_file.s3_file",
+					},
+					StderrRegex: regexp.QuoteMeta("Warning: failed to execute `sharing_backend` command: exit status 1"),
+				})
+			},
+		},
 	} {
 		tc := tc
 		runCases := []bool{false, true}
@@ -321,12 +383,15 @@ func TestRunSharing(t *testing.T) {
 				)
 				s.Git().CommitAll("all")
 				if isScript {
-					res = tmcli.Run("script", "run", "--quiet", "apply")
+					args := []string{"script", "run", "--quiet"}
+					args = append(args, tc.extraRunArgs...)
+					args = append(args, "apply")
+					res = tmcli.Run(args...)
 				} else {
-					res = tmcli.Run(
-						"run", "--quiet", "--enable-sharing", "--mock-on-fail",
-						"terraform", "apply", "-auto-approve",
-					)
+					args := []string{"run", "--quiet", "--enable-sharing", "--mock-on-fail"}
+					args = append(args, tc.extraRunArgs...)
+					args = append(args, "terraform", "apply", "-auto-approve")
+					res = tmcli.Run(args...)
 				}
 				tc.check(t, &s, res)
 			})
