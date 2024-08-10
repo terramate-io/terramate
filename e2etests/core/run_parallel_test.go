@@ -6,6 +6,7 @@ package core_test
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"testing"
 
@@ -50,6 +51,34 @@ func TestParallelFibonacci(t *testing.T) {
 			assert.EqualInts(t, tc.WantValue, int(got))
 		})
 	}
+}
+
+func TestParallelBug1828Regression(t *testing.T) {
+	// see: https://github.com/terramate-io/terramate/issues/1828
+
+	s := sandbox.NoGit(t, true)
+	layout := []string{}
+	for i := 0; i < 10; i++ {
+		layout = append(layout, fmt.Sprintf(`s:stack-%d`, i))
+	}
+	s.BuildTree(layout)
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t,
+		tmcli.Run("run", "--parallel=2", "--quiet", "--", "cat", "foo.txt"),
+		RunExpected{
+			Status:      1,
+			StderrRegex: "No such file or directory",
+		},
+	)
+
+	// dry-run check
+	AssertRunResult(t,
+		tmcli.Run("run", "--parallel=2", "--dry-run", "--", "cat", "foo.txt"),
+		RunExpected{
+			Status:      0,
+			StderrRegex: regexp.QuoteMeta("terramate: (dry-run)"),
+		},
+	)
 }
 
 func makeFibLayout(n int) []string {
