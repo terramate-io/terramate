@@ -81,6 +81,32 @@ func TestParallelBug1828Regression(t *testing.T) {
 	)
 }
 
+func TestParalleCmdNotFoundContinueOnError(t *testing.T) {
+	s := sandbox.NoGit(t, true)
+	layout := []string{}
+	for i := 0; i < 10; i++ {
+		layout = append(layout, fmt.Sprintf(`s:stack-%d`, i))
+	}
+	s.BuildTree(layout)
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t,
+		tmcli.Run("run", "--parallel=2", "--quiet", "--", "do-not-exist"),
+		RunExpected{
+			Status:      1,
+			StderrRegex: "executable file not found in",
+		},
+	)
+
+	// dry-run check
+	AssertRunResult(t,
+		tmcli.Run("run", "--parallel=2", "--dry-run", "--", "do-not-exist"),
+		RunExpected{
+			Status:      1,
+			StderrRegex: regexp.QuoteMeta("terramate: (dry-run)"),
+		},
+	)
+}
+
 func makeFibLayout(n int) []string {
 	mkStack := func(i int) string {
 		if i == 0 {

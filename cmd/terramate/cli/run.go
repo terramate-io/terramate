@@ -407,6 +407,7 @@ func (c *cli) runAll(
 			if err != nil {
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
+				releaseResource()
 				if continueOnError {
 					break
 				}
