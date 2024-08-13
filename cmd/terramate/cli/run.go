@@ -411,8 +411,10 @@ func (c *cli) runAll(
 					if err != nil {
 						errs.Append(errors.E(err, "failed to evaluate input block"))
 						if continueOnError {
+							// TODO(i4k): must continue in next stack.
 							break
 						}
+						releaseResource()
 						cancel()
 						return errs.AsError()
 					}
@@ -420,8 +422,10 @@ func (c *cli) runAll(
 					if err != nil {
 						errs.Append(errors.E(err, "populating stack inputs from stack.id %s", input.FromStackID))
 						if continueOnError {
+							// TODO(i4k): must continue in next stack.
 							break
 						}
+						releaseResource()
 						cancel()
 						return errs.AsError()
 					}
@@ -432,8 +436,10 @@ func (c *cli) runAll(
 							input.FromStackID))
 
 						if continueOnError {
+							// TODO(i4k): must continue in next stack.
 							break
 						}
+						releaseResource()
 						cancel()
 						return errs.AsError()
 					}
@@ -444,8 +450,10 @@ func (c *cli) runAll(
 					if !ok {
 						errs.Append(errors.E("backend %s not found", input.Backend))
 						if continueOnError {
+							// TODO(i4k): must continue in next stack.
 							break
 						}
+						releaseResource()
 						cancel()
 						return errs.AsError()
 					}
@@ -467,9 +475,10 @@ func (c *cli) runAll(
 							if !task.MockOnFail {
 								errs.Append(errors.E(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes()))
 								if continueOnError {
+									// TODO(i4k): must continue in next stack.
 									break
 								}
-
+								releaseResource()
 								cancel()
 								return errs.AsError()
 							}
@@ -481,8 +490,10 @@ func (c *cli) runAll(
 							if err != nil {
 								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
 								if continueOnError {
+									// TODO(i4k): must continue in next stack.
 									break
 								}
+								releaseResource()
 								cancel()
 								return errs.AsError()
 							}
@@ -490,8 +501,10 @@ func (c *cli) runAll(
 							if err != nil {
 								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
 								if continueOnError {
+									// TODO(i4k): must continue in next stack.
 									break
 								}
+								releaseResource()
 								cancel()
 								return errs.AsError()
 							}
@@ -505,8 +518,10 @@ func (c *cli) runAll(
 						if !task.MockOnFail || input.Mock.IsNull() {
 							errs.Append(errors.E(err, "evaluating input value"))
 							if continueOnError {
+								// TODO(i4k): must continue in next stack.
 								break
 							}
+							releaseResource()
 							cancel()
 							return errs.AsError()
 						}
@@ -515,8 +530,10 @@ func (c *cli) runAll(
 					if !inputVal.Type().Equals(cty.String) {
 						errs.Append(errors.E("output type is not string but %s", inputVal.Type().FriendlyName()))
 						if continueOnError {
+							// TODO(i4k): must continue in next stack.
 							break
 						}
+						releaseResource()
 						cancel()
 						return errs.AsError()
 					}
@@ -544,6 +561,7 @@ func (c *cli) runAll(
 			if err != nil {
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
+				releaseResource()
 				if continueOnError {
 					break
 				}

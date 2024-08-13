@@ -13,6 +13,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -77,6 +78,96 @@ func TestParallelBug1828Regression(t *testing.T) {
 		RunExpected{
 			Status:      0,
 			StderrRegex: regexp.QuoteMeta("terramate: (dry-run)"),
+		},
+	)
+}
+
+func TestParalleCmdNotFoundContinueOnError(t *testing.T) {
+	s := sandbox.NoGit(t, true)
+	layout := []string{}
+	for i := 0; i < 10; i++ {
+		layout = append(layout, fmt.Sprintf(`s:stack-%d`, i))
+	}
+	s.BuildTree(layout)
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t,
+		tmcli.Run("run", "--parallel=2", "--quiet", "--", "do-not-exist"),
+		RunExpected{
+			Status:      1,
+			StderrRegex: "executable file not found in",
+		},
+	)
+
+	// dry-run check
+	AssertRunResult(t,
+		tmcli.Run("run", "--parallel=2", "--dry-run", "--", "do-not-exist"),
+		RunExpected{
+			Status:      1,
+			StderrRegex: regexp.QuoteMeta("terramate: (dry-run)"),
+		},
+	)
+}
+
+func TestParallelSharingOutputFailure(t *testing.T) {
+	s := sandbox.NoGit(t, true)
+	layout := []string{
+		`f:exp.tm:` + Terramate(
+			Config(
+				Experiments("scripts", "outputs-sharing"),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("failure"),
+			Command("does_not_exist"),
+			Str("filename", "_sharing.tf"),
+			Expr("type", "terraform"),
+		).String(),
+	}
+	for i := 0; i < 10; i++ {
+		format := `s:stack-%d:id=s%d`
+		if i == 6 {
+			format += `;after=["/stack-5"]`
+		}
+		layout = append(layout, fmt.Sprintf(format, i, i))
+	}
+	layout = append(layout, `f:stack-5/outputs.tm:`+Output(
+		Labels("name"),
+		Str("backend", "failure"),
+		Expr("value", "module.something")).String(),
+	)
+	layout = append(layout, `f:stack-6/inputs.tm:`+Input(
+		Labels("name"),
+		Str("backend", "failure"),
+		Str("from_stack_id", "s5"),
+		Expr("value", "outputs.name.value")).String(),
+	)
+	s.BuildTree(layout)
+	tmcli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, tmcli.Run("generate"), RunExpected{
+		StdoutRegex: regexp.QuoteMeta("[+] _sharing.tf"),
+	})
+	AssertRunResult(t,
+		tmcli.Run("run", "--enable-sharing", "--parallel=2", "--quiet", "--", HelperPath, "echo", "okay"),
+		RunExpected{
+			Status:       1,
+			IgnoreStdout: true,
+			StderrRegex:  regexp.QuoteMeta("failed to execute: does_not_exist"),
+		},
+	)
+	AssertRunResult(t,
+		tmcli.Run("run", "--enable-sharing", "--continue-on-error", "--parallel=2", "--quiet", "--", HelperPath, "echo", "okay"),
+		RunExpected{
+			Status:       1,
+			IgnoreStdout: true,
+			StderrRegex:  regexp.QuoteMeta("failed to execute: does_not_exist"),
+		},
+	)
+	AssertRunResult(t,
+		tmcli.Run("run", "--dry-run", "--enable-sharing", "--continue-on-error", "--parallel=2", "--quiet", "--", HelperPath, "echo", "okay"),
+		RunExpected{
+			Status:       1,
+			IgnoreStdout: true,
+			StderrRegex:  regexp.QuoteMeta("failed to execute: does_not_exist"),
 		},
 	)
 }
