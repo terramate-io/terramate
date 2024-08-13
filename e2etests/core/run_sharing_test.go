@@ -323,7 +323,142 @@ func TestRunSharing(t *testing.T) {
 						"local_file.s1_file",
 						"local_file.s3_file",
 					},
-					StderrRegex: regexp.QuoteMeta("Warning: failed to execute `sharing_backend` command: exit status 1"),
+					NoStdoutRegex: "local_file.s2_file",
+					StderrRegex:   regexp.QuoteMeta("Warning: failed to execute `sharing_backend` command: exit status 1"),
+				})
+			},
+		},
+		{
+			name: "sharing config with --continue-on-error and from_stack_id not found",
+			layout: []string{
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command(HelperPath, "echo", "{}"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/foo.bar"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Doc(
+					Output(
+						Labels("s1_output"),
+						Str("backend", "name"),
+						Expr("value", "resource.local_file.s1_file.content"),
+					),
+				).String(),
+				"s:s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "not-exists"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Str("content", "not using output"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"s:s3:id=s3",
+				"f:s3/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s3_file"),
+						Str("content", "s3_content"),
+						Str("filename", "${path.module}/foo.bar"),
+					),
+				).String(),
+			},
+			extraRunArgs: []string{"--continue-on-error"},
+			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+				AssertRunResult(t, res, RunExpected{
+					Status: 1,
+					StdoutRegexes: []string{
+						"Terraform will perform the following actions",
+						"local_file.s1_file",
+						"local_file.s3_file",
+					},
+					StderrRegexes: []string{
+						regexp.QuoteMeta(`Stack /s2 needs output from stack ID "not-exists" but it cannot be found`),
+					},
+					NoStdoutRegexes: []string{
+						"local_file.s2_file will be created",
+						`var.s2_input`,
+						`Enter a value:`,
+					},
+				})
+			},
+		},
+		{
+			name: "sharing config with --continue-on-error and command do not return JSON",
+			layout: []string{
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command(HelperPath, "echo", "$error"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/foo.bar"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Doc(
+					Output(
+						Labels("s1_output"),
+						Str("backend", "name"),
+						Expr("value", "resource.local_file.s1_file.content"),
+					),
+				).String(),
+				"s:s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "s1"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Str("content", "not using output"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"s:s3:id=s3",
+				"f:s3/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s3_file"),
+						Str("content", "s3_content"),
+						Str("filename", "${path.module}/foo.bar"),
+					),
+				).String(),
+			},
+			extraRunArgs: []string{"--continue-on-error"},
+			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+				AssertRunResult(t, res, RunExpected{
+					Status: 1,
+					StdoutRegexes: []string{
+						"Terraform will perform the following actions",
+						"local_file.s1_file",
+						"local_file.s3_file",
+					},
+					StderrRegexes: []string{
+						regexp.QuoteMeta(`unmashaling sharing_backend output`),
+					},
+					NoStdoutRegexes: []string{
+						"local_file.s2_file will be created",
+						`var.s2_input`,
+						`Enter a value:`,
+					},
 				})
 			},
 		},

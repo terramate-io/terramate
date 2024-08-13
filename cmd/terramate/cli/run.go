@@ -385,6 +385,7 @@ func (c *cli) runAll(
 	err = sched.Run(func(run stackRun) error {
 		errs := errors.L()
 
+	tasksLoop:
 		for _, task := range run.Tasks {
 			acquireResource()
 
@@ -410,22 +411,20 @@ func (c *cli) runAll(
 					input, err := config.EvalInput(evalctx, in)
 					if err != nil {
 						errs.Append(errors.E(err, "failed to evaluate input block"))
-						if continueOnError {
-							// TODO(i4k): must continue in next stack.
-							break
-						}
 						releaseResource()
+						if continueOnError {
+							break tasksLoop
+						}
 						cancel()
 						return errs.AsError()
 					}
 					otherStack, found, err := c.stackManager().StackByID(input.FromStackID)
 					if err != nil {
 						errs.Append(errors.E(err, "populating stack inputs from stack.id %s", input.FromStackID))
-						if continueOnError {
-							// TODO(i4k): must continue in next stack.
-							break
-						}
 						releaseResource()
+						if continueOnError {
+							break tasksLoop
+						}
 						cancel()
 						return errs.AsError()
 					}
@@ -435,11 +434,10 @@ func (c *cli) runAll(
 							run.Stack.Dir,
 							input.FromStackID))
 
-						if continueOnError {
-							// TODO(i4k): must continue in next stack.
-							break
-						}
 						releaseResource()
+						if continueOnError {
+							break tasksLoop
+						}
 						cancel()
 						return errs.AsError()
 					}
@@ -449,11 +447,10 @@ func (c *cli) runAll(
 					backend, ok := cfg.SharingBackend(input.Backend)
 					if !ok {
 						errs.Append(errors.E("backend %s not found", input.Backend))
-						if continueOnError {
-							// TODO(i4k): must continue in next stack.
-							break
-						}
 						releaseResource()
+						if continueOnError {
+							break tasksLoop
+						}
 						cancel()
 						return errs.AsError()
 					}
@@ -474,11 +471,10 @@ func (c *cli) runAll(
 						if err != nil {
 							if !task.MockOnFail {
 								errs.Append(errors.E(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes()))
-								if continueOnError {
-									// TODO(i4k): must continue in next stack.
-									break
-								}
 								releaseResource()
+								if continueOnError {
+									break tasksLoop
+								}
 								cancel()
 								return errs.AsError()
 							}
@@ -489,22 +485,20 @@ func (c *cli) runAll(
 							typ, err := json.ImpliedType(stdoutBytes)
 							if err != nil {
 								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
-								if continueOnError {
-									// TODO(i4k): must continue in next stack.
-									break
-								}
 								releaseResource()
+								if continueOnError {
+									break tasksLoop
+								}
 								cancel()
 								return errs.AsError()
 							}
 							inputVal, err = json.Unmarshal(stdoutBytes, typ)
 							if err != nil {
 								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
-								if continueOnError {
-									// TODO(i4k): must continue in next stack.
-									break
-								}
 								releaseResource()
+								if continueOnError {
+									break tasksLoop
+								}
 								cancel()
 								return errs.AsError()
 							}
@@ -517,11 +511,10 @@ func (c *cli) runAll(
 					if err != nil {
 						if !task.MockOnFail || input.Mock.IsNull() {
 							errs.Append(errors.E(err, "evaluating input value"))
-							if continueOnError {
-								// TODO(i4k): must continue in next stack.
-								break
-							}
 							releaseResource()
+							if continueOnError {
+								break tasksLoop
+							}
 							cancel()
 							return errs.AsError()
 						}
@@ -529,11 +522,10 @@ func (c *cli) runAll(
 					}
 					if !inputVal.Type().Equals(cty.String) {
 						errs.Append(errors.E("output type is not string but %s", inputVal.Type().FriendlyName()))
-						if continueOnError {
-							// TODO(i4k): must continue in next stack.
-							break
-						}
 						releaseResource()
+						if continueOnError {
+							break tasksLoop
+						}
 						cancel()
 						return errs.AsError()
 					}
@@ -563,7 +555,7 @@ func (c *cli) runAll(
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 				releaseResource()
 				if continueOnError {
-					break
+					break tasksLoop
 				}
 				cancel()
 				return errs.AsError()
@@ -599,7 +591,7 @@ func (c *cli) runAll(
 
 			if opts.DryRun {
 				releaseResource()
-				continue
+				continue tasksLoop
 			}
 
 			startTime := time.Now().UTC()
@@ -607,7 +599,6 @@ func (c *cli) runAll(
 			if err := cmd.Start(); err != nil {
 				endTime := time.Now().UTC()
 
-				releaseResource()
 				logSyncWait()
 
 				res := runResult{
@@ -617,8 +608,10 @@ func (c *cli) runAll(
 				}
 				c.cloudSyncAfter(cloudRun, res, errors.E(err, ErrRunFailed))
 				errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
+
+				releaseResource()
 				if continueOnError {
-					break
+					break tasksLoop
 				}
 				cancel()
 				return errs.AsError()
@@ -634,7 +627,6 @@ func (c *cli) runAll(
 
 				endTime := time.Now().UTC()
 
-				releaseResource()
 				logSyncWait()
 
 				res := runResult{
@@ -643,10 +635,10 @@ func (c *cli) runAll(
 					FinishedAt: &endTime,
 				}
 				c.cloudSyncAfter(cloudRun, res, errors.E(ErrRunCanceled))
+				releaseResource()
 				return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
 
 			case result := <-resultc:
-				releaseResource()
 				logSyncWait()
 
 				var err error
@@ -671,6 +663,7 @@ func (c *cli) runAll(
 				logMsg.Msg("command execution finished")
 
 				c.cloudSyncAfter(cloudRun, res, err)
+				releaseResource()
 			}
 
 			err = errs.AsError()
