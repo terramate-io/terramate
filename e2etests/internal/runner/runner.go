@@ -56,6 +56,12 @@ type (
 		StdoutRegexes []string
 		StderrRegexes []string
 
+		NoStdoutRegex   string
+		NoStdoutRegexes []string
+
+		NoStderrRegex   string
+		NoStderrRegexes []string
+
 		IgnoreStdout bool
 		IgnoreStderr bool
 
@@ -346,8 +352,10 @@ func AssertRunResult(t *testing.T, got RunResult, want RunExpected) {
 		if want.StdoutRegex != "" {
 			want.StdoutRegexes = append(want.StdoutRegexes, want.StdoutRegex)
 		}
-
-		if len(want.StdoutRegexes) > 0 {
+		if want.NoStdoutRegex != "" {
+			want.NoStdoutRegexes = append(want.NoStdoutRegexes, want.NoStdoutRegex)
+		}
+		if len(want.StdoutRegexes) > 0 || len(want.NoStdoutRegexes) > 0 {
 			for _, stdoutRegex := range want.StdoutRegexes {
 				matched, err := regexp.MatchString(stdoutRegex, stdout)
 				assert.NoError(t, err, "failed to compile regex %q", stdoutRegex)
@@ -356,6 +364,18 @@ func AssertRunResult(t *testing.T, got RunResult, want RunExpected) {
 					t.Errorf("%q stdout=\"%s\" does not match regex %q", got.Cmd,
 						stdout,
 						stdoutRegex,
+					)
+				}
+			}
+
+			for _, noStdoutRegex := range want.NoStdoutRegexes {
+				matched, err := regexp.MatchString(noStdoutRegex, stdout)
+				assert.NoError(t, err, "failed to compile regex %q", noStdoutRegex)
+
+				if matched {
+					t.Errorf("%q stdout=\"%s\" matches regex %q but it should not", got.Cmd,
+						stdout,
+						noStdoutRegex,
 					)
 				}
 			}
@@ -370,8 +390,11 @@ func AssertRunResult(t *testing.T, got RunResult, want RunExpected) {
 		if want.StderrRegex != "" {
 			want.StderrRegexes = append(want.StderrRegexes, want.StderrRegex)
 		}
+		if want.NoStderrRegex != "" {
+			want.NoStderrRegexes = append(want.NoStderrRegexes, want.NoStderrRegex)
+		}
 
-		if len(want.StderrRegexes) > 0 {
+		if len(want.StderrRegexes) > 0 || len(want.NoStderrRegexes) > 0 {
 			for _, stderrRegex := range want.StderrRegexes {
 				matched, err := regexp.MatchString(stderrRegex, got.Stderr)
 				assert.NoError(t, err, "failed to compile regex %q", stderrRegex)
@@ -380,6 +403,18 @@ func AssertRunResult(t *testing.T, got RunResult, want RunExpected) {
 					t.Errorf("%q stderr=\"%s\" does not match regex %q", got.Cmd,
 						got.Stderr,
 						stderrRegex,
+					)
+				}
+			}
+
+			for _, noStderrRegex := range want.NoStderrRegexes {
+				matched, err := regexp.MatchString(noStderrRegex, got.Stderr)
+				assert.NoError(t, err, "failed to compile regex %q", noStderrRegex)
+
+				if matched {
+					t.Errorf("%q stderr=\"%s\" matches regex %q but it should not", got.Cmd,
+						got.Stderr,
+						noStderrRegex,
 					)
 				}
 			}
