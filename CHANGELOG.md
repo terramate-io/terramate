@@ -26,6 +26,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix the repository normalization for Gitlab subgroups.
   - Now it supports repository URLs like `https://gitlab.com/my-company-name/my-group-name/my-other-group/repo-name`.
+- Fix a deadlock in the `terramate run` and `terramate script run` parallelism by
+  releasing the resources in case of errors or if dry-run mode is enabled.
 
 
 ## v0.9.4

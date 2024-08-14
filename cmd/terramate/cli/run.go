@@ -392,6 +392,7 @@ func (c *cli) runAll(
 			select {
 			case <-cancelCtx.Done():
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCanceled))
+				releaseResource()
 				continue
 			default:
 			}
@@ -443,6 +444,7 @@ func (c *cli) runAll(
 			}
 
 			if opts.DryRun {
+				releaseResource()
 				continue
 			}
 
