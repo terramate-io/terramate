@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
-	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/go-github/v58/github"
 	"github.com/hashicorp/go-uuid"
@@ -581,8 +580,8 @@ func (c *cli) detectCloudMetadata() {
 		Logger()
 
 	prettyRepo := c.prj.prettyRepo()
-	if prettyRepo == "local" {
-		logger.Debug().Msg("skipping review_request and remote metadata for local repository")
+	if prettyRepo == "local" || c.prj.repository == nil {
+		printer.Stderr.Warn(errors.E("skipping review_request and remote metadata for local repository"))
 		return
 	}
 
@@ -623,14 +622,11 @@ func (c *cli) detectCloudMetadata() {
 			Msg("failed to retrieve commit information from git")
 	}
 
-	r, err := repository.Parse(prettyRepo)
+	r, err := c.prj.repo()
 	if err != nil {
-		logger.Debug().
-			Msg("repository cannot be normalized: skipping PR/MR retrievals for commit")
-
+		printer.Stderr.WarnWithDetails("skipping fetch of review_request information", err)
 		return
 	}
-
 	switch r.Host {
 	case githubDomain:
 		c.detectGithubMetadata(r.Owner, r.Name)

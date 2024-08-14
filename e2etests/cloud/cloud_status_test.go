@@ -726,7 +726,7 @@ func TestCloudStatus(t *testing.T) {
 			s.BuildTree(tc.layout)
 			repository := tc.repository
 			if repository == "" {
-				repository = "github.com/terramate-io/terramate"
+				repository = "git@github.com:terramate-io/terramate.git"
 			}
 			s.Git().SetRemoteURL("origin", repository)
 			if len(tc.layout) > 0 {
