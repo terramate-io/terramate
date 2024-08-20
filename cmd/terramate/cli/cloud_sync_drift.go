@@ -31,7 +31,7 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 		status = drift.OK
 	case res.ExitCode == 2:
 		status = drift.Drifted
-	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, ErrRunCommandNotFound, ErrRunFailed):
+	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, ErrRunCommandNotExecuted, ErrRunFailed):
 		status = drift.Failed
 	default:
 		// ignore exit codes < 0

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -168,6 +171,260 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				},
 				events: eventsResponse{
 					"stack": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "outputs sharing sync success result",
+			layout: []string{
+				"f:exp.tm:" + Terramate(
+					Config(
+						Experiments("outputs-sharing"),
+					),
+				).String(),
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				"s:s2:id=s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "s1"),
+					Str("mock", "test"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			runflags: []string{
+				"--enable-sharing",
+				"--mock-on-fail",
+			},
+			cmd: []string{"terraform", "plan", "-out=out.tfplan"},
+			want: want{
+				run: RunExpected{
+					StdoutRegexes: []string{
+						regexp.QuoteMeta(`Terraform will perform the following actions`),
+						regexp.QuoteMeta(`local_file.s1_file`),
+						regexp.QuoteMeta(`local_file.s2_file`),
+					},
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "outputs sharing sync failed result",
+			layout: []string{
+				"f:exp.tm:" + Terramate(
+					Config(
+						Experiments("outputs-sharing"),
+					),
+				).String(),
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				"s:s2:id=s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "s1"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			runflags: []string{
+				"--enable-sharing",
+				"--mock-on-fail",
+			},
+			cmd: []string{"terraform", "plan", "-out=out.tfplan"},
+			want: want{
+				run: RunExpected{
+					Status: 1,
+					StdoutRegexes: []string{
+						regexp.QuoteMeta(`Terraform will perform the following actions`),
+						regexp.QuoteMeta(`local_file.s1_file`),
+					},
+					StderrRegex: regexp.QuoteMeta(`evaluating input value: This object does not have an attribute named`),
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "failed"},
+				},
+			},
+		},
+		{
+			name: "outputs sharing sync failed when input value fails and no mock is set",
+			layout: []string{
+				"f:exp.tm:" + Terramate(
+					Config(
+						Experiments("outputs-sharing"),
+					),
+				).String(),
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				"s:s2:id=s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "s1"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			runflags: []string{
+				"--enable-sharing",
+				"--mock-on-fail",
+			},
+			cmd: []string{"terraform", "plan", "-out=out.tfplan"},
+			want: want{
+				run: RunExpected{
+					Status: 1,
+					StdoutRegexes: []string{
+						regexp.QuoteMeta(`Terraform will perform the following actions`),
+						regexp.QuoteMeta(`local_file.s1_file`),
+					},
+					StderrRegexes: []string{
+						regexp.QuoteMeta(`evaluating input value: This object does not have an attribute named`),
+					},
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "failed"},
+				},
+			},
+		},
+		{
+			name: "outputs sharing sync failed when mock cant be evaluated",
+			layout: []string{
+				"f:exp.tm:" + Terramate(
+					Config(
+						Experiments("outputs-sharing"),
+					),
+				).String(),
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				"s:s2:id=s2",
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Str("from_stack_id", "s1"),
+					Expr("mock", "not.existent"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			runflags: []string{
+				"--enable-sharing",
+				"--mock-on-fail",
+			},
+			cmd: []string{"terraform", "plan", "-out=out.tfplan"},
+			want: want{
+				run: RunExpected{
+					Status: 1,
+					StdoutRegexes: []string{
+						regexp.QuoteMeta(`Terraform will perform the following actions`),
+						regexp.QuoteMeta(`local_file.s1_file`),
+					},
+					StderrRegexes: []string{
+						regexp.QuoteMeta(`evaluating input value: This object does not have an attribute named`),
+						regexp.QuoteMeta(`failed to evaluate input mock`),
+					},
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "failed"},
 				},
 			},
 		},
@@ -433,11 +690,23 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				s.Env = append(s.Env, tc.env...)
 
 				s.BuildTree(tc.layout)
-				s.Git().CommitAll("all stacks committed")
-
 				env := RemoveEnv(os.Environ(), "CI")
 				env = append(env, "TMC_API_URL=http://"+addr)
 				env = append(env, tc.env...)
+
+				if slices.Contains(tc.runflags, "--enable-sharing") {
+					s.Generate()
+					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+					cli.PrependToPath(filepath.Dir(TerraformTestPath))
+					AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--", "terraform", "init"), RunExpected{
+						Status:       0,
+						IgnoreStdout: true,
+						IgnoreStderr: true,
+					})
+				}
+
+				s.Git().CommitAll("all stacks committed")
+
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(TerraformTestPath))
 

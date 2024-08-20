@@ -149,7 +149,7 @@ func TestEvalSharingBackendInput(t *testing.T) {
 				return
 			}
 			// ignoring info.Range comparisons for now
-			if diff := cmp.Diff(tcase.want, got, cmpopts.IgnoreUnexported(info.Range{}, config.Input{}), cmpopts.IgnoreFields(config.Input{}, "Mock")); diff != "" {
+			if diff := cmp.Diff(tcase.want, got, cmpopts.IgnoreUnexported(info.Range{}, config.Input{})); diff != "" {
 				t.Fatalf("unexpected result\n%s", diff)
 			}
 			gotval, err := got.Value(hclctx)

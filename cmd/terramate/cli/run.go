@@ -41,9 +41,8 @@ const (
 	// ErrRunCanceled represents the error when the execution was canceled.
 	ErrRunCanceled errors.Kind = "execution canceled"
 
-	// ErrRunCommandNotFound represents the error when the command cannot be found
-	// in the system.
-	ErrRunCommandNotFound errors.Kind = "command not found"
+	// ErrRunCommandNotExecuted represents the error when the command was not executed for whatever reason.
+	ErrRunCommandNotExecuted errors.Kind = "command not found"
 
 	cloudSyncPreviewCICDWarning = "--sync-preview is only supported in GitHub Actions workflows or Gitlab CICD pipelines"
 )
@@ -389,6 +388,9 @@ func (c *cli) runAll(
 		for _, task := range run.Tasks {
 			acquireResource()
 
+			// For cloud sync, we always assume that there's a single task per stack.
+			cloudRun := stackCloudRun{Stack: run.Stack, Task: task}
+
 			if !opts.Quiet && !opts.ScriptRun {
 				printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
 			}
@@ -411,6 +413,7 @@ func (c *cli) runAll(
 					input, err := config.EvalInput(evalctx, in)
 					if err != nil {
 						errs.Append(errors.E(err, "failed to evaluate input block"))
+						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						if continueOnError {
 							break tasksLoop
@@ -421,6 +424,7 @@ func (c *cli) runAll(
 					otherStack, found, err := c.stackManager().StackByID(input.FromStackID)
 					if err != nil {
 						errs.Append(errors.E(err, "populating stack inputs from stack.id %s", input.FromStackID))
+						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						if continueOnError {
 							break tasksLoop
@@ -429,11 +433,14 @@ func (c *cli) runAll(
 						return errs.AsError()
 					}
 					if !found {
-						errs.Append(errors.E(
+						err := errors.E(
 							"Stack %s needs output from stack ID %q but it cannot be found",
 							run.Stack.Dir,
-							input.FromStackID))
+							input.FromStackID)
 
+						errs.Append(err)
+
+						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						if continueOnError {
 							break tasksLoop
@@ -446,7 +453,9 @@ func (c *cli) runAll(
 
 					backend, ok := cfg.SharingBackend(input.Backend)
 					if !ok {
-						errs.Append(errors.E("backend %s not found", input.Backend))
+						err := errors.E("backend %s not found", input.Backend)
+						errs.Append(err)
+						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						if continueOnError {
 							break tasksLoop
@@ -471,6 +480,7 @@ func (c *cli) runAll(
 						if err != nil {
 							if !task.MockOnFail {
 								errs.Append(errors.E(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes()))
+								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								if continueOnError {
 									break tasksLoop
@@ -484,7 +494,9 @@ func (c *cli) runAll(
 							stdoutBytes := stdout.Bytes()
 							typ, err := json.ImpliedType(stdoutBytes)
 							if err != nil {
-								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
+								err := errors.E(err, "unmashaling sharing_backend output")
+								errs.Append(err)
+								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								if continueOnError {
 									break tasksLoop
@@ -494,7 +506,9 @@ func (c *cli) runAll(
 							}
 							inputVal, err = json.Unmarshal(stdoutBytes, typ)
 							if err != nil {
-								errs.Append(errors.E(err, "unmashaling sharing_backend output"))
+								err := errors.E(err, "unmashaling sharing_backend output")
+								errs.Append(err)
+								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								if continueOnError {
 									break tasksLoop
@@ -507,10 +521,17 @@ func (c *cli) runAll(
 					}
 					stackOutputs := allOutputs[otherStack.Dir][backend.Name]
 					evalctx.SetNamespaceRaw("outputs", stackOutputs)
-					inputVal, err := input.Value(evalctx)
-					if err != nil {
-						if !task.MockOnFail || input.Mock.IsNull() {
-							errs.Append(errors.E(err, "evaluating input value"))
+					inputVal, inputErr := input.Value(evalctx)
+					mockVal, mockFound, mockErr := input.Mock(evalctx)
+
+					if inputErr != nil {
+						if !task.MockOnFail || !mockFound || mockErr != nil {
+							err := errors.E(inputErr, "evaluating input value")
+							errs.Append(err)
+							if mockErr != nil {
+								errs.Append(errors.E(mockErr, "failed to evaluate input mock"))
+							}
+							c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 							releaseResource()
 							if continueOnError {
 								break tasksLoop
@@ -518,10 +539,13 @@ func (c *cli) runAll(
 							cancel()
 							return errs.AsError()
 						}
-						inputVal = input.Mock
+
+						inputVal = mockVal
 					}
 					if !inputVal.Type().Equals(cty.String) {
-						errs.Append(errors.E("output type is not string but %s", inputVal.Type().FriendlyName()))
+						err := errors.E("output type is not string but %s", inputVal.Type().FriendlyName())
+						errs.Append(err)
+						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						if continueOnError {
 							break tasksLoop
@@ -533,8 +557,7 @@ func (c *cli) runAll(
 				}
 			}
 
-			// For cloud sync, we always assume that there's a single task per stack.
-			cloudRun := stackCloudRun{Stack: run.Stack, Task: task, Env: environ}
+			cloudRun.Env = environ
 
 			select {
 			case <-cancelCtx.Done():
@@ -551,7 +574,7 @@ func (c *cli) runAll(
 
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
 			if err != nil {
-				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotFound, err))
+				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 				releaseResource()
 				if continueOnError {
