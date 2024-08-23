@@ -115,6 +115,89 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "script command not found without sync still cancels execution of subsequent stacks",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s1/s2:id=s1_s2",
+				`f:scripts.tm:script deploy {
+					description = "no"
+					job {
+						commands = [
+						  ["echooooo", "${terramate.stack.name}"],
+						  ["echo", "ok", {sync_deployment = true}]
+						]
+					}
+				}`,
+			},
+			scriptCmd: "deploy",
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: "executable file not found",
+				},
+				events: eventsResponse{
+					"s1":    []string{"pending", "failed"},
+					"s1_s2": []string{"pending", "canceled"},
+				},
+			},
+		},
+		{
+			name: "script command failing without sync still sync status=failed and cancels execution of subsequent stacks",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s1/s2:id=s1_s2",
+				fmt.Sprintf(`f:scripts.tm:script deploy {
+					description = "no"
+					job {
+						commands = [
+						  ["%s", "exit", "1"],
+						  ["echo", "ok", {sync_deployment = true}]
+						]
+					}
+				}`, HelperPathAsHCL),
+			},
+			scriptCmd: "deploy",
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: "execution failed",
+				},
+				events: eventsResponse{
+					"s1":    []string{"pending", "failed"},
+					"s1_s2": []string{"pending", "canceled"},
+				},
+			},
+		},
+		{
+			name: "script command without failing sync failed with previous successful commands, still sync status=failed and cancels execution of subsequent stacks",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s1/s2:id=s1_s2",
+				fmt.Sprintf(`f:scripts.tm:script deploy {
+					description = "no"
+					job {
+						commands = [
+						  ["echo", "ok"],
+						  ["%s", "exit", "1"],
+						  ["echo", "ok", {sync_deployment = true}]
+						]
+					}
+				}`, HelperPathAsHCL),
+			},
+			scriptCmd: "deploy",
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: "execution failed",
+					Stdout:      nljoin("ok"),
+				},
+				events: eventsResponse{
+					"s1":    []string{"pending", "failed"},
+					"s1_s2": []string{"pending", "canceled"},
+				},
+			},
+		},
+		{
 			name:   "basic success",
 			layout: []string{"s:stack:id=stack"},
 			scripts: map[string]string{

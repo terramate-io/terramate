@@ -49,8 +49,9 @@ const (
 
 // stackRun contains a list of tasks to be run per stack.
 type stackRun struct {
-	Stack *config.Stack
-	Tasks []stackRunTask
+	Stack         *config.Stack
+	Tasks         []stackRunTask
+	SyncTaskIndex int // index of the task with sync options
 }
 
 // stackCloudRun is a stackRun, but with a single task, because the cloud API only supports
@@ -210,7 +211,8 @@ func (c *cli) runOnStacks() {
 	var err error
 	for _, st := range stacks {
 		run := stackRun{
-			Stack: st.Stack,
+			SyncTaskIndex: -1,
+			Stack:         st.Stack,
 			Tasks: []stackRunTask{
 				{
 					Cmd:                  c.parsedArgs.Run.Command,
@@ -384,12 +386,22 @@ func (c *cli) runAll(
 	err = sched.Run(func(run stackRun) error {
 		errs := errors.L()
 
+		failedTaskIndex := -1
+
 	tasksLoop:
-		for _, task := range run.Tasks {
+		for taskIndex, task := range run.Tasks {
 			acquireResource()
 
 			// For cloud sync, we always assume that there's a single task per stack.
 			cloudRun := stackCloudRun{Stack: run.Stack, Task: task}
+
+			select {
+			case <-cancelCtx.Done():
+				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCanceled))
+				releaseResource()
+				continue tasksLoop
+			default:
+			}
 
 			if !opts.Quiet && !opts.ScriptRun {
 				printer.Stderr.Println(printPrefix + " Entering stack in " + run.Stack.String())
@@ -415,22 +427,22 @@ func (c *cli) runAll(
 						errs.Append(errors.E(err, "failed to evaluate input block"))
 						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
-						if continueOnError {
-							break tasksLoop
+						failedTaskIndex = taskIndex
+						if !continueOnError {
+							cancel()
 						}
-						cancel()
-						return errs.AsError()
+						break tasksLoop
 					}
 					otherStack, found, err := c.stackManager().StackByID(input.FromStackID)
 					if err != nil {
 						errs.Append(errors.E(err, "populating stack inputs from stack.id %s", input.FromStackID))
 						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
-						if continueOnError {
-							break tasksLoop
+						failedTaskIndex = taskIndex
+						if !continueOnError {
+							cancel()
 						}
-						cancel()
-						return errs.AsError()
+						break tasksLoop
 					}
 					if !found {
 						err := errors.E(
@@ -442,11 +454,11 @@ func (c *cli) runAll(
 
 						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
-						if continueOnError {
-							break tasksLoop
+						failedTaskIndex = taskIndex
+						if !continueOnError {
+							cancel()
 						}
-						cancel()
-						return errs.AsError()
+						break tasksLoop
 					}
 
 					logger.Debug().Msgf("Stack depends on outputs from stack %s", otherStack.Dir)
@@ -457,11 +469,11 @@ func (c *cli) runAll(
 						errs.Append(err)
 						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
-						if continueOnError {
-							break tasksLoop
+						failedTaskIndex = taskIndex
+						if !continueOnError {
+							cancel()
 						}
-						cancel()
-						return errs.AsError()
+						break tasksLoop
 					}
 					_, ok = allOutputs[otherStack.Dir]
 					if !ok {
@@ -482,11 +494,11 @@ func (c *cli) runAll(
 								errs.Append(errors.E(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes()))
 								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
-								if continueOnError {
-									break tasksLoop
+								failedTaskIndex = taskIndex
+								if !continueOnError {
+									cancel()
 								}
-								cancel()
-								return errs.AsError()
+								break tasksLoop
 							}
 
 							printer.Stderr.Warnf("failed to execute `sharing_backend` command: %v", err)
@@ -498,11 +510,11 @@ func (c *cli) runAll(
 								errs.Append(err)
 								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
-								if continueOnError {
-									break tasksLoop
+								failedTaskIndex = taskIndex
+								if !continueOnError {
+									cancel()
 								}
-								cancel()
-								return errs.AsError()
+								break tasksLoop
 							}
 							inputVal, err = json.Unmarshal(stdoutBytes, typ)
 							if err != nil {
@@ -510,11 +522,11 @@ func (c *cli) runAll(
 								errs.Append(err)
 								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
-								if continueOnError {
-									break tasksLoop
+								failedTaskIndex = taskIndex
+								if !continueOnError {
+									cancel()
 								}
-								cancel()
-								return errs.AsError()
+								break tasksLoop
 							}
 						}
 						allOutputs[otherStack.Dir][backend.Name] = inputVal
@@ -533,11 +545,11 @@ func (c *cli) runAll(
 							}
 							c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 							releaseResource()
-							if continueOnError {
-								break tasksLoop
+							failedTaskIndex = taskIndex
+							if !continueOnError {
+								cancel()
 							}
-							cancel()
-							return errs.AsError()
+							break tasksLoop
 						}
 
 						inputVal = mockVal
@@ -547,25 +559,17 @@ func (c *cli) runAll(
 						errs.Append(err)
 						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
-						if continueOnError {
-							break tasksLoop
+						failedTaskIndex = taskIndex
+						if !continueOnError {
+							cancel()
 						}
-						cancel()
-						return errs.AsError()
+						break tasksLoop
 					}
 					environ = append(environ, stdfmt.Sprintf("TF_VAR_%s=%s", input.Name, inputVal.AsString()))
 				}
 			}
 
 			cloudRun.Env = environ
-
-			select {
-			case <-cancelCtx.Done():
-				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCanceled))
-				releaseResource()
-				continue
-			default:
-			}
 
 			cmdStr := strings.Join(task.Cmd, " ")
 			logger = logger.With().
@@ -577,11 +581,11 @@ func (c *cli) runAll(
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 				releaseResource()
-				if continueOnError {
-					break tasksLoop
+				failedTaskIndex = taskIndex
+				if !continueOnError {
+					cancel()
 				}
-				cancel()
-				return errs.AsError()
+				break tasksLoop
 			}
 
 			cmd := exec.Command(cmdPath, task.Cmd[1:]...)
@@ -633,11 +637,11 @@ func (c *cli) runAll(
 				errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
 
 				releaseResource()
-				if continueOnError {
-					break tasksLoop
+				failedTaskIndex = taskIndex
+				if !continueOnError {
+					cancel()
 				}
-				cancel()
-				return errs.AsError()
+				break tasksLoop
 			}
 
 			resultc := makeResultChannel(cmd)
@@ -658,8 +662,13 @@ func (c *cli) runAll(
 					FinishedAt: &endTime,
 				}
 				c.cloudSyncAfter(cloudRun, res, errors.E(ErrRunCanceled))
+				errs.Append(errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)"))
 				releaseResource()
-				return errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)")
+				failedTaskIndex = taskIndex
+				if !continueOnError {
+					cancel()
+				}
+				break tasksLoop
 
 			case result := <-resultc:
 				logSyncWait()
@@ -687,17 +696,22 @@ func (c *cli) runAll(
 
 				c.cloudSyncAfter(cloudRun, res, err)
 				releaseResource()
-			}
-
-			err = errs.AsError()
-			if err != nil {
-				if continueOnError {
-					return err
+				if err != nil {
+					failedTaskIndex = taskIndex
+					if !continueOnError {
+						cancel()
+					}
+					break tasksLoop
 				}
-				logger.Info().Msg("interrupting execution of further stacks")
-				cancel()
-				return err
 			}
+		}
+
+		if failedTaskIndex != -1 && run.SyncTaskIndex != -1 && failedTaskIndex < run.SyncTaskIndex {
+			cloudRun := stackCloudRun{
+				Stack: run.Stack,
+				Task:  run.Tasks[run.SyncTaskIndex],
+			}
+			c.cloudSyncAfter(cloudRun, runResult{ExitCode: 1}, errors.E(ErrRunFailed))
 		}
 
 		return errs.AsError()

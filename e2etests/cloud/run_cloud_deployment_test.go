@@ -92,7 +92,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
-			name:   "failed cmd cancels execution of subsequent stacks",
+			name:   "command not found cancels execution of subsequent stacks",
 			layout: []string{"s:s1:id=s1", "s:s1/s2:id=s2"},
 			cmd:    []string{"non-existent-command"},
 			want: want{
@@ -102,6 +102,21 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				},
 				events: eventsResponse{
 					"s1": []string{"pending", "failed"},
+					"s2": []string{"pending", "canceled"},
+				},
+			},
+		},
+		{
+			name:   "failed cmd cancels execution of subsequent stacks",
+			layout: []string{"s:s1:id=s1", "s:s1/s2:id=s2"},
+			cmd:    []string{HelperPath, "exit", "1"},
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: "one or more commands failed",
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "failed"},
 					"s2": []string{"pending", "canceled"},
 				},
 			},
