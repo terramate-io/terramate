@@ -135,7 +135,7 @@ func (c *cli) cloudSyncDeployment(run stackCloudRun, err error) {
 		status = deployment.OK
 	case errors.IsKind(err, ErrRunCanceled):
 		status = deployment.Canceled
-	case errors.IsAnyKind(err, ErrRunFailed, ErrRunCommandNotFound):
+	case errors.IsAnyKind(err, ErrRunFailed, ErrRunCommandNotExecuted):
 		status = deployment.Failed
 	default:
 		panic(errors.E(errors.ErrInternal, "unexpected run status"))

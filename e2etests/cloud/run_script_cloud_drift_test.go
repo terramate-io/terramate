@@ -148,6 +148,48 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			},
 		},
 		{
+			name: "failed cmd without sync still sync if other command has sync enabled",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s1/s2:id=s2",
+				"f:script.tm:" + Block("script",
+					Labels("cmd"),
+					Str("description", "test"),
+					Block("job",
+						Expr("commands", `[
+						  ["non-existent-command"],
+						  ["echo", "ok", {
+							sync_drift_status = true
+						  }]
+						]`),
+					),
+				).String(),
+			},
+			cmd: []string{"cmd"},
+			want: want{
+				run: RunExpected{
+					Status:      1,
+					StderrRegex: "executable file not found",
+				},
+				drifts: expectedDriftStackPayloadRequests{
+					{
+						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
+							Stack: cloud.Stack{
+								Repository:    normalizedTestRemoteRepo,
+								DefaultBranch: "main",
+								Path:          "/s1",
+								MetaName:      "s1",
+								MetaID:        "s1",
+								Target:        "default",
+							},
+							Status:   drift.Failed,
+							Metadata: expectedMetadata,
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "basic drift sync",
 			layout: []string{
 				"s:stack:id=stack",

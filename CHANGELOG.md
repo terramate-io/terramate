@@ -20,7 +20,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-# Unreleased
+## Unreleased
+
+### Fixed
+
+- Fix `outputs-sharing` failure cases not synchronizing to Terramate Cloud.
 
 ## v0.10.1
 

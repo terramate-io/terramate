@@ -228,6 +228,104 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "failed command without sync, still sync if any other command has sync enabled",
+			layout: []string{
+				"s:stack:id=someid",
+				`f:terramate.tm:
+				  terramate {
+					config {
+						experiments = ["scripts"]
+					}
+				  }
+				`,
+				fmt.Sprintf(`f:stack/preview.tm:
+
+				  script "preview" {
+					description = "sync a preview"
+					job {
+					  commands = [
+					    ["do-not-exist-command"],
+						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
+						  sync_preview             = true,
+						  terraform_plan_file = "out.tfplan",
+						}],
+					  ]
+					}
+				  }
+				  `,
+					TerraformTestPath,
+				),
+				`f:stack/main.tf:
+				  resource "local_file" "foo" {
+					content  = "test content"
+					filename = "${path.module}/foo.bar"
+				  }`,
+				"run:stack:terraform init",
+			},
+			cmd: []string{"script", "run", "-X", "preview"},
+			env: []string{
+				"GITHUB_ACTIONS=1",
+			},
+			githubEventPath: datapath(t, "interop/testdata/event_pull_request.json"),
+			want: want{
+				run: RunExpected{
+					Status: 1,
+					StderrRegexes: []string{
+						"Preview created",
+					},
+				},
+				preview: &cloudstore.Preview{
+					PreviewID:       "1",
+					Technology:      "terraform",
+					TechnologyLayer: "default",
+					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
+					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
+					StackPreviews: []*cloudstore.StackPreview{
+						{
+							ID:     "1",
+							Status: "failed",
+							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+						},
+					},
+					ReviewRequest: &cloud.ReviewRequest{
+						Platform:    "github",
+						Repository:  normalizedPreviewTestRemoteRepo,
+						Number:      1347,
+						CommitSHA:   "aaa",
+						Title:       "Amazing new feature",
+						Description: "Please pull these awesome changes in!",
+						URL:         "https://github.com/octocat/Hello-World/pull/1347",
+						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Status:      "open",
+						CreatedAt:   createdAt,
+						UpdatedAt:   updatedAt,
+						PushedAt:    pushedAt,
+						Author: cloud.Author{
+							Login:     "octocat",
+							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+						},
+						Branch:     "new-topic",
+						BaseBranch: "master",
+					},
+				},
+				Metadata: &Metadata{
+					GithubPullRequestURL:       "https://github.com/octocat/Hello-World/pull/1347",
+					GithubPullRequestNumber:    1347,
+					GithubPullRequestTitle:     "Amazing new feature",
+					GithubPullRequestUpdatedAt: "2011-01-26T19:01:12Z",
+				},
+				ignoreTypes: []cmp.Option{
+					cmpopts.IgnoreTypes(
+						cloud.CommandLogs{},
+						&cloud.ChangesetDetails{},
+						cloudstore.Stack{},
+						&cloud.DeploymentMetadata{},
+					),
+					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+				},
+			},
+		},
 	} {
 		tc := tc
 		name := tc.name

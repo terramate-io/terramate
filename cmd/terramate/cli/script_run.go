@@ -136,6 +136,9 @@ func (c *cli) runScript() {
 						task.MockOnFail = cmd.Options.MockOnFail
 					}
 					run.Tasks = append(run.Tasks, task)
+					if task.CloudSyncDeployment || task.CloudSyncDriftStatus || task.CloudSyncPreview {
+						run.SyncTaskIndex = len(run.Tasks) - 1
+					}
 				}
 			}
 

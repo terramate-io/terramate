@@ -21,7 +21,7 @@ type (
 		FromStackID string
 		value       hhcl.Expression
 		Sensitive   bool
-		Mock        cty.Value
+		mock        hhcl.Expression
 	}
 
 	// Inputs is a list of Input.
@@ -48,6 +48,7 @@ func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 		Name:      input.Name, // TODO(i4k): validate name.
 		Sensitive: true,
 		value:     input.Value,
+		mock:      input.Mock,
 	}
 	var err error
 	errs := errors.L()
@@ -56,13 +57,6 @@ func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 	evaluatedInput.FromStackID, err = evalString(evalctx, input.FromStackID, "input.from_stack_id")
 	errs.Append(err)
 	errs.Append(validateID(evaluatedInput.FromStackID, "input.from_stack_id"))
-
-	if input.Mock != nil {
-		evaluatedInput.Mock, err = evalctx.Eval(input.Mock)
-		if err != nil {
-			errs.Append(errors.E(err, `evaluating "input.value"`))
-		}
-	}
 
 	if input.Sensitive != nil {
 		evaluatedInput.Sensitive, err = evalBool(evalctx, input.Sensitive, "input.sensitive")
@@ -81,6 +75,19 @@ func (i *Input) Value(evalctx *eval.Context) (cty.Value, error) {
 		return cty.NilVal, errors.E(err, `evaluating input value`)
 	}
 	return value, nil
+}
+
+// Mock evaluates and returns the mock value, if any.
+// The returned boolean will be true only iff the mock exists in the config.
+func (i *Input) Mock(evalctx *eval.Context) (cty.Value, bool, error) {
+	if i.mock == nil {
+		return cty.NilVal, false, nil
+	}
+	mock, err := evalctx.Eval(i.mock)
+	if err != nil {
+		return cty.NilVal, true, errors.E(err, `evaluating "input.mock"`)
+	}
+	return mock, true, nil
 }
 
 // EvalOutput evaluates an output block using the provided evaluation context.
