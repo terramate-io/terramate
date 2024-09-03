@@ -11,6 +11,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func BenchmarkTmAllTrueLiteralList(b *testing.B) {
@@ -96,10 +97,43 @@ func BenchmarkTmTernary(b *testing.B) {
 	}
 }
 
-func BenchmarkTmTry(b *testing.B) {
+func BenchmarkTmTryUnknownFunc(b *testing.B) {
 	b.StopTimer()
 	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
 	expr, err := ast.ParseExpression(`tm_try(tm_unknown_function(), "result")`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.AsString(); got != "result" {
+			b.Fatalf("unexpected value: %s", got)
+		}
+	}
+}
+
+func BenchmarkTmTryUnknownVariable(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	expr, err := ast.ParseExpression(`tm_try(unknown_variable, "result")`, `bench-test`)
+	assert.NoError(b, err)
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		v, err := evalctx.Eval(expr)
+		assert.NoError(b, err)
+		if got := v.AsString(); got != "result" {
+			b.Fatalf("unexpected value: %s", got)
+		}
+	}
+}
+
+func BenchmarkTmTryUnknownObjectKey(b *testing.B) {
+	b.StopTimer()
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx.SetNamespaceRaw("let", cty.ObjectVal(map[string]cty.Value{
+		"some": cty.ObjectVal(map[string]cty.Value{}),
+	}))
+	expr, err := ast.ParseExpression(`tm_try(let.some.unknown, "result")`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
