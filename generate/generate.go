@@ -123,7 +123,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.Dir()}
-		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir()))
+		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir(), root.Tree().Node.Experiments()))
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -332,7 +332,7 @@ func doRootGeneration(root *config.Root, tree *config.Tree) Report {
 		Logger()
 
 	report := Report{}
-	evalctx := eval.NewContext(stdlib.Functions(root.HostDir()))
+	evalctx := eval.NewContext(stdlib.Functions(root.HostDir(), root.Tree().Node.Experiments()))
 	evalctx.SetNamespace("terramate", root.Runtime())
 
 	var files []GenFile

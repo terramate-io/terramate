@@ -1,8 +1,8 @@
 module github.com/terramate-io/terramate
 
-go 1.21
+go 1.21.0
 
-toolchain go1.21.5
+toolchain go1.22.3
 
 require (
 	github.com/alecthomas/kong v0.7.1
@@ -24,6 +24,7 @@ require (
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/madlambda/spells v0.4.2
+	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/posener/complete v1.2.3
 	github.com/shurcooL/githubv4 v0.0.0-20240120211514-18a1ae0e79dc
@@ -202,3 +203,5 @@ require (
 	golang.org/x/sys v0.21.0
 	golang.org/x/text v0.16.0 // indirect
 )
+
+replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.0.0-20240814143621-8048794c5c52

@@ -49,7 +49,7 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
+	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root), root.Tree().Node.Experiments()))
 	runtime := root.Runtime()
 	runtime.Merge(st.RuntimeValues(root))
 	evalctx.SetNamespace("terramate", runtime)

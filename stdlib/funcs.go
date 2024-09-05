@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	resyntax "regexp/syntax"
@@ -34,7 +35,7 @@ func init() {
 
 // Functions returns all the Terramate default functions.
 // The `basedir` must be an absolute path for an existent directory or it panics.
-func Functions(basedir string) map[string]function.Function {
+func Functions(basedir string, experiments []string) map[string]function.Function {
 	if !filepath.IsAbs(basedir) {
 		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
 	}
@@ -75,13 +76,18 @@ func Functions(basedir string) map[string]function.Function {
 	tmfuncs["tm_try"] = TryFunc()
 
 	tmfuncs["tm_version_match"] = VersionMatch()
+
+	if slices.Contains(experiments, "toml-functions") {
+		tmfuncs["tm_tomlencode"] = TomlEncode()
+		tmfuncs["tm_tomldecode"] = TomlDecode()
+	}
 	return tmfuncs
 }
 
 // NoFS returns all Terramate functions but excluding fs-related
 // functions.
-func NoFS(basedir string) map[string]function.Function {
-	funcs := Functions(basedir)
+func NoFS(basedir string, experiments []string) map[string]function.Function {
+	funcs := Functions(basedir, experiments)
 	fsFuncNames := []string{
 		"tm_abspath",
 		"tm_file",

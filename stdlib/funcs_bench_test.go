@@ -16,7 +16,7 @@ import (
 
 func BenchmarkTmAllTrueLiteralList(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), nil))
 	expr, err := ast.ParseExpression(`tm_alltrue([
 		false,
 		tm_element(tm_range(0, 100), 0) == 0,
@@ -35,7 +35,7 @@ func BenchmarkTmAllTrueLiteralList(b *testing.B) {
 
 func BenchmarkTmAllTrueFuncall(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	expr, err := ast.ParseExpression(`tm_alltrue(tm_distinct([for i in tm_range(0, 3) : i == 2 ? true : false]))`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -50,7 +50,7 @@ func BenchmarkTmAllTrueFuncall(b *testing.B) {
 
 func BenchmarkTmAnyTrueLiteralList(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	expr, err := ast.ParseExpression(`tm_anytrue([
 		true,
 		tm_element(tm_range(0, 100), 0) != 0,
@@ -69,7 +69,7 @@ func BenchmarkTmAnyTrueLiteralList(b *testing.B) {
 
 func BenchmarkTmAnyTrueFuncall(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	expr, err := ast.ParseExpression(`tm_anytrue(tm_distinct([for i in tm_range(0, 3) : i == 2 ? true : false]))`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -84,7 +84,7 @@ func BenchmarkTmAnyTrueFuncall(b *testing.B) {
 
 func BenchmarkTmTernary(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	expr, err := ast.ParseExpression(`tm_ternary(false, tm_unknown_function(), "result")`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -99,7 +99,7 @@ func BenchmarkTmTernary(b *testing.B) {
 
 func BenchmarkTmTryUnknownFunc(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	expr, err := ast.ParseExpression(`tm_try(tm_unknown_function(), "result")`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -114,7 +114,7 @@ func BenchmarkTmTryUnknownFunc(b *testing.B) {
 
 func BenchmarkTmTryUnknownVariable(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	expr, err := ast.ParseExpression(`tm_try(unknown_variable, "result")`, `bench-test`)
 	assert.NoError(b, err)
 	b.StartTimer()
@@ -129,7 +129,7 @@ func BenchmarkTmTryUnknownVariable(b *testing.B) {
 
 func BenchmarkTmTryUnknownObjectKey(b *testing.B) {
 	b.StopTimer()
-	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b)))
+	evalctx := eval.NewContext(stdlib.Functions(test.TempDir(b), []string{}))
 	evalctx.SetNamespaceRaw("let", cty.ObjectVal(map[string]cty.Value{
 		"some": cty.ObjectVal(map[string]cty.Value{}),
 	}))

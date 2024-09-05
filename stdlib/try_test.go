@@ -15,7 +15,7 @@ import (
 
 func TestTmTry(t *testing.T) {
 	dir := test.TempDir(t)
-	funcs := stdlib.Functions(dir)
+	funcs := stdlib.Functions(dir, []string{})
 
 	t.Run("single value number", func(t *testing.T) {
 		evalctx := eval.NewContext(funcs)

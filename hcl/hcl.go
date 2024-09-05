@@ -478,7 +478,7 @@ func NewTerramateParser(rootdir string, dir string, experiments ...string) (*Ter
 		files:       map[string][]byte{},
 		hclparser:   hclparse.NewParser(),
 		parsedFiles: make(map[string]parsedFile),
-		evalctx:     eval.NewContext(stdlib.Functions(dir)),
+		evalctx:     eval.NewContext(stdlib.Functions(dir, experiments)),
 	}, nil
 }
 

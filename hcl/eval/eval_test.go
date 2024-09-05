@@ -79,7 +79,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			ctx := eval.NewContext(stdlib.Functions(basedir))
+			ctx := eval.NewContext(stdlib.Functions(basedir, []string{}))
 
 			const attrname = "value"
 
