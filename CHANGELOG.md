@@ -28,6 +28,18 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix `outputs-sharing` failure cases not synchronizing to Terramate Cloud.
 
+### Changed
+
+- Use OpenTofu functions instead of Terraform `v0.15.3` functions.
+
+### Added
+
+- Add `tm_strcontains(string, substr)`.
+- Add `tm_startswith(string, prefix)`.
+- Add `tm_endswith(string, suffix)`.
+- Add `tm_timecmp(t1, t2)`.
+- Add `tm_cidrcontains(cidr, ip)`
+
 ## v0.10.1
 
 ### Added

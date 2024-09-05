@@ -330,6 +330,58 @@ func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
 	_ = stdlib.Functions(path)
 }
 
+func TestStdlibTofuSanityCheck(t *testing.T) {
+	// this test just ensures the Tofu functions are being used.
+	t.Parallel()
+
+	type testcase struct {
+		expr    string
+		wantErr error
+		want    bool
+	}
+
+	for _, tc := range []testcase{
+		{
+			// tofu function
+			expr: `tm_cidrcontains("192.168.2.0/20", "192.168.2.1")`,
+			want: true,
+		},
+		{
+			expr: `tm_strcontains("hello world", "hello")`,
+			want: true,
+		},
+		{
+			expr: `tm_timecmp("2017-11-22T00:00:00Z", "2017-11-22T00:00:00Z") == 0`,
+			want: true,
+		},
+		{
+			expr: `tm_timecmp("2017-11-22T01:00:00Z", "2017-11-22T00:00:00Z") == 1`,
+			want: true,
+		},
+		{
+			expr: `tm_startswith("hello world", "hello")`,
+			want: true,
+		},
+		{
+			expr: `tm_endswith("hello world", "world")`,
+			want: true,
+		},
+	} {
+		tc := tc
+		t.Run(tc.expr, func(t *testing.T) {
+			rootdir := test.TempDir(t)
+			ctx := eval.NewContext(stdlib.Functions(rootdir))
+			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
+			errors.Assert(t, err, tc.wantErr)
+			if err != nil {
+				return
+			}
+			gotBool := val.True()
+			assert.IsTrue(t, gotBool == tc.want)
+		})
+	}
+}
+
 func init() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

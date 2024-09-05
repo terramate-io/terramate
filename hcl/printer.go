@@ -6,8 +6,8 @@ package hcl
 import (
 	"io"
 
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 )
 

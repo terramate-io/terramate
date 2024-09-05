@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"

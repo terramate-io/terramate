@@ -7,7 +7,7 @@ package hclutils
 import (
 	"path/filepath"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 )
 

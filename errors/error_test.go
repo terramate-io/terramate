@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/info"
 )

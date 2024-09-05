@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/hcl/v2/hclparse"
 	"github.com/terramate-io/terramate/hcl/fmt"
 )
 

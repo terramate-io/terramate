@@ -8,12 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	resyntax "regexp/syntax"
 
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/hcl/v2/ext/customdecode"
+	lang "github.com/terramate-io/opentofulib/lang"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -46,7 +47,7 @@ func Functions(basedir string) map[string]function.Function {
 		panic(errors.E(errors.ErrInternal, "context basedir (%s) must be a directory", basedir))
 	}
 
-	scope := &tflang.Scope{BaseDir: basedir}
+	scope := &lang.Scope{BaseDir: basedir}
 	tffuncs := scope.Functions()
 
 	// not supported functions
@@ -55,6 +56,9 @@ func Functions(basedir string) map[string]function.Function {
 
 	tmfuncs := map[string]function.Function{}
 	for name, function := range tffuncs {
+		if strings.Contains(name, "::") {
+			continue
+		}
 		tmfuncs["tm_"+name] = function
 	}
 

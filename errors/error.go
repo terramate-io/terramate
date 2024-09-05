@@ -14,7 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hashicorp/hcl/v2"
+	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/hcl/info"
 )
 

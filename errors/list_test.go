@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 )
 
