@@ -250,7 +250,7 @@ func scriptEvalContext(root *config.Root, st *config.Stack, target string) (*eva
 		return nil, err
 	}
 
-	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
+	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root), root.Tree().Node.Experiments()))
 	runtime := root.Runtime()
 	runtime.Merge(st.RuntimeValues(root))
 

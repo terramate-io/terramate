@@ -484,8 +484,8 @@ EOT
 	} {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
-			//t.Parallel()
-			ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
+			t.Parallel()
+			ctx := eval.NewContext(stdlib.Functions(os.TempDir(), []string{}))
 			ctx.SetNamespace("global", map[string]cty.Value{
 				"number": cty.NumberIntVal(10),
 				"string": cty.StringVal("terramate"),

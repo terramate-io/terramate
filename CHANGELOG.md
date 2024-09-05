@@ -39,6 +39,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `tm_endswith(string, suffix)`.
 - Add `tm_timecmp(t1, t2)`.
 - Add `tm_cidrcontains(cidr, ip)`
+- Add experimental support for `tm_tomlencode` and `tm_tomldecode`.
+  - Can be enabled with `terramate.config.experiments = ["toml-functions"]`.
 
 ## v0.10.1
 

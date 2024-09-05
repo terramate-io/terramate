@@ -2258,7 +2258,7 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 		tdir = c.wd()
 	}
 
-	ctx := eval.NewContext(stdlib.NoFS(tdir))
+	ctx := eval.NewContext(stdlib.NoFS(tdir, c.rootNode().Experiments()))
 	ctx.SetNamespace("terramate", runtime)
 
 	wdPath := prj.PrjAbsPath(c.rootdir(), tdir)

@@ -129,7 +129,7 @@ func TestEvalSharingBackendInput(t *testing.T) {
 
 			st, err := rootTree.Stack()
 			assert.NoError(t, err)
-			hclctx := eval.NewContext(stdlib.Functions(tempdir))
+			hclctx := eval.NewContext(stdlib.Functions(tempdir, []string{}))
 			hclctx.SetNamespace("global", tcase.globals)
 			runtime := cfg.Runtime()
 			runtime.Merge(st.RuntimeValues(cfg))
@@ -231,7 +231,7 @@ func TestEvalSharingBackendOutput(t *testing.T) {
 
 			st, err := rootTree.Stack()
 			assert.NoError(t, err)
-			hclctx := eval.NewContext(stdlib.Functions(tempdir))
+			hclctx := eval.NewContext(stdlib.Functions(tempdir, []string{}))
 			hclctx.SetNamespace("global", tcase.globals)
 			runtime := cfg.Runtime()
 			runtime.Merge(st.RuntimeValues(cfg))

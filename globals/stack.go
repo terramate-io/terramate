@@ -12,7 +12,7 @@ import (
 // ForStack loads from the config tree all globals defined for a given stack.
 func ForStack(root *config.Root, stack *config.Stack) EvalReport {
 	ctx := eval.NewContext(
-		stdlib.Functions(stack.HostDir(root)),
+		stdlib.Functions(stack.HostDir(root), root.Tree().Node.Experiments()),
 	)
 	runtime := root.Runtime()
 	runtime.Merge(stack.RuntimeValues(root))

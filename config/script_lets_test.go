@@ -336,7 +336,7 @@ func TestScriptLetsEval(t *testing.T) {
 
 func TestScriptLetsArelocalToTheirBlocks(t *testing.T) {
 	tempdir := test.TempDir(t)
-	hclctx := eval.NewContext(stdlib.Functions(tempdir))
+	hclctx := eval.NewContext(stdlib.Functions(tempdir, []string{}))
 	test.AppendFile(t, tempdir, "script.tm", Doc(
 		Script(
 			Labels("deploy1"),
