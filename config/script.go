@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"

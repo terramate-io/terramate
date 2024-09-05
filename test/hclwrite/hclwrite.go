@@ -22,13 +22,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2/hclparse"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/zclconf/go-cty/cty"
 
-	hhcl "github.com/hashicorp/hcl/v2"
-	tflang "github.com/hashicorp/terraform/lang"
+	hhcl "github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/opentofulib/lang"
 )
 
 // Block represents an HCL block.
@@ -167,7 +167,7 @@ func AttributeValue(t *testing.T, name string, expr string) BlockBuilder {
 	}
 	body := res.Body.(*hclsyntax.Body)
 
-	scope := &tflang.Scope{}
+	scope := &lang.Scope{}
 	ctx := &hhcl.EvalContext{
 		Functions: scope.Functions(),
 		Variables: map[string]cty.Value{},

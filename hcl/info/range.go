@@ -6,7 +6,7 @@ package info
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
+	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/project"
 )
 

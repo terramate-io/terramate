@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hhcl "github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/cloud"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/config"

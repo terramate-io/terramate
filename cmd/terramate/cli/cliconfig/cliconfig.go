@@ -6,9 +6,9 @@ package cliconfig
 import (
 	"os"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/terramate-io/hcl/v2/hclparse"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"

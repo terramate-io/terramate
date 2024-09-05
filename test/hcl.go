@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	hhcl "github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"

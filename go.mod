@@ -6,7 +6,7 @@ toolchain go1.21.5
 
 require (
 	github.com/alecthomas/kong v0.7.1
-	github.com/apparentlymart/go-versions v1.0.1
+	github.com/apparentlymart/go-versions v1.0.2
 	github.com/cli/go-gh/v2 v2.1.0
 	github.com/cli/safeexec v1.0.0
 	github.com/emicklei/dot v0.16.0
@@ -21,8 +21,6 @@ require (
 	github.com/gruntwork-io/terragrunt v0.55.21
 	github.com/hashicorp/go-version v1.7.0
 	github.com/hashicorp/hc-install v0.6.1
-	github.com/hashicorp/hcl/v2 v2.20.1
-	github.com/hashicorp/terraform v0.15.3
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/madlambda/spells v0.4.2
@@ -30,25 +28,35 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/shurcooL/githubv4 v0.0.0-20240120211514-18a1ae0e79dc
 	github.com/terramate-io/go-checkpoint v1.0.0
+	github.com/terramate-io/hcl/v2 v2.0.0-rc6
+	github.com/terramate-io/opentofulib v1.0.0-rc6
 	github.com/terramate-io/tfjson v1.0.0-rc1
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.14.4
-	github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b
+	github.com/zclconf/go-cty-debug v0.0.0-20240509010212-0d6042c53940
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/protocol v0.12.0
 	go.lsp.dev/uri v0.3.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/oauth2 v0.15.0
+	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sync v0.7.0
 )
 
 require (
-	cloud.google.com/go v0.111.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.1 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/opentofu/registry-address v0.0.0-20230920144404-f1e51167f633 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.1 // indirect
+)
+
+require (
+	cloud.google.com/go v0.112.0 // indirect
 	cloud.google.com/go/compute v1.23.3 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.5 // indirect
 	cloud.google.com/go/kms v1.15.5 // indirect
-	cloud.google.com/go/storage v1.33.0 // indirect
+	cloud.google.com/go/storage v1.36.0 // indirect
 	filippo.io/age v1.1.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.6.0 // indirect
@@ -57,28 +65,30 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal v1.0.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230923063757-afb1ddc0824c // indirect
+	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.50.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.21.1 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.18.44 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.42 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.12 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.42 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.36 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.44 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.36 // indirect
-	github.com/aws/aws-sdk-go-v2/service/kms v1.24.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.15.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.17.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.23.1 // indirect
-	github.com/aws/smithy-go v1.15.0 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.23.2 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.25.8 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.16.6 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.6 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.2.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.5.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.7.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/kms v1.26.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.17.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.20.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.25.6 // indirect
+	github.com/aws/smithy-go v1.17.0 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
-	github.com/creack/pty v1.1.17 // indirect
+	github.com/creack/pty v1.1.18 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/getsops/gopgagent v0.0.0-20170926210634-4d7ea76ff71a // indirect
 	github.com/getsops/sops/v3 v3.8.1 // indirect
@@ -108,7 +118,10 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault // indirect
+	github.com/hashicorp/hcl/v2 v2.17.0 // indirect
+	github.com/hashicorp/terraform v0.15.3 // indirect
 	github.com/hashicorp/terraform-config-inspect v0.0.0-20210318070130-9a80970d6b34 // indirect
+	github.com/hashicorp/terraform-svchost v0.1.1 // indirect
 	github.com/hashicorp/vault/api v1.10.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -158,14 +171,14 @@ require (
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/term v0.21.0 // indirect
-	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
-	google.golang.org/api v0.149.0 // indirect
+	google.golang.org/api v0.155.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto v0.0.0-20231212172506-995d672761c0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240102182953-50ed04b92917 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
-	google.golang.org/grpc v1.61.0 // indirect
+	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/grpc v1.62.1 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
@@ -180,7 +193,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-uuid v1.0.3
-	github.com/hashicorp/terraform-svchost v0.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/rs/zerolog v1.28.0

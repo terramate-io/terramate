@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/rs/zerolog/log"
+	hhcl "github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/fs"

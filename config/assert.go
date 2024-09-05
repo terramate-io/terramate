@@ -8,7 +8,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	hhcl "github.com/terramate-io/hcl/v2"
 )
 
 // Assert represents evaluated assert block configuration.

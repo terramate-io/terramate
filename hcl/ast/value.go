@@ -8,9 +8,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/terramate-io/hcl/v2/ext/customdecode"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
 )

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
+	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
