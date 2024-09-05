@@ -41,9 +41,7 @@ jobs:
         run: make build
 
       - name: make generate
-        run: ./bin/terramate.exe generate
+        run: make generate
 
       - name: make test
         run: make test
-
-      - uses: Kesin11/actions-timeline@v1
