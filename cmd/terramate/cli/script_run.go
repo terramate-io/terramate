@@ -44,7 +44,7 @@ func (c *cli) runScript() {
 	if c.parsedArgs.Script.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatalWithDetails(err, "failed to load stack in current directory")
+			fatalWithDetailf(err, "failed to load stack in current directory")
 		}
 
 		if !found {
@@ -63,7 +63,7 @@ func (c *cli) runScript() {
 			DriftStatus:      driftFilter,
 		})
 		if err != nil {
-			fatalWithDetails(err, "failed to compute selected stacks")
+			fatalWithDetailf(err, "failed to compute selected stacks")
 		}
 	}
 
@@ -101,12 +101,12 @@ func (c *cli) runScript() {
 
 			ectx, err := scriptEvalContext(c.cfg(), st.Stack, c.parsedArgs.Script.Run.Target)
 			if err != nil {
-				fatalWithDetails(err, "failed to get context")
+				fatalWithDetailf(err, "failed to get context")
 			}
 
 			evalScript, err := config.EvalScript(ectx, *result.ScriptCfg)
 			if err != nil {
-				fatalWithDetails(err, "failed to eval script")
+				fatalWithDetailf(err, "failed to eval script")
 			}
 
 			for jobIdx, job := range evalScript.Jobs {
@@ -157,7 +157,7 @@ func (c *cli) runScript() {
 		Parallel:        c.parsedArgs.Script.Run.Parallel,
 	})
 	if err != nil {
-		fatalWithDetails(err, "one or more commands failed")
+		fatalWithDetailf(err, "one or more commands failed")
 	}
 }
 
@@ -241,7 +241,7 @@ func printScriptCommand(w io.Writer, stack *config.Stack, run stackRunTask) {
 	prompt := color.GreenString(fmt.Sprintf("%s (script:%d job:%d.%d)>",
 		stack.Dir.String(),
 		run.ScriptIdx, run.ScriptJobIdx, run.ScriptCmdIdx))
-	fmt.Fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
+	fprintln(w, prompt, color.YellowString(strings.Join(run.Cmd, " ")))
 }
 
 func scriptEvalContext(root *config.Root, st *config.Stack, target string) (*eval.Context, error) {

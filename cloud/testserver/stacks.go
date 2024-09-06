@@ -357,12 +357,12 @@ func GetDeploymentLogsEvents(store *cloudstore.Data, w http.ResponseWriter, _ *h
 		}
 
 		for _, l := range logs {
-			fmt.Fprintf(w, "%d [%s] %s %s\n", l.Line, l.Channel, l.Timestamp, l.Message)
+			writeString(w, fmt.Sprintf("%d [%s] %s %s\n", l.Line, l.Channel, l.Timestamp, l.Message))
 			w.(http.Flusher).Flush()
 			line++
 		}
 		if len(logs) == 0 {
-			fmt.Fprintf(w, ".\n")
+			writeString(w, ".\n")
 			w.(http.Flusher).Flush()
 		}
 		time.Sleep(1 * time.Second)

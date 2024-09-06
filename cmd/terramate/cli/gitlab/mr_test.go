@@ -35,7 +35,7 @@ func TestGitlabLatestMRForCommit(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		fmt.Fprint(w, responsePayload)
+		_, _ = fmt.Fprint(w, responsePayload)
 	})
 
 	got, found, err := client.MRForCommit(context.Background(), sha)

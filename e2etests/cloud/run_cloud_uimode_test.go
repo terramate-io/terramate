@@ -400,7 +400,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.UsersPath,
 						Handler: testserver.Handler(
-							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, invalidUserData)
 							},
 						),
@@ -591,7 +591,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.MembershipsPath,
 						Handler: testserver.Handler(
-							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, `[]`)
 							},
 						),
@@ -831,7 +831,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.MembershipsPath,
 						Handler: testserver.Handler(
-							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, `[
 									{
 										"org_name": "terramate-io",
@@ -1094,7 +1094,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"POST": {
 						Path: fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath),
 						Handler: testserver.Handler(
-							func(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 								writeJSON(w, `[
 									{
 										"stack_id": 1,

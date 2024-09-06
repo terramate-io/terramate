@@ -22,7 +22,7 @@ func TryFunc() function.Function {
 			Type: customdecode.ExpressionClosureType,
 		},
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return try(args)
 		},
 	})

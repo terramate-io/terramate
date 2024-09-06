@@ -34,7 +34,7 @@ func TernaryFunc() function.Function {
 			},
 		},
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return ternary(args[0], args[1], args[2])
 		},
 	})

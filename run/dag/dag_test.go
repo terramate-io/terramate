@@ -404,7 +404,7 @@ func TestTransformDAG(t *testing.T) {
 		))
 	}
 
-	b, err := dag.Transform(a, func(id dag.ID, v string) (int, error) {
+	b, err := dag.Transform(a, func(_ dag.ID, v string) (int, error) {
 		return strconv.Atoi(v)
 	})
 	assert.NoError(t, err)

@@ -24,7 +24,7 @@ import (
 func TestCloudCustomHTTPClient(t *testing.T) {
 	t.Parallel()
 	isCalled := false
-	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		isCalled = true
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = io.WriteString(w, "[]")
@@ -536,7 +536,7 @@ func TestCloudStacks(t *testing.T) {
 }
 
 func newTestServer(statusCode int, body string, headers http.Header) *httptest.Server {
-	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if len(headers) > 0 {
 			for k, v := range headers {
 				w.Header().Set(k, v[0])

@@ -97,7 +97,7 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
 		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
@@ -116,7 +116,7 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
 		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
@@ -135,7 +135,7 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
 		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
@@ -154,7 +154,7 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
 		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
@@ -178,7 +178,7 @@ func BenchmarkPartialEvalObject(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
 		_, _, err := ctx.PartialEval(expr)
 		if err != nil {

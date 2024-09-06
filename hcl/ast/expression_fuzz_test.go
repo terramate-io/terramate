@@ -45,7 +45,7 @@ func FuzzTokensForExpression(f *testing.F) {
 		f.Add(seed)
 	}
 
-	f.Fuzz(func(t *testing.T, str string) {
+	f.Fuzz(func(_ *testing.T, str string) {
 		// WHY? because HCL uses the big.Float library for numbers and then
 		// fuzzer can generate huge number strings like 100E101000000 that will
 		// hang the process and eat all the memory....

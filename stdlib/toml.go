@@ -32,7 +32,7 @@ func TomlEncode() function.Function {
 			},
 		},
 		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return tomlEncode(args[0])
 		},
 	})
@@ -48,7 +48,7 @@ func TomlDecode() function.Function {
 			},
 		},
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return tomlDecode(args[0].AsString())
 		},
 	})

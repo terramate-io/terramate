@@ -129,7 +129,7 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatalWithDetails(err, "loading stack in current directory")
+			fatalWithDetailf(err, "loading stack in current directory")
 		}
 
 		if !found {
@@ -148,7 +148,7 @@ func (c *cli) runOnStacks() {
 			DriftStatus:      driftFilter,
 		})
 		if err != nil {
-			fatalWithDetails(err, "computing selected stacks")
+			fatalWithDetailf(err, "computing selected stacks")
 		}
 	}
 
@@ -233,7 +233,7 @@ func (c *cli) runOnStacks() {
 		if c.parsedArgs.Run.Eval {
 			run.Tasks[0].Cmd, err = c.evalRunArgs(run.Stack, run.Tasks[0].Cmd)
 			if err != nil {
-				fatalWithDetails(err, "unable to evaluate command")
+				fatalWithDetailf(err, "unable to evaluate command")
 			}
 		}
 		runs = append(runs, run)
@@ -263,7 +263,7 @@ func (c *cli) runOnStacks() {
 		Parallel:        c.parsedArgs.Run.Parallel,
 	})
 	if err != nil {
-		fatalWithDetails(err, "one or more commands failed")
+		fatalWithDetailf(err, "one or more commands failed")
 	}
 }
 
@@ -298,9 +298,9 @@ func (c *cli) runAll(
 		func(run stackRun) *config.Stack { return run.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatalWithDetails(err, "cycle detected: %s", reason)
+			fatalWithDetailf(err, "cycle detected: %s", reason)
 		} else {
-			fatalWithDetails(err, "failed to plan execution")
+			fatalWithDetailf(err, "failed to plan execution")
 		}
 	}
 
@@ -902,13 +902,13 @@ func (c *cli) getAffectedStacks() []stack.Entry {
 	if c.parsedArgs.Changed {
 		report, err = mgr.ListChanged(c.baseRef())
 		if err != nil {
-			fatalWithDetails(err, "listing changed stacks")
+			fatalWithDetailf(err, "listing changed stacks")
 		}
 
 	} else {
 		report, err = mgr.List(true)
 		if err != nil {
-			fatalWithDetails(err, "listing stacks")
+			fatalWithDetailf(err, "listing stacks")
 		}
 	}
 

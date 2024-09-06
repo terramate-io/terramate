@@ -40,7 +40,7 @@ func NewPrinter(w io.Writer) *Printer {
 
 // Println prints a message to the io.Writer
 func (p *Printer) Println(msg string) {
-	fmt.Fprintln(p.w, msg)
+	fprintln(p.w, msg)
 }
 
 // Warn prints a message with a "Warning:" prefix. The prefix is printed in
@@ -50,7 +50,7 @@ func (p *Printer) Warn(arg any) {
 	case *errors.DetailedError:
 		p.printDetailedWarning(arg)
 	default:
-		fmt.Fprintln(p.w, boldYellow("Warning:"), bold(arg))
+		fprintln(p.w, boldYellow("Warning:"), bold(arg))
 	}
 }
 
@@ -67,9 +67,9 @@ func (p *Printer) Warnf(format string, a ...any) {
 // -> somefile.tm:8,3-7: terramate schema error: unrecognized attribute
 // -> somefile.tm:9,4-7: terramate schema error: unrecognized block
 func (p *Printer) ErrorWithDetails(title string, err error) {
-	derr := errors.D(title)
+	derr := errors.D("%s", title)
 	for _, item := range toStrings(err) {
-		derr = derr.WithDetails(verbosity.V1, item)
+		derr = derr.WithDetail(verbosity.V1, item)
 	}
 	p.Error(derr)
 }
@@ -96,9 +96,9 @@ func (p *Printer) Fatalf(format string, a ...any) {
 // WarnWithDetails is similar to ErrorWithDetailsln but prints a warning
 // instead
 func (p *Printer) WarnWithDetails(title string, err error) {
-	derr := errors.D(title)
+	derr := errors.D("%s", title)
 	for _, item := range toStrings(err) {
-		derr = derr.WithDetails(verbosity.V1, item)
+		derr = derr.WithDetail(verbosity.V1, item)
 	}
 	p.Warn(derr)
 }
@@ -110,7 +110,7 @@ func (p *Printer) Error(arg any) {
 	case *errors.DetailedError:
 		p.printDetailedError(arg)
 	default:
-		fmt.Fprintln(p.w, boldRed("Error:"), bold(arg))
+		fprintln(p.w, boldRed("Error:"), bold(arg))
 	}
 }
 
@@ -121,7 +121,7 @@ func (p *Printer) Errorf(format string, a ...any) {
 
 // Success prints a message in the boldGreen style
 func (p *Printer) Success(msg string) {
-	fmt.Fprintln(p.w, boldGreen(msg))
+	fprintln(p.w, boldGreen(msg))
 }
 
 // Successf is short for Success(fmt.Sprintf(...)).
@@ -146,7 +146,7 @@ func (p *Printer) printDetailedError(err *errors.DetailedError) {
 
 	p.Error(title)
 	for _, item := range items {
-		fmt.Fprintln(p.w, boldRed(">"), item)
+		fprintln(p.w, boldRed(">"), item)
 	}
 }
 
@@ -155,12 +155,12 @@ func (p *Printer) printDetailedWarning(err *errors.DetailedError) {
 
 	p.Warn(title)
 	for _, item := range items {
-		fmt.Fprintln(p.w, boldYellow(">"), item)
+		fprintln(p.w, boldYellow(">"), item)
 	}
 }
 
 func inspectDetailedError(err *errors.DetailedError) (title string, items []string) {
-	err.Inspect(func(i int, msg string, cause error, details []errors.ErrorDetails) {
+	err.Inspect(func(i int, msg string, _ error, details []errors.ErrorDetails) {
 		if i == 0 {
 			title = msg
 		}
@@ -172,4 +172,8 @@ func inspectDetailedError(err *errors.DetailedError) (title string, items []stri
 		items = append(t, items...)
 	})
 	return
+}
+
+func fprintln(w io.Writer, a ...any) {
+	_, _ = fmt.Fprintln(w, a...)
 }

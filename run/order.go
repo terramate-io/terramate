@@ -80,7 +80,7 @@ func BuildDAGFromStacks[S ~[]E, E any](root *config.Root, items S, getStack func
 	// We have to build the DAG with stacks first, because for the nodes that were pulled in
 	// as depdencies, we have no E value (i.e. these are not in items).
 	// After the graph has been reduced, we can look up the corresponding E values.
-	newD, err := dag.Transform[E](d, func(id dag.ID, s *config.Stack) (E, error) {
+	newD, err := dag.Transform[E](d, func(_ dag.ID, s *config.Stack) (E, error) {
 		e, found := itemLookup[s.Dir.String()]
 		if !found {
 			return e, fmt.Errorf("failed to transform run-order graph")

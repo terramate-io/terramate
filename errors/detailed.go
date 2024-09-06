@@ -72,10 +72,17 @@ func (e *DetailedError) WithCause(cause error) *DetailedError {
 	return e
 }
 
-// WithDetails adds details to an error with the given verbosity level.
+// WithDetailf adds details to an error with the given verbosity level.
 // The caller is modified but also returned for convenience.
-func (e *DetailedError) WithDetails(verbosity int, format string, a ...any) *DetailedError {
+func (e *DetailedError) WithDetailf(verbosity int, format string, a ...any) *DetailedError {
 	e.Details = append(e.Details, ErrorDetails{Msg: fmt.Sprintf(format, a...), Verbosity: verbosity})
+	return e
+}
+
+// WithDetail adds details to an error with the given verbosity level.
+// The caller is modified but also returned for convenience.
+func (e *DetailedError) WithDetail(verbosity int, msg string) *DetailedError {
+	e.Details = append(e.Details, ErrorDetails{Msg: msg, Verbosity: verbosity})
 	return e
 }
 

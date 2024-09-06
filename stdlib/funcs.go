@@ -266,7 +266,7 @@ func AbspathFunc(basedir string) function.Function {
 			},
 		},
 		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			path := args[0].AsString()
 			var abspath string
 			if filepath.IsAbs(path) {
@@ -295,7 +295,7 @@ func VendorFunc(basedir, vendordir project.Path, stream chan<- event.VendorReque
 			},
 		},
 		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			// Param spec already enforce modsrc to be string.
 			source := args[0].AsString()
 			modsrc, err := tf.ParseSource(source)
@@ -344,7 +344,7 @@ func HCLExpressionFunc() function.Function {
 				Type: cty.String,
 			},
 		},
-		Type: func(args []cty.Value) (cty.Type, error) {
+		Type: func(_ []cty.Value) (cty.Type, error) {
 			return customdecode.ExpressionType, nil
 		},
 		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
@@ -378,7 +378,7 @@ func VersionMatch() function.Function {
 			}),
 		},
 		Type: function.StaticReturnType(cty.Bool),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			version := args[0].AsString()
 			constraint := args[1].AsString()
 

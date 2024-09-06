@@ -77,7 +77,7 @@ func (p *project) localDefaultBranchCommit() string {
 	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
 	val, err := p.git.wrapper.RevParse(refName)
 	if err != nil {
-		fatalWithDetails(err, "unable to git rev-parse")
+		fatalWithDetailf(err, "unable to git rev-parse")
 	}
 
 	p.git.localDefaultBranchCommit = val
@@ -105,7 +105,7 @@ func (p *project) headCommit() string {
 
 	val, err := p.git.wrapper.RevParse("HEAD")
 	if err != nil {
-		fatalWithDetails(err, "unable to git rev-parse")
+		fatalWithDetailf(err, "unable to git rev-parse")
 	}
 
 	p.git.headCommit = val
@@ -120,7 +120,7 @@ func (p *project) remoteDefaultCommit() string {
 	gitcfg := p.gitcfg()
 	remoteRef, err := p.git.wrapper.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
-		fatalWithDetails(
+		fatalWithDetailf(
 			fmt.Errorf("fetching remote commit of %s/%s: %v",
 				gitcfg.DefaultRemote, gitcfg.DefaultBranch,
 				err,
