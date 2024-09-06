@@ -55,9 +55,9 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 	}
 
 	if node.IsStack {
-		fmt.Fprintln(w, "#"+stackColor(text))
+		fprintln(w, "#"+stackColor(text))
 	} else {
-		fmt.Fprintln(w, text)
+		fprintln(w, text)
 	}
 
 	visibleChildren := make([]*scriptsTreeNode, 0, len(node.Children))
@@ -75,13 +75,13 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 	}
 
 	for _, sc := range node.Scripts {
-		fmt.Fprintln(w, blockPrefix+"* "+scriptColor(sc.AccessorName()+": "))
+		fprintln(w, blockPrefix+"* "+scriptColor(sc.AccessorName()+": "))
 		if sc.Name != nil {
-			fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  Name: "+nameTruncation(exprString(sc.Name.Expr), "script.name")))
+			fprintln(w, blockPrefix+"  "+scriptColor("  Name: "+nameTruncation(exprString(sc.Name.Expr), "script.name")))
 		}
 		if sc.Description != nil {
 			desc := exprString(sc.Description.Expr)
-			fmt.Fprintln(w, blockPrefix+"  "+scriptColor("  Description: "+desc))
+			fprintln(w, blockPrefix+"  "+scriptColor("  Description: "+desc))
 		}
 	}
 
@@ -92,7 +92,7 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 					return a.AccessorName() == p
 				})
 			if !found {
-				fmt.Fprintln(w, blockPrefix+parentScriptColor("~ "+p))
+				fprintln(w, blockPrefix+parentScriptColor("~ "+p))
 			}
 		}
 	}
@@ -107,10 +107,10 @@ func (node *scriptsTreeNode) format(w io.Writer, prefix string, parentScripts []
 
 	for i, child := range visibleChildren {
 		if i == len(visibleChildren)-1 {
-			fmt.Fprint(w, prefix+"└── ")
+			fprint(w, prefix+"└── ")
 			child.format(w, prefix+"    ", parentScripts)
 		} else {
-			fmt.Fprint(w, prefix+"├── ")
+			fprint(w, prefix+"├── ")
 			child.format(w, prefix+"│   ", parentScripts)
 		}
 	}
@@ -173,4 +173,12 @@ func addChildScriptTreeNodes(cfg *config.Tree, cur *scriptsTreeNode) {
 
 		addChildScriptTreeNodes(childCfg, childNode)
 	}
+}
+
+func fprint(w io.Writer, a ...any) {
+	_, _ = fmt.Fprint(w, a...)
+}
+
+func fprintln(w io.Writer, a ...any) {
+	_, _ = fmt.Fprintln(w, a...)
 }

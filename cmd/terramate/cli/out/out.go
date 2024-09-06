@@ -112,12 +112,12 @@ func (o O) writeV(verboseness int, w io.Writer, format string, args ...interface
 	if verboseness > o.verboseness {
 		return
 	}
-	fmt.Fprintf(w, format+"\n", args...)
+	_, _ = fmt.Fprintf(w, format+"\n", args...)
 }
 
 func (o O) write(verboseness int, w io.Writer, format string, args ...interface{}) {
 	if verboseness != o.verboseness {
 		return
 	}
-	fmt.Fprintf(w, format+"\n", args...)
+	_, _ = fmt.Fprintf(w, format+"\n", args...)
 }

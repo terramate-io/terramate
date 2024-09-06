@@ -18,15 +18,15 @@ func TestDetailedErrorInspect(t *testing.T) {
 	t.Parallel()
 
 	innerErr := errors.D("innerErr").
-		WithDetails(verbosity.V0, "inner.V0").
-		WithDetails(verbosity.V1, "inner.V1").
-		WithDetails(verbosity.V2, "inner.V2")
+		WithDetailf(verbosity.V0, "inner.V0").
+		WithDetailf(verbosity.V1, "inner.V1").
+		WithDetailf(verbosity.V2, "inner.V2")
 
 	outerErr := errors.D("outerErr").
 		WithCause(innerErr).
-		WithDetails(verbosity.V0, "outer.V0").
-		WithDetails(verbosity.V1, "outer.V1").
-		WithDetails(verbosity.V2, "outer.V2")
+		WithDetailf(verbosity.V0, "outer.V0").
+		WithDetailf(verbosity.V1, "outer.V1").
+		WithDetailf(verbosity.V2, "outer.V2")
 
 	type entry struct {
 		Index   int

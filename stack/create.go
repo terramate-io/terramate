@@ -100,7 +100,10 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 	}
 
 	if len(imports) > 0 {
-		fmt.Fprint(stackFile, "\n")
+		_, err = fmt.Fprint(stackFile, "\n")
+		if err != nil {
+			return errors.E(err, "writing stack config")
+		}
 	}
 
 	if err := hcl.PrintImports(stackFile, imports); err != nil {

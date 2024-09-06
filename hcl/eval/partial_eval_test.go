@@ -509,7 +509,7 @@ EOT
 			})
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			if diags.HasErrors() {
-				t.Fatalf(diags.Error())
+				t.Fatal(diags.Error())
 			}
 			gotExpr, hasUnknowns, err := ctx.PartialEval(expr)
 			errtest.Assert(t, err, tc.wantErr)

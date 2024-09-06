@@ -113,7 +113,7 @@ func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 		if len(msg) > 0 {
 			errmsg = fmt.Sprintf(msg[0].(string), msg[1:]...) + ": " + errmsg
 		}
-		t.Fatalf(errmsg)
+		t.Fatal(errmsg)
 	}
 }
 

@@ -46,7 +46,7 @@ func NewTopLevelRawConfig() RawConfig {
 		"generate_file":   (*RawConfig).addBlock,
 		"generate_hcl":    (*RawConfig).addBlock,
 		"assert":          (*RawConfig).addBlock,
-		"import":          func(r *RawConfig, b *ast.Block) error { return nil },
+		"import":          func(_ *RawConfig, _ *ast.Block) error { return nil },
 		"sharing_backend": (*RawConfig).addBlock,
 		"input":           (*RawConfig).addBlock,
 		"output":          (*RawConfig).addBlock,

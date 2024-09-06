@@ -176,11 +176,11 @@ func makeFibLayout(n int) []string {
 	mkStack := func(i int) string {
 		if i == 0 {
 			return `s:fib.0`
-		} else if i == 1 {
-			return `s:fib.1`
-		} else {
-			return fmt.Sprintf(`s:fib.%v:after=["../fib.%v", "../fib.%v"]`, i, i-1, i-2)
 		}
+		if i == 1 {
+			return `s:fib.1`
+		}
+		return fmt.Sprintf(`s:fib.%v:after=["../fib.%v", "../fib.%v"]`, i, i-1, i-2)
 	}
 
 	layout := make([]string, n+1)

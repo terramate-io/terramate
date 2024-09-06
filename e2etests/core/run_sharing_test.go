@@ -103,7 +103,7 @@ func TestRunSharing(t *testing.T) {
 					),
 				).String(),
 			},
-			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+			check: func(t *testing.T, _ *sandbox.S, res RunResult) {
 				AssertRunResult(t, res, RunExpected{
 					Status:       1,
 					IgnoreStdout: true,
@@ -315,7 +315,7 @@ func TestRunSharing(t *testing.T) {
 				).String(),
 			},
 			extraRunArgs: []string{"--continue-on-error"},
-			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+			check: func(t *testing.T, _ *sandbox.S, res RunResult) {
 				AssertRunResult(t, res, RunExpected{
 					Status: 1,
 					StdoutRegexes: []string{
@@ -376,7 +376,7 @@ func TestRunSharing(t *testing.T) {
 				).String(),
 			},
 			extraRunArgs: []string{"--continue-on-error"},
-			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+			check: func(t *testing.T, _ *sandbox.S, res RunResult) {
 				AssertRunResult(t, res, RunExpected{
 					Status: 1,
 					StdoutRegexes: []string{
@@ -443,7 +443,7 @@ func TestRunSharing(t *testing.T) {
 				).String(),
 			},
 			extraRunArgs: []string{"--continue-on-error"},
-			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+			check: func(t *testing.T, _ *sandbox.S, res RunResult) {
 				AssertRunResult(t, res, RunExpected{
 					Status: 1,
 					StdoutRegexes: []string{

@@ -9,6 +9,7 @@
 
 terramate {
   config {
+    experiments = ["toml-functions"]
     run {
       env {
         PATH = "${terramate.root.path.fs.absolute}/bin${global.PS}${env.PATH}"

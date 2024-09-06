@@ -126,7 +126,7 @@ func readTerragruntConfigFunc(ctx *tgconfig.ParsingContext, rootdir string, mod 
 		VarParam: &function.Parameter{Type: cty.DynamicPseudoType},
 		// We don't know the return type until we parse the terragrunt config, so we use a dynamic type
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			numParams := len(args)
 			if numParams == 0 || numParams > 2 {
 				return cty.NilVal, errors.WithStackTrace(tgconfig.WrongNumberOfParamsError{Func: "read_terragrunt_config", Expected: "1 or 2", Actual: numParams})
@@ -246,7 +246,7 @@ func wrapStringSliceToStringAsFuncImpl(
 	return function.New(&function.Spec{
 		VarParam: &function.Parameter{Type: cty.String},
 		Type:     function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			params, err := ctySliceToStringSlice(args)
 			if err != nil {
 				return cty.StringVal(""), err

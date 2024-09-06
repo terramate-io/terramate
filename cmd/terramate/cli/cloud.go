@@ -76,11 +76,11 @@ func newCloudRequiredError(requestedFeatures []string) *errors.DetailedError {
 	err := errors.D("This command uses Terramate Cloud features and requires you to be logged in.")
 
 	for _, s := range requestedFeatures {
-		err = err.WithDetails(verbosity.V1, s)
+		err = err.WithDetailf(verbosity.V1, "%s", s)
 	}
 
-	err = err.WithDetails(verbosity.V1, "To login with an existing account, run 'terramate cloud login'.").
-		WithDetails(verbosity.V1, "To create a free account, visit https://cloud.terramate.io.")
+	err = err.WithDetailf(verbosity.V1, "To login with an existing account, run 'terramate cloud login'.").
+		WithDetailf(verbosity.V1, "To create a free account, visit https://cloud.terramate.io.")
 
 	return err.WithCode(clitest.ErrCloud)
 }
@@ -91,18 +91,18 @@ func newIDPNeedConfirmationError(verifiedProviders []string) *errors.DetailedErr
 	err := errors.D("The account was already set up with another email provider.")
 
 	if len(verifiedProviders) > 0 {
-		err = err.WithDetails(verbosity.V1, "Please login using one of the methods below:")
+		err = err.WithDetailf(verbosity.V1, "Please login using one of the methods below:")
 		for _, providerDomain := range verifiedProviders {
 			switch providerDomain {
 			case "google.com":
-				err = err.WithDetails(verbosity.V1, "- Run 'terramate cloud login --google' to login with your Google account")
+				err = err.WithDetailf(verbosity.V1, "- Run 'terramate cloud login --google' to login with your Google account")
 			case "github.com":
-				err = err.WithDetails(verbosity.V1, "- Run 'terramate cloud login --github' to login with your GitHub account")
+				err = err.WithDetailf(verbosity.V1, "- Run 'terramate cloud login --github' to login with your GitHub account")
 			}
-			err = err.WithDetails(verbosity.V1, "Alternatively, visit https://cloud.terramate.io and authenticate with the Social login to link the accounts.")
+			err = err.WithDetailf(verbosity.V1, "Alternatively, visit https://cloud.terramate.io and authenticate with the Social login to link the accounts.")
 		}
 	} else {
-		err = err.WithDetails(verbosity.V1, "Visit https://cloud.terramate.io and authenticate to link the accounts.")
+		err = err.WithDetailf(verbosity.V1, "Visit https://cloud.terramate.io and authenticate to link the accounts.")
 	}
 
 	return err.WithCode(ErrIDPNeedConfirmation)
@@ -111,7 +111,7 @@ func newIDPNeedConfirmationError(verifiedProviders []string) *errors.DetailedErr
 // newEmailNotVerifiedError creates an error indicating that user's email need to be verified.
 func newEmailNotVerifiedError(email string) *errors.DetailedError {
 	return errors.D("Email %s is not verified.", email).
-		WithDetails(verbosity.V1, "Please login to https://cloud.terramate.io to verify your email and continue the sign up process.").
+		WithDetailf(verbosity.V1, "Please login to https://cloud.terramate.io to verify your email and continue the sign up process.").
 		WithCode(ErrEmailNotVerified)
 }
 
@@ -488,7 +488,7 @@ func (c *cli) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
 		// TODO: Better error message.
-		fatalWithDetails(err, "failed to load credentials")
+		fatalWithDetailf(err, "failed to load credentials")
 	}
 	c.cred().info(c.cloudOrgName())
 
@@ -499,11 +499,11 @@ func (c *cli) cloudInfo() {
 func (c *cli) cloudDriftShow() {
 	err := c.setupCloudConfig(nil)
 	if err != nil {
-		fatalWithDetails(err, "unable to setup cloud configuration")
+		fatalWithDetailf(err, "unable to setup cloud configuration")
 	}
 	st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 	if err != nil {
-		fatalWithDetails(err, "loading stack in current directory")
+		fatalWithDetailf(err, "loading stack in current directory")
 	}
 	if !found {
 		fatal("No stack selected. Please enter a stack to show a potential drift.")
@@ -531,7 +531,7 @@ func (c *cli) cloudDriftShow() {
 
 	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), target, st.ID)
 	if err != nil {
-		fatalWithDetails(err, "unable to fetch stack")
+		fatalWithDetailf(err, "unable to fetch stack")
 	}
 	if !found {
 		if isTargetConfigEnabled {
@@ -552,7 +552,7 @@ func (c *cli) cloudDriftShow() {
 	// stack is drifted
 	driftsResp, err := c.cloud.client.StackLastDrift(ctx, c.cloud.run.orgUUID, stackResp.ID)
 	if err != nil {
-		fatalWithDetails(err, "unable to fetch drift")
+		fatalWithDetailf(err, "unable to fetch drift")
 	}
 	if len(driftsResp.Drifts) == 0 {
 		fatalf("Stack %s is drifted, but no details are available.", st.Dir.String())
@@ -563,7 +563,7 @@ func (c *cli) cloudDriftShow() {
 	defer cancel()
 	driftData, err = c.cloud.client.DriftDetails(ctx, c.cloud.run.orgUUID, stackResp.ID, driftData.ID)
 	if err != nil {
-		fatalWithDetails(err, "unable to fetch drift details")
+		fatalWithDetailf(err, "unable to fetch drift details")
 	}
 	if driftData.Status != drift.Drifted || driftData.Details == nil || driftData.Details.Provisioner == "" {
 		fatalf("Stack %s is drifted, but no details are available.", st.Dir.String())

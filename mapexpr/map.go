@@ -134,7 +134,7 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	evaluator := eval.NewContextFrom(ctx)
 
 	var mapErr error
-	foreach.ForEachElement(func(key, newElement cty.Value) (stop bool) {
+	foreach.ForEachElement(func(_, newElement cty.Value) (stop bool) {
 		iteratorMap := map[string]cty.Value{
 			"new": newElement,
 		}

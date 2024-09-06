@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	errstd "errors"
 	stdfmt "fmt"
 	"io"
 	"net/http"
@@ -130,7 +131,7 @@ type cliSpec struct {
 		IgnoreExisting bool     `help:"Skip creation without error when the stack already exist."`
 		AllTerraform   bool     `help:"Import existing Terraform Root Modules as stacks."`
 		AllTerragrunt  bool     `help:"Import existing Terragrunt Modules as stacks."`
-		EnsureStackIds bool     `help:"Set the ID of existing stacks that do not set an ID to a new UUIDv4."`
+		EnsureStackIDs bool     `name:"ensure-stack-ids" help:"Set the ID of existing stacks that do not set an ID to a new UUIDv4."`
 		NoGenerate     bool     `help:"Do not run code generation after creating the new stack."`
 	} `cmd:"" help:"Create or import stacks."`
 
@@ -408,7 +409,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		kong.Writers(stdout, stderr),
 	)
 	if err != nil {
-		fatalWithDetails(err, "creating cli parser")
+		fatalWithDetailf(err, "creating cli parser")
 	}
 
 	kongplete.Complete(parser,
@@ -430,7 +431,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 
 	if err != nil {
-		fatalWithDetails(err, "parsing cli args %v", args)
+		fatalWithDetailf(err, "parsing cli args %v", args)
 	}
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
@@ -451,7 +452,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 	clicfg, err := cliconfig.Load()
 	if err != nil {
-		fatalWithDetails(err, "failed to load cli configuration file")
+		fatalWithDetailf(err, "failed to load cli configuration file")
 	}
 
 	migrateFlagAliases(&parsedArgs)
@@ -469,7 +470,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	if clicfg.UserTerramateDir == "" {
 		homeTmDir, err := userTerramateDir()
 		if err != nil {
-			fatalWithDetails(err, "Please either export the %s environment variable or "+
+			fatalWithDetailf(err, "Please either export the %s environment variable or "+
 				"set the homeTerramateDir option in the %s configuration file",
 				cliconfig.DirEnv,
 				cliconfig.Filename)
@@ -524,7 +525,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 		err := parsedArgs.InstallCompletions.Run(ctx)
 		if err != nil {
-			fatalWithDetails(err, "installing shell completions")
+			fatalWithDetailf(err, "installing shell completions")
 		}
 		return &cli{exit: true}
 	case "experimental cloud login": // Deprecated: use cloud login
@@ -546,7 +547,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 	wd, err := os.Getwd()
 	if err != nil {
-		fatalWithDetails(err, "getting workdir")
+		fatalWithDetailf(err, "getting workdir")
 	}
 
 	logger = logger.With().
@@ -559,7 +560,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 			Msg("Changing working directory")
 		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
-			fatalWithDetails(err, "changing working dir to %s", parsedArgs.Chdir)
+			fatalWithDetailf(err, "changing working dir to %s", parsedArgs.Chdir)
 		}
 
 		wd, err = os.Getwd()
@@ -570,12 +571,12 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 
 	wd, err = filepath.EvalSymlinks(wd)
 	if err != nil {
-		fatalWithDetails(err, "evaluating symlinks on working dir: %s", wd)
+		fatalWithDetailf(err, "evaluating symlinks on working dir: %s", wd)
 	}
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
-		fatalWithDetails(err, "unable to parse configuration")
+		fatalWithDetailf(err, "unable to parse configuration")
 	}
 
 	if !foundRoot {
@@ -594,7 +595,7 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 
 	err = prj.setDefaults()
 	if err != nil {
-		fatalWithDetails(err, "setting configuration")
+		fatalWithDetailf(err, "setting configuration")
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
@@ -759,7 +760,7 @@ func (c *cli) setupSafeguards(run runSafeguardsCliSpec) {
 	}
 
 	if run.DisableSafeguards.Has(safeguard.All) && run.DisableSafeguards.Has(safeguard.None) {
-		fatalWithDetails(
+		fatalWithDetailf(
 			errors.E(clitest.ErrSafeguardKeywordValidation,
 				`the safeguards keywords "all" and "none" are incompatible`),
 			"Disabling safeguards",
@@ -785,7 +786,7 @@ func (c *cli) setupGit() {
 
 	if err := c.prj.checkDefaultRemote(); err != nil {
 		if c.prj.git.remoteConfigured {
-			fatalWithDetails(err, "checking git default remote")
+			fatalWithDetailf(err, "checking git default remote")
 		} else {
 			remoteCheckFailed = true
 		}
@@ -890,7 +891,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		cfg, err := hcl.ParseDir(c.rootdir(), filepath.Join(c.rootdir(), ".terramate"))
 		if err != nil {
-			fatalWithDetails(err, "parsing vendor dir configuration on .terramate")
+			fatalWithDetailf(err, "parsing vendor dir configuration on .terramate")
 		}
 
 		if hasVendorDirConfig(cfg) {
@@ -969,7 +970,7 @@ func (c *cli) triggerStackByFilter() {
 	}
 	stacksReport, err := c.listStacks(false, "", stackFilter)
 	if err != nil {
-		fatalWithDetails(err, "unable to list stacks")
+		fatalWithDetailf(err, "unable to list stacks")
 	}
 
 	for _, st := range c.filterStacksByWorkingDir(stacksReport.Stacks) {
@@ -1012,11 +1013,11 @@ func (c *cli) triggerStack(basePath string) {
 	basePath = filepath.Clean(basePath)
 	_, err := os.Lstat(basePath)
 	if errors.Is(err, os.ErrNotExist) {
-		fatalWithDetails(err, "path not found")
+		fatalWithDetailf(err, "path not found")
 	}
 	tmp, err := filepath.EvalSymlinks(basePath)
 	if err != nil {
-		fatalWithDetails(err, "failed to evaluate stack path symlinks")
+		fatalWithDetailf(err, "failed to evaluate stack path symlinks")
 	}
 	if tmp != basePath {
 		fatal(stdfmt.Sprintf("symlinks are disallowed in the path: %s links to %s", basePath, tmp))
@@ -1032,7 +1033,7 @@ func (c *cli) triggerStack(basePath string) {
 	if !c.parsedArgs.Experimental.Trigger.Recursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prjBasePath)
 		if err != nil {
-			fatalWithDetails(err, "loading stack in current directory")
+			fatalWithDetailf(err, "loading stack in current directory")
 		}
 		if !found {
 			fatal("path is not a stack and --recursive is not provided")
@@ -1042,7 +1043,7 @@ func (c *cli) triggerStack(basePath string) {
 		var err error
 		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 		if err != nil {
-			fatalWithDetails(err, "computing selected stacks")
+			fatalWithDetailf(err, "computing selected stacks")
 		}
 		for _, entry := range c.filterStacksByBasePath(prjBasePath, stacksReport.Stacks) {
 			stacks = append(stacks, entry.Stack.Sortable())
@@ -1050,7 +1051,7 @@ func (c *cli) triggerStack(basePath string) {
 	}
 	for _, st := range stacks {
 		if err := trigger.Create(c.cfg(), st.Dir(), kind, reason); err != nil {
-			fatalWithDetails(err, "unable to create trigger")
+			fatalWithDetailf(err, "unable to create trigger")
 		}
 		c.output.MsgStdOut("Created %s trigger for stack %q", kindName, st.Dir())
 	}
@@ -1067,7 +1068,7 @@ func (c *cli) cloneStack() {
 
 	n, err := stack.Clone(c.cfg(), absDestdir, absSrcdir, skipChildStacks)
 	if err != nil {
-		fatalWithDetails(err, "cloning %s to %s", srcdir, destdir)
+		fatalWithDetailf(err, "cloning %s to %s", srcdir, destdir)
 	}
 
 	c.output.MsgStdOut("Cloned %d stack(s) from %s to %s with success", n, srcdir, destdir)
@@ -1220,7 +1221,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 
 	if err := c.prj.checkRemoteDefaultBranchIsReachable(); err != nil {
-		fatalWithDetails(err, "unable to reach remote default branch")
+		fatalWithDetailf(err, "unable to reach remote default branch")
 	}
 }
 
@@ -1300,25 +1301,25 @@ func (c *cli) scanCreate() {
 	if c.parsedArgs.Create.AllTerragrunt {
 		scanFlags++
 	}
-	if c.parsedArgs.Create.EnsureStackIds {
+	if c.parsedArgs.Create.EnsureStackIDs {
 		scanFlags++
 	}
 
 	if scanFlags == 0 {
-		fatalWithDetails(
+		fatalWithDetailf(
 			errors.E("path argument or one of --all-terraform, --all-terragrunt, --ensure-stack-ids must be provided"),
 			"Missing args")
 	}
 
 	if scanFlags > 1 {
-		fatalWithDetails(
+		fatalWithDetailf(
 			errors.E("only one of --all-terraform, --all-terragrunt, --ensure-stack-ids can be provided"),
 			"Invalid args")
 	}
 
 	var flagname string
 	switch {
-	case c.parsedArgs.Create.EnsureStackIds:
+	case c.parsedArgs.Create.EnsureStackIDs:
 		flagname = "--ensure-stack-ids"
 	case c.parsedArgs.Create.AllTerraform:
 		flagname = "--all-terraform"
@@ -1338,7 +1339,7 @@ func (c *cli) scanCreate() {
 		len(c.parsedArgs.Create.Watch) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
 
-		fatalWithDetails(
+		fatalWithDetailf(
 			errors.E(
 				"%s is incompatible with path and the flags: "+
 					"--id,"+
@@ -1368,7 +1369,7 @@ func (c *cli) scanCreate() {
 func (c *cli) initTerragrunt() {
 	modules, err := tg.ScanModules(c.rootdir(), prj.PrjAbsPath(c.rootdir(), c.wd()), true)
 	if err != nil {
-		fatalWithDetails(err, "scanning for Terragrunt modules")
+		fatalWithDetailf(err, "scanning for Terragrunt modules")
 	}
 	errs := errors.L()
 	for _, mod := range modules {
@@ -1380,7 +1381,7 @@ func (c *cli) initTerragrunt() {
 		stackID, err := uuid.NewRandom()
 		dirBasename := filepath.Base(mod.Path.String())
 		if err != nil {
-			fatalWithDetails(err, "creating stack UUID")
+			fatalWithDetailf(err, "creating stack UUID")
 		}
 		stackSpec := config.Stack{
 			Dir:         mod.Path,
@@ -1400,14 +1401,14 @@ func (c *cli) initTerragrunt() {
 	}
 
 	if err := errs.AsError(); err != nil {
-		fatalWithDetails(err, "failed to initialize Terragrunt modules")
+		fatalWithDetailf(err, "failed to initialize Terragrunt modules")
 	}
 }
 
 func (c *cli) initTerraform() {
 	err := c.initTerraformDir(c.wd())
 	if err != nil {
-		fatalWithDetails(err, "failed to initialize some directories")
+		fatalWithDetailf(err, "failed to initialize some directories")
 	}
 
 	if c.parsedArgs.Create.NoGenerate {
@@ -1417,7 +1418,7 @@ func (c *cli) initTerraform() {
 
 	root, err := config.LoadRoot(c.rootdir())
 	if err != nil {
-		fatalWithDetails(err, "reloading the configuration")
+		fatalWithDetailf(err, "reloading the configuration")
 	}
 
 	c.prj.root = *root
@@ -1450,7 +1451,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 
 	dirs, err := os.ReadDir(baseDir)
 	if err != nil {
-		fatalWithDetails(err, "unable to read directory while listing directory entries")
+		fatalWithDetailf(err, "unable to read directory while listing directory entries")
 	}
 
 	errs := errors.L()
@@ -1475,7 +1476,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 
 		found, err := tf.IsStack(path)
 		if err != nil {
-			fatalWithDetails(err, "parsing terraform")
+			fatalWithDetailf(err, "parsing terraform")
 		}
 
 		if !found {
@@ -1486,7 +1487,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 		stackID, err := uuid.NewRandom()
 		dirBasename := filepath.Base(stackDir)
 		if err != nil {
-			fatalWithDetails(err, "creating stack UUID")
+			fatalWithDetailf(err, "creating stack UUID")
 		}
 		stackSpec := config.Stack{
 			Dir:         prj.PrjAbsPath(c.rootdir(), stackDir),
@@ -1510,7 +1511,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 }
 
 func (c *cli) createStack() {
-	if c.parsedArgs.Create.AllTerraform || c.parsedArgs.Create.EnsureStackIds || c.parsedArgs.Create.AllTerragrunt {
+	if c.parsedArgs.Create.AllTerraform || c.parsedArgs.Create.EnsureStackIDs || c.parsedArgs.Create.AllTerragrunt {
 		c.scanCreate()
 		return
 	}
@@ -1522,7 +1523,7 @@ func (c *cli) createStack() {
 
 		id, err := uuid.NewRandom()
 		if err != nil {
-			fatalWithDetails(err, "creating stack UUID")
+			fatalWithDetailf(err, "creating stack UUID")
 		}
 		stackID = id.String()
 	}
@@ -1544,7 +1545,7 @@ func (c *cli) createStack() {
 
 	watch, err := config.ValidateWatchPaths(c.rootdir(), stackHostDir, c.parsedArgs.Create.Watch)
 	if err != nil {
-		fatalWithDetails(err, "invalid --watch argument value")
+		fatalWithDetailf(err, "invalid --watch argument value")
 	}
 
 	stackSpec := config.Stack{
@@ -1577,7 +1578,7 @@ func (c *cli) createStack() {
 				Logger()
 		}
 
-		fatalWithDetails(err, "Cannot create stack")
+		fatalWithDetailf(err, "Cannot create stack")
 	}
 
 	printer.Stdout.Success("Created stack " + stackSpec.Dir.String())
@@ -1589,16 +1590,16 @@ func (c *cli) createStack() {
 
 	err = c.prj.root.LoadSubTree(stackSpec.Dir)
 	if err != nil {
-		fatalWithDetails(err, "Unable to load new stack")
+		fatalWithDetailf(err, "Unable to load new stack")
 	}
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
-		printer.Stdout.ErrorWithDetails("Code generation failed", stdfmt.Errorf(report.Minimal()))
+		printer.Stdout.ErrorWithDetails("Code generation failed", errstd.New(report.Minimal()))
 	}
 
 	if vendorReport.HasFailures() {
-		printer.Stdout.ErrorWithDetails("Code generation failed", stdfmt.Errorf(vendorReport.String()))
+		printer.Stdout.ErrorWithDetails("Code generation failed", errstd.New(vendorReport.String()))
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
@@ -1611,7 +1612,7 @@ func (c *cli) createStack() {
 
 func (c *cli) format() {
 	if c.parsedArgs.Fmt.Check && c.parsedArgs.Fmt.DetailedExitCode {
-		fatalWithDetails(errors.E("--check conflicts with --detailed-exit-code"), "Invalid args")
+		fatalWithDetailf(errors.E("--check conflicts with --detailed-exit-code"), "Invalid args")
 	}
 
 	var results []fmt.FormatResult
@@ -1620,18 +1621,18 @@ func (c *cli) format() {
 		var err error
 		results, err = fmt.FormatTree(c.wd())
 		if err != nil {
-			fatalWithDetails(err, "formatting directory %s", c.wd())
+			fatalWithDetailf(err, "formatting directory %s", c.wd())
 		}
 	case 1:
 		if c.parsedArgs.Fmt.Files[0] == "-" {
 			content, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				fatalWithDetails(err, "reading stdin")
+				fatalWithDetailf(err, "reading stdin")
 			}
 			original := string(content)
 			formatted, err := fmt.Format(original, "<stdin>")
 			if err != nil {
-				fatalWithDetails(err, "formatting stdin")
+				fatalWithDetailf(err, "formatting stdin")
 			}
 
 			if c.parsedArgs.Fmt.Check {
@@ -1651,7 +1652,7 @@ func (c *cli) format() {
 		var err error
 		results, err = fmt.FormatFiles(c.wd(), c.parsedArgs.Fmt.Files)
 		if err != nil {
-			fatalWithDetails(err, "formatting files")
+			fatalWithDetailf(err, "formatting files")
 		}
 	}
 
@@ -1672,7 +1673,7 @@ func (c *cli) format() {
 	}
 
 	if err := errs.AsError(); err != nil {
-		fatalWithDetails(err, "saving formatted files")
+		fatalWithDetailf(err, "saving formatted files")
 	}
 
 	if len(results) > 0 && c.parsedArgs.Fmt.DetailedExitCode {
@@ -1682,13 +1683,13 @@ func (c *cli) format() {
 
 func (c *cli) printStacks() {
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
-		fatalWithDetails(errors.E("the --why flag must be used together with --changed"), "Invalid args")
+		fatalWithDetailf(errors.E("the --why flag must be used together with --changed"), "Invalid args")
 	}
 
 	expStatus := c.parsedArgs.List.ExperimentalStatus
 	cloudStatus := c.parsedArgs.List.Status
 	if expStatus != "" && cloudStatus != "" {
-		fatalWithDetails(errors.E("--experimental-status and --status cannot be used together"), "Invalid args")
+		fatalWithDetailf(errors.E("--experimental-status and --status cannot be used together"), "Invalid args")
 	}
 
 	statusStr := expStatus
@@ -1703,9 +1704,9 @@ func (c *cli) printStacks() {
 		isDriftStatusSet := driftStatusStr != ""
 
 		if isTargetSet && (!isStatusSet && !isDeploymentStatusSet && !isDriftStatusSet) {
-			fatalWithDetails(errors.E("--target must be used together with --status or --deployment-status or --drift-status"), "Invalid args")
+			fatalWithDetailf(errors.E("--target must be used together with --status or --deployment-status or --drift-status"), "Invalid args")
 		} else if !isTargetSet && (isStatusSet || isDeploymentStatusSet || isDriftStatusSet) {
-			fatalWithDetails(errors.E("--status, --deployment-status and --drift-status requires --target when terramate.config.cloud.targets.enabled is true"), "Invalid args")
+			fatalWithDetailf(errors.E("--status, --deployment-status and --drift-status requires --target when terramate.config.cloud.targets.enabled is true"), "Invalid args")
 		}
 	})
 
@@ -1739,7 +1740,7 @@ func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) 
 		failReason, err = run.Sort(c.cfg(), stacks,
 			func(s *config.SortableStack) *config.Stack { return s.Stack })
 		if err != nil {
-			fatalWithDetails(errors.E(err, failReason), "Invalid stack configuration")
+			fatalWithDetailf(errors.E(err, failReason), "Invalid stack configuration")
 		}
 	}
 
@@ -1766,7 +1767,7 @@ func parseStatusFilter(filterStr string) cloudstack.FilterStatus {
 	}
 	filter, err := cloudstack.NewStatusFilter(filterStr)
 	if err != nil {
-		fatalWithDetails(err, "unrecognized stack filter")
+		fatalWithDetailf(err, "unrecognized stack filter")
 	}
 	return filter
 }
@@ -1777,7 +1778,7 @@ func parseDeploymentStatusFilter(filterStr string) deployment.FilterStatus {
 	}
 	filter, err := deployment.NewStatusFilter(filterStr)
 	if err != nil {
-		fatalWithDetails(err, "unrecognized deployment filter")
+		fatalWithDetailf(err, "unrecognized deployment filter")
 	}
 	return filter
 }
@@ -1788,7 +1789,7 @@ func parseDriftStatusFilter(filterStr string) drift.FilterStatus {
 	}
 	filter, err := drift.NewStatusFilter(filterStr)
 	if err != nil {
-		fatalWithDetails(err, "unrecognized drift filter")
+		fatalWithDetailf(err, "unrecognized drift filter")
 	}
 	return filter
 }
@@ -1796,13 +1797,13 @@ func parseDriftStatusFilter(filterStr string) drift.FilterStatus {
 func (c *cli) printRuntimeEnv() {
 	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
-		fatalWithDetails(err, "listing stacks")
+		fatalWithDetailf(err, "listing stacks")
 	}
 
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		envVars, err := run.LoadEnv(c.cfg(), stackEntry.Stack)
 		if err != nil {
-			fatalWithDetails(err, "loading stack run environment")
+			fatalWithDetailf(err, "loading stack run environment")
 		}
 
 		c.output.MsgStdOut("\nstack %q:", stackEntry.Stack.Dir)
@@ -1836,7 +1837,7 @@ func (c *cli) generateGraph() {
 
 	entries, err := stack.List(c.cfg(), c.cfg().Tree())
 	if err != nil {
-		fatalWithDetails(err, "listing stacks to build graph")
+		fatalWithDetailf(err, "listing stacks to build graph")
 	}
 
 	logger.Debug().Msg("Create new graph.")
@@ -1860,14 +1861,14 @@ func (c *cli) generateGraph() {
 			func(s config.Stack) []string { return s.After },
 			visited,
 		); err != nil {
-			fatalWithDetails(err, "building order tree")
+			fatalWithDetailf(err, "building order tree")
 		}
 	}
 
 	for _, id := range graph.IDs() {
 		val, err := graph.Node(id)
 		if err != nil {
-			fatalWithDetails(err, "generating graph")
+			fatalWithDetailf(err, "generating graph")
 		}
 
 		generateDot(dotGraph, graph, id, val, getLabel)
@@ -1884,12 +1885,12 @@ func (c *cli) generateGraph() {
 
 		f, err := os.Create(outFile)
 		if err != nil {
-			fatalWithDetails(err, "opening file %s", outFile)
+			fatalWithDetailf(err, "opening file %s", outFile)
 		}
 
 		defer func() {
 			if err := f.Close(); err != nil {
-				fatalWithDetails(err, "closing output graph file")
+				fatalWithDetailf(err, "closing output graph file")
 			}
 		}()
 
@@ -1900,7 +1901,7 @@ func (c *cli) generateGraph() {
 		Msg("Write graph to output.")
 	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
-		fatalWithDetails(err, "writing output %s", outFile)
+		fatalWithDetailf(err, "writing output %s", outFile)
 	}
 }
 
@@ -1915,7 +1916,7 @@ func generateDot(
 	for _, ancestor := range graph.AncestorsOf(id) {
 		s, err := graph.Node(ancestor)
 		if err != nil {
-			fatalWithDetails(err, "generating dot file")
+			fatalWithDetailf(err, "generating dot file")
 		}
 		ancestorNode := dotGraph.Node(getLabel(s))
 
@@ -1946,7 +1947,7 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 
 	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
-		fatalWithDetails(err, "computing selected stacks")
+		fatalWithDetailf(err, "computing selected stacks")
 	}
 
 	logger.Debug().Msg("Get run order.")
@@ -1954,9 +1955,9 @@ func (c *cli) printRunOrder(friendlyFmt bool) {
 		func(s *config.SortableStack) *config.Stack { return s.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatalWithDetails(errors.E(err, reason), "Invalid stack configuration")
+			fatalWithDetailf(errors.E(err, reason), "Invalid stack configuration")
 		} else {
-			fatalWithDetails(err, "Failed to plan execution")
+			fatalWithDetailf(err, "Failed to plan execution")
 		}
 	}
 
@@ -1983,7 +1984,7 @@ func (c *cli) generateDebug() {
 	// not be filtered by stack selection.
 	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
-		fatalWithDetails(err, "generate debug: selecting stacks")
+		fatalWithDetailf(err, "generate debug: selecting stacks")
 	}
 
 	selectedStacks := map[prj.Path]struct{}{}
@@ -1995,7 +1996,7 @@ func (c *cli) generateDebug() {
 
 	results, err := generate.Load(c.cfg(), c.vendorDir())
 	if err != nil {
-		fatalWithDetails(err, "generate debug: loading generated code")
+		fatalWithDetailf(err, "generate debug: loading generated code")
 	}
 
 	for _, res := range results {
@@ -2027,14 +2028,14 @@ func (c *cli) generateDebug() {
 func (c *cli) printStacksGlobals() {
 	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
-		fatalWithDetails(err, "listing stacks globals: listing stacks")
+		fatalWithDetailf(err, "listing stacks globals: listing stacks")
 	}
 
 	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
 		report := globals.ForStack(c.cfg(), stack)
 		if err := report.AsError(); err != nil {
-			fatalWithDetails(err, "listing stacks globals: loading stack at %s", stack.Dir)
+			fatalWithDetailf(err, "listing stacks globals: loading stack at %s", stack.Dir)
 		}
 
 		globalsStrRepr := report.Globals.String()
@@ -2056,7 +2057,7 @@ func (c *cli) printMetadata() {
 
 	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
-		fatalWithDetails(err, "loading metadata: listing stacks")
+		fatalWithDetailf(err, "loading metadata: listing stacks")
 	}
 
 	stackEntries := c.filterStacks(report.Stacks)
@@ -2115,7 +2116,7 @@ func (c *cli) checkGenCode() bool {
 func (c *cli) ensureStackID() {
 	report, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
-		fatalWithDetails(err, "listing stacks")
+		fatalWithDetailf(err, "listing stacks")
 	}
 
 	for _, entry := range report.Stacks {
@@ -2125,7 +2126,7 @@ func (c *cli) ensureStackID() {
 
 		id, err := stack.UpdateStackID(c.cfg(), entry.Stack.HostDir(c.cfg()))
 		if err != nil {
-			fatalWithDetails(err, "failed to update stack.id of stack %s", entry.Stack.Dir)
+			fatalWithDetailf(err, "failed to update stack.id of stack %s", entry.Stack.Dir)
 		}
 
 		c.output.MsgStdOut("Generated ID %s for stack %s", id, entry.Stack.Dir)
@@ -2137,11 +2138,11 @@ func (c *cli) eval() {
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
-			fatalWithDetails(err, "unable to parse expression")
+			fatalWithDetailf(err, "unable to parse expression")
 		}
 		val, err := ctx.Eval(expr)
 		if err != nil {
-			fatalWithDetails(err, "eval %q", exprStr)
+			fatalWithDetailf(err, "eval %q", exprStr)
 		}
 		c.outputEvalResult(val, c.parsedArgs.Experimental.Eval.AsJSON)
 	}
@@ -2152,11 +2153,11 @@ func (c *cli) partialEval() {
 	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
-			fatalWithDetails(err, "unable to parse expression")
+			fatalWithDetailf(err, "unable to parse expression")
 		}
 		newexpr, _, err := ctx.PartialEval(expr)
 		if err != nil {
-			fatalWithDetails(err, "partial eval %q", exprStr)
+			fatalWithDetailf(err, "partial eval %q", exprStr)
 		}
 		c.output.MsgStdOut("%s", string(hclwrite.Format(ast.TokensForExpression(newexpr).Bytes())))
 	}
@@ -2189,12 +2190,12 @@ func (c *cli) getConfigValue() {
 	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
-			fatalWithDetails(err, "unable to parse expression")
+			fatalWithDetailf(err, "unable to parse expression")
 		}
 
 		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(expr)
 		if diags.HasErrors() {
-			fatalWithDetails(errors.E(diags), "expected a variable accessor")
+			fatalWithDetailf(errors.E(diags), "expected a variable accessor")
 		}
 
 		varns := iteratorTraversal.RootName()
@@ -2204,7 +2205,7 @@ func (c *cli) getConfigValue() {
 
 		val, err := ctx.Eval(expr)
 		if err != nil {
-			fatalWithDetails(err, "evaluating expression: %s", exprStr)
+			fatalWithDetailf(err, "evaluating expression: %s", exprStr)
 		}
 
 		c.outputEvalResult(val, c.parsedArgs.Experimental.GetConfigValue.AsJSON)
@@ -2217,7 +2218,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 		var err error
 		data, err = json.Marshal(val, val.Type())
 		if err != nil {
-			fatalWithDetails(err, "converting value %s to json", val.GoString())
+			fatalWithDetailf(err, "converting value %s to json", val.GoString())
 		}
 	} else {
 		if val.Type() == cty.String {
@@ -2237,7 +2238,7 @@ func (c *cli) detectEvalContext(overrideGlobals map[string]string) *eval.Context
 		var err error
 		st, err = config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
-			fatalWithDetails(err, "setup eval context: loading stack config")
+			fatalWithDetailf(err, "setup eval context: loading stack config")
 		}
 	}
 	return c.setupEvalContext(st, overrideGlobals)
@@ -2264,17 +2265,17 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 	wdPath := prj.PrjAbsPath(c.rootdir(), tdir)
 	tree, ok := c.cfg().Lookup(wdPath)
 	if !ok {
-		fatalWithDetails(errors.E("configuration at %s not found", wdPath), "Missing configuration")
+		fatalWithDetailf(errors.E("configuration at %s not found", wdPath), "Missing configuration")
 	}
 	exprs, err := globals.LoadExprs(tree)
 	if err != nil {
-		fatalWithDetails(err, "loading globals expressions")
+		fatalWithDetailf(err, "loading globals expressions")
 	}
 
 	for name, exprStr := range overrideGlobals {
 		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
 		if err != nil {
-			fatalWithDetails(
+			fatalWithDetailf(
 				errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr),
 				"unable to parse expression",
 			)
@@ -2317,7 +2318,7 @@ func (c *cli) checkOutdatedGeneratedCode() {
 
 	outdatedFiles, err := generate.DetectOutdated(c.cfg(), targetTree, c.vendorDir())
 	if err != nil {
-		fatalWithDetails(err, "failed to check outdated code on project")
+		fatalWithDetailf(err, "failed to check outdated code on project")
 	}
 
 	for _, outdated := range outdatedFiles {
@@ -2327,8 +2328,9 @@ func (c *cli) checkOutdatedGeneratedCode() {
 	}
 
 	if len(outdatedFiles) > 0 {
-		fatalWithDetails(
+		fatalWithDetailf(
 			errors.E("please run: 'terramate generate' to update generated code"),
+			"%s",
 			errors.E(ErrOutdatedGenCodeDetected).Error(),
 		)
 	}
@@ -2454,7 +2456,7 @@ func (c cli) checkVersion() {
 		rootcfg.Terramate.RequiredVersion,
 		rootcfg.Terramate.RequiredVersionAllowPreReleases,
 	); err != nil {
-		fatalWithDetails(err, "version check failed")
+		fatalWithDetailf(err, "version check failed")
 	}
 }
 
@@ -2494,7 +2496,7 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 func (c *cli) setupFilterTags() {
 	clauses, found, err := filter.ParseTagClauses(c.parsedArgs.Tags...)
 	if err != nil {
-		fatalWithDetails(err, "unable to parse tag clauses")
+		fatalWithDetailf(err, "unable to parse tag clauses")
 	}
 	if found {
 		c.tags = clauses
@@ -2503,7 +2505,7 @@ func (c *cli) setupFilterTags() {
 	for _, val := range c.parsedArgs.NoTags {
 		err := tag.Validate(val)
 		if err != nil {
-			fatalWithDetails(err, "unable validate tag")
+			fatalWithDetailf(err, "unable validate tag")
 		}
 	}
 	var noClauses filter.TagClause
@@ -2646,6 +2648,6 @@ func fatalf(format string, a ...any) {
 	printer.Stderr.Fatalf(format, a...)
 }
 
-func fatalWithDetails(err error, format string, a ...any) {
+func fatalWithDetailf(err error, format string, a ...any) {
 	printer.Stderr.FatalWithDetails(stdfmt.Sprintf(format, a...), err)
 }

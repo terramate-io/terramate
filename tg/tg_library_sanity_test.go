@@ -260,8 +260,7 @@ func TestTerragruntParser(t *testing.T) {
 
 func newTerragruntOptions(dir string) *options.TerragruntOptions {
 	opts := options.NewTerragruntOptions()
-	opts.RunTerragrunt = func(to *options.TerragruntOptions) error {
-
+	opts.RunTerragrunt = func(_ *options.TerragruntOptions) error {
 		return nil
 	}
 	opts.WorkingDir = dir

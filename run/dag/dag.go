@@ -176,7 +176,7 @@ func (d *DAG[V]) hasCycle(branch []ID, children []ID, reason string) (bool, stri
 		}
 	}
 
-	for _, tid := range sortedIds(children) {
+	for _, tid := range sortedIDs(children) {
 		tlist := d.dag[tid]
 		found, reason := d.hasCycle(append(branch, tid), tlist, fmt.Sprintf("%s %s ->", reason, tid))
 		if found {
@@ -249,14 +249,14 @@ func (d *DAG[V]) Order() []ID {
 
 func (d *DAG[V]) walkFrom(id ID, do func(id ID)) {
 	children := d.dag[id]
-	for _, tid := range sortedIds(children) {
+	for _, tid := range sortedIDs(children) {
 		d.walkFrom(tid, do)
 	}
 
 	do(id)
 }
 
-func sortedIds(ids []ID) idList {
+func sortedIDs(ids []ID) idList {
 	idlist := make(idList, 0, len(ids))
 	for _, id := range ids {
 		idlist = append(idlist, id)
