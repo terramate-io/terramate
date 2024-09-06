@@ -23,17 +23,17 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Configure asdf and plugins needed
-        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+      - name: build Terramate
+        run: make build
 
       - name: checking go mod tidyness
-        run: terramate run --tags golang --changed -- make mod/check
+        run: ./bin/terramate run --tags golang --changed -- make mod/check
 
       - name: linting code
-        run: terramate run --tags golang --changed -- make lint
+        run: ./bin/terramate run --tags golang --changed -- make lint
 
       - name: checking license on source code
-        run: terramate run --tags golang --changed -- make license/check
+        run: ./bin/terramate run --tags golang --changed -- make license/check
 
   build_test:
     name: Build and Test
@@ -52,6 +52,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
@@ -62,23 +63,20 @@ jobs:
           tofu_wrapper: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure asdf and plugins needed
-        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+      - name: build Terramate
+        run: make build
 
       - name: make generate
-        run: terramate generate
+        run: make generate
 
       - name: make test
         timeout-minutes: 30
-        run: terramate run --tags golang --changed -- make test
+        run: ./bin/terramate run --tags golang --changed -- make test
         env:
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
 
-      - name: make build
-        run: terramate run --tags golang --changed -- make build
-
       - name: check cloud info
-        run: terramate run --tags golang --changed -- ./bin/terramate -vv experimental cloud info
+        run: ./bin/terramate run --tags golang --changed -- ./bin/terramate -vv experimental cloud info
 
   gh_integration_test:
     name: GHA Integration Test
@@ -96,11 +94,11 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Configure asdf and plugins needed
-        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
+      - name: build Terramate
+        run: make build
 
       - name: make test/ci
-        run: terramate run --tags golang --changed -- make test/ci
+        run: ./bin/terramate run --tags golang --changed -- make test/ci
 
   release_dry_run:
     name: Release Dry Run
@@ -116,9 +114,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-
-      - name: Configure asdf and plugins needed
-        uses: asdf-vm/actions/install@83133f03f5693901c2296a8e622955087dc20267
 
       - name: install cosign 
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
@@ -168,4 +163,4 @@ jobs:
       - gh_integration_test
     runs-on: ubuntu-20.04
     steps:
-      - uses: Kesin11/actions-timeline@v1
+      - run: echo "All jobs ran successfully"
