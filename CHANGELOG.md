@@ -20,6 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add `tm_hclencode()` and `tm_hcldecode()` functions for encoding and decoding HCL content.
+
 ## v0.10.3
 
 ### Changed

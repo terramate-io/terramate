@@ -81,6 +81,9 @@ func Functions(basedir string, experiments []string) map[string]function.Functio
 		tmfuncs["tm_tomlencode"] = TomlEncode()
 		tmfuncs["tm_tomldecode"] = TomlDecode()
 	}
+
+	tmfuncs["tm_hclencode"] = HCLEncode()
+	tmfuncs["tm_hcldecode"] = HCLDecode()
 	return tmfuncs
 }
 
