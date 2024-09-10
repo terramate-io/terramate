@@ -20,13 +20,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
-
-## v0.10.2
-
-### Fixed
-
-- Fix `outputs-sharing` failure cases not synchronizing to Terramate Cloud.
+## v0.10.3
 
 ### Changed
 
@@ -41,6 +35,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `tm_cidrcontains(cidr, ip)`
 - Add experimental support for `tm_tomlencode` and `tm_tomldecode`.
   - Can be enabled with `terramate.config.experiments = ["toml-functions"]`.
+
+## v0.10.2
+
+### Fixed
+
+- Fix `outputs-sharing` failure cases not synchronizing to Terramate Cloud.
 
 ## v0.10.1
 
