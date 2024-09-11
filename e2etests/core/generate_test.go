@@ -444,6 +444,51 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 				},
 			},
 		},
+		{
+			name: "generate tfvars from globals",
+			layout: []string{
+				"s:stack1",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						Globals(
+							Expr("tfvars", `{
+							  numbers = [1, 2, 3]
+							  strings = ["terramate", "is", "fun"]
+						    }`),
+						),
+						GenerateFile(
+							Labels("main.tfvars"),
+							Expr("content", `tm_hclencode(global.tfvars)`),
+						),
+					),
+				},
+			},
+			want: want{
+				run: RunExpected{
+					Stdout: `Code generation report
+
+Successes:
+
+- /stack1
+	[+] main.tfvars
+
+Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectively.
+`,
+				},
+				files: []file{
+					{
+						path: p("/stack1/main.tfvars"),
+						body: Doc(
+							Expr("numbers", `[1, 2, 3]`),
+							Expr("strings", `["terramate", "is", "fun"]`),
+						),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {

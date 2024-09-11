@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `tm_hclencode()` and `tm_hcldecode()` functions for encoding and decoding HCL content.
+
 ## v0.10.3
 
 ### Changed
