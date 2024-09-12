@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
@@ -69,6 +70,8 @@ func main() {
 		tfPlanSanitize(os.Args[2])
 	case "fibonacci":
 		fibonacci()
+	case "git-normalization":
+		gitnorm(os.Args[2])
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -220,6 +223,18 @@ func tfPlanSanitize(fname string) {
 	newPlanData, err := json.Marshal(newPlan)
 	checkerr(err)
 	fmt.Print(string(newPlanData))
+}
+
+func gitnorm(rawURL string) {
+	repo, err := git.NormalizeGitURI(rawURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("host:  %s\n", repo.Host)
+	fmt.Printf("owner: %s\n", repo.Owner)
+	fmt.Printf("name:  %s\n", repo.Name)
+	fmt.Printf("normalized repository: %s\n", repo.Repo)
 }
 
 func checkerr(err error) {

@@ -26,6 +26,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add `tm_hclencode()` and `tm_hcldecode()` functions for encoding and decoding HCL content.
 
+### Fixed
+
+- Fix `git` URI normalization in the case project path component begin with a number.
+
 ## v0.10.3
 
 ### Changed
