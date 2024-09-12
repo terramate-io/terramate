@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"unicode"
 
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
 )
 
 // ErrInvalidGitURL indicates is an error kind indicating the git URL is not valid.
@@ -69,7 +69,12 @@ func NormalizeGitURI(raw string) (Repository, error) {
 
 // IsURL tells if the u URL is a supported git remote URL.
 func IsURL(u string) bool {
-	return strings.HasPrefix(u, "git@") || isSupportedProtocol(u)
+	if strings.HasPrefix(u, "git@") || isSupportedProtocol(u) {
+		return true
+	}
+	index := strings.Index(u, ":")
+	// any other <schema>:// is not supported
+	return index > 0 && !strings.HasPrefix(u[:index], "://")
 }
 
 func isSupportedProtocol(u string) bool {
@@ -95,20 +100,26 @@ func ParseURL(rawURL string) (u *url.URL, err error) {
 		// Not a Windows path.
 		!strings.ContainsRune(rawURL, '\\') {
 		// Support scp-like syntax for ssh protocol.
+		// We convert SCP syntax into ssh://<uri>
+		// Examples below:
+		// git@github.com:some/path.git -> ssh://github.com/some/path.git
+		// git@github.com:2222/some/path.git -> ssh://github.com:2222/some/path.git
 		index := strings.Index(rawURL, ":")
-		if index >= 0 && len(rawURL) > index && unicode.IsDigit(rune(rawURL[index+1])) {
-			next := strings.Index(rawURL[index+1:], ":")
-			if next >= 0 {
-				index = index + 1 + next
-			} else {
-				index = -1
+		if index > 0 {
+			next := strings.Index(rawURL[index+1:], "/")
+			if next > 0 {
+				// check if port is present
+				_, err := strconv.Atoi64(rawURL[index+1 : index+1+next])
+				if err == nil {
+					index = -1
+				}
 			}
 		}
-		if index != -1 {
-			strRunes := []rune(rawURL)
+		strRunes := []rune(rawURL)
+		if index > 0 {
 			strRunes[index] = '/'
-			rawURL = "ssh://" + string(strRunes)
 		}
+		rawURL = "ssh://" + string(strRunes)
 	}
 	u, err = url.Parse(rawURL)
 	if err != nil {

@@ -83,6 +83,17 @@ func TestNormalizeGitURL(t *testing.T) {
 			},
 		},
 		{
+			name: "github url with org name starting with number",
+			raw:  "git@github.com:123terramate-io/terramate.git",
+			normalized: git.Repository{
+				RawURL: "git@github.com:123terramate-io/terramate.git",
+				Repo:   "github.com/123terramate-io/terramate",
+				Host:   "github.com",
+				Owner:  "123terramate-io",
+				Name:   "terramate",
+			},
+		},
+		{
 			name: "basic gitlab ssh url",
 			raw:  "git@gitlab.com:terramate-io/terramate.git",
 			normalized: git.Repository{
@@ -162,9 +173,9 @@ func TestNormalizeGitURL(t *testing.T) {
 		},
 		{
 			name: "vcs provider URL with port",
-			raw:  "git@github.com:8888:terramate-io/terramate.git",
+			raw:  "git@github.com:8888/terramate-io/terramate.git",
 			normalized: git.Repository{
-				RawURL: "git@github.com:8888:terramate-io/terramate.git",
+				RawURL: "git@github.com:8888/terramate-io/terramate.git",
 				Repo:   "github.com:8888/terramate-io/terramate",
 				Host:   "github.com:8888",
 				Owner:  "terramate-io",
@@ -223,7 +234,7 @@ func TestIsURL(t *testing.T) {
 		{
 			name: "scp-like with no user",
 			url:  "example.com:owner/repo",
-			want: false,
+			want: true,
 		},
 		{
 			name: "ssh",
