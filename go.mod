@@ -203,5 +203,3 @@ require (
 	golang.org/x/sys v0.21.0
 	golang.org/x/text v0.16.0 // indirect
 )
-
-replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.0.0-20240814143621-8048794c5c52
