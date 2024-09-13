@@ -39,7 +39,7 @@ func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outpu
 		blockBody.SetAttributeRaw("type", hclwrite.Tokens{
 			{
 				Type:  hclsyntax.TokenIdent,
-				Bytes: []byte("string"),
+				Bytes: []byte("any"),
 			},
 		})
 		body.AppendBlock(varBlock)

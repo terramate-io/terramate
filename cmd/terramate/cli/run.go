@@ -23,6 +23,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
 	runutil "github.com/terramate-io/terramate/run"
@@ -554,18 +555,7 @@ func (c *cli) runAll(
 
 						inputVal = mockVal
 					}
-					if !inputVal.Type().Equals(cty.String) {
-						err := errors.E("output type is not string but %s", inputVal.Type().FriendlyName())
-						errs.Append(err)
-						c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
-						releaseResource()
-						failedTaskIndex = taskIndex
-						if !continueOnError {
-							cancel()
-						}
-						break tasksLoop
-					}
-					environ = append(environ, stdfmt.Sprintf("TF_VAR_%s=%s", input.Name, inputVal.AsString()))
+					environ = append(environ, stdfmt.Sprintf("TF_VAR_%s=%s", input.Name, string(ast.TokensForValue(inputVal).Bytes())))
 				}
 			}
 
