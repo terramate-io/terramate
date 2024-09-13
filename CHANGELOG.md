@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Enhance "sharing outputs" feature to support `any` input types.
+
 ## v0.10.4
 
 ### Added

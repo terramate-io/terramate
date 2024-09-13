@@ -86,7 +86,7 @@ func TestGenerateSharing(t *testing.T) {
 						"test.tf": Doc(
 							Block("variable",
 								Labels("var_name"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 						),
 					},
@@ -149,11 +149,11 @@ func TestGenerateSharing(t *testing.T) {
 						"test.tf": Doc(
 							Block("variable",
 								Labels("var_name"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 							Block("variable",
 								Labels("var_name2"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 						),
 					},
@@ -369,19 +369,19 @@ func TestGenerateSharing(t *testing.T) {
 						"test.tf": Doc(
 							Block("variable",
 								Labels("var_input1"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 							Block("variable",
 								Labels("var_input2"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 							Block("variable",
 								Labels("var_input3"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 							Block("variable",
 								Labels("var_input4"),
-								Expr("type", "string"),
+								Expr("type", "any"),
 							),
 							Block("output",
 								Labels("var_output1"),
@@ -454,7 +454,7 @@ func TestSharingOrphanedFilesAreDeleted(t *testing.T) {
 
 	expectedInput := genhcl.Header(genhcl.DefaultComment) + Block("variable",
 		Labels("name"),
-		Expr("type", "string"),
+		Expr("type", "any"),
 	).String() + "\n"
 	gotInput := s.RootEntry().ReadFile("s2/sharing.tf")
 	assert.EqualStrings(t, expectedInput, string(gotInput))

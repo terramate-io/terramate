@@ -190,7 +190,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 		},
 		{
-			name: "outputs sharing sync success result",
+			name: "outputs sharing success - string",
 			layout: []string{
 				"f:exp.tm:" + Terramate(
 					Config(
@@ -216,7 +216,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					Str("backend", "name"),
 					Expr("value", "resource.local_file.s1_file.content"),
 				).String(),
-				"s:s2:id=s2",
+				`s:s2:id=s2;after=["/s1"]`,
 				"f:s2/input.tm:" + Input(
 					Labels("s2_input"),
 					Str("backend", "name"),
@@ -234,9 +234,130 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			},
 			runflags: []string{
 				"--enable-sharing",
-				"--mock-on-fail",
 			},
-			cmd: []string{"terraform", "plan", "-out=out.tfplan"},
+			cmd: []string{"terraform", "apply", "-auto-approve"},
+			want: want{
+				run: RunExpected{
+					StdoutRegexes: []string{
+						regexp.QuoteMeta(`Terraform will perform the following actions`),
+						regexp.QuoteMeta(`local_file.s1_file`),
+						regexp.QuoteMeta(`local_file.s2_file`),
+					},
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "outputs sharing success - object",
+			layout: []string{
+				"f:exp.tm:" + Terramate(
+					Config(
+						Experiments("outputs-sharing"),
+					),
+				).String(),
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				`s:s2:id=s2;after=["/s1"]`,
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", `outputs.s1_output`),
+					Str("from_stack_id", "s1"),
+					Str("mock", "test"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input.value"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			runflags: []string{
+				"--enable-sharing",
+			},
+			cmd: []string{"terraform", "apply", "-auto-approve"},
+			want: want{
+				run: RunExpected{
+					StdoutRegexes: []string{
+						regexp.QuoteMeta(`Terraform will perform the following actions`),
+						regexp.QuoteMeta(`local_file.s1_file`),
+						regexp.QuoteMeta(`local_file.s2_file`),
+					},
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+					"s2": []string{"pending", "running", "ok"},
+				},
+			},
+		},
+		{
+			name: "outputs sharing success - list",
+			layout: []string{
+				"f:exp.tm:" + Terramate(
+					Config(
+						Experiments("outputs-sharing"),
+					),
+				).String(),
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				`s:s2:id=s2;after=["/s1"]`,
+				"f:s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "[0, 1, 2, outputs.s1_output.value, 4]"),
+					Str("from_stack_id", "s1"),
+					Str("mock", "test"),
+				).String(),
+				"f:s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input[3]"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			runflags: []string{
+				"--enable-sharing",
+			},
+			cmd: []string{"terraform", "apply", "-auto-approve"},
 			want: want{
 				run: RunExpected{
 					StdoutRegexes: []string{
@@ -689,7 +810,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-
 				cloudData := tc.cloudData
 				if cloudData == nil {
 					var err error
@@ -716,7 +836,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--", "terraform", "init"), RunExpected{
 						Status:       0,
 						IgnoreStdout: true,
-						IgnoreStderr: true,
 					})
 				}
 
