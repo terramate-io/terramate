@@ -41,7 +41,7 @@ jobs:
         run: make build
 
       - name: make generate
-        run: make generate
+        run: make generate && git diff
 
       - name: make test
         run: make test

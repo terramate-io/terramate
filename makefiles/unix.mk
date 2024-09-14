@@ -41,6 +41,20 @@ test: test/helper build
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -timeout 30m ./...
 	./bin/helper rm $(tempdir)
 
+## test/sync code
+.PHONY: test/sync
+tempdir=$(shell ./bin/helper tempdir)
+test/sync: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
+	TMC_API_HOST=api.stg.terramate.io \
+	TM_TEST_ROOT_TEMPDIR=$(tempdir)   \
+	TM_CLOUD_ORGANIZATION=test        \
+	GITHUB_TOKEN=$(shell cat ../my_github_token.txt) \
+	NO_COLOR=1 \
+	CI=1 \
+	./bin/terramate script run --tags golang --parallel=10 preview
+	./bin/helper rm $(tempdir)
+
 ## test/interop
 .PHONY: test/interop
 test/interop: org?=test
@@ -53,11 +67,6 @@ test/interop:
 graph2png:
 	./bin/terramate experimental run-graph | dot -Tpng > graph.png
 	@echo "check the image: graph.png"
-
-## test if terramate works with CI git environment.
-.PHONY: test/ci
-test/ci: build
-	./bin/terramate list --changed
 
 ## check go modules are tidy
 .PHONY: mod/check

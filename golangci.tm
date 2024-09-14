@@ -18,7 +18,7 @@ generate_file "/.golangci.toml" {
         "exclude-rules" = [
           {
             path    = "(.+)_test\\.go"
-            text = "dot-imports:"
+            text    = "dot-imports:"
             linters = ["revive"]
           }
         ]

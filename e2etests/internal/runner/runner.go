@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -83,14 +84,24 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 		// by default, it's assumed human mode
 		env = RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
 	}
+	// environments below are never used in automation.
+	env = RemoveEnv(env, "TMC_API_HOST", "TMC_API_IDP_KEY")
+	// this needs to be deleted from environment otherwise CLI GHA tests will try to issue JWT tokens.
+	env = RemoveEnv(env, "ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+	// this must be always disabled otherwise we contaminate the telemetry endpoint.
 	env = append(env, "CHECKPOINT_DISABLE=1")
+	// sanity check for cases where user has this configured in their environment.
+	if index := slices.Index(env, "TMC_API_URL"); index >= 0 {
+		apiURL := env[index]
+		if !strings.HasPrefix(apiURL, "http://") {
+			panic("tests are picking up the wrong API URL")
+		}
+	}
 	// custom cliconfig file
 	tm.userDir = test.TempDir(t)
 	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))
 	env = append(env,
 		"TM_CLI_CONFIG_FILE="+cliConfigPath,
-		"ACTIONS_ID_TOKEN_REQUEST_URL=",
-		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
 	)
 	tm.environ = env
 	return tm
