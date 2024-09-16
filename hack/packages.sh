@@ -4,7 +4,3 @@
 packages() {
     go list -f '{{.Dir}}' ./... | sort
 }
-
-packages_with_tests() {
-    go list -f '{{.Dir}}' ./... | sort
-}
