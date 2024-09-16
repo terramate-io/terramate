@@ -7,7 +7,7 @@ source "$(dirname "$0")/packages.sh"
 
 rootdir=$(git rev-parse --show-toplevel)
 
-for pkg in $(packages_with_tests); do
+for pkg in $(packages); do
     cd $pkg
     projdir=${pkg#"$rootdir"}
     if [ "x${projdir}" == "x" ]; then
