@@ -11,7 +11,7 @@
   <a href="https://github.com/terramate-io/terramate/releases"><img src="https://img.shields.io/github/v/release/terramate-io/terramate?color=%239F50DA&display_name=tag&label=Version" alt="Latest Release" /></a>
   <a href="https://pkg.go.dev/github.com/terramate-io/terramate"><img src="https://pkg.go.dev/badge/github.com/terramate-io/terramate" alt="Go Docs" /></a>
   <a href="https://goreportcard.com/report/github.com/terramate-io/terramate"><img src="https://goreportcard.com/badge/github.com/terramate-io/terramate" alt="Go Report Card" /></a>
-  <a href="https://github.com/terramate-io/terramate/actions?query=branch%3Amain"><img src="https://github.com/terramate-io/terramate/actions/workflows/ci.yml/badge.svg" alt="Terramate CI Status" /></a>
+  <a href="https://github.com/terramate-io/terramate/actions?query=branch%3Amain"><img src="https://github.com/terramate-io/terramate/actions/workflows/ci-sync-deployment.yml/badge.svg" alt="Terramate CI Status" /></a>
   <a href="https://terramate.io/discord" rel="nofollow"><img src="https://img.shields.io/discord/1088753599951151154?label=Discord&logo=discord&logoColor=white" alt="Discord Server"></a>
 </p>
 
