@@ -96,7 +96,7 @@ jobs:
       - name: Run Terraform deployment on changed
         if: steps.list.outputs.stdout
         timeout-minutes: 30
-        run: terramate script run --changed --tags golang --target ${{ matrix.os.name }} --parallel 12 deploy
+        run: terramate script run --changed --tags golang --continue-on-error --target ${{ matrix.os.name }} --parallel 12 deploy
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
