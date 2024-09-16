@@ -9,6 +9,7 @@ coverage.txt
 cpu.prof
 mem.prof
 *.test
+*.tfplan
 *.plan
 
 # Go Workspaces artifacts

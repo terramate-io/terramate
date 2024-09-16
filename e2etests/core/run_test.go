@@ -3229,8 +3229,6 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	}
 
 	wantenv := append(hostenv,
-		"ACTIONS_ID_TOKEN_REQUEST_URL=",
-		"ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
 		"CHECKPOINT_DISABLE=1", // e2e tests have telemetry disabled
 		fmt.Sprintf("FROM_META=%s", stackName),
 		fmt.Sprintf("FROM_GLOBAL=%s", stackGlobal),

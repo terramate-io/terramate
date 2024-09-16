@@ -1,9 +1,8 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-generate_file "/e2etests/cloud/testdata/cloud.data.json" {
-  context = root
-
+generate_file "testdata/cloud.data.json" {
+  inherit = false
   lets {
     well_known = {
       required_version = "> 0.4.3"
@@ -58,8 +57,8 @@ generate_file "/e2etests/cloud/testdata/cloud.data.json" {
   }
 
   lets {
-    github_get_pull_request_response = tm_jsondecode(tm_file("e2etests/cloud/testdata/github/get_pull_request_response.json"))
-    github_get_commit_response       = tm_jsondecode(tm_file("e2etests/cloud/testdata/github/get_commit_response.json"))
+    github_get_pull_request_response = tm_try(tm_jsondecode(tm_file("testdata/github/get_pull_request_response.json")), null)
+    github_get_commit_response       = tm_try(tm_jsondecode(tm_file("testdata/github/get_commit_response.json")), null)
   }
 
   content = tm_jsonencode({

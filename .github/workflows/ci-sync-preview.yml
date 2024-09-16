@@ -1,0 +1,215 @@
+# Copyright 2023 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+name: ci
+
+on:
+  pull_request:
+
+jobs:
+  build_test:
+    name: Build and Test
+    runs-on: ${{ matrix.os.value }}
+
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read  # This is required for actions/checkout
+      pull-requests: write
+      checks: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: ubuntu-focal
+            value: "ubuntu-20.04"
+          - name: macos-ventura
+            value: "macos-13"
+        go: ["1.21"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: check all packages with tests are Terramate Stacks
+        run: ./hack/check-stacks.sh
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.2
+          tofu_wrapper: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+          terraform_wrapper: false
+
+      - name: Install Terramate
+        uses: terramate-io/terramate-action@i4k-fix-macos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build Terramate
+        run: make build && cp -v ./bin/terramate /usr/local/bin/terramate-bin
+
+      - name: make generate
+        run: make generate
+
+      ### Check for changed stacks
+
+      - name: List changed stacks
+        id: list
+        run: terramate list --tags golang --changed
+
+      ### Linting
+
+      - name: linting code
+        if: steps.list.outputs.stdout
+        run: make lint
+
+      - name: checking go mod tidyness
+        if: steps.list.outputs.stdout
+        run: make mod/check
+
+      - name: checking license on source code
+        if: steps.list.outputs.stdout
+        run: make license/check
+
+      - name: Check Terramate formatting
+        run: terramate fmt --check
+
+      - name: Check Terraform formatting
+        if: steps.list.outputs.stdout
+        run: terraform fmt -recursive -check -diff
+      
+      ### Run the Terramate tests and create a Cloud Preview
+
+      - name: Temporary PR Preview Link generation
+        run: echo >preview_url.txt "https://cloud.terramate.io/o/terramate-tests/review-requests"
+
+      - name: Run Terraform preview on changed
+        if: steps.list.outputs.stdout
+        timeout-minutes: 30
+        run: terramate script run --changed --tags golang --target ${{ matrix.os.name }} --parallel 12 preview
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+
+      ### Update Pull Request comment
+
+      - name: Generate Preview Comment
+        if: steps.list.outputs.stdout
+        id: comment
+        run: |
+          echo >>pr-comment.txt "## Preview of ${{ matrix.os.name }}/go${{matrix.go}} tests in ${{ github.event.pull_request.head.sha }}"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "[:mag: View Details on Terramate Cloud]($(cat preview_url.txt))"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "### "
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt '```bash'
+          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
+          echo >>pr-comment.txt '```'
+          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
+
+      - name: Inform about no Changed Stacks
+        if: success() && !steps.list.outputs.stdout
+        run: |
+          echo >>pr-comment.txt "## Preview of ${{ matrix.os.name }}/go${{matrix.go}} tests in ${{ github.event.pull_request.head.sha }}"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "### Changed Stacks"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt 'No changed stacks, no detailed preview will be generated.'
+          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
+
+      - name: Inform about failure
+        if: failure()
+        run: |
+          echo >>pr-comment.txt "## Preview of ${{ matrix.os.name }}/go${{matrix.go}} tests in ${{ github.event.pull_request.head.sha }}"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "[:mag: View Details on Terramate Cloud]($(cat preview_url.txt))"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt "### Changed Stacks"
+          echo >>pr-comment.txt
+          echo >>pr-comment.txt '```bash'
+          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
+          echo >>pr-comment.txt '```'
+          echo >>pr-comment.txt ":boom: Generating preview failed. [Please see details on Terramate Cloud]($(cat preview_url.txt))"
+          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
+
+      - name: Publish Plans for Changed Stacks
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          header: preview-${{ matrix.os.name }}-go-${{matrix.go}}
+          path: pr-comment.txt
+
+  release_dry_run:
+    name: Release Dry Run
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: install cosign 
+        run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
+      - name: install goreleaser
+        run: |
+          curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o /tmp/goreleaser.tar.gz
+          cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
+          sudo mv /tmp/goreleaser /usr/local/bin/
+      
+      - name: Create cosign.pub file
+        run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub      
+        
+      - name: release dry run
+        run: make release/dry-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_API_KEY }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN}}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD}}
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY }}
+
+      - name: Locate checksum file
+        id: find_checksum
+        run: |
+          if [ -z "$(ls dist/*checksums.txt)" ]; then
+            echo "Error: Checksum file not found."
+            exit 1
+          fi
+          echo "CHECKSUM_FILE=$(ls dist/*checksums.txt)" >> $GITHUB_ENV
+
+      - name: Locate signature file
+        id: find_signature
+        run: |
+          if [ -z "$(ls dist/*checksum*.txt.sig)" ]; then
+            echo "Error: Signature file not found."
+            exit 1
+          fi
+          echo "SIGNATURE_FILE=$(ls dist/*checksum*.txt.sig)" >> $GITHUB_ENV
+
+      - name: Verify checksums with cosign
+        run: |
+          cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}       
+  ci:
+    needs:
+      - build_test
+    runs-on: ubuntu-20.04
+    steps:
+      - run: echo "All jobs ran successfully"

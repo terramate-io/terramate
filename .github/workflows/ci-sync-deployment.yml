@@ -8,43 +8,28 @@ on:
     branches:
       - main
       - v0.4.x
-  pull_request:
+      - v0.6.x
+      - v0.9.x
 
 jobs:
-  checks:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: build Terramate
-        run: make build
-
-      - name: checking go mod tidyness
-        run: ./bin/terramate run --tags golang --changed -- make mod/check
-
-      - name: linting code
-        run: ./bin/terramate run --tags golang --changed -- make lint
-
-      - name: checking license on source code
-        run: ./bin/terramate run --tags golang --changed -- make license/check
-
   build_test:
     name: Build and Test
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os.value }}
+
     permissions:
-      id-token: write # This is required for requesting the JWT
-      contents: read  # This is required for actions/checkout
+      id-token: write
+      contents: read
+      pull-requests: write
+      checks: read
 
     strategy:
+      fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "macos-13"]
+        os:
+          - name: ubuntu-focal
+            value: "ubuntu-20.04"
+          - name: macos-ventura
+            value: "macos-13"
         go: ["1.21"]
 
     steps:
@@ -63,42 +48,58 @@ jobs:
           tofu_wrapper: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+          terraform_wrapper: false
+
+      - name: Install Terramate
+        uses: terramate-io/terramate-action@i4k-fix-macos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: build Terramate
-        run: make build
+        run: make build && cp -v ./bin/terramate /usr/local/bin/terramate-bin
 
       - name: make generate
         run: make generate
 
-      - name: make test
+      ### Check for changed stacks
+
+      - name: List changed stacks
+        id: list
+        run: terramate list --tags golang --changed
+
+      ### Linting
+
+      - name: linting code
+        if: steps.list.outputs.stdout
+        run: make lint
+
+      - name: checking go mod tidyness
+        if: steps.list.outputs.stdout
+        run: make mod/check
+
+      - name: checking license on source code
+        if: steps.list.outputs.stdout
+        run: make license/check
+
+      - name: Check Terramate formatting
+        run: terramate fmt --check
+
+      - name: Check Terraform formatting
+        if: steps.list.outputs.stdout
+        run: terraform fmt -recursive -check -diff
+      
+      ### Run the Terramate tests and create a Cloud deployment
+
+      - name: Run Terraform deployment on changed
+        if: steps.list.outputs.stdout
         timeout-minutes: 30
-        run: ./bin/terramate run --tags golang --changed -- make test
+        run: terramate script run --changed --tags golang --target ${{ matrix.os.name }} --parallel 12 deploy
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
-
-      - name: check cloud info
-        run: ./bin/terramate run --tags golang --changed -- ./bin/terramate -vv experimental cloud info
-
-  gh_integration_test:
-    name: GHA Integration Test
-
-    runs-on: "ubuntu-20.04"
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
-          fetch-depth: 0
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-
-      - name: build Terramate
-        run: make build
-
-      - name: make test/ci
-        run: ./bin/terramate run --tags golang --changed -- make test/ci
 
   release_dry_run:
     name: Release Dry Run
@@ -158,9 +159,7 @@ jobs:
           cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}       
   ci:
     needs:
-      - checks
       - build_test
-      - gh_integration_test
     runs-on: ubuntu-20.04
     steps:
       - run: echo "All jobs ran successfully"

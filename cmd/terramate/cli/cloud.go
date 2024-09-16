@@ -73,7 +73,7 @@ const (
 
 // newCloudRequiredError creates an error indicating that a cloud login is required to use requested features.
 func newCloudRequiredError(requestedFeatures []string) *errors.DetailedError {
-	err := errors.D("This command uses Terramate Cloud features and requires you to be logged in.")
+	err := errors.D(clitest.CloudLoginRequiredMessage)
 
 	for _, s := range requestedFeatures {
 		err = err.WithDetailf(verbosity.V1, "%s", s)
@@ -195,7 +195,7 @@ func (c *cli) cloudEnabled() bool {
 }
 
 func (c *cli) disableCloudFeatures(err error) {
-	log.Warn().Err(err).Msg(clitest.CloudDisablingMessage)
+	printer.Stderr.WarnWithDetails(clitest.CloudDisablingMessage, errors.E(err.Error()))
 
 	c.cloud.disabled = true
 }
