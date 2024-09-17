@@ -66,41 +66,61 @@ jobs:
 
       ### Check for changed stacks
 
-      - name: List changed stacks
-        id: list
+      - name: List changed Go packages
+        id: list_go_packages
         run: terramate list --tags golang --changed
+
+      - name: List changed e2e tests packages
+        id: list_e2e_packages
+        run: terramate list --tags e2etests --changed
 
       ### Linting
 
       - name: linting code
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make lint
 
       - name: checking go mod tidyness
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make mod/check
 
       - name: checking license on source code
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make license/check
 
       - name: Check Terramate formatting
         run: terramate fmt --check
 
       - name: Check Terraform formatting
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: terraform fmt -recursive -check -diff
       
       ### Run the Terramate tests and create a Cloud deployment
 
-      - name: Run Terraform deployment on changed
-        if: steps.list.outputs.stdout
+      - name: Run Terraform deployment on changed packages
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         timeout-minutes: 30
-        run: terramate script run --changed --tags golang --continue-on-error --target ${{ matrix.os.name }} --parallel 12 deploy
+        run: terramate script run --changed --tags golang --continue-on-error --target ${{ matrix.os.name }}-go-packages --parallel 12 deploy
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
 
+      - name: Run all e2e tests Preview if any Go packages changed
+        if: ${{ steps.list_go_packages.outputs.stdout }}
+        timeout-minutes: 30
+        run: terramate script run --tags e2etests --target ${{ matrix.os.name }}-e2e --parallel 12 deploy
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+  
+      - name: Else only run the changed e2e packages
+        if: ${{ !steps.list_e2e_packages.outputs.stdout && steps.list_e2e_packages.outputs.stdout }}
+        timeout-minutes: 30
+        run: terramate script run --tags e2etests --changed --target "${{ matrix.os.name }}-e2e" --parallel 12 deploy
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+  
   release_dry_run:
     name: Release Dry Run
 

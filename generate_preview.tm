@@ -4,7 +4,10 @@
 // This file is required by the "preview" script.
 
 generate_hcl "_test_mock.tf" {
-  condition = tm_contains(terramate.stack.tags, "golang")
+  condition = tm_anytrue([
+    tm_contains(terramate.stack.tags, "golang"),
+    tm_contains(terramate.stack.tags, "e2etests"),
+  ])
   lets {
     name = tm_ternary(terramate.stack.path.basename == "/", "terramate", terramate.stack.path.basename)
   }

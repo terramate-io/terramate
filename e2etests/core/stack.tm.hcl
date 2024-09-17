@@ -4,6 +4,6 @@
 stack {
   name        = "core"
   description = "core"
-  tags        = ["core", "e2etests", "golang"]
+  tags        = ["core", "e2etests"]
   id          = "b36bb769-6f65-467a-9195-f043cd495e16"
 }
