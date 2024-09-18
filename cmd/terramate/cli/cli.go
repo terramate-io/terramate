@@ -1383,12 +1383,20 @@ func (c *cli) initTerragrunt() {
 		if err != nil {
 			fatalWithDetailf(err, "creating stack UUID")
 		}
+		after := []string{}
+		// parent modules must be excluded because of implicit filesystem ordering.
+		for _, otherMod := range mod.After.Strings() {
+			if mod.Path.HasPrefix(otherMod) {
+				continue
+			}
+			after = append(after, otherMod)
+		}
 		stackSpec := config.Stack{
 			Dir:         mod.Path,
 			ID:          stackID.String(),
 			Name:        dirBasename,
 			Description: dirBasename,
-			After:       mod.After.Strings(),
+			After:       after,
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)
