@@ -559,9 +559,7 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 	).String()
 
 	runFromDir := func(t *testing.T, generateWd string, runWd string, wantGenerate generate.Report, wantRun RunExpected) {
-		t.Helper()
 		t.Run(fmt.Sprintf("terramate -C %s generate", generateWd), func(t *testing.T) {
-			t.Helper()
 			t.Parallel()
 			s := sandbox.NoGit(t, true)
 			s.BuildTree([]string{

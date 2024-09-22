@@ -444,7 +444,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				})
 		})
 
-	t.Run("re-enabled from config.disable_safegaurds by --disable-safeguards=none",
+	t.Run("re-enabled from config.disable_safeguards by --disable-safeguards=none",
 		func(t *testing.T) {
 			tmcli, file, s := setup(t)
 
