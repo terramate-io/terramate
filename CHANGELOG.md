@@ -20,11 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.10.5
 
-### Added
+### Fixed
 
-- Enhance "sharing outputs" feature to support `any` input types.
+- Fix `outputs-sharing` experiment to use `type = any` for generated Terraform input variables in dependent stacks.
+- Fix `outdated-code` safeguard not working for `generate_file` blocks with `context=root` option.
 
 ## v0.10.4
 
