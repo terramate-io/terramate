@@ -64,29 +64,33 @@ jobs:
 
       ### Check for changed stacks
 
-      - name: List changed stacks
-        id: list
+      - name: List changed Go packages
+        id: list_go_packages
         run: terramate list --tags golang --changed
+
+      - name: List changed e2e tests packages
+        id: list_e2e_packages
+        run: terramate list --tags e2etests --changed
 
       ### Linting
 
       - name: linting code
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make lint
 
       - name: checking go mod tidyness
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make mod/check
 
       - name: checking license on source code
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make license/check
 
       - name: Check Terramate formatting
         run: terramate fmt --check
 
       - name: Check Terraform formatting
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: terraform fmt -recursive -check -diff
       
       ### Run the Terramate tests and create a Cloud Preview
@@ -94,10 +98,26 @@ jobs:
       - name: Temporary PR Preview Link generation
         run: echo >preview_url.txt "https://cloud.terramate.io/o/terramate-tests/review-requests"
 
-      - name: Run Terraform preview on changed
-        if: steps.list.outputs.stdout
+      - name: Run Preview on changed Go packages
+        if: ${{ steps.list_go_packages.outputs.stdout }}
         timeout-minutes: 30
-        run: terramate script run --changed --tags golang --target ${{ matrix.os.name }} --parallel 12 preview
+        run: terramate script run --changed --tags golang --target "${{ matrix.os.name }}-go-packages" --parallel 12 preview
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+
+      - name: Run all e2e tests Preview if any Go packages changed
+        if: ${{ steps.list_go_packages.outputs.stdout }}
+        timeout-minutes: 30
+        run: terramate script run --tags e2etests --target "${{ matrix.os.name }}-e2e" --parallel 12 preview
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+
+      - name: Else only run the changed e2e packages
+        if: ${{ !steps.list_e2e_packages.outputs.stdout && steps.list_e2e_packages.outputs.stdout }}
+        timeout-minutes: 30
+        run: terramate script run --tags e2etests --changed --target "${{ matrix.os.name }}-e2e" --parallel 12 preview
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
@@ -105,7 +125,7 @@ jobs:
       ### Update Pull Request comment
 
       - name: Generate Preview Comment
-        if: steps.list.outputs.stdout
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages.outputs.stdout }}
         id: comment
         run: |
           echo >>pr-comment.txt "## Preview of ${{ matrix.os.name }}/go${{matrix.go}} tests in ${{ github.event.pull_request.head.sha }}"
@@ -115,12 +135,13 @@ jobs:
           echo >>pr-comment.txt "### "
           echo >>pr-comment.txt
           echo >>pr-comment.txt '```bash'
-          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
+          echo >>pr-comment.txt "${{ steps.list_go_packages.outputs.stdout }}"
+          echo >>pr-comment.txt "${{ steps.list_e2e_packages.outputs.stdout }}"
           echo >>pr-comment.txt '```'
           cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
 
       - name: Inform about no Changed Stacks
-        if: success() && !steps.list.outputs.stdout
+        if: ${{ success() && !(steps.list_go_packages.outputs.stdout || steps.list_go_packages.outputs.stdout) }}
         run: |
           echo >>pr-comment.txt "## Preview of ${{ matrix.os.name }}/go${{matrix.go}} tests in ${{ github.event.pull_request.head.sha }}"
           echo >>pr-comment.txt
@@ -130,7 +151,7 @@ jobs:
           cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
 
       - name: Inform about failure
-        if: failure()
+        if: ${{ failure() }}
         run: |
           echo >>pr-comment.txt "## Preview of ${{ matrix.os.name }}/go${{matrix.go}} tests in ${{ github.event.pull_request.head.sha }}"
           echo >>pr-comment.txt
@@ -139,7 +160,8 @@ jobs:
           echo >>pr-comment.txt "### Changed Stacks"
           echo >>pr-comment.txt
           echo >>pr-comment.txt '```bash'
-          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
+          echo >>pr-comment.txt "${{ steps.list_go_packages.outputs.stdout }}"
+          echo >>pr-comment.txt "${{ steps.list_e2e_packages.outputs.stdout }}"
           echo >>pr-comment.txt '```'
           echo >>pr-comment.txt ":boom: Generating preview failed. [Please see details on Terramate Cloud]($(cat preview_url.txt))"
           cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
