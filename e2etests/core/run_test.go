@@ -79,7 +79,7 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					`/stack`,
 				),
-				StderrRegex: "Warning: Stack references invalid path in 'after' attribute",
+				StderrRegex: `Warning: Stack /stack references an invalid path \(.*?\) in the 'after' attribute`,
 			},
 		},
 		{
@@ -91,7 +91,7 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					`/stack`,
 				),
-				StderrRegex: "Warning: Stack references invalid path in 'after' attribute",
+				StderrRegex: `Warning: Stack /stack references an invalid path \(.*?\) in the 'after' attribute`,
 			},
 		},
 		{
@@ -1501,8 +1501,7 @@ func TestRunWantedBy(t *testing.T) {
 					"/stacks/stack-b",
 				),
 				StderrRegexes: []string{
-					"Stack references invalid path in 'wanted_by' attribute",
-					"no such file or directory",
+					"Stack /stacks/stack-a references an invalid path (.*?) in the 'wanted_by' attribute",
 				},
 			},
 		},

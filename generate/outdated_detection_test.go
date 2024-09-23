@@ -317,7 +317,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate blocks content changed",
+			name: "generate_file block content changed",
 			steps: []step{
 				{
 					layout: []string{
@@ -397,7 +397,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate_hcl is detected on ex stack",
+			name: "generate_hcl/generate_file deletes on deleted stack",
 			steps: []step{
 				{
 					layout: []string{
@@ -437,6 +437,86 @@ func TestOutdatedDetection(t *testing.T) {
 					},
 					want: []string{
 						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file.context=root detects changed config",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("/test.txt"),
+									Expr("context", `root`),
+									Str("content", "tm is awesome"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("/test.txt"),
+									Expr("context", `root`),
+									Str("content", "tm has changed"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file.context=root detects on manually changed file",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("/test.txt"),
+									Expr("context", `root`),
+									Str("content", "tm is awesome"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "test.txt",
+							body: stringer("whatever"),
+						},
+					},
+					want: []string{
+						"test.txt",
 					},
 				},
 			},
@@ -1273,7 +1353,6 @@ func TestOutdatedDetection(t *testing.T) {
 				}
 
 				got, err := generate.DetectOutdated(s.Config(), s.Config().Tree(), vendorDir)
-
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
 					continue

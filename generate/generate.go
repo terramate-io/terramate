@@ -210,13 +210,13 @@ func doStackGeneration(
 	report := Report{}
 
 	for _, cfg := range tree.Stacks() {
-		stack, err := cfg.Stack()
+		st, err := cfg.Stack()
 		if err != nil {
 			report.BootstrapErr = err
 			return report
 		}
 
-		globals := globals.ForStack(root, stack)
+		globals := globals.ForStack(root, st)
 		if err := globals.AsError(); err != nil {
 			report.addFailure(cfg.Dir(), err)
 			continue
@@ -527,80 +527,65 @@ func DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Pa
 		Stringer("dir", target.Dir()).
 		Logger()
 
-	outdatedFiles := []string{}
+	outdatedFiles := newStringSet()
 	errs := errors.L()
 
 	logger.Debug().Msg("checking outdated code inside stacks")
 
-	for _, stackTree := range target.Stacks() {
-		st, err := stackTree.Stack()
-		if err != nil {
-			return nil, err
-		}
-		outdated, err := stackOutdated(root, stackTree, vendorDir)
+	for _, cfg := range target.AsList() {
+		outdated, err := stackOutdated(root, cfg, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
 		// We want results relative to root
-		stackRelPath := st.Dir.String()[1:]
+		dirRelPath := cfg.Dir().String()[1:]
 		for _, file := range outdated {
-			outdatedFiles = append(outdatedFiles,
-				path.Join(stackRelPath, file))
+			outdatedFiles.add(path.Join(dirRelPath, file))
 		}
-	}
-
-	// If the base dir is a stack then there is no need to check orphaned files.
-	// All files are owned by the parent stack or its children.
-	if target.IsStack() {
-		logger.Debug().Msg("project root is stack, no need to check for orphaned files")
-
-		sort.Strings(outdatedFiles)
-		return outdatedFiles, nil
-	}
-
-	logger.Debug().Msg("checking for orphaned files")
-
-	orphanedFiles, err := ListGenFiles(root, target.HostDir())
-	if err != nil {
-		errs.Append(err)
 	}
 
 	if err := errs.AsError(); err != nil {
 		return nil, err
 	}
 
-	outdatedFiles = append(outdatedFiles, orphanedFiles...)
-	sort.Strings(outdatedFiles)
-	return outdatedFiles, nil
+	outdated := outdatedFiles.slice()
+	sort.Strings(outdated)
+	return outdated, nil
 }
 
-// stackOutdated will verify if a given stack has outdated code and return a list
+// stackOutdated will verify if a given directory has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
-// If the stack has an invalid configuration it will return an error.
-func stackOutdated(
-	root *config.Root,
-	cfg *config.Tree,
-	vendorDir project.Path,
-) ([]string, error) {
+func stackOutdated(root *config.Root, cfg *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.stackOutdated").
 		Stringer("stack", cfg.Dir()).
 		Logger()
 
-	generated, err := loadStackCodeCfgs(root, cfg, vendorDir, nil)
+	cfgpath := cfg.HostDir()
+
+	var generated []GenFile
+	if cfg.IsStack() {
+		stackGenerated, err := loadStackCodeCfgs(root, cfg, vendorDir, nil)
+		if err != nil {
+			return nil, err
+		}
+		err = validateStackGeneratedFiles(root, cfgpath, stackGenerated)
+		if err != nil {
+			return nil, err
+		}
+		generated = append(generated, stackGenerated...)
+	}
+
+	rootGenerated, err := loadRootCodeCfgs(root, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	stackpath := cfg.HostDir()
-	err = validateStackGeneratedFiles(root, stackpath, generated)
-	if err != nil {
-		return nil, err
-	}
+	generated = append(generated, rootGenerated...)
 
-	genfilesOnFs, err := ListGenFiles(root, stackpath)
+	genfilesOnFs, err := ListGenFiles(root, cfgpath)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -610,9 +595,9 @@ func stackOutdated(
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
 	outdatedFiles := newStringSet(genfilesOnFs...)
-	err = updateOutdatedFiles(stackpath, generated, outdatedFiles)
+	err = updateOutdatedFiles(root, cfgpath, generated, outdatedFiles)
 	if err != nil {
-		return nil, errors.E(err, "checking for outdated files")
+		return nil, errors.E(err, "handling detected files")
 	}
 
 	outdated := outdatedFiles.slice()
@@ -620,14 +605,10 @@ func stackOutdated(
 	return outdated, nil
 }
 
-func updateOutdatedFiles(
-	stackpath string,
-	generated []GenFile,
-	outdatedFiles *stringSet,
-) error {
+func updateOutdatedFiles(root *config.Root, cfgpath string, generated []GenFile, outdatedFiles *stringSet) error {
 	logger := log.With().
 		Str("action", "generate.updateOutdatedFiles").
-		Str("stack", stackpath).
+		Str("stack", cfgpath).
 		Logger()
 
 	// So we can properly check blocks with condition false/true in any order
@@ -638,8 +619,15 @@ func updateOutdatedFiles(
 			Str("label", genfile.Label()).
 			Logger()
 
-		filename := genfile.Label()
-		targetpath := filepath.Join(stackpath, filename)
+		var targetpath string
+		var filename string
+		if genfile.Context() == "root" {
+			filename = genfile.Label()[1:]
+			targetpath = filepath.Join(root.HostDir(), filename)
+		} else {
+			filename = genfile.Label()
+			targetpath = filepath.Join(cfgpath, filename)
+		}
 
 		currentCode, codeFound, err := readFile(targetpath)
 		if err != nil {
@@ -1177,6 +1165,34 @@ func loadAsserts(root *config.Root, st *config.Stack, evalctx *eval.Context) ([]
 	}
 
 	return asserts, nil
+}
+
+func loadRootCodeCfgs(root *config.Root, cfg *config.Tree) ([]GenFile, error) {
+	blocks := cfg.Node.Generate.Files
+
+	genfiles := []GenFile{}
+	for _, block := range blocks {
+		if block.Context != "root" {
+			continue
+		}
+		err := validateRootGenerateBlock(root, block)
+		if err != nil {
+			return nil, err
+		}
+
+		evalctx := eval.NewContext(stdlib.Functions(cfg.RootDir(), root.Tree().Node.Experiments()))
+		evalctx.SetNamespace("terramate", root.Runtime())
+
+		file, skip, err := genfile.Eval(block, cfg, evalctx)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			continue
+		}
+		genfiles = append(genfiles, file)
+	}
+	return genfiles, nil
 }
 
 func loadStackCodeCfgs(
