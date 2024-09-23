@@ -599,10 +599,7 @@ func stackOutdated(root *config.Root, cfg *config.Tree, vendorDir project.Path) 
 	if err != nil {
 		return nil, errors.E(err, "handling detected files")
 	}
-
-	outdated := outdatedFiles.slice()
-	sort.Strings(outdated)
-	return outdated, nil
+	return outdatedFiles.slice(), nil
 }
 
 func updateOutdatedFiles(root *config.Root, cfgpath string, generated []GenFile, outdatedFiles *stringSet) error {
