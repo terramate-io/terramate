@@ -179,7 +179,6 @@ func BuildDAG(
 ) error {
 	logger := log.With().
 		Str("action", "run.BuildDAG()").
-		Str("path", root.HostDir()).
 		Stringer("stack", s.Dir).
 		Logger()
 
@@ -217,14 +216,16 @@ func BuildDAG(
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
-				printer.Stderr.WarnWithDetails(
-					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
-					err,
+				logger.Debug().Str("path", pathstr).Err(err).Msgf("Invalid stack.%s path", fieldname)
+				printer.Stderr.Warn(
+					fmt.Sprintf("Stack %s references an invalid path (%s) in the '%s' attribute", s.Dir, pathstr, fieldname),
 				)
 			} else if !st.IsDir() {
-				printer.Stderr.WarnWithDetails(
-					fmt.Sprintf("Stack references invalid path in '%s' attribute", fieldname),
-					errors.E("Path %s is not a directory", pathstr),
+				printer.Stderr.Warn(
+					fmt.Sprintf("Stack %s references a path (%s) that is not a directory in the '%s' attribute",
+						s.Dir,
+						pathstr, fieldname,
+					),
 				)
 			} else {
 				uniqPaths[pathstr] = struct{}{}
