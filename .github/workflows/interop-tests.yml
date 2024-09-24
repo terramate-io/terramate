@@ -36,6 +36,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         env:
           TMC_API_HOST: api.terramate.io
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - uses: marocchino/sticky-pull-request-comment@v2
         with:
