@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/e2etests/internal/runner"
 )
 
@@ -25,10 +24,6 @@ func TestMain(m *testing.M) {
 	}
 	if apiHost != "" && apiURL != "" {
 		fmt.Printf("TMC_API_HOST conflicts with TMC_API_URL")
-		os.Exit(1)
-	}
-	if apiHost == cloud.Host || apiURL == cloud.BaseURL {
-		fmt.Printf("Interoperability tests MUST not be executed targeting the product API")
 		os.Exit(1)
 	}
 	packageDir, err := os.Getwd()
