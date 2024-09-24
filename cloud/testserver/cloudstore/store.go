@@ -5,7 +5,9 @@ package cloudstore
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -215,7 +217,7 @@ func (d *Data) GetOrg(uuid cloud.UUID) (Org, bool) {
 	defer d.mu.RUnlock()
 	for _, org := range d.Orgs {
 		if org.UUID == uuid {
-			return org, true
+			return org.Clone(), true
 		}
 	}
 	return Org{}, false
@@ -675,4 +677,18 @@ func (d *Data) getPreview(org Org, rrNumber int, pushedAt int64) (Preview, int64
 		}
 	}
 	return Preview{}, 0, false
+}
+
+// Clone the organization.
+func (org Org) Clone() Org {
+	neworg := org // copy the non-pointer values
+
+	// clones below are all shallow clones but enough for the mutation cases we handle.
+	neworg.Deployments = maps.Clone(org.Deployments)
+	neworg.Drifts = slices.Clone(org.Drifts)
+	neworg.Stacks = slices.Clone(org.Stacks)
+	neworg.Members = slices.Clone(org.Members)
+	neworg.ReviewRequests = slices.Clone(org.ReviewRequests)
+	neworg.Previews = slices.Clone(org.Previews)
+	return neworg
 }
