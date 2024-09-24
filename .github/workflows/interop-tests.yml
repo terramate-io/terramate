@@ -1,0 +1,46 @@
+# Copyright 2023 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+name: interop
+on:
+  pull_request:
+    paths:
+      - '**.go'
+
+jobs:
+  interop-tests:
+    permissions:
+      id-token: write       # This is required for requesting the JWT
+      contents: read        # This is required for actions/checkout
+      pull-requests: write  # This is required for commenting on the PR.
+      checks: read          # This is required for fetching check runs.
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: run interop tests
+        id: interop
+        run: |
+          echo "result<<EOF" >> $GITHUB_OUTPUT
+          echo "$(go test -v -count=1 -tags interop ./e2etests/cloud/interop/...)" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          TMC_API_HOST: api.terramate.io
+      
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: interop
+          message: |
+            ```
+            ${{ steps.interop.outputs.result }}
+            ```
