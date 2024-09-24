@@ -340,6 +340,17 @@ func (tree *Tree) IsStack() bool {
 	return tree.Node.Stack != nil
 }
 
+// IsInsideStack tells if current tree node is inside a parent stack.
+func (tree *Tree) IsInsideStack() bool {
+	if tree.Parent == nil {
+		return false
+	}
+	if tree.Parent.IsStack() {
+		return true
+	}
+	return tree.Parent.IsInsideStack()
+}
+
 // Stack returns the stack object.
 func (tree *Tree) Stack() (*Stack, error) {
 	if tree.stack == nil {
