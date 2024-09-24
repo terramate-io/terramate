@@ -26,7 +26,9 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 	} {
 		t.Run("preview: "+path.Base(stackpath), func(t *testing.T) {
 			env := os.Environ()
-			env = append(env, fmt.Sprintf("GITHUB_EVENT_PATH=%s", datapath(t, "testdata/event_pull_request.json")))
+			if os.Getenv("GITHUB_EVENT_PATH") == "" {
+				env = append(env, fmt.Sprintf("GITHUB_EVENT_PATH=%s", datapath(t, "testdata/event_pull_request.json")))
+			}
 			env = append(env, "GITHUB_ACTIONS=1")
 			tmcli := NewInteropCLI(t, datapath(t, stackpath), env...)
 			AssertRunResult(t,
