@@ -232,7 +232,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 				listdir = s.RootDir()
 			}
 
-			got, err := generate.ListGenFiles(s.Config(), listdir)
+			got, err := generate.ListStackGenFiles(s.Config(), listdir)
 			assert.NoError(t, err)
 			assertEqualStringList(t, got, tcase.want)
 		})

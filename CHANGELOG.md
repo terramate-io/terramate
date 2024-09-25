@@ -20,6 +20,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- Fix "outdated-code" safeguard giving false positive results for files generated
+ in subdirectory of stacks.
+
 ## v0.10.5
 
 ### Fixed
