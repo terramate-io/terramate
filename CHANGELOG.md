@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `terramate create --wants ... --wanted-by ...` flags for configuring the `stack.wants` and `stack.wanted_by` attributes, respectively.
+
 ## v0.10.6
 
 ### Fixed

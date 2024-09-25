@@ -120,13 +120,16 @@ type cliSpec struct {
 	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature."`
 
 	Create struct {
-		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack."`
-		ID             string   `help:"Set the ID of the stack, defaults to an UUIDv4 string."`
-		Name           string   `help:"Set the name of the stack, defaults to the basename of <path>"`
-		Description    string   `help:"Set the description of the stack, defaults to <name>"`
-		Import         []string `help:"Add 'import' block to the configuration of the new stack."`
-		After          []string `help:"Add 'after' attribute to the configuration of the new stack."`
-		Before         []string `help:"Add 'before' attribute to the configuration of the new stack."`
+		Path        string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack."`
+		ID          string   `help:"Set the ID of the stack, defaults to an UUIDv4 string."`
+		Name        string   `help:"Set the name of the stack, defaults to the basename of <path>"`
+		Description string   `help:"Set the description of the stack, defaults to <name>"`
+		Import      []string `help:"Add 'import' block to the configuration of the new stack."`
+		After       []string `help:"Add 'after' attribute to the configuration of the new stack."`
+		Before      []string `help:"Add 'before' attribute to the configuration of the new stack."`
+		Wants       []string `help:"Add 'wants' attribute to the configuration of the new stack."`
+		WantedBy    []string `help:"Add 'wanted_by' attribute to the configuration of the new stack."`
+
 		Watch          []string `help:"Add 'watch' attribute to the configuration of the new stack."`
 		IgnoreExisting bool     `help:"Skip creation without error when the stack already exist."`
 		AllTerraform   bool     `help:"Import existing Terraform Root Modules as stacks."`
@@ -1336,6 +1339,8 @@ func (c *cli) scanCreate() {
 		c.parsedArgs.Create.IgnoreExisting ||
 		len(c.parsedArgs.Create.After) != 0 ||
 		len(c.parsedArgs.Create.Before) != 0 ||
+		len(c.parsedArgs.Create.Wants) != 0 ||
+		len(c.parsedArgs.Create.WantedBy) != 0 ||
 		len(c.parsedArgs.Create.Watch) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
 
@@ -1555,6 +1560,8 @@ func (c *cli) createStack() {
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
+		Wants:       c.parsedArgs.Create.Wants,
+		WantedBy:    c.parsedArgs.Create.WantedBy,
 		Watch:       watch,
 		Tags:        tags,
 	}
