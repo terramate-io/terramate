@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix the cleaning up of orphaned files in the `terramate generate` to respect the `-C <dir>` flag.
+
 ## v0.10.6
 
 ### Fixed
