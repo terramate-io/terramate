@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -24,8 +23,4 @@ func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = config.LoadAllStacks(root, root.Tree())
 	assert.IsError(t, err, errors.E(config.ErrStackDuplicatedID))
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

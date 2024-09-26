@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -157,8 +156,4 @@ func TestLoad(t *testing.T) {
 			assertion.Partial(cfg, tc.want.cfg)
 		})
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

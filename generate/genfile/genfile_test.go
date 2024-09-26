@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate/genfile"
@@ -1019,8 +1018,4 @@ func testGenfile(t *testing.T, tcase testcase) {
 			)
 		}
 	})
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

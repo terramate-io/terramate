@@ -6,7 +6,6 @@ package sandbox_test
 import (
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -35,8 +34,4 @@ func TestInitializeArbitraryRemote(t *testing.T) {
 
 	git.SetupRemote(remote, remoteBranch, "main")
 	git.RevParse(remote + "/" + remoteBranch)
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

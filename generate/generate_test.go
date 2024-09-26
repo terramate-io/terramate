@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
@@ -1200,8 +1199,4 @@ func assertEqualStringList(t *testing.T, got []string, want []string) {
 	if failed {
 		t.Fatalf("got %v != want %v", got, want)
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

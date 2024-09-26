@@ -19,7 +19,6 @@ import (
 	errtest "github.com/terramate-io/terramate/test/errors"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -316,8 +315,4 @@ func TestTriggerParser(t *testing.T) {
 			assert.EqualStrings(t, info.Context, tc.want.info.Context)
 		})
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
