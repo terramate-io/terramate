@@ -29,6 +29,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix the cleaning up of orphaned files in the `terramate generate` to respect the `-C <dir>` flag.
+- Fix the value of `terramate.stack.path.basename` and `terramate.root.path.basename` which were given the value of `"\\"` in the case the stack was defined at the project root directory.
 
 ## v0.10.6
 

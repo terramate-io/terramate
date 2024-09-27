@@ -202,7 +202,7 @@ func (s *Stack) AppendBefore(path string) {
 func (s *Stack) String() string { return s.Dir.String() }
 
 // PathBase returns the base name of the stack path.
-func (s *Stack) PathBase() string { return filepath.Base(s.Dir.String()) }
+func (s *Stack) PathBase() string { return filepath.ToSlash(filepath.Base(s.Dir.String())) }
 
 // RelPath returns the project's relative path of stack.
 func (s *Stack) RelPath() string { return s.Dir.String()[1:] }
