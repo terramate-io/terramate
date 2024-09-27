@@ -6,6 +6,7 @@
 package interop_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -26,9 +27,23 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 	} {
 		t.Run("preview: "+path.Base(stackpath), func(t *testing.T) {
 			env := os.Environ()
-			if os.Getenv("GITHUB_EVENT_PATH") == "" {
-				env = append(env, fmt.Sprintf("GITHUB_EVENT_PATH=%s", datapath(t, "testdata/event_pull_request.json")))
+
+			eventFile := os.Getenv("GITHUB_EVENT_PATH")
+			if eventFile != "" {
+				// check if exported GITHUB_EVENT_FILE is of type `pull_request`
+				var obj map[string]interface{}
+				content, err := os.ReadFile(eventFile)
+				assert.NoError(t, err)
+				assert.NoError(t, json.Unmarshal(content, &obj))
+				if obj["pull_request"] == nil {
+					eventFile = ""
+				}
 			}
+			if eventFile == "" {
+				eventFile = datapath(t, "testdata/event_pull_request.json")
+				env = append(env, fmt.Sprintf("GITHUB_EVENT_PATH=%s", eventFile))
+			}
+			t.Logf("using GITHUB_EVENT_FILE=%s", eventFile)
 			env = append(env, "GITHUB_ACTIONS=1")
 			tmcli := NewInteropCLI(t, datapath(t, stackpath), env...)
 			AssertRunResult(t,
