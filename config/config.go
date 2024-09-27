@@ -270,7 +270,7 @@ func (root *Root) Runtime() project.Runtime {
 func (root *Root) initRuntime() {
 	rootfs := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(root.HostDir()),
-		"basename": cty.StringVal(filepath.Base(root.HostDir())),
+		"basename": cty.StringVal(filepath.ToSlash(filepath.Base(root.HostDir()))),
 	})
 	rootpath := cty.ObjectVal(map[string]cty.Value{
 		"fs": rootfs,
