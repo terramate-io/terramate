@@ -81,6 +81,8 @@ func TestCreateFailsWithIncompatibleFlags(t *testing.T) {
 		"--description=desc",
 		"--after=/test",
 		"--before=/test",
+		"--wants=/test",
+		"--wanted-by=/test",
 		"--import=/test",
 		"--ignore-existing",
 	}
@@ -106,6 +108,10 @@ func TestCreateStack(t *testing.T) {
 		stackAfter2      = "stack-after-2"
 		stackBefore1     = "stack-before-1"
 		stackBefore2     = "stack-before-2"
+		stackWants1      = "stack-wants-1"
+		stackWants2      = "stack-wants-2"
+		stackWanted1     = "stack-wanted-1"
+		stackWanted2     = "stack-wanted-2"
 		watch1           = "watched1.txt"
 		watch2           = "watched2.txt"
 		stackTag1        = "a"
@@ -132,7 +138,7 @@ func TestCreateStack(t *testing.T) {
 	`, genFilename, genFileContent)
 
 		stackPaths := []string{
-			"stack-1",
+			"/stack-1",
 			"/stack-2",
 			"/stacks/stack-a",
 			"stacks/stack-b",
@@ -168,6 +174,8 @@ func TestCreateStack(t *testing.T) {
 			assert.EqualStrings(t, stackDescription, got.Description, "checking stack description")
 			test.AssertDiff(t, got.After, []string{stackAfter1, stackAfter2}, "created stack has invalid after")
 			test.AssertDiff(t, got.Before, []string{stackBefore1, stackBefore2}, "created stack has invalid before")
+			test.AssertDiff(t, got.Wants, []string{stackWants1, stackWants2}, "created stack has invalid wants")
+			test.AssertDiff(t, got.WantedBy, []string{stackWanted1, stackWanted2}, "created stack has invalid wanted_by")
 			test.AssertDiff(t, got.Watch, wantWatch, "created stack has invalid watch")
 			test.AssertDiff(t, got.Tags, []string{stackTag1, stackTag2})
 
@@ -189,6 +197,10 @@ func TestCreateStack(t *testing.T) {
 		"--after", stackAfter2,
 		"--before", stackBefore1,
 		"--before", stackBefore2,
+		"--wants", stackWants1,
+		"--wants", stackWants2,
+		"--wanted-by", stackWanted1,
+		"--wanted-by", stackWanted2,
 		"--watch", watch1,
 		"--watch", watch2,
 		"--tags", stackTag1,
@@ -201,6 +213,8 @@ func TestCreateStack(t *testing.T) {
 		"--import", strings.Join([]string{stackImport1, stackImport2}, ","),
 		"--after", strings.Join([]string{stackAfter1, stackAfter2}, ","),
 		"--before", strings.Join([]string{stackBefore1, stackBefore2}, ","),
+		"--wants", strings.Join([]string{stackWants1, stackWants2}, ","),
+		"--wanted-by", strings.Join([]string{stackWanted1, stackWanted2}, ","),
 		"--watch", strings.Join([]string{watch1, watch2}, ","),
 		"--tags", strings.Join([]string{stackTag1, stackTag2}, ","),
 	)
