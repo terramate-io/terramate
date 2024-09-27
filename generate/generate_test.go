@@ -799,6 +799,97 @@ func TestGenerateCleanup(t *testing.T) {
 			},
 		},
 		{
+			name: "workdir is respected in cleanup",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-1/stack-1-a",
+				"s:stacks/stack-1/stack-1-b",
+				"s:stacks/stack-3", // only files here will be cleaned up.
+				genfile("dir/orphan.hcl"),
+				genfile("stacks/stack-1/a.hcl"),
+				genfile("stacks/stack-1/subdir/b.hcl"),
+				genfile("stacks/stack-1/subdir/dir/c.hcl"),
+				genfile("stacks/stack-1/stack-1-a/e.hcl"),
+				genfile("stacks/stack-1/stack-1-a/subdir/f.hcl"),
+				genfile("stacks/stack-1/stack-1-a/subdir/dir/g.hcl"),
+				genfile("stacks/stack-1/stack-1-b/h.hcl"),
+				genfile("stacks/stack-2/d.hcl"),
+				genfile("stacks/stack-3/x.hcl"),
+				genfile("stacks/stack-3/subdir/y.hcl"),
+				genfile("stacks/stack-3/subdir/dir/z.hcl"),
+			},
+			fromdir: "/stacks/stack-3",
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: project.NewPath("/stacks/stack-3"),
+						Deleted: []string{
+							"subdir/dir/z.hcl",
+							"subdir/y.hcl",
+							"x.hcl",
+						},
+					},
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"a.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/stack-1-a",
+					files: map[string]fmt.Stringer{
+						"e.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/stack-1-a/subdir/dir",
+					files: map[string]fmt.Stringer{
+						"g.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/stack-1-a/subdir",
+					files: map[string]fmt.Stringer{
+						"f.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/stack-1-b",
+					files: map[string]fmt.Stringer{
+						"h.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/subdir",
+					files: map[string]fmt.Stringer{
+						"b.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/subdir/dir",
+					files: map[string]fmt.Stringer{
+						"c.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"d.hcl": Doc(),
+					},
+				},
+				{
+					dir: "/dir",
+					files: map[string]fmt.Stringer{
+						"orphan.hcl": Doc(),
+					},
+				},
+			},
+		},
+		{
 			name: "cleanup ignores dotdirs outside stacks",
 			layout: []string{
 				genfile(".dir/a.hcl", "AAA"),
