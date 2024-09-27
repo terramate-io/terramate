@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -55,8 +54,4 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 			t.Fatalf("unexpected entry: %v", entry.Name())
 		}
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
@@ -4165,8 +4164,4 @@ func testGlobals(t *testing.T, tcase testcase) {
 			t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
 		}
 	})
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

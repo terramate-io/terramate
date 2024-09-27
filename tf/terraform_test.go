@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/test"
@@ -401,7 +400,3 @@ func fixupFiledirOnErrorsFileRanges(dir string, errs []error) {
 }
 
 var end = start
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
-}

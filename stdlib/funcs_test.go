@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
@@ -384,7 +383,3 @@ func TestStdlibTofuSanityCheck(t *testing.T) {
 }
 
 func nljoin(strs ...string) string { return strings.Join(strs, "\n") + "\n" }
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
-}

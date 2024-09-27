@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -332,8 +331,4 @@ func TestConfigSkipdir(t *testing.T) {
 
 func isStack(root *config.Root, dir string) bool {
 	return config.IsStack(root, filepath.Join(root.HostDir(), dir))
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
