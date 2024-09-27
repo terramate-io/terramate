@@ -194,7 +194,7 @@ func Do(
 	stackReport := doStackGeneration(root, tree, vendorDir, vendorRequests)
 	rootReport := doRootGeneration(root, tree)
 	report := mergeReports(stackReport, rootReport)
-	return cleanupOrphaned(root, report)
+	return cleanupOrphaned(root, tree, report)
 }
 
 func doStackGeneration(
@@ -1339,21 +1339,23 @@ func loadStackCodeCfgs(
 	return genfilesConfigs, nil
 }
 
-func cleanupOrphaned(root *config.Root, report Report) Report {
+func cleanupOrphaned(root *config.Root, target *config.Tree, report Report) Report {
 	logger := log.With().
 		Str("action", "generate.cleanupOrphaned()").
+		Stringer("dir", target.Dir()).
 		Logger()
-	// If the root of the tree is a stack then there is nothing to do
-	// since there can't be any orphans (the root parent stack owns
-	// the entire project).
-	if root.Tree().IsStack() {
-		logger.Debug().Msg("project root is a stack, nothing to do")
+
+	defer report.sort()
+
+	// If the target tree is a stack then there is nothing to do
+	// as it was already generated at this point.
+	if target.IsStack() {
 		return report
 	}
 
 	logger.Debug().Msg("listing orphaned generated files")
 
-	orphanedGenFiles, err := ListStackGenFiles(root, root.HostDir())
+	orphanedGenFiles, err := ListStackGenFiles(root, target.HostDir())
 	if err != nil {
 		report.CleanupErr = err
 		return report
@@ -1363,8 +1365,8 @@ func cleanupOrphaned(root *config.Root, report Report) Report {
 	deleteFailures := map[project.Path]*errors.List{}
 
 	for _, genfile := range orphanedGenFiles {
-		genfileAbspath := filepath.Join(root.HostDir(), genfile)
-		dir := project.NewPath("/" + filepath.ToSlash(filepath.Dir(genfile)))
+		genfileAbspath := filepath.Join(target.HostDir(), genfile)
+		dir := project.PrjAbsPath(root.HostDir(), filepath.Dir(genfileAbspath))
 		if err := os.Remove(genfileAbspath); err != nil {
 			if deleteFailures[dir] == nil {
 				deleteFailures[dir] = errors.L()
@@ -1402,7 +1404,5 @@ func cleanupOrphaned(root *config.Root, report Report) Report {
 			Deleted: deletedFiles,
 		})
 	}
-
-	report.sort()
 	return report
 }
