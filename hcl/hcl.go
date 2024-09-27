@@ -796,10 +796,6 @@ func (p *TerramateParser) internalParsedFiles() []string {
 }
 
 func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
-	logger := log.With().
-		Str("action", "parseStack()").
-		Logger()
-
 	errs := errors.L()
 	for _, block := range stackblock.Body.Blocks {
 		errs.Append(
@@ -809,7 +805,6 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 
 	stack := &Stack{}
 
-	logger.Debug().Msg("Get stack attributes.")
 	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
 	for _, attr := range ast.SortRawAttributes(attrs) {
 		attrVal, err := p.evalctx.Eval(attr.Expr)
@@ -2145,11 +2140,6 @@ func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) e
 }
 
 func (p *TerramateParser) parseTerramateSchema() (Config, error) {
-	logger := log.With().
-		Str("action", "parseTerramateSchema()").
-		Str("dir", p.dir).
-		Logger()
-
 	config := Config{
 		absdir: p.dir,
 	}
@@ -2277,8 +2267,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	}
 
 	if foundVendor {
-		logger.Debug().Msg("parsing manifest")
-
 		if config.Vendor != nil {
 			errs.Append(errors.E(errKind, vendorBlock.DefRange(),
 				"duplicated vendor blocks across configs"))
@@ -2302,8 +2290,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	config.Globals = globals
 
 	if foundstack {
-		logger.Debug().Msg("Parsing stack cfg.")
-
 		if config.Stack != nil {
 			errs.Append(errors.E(errKind, stackblock.DefRange(),
 				"duplicated stack blocks across configs"))
