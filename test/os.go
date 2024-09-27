@@ -131,6 +131,7 @@ func RemoveFile(t testing.TB, dir, fname string) {
 
 // Mkdir creates a directory inside base.
 func Mkdir(t testing.TB, base string, name string) string {
+	t.Helper()
 	path := filepath.Join(base, name)
 	assert.NoError(t, os.Mkdir(path, 0700), "creating dir")
 	return path

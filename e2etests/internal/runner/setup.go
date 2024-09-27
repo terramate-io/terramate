@@ -23,6 +23,10 @@ var TerraformVersion string
 // TerraformTestPath is the path to the installed terraform binary.
 var TerraformTestPath string
 
+// TerraformTestPathAsHCL is the path to the installed terraform binary
+// but suited for including in an HCL string expression.
+var TerraformTestPathAsHCL string
+
 var terraformCleanup func()
 
 // HelperPath is the path to the test binary we compiled for test purposes
@@ -64,6 +68,10 @@ func Setup(projectRoot string) (err error) {
 			err = errors.E(err, "failed to setup Terraform binary")
 			return
 		}
+		TerraformTestPathAsHCL = fmt.Sprintf(`${tm_chomp(<<-EOF
+		%s
+	EOF
+	)}`, TerraformTestPath)
 	})
 
 	if err == nil {

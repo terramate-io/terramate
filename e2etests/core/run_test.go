@@ -918,10 +918,9 @@ func TestCLIRunOrder(t *testing.T) {
 					t.Parallel()
 					copiedLayout := make([]string, len(tc.layout))
 					copy(copiedLayout, tc.layout)
-					if runtime.GOOS != "windows" {
-						copiedLayout = append(copiedLayout,
 
-							fmt.Sprintf(`file:script.tm:
+					copiedLayout = append(copiedLayout,
+						fmt.Sprintf(`file:script.tm:
 terramate {
 	config {
 		experiments = ["scripts"]
@@ -930,10 +929,14 @@ terramate {
 script "cmd" {
 	description = "test"
 	job {
-		command = ["%s", "stack-abs-path", "%s"]
+		command = ["helper", "stack-abs-path", "${tm_chomp(<<-EOF
+                    %s
+					EOF
+				)}"]
 	}
-}`, HelperPath, s.RootDir()))
-					}
+}`, s.RootDir()))
+					t.Logf("config: %v", copiedLayout)
+
 					s.BuildTree(copiedLayout)
 
 					wd := s.RootDir()
@@ -950,6 +953,7 @@ script "cmd" {
 					}
 
 					cli := NewCLI(t, wd)
+					cli.PrependToPath(filepath.Dir(HelperPath))
 					AssertRunResult(t, cli.StacksRunOrder(filterArgs...), tc.want)
 					runArgs := []string{
 						"--quiet", "run", "-X", // disable all safeguards
@@ -958,21 +962,19 @@ script "cmd" {
 					runArgs = append(runArgs, "--", HelperPath, "stack-abs-path", s.RootDir())
 					AssertRunResult(t, cli.Run(runArgs...), tc.want)
 
-					if runtime.GOOS != "windows" {
-						runScriptArgs := []string{
-							"--quiet",
-						}
-						runScriptArgs = append(runScriptArgs, filterArgs...)
-						runScriptArgs = append(runScriptArgs, "script", "run", "-X", "cmd") // disable all safeguards)
-						AssertRunResult(t, cli.Run(runScriptArgs...), RunExpected{
-							Status:        tc.want.Status,
-							IgnoreStderr:  true,
-							Stdout:        tc.want.Stdout,
-							IgnoreStdout:  tc.want.IgnoreStdout,
-							StdoutRegex:   tc.want.StdoutRegex,
-							StdoutRegexes: tc.want.StdoutRegexes,
-						})
+					runScriptArgs := []string{
+						"--quiet",
 					}
+					runScriptArgs = append(runScriptArgs, filterArgs...)
+					runScriptArgs = append(runScriptArgs, "script", "run", "-X", "cmd") // disable all safeguards)
+					AssertRunResult(t, cli.Run(runScriptArgs...), RunExpected{
+						Status:        tc.want.Status,
+						IgnoreStderr:  true,
+						Stdout:        tc.want.Stdout,
+						IgnoreStdout:  tc.want.IgnoreStdout,
+						StdoutRegex:   tc.want.StdoutRegex,
+						StdoutRegexes: tc.want.StdoutRegexes,
+					})
 				})
 			}
 		})
@@ -2611,25 +2613,25 @@ func TestRunOutput(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:    "run without eval",
-			runArgs: []string{HelperPath, "echo", "hello"},
+			runArgs: []string{"helper", "echo", "hello"},
 			want: RunExpected{
 				Stderr: "terramate: Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: Executing command "%s echo hello"`, HelperPath) + "\n",
+					`terramate: Executing command "helper echo hello"` + "\n",
 				Stdout: "hello\n",
 			},
 		},
 		{
 			name:    "run with eval",
-			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			runArgs: []string{"--eval", "helper", "echo", "${terramate.stack.name}"},
 			want: RunExpected{
 				Stderr: "terramate: Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: Executing command "%s echo stack"`, HelperPath) + "\n",
+					`terramate: Executing command "helper echo stack"` + "\n",
 				Stdout: "stack\n",
 			},
 		},
 		{
 			name:    "run with eval with error",
-			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.abcabc}"},
+			runArgs: []string{"--eval", "helper", "echo", "${terramate.stack.abcabc}"},
 			want: RunExpected{
 				Stderr: "Error: unable to evaluate command" + "\n" +
 					`> <cmd arg>:1,19-26: eval expression: eval "${terramate.stack.abcabc}": This object does not have an attribute named "abcabc"` + ".\n",
@@ -2644,6 +2646,7 @@ func TestRunOutput(t *testing.T) {
 			git := s.Git()
 			git.CommitAll("first commit")
 			cli := NewCLI(t, s.RootDir())
+			cli.PrependToPath(filepath.Dir(HelperPath))
 			AssertRunResult(t,
 				cli.Run(append([]string{"run"}, tc.runArgs...)...),
 				tc.want,
@@ -2665,19 +2668,19 @@ func TestRunDryRun(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:    "dryrun without eval",
-			runArgs: []string{"--dry-run", HelperPath, "echo", "hello"},
+			runArgs: []string{"--dry-run", "helper", "echo", "hello"},
 			want: RunExpected{
 				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo hello"`, HelperPath) + "\n",
+					`terramate: (dry-run) Executing command "helper echo hello"` + "\n",
 				Stdout: "",
 			},
 		},
 		{
 			name:    "dryrun with eval",
-			runArgs: []string{"--dry-run", "--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			runArgs: []string{"--dry-run", "--eval", "helper", "echo", "${terramate.stack.name}"},
 			want: RunExpected{
 				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo stack"`, HelperPath) + "\n",
+					`terramate: (dry-run) Executing command "helper echo stack"` + "\n",
 				Stdout: "",
 			},
 		},
@@ -2688,6 +2691,7 @@ func TestRunDryRun(t *testing.T) {
 			git := s.Git()
 			git.CommitAll("first commit")
 			cli := NewCLI(t, s.RootDir())
+			cli.PrependToPath(filepath.Dir(HelperPath))
 			AssertRunResult(t,
 				cli.Run(append([]string{"run"}, tc.runArgs...)...),
 				tc.want,
