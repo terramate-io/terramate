@@ -1,15 +1,9 @@
 # Copyright 2023 Terramate GmbH
 # SPDX-License-Identifier: MPL-2.0
 
-name: ci-experimental
+name: ci-windows
 on:
-  push:
-    paths-ignore:
-      - 'docs/**'
-      - 'makefiles/**'
-      - '.github/**'
-      - '**/*.tm.hcl'
-      - '.tool-versions'
+  pull_request:
 
 jobs:
   build_test:

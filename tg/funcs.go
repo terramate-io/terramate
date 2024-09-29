@@ -105,6 +105,8 @@ func findInParentFoldersImpl(
 			fileToFind = tgconfig.GetDefaultConfigPath(parentDir.HostPath(rootdir))
 		}
 
+		fileToFind = filepath.FromSlash(fileToFind)
+
 		if util.FileExists(fileToFind) {
 			return fileToFind, nil
 		}

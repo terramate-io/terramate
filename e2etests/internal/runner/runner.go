@@ -430,8 +430,8 @@ func AssertRunResult(t *testing.T, got RunResult, want RunExpected) {
 				}
 			}
 		} else {
-			if want.Stderr != got.Stderr {
-				t.Errorf("stderr mismatch: got %q != want %q", got.Stderr, want.Stderr)
+			if diff := cmp.Diff(want.Stderr, got.Stderr); diff != "" {
+				t.Errorf("stderr mismatch (-want +got): %s", diff)
 			}
 		}
 	}

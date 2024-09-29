@@ -274,7 +274,7 @@ func TestRunSharing(t *testing.T) {
 					Labels("name"),
 					Expr("type", "terraform"),
 					Str("filename", "sharing.tf"),
-					Command(HelperPath, "exit", "1"),
+					Command("helper", "exit", "1"),
 				).String(),
 				"s:s1:id=s1",
 				"f:s1/main.tf:" + Doc(
@@ -335,7 +335,7 @@ func TestRunSharing(t *testing.T) {
 					Labels("name"),
 					Expr("type", "terraform"),
 					Str("filename", "sharing.tf"),
-					Command(HelperPath, "echo", "{}"),
+					Command("helper", "echo", "{}"),
 				).String(),
 				"s:s1:id=s1",
 				"f:s1/main.tf:" + Doc(
@@ -402,7 +402,7 @@ func TestRunSharing(t *testing.T) {
 					Labels("name"),
 					Expr("type", "terraform"),
 					Str("filename", "sharing.tf"),
-					Command(HelperPath, "echo", "$error"),
+					Command("helper", "echo", "$error"),
 				).String(),
 				"s:s1:id=s1",
 				"f:s1/main.tf:" + Doc(
@@ -503,7 +503,8 @@ func TestRunSharing(t *testing.T) {
 				s.BuildTree(layout)
 				tmcli := NewCLI(t, s.RootDir())
 				tmcli.PrependToPath(filepath.Dir(TerraformTestPath))
-				res := tmcli.Run("run", HelperPath, "echo", "hello")
+				tmcli.PrependToPath(filepath.Dir(HelperPath))
+				res := tmcli.Run("run", "helper", "echo", "hello")
 				if res.Status == 0 {
 					// generate safeguard must trigger
 					t.Fatal("run must fail if sharing is not generated")

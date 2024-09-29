@@ -2259,6 +2259,7 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 			layout: []string{
 				"s:st{a}ck\\s/stack-1",
 			},
+			skipOn: "windows", // backslash is a Windows path separator, so this test is impossible on Windows.
 			configs: []hclconfig{
 				{
 					path: "/",

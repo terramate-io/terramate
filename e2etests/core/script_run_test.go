@@ -6,6 +6,7 @@ package core_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -204,14 +205,18 @@ func TestScriptRun(t *testing.T) {
 			args:      []string{"--continue-on-error"},
 			want: RunExpected{
 				Status: 1,
-				Stderr: `Script 0 at /stack-a/script.tm:2,5-13,6 having 3 job(s)` + "\n" +
-					"/stack-a (script:0 job:0.0)> echo hello1" + "\n" +
-					"/stack-a (script:0 job:1.0)> someunknowncommand" + "\n" +
-					"/stack-a/stack-b (script:0 job:0.0)> echo hello1" + "\n" +
-					"/stack-a/stack-b (script:0 job:1.0)> someunknowncommand" + "\n" +
-					"Error: one or more commands failed" + "\n" +
-					"> executable file not found in $PATH: running " + "`someunknowncommand`" + " in stack /stack-a: someunknowncommand" + "\n" +
-					"> executable file not found in $PATH: running " + "`someunknowncommand`" + " in stack /stack-a/stack-b: someunknowncommand" + "\n",
+				StderrRegexes: []string{
+					regexp.QuoteMeta(`Script 0 at /stack-a/script.tm:2,5-13,6 having 3 job(s)` + "\n" +
+						"/stack-a (script:0 job:0.0)> echo hello1" + "\n" +
+						"/stack-a (script:0 job:1.0)> someunknowncommand" + "\n" +
+						"/stack-a/stack-b (script:0 job:0.0)> echo hello1" + "\n" +
+						"/stack-a/stack-b (script:0 job:1.0)> someunknowncommand" + "\n" +
+						"Error: one or more commands failed" + "\n" +
+						"> executable file not found in "),
+					regexp.QuoteMeta(" running " + "`someunknowncommand`" + " in stack /stack-a: someunknowncommand" + "\n" +
+						"> executable file not found in "),
+					regexp.QuoteMeta("running " + "`someunknowncommand`" + " in stack /stack-a/stack-b: someunknowncommand" + "\n"),
+				},
 				Stdout: "hello1" + "\n" +
 					"hello1" + "\n",
 			},
@@ -228,7 +233,7 @@ func TestScriptRun(t *testing.T) {
 					command = ["echo", "hello1"]
 				  }
 				  job {
-					command = ["` + HelperPath + `", "false"]
+					command = ["helper", "false"]
 				  }
 				  job {
 					command = ["echo", "hello2"]
@@ -242,12 +247,12 @@ func TestScriptRun(t *testing.T) {
 				Status: 1,
 				Stderr: "Script 0 at /stack-a/script.tm:2,5-13,6 having 3 job(s)\n" +
 					"/stack-a (script:0 job:0.0)> echo hello1\n" +
-					"/stack-a (script:0 job:1.0)> " + HelperPath + " false\n" +
+					"/stack-a (script:0 job:1.0)> helper false\n" +
 					"/stack-a/stack-b (script:0 job:0.0)> echo hello1\n" +
-					"/stack-a/stack-b (script:0 job:1.0)> " + HelperPath + " false\n" +
+					"/stack-a/stack-b (script:0 job:1.0)> helper false\n" +
 					"Error: one or more commands failed\n" +
-					"> execution failed: running " + HelperPath + " false (in /stack-a): exit status 1\n" +
-					"> execution failed: running " + HelperPath + " false (in /stack-a/stack-b): exit status 1\n",
+					"> execution failed: running helper false (in /stack-a): exit status 1\n" +
+					"> execution failed: running helper false (in /stack-a/stack-b): exit status 1\n",
 				Stdout: "hello1" + "\n" +
 					"hello1" + "\n",
 			},
@@ -489,6 +494,7 @@ func TestScriptRun(t *testing.T) {
 					env = append(env, tc.env...)
 
 					cli := NewCLI(t, wd, env...)
+					cli.PrependToPath(filepath.Dir(HelperPath))
 					args := tc.args
 					args = append(args, tc.runScript...)
 					AssertRunResult(t, cli.RunScript(args...), tc.want)

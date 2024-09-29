@@ -665,7 +665,7 @@ func (c *cli) runAll(
 
 				var err error
 				if !task.isSuccessExit(result.cmd.ProcessState.ExitCode()) {
-					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", result.cmd, run.Stack.Dir)
+					err = errors.E(result.err, ErrRunFailed, "running %s (in %s)", cmdStr, run.Stack.Dir)
 					errs.Append(err)
 				}
 

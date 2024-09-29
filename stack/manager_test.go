@@ -419,6 +419,7 @@ func singleNotChangedStackNewBranch(t *testing.T) repository {
 }
 
 func addMergeCommit(t *testing.T, repodir, branch string) {
+	t.Helper()
 	g := test.NewGitWrapper(t, repodir, []string{})
 
 	assert.NoError(t, g.Checkout("main", false), "checkout main failed")
@@ -460,6 +461,7 @@ func singleMergeCommitRepo(t *testing.T) repository {
 }
 
 func singleMergeCommitRepoNoStack(t *testing.T) repository {
+	t.Helper()
 	repodir := test.NewRepo(t)
 	repo := repository{
 		Dir: repodir,
@@ -1019,6 +1021,7 @@ func terragruntStackChangedDueToDepOfDepModuleSourceChangedRepo(t *testing.T) re
 }
 
 func terragruntStackChangedDueToReferencedFileChangedRepo(t *testing.T) repository {
+	t.Helper()
 	repo := singleMergeCommitRepoNoStack(t)
 	stack := test.Mkdir(t, repo.Dir, "tg-stack")
 
@@ -1080,6 +1083,7 @@ func newManager(t *testing.T, basedir string) *stack.Manager {
 }
 
 func createStack(t *testing.T, root *config.Root, absdir string) {
+	t.Helper()
 	dir := project.PrjAbsPath(root.HostDir(), absdir)
 	assert.NoError(t, stack.Create(root, config.Stack{Dir: dir}), "terramate init failed")
 }

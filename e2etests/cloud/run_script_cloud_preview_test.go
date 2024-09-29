@@ -5,7 +5,6 @@ package cloud_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -72,13 +71,13 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					}
 				  }
 				`,
-				fmt.Sprintf(`f:stack/preview.tm:
+				`f:stack/preview.tm:
 
 				  script "preview" {
 					description = "sync a preview"
 					job {
 					  commands = [
-						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
+						["terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
 						  sync_preview             = true,
 						  terraform_plan_file = "out.tfplan",
 						}],
@@ -86,8 +85,6 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					}
 				  }
 				  `,
-					TerraformTestPath,
-				),
 				`f:stack/main.tf:
 				  resource "local_file" "foo" {
 					content  = "test content"
@@ -129,13 +126,13 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					}
 				  }
 				`,
-				fmt.Sprintf(`f:stack/preview.tm:
+				`f:stack/preview.tm:
 
 				  script "preview" {
 					description = "sync a preview"
 					job {
 					  commands = [
-						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
+						["terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
 						  sync_preview             = true,
 						  terraform_plan_file = "out.tfplan",
 						}],
@@ -143,8 +140,6 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					}
 				  }
 				  `,
-					TerraformTestPath,
-				),
 				`f:stack/main.tf:
 				  resource "local_file" "foo" {
 					content  = "test content"
@@ -177,7 +172,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						{
 							ID:     "1",
 							Status: "changed",
-							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+							Cmd:    []string{"terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 						},
 					},
 					ReviewRequest: &cloud.ReviewRequest{
@@ -239,14 +234,14 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					}
 				  }
 				`,
-				fmt.Sprintf(`f:stack/preview.tm:
+				`f:stack/preview.tm:
 
 				  script "preview" {
 					description = "sync a preview"
 					job {
 					  commands = [
 					    ["do-not-exist-command"],
-						["%s", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
+						["terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode", {
 						  sync_preview             = true,
 						  terraform_plan_file = "out.tfplan",
 						}],
@@ -254,8 +249,6 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 					}
 				  }
 				  `,
-					TerraformTestPath,
-				),
 				`f:stack/main.tf:
 				  resource "local_file" "foo" {
 					content  = "test content"
@@ -285,7 +278,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						{
 							ID:     "1",
 							Status: "failed",
-							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
+							Cmd:    []string{"terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 						},
 					},
 					ReviewRequest: &cloud.ReviewRequest{
