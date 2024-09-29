@@ -6,7 +6,6 @@ package generate_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/terramate-io/terramate/errors"
@@ -734,16 +733,16 @@ func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T
 	assertFileExist := func(file string) {
 		t.Helper()
 
-		path := filepath.Join(s.RootDir(), file)
-		if _, err := os.Stat(path); err != nil {
+		path := s.RootDir().Join(file)
+		if _, err := os.Stat(path.String()); err != nil {
 			t.Fatalf("want file %q to exist, instead got: %v", path, err)
 		}
 	}
 	assertFileDontExist := func(file string) {
 		t.Helper()
 
-		path := filepath.Join(s.RootDir(), file)
-		_, err := os.Stat(path)
+		path := s.RootDir().Join(file)
+		_, err := os.Stat(path.String())
 
 		if errors.Is(err, os.ErrNotExist) {
 			return

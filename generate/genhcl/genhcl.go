@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/stdlib"
 
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -366,7 +367,7 @@ func Load(
 	return hcls, nil
 }
 
-func evalErr(rootdir string, kind errors.Kind, block hcl.GenHCLBlock, err error) error {
+func evalErr(rootdir os.Path, kind errors.Kind, block hcl.GenHCLBlock, err error) error {
 	if block.IsImplicitBlock {
 		return errors.E(kind, err, `tmgen file "%s"`, project.PrjAbsPath(rootdir, block.Range.HostPath()))
 	}

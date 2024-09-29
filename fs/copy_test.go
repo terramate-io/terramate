@@ -4,13 +4,13 @@
 package fs_test
 
 import (
-	"os"
-	"path/filepath"
+	stdos "os"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/fs"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -30,19 +30,19 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 	})
 
 	destdir := test.TempDir(t)
-	err := fs.CopyDir(destdir, s.RootDir(), func(_ string, entry os.DirEntry) bool {
+	err := fs.CopyDir(destdir, s.RootDir(), func(_ os.Path, entry stdos.DirEntry) bool {
 		return entry.Name() != "notcopy" &&
 			entry.Name() != "root.config.tm"
 	})
 
 	assert.NoError(t, err)
 
-	entries, err := os.ReadDir(destdir)
+	entries, err := stdos.ReadDir(destdir.String())
 	assert.NoError(t, err)
 	assert.EqualInts(t, 1, len(entries))
 	assert.EqualStrings(t, "test", entries[0].Name())
 
-	entries, err = os.ReadDir(filepath.Join(destdir, "test"))
+	entries, err = stdos.ReadDir(destdir.Join("test").String())
 	assert.NoError(t, err)
 	assert.EqualInts(t, 3, len(entries))
 

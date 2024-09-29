@@ -5,25 +5,24 @@
 package hclutils
 
 import (
-	"path/filepath"
-
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 )
 
 // FixupFiledirOnErrorsFileRanges fix the filename in the ranges of the error list.
-func FixupFiledirOnErrorsFileRanges(dir string, errs []error) {
+func FixupFiledirOnErrorsFileRanges(dir os.Path, errs []error) {
 	for _, err := range errs {
 		if e, ok := err.(*errors.Error); ok {
-			e.FileRange.Filename = filepath.Join(dir, e.FileRange.Filename)
+			e.FileRange.Filename = dir.Join(e.FileRange.Filename).String()
 		}
 	}
 }
 
 // Mkrange builds a file range.
-func Mkrange(fname string, start, end hhcl.Pos) hhcl.Range {
+func Mkrange(fname os.Path, start, end hhcl.Pos) hhcl.Range {
 	return hhcl.Range{
-		Filename: fname,
+		Filename: fname.String(),
 		Start:    start,
 		End:      end,
 	}

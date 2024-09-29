@@ -6,8 +6,7 @@ package tg_test
 import (
 	"context"
 	"io"
-	"os"
-	"path/filepath"
+	stdos "os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -16,6 +15,7 @@ import (
 	"github.com/gruntwork-io/terragrunt/config"
 	"github.com/gruntwork-io/terragrunt/options"
 	"github.com/gruntwork-io/terragrunt/util"
+	"github.com/terramate-io/terramate/os"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -39,7 +39,7 @@ func TestTerragruntParser(t *testing.T) {
 		{
 			name: "empty terragrunt.hcl",
 			want: want{
-				err: os.ErrNotExist,
+				err: stdos.ErrNotExist,
 			},
 		},
 		{
@@ -214,7 +214,7 @@ func TestTerragruntParser(t *testing.T) {
 
 			baseDir := s.RootDir()
 			if tc.baseDir != "" {
-				baseDir = filepath.Join(baseDir, tc.baseDir)
+				baseDir = baseDir.Join(tc.baseDir)
 			}
 
 			opts := newTerragruntOptions(baseDir)
@@ -238,13 +238,13 @@ func TestTerragruntParser(t *testing.T) {
 				for k, v := range tc.want.module.FieldsMetadata {
 					for kk, vv := range v {
 						if str, ok := vv.(string); kk == "found_in_file" && ok {
-							tc.want.module.FieldsMetadata[k][kk] = filepath.Join(baseDir, str)
+							tc.want.module.FieldsMetadata[k][kk] = baseDir.Join(str)
 						}
 					}
 				}
 			}
 
-			got, err := config.PartialParseConfigFile(pctx, filepath.Join(baseDir, "terragrunt.hcl"), nil)
+			got, err := config.PartialParseConfigFile(pctx, baseDir.Join("terragrunt.hcl").String(), nil)
 			if err != nil && tc.want.err == nil {
 				t.Error(err)
 			}
@@ -258,12 +258,12 @@ func TestTerragruntParser(t *testing.T) {
 	}
 }
 
-func newTerragruntOptions(dir string) *options.TerragruntOptions {
+func newTerragruntOptions(dir os.Path) *options.TerragruntOptions {
 	opts := options.NewTerragruntOptions()
 	opts.RunTerragrunt = func(_ *options.TerragruntOptions) error {
 		return nil
 	}
-	opts.WorkingDir = dir
+	opts.WorkingDir = dir.String()
 	opts.Writer = io.Discard
 	opts.ErrWriter = io.Discard
 	opts.IgnoreExternalDependencies = true
@@ -273,7 +273,7 @@ func newTerragruntOptions(dir string) *options.TerragruntOptions {
 	// very important, otherwise the functions could block with user prompts.
 	opts.NonInteractive = true
 
-	opts.Env = env.Parse(os.Environ())
+	opts.Env = env.Parse(stdos.Environ())
 
 	if opts.DisableLogColors {
 		util.DisableLogColors()

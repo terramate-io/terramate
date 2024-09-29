@@ -47,7 +47,7 @@ func TestSafeguardsUsages(t *testing.T) {
 			"--disable-safeguards=git-untracked,git-out-of-sync",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{Stdout: fileContents})
 	})
 
@@ -61,7 +61,7 @@ func TestSafeguardsUsages(t *testing.T) {
 			"--disable-safeguards=git-out-of-sync",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{Stdout: fileContents})
 	})
 
@@ -75,7 +75,7 @@ func TestSafeguardsUsages(t *testing.T) {
 			"-X",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{
 			Status:      1,
 			StderrRegex: string(clitest.ErrSafeguardKeywordValidation),
@@ -91,7 +91,7 @@ func TestSafeguardsUsages(t *testing.T) {
 			"--disable-safeguards=all,none",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{
 			Status:      1,
 			StderrRegex: string(clitest.ErrSafeguardKeywordValidation),
@@ -108,7 +108,7 @@ func TestSafeguardsUsages(t *testing.T) {
 			"--disable-safeguards=all,none",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{
 			Status:      1,
 			StderrRegex: string(clitest.ErrSafeguardKeywordValidation),
@@ -180,7 +180,7 @@ func TestSafeguardCheckRemoteFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 			"run",
 			HelperPath,
 			"cat",
-			mainTfFile.HostPath(),
+			mainTfFile.HostPath().String(),
 		), wantRes)
 
 		AssertRunResult(t, ts.Run(
@@ -188,7 +188,7 @@ func TestSafeguardCheckRemoteFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 			"--changed",
 			HelperPath,
 			"cat",
-			mainTfFile.HostPath(),
+			mainTfFile.HostPath().String(),
 		), wantRes)
 	}
 
@@ -238,7 +238,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			"run",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{
 			Status:      1,
 			StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
@@ -253,7 +253,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			"--disable-check-git-remote",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{Stdout: fileContents})
 	})
 
@@ -265,7 +265,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			"--disable-safeguards=git-out-of-sync",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{Stdout: fileContents})
 	})
 
@@ -277,7 +277,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			"--disable-safeguards=git",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{Stdout: fileContents})
 	})
 
@@ -289,7 +289,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			"-X",
 			HelperPath,
 			"cat",
-			file.HostPath(),
+			file.HostPath().String(),
 		), RunExpected{Stdout: fileContents})
 	})
 
@@ -298,7 +298,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=true")
 
 		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
-			"cat", file.HostPath()), RunExpected{
+			"cat", file.HostPath().String()), RunExpected{
 			Stdout: fileContents,
 		})
 	})
@@ -308,7 +308,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_REMOTE=1")
 
 		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
-			"cat", file.HostPath()), RunExpected{
+			"cat", file.HostPath().String()), RunExpected{
 			Stdout: fileContents,
 		})
 	})
@@ -318,7 +318,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=git-out-of-sync")
 
 		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
-			"cat", file.HostPath()), RunExpected{
+			"cat", file.HostPath().String()), RunExpected{
 			Stdout: fileContents,
 		})
 	})
@@ -328,7 +328,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=git")
 
 		AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
-			"cat", file.HostPath()), RunExpected{
+			"cat", file.HostPath().String()), RunExpected{
 			Stdout: fileContents,
 		})
 	})
@@ -356,7 +356,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"run",
 				HelperPath,
 				"cat",
-				file.HostPath(),
+				file.HostPath().String(),
 			),
 				RunExpected{
 					Status:      1,
@@ -384,7 +384,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			git.Commit("commit root config")
 
 			AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
-				"cat", file.HostPath()), RunExpected{
+				"cat", file.HostPath().String()), RunExpected{
 				Stdout: fileContents,
 			})
 		})
@@ -407,7 +407,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			git.Commit("commit root config")
 
 			AssertRunResult(t, tmcli.Run("run", "--quiet", HelperPath,
-				"cat", file.HostPath()), RunExpected{
+				"cat", file.HostPath().String()), RunExpected{
 				Stdout: fileContents,
 			})
 		})
@@ -436,7 +436,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"--disable-safeguards=none",
 				HelperPath,
 				"cat",
-				file.HostPath(),
+				file.HostPath().String(),
 			),
 				RunExpected{
 					Status:      1,
@@ -466,7 +466,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"--disable-safeguards=none",
 				HelperPath,
 				"cat",
-				file.HostPath(),
+				file.HostPath().String(),
 			), RunExpected{
 				Status:      1,
 				StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
@@ -497,7 +497,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"run",
 				HelperPath,
 				"cat",
-				file.HostPath(),
+				file.HostPath().String(),
 			),
 				RunExpected{
 					Status:      1,
@@ -530,7 +530,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"--disable-check-git-remote",
 				HelperPath,
 				"cat",
-				file.HostPath(),
+				file.HostPath().String(),
 			), RunExpected{Stdout: fileContents})
 		})
 
@@ -559,7 +559,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				"--disable-safeguards=git-out-of-sync",
 				HelperPath,
 				"cat",
-				file.HostPath(),
+				file.HostPath().String(),
 			), RunExpected{Stdout: fileContents})
 		})
 }
@@ -592,7 +592,7 @@ func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 		"run",
 		HelperPath,
 		"cat",
-		stackFile.HostPath(),
+		stackFile.HostPath().String(),
 	), RunExpected{
 		Status:      1,
 		StderrRegex: "Could not resolve host: non-existent",
@@ -603,7 +603,7 @@ func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 		"--disable-check-git-remote",
 		HelperPath,
 		"cat",
-		stackFile.HostPath(),
+		stackFile.HostPath().String(),
 	), RunExpected{
 		Stdout: fileContents,
 	})
@@ -624,7 +624,7 @@ func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 	git.CommitAll("first commit")
 
 	bare := sandbox.New(t)
-	git.SetRemoteURL("origin", string(uri.File(bare.Git().BareRepoAbsPath())))
+	git.SetRemoteURL("origin", string(uri.File(bare.Git().BareRepoAbsPath().String())))
 
 	tm := NewCLI(t, s.RootDir())
 
@@ -632,7 +632,7 @@ func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 		"run",
 		HelperPath,
 		"cat",
-		stackFile.HostPath(),
+		stackFile.HostPath().String(),
 	), RunExpected{
 		Status:      1,
 		StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),

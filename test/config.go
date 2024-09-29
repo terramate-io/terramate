@@ -4,16 +4,15 @@
 package test
 
 import (
-	"path/filepath"
-
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/os"
 )
 
 // FixupRangeOnAsserts fixes the range on all the given asserts.
 // It assumes the asserts where created with relative paths and will
 // join the relative path with the given dir to provide a final absolute path.
-func FixupRangeOnAsserts(dir string, asserts []config.Assert) {
+func FixupRangeOnAsserts(dir os.Path, asserts []config.Assert) {
 	for i := range asserts {
-		asserts[i].Range.Filename = filepath.Join(dir, asserts[i].Range.Filename)
+		asserts[i].Range.Filename = dir.Join(asserts[i].Range.Filename).String()
 	}
 }

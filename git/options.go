@@ -3,6 +3,8 @@
 
 package git
 
+import "github.com/terramate-io/terramate/os"
+
 // Options is a customizable options object to be used with the [Git]
 // wrapper.
 type Options struct {
@@ -10,7 +12,7 @@ type Options struct {
 }
 
 // WorkingDir sets the wrapper working directory.
-func (opt *Options) WorkingDir(wd string) *Options {
+func (opt *Options) WorkingDir(wd os.Path) *Options {
 	opt.config.WorkingDir = wd
 	return opt
 }

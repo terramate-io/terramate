@@ -4,12 +4,13 @@
 package info_test
 
 import (
-	"os"
+	stdos "os"
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclutils"
@@ -23,10 +24,10 @@ func TestRangeFromHCLRange(t *testing.T) {
 	path := filepath.Join("dir", "sub", "assert.tm")
 	start := Start(1, 1, 0)
 	end := End(3, 2, 37)
-	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
+	hclrange := Mkrange(rootdir.Join(path), start, end)
 	tmrange := info.NewRange(rootdir, hclrange)
 
-	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
+	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath().String())
 	assertRangePath(t, tmrange, path)
 
 	assert.EqualInts(t, hclrange.Start.Line, tmrange.Start().Line())
@@ -42,14 +43,14 @@ func TestRangeStrRepr(t *testing.T) {
 	t.Parallel()
 	rootdir := test.TempDir(t)
 	tmrange := info.NewRange(rootdir, Mkrange(
-		filepath.Join(rootdir, "dir", "assert.tm"),
+		rootdir.Join("dir", "assert.tm"),
 		Start(1, 1, 0),
 		End(3, 2, 37),
 	))
 	assert.EqualStrings(t, "/dir/assert.tm:1,1-3,2", tmrange.String())
 
 	tmrange = info.NewRange(rootdir, Mkrange(
-		filepath.Join(rootdir, "assert.tm"),
+		rootdir.Join("assert.tm"),
 		Start(1, 1, 0),
 		End(1, 2, 37),
 	))
@@ -62,23 +63,23 @@ func TestRangeWithFileOnRootdir(t *testing.T) {
 	path := "assert.tm"
 	start := Start(0, 0, 0)
 	end := End(0, 0, 0)
-	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
+	hclrange := Mkrange(rootdir.Join(path), start, end)
 	tmrange := info.NewRange(rootdir, hclrange)
 
-	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
+	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath().String())
 	assertRangePath(t, tmrange, path)
 }
 
 func TestRangeOnRootWithFileOnRootdir(t *testing.T) {
 	t.Parallel()
-	rootdir := string(os.PathSeparator)
+	rootdir := os.NewHostPath(string(stdos.PathSeparator))
 	path := "assert.tm"
 	start := Start(0, 0, 0)
 	end := End(0, 0, 0)
-	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
+	hclrange := Mkrange(rootdir.Join(path), start, end)
 	tmrange := info.NewRange(rootdir, hclrange)
 
-	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
+	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath().String())
 	assertRangePath(t, tmrange, path)
 }
 

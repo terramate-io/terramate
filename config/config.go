@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"os"
+	stdos "os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -25,6 +25,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
@@ -72,7 +73,7 @@ type Tree struct {
 	root  *Root
 	stack *Stack
 
-	dir string
+	dir os.Path
 }
 
 // DirElem represents a node which is represented by a directory.
@@ -89,7 +90,7 @@ type List[T DirElem] []T
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir os.Path) (tree *Root, configpath os.Path, found bool, err error) {
 	for {
 		ok, err := hcl.IsRootConfig(fromdir)
 		if err != nil {
@@ -130,7 +131,7 @@ func NewRoot(tree *Tree) *Root {
 }
 
 // LoadRoot loads the root configuration tree.
-func LoadRoot(rootdir string) (*Root, error) {
+func LoadRoot(rootdir os.Path) (*Root, error) {
 	rootcfg, err := hcl.ParseDir(rootdir, rootdir)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ func LoadRoot(rootdir string) (*Root, error) {
 func (root *Root) Tree() *Tree { return &root.tree }
 
 // HostDir returns the root directory.
-func (root *Root) HostDir() string { return root.tree.RootDir() }
+func (root *Root) Path() os.Path { return root.tree.Path() }
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (*Tree, bool) {
@@ -229,20 +230,20 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 		parentNode = root.Tree()
 	}
 
-	rootdir := root.HostDir()
+	rootdir := root.Path()
 
 	relpath := strings.TrimPrefix(cfgdir.String(), parent.String())
 	relpath = strings.TrimPrefix(relpath, "/")
 	components := strings.Split(relpath, "/")
 	nextComponent := components[0]
-	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
+	subtreeDir := rootdir.Join(parent.String(), nextComponent)
 
 	node, err := loadTree(root.Tree(), subtreeDir, nil)
 	if err != nil {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
 
-	if node.HostDir() == rootdir {
+	if node.Path() == rootdir {
 		// root configuration reloaded
 		*root = *NewRoot(node)
 	} else {
@@ -269,8 +270,8 @@ func (root *Root) Runtime() project.Runtime {
 
 func (root *Root) initRuntime() {
 	rootfs := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(root.HostDir()),
-		"basename": cty.StringVal(filepath.ToSlash(filepath.Base(root.HostDir()))),
+		"absolute": cty.StringVal(root.Path().String()),
+		"basename": cty.StringVal(filepath.ToSlash(filepath.Base(root.Path().String()))),
 	})
 	rootpath := cty.ObjectVal(map[string]cty.Value{
 		"fs": rootfs,
@@ -288,8 +289,8 @@ func (root *Root) initRuntime() {
 	}
 }
 
-// HostDir is the node absolute directory in the host.
-func (tree *Tree) HostDir() string {
+// Path is the node absolute directory in the host.
+func (tree *Tree) Path() os.Path {
 	return tree.dir
 }
 
@@ -299,7 +300,7 @@ func (tree *Tree) Dir() project.Path {
 }
 
 // RootDir returns the tree root directory..
-func (tree *Tree) RootDir() string {
+func (tree *Tree) RootDir() os.Path {
 	if tree.Parent != nil {
 		return tree.Parent.RootDir()
 	}
@@ -422,13 +423,13 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err error) {
+func loadTree(parentTree *Tree, cfgdir os.Path, rootcfg *hcl.Config) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
-		Str("dir", cfgdir).
+		Stringer("dir", cfgdir).
 		Logger()
 
-	f, err := os.Open(cfgdir)
+	f, err := stdos.Open(cfgdir.String())
 	if err != nil {
 		return nil, errors.E(err, "failed to open cfg directory")
 	}
@@ -469,7 +470,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 
 		tree.Node = cfg
 		tree.Parent = parentTree
-		parentTree.Children[filepath.Base(cfgdir)] = tree
+		parentTree.Children[cfgdir.Base()] = tree
 
 		parentTree = tree
 	}
@@ -485,7 +486,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 			continue
 		}
 
-		dir := filepath.Join(cfgdir, fname)
+		dir := cfgdir.Join(fname)
 		node, err := loadTree(parentTree, dir, rootcfg)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
@@ -497,7 +498,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	return parentTree, nil
 }
 
-func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntries []fs.DirEntry) error {
+func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir os.Path, dirEntries []fs.DirEntry) error {
 	const tmgenSuffix = ".tmgen"
 
 	tmgenEnabled := rootTree.hasExperiment("tmgen")
@@ -509,7 +510,7 @@ func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntrie
 			continue
 		}
 
-		absFname := filepath.Join(cfgdir, fname)
+		absFname := cfgdir.Join(fname)
 
 		if !tmgenEnabled {
 			printer.Stderr.Warn(
@@ -520,7 +521,7 @@ func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntrie
 			continue
 		}
 
-		content, err := os.ReadFile(absFname)
+		content, err := stdos.ReadFile(absFname.String())
 		if err != nil {
 			return errors.E(err, "failed to read .tmgen file")
 		}
@@ -559,10 +560,10 @@ func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntrie
 
 		implicitGenBlock := hcl.GenHCLBlock{
 			IsImplicitBlock: true,
-			Dir:             project.PrjAbsPath(rootTree.HostDir(), cfgdir),
+			Dir:             project.PrjAbsPath(rootTree.Path(), cfgdir),
 			Inherit:         inheritAttr,
-			Range: info.NewRange(rootTree.HostDir(), hhcl.Range{
-				Filename: absFname,
+			Range: info.NewRange(rootTree.Path(), hhcl.Range{
+				Filename: absFname.String(),
 				Start:    hhcl.InitialPos,
 				End: hhcl.Pos{
 					Line:   nLines,
@@ -596,13 +597,13 @@ func (tree *Tree) NonEmptyGlobalsParent() *Tree {
 }
 
 // IsStack returns true if the given directory is a stack, false otherwise.
-func IsStack(root *Root, dir string) bool {
-	node, ok := root.Lookup(project.PrjAbsPath(root.HostDir(), dir))
+func IsStack(root *Root, dir os.Path) bool {
+	node, ok := root.Lookup(project.PrjAbsPath(root.Path(), dir))
 	return ok && node.IsStack()
 }
 
 // NewTree creates a new tree node.
-func NewTree(cfgdir string) *Tree {
+func NewTree(cfgdir os.Path) *Tree {
 	return &Tree{
 		dir:      cfgdir,
 		Children: make(map[string]*Tree),
@@ -677,8 +678,8 @@ func Skip(name string) bool {
 	return name[0] == '.'
 }
 
-func parentDir(dir string) (string, bool) {
-	parent := filepath.Dir(dir)
+func parentDir(dir os.Path) (os.Path, bool) {
+	parent := dir.Dir()
 	return parent, parent != dir
 }
 

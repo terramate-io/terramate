@@ -148,7 +148,7 @@ func TestLoad(t *testing.T) {
 			homeEntry := s.DirEntry("home")
 			file := homeEntry.CreateFile(cliconfig.Filename, tc.cfg)
 
-			cfg, err := cliconfig.LoadFrom(file.HostPath())
+			cfg, err := cliconfig.LoadFrom(file.Path())
 			errtest.Assert(t, err, tc.want.err)
 			if err != nil {
 				return

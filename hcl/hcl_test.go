@@ -12,6 +12,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
@@ -33,12 +35,16 @@ type (
 	testcase struct {
 		name      string
 		nonStrict bool
-		parsedir  string
+		parsedir  project.Path
+		rootdir   project.Path
 		// whether the experiments config should be loaded from rootdir
 		loadExperimentsConfig bool
-		rootdir               string
-		input                 []cfgfile
-		want                  want
+
+		internal struct {
+			rootdir os.Path
+		}
+		input []cfgfile
+		want  want
 	}
 )
 
@@ -1596,7 +1602,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 		},
 		{
 			name:     "terramate.config.git in non-root directory fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/stack.tm",
@@ -1676,25 +1682,24 @@ func testParser(t *testing.T, tc testcase) {
 			if inputConfigFile.filename == "" {
 				panic("expect a filename in the input config")
 			}
-			path := filepath.Join(configsDir, inputConfigFile.filename)
-			dir := filepath.Dir(path)
-			filename := filepath.Base(path)
+			path := configsDir.Join(inputConfigFile.filename)
+			dir := path.Dir()
+			filename := filepath.Base(path.String())
 			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		FixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
 		info.FixRangesOnConfig(configsDir, tc.want.config)
 
-		if tc.parsedir == "" {
-			tc.parsedir = configsDir
-		} else {
-			tc.parsedir = filepath.Join(configsDir, tc.parsedir)
+		if tc.parsedir.String() == "" {
+			tc.parsedir = project.NewPath("/")
 		}
 
-		if tc.rootdir == "" {
-			tc.rootdir = configsDir
+		if tc.internal.rootdir.String() == "" {
+			tc.internal.rootdir = configsDir
 		} else {
-			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
+			tc.internal.rootdir = configsDir.Join(tc.rootdir.String())
 		}
+
 		got, err := parse(tc)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
@@ -1748,23 +1753,24 @@ func parse(tc testcase) (hcl.Config, error) {
 		err    error
 	)
 
+	dir := tc.internal.rootdir.Join(tc.parsedir.String())
 	if tc.nonStrict {
-		parser, err = hcl.NewTerramateParser(tc.rootdir, tc.parsedir)
+		parser, err = hcl.NewTerramateParser(tc.internal.rootdir, dir)
 	} else {
-		parser, err = hcl.NewStrictTerramateParser(tc.rootdir, tc.parsedir)
+		parser, err = hcl.NewStrictTerramateParser(tc.internal.rootdir, dir)
 	}
 
 	if err != nil {
 		return hcl.Config{}, err
 	}
 
-	err = parser.AddDir(tc.parsedir)
+	err = parser.AddDir(dir)
 	if err != nil {
 		return hcl.Config{}, errors.E("adding files to parser", err)
 	}
 
 	if tc.loadExperimentsConfig {
-		rootcfg, err := hcl.ParseDir(tc.rootdir, tc.rootdir)
+		rootcfg, err := hcl.ParseDir(tc.internal.rootdir, dir)
 		if err != nil {
 			return hcl.Config{}, errors.E("failed to load root config", err)
 		}
@@ -1818,7 +1824,7 @@ func TestHCLParseProvidesAllParsedBodies(t *testing.T) {
 	_, err = parser.ParseConfig()
 	assert.NoError(t, err)
 
-	cfgpath := filepath.Join(cfgdir, filename)
+	cfgpath := cfgdir.Join(filename)
 	bodies := parser.ParsedBodies()
 	body, ok := bodies[cfgpath]
 

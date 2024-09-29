@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
+	stdos "os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -17,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
 )
@@ -45,11 +46,11 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
-	absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
+	absPlanFilePath := run.Stack.HostDir(c.cfg()).Join(planfile)
 
 	// Terragrunt writes the plan to a temporary directory, so we cannot check for its existence.
 	if !run.Task.UseTerragrunt {
-		_, err := os.Lstat(absPlanFilePath)
+		_, err := stdos.Lstat(absPlanFilePath.String())
 		if err != nil {
 			return nil, errors.E(err, "checking plan file")
 		}
@@ -137,7 +138,7 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, cmdName, args...)
-	cmd.Dir = run.Stack.Dir.HostPath(c.rootdir())
+	cmd.Dir = run.Stack.Dir.HostPath(c.rootdir()).String()
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = run.Env
@@ -162,15 +163,15 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 	return stdout.String(), nil
 }
 
-func extractTFStateSerial(planfile string) (int64, bool) {
+func extractTFStateSerial(planfile os.Path) (int64, bool) {
 	logger := log.With().
 		Str("action", "extractTFStateSerial").
-		Str("planfile", planfile).
+		Stringer("planfile", planfile).
 		Logger()
 
-	planReader, err := zip.OpenReader(planfile)
+	planReader, err := zip.OpenReader(planfile.String())
 	if err != nil {
-		if b, err := os.ReadFile(planfile); err == nil {
+		if b, err := stdos.ReadFile(planfile.String()); err == nil {
 			if bytes.HasPrefix(b, []byte("tfplan")) {
 				logger.Debug().Msg("plan serial extraction failed: plan file was created with a pre 1.22 version of terraform")
 			} else {

@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -281,13 +280,13 @@ func TestExpEval(t *testing.T) {
 			s := sandbox.NoGit(t, false)
 			s.BuildTree(tc.layout)
 			for _, globalBlock := range tc.globals {
-				path := filepath.Join(s.RootDir(), globalBlock.path)
+				path := s.RootDir().Join(globalBlock.path)
 				test.AppendFile(t, path, "globals.tm",
 					globalBlock.add.String())
 			}
 
 			test.WriteRootConfig(t, s.RootDir())
-			ts := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			ts := NewCLI(t, s.RootDir().Join(tc.wd))
 			globalArgs := []string{}
 			for globalName, globalExpr := range tc.overrideGlobals {
 				globalArgs = append(globalArgs, "--global")
@@ -435,11 +434,11 @@ func TestGetConfigValue(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			for _, globalBlock := range tc.globals {
-				path := filepath.Join(s.RootDir(), globalBlock.path)
+				path := s.RootDir().Join(globalBlock.path)
 				test.AppendFile(t, path, "globals.tm",
 					globalBlock.add.String())
 			}
-			ts := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			ts := NewCLI(t, s.RootDir().Join(tc.wd))
 			globalArgs := []string{}
 			for globalName, globalExpr := range tc.overrideGlobals {
 				globalArgs = append(globalArgs, "--global")

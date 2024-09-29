@@ -4,16 +4,17 @@
 package fs
 
 import (
-	"os"
+	stdos "os"
 	"strings"
 
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 )
 
 // ListTerramateFiles returns a list of terramate related files from the
 // directory dir.
-func ListTerramateFiles(dir string) (filenames []string, err error) {
-	f, err := os.Open(dir)
+func ListTerramateFiles(dir os.Path) (filenames os.Paths, err error) {
+	f, err := stdos.Open(dir.String())
 	if err != nil {
 		return nil, errors.E(err, "opening directory %s for reading file entries", dir)
 	}
@@ -27,23 +28,21 @@ func ListTerramateFiles(dir string) (filenames []string, err error) {
 		return nil, errors.E(err, "reading dir to list Terramate files")
 	}
 
-	files := []string{}
-
+	files := os.Paths{}
 	for _, entry := range dirEntries {
 		fname := entry.Name()
 		if entry.IsDir() || !isTerramateFile(fname) {
 			continue
 		}
-		files = append(files, fname)
+		files = append(files, dir.Join(fname))
 	}
-
 	return files, nil
 }
 
 // ListTerramateDirs lists Terramate dirs, which are any dirs
 // except ones starting with ".".
-func ListTerramateDirs(dir string) ([]string, error) {
-	f, err := os.Open(dir)
+func ListTerramateDirs(dir os.Path) ([]string, error) {
+	f, err := stdos.Open(dir.String())
 	if err != nil {
 		return nil, errors.E(err, "opening directory %s for reading file entries", dir)
 	}

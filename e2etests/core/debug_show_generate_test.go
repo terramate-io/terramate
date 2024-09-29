@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -155,7 +154,7 @@ func TestGenerateDebug(t *testing.T) {
 				root.CreateFile(config.path, config.body.String())
 			}
 
-			ts := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			ts := NewCLI(t, s.RootDir().Join(tc.wd))
 			AssertRunResult(t, ts.Run("debug", "show", "generate-origins"), tc.want)
 		})
 	}
@@ -204,14 +203,14 @@ func TestGenerateDebugWithChanged(t *testing.T) {
 		Stdout: want,
 	})
 
-	ts = NewCLI(t, filepath.Join(s.RootDir(), "stack-1"))
+	ts = NewCLI(t, s.RootDir().Join("stack-1"))
 	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{
 		Stdout: want,
 	})
 
-	ts = NewCLI(t, filepath.Join(s.RootDir(), "stack-2"))
+	ts = NewCLI(t, s.RootDir().Join("stack-2"))
 	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{})
 
-	ts = NewCLI(t, filepath.Join(s.RootDir(), "no-stack"))
+	ts = NewCLI(t, s.RootDir().Join("no-stack"))
 	AssertRunResult(t, ts.Run("debug", "show", "generate-origins", "--changed"), RunExpected{})
 }

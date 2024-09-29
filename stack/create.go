@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/terramate-io/terramate/config"
@@ -54,12 +53,12 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 		return errors.E(ErrStackAlreadyExists)
 	}
 
-	hostpath := stack.Dir.HostPath(root.HostDir())
-	if err := os.MkdirAll(hostpath, createDirMode); err != nil {
+	hostpath := stack.Dir.HostPath(root.Path())
+	if err := os.MkdirAll(hostpath.String(), createDirMode); err != nil {
 		return errors.E(err, "failed to create new stack directories")
 	}
 
-	_, err = os.Stat(filepath.Join(hostpath, DefaultFilename))
+	_, err = os.Stat(hostpath.Join(DefaultFilename).String())
 	if err == nil {
 		// Even if there is no stack block inside the file, we can't overwrite
 		// the user file anyway.
@@ -85,7 +84,7 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 
 	tmCfg.Stack = &stackCfg
 
-	stackFile, err := os.Create(filepath.Join(hostpath, DefaultFilename))
+	stackFile, err := os.Create(hostpath.Join(DefaultFilename).String())
 	if err != nil {
 		return errors.E(err, "creating/truncating stack file")
 	}

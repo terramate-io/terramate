@@ -28,7 +28,7 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 	git.CheckoutNew("trigger-the-stack")
 
 	// execute terramate from `dir/` directory.
-	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+	cli := NewCLI(t, s.RootDir().Join("dir"))
 	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "stacks/stack"), RunExpected{
 		StdoutRegex: "Created change trigger",
 	})
@@ -50,7 +50,7 @@ func TestTriggerWorksRecursivelyFromRelativeStackPath(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("trigger-the-stack")
 
-	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+	cli := NewCLI(t, s.RootDir().Join("dir"))
 	AssertRunResult(t, cli.Trigger("--recursive", "--status=ok"), RunExpected{
 		Status:      1,
 		StderrRegex: regexp.QuoteMeta("cloud filters such as --status are incompatible with --recursive flag"),
@@ -89,7 +89,7 @@ func TestTriggerRecursivelyFromParentStackPath(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("trigger-the-stack")
 
-	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+	cli := NewCLI(t, s.RootDir().Join("dir"))
 	AssertRunResult(t, cli.TriggerRecursively(trigger.Changed, "stacks/stack1"), RunExpected{
 		IgnoreStdout: true,
 	})
@@ -125,7 +125,7 @@ func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("trigger-the-stack")
 
-	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+	cli := NewCLI(t, s.RootDir().Join("dir"))
 	AssertRunResult(t, cli.TriggerStack(trigger.Changed, "link-to-stack"), RunExpected{
 		Status:      1,
 		StderrRegex: "symlinks are disallowed",
@@ -158,7 +158,7 @@ func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
 	git1.Push("main")
 	git1.CheckoutNew("trigger-the-stack")
 
-	relpath, err := filepath.Rel(project1.RootDir(), project2.RootDir())
+	relpath, err := filepath.Rel(project1.RootDir().String(), project2.RootDir().String())
 	assert.NoError(t, err)
 
 	cli := NewCLI(t, project1.RootDir())
@@ -232,7 +232,7 @@ func TestTriggerIgnoresDeletedTriggerForChange(t *testing.T) {
 	assertNoChanges()
 
 	triggerDir := trigger.Dir(s.RootDir())
-	test.RemoveAll(t, triggerDir)
+	test.RemoveAll(t, triggerDir.String())
 
 	git.CommitAll("removed trigger")
 	assertNoChanges()
@@ -276,7 +276,7 @@ func TestTriggerIgnoresDeletedTriggerForIgnore(t *testing.T) {
 	assertNoChanges()
 
 	triggerDir := trigger.Dir(s.RootDir())
-	test.RemoveAll(t, triggerDir)
+	test.RemoveAll(t, triggerDir.String())
 
 	git.CommitAll("removed trigger")
 
@@ -432,7 +432,7 @@ func TestRunWontDetectAsChangeDeletedChangedTrigger(t *testing.T) {
 
 	git.CheckoutNew("delete-trigger")
 
-	test.RemoveAll(t, trigger.Dir(s.RootDir()))
+	test.RemoveAll(t, trigger.Dir(s.RootDir()).String())
 	git.CommitAll("removed trigger")
 
 	AssertRunResult(t, cli.Run(

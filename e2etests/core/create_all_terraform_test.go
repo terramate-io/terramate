@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -35,7 +34,7 @@ func TestCreateWithAllTerraformModuleAtRoot(t *testing.T) {
 			Stdout: "Created stack /\n",
 		},
 	)
-	_, err := os.Lstat(filepath.Join(s.RootDir(), stack.DefaultFilename))
+	_, err := os.Lstat(s.RootDir().Join(stack.DefaultFilename).String())
 	assert.NoError(t, err)
 }
 
@@ -92,11 +91,11 @@ func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
 			"/prod/stacks/B",
 			"/prod/stacks/A/other-stack",
 		} {
-			stackPath := filepath.Join(s.RootDir(), path)
-			_, err := os.Lstat(filepath.Join(stackPath, stack.DefaultFilename))
+			stackPath := s.RootDir().Join(path)
+			_, err := os.Lstat(stackPath.Join(stack.DefaultFilename).String())
 			assert.NoError(t, err)
 
-			_, err = os.Lstat(filepath.Join(stackPath, "_generated.tf"))
+			_, err = os.Lstat(stackPath.Join("_generated.tf").String())
 			if generate {
 				assert.NoError(t, err)
 			} else {

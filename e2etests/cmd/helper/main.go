@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
+	stdos "os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -18,23 +18,24 @@ import (
 	"time"
 
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("%s requires at least one subcommand argument", os.Args[0])
+	if len(stdos.Args) < 2 {
+		log.Fatalf("%s requires at least one subcommand argument", stdos.Args[0])
 	}
 
 	// note: unrecovered panic() aborts the program with exit code 2 and this
 	// could be confused with a *detected drift* (see: run --sync-drift-status)
 	// then avoid panics here and do proper os.Exit(1) in case of errors.
 
-	switch os.Args[1] {
+	switch stdos.Args[1] {
 	case "echo":
-		args := os.Args[2:]
+		args := stdos.Args[2:]
 		for i, arg := range args {
 			fmt.Print(arg)
 			if i+1 < len(args) {
@@ -43,37 +44,37 @@ func main() {
 		}
 		fmt.Print("\n")
 	case "true":
-		os.Exit(0)
+		stdos.Exit(0)
 	case "false":
-		os.Exit(1)
+		stdos.Exit(1)
 	case "exit":
-		exit(os.Args[2])
+		exit(stdos.Args[2])
 	case "hang":
 		hang()
 	case "sleep":
-		sleep(os.Args[2])
+		sleep(stdos.Args[2])
 	case "env":
-		env(os.Args[2], os.Args[3:]...)
+		env(os.NewHostPath(stdos.Args[2]), stdos.Args[3:]...)
 	case "env-prefix":
-		envPrefix(os.Args[2], os.Args[3])
+		envPrefix(os.NewHostPath(stdos.Args[2]), stdos.Args[3])
 	case "cat":
-		cat(os.Args[2])
+		cat(stdos.Args[2])
 	case "rm":
-		rm(os.Args[2])
+		rm(stdos.Args[2])
 	case "tempdir":
 		tempDir()
 	case "stack-abs-path":
-		stackAbsPath(os.Args[2])
+		stackAbsPath(stdos.Args[2])
 	case "stack-rel-path":
-		stackRelPath(os.Args[2])
+		stackRelPath(stdos.Args[2])
 	case "tf-plan-sanitize":
-		tfPlanSanitize(os.Args[2])
+		tfPlanSanitize(stdos.Args[2])
 	case "fibonacci":
 		fibonacci()
 	case "git-normalization":
-		gitnorm(os.Args[2])
+		gitnorm(stdos.Args[2])
 	default:
-		log.Fatalf("unknown command %s", os.Args[1])
+		log.Fatalf("unknown command %s", stdos.Args[1])
 	}
 }
 
@@ -82,7 +83,7 @@ func main() {
 // It will print "ready" when it starts to receive the signals.
 // It will print the name of the received signals, which may also be useful in testing.
 func hang() {
-	signals := make(chan os.Signal, 10)
+	signals := make(chan stdos.Signal, 10)
 	signal.Notify(signals)
 
 	fmt.Println("ready")
@@ -104,17 +105,17 @@ func sleep(durationStr string) {
 func exit(exitCodeStr string) {
 	code, err := strconv.Atoi(exitCodeStr)
 	checkerr(err)
-	os.Exit(code)
+	stdos.Exit(code)
 }
 
 // env sends os.Environ() on stdout and exits.
-func env(rootdir string, names ...string) {
+func env(rootdir os.Path, names ...string) {
 	if len(names) > 0 {
-		cwd, err := os.Getwd()
+		cwd, err := stdos.Getwd()
 		checkerr(err)
-		dir := project.PrjAbsPath(rootdir, cwd)
+		dir := project.PrjAbsPath(rootdir, os.NewHostPath(cwd))
 
-		for _, env := range os.Environ() {
+		for _, env := range stdos.Environ() {
 			parts := strings.Split(env, "=")
 			for _, n := range names {
 				if parts[0] == n {
@@ -124,16 +125,16 @@ func env(rootdir string, names ...string) {
 		}
 		return
 	}
-	for _, env := range os.Environ() {
+	for _, env := range stdos.Environ() {
 		fmt.Println(env)
 	}
 }
 
-func envPrefix(rootdir string, prefix string) {
-	cwd, err := os.Getwd()
+func envPrefix(rootdir os.Path, prefix string) {
+	cwd, err := stdos.Getwd()
 	checkerr(err)
-	dir := project.PrjAbsPath(rootdir, cwd)
-	for _, env := range os.Environ() {
+	dir := project.PrjAbsPath(rootdir, os.NewHostPath(cwd))
+	for _, env := range stdos.Environ() {
 		parts := strings.Split(env, "=")
 		if strings.HasPrefix(parts[0], prefix) {
 			fmt.Printf("%s: %s\n", dir, env)
@@ -143,20 +144,20 @@ func envPrefix(rootdir string, prefix string) {
 
 // cat the file contents to stdout.
 func cat(fname string) {
-	bytes, err := os.ReadFile(fname)
+	bytes, err := stdos.ReadFile(fname)
 	checkerr(err)
 	fmt.Printf("%s", string(bytes))
 }
 
 // rm remove the given path.
 func rm(fname string) {
-	err := os.RemoveAll(fname)
+	err := stdos.RemoveAll(fname)
 	checkerr(err)
 }
 
 // tempdir creates a temporary directory.
 func tempDir() {
-	tmpdir, err := os.MkdirTemp("", "tm-tmpdir")
+	tmpdir, err := stdos.MkdirTemp("", "tm-tmpdir")
 	checkerr(err)
 	fmt.Print(tmpdir)
 }
@@ -165,7 +166,7 @@ func tempDir() {
 // It may try to read values from ../fib.N-1/fib.txt and ../fib.N-2/fib.txt, which were previously
 // created by running this command in other dirs.
 func fibonacci() {
-	wd, err := os.Getwd()
+	wd, err := stdos.Getwd()
 	checkerr(err)
 	dirname := filepath.Base(wd)
 
@@ -185,7 +186,7 @@ func fibonacci() {
 	} else {
 		v = 0
 		for _, i := range []int64{n - 1, n - 2} {
-			b, err := os.ReadFile(fmt.Sprintf("../fib.%v/fib.txt", i))
+			b, err := stdos.ReadFile(fmt.Sprintf("../fib.%v/fib.txt", i))
 			checkerr(err)
 			ni, err := strconv.ParseInt(string(b), 10, 64)
 			checkerr(err)
@@ -193,11 +194,11 @@ func fibonacci() {
 		}
 	}
 
-	checkerr(os.WriteFile("fib.txt", []byte(fmt.Sprintf("%v", v)), 0644))
+	checkerr(stdos.WriteFile("fib.txt", []byte(fmt.Sprintf("%v", v)), 0644))
 }
 
 func stackAbsPath(base string) {
-	cwd, err := os.Getwd()
+	cwd, err := stdos.Getwd()
 	checkerr(err)
 	rel, err := filepath.Rel(base, cwd)
 	checkerr(err)
@@ -205,7 +206,7 @@ func stackAbsPath(base string) {
 }
 
 func stackRelPath(base string) {
-	cwd, err := os.Getwd()
+	cwd, err := stdos.Getwd()
 	checkerr(err)
 	rel, err := filepath.Rel(base, cwd)
 	checkerr(err)
@@ -214,7 +215,7 @@ func stackRelPath(base string) {
 
 func tfPlanSanitize(fname string) {
 	var oldPlan tfjson.Plan
-	oldPlanData, err := os.ReadFile(fname)
+	oldPlanData, err := stdos.ReadFile(fname)
 	checkerr(err)
 	err = json.Unmarshal(oldPlanData, &oldPlan)
 	checkerr(err)
@@ -228,8 +229,8 @@ func tfPlanSanitize(fname string) {
 func gitnorm(rawURL string) {
 	repo, err := git.NormalizeGitURI(rawURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdos.Stderr, "error: %v\n", err)
+		stdos.Exit(1)
 	}
 	fmt.Printf("host:  %s\n", repo.Host)
 	fmt.Printf("owner: %s\n", repo.Owner)
@@ -239,7 +240,7 @@ func gitnorm(rawURL string) {
 
 func checkerr(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdos.Stderr, "%v\n", err)
+		stdos.Exit(1)
 	}
 }

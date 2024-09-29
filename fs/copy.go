@@ -5,28 +5,28 @@ package fs
 
 import (
 	"io"
-	"os"
-	"path/filepath"
+	stdos "os"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 )
 
 // CopyFilterFunc filters which files/dirs will be copied by CopyDir.
 // If the function returns true, the file/dir is copied.
 // If it returns false, the file/dir is ignored.
-type CopyFilterFunc func(path string, entry os.DirEntry) bool
+type CopyFilterFunc func(path os.Path, entry stdos.DirEntry) bool
 
 // CopyDir will copy srcdir to destdir.
 // It will copy all dirs and files recursively.
 // The destdir provided does not need to exist, it will be created.
 // The provided filter function allows to filter which files/directories get copied.
-func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
+func CopyDir(destdir, srcdir os.Path, filter CopyFilterFunc) error {
 	const (
 		createDirMode = 0755
 	)
 
-	entries, err := os.ReadDir(srcdir)
+	entries, err := stdos.ReadDir(srcdir.String())
 	if err != nil {
 		return errors.E(err, "reading src dir")
 	}
@@ -36,7 +36,7 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 		if createdDir {
 			return nil
 		}
-		if err := os.MkdirAll(destdir, createDirMode); err != nil {
+		if err := stdos.MkdirAll(destdir.String(), createDirMode); err != nil {
 			return errors.E(err, "creating dest dir")
 		}
 		createdDir = true
@@ -48,8 +48,8 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 			continue
 		}
 
-		srcpath := filepath.Join(srcdir, entry.Name())
-		destpath := filepath.Join(destdir, entry.Name())
+		srcpath := srcdir.Join(entry.Name())
+		destpath := destdir.Join(entry.Name())
 
 		if entry.IsDir() {
 			if err := CopyDir(destpath, srcpath, filter); err != nil {
@@ -73,19 +73,19 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 }
 
 // CopyAll copies all files from dstdir into srcdir.
-func CopyAll(dstdir, srcdir string) error {
-	return CopyDir(dstdir, srcdir, func(_ string, _ os.DirEntry) bool {
+func CopyAll(dstdir, srcdir os.Path) error {
+	return CopyDir(dstdir, srcdir, func(_ os.Path, _ stdos.DirEntry) bool {
 		return true
 	})
 }
 
-func copyFile(destfile, srcfile string) error {
-	src, err := os.Open(srcfile)
+func copyFile(destfile, srcfile os.Path) error {
+	src, err := stdos.Open(srcfile.String())
 	if err != nil {
 		return errors.E(err, "opening source file")
 	}
 	defer closeFile(src)
-	dest, err := os.Create(destfile)
+	dest, err := stdos.Create(destfile.String())
 	if err != nil {
 		return errors.E(err, "creating dest file")
 	}
@@ -94,7 +94,7 @@ func copyFile(destfile, srcfile string) error {
 	return err
 }
 
-func closeFile(file *os.File) {
+func closeFile(file *stdos.File) {
 	err := file.Close()
 	if err != nil {
 		log.Warn().

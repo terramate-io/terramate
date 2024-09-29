@@ -5,12 +5,12 @@ package stack_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
@@ -18,8 +18,8 @@ import (
 )
 
 type repository struct {
-	Dir     string
-	modules []string
+	Dir     os.Path
+	modules os.Paths
 }
 
 type listTestResult struct {
@@ -359,7 +359,7 @@ func singleChangedDotDirStackRepo(t *testing.T) repository {
 
 	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
 
-	_ = test.WriteFile(t, filepath.Join(repo.Dir, ".bar"), "bar", "bar")
+	_ = test.WriteFile(t, repo.Dir.Join(".bar"), "bar", "bar")
 
 	assert.NoError(t, g.Add(".bar"), "add .bar dir failed")
 	assert.NoError(t, g.Commit("bar dir message"), "bar commit failed")
@@ -382,7 +382,7 @@ func singleNotChangedStack(t *testing.T) repository {
 
 	// add a second commit to be able to test gitBaseRef=HEAD^
 	readmePath := test.WriteFile(t, repo, "Something", "test")
-	assert.NoError(t, g.Add(readmePath), "add terramate file failed")
+	assert.NoError(t, g.Add(readmePath.String()), "add terramate file failed")
 	assert.NoError(t, g.Commit("add Something message"), "commit failed")
 
 	assert.NoError(t, g.Push("origin", "main"), "push to origin")
@@ -400,7 +400,7 @@ module "empty" {
 }
 `)
 
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 	assert.NoError(t, g.Push("origin", "main"), "push to origin")
 	return repo
@@ -418,7 +418,7 @@ func singleNotChangedStackNewBranch(t *testing.T) repository {
 	return repo
 }
 
-func addMergeCommit(t *testing.T, repodir, branch string) {
+func addMergeCommit(t *testing.T, repodir os.Path, branch string) {
 	g := test.NewGitWrapper(t, repodir, []string{})
 
 	assert.NoError(t, g.Checkout("main", false), "checkout main failed")
@@ -488,14 +488,14 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
-	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
-	test.MkdirAll(t, otherStack)
+	otherStack := repo.Dir.Join("not-changed-stack")
+	test.MkdirAll(t, otherStack.String())
 
 	root, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(otherStack.Join(stack.DefaultFilename).String()),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -505,14 +505,14 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	// not merged changes
 	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
 
-	otherStack = filepath.Join(repo.Dir, "changed-stack")
-	test.MkdirAll(t, otherStack)
+	otherStack = repo.Dir.Join("changed-stack")
+	test.MkdirAll(t, otherStack.String())
 
 	root, err = config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(otherStack.Join(stack.DefaultFilename).String()),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 	return repo
@@ -527,11 +527,11 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 	assert.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
-		test.MkdirAll(t, otherStack)
+		otherStack := repo.Dir.Join("changed-stack-" + fmt.Sprint(i))
+		test.MkdirAll(t, otherStack.String())
 
 		createStack(t, root, otherStack)
-		assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+		assert.NoError(t, g.Add(otherStack.Join(stack.DefaultFilename).String()),
 			"git add otherstack failed")
 		assert.NoError(t, g.Commit("other stack message"), "commit failed")
 	}
@@ -560,7 +560,7 @@ module "something" {
 }
 `)
 
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
@@ -573,22 +573,22 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
-	otherStack := filepath.Join(repo.Dir, "stack1")
-	test.MkdirAll(t, otherStack)
+	otherStack := repo.Dir.Join("stack1")
+	test.MkdirAll(t, otherStack.String())
 
 	root, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(otherStack.Join(stack.DefaultFilename).String()),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
-	otherStack = filepath.Join(repo.Dir, "stack2")
-	test.MkdirAll(t, otherStack)
+	otherStack = repo.Dir.Join("stack2")
+	test.MkdirAll(t, otherStack.String())
 
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(otherStack.Join(stack.DefaultFilename).String()),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -601,20 +601,20 @@ module "something" {
 }
 `)
 
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Add(mainFile.String()), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
 	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
 
 	mainFile = test.WriteFile(t, module, "main.tf", "")
-	assert.NoError(t, g.Add(mainFile))
+	assert.NoError(t, g.Add(mainFile.String()))
 	assert.NoError(t, g.Commit("test"))
 	assert.NoError(t, g.Push("origin", "main"), "push origin main")
 
 	assert.NoError(t, g.Checkout("testbranch", true))
 	mainFile = test.WriteFile(t, module, "main.tf", "# comment")
-	assert.NoError(t, g.Add(mainFile))
+	assert.NoError(t, g.Add(mainFile.String()))
 	assert.NoError(t, g.Commit("test"))
 
 	return repo
@@ -641,15 +641,15 @@ module "something" {
 }
 `)
 
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	readmeFile := test.WriteFile(t, module2, "README.md", "GENERATED BY TERRAMATE TESTS!")
-	assert.NoError(t, g.Add(readmeFile), "add readme file")
+	assert.NoError(t, g.Add(readmeFile.String()), "add readme file")
 	assert.NoError(t, g.Commit("commit"), "commit readme")
 
 	mainFile := test.WriteFile(t, module2, "main.tf", "")
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Add(mainFile.String()), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 
 	mainFile = test.WriteFile(t, module1, "main.tf", `
@@ -658,7 +658,7 @@ module "module2" {
 }
 `)
 
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Add(mainFile.String()), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 	assert.NoError(t, g.Push("origin", "main"))
 
@@ -667,7 +667,7 @@ module "module2" {
 # file changed
 `)
 
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Add(mainFile.String()), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 
 	return repo
@@ -703,7 +703,7 @@ func singleTerragruntStackWithNoChangesRepo(t *testing.T) repository {
 
 	test.WriteFile(t, module1, "main.tf", `# empty file`)
 
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -748,7 +748,7 @@ func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T, ena
 
 	test.WriteFile(t, module1, "main.tf", `# empty file`)
 
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -758,7 +758,7 @@ func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T, ena
 	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
 
 	test.WriteFile(t, module1, "main.tf", `# changed file`)
-	assert.NoError(t, g.Add(module1), "add files")
+	assert.NoError(t, g.Add(module1.String()), "add files")
 	assert.NoError(t, g.Commit("module changed"), "commit files")
 	return repo
 }
@@ -799,7 +799,7 @@ func terragruntStackChangedDueToDependencyChangedRepo(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -812,7 +812,7 @@ func terragruntStackChangedDueToDependencyChangedRepo(t *testing.T) repository {
 			Str("source", "github.com/test/test3"),
 		),
 	).String())
-	assert.NoError(t, g.Add(anotherStack), "add files")
+	assert.NoError(t, g.Add(anotherStack.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
@@ -866,7 +866,7 @@ func terragruntStackChangedDueToDepOfDepStacksChangedRepo(t *testing.T) reposito
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -879,7 +879,7 @@ func terragruntStackChangedDueToDepOfDepStacksChangedRepo(t *testing.T) reposito
 			Str("source", "changed/value"),
 		),
 	).String())
-	assert.NoError(t, g.Add(depDepStack), "add files")
+	assert.NoError(t, g.Add(depDepStack.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
@@ -933,7 +933,7 @@ func terragruntStackChangedDueToDepOfDepNonStacksChangedRepo(t *testing.T) repos
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -946,7 +946,7 @@ func terragruntStackChangedDueToDepOfDepNonStacksChangedRepo(t *testing.T) repos
 			Str("source", "changed/value"),
 		),
 	).String())
-	assert.NoError(t, g.Add(depDepModule), "add files")
+	assert.NoError(t, g.Add(depDepModule.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
@@ -1003,7 +1003,7 @@ func terragruntStackChangedDueToDepOfDepModuleSourceChangedRepo(t *testing.T) re
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -1012,7 +1012,7 @@ func terragruntStackChangedDueToDepOfDepModuleSourceChangedRepo(t *testing.T) re
 	// now we branch again and modify the dep-dep-tg-stack module
 	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
 	test.WriteFile(t, localModule, "main.tf", "# changed file")
-	assert.NoError(t, g.Add(localModule), "add files")
+	assert.NoError(t, g.Add(localModule.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
@@ -1057,7 +1057,7 @@ func terragruntStackChangedDueToReferencedFileChangedRepo(t *testing.T) reposito
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	addMergeCommit(t, repo.Dir, "testbranch")
@@ -1066,20 +1066,20 @@ func terragruntStackChangedDueToReferencedFileChangedRepo(t *testing.T) reposito
 	// now we branch again and modify the common.tfvars file
 	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
 	test.WriteFile(t, repo.Dir, "common.tfvars", `key = "changed value"`)
-	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Add(repo.Dir.String()), "add files")
 	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
 }
 
-func newManager(t *testing.T, basedir string) *stack.Manager {
+func newManager(t *testing.T, basedir os.Path) *stack.Manager {
 	root, err := config.LoadRoot(basedir)
 	assert.NoError(t, err)
 	g := test.NewGitWrapper(t, basedir, []string{})
 	return stack.NewGitAwareManager(root, g)
 }
 
-func createStack(t *testing.T, root *config.Root, absdir string) {
-	dir := project.PrjAbsPath(root.HostDir(), absdir)
+func createStack(t *testing.T, root *config.Root, absdir os.Path) {
+	dir := project.PrjAbsPath(root.Path(), absdir)
 	assert.NoError(t, stack.Create(root, config.Stack{Dir: dir}), "terramate init failed")
 }

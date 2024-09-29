@@ -8,9 +8,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
+	stdos "os"
 
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/tg"
 )
@@ -25,12 +26,15 @@ func main() {
 	if *trace {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	}
-	rootdir, err := os.Getwd()
+	rootdirStr, err := stdos.Getwd()
 	abortOnErr(err)
 
-	var dir string
+	// assume current dir is project root dir.
+	rootdir := os.NewHostPath(rootdirStr)
+
+	var dir os.Path
 	if len(flag.Args()) == 2 {
-		dir = flag.Arg(1)
+		dir = rootdir.Join(flag.Arg(1))
 	} else {
 		dir = rootdir
 	}
@@ -56,7 +60,7 @@ func main() {
 
 func abortOnErr(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdos.Stderr, "error: %s\n", err)
+		stdos.Exit(1)
 	}
 }

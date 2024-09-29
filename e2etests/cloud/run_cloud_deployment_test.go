@@ -831,7 +831,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 
 				if slices.Contains(tc.runflags, "--enable-sharing") {
 					s.Generate()
-					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+					cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 					cli.PrependToPath(filepath.Dir(TerraformTestPath))
 					AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--", "terraform", "init"), RunExpected{
 						Status:       0,
@@ -841,7 +841,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 
 				s.Git().CommitAll("all stacks committed")
 
-				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 				cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
@@ -1001,7 +1001,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
     oauth_token: abcd
     git_protocol: ssh
 `)
-		tm.AppendEnv = append(tm.AppendEnv, "GH_CONFIG_DIR="+ghConfigDir)
+		tm.AppendEnv = append(tm.AppendEnv, "GH_CONFIG_DIR="+ghConfigDir.String())
 
 		result := tm.Run("run",
 			"--disable-check-git-remote",

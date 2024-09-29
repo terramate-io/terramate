@@ -4,7 +4,6 @@
 package core_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -389,8 +388,8 @@ func TestRunEnv(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
-			tmcli := NewCLI(t, filepath.Join(s.RootDir(), tc.wd), tc.env...)
-			args := []string{"run", "--quiet", "--", HelperPath, "env", s.RootDir()}
+			tmcli := NewCLI(t, s.RootDir().Join(tc.wd), tc.env...)
+			args := []string{"run", "--quiet", "--", HelperPath, "env", s.RootDir().String()}
 			args = append(args, tc.args...)
 			got := tmcli.Run(args...)
 			AssertRunResult(t, got, tc.want)

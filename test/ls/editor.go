@@ -6,14 +6,14 @@ package ls
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
+	stdos "os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	tmls "github.com/terramate-io/terramate/ls"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test/sandbox"
 	"go.lsp.dev/jsonrpc2"
 	lsp "go.lsp.dev/protocol"
@@ -54,13 +54,13 @@ func (e *Editor) call(method string, params, result interface{}) (jsonrpc2.ID, e
 
 // Initialize sends a initialize request to the language server and return its
 // result.
-func (e *Editor) Initialize(workspace string) lsp.InitializeResult {
+func (e *Editor) Initialize(workspace os.Path) lsp.InitializeResult {
 	e.t.Helper()
 	var got lsp.InitializeResult
 	_, err := e.call(
 		lsp.MethodInitialize,
 		lsp.InitializeParams{
-			RootURI: uri.File(workspace),
+			RootURI: uri.File(workspace.String()),
 		},
 		&got)
 
@@ -70,7 +70,7 @@ func (e *Editor) Initialize(workspace string) lsp.InitializeResult {
 
 // CheckInitialize sends an initialize request to the language server and checks
 // if the response is the expected default response (See DefaultInitializeResult).
-func (e *Editor) CheckInitialize(workspace string) {
+func (e *Editor) CheckInitialize(workspace os.Path) {
 	e.t.Helper()
 	got := e.Initialize(workspace)
 	if diff := cmp.Diff(got, DefaultInitializeResult()); diff != "" {
@@ -90,13 +90,13 @@ func (e *Editor) CheckInitialize(workspace string) {
 func (e *Editor) Open(path string) {
 	t := e.t
 	t.Helper()
-	abspath := filepath.Join(e.sandbox.RootDir(), path)
-	fileContents, err := os.ReadFile(abspath)
+	abspath := e.sandbox.RootDir().Join(path)
+	fileContents, err := stdos.ReadFile(abspath.String())
 	assert.NoError(t, err, "reading stack file %q", path)
 	var openResult interface{}
 	_, err = e.call(lsp.MethodTextDocumentDidOpen, lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:        uri.File(abspath),
+			URI:        uri.File(abspath.String()),
 			LanguageID: "terramate",
 			Text:       string(fileContents),
 		},
@@ -111,12 +111,12 @@ func (e *Editor) Open(path string) {
 func (e *Editor) Change(path, content string) {
 	t := e.t
 	t.Helper()
-	abspath := filepath.Join(e.sandbox.RootDir(), path)
+	abspath := e.sandbox.RootDir().Join(path)
 	var changeResult interface{}
 	_, err := e.call(lsp.MethodTextDocumentDidChange, lsp.DidChangeTextDocumentParams{
 		TextDocument: lsp.VersionedTextDocumentIdentifier{
 			TextDocumentIdentifier: lsp.TextDocumentIdentifier{
-				URI: uri.File(abspath),
+				URI: uri.File(abspath.String()),
 			},
 		},
 		ContentChanges: []lsp.TextDocumentContentChangeEvent{

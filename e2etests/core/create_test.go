@@ -6,7 +6,6 @@ package core_test
 import (
 	"fmt"
 	"path"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -121,8 +121,8 @@ func TestCreateStack(t *testing.T) {
 	)
 
 	createFile := func(s sandbox.S, path string) {
-		abspath := filepath.Join(s.RootDir(), path)
-		test.WriteFile(t, filepath.Dir(abspath), filepath.Base(abspath), "")
+		abspath := s.RootDir().Join(path)
+		test.WriteFile(t, abspath.Dir(), abspath.Base(), "")
 	}
 
 	testCreate := func(t *testing.T, flags ...string) {
@@ -160,7 +160,7 @@ func TestCreateStack(t *testing.T) {
 			})
 
 			s.ReloadConfig()
-			absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
+			absStackPath := s.RootDir().Join(stackPath)
 			got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
 			stackBasePath := project.NewPath(path.Join("/", stackPath))
@@ -342,11 +342,11 @@ func testEnsureStackID(t *testing.T, wd string, layout []string) {
 	s := sandbox.NoGit(t, true)
 	s.BuildTree(layout)
 	if wd == "" {
-		wd = s.RootDir()
+		wd = s.RootDir().String()
 	} else {
-		wd = filepath.Join(s.RootDir(), filepath.FromSlash(wd))
+		wd = s.RootDir().Join(wd).String()
 	}
-	tm := NewCLI(t, wd)
+	tm := NewCLI(t, os.NewHostPath(wd))
 	AssertRunResult(
 		t,
 		tm.Run("create", "--ensure-stack-ids"),

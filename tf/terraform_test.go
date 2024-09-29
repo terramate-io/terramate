@@ -5,13 +5,13 @@ package tf_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -356,7 +356,7 @@ func TestTerraformHasBackend(t *testing.T) {
 			s := sandbox.NoGit(t, false)
 			s.BuildTree(tc.layout)
 
-			path := filepath.Join(s.RootDir(), filename)
+			path := s.RootDir().Join(filename)
 			hasBackend, err := tf.IsStack(path)
 			errtest.Assert(t, err, tc.want.err)
 
@@ -392,10 +392,10 @@ func start(line, column, char int) hhcl.Pos {
 	}
 }
 
-func fixupFiledirOnErrorsFileRanges(dir string, errs []error) {
+func fixupFiledirOnErrorsFileRanges(dir os.Path, errs []error) {
 	for _, err := range errs {
 		if e, ok := err.(*errors.Error); ok {
-			e.FileRange.Filename = filepath.Join(dir, e.FileRange.Filename)
+			e.FileRange.Filename = dir.Join(e.FileRange.Filename).String()
 		}
 	}
 }

@@ -5,7 +5,6 @@ package run_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -571,7 +570,7 @@ func TestLoadRunEnv(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 			for _, cfg := range tcase.configs {
-				path := filepath.Join(s.RootDir(), cfg.path)
+				path := s.RootDir().Join(cfg.path)
 				fname := cfg.fname
 				if fname == "" {
 					fname = "run_env_test_cfg.tm"

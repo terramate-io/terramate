@@ -9,6 +9,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/project"
 	. "github.com/terramate-io/terramate/test/hclutils"
 )
 
@@ -17,7 +18,7 @@ func TestHCLParserStack(t *testing.T) {
 		{
 			name:      "empty stack block with terramate block not in root works in nonStrict mode",
 			nonStrict: true,
-			parsedir:  "stack",
+			parsedir:  project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/stack.tm",

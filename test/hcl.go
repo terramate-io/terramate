@@ -17,13 +17,14 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"golang.org/x/exp/slices"
 )
 
 // ParseTerramateConfig parses the Terramate configuration found
 // on the given dir, returning the parsed configuration.
-func ParseTerramateConfig(t *testing.T, dir string) hcl.Config {
+func ParseTerramateConfig(t *testing.T, dir os.Path) hcl.Config {
 	t.Helper()
 
 	parser, err := hcl.NewTerramateParser(dir, dir)
@@ -170,7 +171,7 @@ func AssertEqualRanges(t *testing.T, got, want info.Range, fmtargs ...any) {
 
 	msg := prefixer(fmtargs...)
 
-	assert.EqualStrings(t, want.HostPath(), got.HostPath(), msg("host path mismatch"))
+	assert.EqualStrings(t, want.HostPath().String(), got.HostPath().String(), msg("host path mismatch"))
 	AssertEqualPaths(t, got.Path(), want.Path(), msg("path mismatch"))
 	AssertEqualPos(t, got.Start(), want.Start(), msg("start pos mismatch"))
 	AssertEqualPos(t, got.End(), want.End(), msg("end pos mismatch"))
@@ -444,7 +445,7 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 }
 
 // WriteRootConfig writes a basic terramate root config.
-func WriteRootConfig(t testing.TB, rootdir string) {
+func WriteRootConfig(t testing.TB, rootdir os.Path) {
 	WriteFile(t, rootdir, "root.config.tm", `
 terramate {
 	required_version = "> 0.0.1"

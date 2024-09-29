@@ -4,7 +4,6 @@
 package eval_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -15,6 +14,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -485,7 +485,7 @@ EOT
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
 			t.Parallel()
-			ctx := eval.NewContext(stdlib.Functions(os.TempDir(), []string{}))
+			ctx := eval.NewContext(stdlib.Functions(test.TempDir(t), []string{}))
 			ctx.SetNamespace("global", map[string]cty.Value{
 				"number": cty.NumberIntVal(10),
 				"string": cty.StringVal("terramate"),

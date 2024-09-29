@@ -11,6 +11,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/modvendor"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -32,12 +33,12 @@ func TestVendorModule(t *testing.T) {
 	modsrc := test.ParseSource(t, gitSource+"?ref=main")
 
 	// Check default config and then different configuration precedences
-	checkVendoredFiles := func(t *testing.T, rootdir string, res RunResult, vendordir project.Path) {
+	checkVendoredFiles := func(t *testing.T, rootdir os.Path, res RunResult, vendordir project.Path) {
 		AssertRunResult(t, res, RunExpected{IgnoreStdout: true})
 
 		clonedir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
 
-		got := test.ReadFile(t, clonedir, filename)
+		got := test.ReadFile(t, clonedir.String(), filename)
 		assert.EqualStrings(t, content, string(got))
 	}
 
@@ -217,12 +218,12 @@ func TestVendorModuleRecursiveDependencyIsPatched(t *testing.T) {
 	moduleDir := modvendor.AbsVendorDir(tmrootDir.Path(), vendordir, targetmodsrc)
 	depsDir := modvendor.AbsVendorDir(tmrootDir.Path(), vendordir, depmodsrc)
 
-	got := test.ReadFile(t, moduleDir, "main.tf")
+	got := test.ReadFile(t, moduleDir.String(), "main.tf")
 	assert.EqualStrings(t,
 		fmt.Sprintf(moduleFileTemplate, "../../dep/main"),
 		string(got))
 
-	got = test.ReadFile(t, depsDir, "main.tf")
+	got = test.ReadFile(t, depsDir.String(), "main.tf")
 	assert.EqualStrings(t, "", string(got))
 }
 
@@ -293,25 +294,16 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	assert.NoError(t, err)
 
 	vendorDir := project.NewPath("/modules")
-	modFileA := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcA),
-		filename,
-	)
+	modFileA := modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcA).Join(filename)
+	modFileB := modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcB).Join(filename)
 
-	modFileB := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcB),
-		filename,
-	)
-
-	modFileC := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcC),
-		filename,
-	)
+	modFileC := modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcC).Join(filename)
 
 	wantedFileContent := func(name string, modsrc, modsrcDep tf.Source) string {
 		relPath, err := filepath.Rel(
-			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrc),
-			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcDep))
+			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrc).String(),
+			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcDep).String(),
+		)
 		assert.NoError(t, err)
 		return Module(
 			Labels(name),
@@ -324,8 +316,8 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	test.AssertFileContentEquals(t, modFileC, wantedFileContent("modC", modsrcC, modsrcZtest))
 }
 
-func newLocalSource(path string) string {
-	return "git::" + string(uri.File(path))
+func newLocalSource(path os.Path) string {
+	return "git::" + string(uri.File(path.String()))
 }
 
 func vendorHCLConfig(dir string) string {

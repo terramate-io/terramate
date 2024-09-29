@@ -4,10 +4,10 @@
 package ast
 
 import (
-	"path/filepath"
 	"sort"
 
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 )
 
@@ -208,8 +208,8 @@ func (mergedBlocks MergedLabelBlocks) AsList() []*MergedBlock {
 	return allblocks
 }
 
-func sameDir(file1, file2 string) bool {
-	return filepath.Dir(file1) == filepath.Dir(file2)
+func sameDir(file1, file2 os.Path) bool {
+	return file1.Dir() == file2.Dir()
 }
 
 func newLabels(labels []string) [project.MaxGlobalLabels]string {

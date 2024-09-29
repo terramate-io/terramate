@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"os"
+	stdos "os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,6 +20,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/modvendor"
 	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
@@ -760,7 +761,7 @@ func TestDownloadVendor(t *testing.T) {
 	}
 
 	type fixture struct {
-		rootdir       string
+		rootdir       os.Path
 		vendorDir     project.Path
 		modsrc        tf.Source
 		uriModulesDir uri.URI
@@ -775,12 +776,12 @@ func TestDownloadVendor(t *testing.T) {
 		}
 
 		modulesDir := s.RootDir()
-		uriModulesDir := uri.File(modulesDir)
+		uriModulesDir := uri.File(modulesDir.String())
 		for _, cfg := range tc.configs {
 			test.WriteFile(t, s.RootDir(), cfg.path,
 				applyConfigTemplate(t, cfg.data.String(), uriModulesDir))
 
-			git := sandbox.NewGit(t, filepath.Join(modulesDir, cfg.repo))
+			git := sandbox.NewGit(t, modulesDir.Join(cfg.repo))
 			git.CommitAll("files updated")
 		}
 		source := applyConfigTemplate(t, tc.source, uriModulesDir)
@@ -879,11 +880,11 @@ func evaluateWantedFiles(
 	t *testing.T,
 	wantFiles map[vendorPathSpec]fmt.Stringer,
 	uriModulesDir uri.URI,
-	rootdir string,
+	rootdir os.Path,
 	vendordir project.Path,
-) map[string]fmt.Stringer {
+) map[os.Path]fmt.Stringer {
 	t.Helper()
-	evaluated := map[string]fmt.Stringer{}
+	evaluated := map[os.Path]fmt.Stringer{}
 	for pathSpec, expectedStringer := range wantFiles {
 		pathSpecParts := strings.Split(string(pathSpec), "#")
 		assert.EqualInts(t, len(pathSpecParts), 2)
@@ -893,7 +894,7 @@ func evaluateWantedFiles(
 		modsrc, err := tf.ParseSource(applyConfigTemplate(t, source, uriModulesDir))
 		assert.NoError(t, err)
 		absVendorDir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
-		evaluatedPath := filepath.Join(absVendorDir, path)
+		evaluatedPath := absVendorDir.Join(path)
 		evaluated[evaluatedPath] = expectedStringer
 	}
 	return evaluated
@@ -903,22 +904,22 @@ func checkWantedFiles(
 	t *testing.T,
 	tc testcase,
 	uriModulesDir uri.URI,
-	rootdir string,
+	rootdir os.Path,
 	vendordir project.Path,
 ) {
 	t.Helper()
 
 	wantFiles := evaluateWantedFiles(t, tc.wantFiles, uriModulesDir, rootdir, vendordir)
-	absVendorDir := filepath.Join(rootdir, tc.vendordir)
+	absVendorDir := rootdir.Join(tc.vendordir)
 
-	if _, err := os.Stat(absVendorDir); err != nil {
-		if os.IsNotExist(err) {
+	if _, err := stdos.Stat(absVendorDir.String()); err != nil {
+		if stdos.IsNotExist(err) {
 			return
 		}
 		assert.Error(t, err)
 	}
 
-	err := filepath.Walk(absVendorDir, func(path string, _ fs.FileInfo, err error) error {
+	err := filepath.Walk(absVendorDir.String(), func(path string, _ fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -927,7 +928,7 @@ func checkWantedFiles(
 			return nil
 		}
 
-		expectedStringTemplate, ok := wantFiles[path]
+		expectedStringTemplate, ok := wantFiles[os.NewHostPath(path)]
 		if ok {
 			// file must be rewritten
 			relVendoredPaths := computeRelativePaths(
@@ -938,7 +939,7 @@ func checkWantedFiles(
 			assert.EqualStrings(t, want, got, "file %q mismatch", path)
 		} else {
 			// check the vendored file is the same as the one in the module dir.
-			originalPath := modvendor.SourceDir(path, rootdir, vendordir)
+			originalPath := modvendor.SourceDir(os.NewHostPath(path), rootdir, vendordir)
 			pathEnd := filepath.ToSlash(strings.TrimPrefix(originalPath, uriModulesDir.Filename()))
 
 			originalPath = strings.TrimSuffix(filepath.ToSlash(originalPath), pathEnd)
@@ -946,10 +947,10 @@ func checkWantedFiles(
 			moduleName := pathParts[1]
 
 			originalPath = filepath.Join(originalPath, moduleName, strings.Join(pathParts[3:], "/"))
-			originalBytes, err := os.ReadFile(originalPath)
+			originalBytes, err := stdos.ReadFile(originalPath)
 			assert.NoError(t, err)
 
-			gotBytes, err := os.ReadFile(path)
+			gotBytes, err := stdos.ReadFile(path)
 			assert.NoError(t, err)
 			assert.EqualStrings(t, string(originalBytes), string(gotBytes),
 				"files %q and %q mismatch", originalPath, path)
@@ -964,7 +965,7 @@ func computeRelativePaths(
 	relativeToDir string,
 	wantVendored []string,
 	uriModulesDir uri.URI,
-	rootdir string,
+	rootdir os.Path,
 	vendordir project.Path,
 ) []string {
 	t.Helper()
@@ -975,7 +976,8 @@ func computeRelativePaths(
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
 		relPath, err := filepath.Rel(relativeToDir,
-			modvendor.AbsVendorDir(rootdir, vendordir, modsrc))
+			modvendor.AbsVendorDir(rootdir, vendordir, modsrc).String(),
+		)
 		assert.NoError(t, err)
 		relVendoredPaths = append(relVendoredPaths, filepath.ToSlash(relPath))
 	}
@@ -1002,7 +1004,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	// So the initial clone gets the repo pointing at main as "default"
 	repogit.Checkout("main")
 
-	gitURI := uri.File(repoSandbox.RootDir())
+	gitURI := uri.File(repoSandbox.RootDir().String())
 	rootdir := test.TempDir(t)
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURI, ref))
@@ -1020,7 +1022,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	}, got)
 
 	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.TargetDir(vendordir, source)].Source)
-	gotContent := test.ReadFile(t, cloneDir, filename)
+	gotContent := test.ReadFile(t, cloneDir.String(), filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, cloneDir)
 }
@@ -1040,7 +1042,7 @@ func TestModVendorWithRef(t *testing.T) {
 	repogit := repoSandbox.Git()
 	repogit.CommitAll("add file")
 
-	gitURI := uri.File(repoSandbox.RootDir())
+	gitURI := uri.File(repoSandbox.RootDir().String())
 	rootdir := test.TempDir(t)
 
 	source := newSource(t, gitURI, ref)
@@ -1062,7 +1064,7 @@ func TestModVendorWithRef(t *testing.T) {
 	assert.EqualStrings(t, wantCloneDir.String(), cloneDir.String())
 
 	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[vendoredAt].Source)
-	gotContent := test.ReadFile(t, absCloneDir, filename)
+	gotContent := test.ReadFile(t, absCloneDir.String(), filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, absCloneDir)
 
@@ -1093,10 +1095,10 @@ func TestModVendorWithRef(t *testing.T) {
 	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[wantCloneDir].Source)
 	assertNoGitDir(t, absCloneDir)
 
-	gotContent = test.ReadFile(t, absCloneDir, filename)
+	gotContent = test.ReadFile(t, absCloneDir.String(), filename)
 	assert.EqualStrings(t, content, string(gotContent))
 
-	gotContent = test.ReadFile(t, absCloneDir, newFilename)
+	gotContent = test.ReadFile(t, absCloneDir.String(), newFilename)
 	assert.EqualStrings(t, newContent, string(gotContent))
 }
 
@@ -1109,7 +1111,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	g := s.Git()
 	g.CommitAll("add file")
 
-	gitURI := uri.File(s.RootDir())
+	gitURI := uri.File(s.RootDir().String())
 	rootdir := test.TempDir(t)
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=main", gitURI))
@@ -1117,7 +1119,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 
 	vendordir := project.NewPath("/vendor/fun")
 	clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
-	test.MkdirAll(t, clonedir)
+	test.MkdirAll(t, clonedir.String())
 	got := download.Vendor(rootdir, vendordir, source, nil)
 	want := download.Report{
 		Ignored: []download.IgnoredVendor{
@@ -1138,7 +1140,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 func TestModVendorNoRefFails(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)
-	gitURI := uri.File(s.RootDir())
+	gitURI := uri.File(s.RootDir().String())
 	rootdir := test.TempDir(t)
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURI))
@@ -1155,7 +1157,7 @@ func TestModVendorNoRefFails(t *testing.T) {
 	}, report)
 }
 
-func assertNoGitDir(t *testing.T, dir string) {
+func assertNoGitDir(t *testing.T, dir os.Path) {
 	t.Helper()
 
 	entries := test.ReadDir(t, dir)

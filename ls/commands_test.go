@@ -5,7 +5,6 @@ package tmls_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	tmls "github.com/terramate-io/terramate/ls"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	lstest "github.com/terramate-io/terramate/test/ls"
@@ -192,7 +192,7 @@ func TestCreateGenerateID(t *testing.T) {
 	res, err := f.Editor.Command(lsp.ExecuteCommandParams{
 		Command: "terramate.createStack",
 		Arguments: []interface{}{
-			"uri=" + uri.File(filepath.Join(f.Sandbox.RootDir(), "my-stack")),
+			"uri=" + uri.File(f.Sandbox.RootDir().Join("my-stack").String()),
 			"genid=true",
 		},
 	})
@@ -204,7 +204,7 @@ func TestCreateGenerateID(t *testing.T) {
 	assert.IsTrue(t, gotStack.ID != "", "id was not generated")
 }
 
-func mkCreateArgs(rootdir string, args []string) (retArgs []interface{}) {
+func mkCreateArgs(rootdir os.Path, args []string) (retArgs []interface{}) {
 	if len(args) == 0 {
 		panic("no arguments")
 	}
@@ -214,7 +214,7 @@ func mkCreateArgs(rootdir string, args []string) (retArgs []interface{}) {
 		argVal := arg[pos+1:]
 		switch argName {
 		case "uri":
-			argVal = string(uri.File(filepath.Join(rootdir, argVal)))
+			argVal = string(uri.File(rootdir.Join(argVal).String()))
 		case "name":
 		case "description":
 		default:

@@ -8,6 +8,7 @@ package eval_test
 import (
 	"testing"
 
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -49,7 +50,7 @@ func tmAbspathTestcases(t *testing.T) []testcase {
 			expr:    `tm_abspath("")`,
 			basedir: tempDir,
 			want: want{
-				value: cty.StringVal(tempDir),
+				value: cty.StringVal(tempDir.String()),
 			},
 		},
 		{
@@ -62,4 +63,4 @@ func tmAbspathTestcases(t *testing.T) []testcase {
 	}
 }
 
-func root(_ *testing.T) string { return "/" }
+func root(_ *testing.T) os.Path { return os.NewHostPath("/") }

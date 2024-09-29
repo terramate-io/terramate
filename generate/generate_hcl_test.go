@@ -3001,9 +3001,9 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	)
 
 	targEntry := s.RootEntry().CreateDir("target")
-	linkPath := filepath.Join(stackEntry.Path(), "link")
-	test.MkdirAll(t, targEntry.Path())
-	assert.NoError(t, os.Symlink(targEntry.Path(), linkPath))
+	linkPath := stackEntry.Path().Join("link")
+	test.MkdirAll(t, targEntry.Path().String())
+	assert.NoError(t, os.Symlink(targEntry.Path().String(), linkPath.String()))
 
 	// Creates a file with a generated header inside the symlinked directory.
 	// It should never return in the report.
@@ -3028,8 +3028,8 @@ func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	s := sandbox.NoGit(t, true)
 
 	// Creates a file with a generated header inside dot dirs.
-	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.DefaultHeader())
-	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, s.RootDir().Join(".terramate"), "test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, s.RootDir().Join(".another"), "test.tf", genhcl.DefaultHeader())
 
 	assertEqualReports(t, s.Generate(), generate.Report{})
 }
@@ -3040,8 +3040,8 @@ func TestGenerateHCLCleanupOldFilesDONTIgnoreDotFiles(t *testing.T) {
 	s := sandbox.NoGit(t, true)
 
 	// Creates a file with a generated header inside dot dirs.
-	test.WriteFile(t, filepath.Join(s.RootDir(), "somedir"), ".test.tf", genhcl.DefaultHeader())
-	test.WriteFile(t, filepath.Join(s.RootDir(), "another"), ".test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, s.RootDir().Join("somedir"), ".test.tf", genhcl.DefaultHeader())
+	test.WriteFile(t, s.RootDir().Join("another"), ".test.tf", genhcl.DefaultHeader())
 
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
@@ -3082,8 +3082,8 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	})
 
 	want := Doc(
-		Str("terramate_root_path_abs", escapeBackslash(s.RootDir())),
-		Str("terramate_root_path_basename", filepath.Base(s.RootDir())),
+		Str("terramate_root_path_abs", escapeBackslash(s.RootDir().String())),
+		Str("terramate_root_path_basename", filepath.Base(s.RootDir().String())),
 	).String()
 	got := stackEntry.ReadFile(generatedFile)
 

@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -65,7 +64,7 @@ generate_hcl "test2.hcl" {
 		StdoutRegex: cloneSuccessMsg(1, srcStack, destStack),
 	})
 
-	destdir := filepath.Join(s.RootDir(), destStack)
+	destdir := s.RootDir().Join(destStack)
 	cfg := test.ParseTerramateConfig(t, destdir)
 	if cfg.Stack == nil {
 		t.Fatalf("cloned stack has no stack block: %v", cfg)

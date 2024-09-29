@@ -160,9 +160,9 @@ func TestNormalizeGitURL(t *testing.T) {
 		},
 		{
 			name: "filesystem path returns as local",
-			raw:  tempDir,
+			raw:  tempDir.String(),
 			normalized: git.Repository{
-				RawURL: tempDir,
+				RawURL: tempDir.String(),
 				Host:   "local",
 			},
 		},

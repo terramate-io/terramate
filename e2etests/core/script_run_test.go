@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -478,7 +477,7 @@ func TestScriptRun(t *testing.T) {
 
 					wd := s.RootDir()
 					if tc.workingDir != "" {
-						wd = filepath.Join(wd, tc.workingDir)
+						wd = wd.Join(tc.workingDir)
 					}
 
 					// required because `terramate run-script` requires a clean repo.

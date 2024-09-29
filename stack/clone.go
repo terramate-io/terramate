@@ -4,7 +4,7 @@
 package stack
 
 import (
-	"os"
+	stdos "os"
 	"path/filepath"
 	"strings"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -34,26 +35,26 @@ const (
 // - All files and directories are copied  (except dotfiles/dirs)
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
-func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int, error) {
-	rootdir := root.HostDir()
+func Clone(root *config.Root, destdir, srcdir os.Path, skipChildStacks bool) (int, error) {
+	rootdir := root.Path()
 
 	logger := log.With().
 		Str("action", "stack.Clone()").
-		Str("rootdir", rootdir).
-		Str("destdir", destdir).
-		Str("srcdir", srcdir).
+		Stringer("rootdir", rootdir).
+		Stringer("destdir", destdir).
+		Stringer("srcdir", srcdir).
 		Bool("skipChildStacks", skipChildStacks).
 		Logger()
 
-	if !strings.HasPrefix(srcdir, rootdir) {
+	if !srcdir.HasPrefix(rootdir.String()) {
 		return 0, errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
 	}
 
-	if !strings.HasPrefix(destdir, rootdir) {
+	if !destdir.HasPrefix(rootdir.String()) {
 		return 0, errors.E(ErrInvalidStackDir, "dest dir %q must be inside project root %q", destdir, rootdir)
 	}
 
-	if _, err := os.Stat(destdir); err == nil {
+	if _, err := stdos.Stat(destdir.String()); err == nil {
 		return 0, errors.E(ErrCloneDestDirExists, destdir)
 	}
 
@@ -63,7 +64,7 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 			return
 		}
 
-		if err := os.RemoveAll(destdir); err != nil {
+		if err := stdos.RemoveAll(destdir.String()); err != nil {
 			logger.Debug().Err(err).Msg("failed to cleanup destdir after error")
 		}
 	}()
@@ -82,20 +83,20 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 	}
 
 	type cloneTask struct {
-		Srcdir         string
-		Destdir        string
+		Srcdir         os.Path
+		Destdir        os.Path
 		ShouldUpdateID bool
 	}
 	tasks := []cloneTask{}
 
 	// Use this set to identify stack root dirs and don't recurse into them when copying
-	stackset := map[string]struct{}{}
+	stackset := map[os.Path]struct{}{}
 
 	for _, e := range stackTrees {
-		stackSrcdir := e.HostDir()
-		rel, _ := filepath.Rel(srcdir, stackSrcdir)
+		stackSrcdir := e.Path()
+		rel, _ := filepath.Rel(srcdir.String(), stackSrcdir.String())
 
-		stackDestdir := filepath.Join(destdir, rel)
+		stackDestdir := destdir.Join(rel)
 
 		// If destdir is within srcdir, we could encounter a stackDestdir in the source dir
 		// created by a previous cloneTask. They must be ignored, too.
@@ -118,12 +119,12 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 	}
 
 	for _, st := range tasks {
-		filter := func(dir string, entry os.DirEntry) bool {
+		filter := func(dir os.Path, entry stdos.DirEntry) bool {
 			if strings.HasPrefix(entry.Name(), ".") {
 				return false
 			}
 
-			abspath := filepath.Join(dir, entry.Name())
+			abspath := dir.Join(entry.Name())
 			_, found := stackset[abspath]
 			return !found
 		}
@@ -148,8 +149,8 @@ func Clone(root *config.Root, destdir, srcdir string, skipChildStacks bool) (int
 // UpdateStackID updates the stack.id of the given stack directory.
 // The functions updates just the file which defines the stack block.
 // The updated file will lose all comments.
-func UpdateStackID(root *config.Root, stackdir string) (string, error) {
-	parser, err := hcl.NewTerramateParser(root.HostDir(), stackdir)
+func UpdateStackID(root *config.Root, stackdir os.Path) (string, error) {
+	parser, err := hcl.NewTerramateParser(root.Path(), stackdir)
 	if err != nil {
 		return "", err
 	}
@@ -162,12 +163,12 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 		return "", err
 	}
 
-	stackFilePath := getStackFilepath(parser)
-	if stackFilePath == "" {
+	stackFilePath, ok := getStackFilepath(parser)
+	if !ok {
 		return "", errors.E("stack does not have a stack block")
 	}
 
-	st, err := os.Lstat(stackFilePath)
+	st, err := stdos.Lstat(stackFilePath.String())
 	if err != nil {
 		return "", errors.E(err, "stating the stack file")
 	}
@@ -178,12 +179,12 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 	// has no comments on it, so building a new HCL file from the parsed
 	// AST will lose all comments from the original code.
 
-	stackContents, err := os.ReadFile(stackFilePath)
+	stackContents, err := stdos.ReadFile(stackFilePath.String())
 	if err != nil {
 		return "", errors.E(err, "reading stack definition file")
 	}
 
-	parsed, diags := hclwrite.ParseConfig([]byte(stackContents), stackFilePath, hhcl.InitialPos)
+	parsed, diags := hclwrite.ParseConfig([]byte(stackContents), stackFilePath.String(), hhcl.InitialPos)
 	if diags.HasErrors() {
 		return "", errors.E(diags, "parsing stack configuration")
 	}
@@ -205,7 +206,7 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 		body := block.Body()
 		body.SetAttributeValue("id", cty.StringVal(id))
 
-		err = os.WriteFile(stackFilePath, parsed.Bytes(), originalFileMode)
+		err = stdos.WriteFile(stackFilePath.String(), parsed.Bytes(), originalFileMode)
 		if err != nil {
 			return "", err
 		}
@@ -215,13 +216,13 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 	return "", errors.E("stack block not found")
 }
 
-func getStackFilepath(parser *hcl.TerramateParser) string {
+func getStackFilepath(parser *hcl.TerramateParser) (os.Path, bool) {
 	for filepath, body := range parser.ParsedBodies() {
 		for _, block := range body.Blocks {
 			if block.Type == hcl.StackBlockType {
-				return filepath
+				return filepath, true
 			}
 		}
 	}
-	return ""
+	return "", false
 }

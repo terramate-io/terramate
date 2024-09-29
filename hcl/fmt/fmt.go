@@ -6,8 +6,8 @@ package fmt
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	stdos "os"
+	"slices"
 	"sort"
 
 	"github.com/terramate-io/hcl/v2"
@@ -15,6 +15,7 @@ import (
 	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/fs"
+	"github.com/terramate-io/terramate/os"
 )
 
 // ErrHCLSyntax is the error kind for syntax errors.
@@ -25,7 +26,7 @@ const ErrReadFile errors.Kind = "failed to read file"
 
 // FormatResult represents the result of a formatting operation.
 type FormatResult struct {
-	path      string
+	path      os.Path
 	formatted string
 }
 
@@ -34,8 +35,8 @@ type FormatResult struct {
 // element on the list resides on its own line followed by a comma.
 //
 // It returns an error if the given source is invalid HCL.
-func FormatMultiline(src, filename string) (string, error) {
-	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
+func FormatMultiline(src string, filename os.Path) (string, error) {
+	parsed, diags := hclwrite.ParseConfig([]byte(src), filename.String(), hcl.InitialPos)
 	if diags.HasErrors() {
 		return "", errors.E(ErrHCLSyntax, diags)
 	}
@@ -45,8 +46,8 @@ func FormatMultiline(src, filename string) (string, error) {
 
 // Format will format the given source code using hcl.Format.
 // It returns an error if the given source is invalid HCL.
-func Format(src, filename string) (string, error) {
-	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
+func Format(src string, filename os.Path) (string, error) {
+	parsed, diags := hclwrite.ParseConfig([]byte(src), filename.String(), hcl.InitialPos)
 	if diags.HasErrors() {
 		return "", errors.E(ErrHCLSyntax, diags)
 	}
@@ -64,12 +65,12 @@ func Format(src, filename string) (string, error) {
 //
 // All files will be left untouched. To save the formatted result on disk you
 // can use FormatResult.Save for each FormatResult.
-func FormatTree(dir string) ([]FormatResult, error) {
+func FormatTree(dir os.Path) ([]FormatResult, error) {
 	files, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 
 	errs := errors.L()
 	results, err := FormatFiles(dir, files)
@@ -85,7 +86,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	sort.Strings(dirs)
 
 	for _, d := range dirs {
-		subres, err := FormatTree(filepath.Join(dir, d))
+		subres, err := FormatTree(dir.Join(d))
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -113,16 +114,12 @@ func FormatTree(dir string) ([]FormatResult, error) {
 //
 // All files will be left untouched. To save the formatted result on disk you
 // can use FormatResult.Save for each FormatResult.
-func FormatFiles(basedir string, files []string) ([]FormatResult, error) {
+func FormatFiles(basedir os.Path, files os.Paths) ([]FormatResult, error) {
 	results := []FormatResult{}
 	errs := errors.L()
 
-	for _, file := range files {
-		fname := file
-		if !filepath.IsAbs(file) {
-			fname = filepath.Join(basedir, file)
-		}
-		fileContents, err := os.ReadFile(fname)
+	for _, fname := range files {
+		fileContents, err := stdos.ReadFile(fname.String())
 		if err != nil {
 			errs.Append(errors.E(ErrReadFile, err))
 			continue
@@ -150,11 +147,11 @@ func FormatFiles(basedir string, files []string) ([]FormatResult, error) {
 // Save will save the formatted result on the original file, replacing
 // its original contents.
 func (f FormatResult) Save() error {
-	return os.WriteFile(f.path, []byte(f.formatted), 0644)
+	return stdos.WriteFile(f.path.String(), []byte(f.formatted), 0644)
 }
 
 // Path is the absolute path of the original file.
-func (f FormatResult) Path() string {
+func (f FormatResult) Path() os.Path {
 	return f.path
 }
 

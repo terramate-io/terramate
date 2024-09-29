@@ -4,7 +4,6 @@
 package stdlib_test
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -316,7 +315,7 @@ func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
 		}
 	}()
 
-	stdlib.Functions(filepath.Join(test.TempDir(t), "non-existent"), []string{})
+	stdlib.Functions(test.TempDir(t).Join("non-existent"), []string{})
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {

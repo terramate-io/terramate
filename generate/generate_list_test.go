@@ -5,7 +5,6 @@ package generate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/os"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -225,9 +225,9 @@ func TestGeneratedFilesListing(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 
-			var listdir string
+			var listdir os.Path
 			if tcase.dir != "" {
-				listdir = filepath.Join(s.RootDir(), tcase.dir)
+				listdir = s.RootDir().Join(tcase.dir)
 			} else {
 				listdir = s.RootDir()
 			}

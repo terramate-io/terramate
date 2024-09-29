@@ -6,7 +6,6 @@ package stack_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -143,8 +142,8 @@ func TestStackClone(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 
-			srcdir := filepath.Join(s.RootDir(), tc.src)
-			destdir := filepath.Join(s.RootDir(), tc.dest)
+			srcdir := s.RootDir().Join(tc.src)
+			destdir := s.RootDir().Join(tc.dest)
 			_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 			assert.IsError(t, err, tc.wantErr)
 
@@ -161,7 +160,7 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	t.Parallel()
 	s := sandbox.NoGit(t, true)
 	srcdir := test.TempDir(t)
-	destdir := filepath.Join(s.RootDir(), "new-stack")
+	destdir := s.RootDir().Join("new-stack")
 	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
@@ -169,7 +168,7 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	t.Parallel()
 	s := sandbox.NoGit(t, true)
-	srcdir := filepath.Join(s.RootDir(), "src-stack")
+	srcdir := s.RootDir().Join("src-stack")
 	destdir := test.TempDir(t)
 	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
@@ -183,8 +182,8 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 		"f:stack/.dotfile",
 		"f:stack/.dotdir/file",
 	})
-	srcdir := filepath.Join(s.RootDir(), "stack")
-	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+	srcdir := s.RootDir().Join("stack")
+	destdir := s.RootDir().Join("cloned-stack")
 	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.NoError(t, err)
 
@@ -240,8 +239,8 @@ generate_hcl "test2.hcl" {
 	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
 		stackID, stackName, stackDesc))
 
-	srcdir := filepath.Join(s.RootDir(), "stack")
-	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+	srcdir := s.RootDir().Join("stack")
+	destdir := s.RootDir().Join("cloned-stack")
 
 	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.NoError(t, err)
@@ -294,8 +293,8 @@ stack {
 	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
 		stackName, stackDesc))
 
-	srcdir := filepath.Join(s.RootDir(), "stack")
-	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+	srcdir := s.RootDir().Join("stack")
+	destdir := s.RootDir().Join("cloned-stack")
 
 	_, err := stack.Clone(s.Config(), destdir, srcdir, false)
 	assert.NoError(t, err)

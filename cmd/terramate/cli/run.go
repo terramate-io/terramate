@@ -487,7 +487,7 @@ func (c *cli) runAll(
 						cmd := exec.Command(backend.Command[0], backend.Command[1:]...)
 						cmd.Stdout = &stdout
 						cmd.Stderr = &stderr
-						cmd.Dir = otherStack.HostDir(c.cfg())
+						cmd.Dir = otherStack.HostDir(c.cfg()).String()
 						var inputVal cty.Value
 						err := cmd.Run()
 						if err != nil {
@@ -579,7 +579,7 @@ func (c *cli) runAll(
 			}
 
 			cmd := exec.Command(cmdPath, task.Cmd[1:]...)
-			cmd.Dir = run.Stack.HostDir(c.cfg())
+			cmd.Dir = run.Stack.HostDir(c.cfg()).String()
 			cmd.Env = environ
 
 			stdout := c.stdout

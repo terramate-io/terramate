@@ -94,7 +94,7 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 // Range of the map block.
 func (m *MapExpr) Range() hhcl.Range {
 	return hhcl.Range{
-		Filename: m.Origin.HostPath(),
+		Filename: m.Origin.HostPath().String(),
 		Start: hhcl.Pos{
 			Byte:   m.Origin.Start().Byte(),
 			Column: m.Origin.Start().Column(),

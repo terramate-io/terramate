@@ -16,6 +16,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -36,7 +37,7 @@ func TestGit(t *testing.T) {
 func TestGitLog(t *testing.T) {
 	t.Parallel()
 	type testcase struct {
-		repo    func(t *testing.T) string
+		repo    func(t *testing.T) os.Path
 		revs    []string
 		want    []git.LogLine
 		wantErr error
@@ -145,10 +146,10 @@ func TestGitOptions(t *testing.T) {
 	git := test.NewGitWrapper(t, repodir1, []string{})
 	gotRepoDir1, err := git.Root()
 	assert.NoError(t, err, "root failed")
-	assert.EqualStrings(t, repodir1, gotRepoDir1)
+	assert.EqualStrings(t, repodir1.String(), gotRepoDir1)
 	gotRepoDir2, err := git.With().WorkingDir(repodir2).Wrapper().Root()
 	assert.NoError(t, err)
-	assert.EqualStrings(t, repodir2, gotRepoDir2)
+	assert.EqualStrings(t, repodir2.String(), gotRepoDir2)
 }
 
 func TestClone(t *testing.T) {
@@ -162,11 +163,11 @@ func TestClone(t *testing.T) {
 
 	git.CommitAll("add file")
 
-	repoURL := "file://" + s.RootDir()
+	repoURL := string("file://" + s.RootDir())
 	cloneDir := test.TempDir(t)
 	git.Clone(repoURL, cloneDir)
 
-	got := test.ReadFile(t, cloneDir, filename)
+	got := test.ReadFile(t, cloneDir.String(), filename)
 	assert.EqualStrings(t, content, string(got))
 }
 
@@ -293,7 +294,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 
 				remote := gitRemote.Name
 				remoteDir := test.EmptyRepo(t, true)
-				err := g.RemoteAdd(remote, remoteDir)
+				err := g.RemoteAdd(remote, remoteDir.String())
 				assert.NoError(t, err)
 
 				for _, branch := range gitRemote.Branches {
@@ -330,7 +331,7 @@ func TestListRemoteWithMultipleBranches(t *testing.T) {
 
 	remoteDir := test.EmptyRepo(t, true)
 
-	assert.NoError(t, g.RemoteAdd(remote, remoteDir))
+	assert.NoError(t, g.RemoteAdd(remote, remoteDir.String()))
 	assert.NoError(t, g.Push(remote, defaultBranch))
 
 	branches := []string{"b1", "b2", "b3"}
@@ -396,7 +397,7 @@ func TestShowMetadata(t *testing.T) {
 
 		gw := test.NewGitWrapper(t, repodir, env)
 		filename := test.WriteFile(t, repodir, "README.md", "# Test")
-		assert.NoError(t, gw.Add(filename), "git add %s", filename)
+		assert.NoError(t, gw.Add(filename.String()), "git add %s", filename)
 
 		commitMsg := tc.title
 		if tc.description != "" {
@@ -448,7 +449,7 @@ func TestGetConfigValue(t *testing.T) {
 	tests := map[string]string{
 		"user.name":      test.Username,
 		"user.email":     test.Email,
-		"safe.directory": repodir,
+		"safe.directory": repodir.String(),
 	}
 
 	for k, v := range tests {
@@ -464,10 +465,12 @@ func TestGetConfigValue(t *testing.T) {
 
 const defaultBranch = "main"
 
-func mkOneCommitRepo(t *testing.T) string {
+func mkOneCommitRepo(t *testing.T) os.Path {
 	dir := test.EmptyRepo(t, false)
-	repodir, err := filepath.EvalSymlinks(dir)
+	repostr, err := filepath.EvalSymlinks(dir.String())
 	assert.NoError(t, err)
+
+	repodir := os.NewHostPath(repostr)
 
 	// Fixing all the information used to create the SHA-1 below:
 	// CommitID: a022c39b57b1e711fb9298a05aacc699773e6d36
@@ -485,7 +488,7 @@ func mkOneCommitRepo(t *testing.T) string {
 
 	gw := test.NewGitWrapper(t, repodir, env)
 	filename := test.WriteFile(t, repodir, "README.md", "# Test")
-	assert.NoError(t, gw.Add(filename), "git add %s", filename)
+	assert.NoError(t, gw.Add(filename.String()), "git add %s", filename)
 
 	err = gw.Commit("some message")
 	assert.NoError(t, err, "commit")
@@ -501,7 +504,7 @@ func addDefaultRemoteRev(t *testing.T, git *git.Git) (string, string) {
 	t.Helper()
 
 	remoteDir := test.EmptyRepo(t, true)
-	err := git.RemoteAdd(remote, remoteDir)
+	err := git.RemoteAdd(remote, remoteDir.String())
 	assert.NoError(t, err)
 
 	err = git.Push(remote, revision)

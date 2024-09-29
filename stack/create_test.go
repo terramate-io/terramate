@@ -5,13 +5,13 @@ package stack_test
 
 import (
 	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
@@ -199,11 +199,11 @@ func TestStackCreation(t *testing.T) {
 	}
 }
 
-func buildImportedFiles(t *testing.T, rootdir string, imports []string) {
+func buildImportedFiles(t *testing.T, rootdir os.Path, imports []string) {
 	t.Helper()
 
 	for _, importPath := range imports {
-		abspath := filepath.Join(rootdir, importPath)
-		test.WriteFile(t, filepath.Dir(abspath), filepath.Base(abspath), "")
+		abspath := rootdir.Join(importPath)
+		test.WriteFile(t, abspath.Dir(), abspath.Base(), "")
 	}
 }

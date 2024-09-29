@@ -6,7 +6,6 @@ package tmls_test
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -41,8 +40,10 @@ func TestDocumentOpen(t *testing.T) {
 	var params lsp.PublishDiagnosticsParams
 	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
 	assert.EqualInts(t, 0, len(params.Diagnostics))
-	assert.EqualStrings(t, filepath.Join(stack.Path(), stackpkg.DefaultFilename),
-		params.URI.Filename())
+	assert.EqualStrings(t,
+		stack.Path().Join(stackpkg.DefaultFilename).String(),
+		params.URI.Filename(),
+	)
 }
 
 func TestDocumentOpenWithoutRootConfig(t *testing.T) {
@@ -59,7 +60,7 @@ func TestDocumentOpenWithoutRootConfig(t *testing.T) {
 	var params lsp.PublishDiagnosticsParams
 	assert.NoError(t, json.Unmarshal(r.Params(), &params), "unmarshaling params")
 	assert.EqualInts(t, 0, len(params.Diagnostics))
-	assert.EqualStrings(t, filepath.Join(stack.Path(), stackpkg.DefaultFilename),
+	assert.EqualStrings(t, stack.Path().Join(stackpkg.DefaultFilename).String(),
 		params.URI.Filename())
 }
 
@@ -95,7 +96,7 @@ func TestDocumentRegressionErrorLoadingRootConfig(t *testing.T) {
 	assert.EqualStrings(t, "textDocument/publishDiagnostics", rp.req.Method(),
 		"unexpected notification request")
 	assert.EqualInts(t, 0, len(rp.p.Diagnostics), "got diagnostics for file %v: %v", rp.p.URI.Filename(), rp.p.Diagnostics)
-	assert.EqualStrings(t, filepath.Join(f.Sandbox.RootDir(), "root.config.tm"), rp.p.URI.Filename())
+	assert.EqualStrings(t, f.Sandbox.RootDir().Join("root.config.tm").String(), rp.p.URI.Filename())
 
 	rp = reqs[1]
 	assert.EqualStrings(t, "textDocument/publishDiagnostics", rp.req.Method(),
@@ -494,9 +495,9 @@ stack {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := lstest.Setup(t, tc.layout...)
-			workspace := tc.wrk
-			if workspace == "" {
-				workspace = f.Sandbox.RootDir()
+			workspace := f.Sandbox.RootDir()
+			if tc.wrk != "" {
+				workspace = f.Sandbox.RootDir().Join(tc.wrk)
 			}
 			f.Editor.CheckInitialize(workspace)
 
@@ -505,7 +506,7 @@ stack {
 				want := tc.want[i]
 
 				// fix the wanted path as it depends on the sandbox root.
-				want.URI = uri.File(filepath.Join(f.Sandbox.RootDir(), string(want.URI)))
+				want.URI = uri.File(f.Sandbox.RootDir().Join(string(want.URI)).String())
 				select {
 				case gotReq := <-f.Editor.Requests:
 					assert.EqualStrings(t, lsp.MethodTextDocumentPublishDiagnostics,

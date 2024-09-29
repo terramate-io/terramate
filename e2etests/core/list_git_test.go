@@ -6,7 +6,6 @@ package core_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -61,7 +60,7 @@ func TestE2EListWithGitSubModules(t *testing.T) {
 			}
 
 			rootGit := rootSandbox.Git()
-			rootGit.AddSubmodule("sub", subSandbox.RootDir())
+			rootGit.AddSubmodule("sub", subSandbox.RootDir().String())
 
 			rootGit.CommitAll("add submodule")
 
@@ -104,7 +103,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	git.CheckoutNew("change-the-stack")
 
 	subfile.Write("# changed")
-	git.Add(stack.Path())
+	git.Add(stack.Path().String())
 	git.Commit("stack changed")
 
 	want := RunExpected{
@@ -123,7 +122,7 @@ func TestListIgnoresChangesInSymlinksOutsideStack(t *testing.T) {
 
 	stack := s.CreateStack("stack")
 	symlinkedFile := s.RootEntry().CreateFile("symlinked_dir/something.tf", "# nothing")
-	err := os.Symlink(symlinkedFile.HostPath(), filepath.Join(stack.Path(), "something.tf"))
+	err := os.Symlink(symlinkedFile.HostPath().String(), stack.Path().Join("something.tf").String())
 	assert.NoError(t, err)
 
 	cli := NewCLI(t, s.RootDir())
@@ -141,9 +140,9 @@ func TestListIgnoresChangesInSymlinksOutsideStack(t *testing.T) {
 	// Changing the symlink triggers change.
 	symlinkedFile = s.RootEntry().CreateFile("symlinked_dir/other.tf", "# other")
 	// link "something.tf" -> symlinked_dir/other.tf
-	newname := filepath.Join(stack.Path(), "something.tf")
-	assert.NoError(t, os.Remove(newname))
-	err = os.Symlink(symlinkedFile.HostPath(), newname)
+	newname := stack.Path().Join("something.tf")
+	assert.NoError(t, os.Remove(newname.String()))
+	err = os.Symlink(symlinkedFile.HostPath().String(), newname.String())
 	assert.NoError(t, err)
 
 	git.CommitAll("stack changed")
@@ -178,7 +177,7 @@ terramate {
 	git.CheckoutNew("change-the-stack")
 
 	subsubfile.Write("# changed")
-	git.Add(stack.Path())
+	git.Add(stack.Path().String())
 	git.Commit("stack changed")
 
 	want := RunExpected{
@@ -200,7 +199,7 @@ func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("deleted-stack")
 
-	test.RemoveAll(t, stack.Path())
+	test.RemoveAll(t, stack.Path().String())
 
 	git.CommitAll("removed stack")
 
@@ -213,8 +212,8 @@ func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
 	s := sandbox.New(t)
 
 	s.CreateStack("stack")
-	toBeDeletedDir := filepath.Join(s.RootDir(), "to-be-deleted")
-	test.MkdirAll(t, toBeDeletedDir)
+	toBeDeletedDir := s.RootDir().Join("to-be-deleted")
+	test.MkdirAll(t, toBeDeletedDir.String())
 	test.WriteFile(t, toBeDeletedDir, "test.txt", "")
 	cli := NewCLI(t, s.RootDir())
 
@@ -224,7 +223,7 @@ func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
 
 	git.CheckoutNew("deleted-diretory")
 
-	test.RemoveAll(t, toBeDeletedDir)
+	test.RemoveAll(t, toBeDeletedDir.String())
 	git.CommitAll("removed directory")
 
 	AssertRun(t, cli.ListChangedStacks())
@@ -245,7 +244,7 @@ func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("deleted-file")
 
-	test.RemoveAll(t, file.HostPath())
+	test.RemoveAll(t, file.HostPath().String())
 
 	git.CommitAll("removed file")
 
@@ -270,7 +269,7 @@ func TestListChangedDontIgnoreStackDeletedDirs(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("deleted-dir")
 
-	test.RemoveAll(t, toBeDeletedDir.Path())
+	test.RemoveAll(t, toBeDeletedDir.Path().String())
 
 	git.CommitAll("removed dir")
 
@@ -295,7 +294,7 @@ func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("deleted-dir")
 
-	test.RemoveAll(t, testDir.Path())
+	test.RemoveAll(t, testDir.Path().String())
 
 	git.CommitAll("removed directory")
 
@@ -395,21 +394,21 @@ func TestGitGlobalConfigIsUsed(t *testing.T) {
 		"f:.gitignore:*.test",
 	})
 
-	tempGlobalConfig := filepath.Join(s1.RootDir(), ".gitconfig")
-	tempGlobalGitignore := filepath.Join(s1.RootDir(), ".gitignore")
+	tempGlobalConfig := s1.RootDir().Join(".gitconfig")
+	tempGlobalGitignore := s1.RootDir().Join(".gitignore")
 	gw, err := git.WithConfig(git.Config{
 		AllowPorcelain: true,
 		WorkingDir:     s1.RootDir(),
 		Env: []string{
-			"GIT_CONFIG_GLOBAL=" + tempGlobalConfig,
+			"GIT_CONFIG_GLOBAL=" + tempGlobalConfig.String(),
 		},
 	})
 	assert.NoError(t, err)
-	_, err = gw.Exec("config", "--global", "core.excludesfile", tempGlobalGitignore)
+	_, err = gw.Exec("config", "--global", "core.excludesfile", tempGlobalGitignore.String())
 	assert.NoError(t, err)
 
-	t.Logf("config: %s", test.ReadFile(t, s1.RootDir(), ".gitconfig"))
-	t.Logf("ignore: %s", test.ReadFile(t, s1.RootDir(), ".gitignore"))
+	t.Logf("config: %s", test.ReadFile(t, s1.RootDir().String(), ".gitconfig"))
+	t.Logf("ignore: %s", test.ReadFile(t, s1.RootDir().String(), ".gitignore"))
 
 	// code below creates a common case of changed files.
 	// the directory sub/dir is ignored by the global .gitignore
@@ -436,6 +435,6 @@ func TestGitGlobalConfigIsUsed(t *testing.T) {
 
 	// use global config
 	cli = NewCLI(t, repo.RootDir())
-	cli.AppendEnv = append(cli.AppendEnv, "GIT_CONFIG_GLOBAL="+tempGlobalConfig)
+	cli.AppendEnv = append(cli.AppendEnv, "GIT_CONFIG_GLOBAL="+tempGlobalConfig.String())
 	AssertRun(t, cli.Run("run", "--quiet", "--", HelperPath, "true"))
 }

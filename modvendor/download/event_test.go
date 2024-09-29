@@ -264,13 +264,13 @@ func TestVendorEvents(t *testing.T) {
 			t.Parallel()
 
 			repositories := sandbox.NoGit(t, false)
-			reposURI := uri.File(repositories.RootDir())
+			reposURI := uri.File(repositories.RootDir().String())
 
 			for _, repo := range tcase.repositories {
 				repositoriesRoot := repositories.RootDir()
-				repoRoot := filepath.Join(repositoriesRoot, repo.name)
+				repoRoot := repositoriesRoot.Join(repo.name)
 
-				test.MkdirAll(t, repoRoot)
+				test.MkdirAll(t, repoRoot.String())
 				git := sandbox.NewGit(t, repoRoot)
 				git.Init()
 

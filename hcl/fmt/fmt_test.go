@@ -4,8 +4,7 @@
 package fmt_test
 
 import (
-	"os"
-	"path/filepath"
+	stdos "os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -13,6 +12,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test"
 
 	. "github.com/terramate-io/terramate/test/hclutils"
@@ -1251,7 +1251,7 @@ var = [
 			t.Parallel()
 			tempdir := test.TempDir(t)
 
-			got, err := fmt.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))
+			got, err := fmt.FormatMultiline(tcase.input, tempdir.Join(filename))
 
 			FixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
@@ -1353,14 +1353,14 @@ d = []
 			continue
 		}
 
-		checkResults := func(t *testing.T, res []fmt.FormatResult, wantFiles []string, tcase testcase, gotErr error) {
+		checkResults := func(t *testing.T, res []fmt.FormatResult, wantFiles []os.Path, tcase testcase, gotErr error) {
 			wantErrs := []error{}
 
 			for _, path := range wantFiles {
 				for _, wantErr := range tcase.wantErrs {
 					if e, ok := wantErr.(*errors.Error); ok {
 						err := *e
-						err.FileRange.Filename = path
+						err.FileRange.Filename = path.String()
 						wantErrs = append(wantErrs, &err)
 						continue
 					}
@@ -1381,11 +1381,11 @@ d = []
 			}
 
 			for i, wantFile := range wantFiles {
-				assert.EqualStrings(t, wantFile, res[i].Path())
+				assert.EqualStrings(t, wantFile.String(), res[i].Path().String())
 			}
 		}
 
-		saveFiles := func(t *testing.T, rootdir string, res []fmt.FormatResult) {
+		saveFiles := func(t *testing.T, rootdir os.Path, res []fmt.FormatResult) {
 			for _, r := range res {
 				assert.NoError(t, r.Save())
 				assertFileContains(t, r.Path(), r.Formatted())
@@ -1399,7 +1399,7 @@ d = []
 			}
 		}
 
-		sandbox := func(t *testing.T) (string, []string) {
+		sandbox := func(t *testing.T) (os.Path, []os.Path) {
 			const (
 				filename   = "file.tm"
 				subdirName = "subdir"
@@ -1407,11 +1407,11 @@ d = []
 
 			rootdir := test.TempDir(t)
 			test.Mkdir(t, rootdir, subdirName)
-			subdir := filepath.Join(rootdir, subdirName)
+			subdir := rootdir.Join(subdirName)
 
 			wantFilepath := test.WriteFile(t, rootdir, filename, tcase.input)
 			wantSubdirFilepath := test.WriteFile(t, subdir, filename, tcase.input)
-			return rootdir, []string{wantFilepath, wantSubdirFilepath}
+			return rootdir, []os.Path{wantFilepath, wantSubdirFilepath}
 		}
 
 		// piggyback on the overall formatting scenarios to check
@@ -1450,8 +1450,8 @@ func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 	tmpdir := test.TempDir(t)
 	test.Mkdir(t, tmpdir, subdir)
 
-	test.AssertChmod(t, filepath.Join(tmpdir, subdir), 0)
-	defer test.AssertChmod(t, filepath.Join(tmpdir, subdir), 0755)
+	test.AssertChmod(t, tmpdir.Join(subdir), 0)
+	defer test.AssertChmod(t, tmpdir.Join(subdir), 0755)
 
 	_, err := fmt.FormatTree(tmpdir)
 	assert.Error(t, err)
@@ -1466,8 +1466,8 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 		b = 3
 	}`)
 
-	test.AssertChmod(t, filepath.Join(tmpdir, filename), 0)
-	defer test.AssertChmod(t, filepath.Join(tmpdir, filename), 0755)
+	test.AssertChmod(t, tmpdir.Join(filename), 0)
+	defer test.AssertChmod(t, tmpdir.Join(filename), 0755)
 
 	_, err := fmt.FormatTree(tmpdir)
 	assert.Error(t, err)
@@ -1475,7 +1475,7 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 
 func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
 	tmpdir := test.TempDir(t)
-	_, err := fmt.FormatTree(filepath.Join(tmpdir, "non-existent"))
+	_, err := fmt.FormatTree(tmpdir.Join("non-existent"))
 	assert.Error(t, err)
 }
 
@@ -1496,7 +1496,7 @@ a = 1
 	test.WriteFile(t, tmpdir, "file.hcl", unformattedCode)
 
 	test.Mkdir(t, tmpdir, subdirName)
-	subdir := filepath.Join(tmpdir, subdirName)
+	subdir := tmpdir.Join(subdirName)
 	test.WriteFile(t, subdir, ".file.tm", unformattedCode)
 	test.WriteFile(t, subdir, "file.tm", unformattedCode)
 	test.WriteFile(t, subdir, "file.tm.hcl", unformattedCode)
@@ -1506,12 +1506,12 @@ a = 1
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
 }
 
-func assertFileContains(t *testing.T, filepath, got string) {
+func assertFileContains(t *testing.T, file os.Path, got string) {
 	t.Helper()
 
-	data, err := os.ReadFile(filepath)
+	data, err := stdos.ReadFile(file.String())
 	assert.NoError(t, err, "reading file")
 
 	want := string(data)
-	assert.EqualStrings(t, want, got, "file %q contents don't match", filepath)
+	assert.EqualStrings(t, want, got, "file %q contents don't match", file)
 }

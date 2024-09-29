@@ -6,7 +6,7 @@ package git
 import (
 	"errors"
 	"fmt"
-	"os"
+	stdos "os"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/os"
 )
 
 type (
@@ -24,7 +25,7 @@ type (
 		ProgramPath string
 
 		// WorkingDir sets the directory where the commands will be applied.
-		WorkingDir string
+		WorkingDir os.Path
 
 		// Env is the environment variables to be passed over to git.
 		// If it is nil it means no environment variables should be passed.
@@ -150,19 +151,19 @@ func (git *Git) applyDefaults() error {
 	}
 
 	if cfg.WorkingDir == "" {
-		wd, err := os.Getwd()
+		wd, err := stdos.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get working directory: %w", err)
 		}
 
-		cfg.WorkingDir = wd
+		cfg.WorkingDir = os.NewHostPath(wd)
 	}
 	return nil
 }
 
 func (git *Git) validate() error {
 	cfg := git.cfg()
-	_, err := os.Stat(cfg.ProgramPath)
+	_, err := stdos.Stat(cfg.ProgramPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat git program path \"%s\": %w: %v",
 			cfg.ProgramPath, ErrInvalidConfig, err)
@@ -180,7 +181,7 @@ func (git *Git) Version() (string, error) {
 	cfg := git.cfg()
 	logger := log.With().
 		Str("action", "Version()").
-		Str("workingDir", cfg.WorkingDir).
+		Stringer("workingDir", cfg.WorkingDir).
 		Logger()
 
 	logger.Debug().Msg("Get git version.")
@@ -202,7 +203,7 @@ func (git *Git) Version() (string, error) {
 // repository", in other words, a repository not intended for work but just
 // store revisions.
 // Beware: Init is a porcelain method.
-func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
+func (git *Git) Init(dir os.Path, defaultBranch string, bare bool) error {
 	cfg := git.cfg()
 	if !cfg.AllowPorcelain {
 		return fmt.Errorf("Init: %w", ErrDenyPorcelain)
@@ -217,7 +218,7 @@ func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 		args = append(args, "--bare")
 	}
 
-	args = append(args, dir)
+	args = append(args, dir.String())
 	_, err := git.exec("init", args...)
 	if err != nil {
 		return err
@@ -359,7 +360,7 @@ func (git *Git) Add(files ...string) error {
 
 	log.Debug().
 		Str("action", "Add()").
-		Str("workingDir", cfg.WorkingDir).
+		Stringer("workingDir", cfg.WorkingDir).
 		Msg("Add file to current staged index.")
 	_, err := git.exec("add", files...)
 	return err
@@ -367,12 +368,12 @@ func (git *Git) Add(files ...string) error {
 
 // Clone will clone the given repo inside the given dir.
 // Beware: Clone is a porcelain method.
-func (git *Git) Clone(repoURL, dir string) error {
+func (git *Git) Clone(repoURL string, dir os.Path) error {
 	cfg := git.cfg()
 	if !cfg.AllowPorcelain {
 		return fmt.Errorf("Clone: %w", ErrDenyPorcelain)
 	}
-	_, err := git.exec("clone", repoURL, dir)
+	_, err := git.exec("clone", repoURL, dir.String())
 	return err
 }
 
@@ -416,7 +417,7 @@ func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
 	cfg := git.cfg()
 	logger := log.With().
 		Str("action", "FetchRemoteRev()").
-		Str("workingDir", cfg.WorkingDir).
+		Stringer("workingDir", cfg.WorkingDir).
 		Logger()
 
 	logger.Debug().Msg("List references in remote repository.")
@@ -502,7 +503,7 @@ func (git *Git) NewBranch(name string) error {
 
 	log.Debug().
 		Str("action", "NewBranch()").
-		Str("workingDir", git.cfg().WorkingDir).
+		Stringer("workingDir", git.cfg().WorkingDir).
 		Str("reference", name).
 		Msg("Create new branch.")
 	_, err = git.exec("update-ref", "refs/heads/"+name, "HEAD")
@@ -518,7 +519,7 @@ func (git *Git) DeleteBranch(name string) error {
 
 	log.Debug().
 		Str("action", "DeleteBranch()").
-		Str("workingDir", git.cfg().WorkingDir).
+		Stringer("workingDir", git.cfg().WorkingDir).
 		Str("reference", name).
 		Msg("Delete branch.")
 	_, err = git.exec("update-ref", "-d", "refs/heads/"+name)
@@ -543,7 +544,7 @@ func (git *Git) Checkout(rev string, create bool) error {
 
 	log.Debug().
 		Str("action", "Checkout()").
-		Str("workingDir", git.cfg().WorkingDir).
+		Stringer("workingDir", git.cfg().WorkingDir).
 		Str("reference", rev).
 		Msg("Checkout.")
 	_, err := git.exec("checkout", rev)
@@ -559,7 +560,7 @@ func (git *Git) Merge(branch string) error {
 
 	log.Debug().
 		Str("action", "Merge()").
-		Str("workingDir", git.cfg().WorkingDir).
+		Stringer("workingDir", git.cfg().WorkingDir).
 		Str("reference", branch).
 		Msg("Merge.")
 	_, err := git.exec("merge", "--no-ff", branch)
@@ -597,7 +598,7 @@ func (git *Git) ListUntracked(dirs ...string) ([]string, error) {
 
 	log.Debug().
 		Str("action", "ListUntracked()").
-		Str("workingDir", git.cfg().WorkingDir).
+		Stringer("workingDir", git.cfg().WorkingDir).
 		Msg("List untracked files.")
 	out, err := git.exec("ls-files", args...)
 	if err != nil {
@@ -621,7 +622,7 @@ func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
 
 	log.Debug().
 		Str("action", "ListUncommitted()").
-		Str("workingDir", git.cfg().WorkingDir).
+		Stringer("workingDir", git.cfg().WorkingDir).
 		Msg("List uncommitted files.")
 	out, err := git.exec("ls-files", args...)
 	if err != nil {
@@ -742,7 +743,7 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	cmd := exec.Cmd{
 		Path: cfg.ProgramPath,
 		Args: []string{cfg.ProgramPath},
-		Dir:  cfg.WorkingDir,
+		Dir:  cfg.WorkingDir.String(),
 		Env:  []string{},
 	}
 
