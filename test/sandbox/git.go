@@ -278,6 +278,9 @@ func (git Git) BaseDir() string {
 	return git.cfg.repoDir
 }
 
+// Unwrap returns the wrapped git instance.
+func (git Git) Unwrap() *git.Git { return git.g }
+
 func defaultGitConfig() GitConfig {
 	return GitConfig{
 		LocalBranchName:         "main",
