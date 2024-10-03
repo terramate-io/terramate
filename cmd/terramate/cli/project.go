@@ -6,6 +6,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/terramate-io/terramate/os"
+
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -16,8 +18,8 @@ import (
 )
 
 type project struct {
-	rootdir      string
-	wd           string
+	rootdir      os.Path
+	wd           os.Path
 	isRepo       bool
 	root         config.Root
 	baseRef      string
@@ -178,7 +180,7 @@ func (p project) defaultBranchRef() string {
 func (p *project) setDefaults() error {
 	logger := log.With().
 		Str("action", "setDefaults()").
-		Str("workingDir", p.wd).
+		Stringer("workingDir", p.wd).
 		Logger()
 
 	logger.Debug().Msg("Set defaults.")

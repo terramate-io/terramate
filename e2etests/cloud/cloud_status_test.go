@@ -6,7 +6,6 @@ package cloud_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"testing"
@@ -44,7 +43,7 @@ func TestCloudStatus(t *testing.T) {
 		{
 			name:       "local repository is not permitted with --status=",
 			layout:     []string{"s:s1:id=s1"},
-			repository: test.TempDir(t),
+			repository: test.TempDir(t).String(),
 			flags:      []string{`--status=unhealthy`},
 			want: RunExpected{
 				Status:      1,
@@ -744,7 +743,7 @@ func TestCloudStatus(t *testing.T) {
 				env = append(env, "TMC_API_PAGESIZE="+strconv.Itoa(tc.perPage))
 			}
 			t.Run(tc.name+"/list", func(t *testing.T) {
-				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 				args := []string{"list"}
 				args = append(args, tc.flags...)
 				result := cli.Run(args...)
@@ -752,16 +751,16 @@ func TestCloudStatus(t *testing.T) {
 			})
 
 			t.Run(tc.name+"/run", func(t *testing.T) {
-				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 				args := []string{"run", "-X", "--quiet"}
 				args = append(args, tc.flags...)
-				args = append(args, HelperPath, "stack-rel-path", s.RootDir())
+				args = append(args, HelperPath, "stack-rel-path", s.RootDir().String())
 				result := cli.Run(args...)
 				AssertRunResult(t, result, tc.want)
 			})
 
 			t.Run(tc.name+"/script-run", func(t *testing.T) {
-				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 				args := []string{"script", "run", "-X", "--quiet"}
 				args = append(args, tc.flags...)
 				args = append(args, "test")

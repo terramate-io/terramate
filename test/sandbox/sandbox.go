@@ -15,7 +15,7 @@ import (
 	"bytes"
 	"fmt"
 	stdfs "io/fs"
-	"os"
+	stdos "os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -32,6 +32,7 @@ import (
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/stack"
@@ -43,7 +44,7 @@ import (
 type S struct {
 	t       testing.TB
 	git     *Git
-	rootdir string
+	rootdir os.Path
 	cfg     *config.Root
 
 	Env []string
@@ -53,8 +54,8 @@ type S struct {
 // directory.
 type DirEntry struct {
 	t        testing.TB
-	rootpath string
-	abspath  string
+	rootpath os.Path
+	abspath  os.Path
 	relpath  string
 }
 
@@ -70,8 +71,8 @@ type StackEntry struct {
 // It has limited usefulness but it is easier to work with for testing.
 type FileEntry struct {
 	t        testing.TB
-	hostpath string
-	rootpath string
+	hostpath os.Path
+	rootpath os.Path
 }
 
 // New creates a new complete test sandbox.
@@ -120,8 +121,8 @@ func NoGit(t testing.TB, createProject bool) S {
 		"s:other-hidden-stack",
 	})
 
-	rootdir := filepath.Join(outerDir, "sandbox")
-	test.MkdirAll(t, rootdir)
+	rootdir := outerDir.Join("sandbox")
+	test.MkdirAll(t, rootdir.String())
 
 	if createProject {
 		test.WriteRootConfig(t, rootdir)
@@ -307,7 +308,7 @@ func (s S) LoadStackGlobals(
 //
 // It is a programming error to delete this dir, it will be automatically
 // removed when the test finishes.
-func (s S) RootDir() string {
+func (s S) RootDir() os.Path {
 	return s.rootdir
 }
 
@@ -393,8 +394,8 @@ func (s S) DirEntry(relpath string) DirEntry {
 		t.Fatalf("DirEntry() needs a relative path but given %q", relpath)
 	}
 
-	abspath := filepath.Join(s.rootdir, filepath.FromSlash(relpath))
-	stat, err := os.Stat(abspath)
+	abspath := s.rootdir.Join(relpath)
+	stat, err := stdos.Stat(abspath.String())
 	if err != nil {
 		t.Fatalf("DirEntry(): dir must exist: %v", err)
 	}
@@ -426,7 +427,7 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 	fe := FileEntry{
 		t:        de.t,
 		rootpath: de.rootpath,
-		hostpath: filepath.Join(de.abspath, name),
+		hostpath: de.abspath.Join(name),
 	}
 	fe.Write(body, args...)
 
@@ -456,7 +457,7 @@ func (de DirEntry) CreateConfig(body string) FileEntry {
 
 	fe := FileEntry{
 		t:        de.t,
-		hostpath: filepath.Join(de.abspath, config.DefaultFilename),
+		hostpath: de.abspath.Join(config.DefaultFilename),
 	}
 	fe.Write(body)
 	return fe
@@ -467,7 +468,7 @@ func (de DirEntry) DeleteConfig() {
 	de.t.Helper()
 
 	assert.NoError(de.t,
-		os.Remove(filepath.Join(de.abspath, config.DefaultFilename)),
+		stdos.Remove(filepath.Join(de.abspath.String(), config.DefaultFilename)),
 		"removing default configuration file")
 }
 
@@ -480,7 +481,7 @@ func (de DirEntry) CreateDir(relpath string) DirEntry {
 // Chmod does the same as [test.Chmod] for the given file/dir inside
 // this DirEntry.
 func (de DirEntry) Chmod(relpath string, mode stdfs.FileMode) {
-	test.AssertChmod(de.t, filepath.Join(de.abspath, relpath), mode)
+	test.AssertChmod(de.t, de.abspath.Join(relpath), mode)
 }
 
 // ReadFile will read a file inside this dir entry with the given name.
@@ -488,7 +489,7 @@ func (de DirEntry) Chmod(relpath string, mode stdfs.FileMode) {
 // expectation on the file being there.
 func (de DirEntry) ReadFile(name string) []byte {
 	de.t.Helper()
-	return test.ReadFile(de.t, de.abspath, name)
+	return test.ReadFile(de.t, de.abspath.String(), name)
 }
 
 // RemoveFile will delete a file inside this dir entry with the given name.
@@ -499,7 +500,7 @@ func (de DirEntry) RemoveFile(name string) {
 }
 
 // Path returns the absolute path of the directory entry.
-func (de DirEntry) Path() string {
+func (de DirEntry) Path() os.Path {
 	return de.abspath
 }
 
@@ -525,22 +526,22 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 
 	body = fmt.Sprintf(body, args...)
 
-	test.MkdirAll(fe.t, filepath.Dir(fe.hostpath))
+	test.MkdirAll(fe.t, fe.hostpath.Dir().String())
 
-	if err := os.WriteFile(fe.hostpath, []byte(body), 0700); err != nil {
+	if err := stdos.WriteFile(fe.hostpath.String(), []byte(body), 0700); err != nil {
 		fe.t.Fatalf("os.WriteFile(%q) = %v", fe.hostpath, err)
 	}
 }
 
 // Chmod changes the file mod, like os.Chmod.
-func (fe FileEntry) Chmod(mode os.FileMode) {
+func (fe FileEntry) Chmod(mode stdos.FileMode) {
 	fe.t.Helper()
 
 	test.AssertChmod(fe.t, fe.hostpath, mode)
 }
 
 // HostPath returns the absolute path of the file.
-func (fe FileEntry) HostPath() string {
+func (fe FileEntry) HostPath() os.Path {
 	return fe.hostpath
 }
 
@@ -553,7 +554,7 @@ func (fe FileEntry) Path() string {
 // module dir entry. The path is relative to stack dir itself (hence suitable to
 // be a module source path).
 func (se StackEntry) ModSource(mod DirEntry) string {
-	relpath, err := filepath.Rel(se.abspath, mod.abspath)
+	relpath, err := filepath.Rel(se.abspath.String(), mod.abspath.String())
 	assert.NoError(se.t, err)
 	return filepath.ToSlash(relpath)
 }
@@ -582,13 +583,13 @@ func (se StackEntry) ReadFile(filename string) string {
 // Load loads the terramate stack instance for this stack dir entry.
 func (se StackEntry) Load(root *config.Root) *config.Stack {
 	se.t.Helper()
-	loadedStack, err := config.LoadStack(root, project.PrjAbsPath(root.HostDir(), se.Path()))
+	loadedStack, err := config.LoadStack(root, project.PrjAbsPath(root.Path(), se.Path()))
 	assert.NoError(se.t, err)
 	return loadedStack
 }
 
 // Path returns the absolute path of the stack.
-func (se StackEntry) Path() string {
+func (se StackEntry) Path() os.Path {
 	return se.DirEntry.abspath
 }
 
@@ -598,11 +599,11 @@ func (se StackEntry) RelPath() string {
 	return se.DirEntry.relpath
 }
 
-func newDirEntry(t testing.TB, rootdir string, relpath string) DirEntry {
+func newDirEntry(t testing.TB, rootdir os.Path, relpath string) DirEntry {
 	t.Helper()
 
-	abspath := filepath.Join(rootdir, relpath)
-	test.MkdirAll(t, abspath)
+	abspath := rootdir.Join(relpath)
+	test.MkdirAll(t, abspath.String())
 
 	return DirEntry{
 		t:        t,
@@ -612,7 +613,7 @@ func newDirEntry(t testing.TB, rootdir string, relpath string) DirEntry {
 	}
 }
 
-func newStackEntry(t testing.TB, rootdir string, relpath string) StackEntry {
+func newStackEntry(t testing.TB, rootdir os.Path, relpath string) StackEntry {
 	return StackEntry{DirEntry: newDirEntry(t, rootdir, relpath)}
 }
 
@@ -646,7 +647,7 @@ func parseListSpec(t testing.TB, name, value string) []string {
 func buildTree(t testing.TB, root *config.Root, environ []string, layout []string) {
 	t.Helper()
 
-	rootdir := root.HostDir()
+	rootdir := root.Path()
 	parseParams := func(spec string) (string, string) {
 		colonIndex := strings.Index(spec, ":") + 1
 		tmp := spec[colonIndex:]
@@ -666,8 +667,8 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 	genStackFile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		cfgdir := filepath.Join(rootdir, filepath.FromSlash(relpath))
-		test.MkdirAll(t, cfgdir)
+		cfgdir := rootdir.Join(relpath)
+		test.MkdirAll(t, cfgdir.String())
 		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
 
@@ -709,19 +710,19 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 		specKind := string(spec[0:colonIndex])
 		switch specKind {
 		case "d:", "dir:":
-			test.MkdirAll(t, filepath.Join(rootdir, spec[colonIndex:]))
+			test.MkdirAll(t, rootdir.Join(spec[colonIndex:]).String())
 		case "l:", "link:":
-			target := filepath.Join(rootdir, param1)
-			linkName := filepath.Join(rootdir, param2)
-			test.Symlink(t, target, linkName)
+			target := rootdir.Join(param1)
+			linkName := rootdir.Join(param2)
+			test.Symlink(t, target.String(), linkName.String())
 		case "g:", "git:":
-			repodir := filepath.Join(rootdir, spec[colonIndex:])
-			test.MkdirAll(t, repodir)
+			repodir := rootdir.Join(spec[colonIndex:])
+			test.MkdirAll(t, repodir.String())
 			git := NewGit(t, repodir)
 			git.Init()
 		case "s:", "stack:":
 			if param2 == "" {
-				abspath := filepath.Join(rootdir, param1)
+				abspath := rootdir.Join(param1)
 				stackdir := project.PrjAbsPath(rootdir, abspath)
 				assert.NoError(t, stack.Create(root, config.Stack{Dir: stackdir}))
 				continue
@@ -731,16 +732,15 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 		case "f:", "file:":
 			test.WriteFile(t, rootdir, param1, param2)
 		case "copy:":
-			assert.NoError(t, fs.CopyAll(
-				filepath.Join(rootdir, param1),
-				param2,
-			))
+			wd, err := stdos.Getwd()
+			assert.NoError(t, err)
+			assert.NoError(t, fs.CopyAll(rootdir.Join(param1), os.NewHostPath(wd).Join(param2)))
 		case "run:":
 			cmdParts := strings.Split(param2, " ")
 			path, err := run.LookPath(cmdParts[0], environ)
 			assert.NoError(t, err)
 			cmd := exec.Command(path, cmdParts[1:]...)
-			cmd.Dir = filepath.Join(rootdir, param1)
+			cmd.Dir = rootdir.Join(param1).String()
 			cmd.Env = environ
 			out, err := cmd.CombinedOutput()
 			assert.NoError(t, err, "failed to execute sandbox run: (output: %s)", out)
@@ -761,7 +761,7 @@ func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTr
 		return spec[0:idx], spec[idx+1:]
 	}
 
-	rootdir := root.HostDir()
+	rootdir := root.Path()
 
 	wantStrictStacks := []string{}
 
@@ -771,17 +771,17 @@ func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTr
 		switch specKind {
 		case "d", "dir":
 			dirname, _ := popArg(spec)
-			test.IsDir(t, rootdir, dirname)
+			test.IsDir(t, rootdir.String(), dirname)
 
 		case "f", "file":
 			fname, spec := popArg(spec)
 			want, _ := popArg(spec)
 
 			if want != "" {
-				got := string(test.ReadFile(t, rootdir, fname))
+				got := string(test.ReadFile(t, rootdir.String(), fname))
 				assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
 			} else {
-				test.IsFile(t, rootdir, fname)
+				test.IsFile(t, rootdir.String(), fname)
 			}
 
 		case "!e", "not_exist":
@@ -790,8 +790,10 @@ func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTr
 
 		case "s", "stack":
 			stackdir, _ := popArg(spec)
-			prjStackdir := project.PrjAbsPath(rootdir, stackdir)
-
+			if !path.IsAbs(stackdir) {
+				stackdir = "/" + stackdir
+			}
+			prjStackdir := project.NewPath(stackdir)
 			if opts.withStrictStacks {
 				wantStrictStacks = append(wantStrictStacks, prjStackdir.String())
 			} else {

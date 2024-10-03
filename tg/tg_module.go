@@ -6,7 +6,7 @@ package tg
 import (
 	"context"
 	"io"
-	"os"
+	stdos "os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -18,6 +18,7 @@ import (
 	"github.com/gruntwork-io/terragrunt/util"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -43,11 +44,11 @@ type (
 
 // ScanModules scans dir looking for Terragrunt modules. It returns a list of
 // modules with its "DependsOn paths" computed.
-func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modules, error) {
-	absDir := project.AbsPath(rootdir, dir.String())
+func ScanModules(rootdir os.Path, dir project.Path, trackDependencies bool) (Modules, error) {
+	absDir := dir.HostPath(rootdir)
 	opts := newTerragruntOptions(absDir)
 
-	tgConfigFiles, err := config.FindConfigFilesInPath(absDir, opts)
+	tgConfigFiles, err := config.FindConfigFilesInPath(absDir.String(), opts)
 	if err != nil {
 		return nil, errors.E(err, "scanning Terragrunt modules")
 	}
@@ -92,8 +93,8 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 
 		pctx := config.NewParsingContext(context.Background(), cfgOpts).WithDecodeList(decodeOptions...)
 		mod := &Module{
-			Path:       project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
-			ConfigFile: project.PrjAbsPath(rootdir, cfgfile),
+			Path:       project.PrjAbsPath(rootdir, os.NewHostPath(cfgOpts.WorkingDir)),
+			ConfigFile: project.PrjAbsPath(rootdir, os.NewHostPath(cfgfile)),
 		}
 
 		// Override the predefined functions to intercept the function calls that process paths.
@@ -148,7 +149,7 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 			if !filepath.IsAbs(includedFile) {
 				includedFile = filepath.Join(tgMod.Path, includedFile)
 			}
-			dependsOn[project.PrjAbsPath(rootdir, includedFile)] = struct{}{}
+			dependsOn[project.PrjAbsPath(rootdir, os.NewHostPath(includedFile))] = struct{}{}
 		}
 
 		if trackDependencies {
@@ -163,13 +164,13 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 				if !filepath.IsAbs(depPath) {
 					depPath = filepath.Join(tgMod.Path, depPath)
 				}
-				dependsOn[project.PrjAbsPath(rootdir, depPath)] = struct{}{}
+				dependsOn[project.PrjAbsPath(rootdir, os.NewHostPath(depPath))] = struct{}{}
 			}
 		}
 
 		for p := range dependsOn {
-			dependsAbsPath := project.AbsPath(rootdir, p.String())
-			fileProcessed[dependsAbsPath] = struct{}{}
+			dependsAbsPath := rootdir.Join(p.String())
+			fileProcessed[dependsAbsPath.String()] = struct{}{}
 			mod.DependsOn = append(mod.DependsOn, p)
 		}
 
@@ -208,9 +209,9 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 	return modules, nil
 }
 
-func newTerragruntOptions(dir string) *options.TerragruntOptions {
+func newTerragruntOptions(dir os.Path) *options.TerragruntOptions {
 	opts := options.NewTerragruntOptions()
-	opts.WorkingDir = dir
+	opts.WorkingDir = dir.String()
 	opts.Writer = io.Discard
 	opts.ErrWriter = io.Discard
 	opts.IgnoreExternalDependencies = true
@@ -220,7 +221,7 @@ func newTerragruntOptions(dir string) *options.TerragruntOptions {
 	// very important, otherwise the functions could block with user prompts.
 	opts.NonInteractive = true
 
-	opts.Env = env.Parse(os.Environ())
+	opts.Env = env.Parse(stdos.Environ())
 
 	if opts.DisableLogColors {
 		util.DisableLogColors()

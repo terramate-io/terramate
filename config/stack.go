@@ -4,7 +4,7 @@
 package config
 
 import (
-	"os"
+	stdos "os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -13,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -84,10 +85,10 @@ const (
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
-func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
+func NewStackFromHCL(root os.Path, cfg hcl.Config) (*Stack, error) {
 	name := cfg.Stack.Name
 	if name == "" {
-		name = filepath.Base(cfg.AbsDir())
+		name = cfg.AbsDir().Base()
 	}
 
 	watchFiles, err := ValidateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
@@ -210,13 +211,13 @@ func (s *Stack) RelPath() string { return s.Dir.String()[1:] }
 // RelPathToRoot returns the relative path from the stack to root.
 func (s *Stack) RelPathToRoot(root *Root) string {
 	// should never fail as abspath is constructed inside rootdir.
-	rel, _ := filepath.Rel(s.HostDir(root), root.HostDir())
+	rel, _ := filepath.Rel(s.HostDir(root).String(), root.Path().String())
 	return filepath.ToSlash(rel)
 }
 
 // HostDir returns the file system absolute path of stack.
-func (s *Stack) HostDir(root *Root) string {
-	return project.AbsPath(root.HostDir(), s.Dir.String())
+func (s *Stack) HostDir(root *Root) os.Path {
+	return s.Dir.HostPath(root.Path())
 }
 
 // RuntimeValues returns the runtime "terramate" namespace for the stack.
@@ -254,19 +255,19 @@ func (s *Stack) Sortable() *SortableStack {
 
 // ValidateWatchPaths validates if the provided watch paths points to regular files
 // inside the project repository.
-func ValidateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
+func ValidateWatchPaths(rootdir os.Path, stackpath os.Path, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
 	for _, pathstr := range paths {
-		var abspath string
+		var abspath os.Path
 		if path.IsAbs(pathstr) {
-			abspath = filepath.Join(rootdir, filepath.FromSlash(pathstr))
+			abspath = rootdir.Join(filepath.FromSlash(pathstr))
 		} else {
-			abspath = filepath.Join(stackpath, filepath.FromSlash(pathstr))
+			abspath = stackpath.Join(filepath.FromSlash(pathstr))
 		}
-		if !strings.HasPrefix(abspath, rootdir) {
+		if !abspath.HasPrefix(rootdir.String()) {
 			return nil, errors.E("path %s is outside project root", pathstr)
 		}
-		st, err := os.Stat(abspath)
+		st, err := stdos.Stat(abspath.String())
 		if err == nil {
 			if st.IsDir() {
 				return nil, errors.E("stack.watch must be a list of regular files "+
@@ -312,8 +313,8 @@ func LoadAllStacks(root *Root, cfg *Tree) (List[*SortableStack], error) {
 		stacks = append(stacks, stack.Sortable())
 
 		if !*root.hasTerragruntStacks {
-			st, err := os.Lstat(
-				filepath.Join(stack.Dir.HostPath(root.HostDir()), "terragrunt.hcl"),
+			st, err := stdos.Lstat(
+				stack.Dir.HostPath(root.Path()).Join("terragrunt.hcl").String(),
 			)
 			if err == nil && st.Mode().IsRegular() {
 				*root.hasTerragruntStacks = true
@@ -345,7 +346,7 @@ func LoadStack(root *Root, dir project.Path) (*Stack, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %q is not a stack", dir)
 	}
-	return NewStackFromHCL(root.HostDir(), node.Node)
+	return NewStackFromHCL(root.Path(), node.Node)
 }
 
 // TryLoadStack tries to load a single stack from dir. It sets found as true in case

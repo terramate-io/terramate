@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/terramate-io/terramate/config"
@@ -507,7 +506,7 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 				)
 			}
 
-			tmcli := NewCLI(t, filepath.Join(s.RootDir(), tcase.fromdir))
+			tmcli := NewCLI(t, s.RootDir().Join(tcase.fromdir))
 			args := []string{"generate"}
 			if tcase.detailedExitCode {
 				args = append(args, "--detailed-exit-code")
@@ -518,7 +517,7 @@ Hint: '+', '~' and '-' mean the file was created, changed and deleted, respectiv
 			for _, wantFile := range tcase.want.files {
 				t.Logf("checking if wanted file %q was created", wantFile.path)
 
-				gotFile := test.ReadFile(t, s.RootDir(), wantFile.path.String())
+				gotFile := test.ReadFile(t, s.RootDir().String(), wantFile.path.String())
 				test.AssertGenCodeEquals(t, string(gotFile), wantFile.body.String())
 			}
 
@@ -572,15 +571,15 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 				configStr,
 			)
 
-			gencli := NewCLI(t, filepath.Join(s.RootDir(), generateWd))
+			gencli := NewCLI(t, s.RootDir().Join(generateWd))
 			res := gencli.Run("generate")
 			expected := RunExpected{
 				Stdout: nljoin(wantGenerate.Full()),
 			}
 			AssertRunResult(t, res, expected)
 
-			runcli := NewCLI(t, filepath.Join(s.RootDir(), runWd))
-			res = runcli.Run("run", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
+			runcli := NewCLI(t, s.RootDir().Join(runWd))
+			res = runcli.Run("run", "--quiet", HelperPath, "stack-abs-path", s.RootDir().String())
 			AssertRunResult(t, res, wantRun)
 		})
 	}

@@ -5,7 +5,6 @@ package core_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -141,7 +140,7 @@ func TestScriptList(t *testing.T) {
 		tc := tc
 		wd := s.RootDir()
 		if tc.dir != "" {
-			wd = filepath.Join(wd, tc.dir)
+			wd = wd.Join(tc.dir)
 		}
 
 		cli := NewCLI(t, wd)

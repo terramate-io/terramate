@@ -4,10 +4,9 @@
 package hcl
 
 import (
-	"path/filepath"
-
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/os"
 )
 
 // RawConfig is the configuration (attributes and blocks) without schema
@@ -167,6 +166,6 @@ func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 	return errs.AsError()
 }
 
-func sameDir(file1, file2 string) bool {
-	return filepath.Dir(file1) == filepath.Dir(file2)
+func sameDir(file1, file2 os.Path) bool {
+	return file1.Dir() == file2.Dir()
 }

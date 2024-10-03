@@ -6,9 +6,8 @@ package trigger
 
 import (
 	"fmt"
-	"os"
+	stdos "os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -88,7 +88,7 @@ func Is(root *config.Root, filename project.Path) (info Info, stack project.Path
 	if !exists {
 		return Info{}, stack, false, nil
 	}
-	info, err = ParseFile(filename.HostPath(root.HostDir()))
+	info, err = ParseFile(filename.HostPath(root.Path()))
 	if err != nil {
 		return Info{}, stack, true, err
 	}
@@ -96,9 +96,9 @@ func Is(root *config.Root, filename project.Path) (info Info, stack project.Path
 }
 
 // ParseFile will parse the given trigger file.
-func ParseFile(path string) (Info, error) {
+func ParseFile(path os.Path) (Info, error) {
 	parser := hclparse.NewParser()
-	parsed, diags := parser.ParseHCLFile(path)
+	parsed, diags := parser.ParseHCLFile(path.String())
 	if diags.HasErrors() {
 		return Info{}, errors.E(ErrParsing, diags)
 	}
@@ -218,9 +218,8 @@ func ParseFile(path string) (Info, error) {
 }
 
 // Dir will return the triggers directory for the project rooted at rootdir.
-// Both rootdir and the returned value are host absolute paths.
-func Dir(rootdir string) string {
-	return filepath.Join(rootdir, triggersDir)
+func Dir(rootdir os.Path) os.Path {
+	return rootdir.Join(triggersDir)
 }
 
 func triggerFilename(kind Kind) (string, error) {
@@ -242,13 +241,12 @@ func Create(root *config.Root, path project.Path, kind Kind, reason string) erro
 	if err != nil {
 		return errors.E(ErrTrigger, err)
 	}
-	triggerDir := filepath.Join(root.HostDir(), triggersDir, path.String())
-	if err := os.MkdirAll(triggerDir, 0775); err != nil {
+	triggerDir := Dir(root.Path()).Join(path.String())
+	if err := stdos.MkdirAll(triggerDir.String(), 0775); err != nil {
 		return errors.E(ErrTrigger, err, "creating trigger dir")
 	}
 
 	ctime := time.Now().Unix()
-
 	gen := hclwrite.NewEmptyFile()
 	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
@@ -256,9 +254,9 @@ func Create(root *config.Root, path project.Path, kind Kind, reason string) erro
 	triggerBody.SetAttributeRaw("type", hclwrite.TokensForIdentifier(string(kind)))
 	triggerBody.SetAttributeRaw("context", hclwrite.TokensForIdentifier(DefaultContext))
 
-	triggerPath := filepath.Join(triggerDir, filename)
+	triggerPath := triggerDir.Join(filename)
 
-	if err := os.WriteFile(triggerPath, gen.Bytes(), 0666); err != nil {
+	if err := stdos.WriteFile(triggerPath.String(), gen.Bytes(), 0666); err != nil {
 		return errors.E(ErrTrigger, err, "creating trigger file")
 	}
 

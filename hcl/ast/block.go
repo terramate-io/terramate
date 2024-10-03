@@ -7,6 +7,7 @@ import (
 	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 )
 
 // Block is a wrapper to the hclsyntax.Block but with the file origin.
@@ -23,7 +24,7 @@ type Block struct {
 type Blocks []*Block
 
 // NewBlock creates a new block wrapper.
-func NewBlock(rootdir string, block *hclsyntax.Block) *Block {
+func NewBlock(rootdir os.Path, block *hclsyntax.Block) *Block {
 	attrs := make(Attributes)
 	for name, val := range block.Body.Attributes {
 		attrs[name] = NewAttribute(rootdir, val.AsHCLAttribute())
@@ -41,7 +42,7 @@ func NewBlock(rootdir string, block *hclsyntax.Block) *Block {
 }
 
 // NewBlocks creates a Block slice from the raw hclsyntax.Block.
-func NewBlocks(rootdir string, rawblocks hclsyntax.Blocks) Blocks {
+func NewBlocks(rootdir os.Path, rawblocks hclsyntax.Blocks) Blocks {
 	var blocks Blocks
 	for _, rawblock := range rawblocks {
 		blocks = append(blocks, NewBlock(rootdir, rawblock))
@@ -56,7 +57,7 @@ func (b *Block) LabelRanges() hcl.Range {
 	switch n := len(b.Block.LabelRanges); n {
 	case 0:
 		return hcl.Range{
-			Filename: b.Range.HostPath(),
+			Filename: b.Range.HostPath().String(),
 
 			// returns the range for the caret symbol below:
 			// blockname  { ... }

@@ -6,7 +6,6 @@ package core_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -938,7 +937,7 @@ script "cmd" {
 
 					wd := s.RootDir()
 					if tc.workingDir != "" {
-						wd = filepath.Join(wd, tc.workingDir)
+						wd = wd.Join(tc.workingDir)
 					}
 
 					var filterArgs []string
@@ -955,7 +954,7 @@ script "cmd" {
 						"--quiet", "run", "-X", // disable all safeguards
 					}
 					runArgs = append(runArgs, filterArgs...)
-					runArgs = append(runArgs, "--", HelperPath, "stack-abs-path", s.RootDir())
+					runArgs = append(runArgs, "--", HelperPath, "stack-abs-path", s.RootDir().String())
 					AssertRunResult(t, cli.Run(runArgs...), tc.want)
 
 					if runtime.GOOS != "windows" {
@@ -1585,7 +1584,7 @@ script "cmd" {
 				baseArgs = append(baseArgs, "--no-tags", filter)
 			}
 
-			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			cli := NewCLI(t, s.RootDir().Join(tc.wd))
 
 			runOrderArgs := append(baseArgs, "--quiet", "experimental", "run-order")
 			AssertRunResult(t, cli.Run(runOrderArgs...), tc.want)
@@ -1598,7 +1597,7 @@ script "cmd" {
 
 			copiedBaseArgs := make([]string, len(baseArgs))
 			copy(copiedBaseArgs, baseArgs)
-			runArgs := append(copiedBaseArgs, "run", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
+			runArgs := append(copiedBaseArgs, "run", "--quiet", HelperPath, "stack-abs-path", s.RootDir().String())
 			AssertRunResult(t, cli.Run(runArgs...), tc.want)
 
 			if runtime.GOOS != "windows" {
@@ -1665,7 +1664,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		mainTfFileName,
 	), RunExpected{Stdout: wantRun})
 
-	cli = NewCLI(t, filepath.Join(s.RootDir(), "stack2"))
+	cli = NewCLI(t, s.RootDir().Join("stack2"))
 	AssertRunResult(t, cli.Run(
 		"run",
 		"--changed",
@@ -1754,7 +1753,7 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.
 	git.CommitAll("first commit")
 
 	assertRun := func(wd string, filter string, want string) {
-		cli := NewCLI(t, filepath.Join(s.RootDir(), wd))
+		cli := NewCLI(t, s.RootDir().Join(wd))
 		var baseArgs []string
 		if filter != "" {
 			baseArgs = append(baseArgs, "--tags", filter)
@@ -3072,7 +3071,7 @@ func TestRunLogsUserCommand(t *testing.T) {
 
 	cli := NewCLI(t, s.RootDir())
 	cli.LogLevel = "info"
-	AssertRunResult(t, cli.Run("run", HelperPath, "cat", testfile.HostPath()), RunExpected{
+	AssertRunResult(t, cli.Run("run", HelperPath, "cat", testfile.HostPath().String()), RunExpected{
 		StderrRegex: `Executing command`,
 	})
 }
@@ -3219,7 +3218,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 
 	tm := NewCLI(t, s.RootDir(), clienv...)
 
-	res := tm.Run("run", HelperPath, "env", s.RootDir())
+	res := tm.Run("run", HelperPath, "env", s.RootDir().String())
 	if res.Status != 0 {
 		t.Errorf("unexpected status code %d", res.Status)
 		t.Logf("stdout:\n%s", res.Stdout)
@@ -3271,7 +3270,7 @@ func nljoin(stacks ...string) string {
 func testEnviron(t *testing.T) []string {
 	tempHomeDir := test.TempDir(t)
 	env := []string{
-		fmt.Sprintf("%s="+tempHomeDir, cliconfig.DirEnv),
+		fmt.Sprintf("%s="+tempHomeDir.String(), cliconfig.DirEnv),
 		"PATH=" + os.Getenv("PATH"),
 	}
 	if runtime.GOOS == "windows" {

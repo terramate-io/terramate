@@ -5,7 +5,7 @@ package download_test
 
 import (
 	"fmt"
-	"os"
+	stdos "os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/modvendor"
 	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -286,12 +287,12 @@ func TestVendorManifest(t *testing.T) {
 			test.RemoveFile(t, repoSandbox.RootDir(), ".gitignore")
 
 			for _, file := range tcase.files {
-				path := filepath.Join(repoSandbox.RootDir(), file)
-				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "")
+				path := repoSandbox.RootDir().Join(file)
+				test.WriteFile(t, path.Dir(), path.Base(), "")
 			}
 
 			for _, manifest := range tcase.manifests {
-				path := filepath.Join(repoSandbox.RootDir(), manifest.path)
+				path := repoSandbox.RootDir().Join(manifest.path)
 				patternList := "["
 				for _, pattern := range manifest.patterns {
 					patternList += fmt.Sprintf("%q,\n", pattern)
@@ -304,13 +305,13 @@ func TestVendorManifest(t *testing.T) {
 						),
 					),
 				)
-				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), hcldoc.String())
+				test.WriteFile(t, path.Dir(), path.Base(), hcldoc.String())
 			}
 
 			repogit := repoSandbox.Git()
 			repogit.CommitAll("setup vendored repo")
 
-			gitURI := uri.File(repoSandbox.RootDir())
+			gitURI := uri.File(repoSandbox.RootDir().String())
 			rootdir := test.TempDir(t)
 			source := newSource(t, gitURI, "main")
 
@@ -321,7 +322,7 @@ func TestVendorManifest(t *testing.T) {
 			clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
 			gotFiles := listFiles(t, clonedir)
 			for i, f := range gotFiles {
-				gotFiles[i] = filepath.ToSlash(strings.TrimPrefix(f, clonedir))
+				gotFiles[i] = filepath.ToSlash(strings.TrimPrefix(f, clonedir.String()))
 			}
 			test.AssertDiff(t, gotFiles, tcase.wantFiles)
 		})
@@ -344,31 +345,31 @@ func testInvalidManifestFails(t *testing.T, configpath string) {
 	repogit := repoSandbox.Git()
 	repogit.CommitAll("setup vendored repo")
 
-	gitURL := uri.File(repoSandbox.RootDir())
+	gitURL := uri.File(repoSandbox.RootDir().String())
 	source := newSource(t, gitURL, "main")
 
-	got := download.Vendor(t.TempDir(), project.NewPath("/vendor"), source, nil)
+	got := download.Vendor(test.TempDir(t), project.NewPath("/vendor"), source, nil)
 
 	assert.EqualInts(t, 0, len(got.Vendored), "vendored should be empty")
 	assert.EqualInts(t, 1, len(got.Ignored), "should have single ignored")
 	assert.IsError(t, got.Ignored[0].Reason, errors.E(hcl.ErrHCLSyntax))
 }
 
-func listFiles(t *testing.T, dir string) []string {
+func listFiles(t *testing.T, dir os.Path) []string {
 	t.Helper()
 
-	entries, err := os.ReadDir(dir)
+	entries, err := stdos.ReadDir(dir.String())
 	assert.NoError(t, err)
 
 	files := []string{}
-	dirs := []string{}
+	dirs := os.Paths{}
 
 	for _, entry := range entries {
-		path := filepath.Join(dir, entry.Name())
+		path := dir.Join(entry.Name())
 		if entry.IsDir() {
 			dirs = append(dirs, path)
 		} else {
-			files = append(files, path)
+			files = append(files, path.String())
 		}
 	}
 

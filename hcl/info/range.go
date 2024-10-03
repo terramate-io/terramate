@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 )
 
@@ -23,7 +24,7 @@ type Pos struct {
 
 // Range represents a span of characters between two positions in a source file.
 type Range struct {
-	hostpath   string
+	hostpath   os.Path
 	path       project.Path
 	start, end Pos
 }
@@ -34,13 +35,16 @@ type Ranges []Range
 // NewRange creates a new Range from the given [hcl.Range] and the rootdir.
 // This function assumes that the filename on the given [hcl.Range] is
 // absolute and inside rootdir.
-func NewRange(rootdir string, r hcl.Range) Range {
-	return Range{
-		path:     project.PrjAbsPath(rootdir, r.Filename),
-		hostpath: r.Filename,
-		start:    NewPos(r.Start),
-		end:      NewPos(r.End),
+func NewRange(rootdir os.Path, r hcl.Range) Range {
+	info := Range{
+		start: NewPos(r.Start),
+		end:   NewPos(r.End),
 	}
+	if r.Filename != "" {
+		info.hostpath = os.NewHostPath(r.Filename)
+		info.path = project.PrjAbsPath(rootdir, info.hostpath)
+	}
+	return info
 }
 
 // NewPos creates a new Pos from the given [hcl.Pos].
@@ -54,7 +58,7 @@ func NewPos(p hcl.Pos) Pos {
 
 // HostPath is the name of the file into which this range's positions point.
 // It is always an absolute path on the host filesystem.
-func (r Range) HostPath() string {
+func (r Range) HostPath() os.Path {
 	return r.hostpath
 }
 
@@ -123,7 +127,7 @@ func (p Pos) Byte() int {
 // ToHCLRange converts Range to [hcl.Range].
 func (r Range) ToHCLRange() hcl.Range {
 	return hcl.Range{
-		Filename: r.HostPath(),
+		Filename: r.HostPath().String(),
 		Start: hcl.Pos{
 			Byte:   r.Start().Byte(),
 			Line:   r.Start().Line(),

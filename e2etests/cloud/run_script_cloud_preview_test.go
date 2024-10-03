@@ -356,7 +356,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 			env = append(env, "GITHUB_EVENT_PATH="+tc.githubEventPath)
 			env = append(env, "GITHUB_TOKEN=fake_token")
 			env = append(env, tc.env...)
-			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+			cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 			cli.PrependToPath(filepath.Dir(TerraformTestPath))
 
 			s.Git().SetRemoteURL("origin", testPreviewRemoteRepoURL)

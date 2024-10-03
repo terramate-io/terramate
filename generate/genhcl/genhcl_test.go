@@ -5,7 +5,6 @@ package genhcl_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -1883,7 +1882,7 @@ func (tcase testcase) run(t *testing.T) {
 			if filename == "" {
 				filename = config.DefaultFilename
 			}
-			path := filepath.Join(s.RootDir(), cfg.path)
+			path := s.RootDir().Join(cfg.path)
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 

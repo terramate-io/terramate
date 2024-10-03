@@ -96,7 +96,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 		{
 			name:       "local repository is not permitted with --status=",
 			layout:     []string{"s:s1:id=s1"},
-			repository: test.TempDir(t),
+			repository: test.TempDir(t).String(),
 			flags:      []string{`--status=unhealthy`},
 			want: want{
 				trigger: RunExpected{
@@ -678,7 +678,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			}
 			env := RemoveEnv(os.Environ(), "CI")
 			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
-			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+			cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 			args := []string{"experimental", "trigger"}
 			args = append(args, tc.flags...)
 			result := cli.Run(args...)
@@ -686,7 +686,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 
 			if tc.want.trigger.Status == 0 {
 				s.Git().CommitAll("stacks triggered", true)
-				cli = NewCLI(t, filepath.Join(s.RootDir()), env...)
+				cli = NewCLI(t, s.RootDir(), env...)
 				AssertRunResult(t, cli.ListChangedStacks(), tc.want.list)
 			}
 		})

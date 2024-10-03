@@ -10,6 +10,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclutils"
 )
@@ -679,7 +680,7 @@ func TestHCLScript(t *testing.T) {
 		},
 		{
 			name:                  "script inside a stack dir",
-			parsedir:              "stack",
+			parsedir:              project.NewPath("/stack"),
 			loadExperimentsConfig: true,
 			input: []cfgfile{
 				{

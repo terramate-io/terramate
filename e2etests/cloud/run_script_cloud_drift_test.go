@@ -561,7 +561,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				env := RemoveEnv(s.Env, "CI")
 				env = append(env, tc.env...)
 				env = append(env, "TMC_API_URL=http://"+addr)
-				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 				runflags := []string{
 					"script",

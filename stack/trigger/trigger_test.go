@@ -6,7 +6,6 @@ package trigger_test
 import (
 	"fmt"
 	"math"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -121,7 +120,7 @@ func testTrigger(t *testing.T, tc testcase) {
 	}
 
 	// check created trigger on fs
-	triggerDir := filepath.Join(trigger.Dir(root.HostDir()), tc.path)
+	triggerDir := trigger.Dir(root.Path()).Join(tc.path)
 	entries := test.ReadDir(t, triggerDir)
 	if len(entries) != 1 {
 		t.Fatalf("want 1 trigger file, got %d: %+v", len(entries), entries)
@@ -131,7 +130,7 @@ func testTrigger(t *testing.T, tc testcase) {
 	if !strings.HasPrefix(filename, string(tc.kind)) {
 		t.Fatalf("wrong trigger filename: %s (it must have a %q prefix)", filename, tc.kind)
 	}
-	triggerFile := filepath.Join(triggerDir, entries[0].Name())
+	triggerFile := triggerDir.Join(entries[0].Name())
 	triggerInfo, err := trigger.ParseFile(triggerFile)
 
 	assert.NoError(t, err)
@@ -142,7 +141,7 @@ func testTrigger(t *testing.T, tc testcase) {
 	assert.EqualStrings(t, trigger.DefaultContext, triggerInfo.Context)
 	assert.EqualStrings(t, string(tc.want.kind), string(triggerInfo.Type))
 
-	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.HostDir(), triggerFile))
+	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.Path(), triggerFile))
 	assert.IsTrue(t, ok)
 	assert.EqualStrings(t, tc.path, gotPath.String())
 }

@@ -6,7 +6,7 @@ package generate_test
 import (
 	"fmt"
 	"io/fs"
-	"os"
+	stdos "os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	stackpkg "github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
@@ -1081,18 +1082,18 @@ func TestTmGenDeletesFileWhenHidden(t *testing.T) {
 	assertFileExist := func(file string) {
 		t.Helper()
 
-		path := filepath.Join(stackEntry.Path(), file)
-		if _, err := os.Stat(path); err != nil {
+		path := stackEntry.Path().Join(file)
+		if _, err := stdos.Stat(path.String()); err != nil {
 			t.Fatalf("want file %q to exist, instead got: %v", path, err)
 		}
 	}
 	assertFileDontExist := func(file string) {
 		t.Helper()
 
-		path := filepath.Join(stackEntry.Path(), file)
-		_, err := os.Stat(path)
+		path := stackEntry.Path().Join(file)
+		_, err := stdos.Stat(path.String())
 
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, stdos.ErrNotExist) {
 			return
 		}
 
@@ -1153,15 +1154,15 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tcase.layout)
 
-			configurationFiles := map[string]struct{}{}
+			configurationFiles := map[os.Path]struct{}{}
 
 			for _, cfg := range tcase.configs {
-				path := filepath.Join(s.RootDir(), cfg.path)
+				path := s.RootDir().Join(cfg.path)
 				filename := cfg.filename
 				if filename == "" {
 					filename = config.DefaultFilename
 				}
-				configurationFiles[filepath.Join(path, filename)] = struct{}{}
+				configurationFiles[path.Join(filename)] = struct{}{}
 				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
@@ -1218,8 +1219,8 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				}
 			}
 
-			createdBySandbox := func(path string) bool {
-				relpath := strings.TrimPrefix(path, s.RootDir())
+			createdBySandbox := func(path os.Path) bool {
+				relpath := path.TrimPrefix(s.RootDir())
 				// For windows compatibility, since builder strings
 				// are unix like.
 				relpath = filepath.ToSlash(relpath)
@@ -1242,12 +1243,12 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				return false
 			}
 
-			createdByConfig := func(path string) bool {
+			createdByConfig := func(path os.Path) bool {
 				_, ok := configurationFiles[path]
 				return ok
 			}
 
-			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
+			err := filepath.WalkDir(s.RootDir().String(), func(pathstr string, d fs.DirEntry, err error) error {
 				t.Helper()
 
 				assert.NoError(t, err, "checking for unwanted generated files")
@@ -1260,6 +1261,8 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 					d.Name() == "root.config.tm" {
 					return nil
 				}
+
+				path := os.NewHostPath(pathstr)
 
 				if createdBySandbox(path) || createdByConfig(path) {
 					return nil

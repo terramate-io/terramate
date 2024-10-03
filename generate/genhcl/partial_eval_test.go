@@ -5,7 +5,6 @@ package genhcl_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -1870,7 +1869,7 @@ EOT
 			s := sandbox.NoGit(t, true)
 			stackEntry := s.CreateStack(stackname)
 			st := stackEntry.Load(s.Config())
-			path := filepath.Join(s.RootDir(), stackname)
+			path := s.RootDir().Join(stackname)
 			if tcase.globals == nil {
 				tcase.globals = Globals()
 			}

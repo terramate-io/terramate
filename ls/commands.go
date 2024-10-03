@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"go.lsp.dev/jsonrpc2"
@@ -81,7 +82,7 @@ func (s *Server) createStack(params lsp.ExecuteCommandParams) error {
 				return errors.E(ErrCreateStackInvalidArgument, err, "failed to parse URI: %s", argVal)
 			}
 
-			stackConfig.Dir = project.PrjAbsPath(s.workspace, dir.Filename())
+			stackConfig.Dir = project.PrjAbsPath(s.workspace, os.NewHostPath(dir.Filename()))
 		case "genid":
 			id, err := uuid.NewRandom()
 			if err != nil {

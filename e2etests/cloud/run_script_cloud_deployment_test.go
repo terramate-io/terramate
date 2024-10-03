@@ -6,7 +6,6 @@ package cloud_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -308,7 +307,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 
 				env := RemoveEnv(os.Environ(), "CI")
 				env = append(env, "TMC_API_URL=http://"+addr)
-				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli := NewCLI(t, s.RootDir().Join(tc.workingDir), env...)
 
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 

@@ -4,8 +4,7 @@
 package hcl_test
 
 import (
-	"os"
-	"path/filepath"
+	stdos "os"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -32,11 +31,11 @@ func TestHCLParserConfigRun(t *testing.T) {
 		// we need an origin file/data to get the tokens for each expression,
 		// hence all this x_x.
 		rootdir := test.TempDir(t)
-		filepath := filepath.Join(rootdir, "test_file.hcl")
-		assert.NoError(t, os.WriteFile(filepath, []byte(rawattributes), 0700))
+		filepath := rootdir.Join("test_file.hcl")
+		assert.NoError(t, stdos.WriteFile(filepath.String(), []byte(rawattributes), 0700))
 
 		parser := hclparse.NewParser()
-		res, diags := parser.ParseHCLFile(filepath)
+		res, diags := parser.ParseHCLFile(filepath.String())
 		if diags.HasErrors() {
 			t.Fatalf("test case provided invalid hcl, error: %v hcl:\n%s", diags, rawattributes)
 		}

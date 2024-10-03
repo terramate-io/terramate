@@ -10,13 +10,14 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 )
 
 // AssertStackImports checks that the given stack has all the wanted import
 // definitions. The wanted imports is a slice of the sources that are imported
 // on each block.
-func AssertStackImports(t *testing.T, rootdir string, stackHostPath string, want []string) {
+func AssertStackImports(t *testing.T, rootdir os.Path, stackHostPath os.Path, want []string) {
 	t.Helper()
 
 	parser, err := hcl.NewTerramateParser(rootdir, stackHostPath)

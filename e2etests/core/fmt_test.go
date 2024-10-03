@@ -106,7 +106,7 @@ name = "name"
 
 	t.Run("checking fails with unformatted files on subdirs", func(t *testing.T) {
 		writeUnformattedFiles()
-		subdir := filepath.Join(s.RootDir(), "another-stacks")
+		subdir := s.RootDir().Join("another-stacks")
 		cli := NewCLI(t, subdir)
 		AssertRunResult(t, cli.Run("fmt", "--check"), RunExpected{
 			Status: 1,
@@ -154,7 +154,7 @@ name = "name"
 	t.Run("update unformatted files in subdirs", func(t *testing.T) {
 		writeUnformattedFiles()
 
-		anotherStacks := filepath.Join(s.RootDir(), "another-stacks")
+		anotherStacks := s.RootDir().Join("another-stacks")
 		cli := NewCLI(t, anotherStacks)
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{
 			Stdout: filesListOutput([]string{
@@ -173,7 +173,7 @@ name = "name"
 		assertFileContents(t, "stacks/stack-1/globals.tm", unformattedHCL)
 		assertFileContents(t, "stacks/stack-2/globals.tm", unformattedHCL)
 
-		stacks := filepath.Join(s.RootDir(), "stacks")
+		stacks := s.RootDir().Join("stacks")
 		cli = NewCLI(t, stacks)
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{
 			Stdout: filesListOutput([]string{
@@ -394,7 +394,7 @@ name="name"
 			files := tc.files
 			if tc.absPaths {
 				for i, f := range files {
-					files[i] = filepath.Join(s.RootDir(), f)
+					files[i] = s.RootDir().Join(f).String()
 				}
 			}
 			args := []string{"fmt"}

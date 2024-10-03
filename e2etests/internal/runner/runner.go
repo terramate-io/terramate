@@ -6,7 +6,7 @@ package runner
 import (
 	"bytes"
 	"fmt"
-	"os"
+	stdos "os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -19,6 +19,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/stack/trigger"
 	"github.com/terramate-io/terramate/test"
 )
@@ -31,12 +32,12 @@ type (
 	// CLI is a Terramate CLI runner.
 	CLI struct {
 		t         *testing.T
-		Chdir     string
+		Chdir     os.Path
 		LogLevel  string
 		environ   []string
 		AppendEnv []string
 
-		userDir string
+		userDir os.Path
 	}
 
 	// RunResult specify the result of executing the cli.
@@ -72,7 +73,7 @@ type (
 )
 
 // NewCLI creates a new runner for the CLI.
-func NewCLI(t *testing.T, chdir string, env ...string) CLI {
+func NewCLI(t *testing.T, chdir os.Path, env ...string) CLI {
 	if toolsetTestPath == "" {
 		panic("runner is not initialized: use runner.Setup()")
 	}
@@ -82,7 +83,7 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 	}
 	if len(env) == 0 {
 		// by default, it's assumed human mode
-		env = RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
+		env = RemoveEnv(stdos.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
 	}
 	// environments below are never used in automation.
 	env = RemoveEnv(env, "TMC_API_HOST", "TMC_API_IDP_KEY")
@@ -99,16 +100,16 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 	}
 	// custom cliconfig file
 	tm.userDir = test.TempDir(t)
-	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))
+	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir.String(), "\\", "\\\\", -1)))
 	env = append(env,
-		"TM_CLI_CONFIG_FILE="+cliConfigPath,
+		"TM_CLI_CONFIG_FILE="+cliConfigPath.String(),
 	)
 	tm.environ = env
 	return tm
 }
 
 // NewInteropCLI creates a new runner CLI suited for interop tests.
-func NewInteropCLI(t *testing.T, chdir string, env ...string) CLI {
+func NewInteropCLI(t *testing.T, chdir os.Path, env ...string) CLI {
 	if toolsetTestPath == "" {
 		panic("runner is not initialized: use runner.Setup()")
 	}
@@ -117,7 +118,7 @@ func NewInteropCLI(t *testing.T, chdir string, env ...string) CLI {
 		Chdir: chdir,
 	}
 	if len(env) == 0 {
-		env = os.Environ()
+		env = stdos.Environ()
 	}
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	tm.environ = env
@@ -192,7 +193,7 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 
 	allargs := []string{}
 	if tm.Chdir != "" {
-		allargs = append(allargs, "--chdir", tm.Chdir)
+		allargs = append(allargs, "--chdir", tm.Chdir.String())
 	}
 
 	loglevel := tm.LogLevel

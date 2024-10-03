@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
-	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -257,7 +256,7 @@ stack "/stack":
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 
-			cli := NewCLI(t, project.AbsPath(s.RootDir(), tc.wd))
+			cli := NewCLI(t, s.RootDir().Join(tc.wd))
 			AssertRunResult(t, cli.Run("debug", "show", "metadata"), tc.want)
 		})
 	}

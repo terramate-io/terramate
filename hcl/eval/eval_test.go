@@ -12,6 +12,7 @@ import (
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
@@ -24,7 +25,7 @@ type want struct {
 }
 type testcase struct {
 	name    string
-	basedir string
+	basedir os.Path
 	expr    string
 	want    want
 }
@@ -86,7 +87,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			cfg := fmt.Sprintf("%s = %s", attrname, strings.ReplaceAll(tc.expr, `\`, `\\`))
 			fname := test.WriteFile(t, test.TempDir(t), "test-tm_ternary.hcl", cfg)
 			parser := hclparse.NewParser()
-			file, diags := parser.ParseHCL([]byte(cfg), fname)
+			file, diags := parser.ParseHCL([]byte(cfg), fname.String())
 			if diags.HasErrors() {
 				t.Fatalf("expr %q is not valid", tc.expr)
 			}

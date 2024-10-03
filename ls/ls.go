@@ -8,9 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	stdos "os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
 	"go.lsp.dev/jsonrpc2"
 	lsp "go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
@@ -29,7 +30,7 @@ const MethodExecuteCommand = "workspace/executeCommand"
 // Server is the Language Server.
 type Server struct {
 	conn      jsonrpc2.Conn
-	workspace string
+	workspace os.Path
 	handlers  handlers
 
 	log zerolog.Logger
@@ -78,7 +79,7 @@ func (s *Server) buildHandlers() {
 func (s *Server) Handler(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
 	logger := s.log.With().
 		Str("action", "server.Handler()").
-		Str("workspace", s.workspace).
+		Stringer("workspace", s.workspace).
 		Str("method", r.Method()).
 		Logger()
 
@@ -113,7 +114,7 @@ func (s *Server) handleInitialize(
 		return jsonrpc2.ErrInvalidParams
 	}
 
-	s.workspace = string(uri.New(params.RootURI).Filename())
+	s.workspace = os.NewHostPath(uri.New(params.RootURI).Filename())
 	err := reply(ctx, lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{
 			CompletionProvider: &lsp.CompletionOptions{},
@@ -178,7 +179,8 @@ func (s *Server) handleDocumentOpen(
 		return jsonrpc2.ErrParse
 	}
 
-	fname := params.TextDocument.URI.Filename()
+	// if the client behaves, the URI will be absolute.
+	fname := os.NewHostPath(params.TextDocument.URI.Filename())
 	content := params.TextDocument.Text
 
 	return s.checkAndReply(ctx, reply, fname, content)
@@ -203,7 +205,7 @@ func (s *Server) handleDocumentChange(
 	}
 
 	content := params.ContentChanges[0].Text
-	fname := params.TextDocument.URI.Filename()
+	fname := os.NewHostPath(params.TextDocument.URI.Filename())
 
 	return s.checkAndReply(ctx, reply, fname, content)
 }
@@ -220,8 +222,8 @@ func (s *Server) handleDocumentSaved(
 		return jsonrpc2.ErrParse
 	}
 
-	fname := params.TextDocument.URI.Filename()
-	content, err := os.ReadFile(fname)
+	fname := os.NewHostPath(params.TextDocument.URI.Filename())
+	content, err := stdos.ReadFile(fname.String())
 	if err != nil {
 		log.Error().Err(err).Msg("reading saved file.")
 		return nil
@@ -233,7 +235,7 @@ func (s *Server) handleDocumentSaved(
 // sendErrorDiagnostics sends diagnostics for each provided file, the ones with
 // no reported error gets an empty list of diagnostics, so the editor can clean
 // up its problems panel for it.
-func (s *Server) sendErrorDiagnostics(ctx context.Context, files []string, err error) error {
+func (s *Server) sendErrorDiagnostics(ctx context.Context, files os.Paths, err error) error {
 	errs := errors.L()
 	switch e := err.(type) {
 	case *errors.Error:
@@ -247,7 +249,7 @@ func (s *Server) sendErrorDiagnostics(ctx context.Context, files []string, err e
 		}
 	}
 
-	diagsMap := map[string][]lsp.Diagnostic{}
+	diagsMap := map[os.Path][]lsp.Diagnostic{}
 	for _, filename := range files {
 		diagsMap[filename] = []lsp.Diagnostic{}
 	}
@@ -261,14 +263,21 @@ func (s *Server) sendErrorDiagnostics(ctx context.Context, files []string, err e
 
 		log.Debug().Str("error", e.Detailed()).Msg("sending diagnostics")
 
+		// filename can be relative
 		filename := e.FileRange.Filename
+		var absFilename os.Path
+		if filepath.IsAbs(filename) {
+			absFilename = os.NewHostPath(filename)
+		} else {
+			absFilename = s.workspace.Join(filename)
+		}
 		fileRange := lsp.Range{}
 		fileRange.Start.Line = uint32(e.FileRange.Start.Line) - 1
 		fileRange.Start.Character = uint32(e.FileRange.Start.Column) - 1
 		fileRange.End.Line = uint32(e.FileRange.End.Line) - 1
 		fileRange.End.Character = uint32(e.FileRange.End.Column) - 1
 
-		diagsMap[filename] = append(diagsMap[filename], lsp.Diagnostic{
+		diagsMap[absFilename] = append(diagsMap[absFilename], lsp.Diagnostic{
 			Message:  e.Message(),
 			Range:    fileRange,
 			Severity: lsp.DiagnosticSeverityError,
@@ -278,7 +287,7 @@ func (s *Server) sendErrorDiagnostics(ctx context.Context, files []string, err e
 
 	for _, filename := range files {
 		diags := diagsMap[filename]
-		filePath := lsp.URI(uri.File(filepath.ToSlash(filename)))
+		filePath := lsp.URI(uri.File(filepath.ToSlash(filename.String())))
 		s.sendDiagnostics(ctx, filePath, diags)
 	}
 
@@ -314,12 +323,12 @@ func (s *Server) sendDiagnostics(ctx context.Context, uri lsp.URI, diags []lsp.D
 func (s *Server) checkAndReply(
 	ctx context.Context,
 	reply jsonrpc2.Replier,
-	fname string,
+	fname os.Path,
 	content string,
 ) error {
 	files, err := listFiles(fname)
 	files = append(files, fname)
-	sort.Strings(files)
+	slices.Sort(files)
 	if err == nil {
 		err = s.checkFiles(files, fname, content)
 	}
@@ -329,14 +338,14 @@ func (s *Server) checkAndReply(
 	)
 }
 
-func listFiles(fromFile string) ([]string, error) {
-	dir := filepath.Dir(fromFile)
-	dirEntries, err := os.ReadDir(dir)
+func listFiles(fromFile os.Path) (os.Paths, error) {
+	dir := fromFile.Dir()
+	dirEntries, err := stdos.ReadDir(dir.String())
 	if err != nil {
 		return nil, err
 	}
 
-	files := []string{}
+	files := os.Paths{}
 	for _, dirEntry := range dirEntries {
 		if dirEntry.IsDir() {
 			continue
@@ -344,24 +353,21 @@ func listFiles(fromFile string) ([]string, error) {
 
 		filename := dirEntry.Name()
 		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
-			path := filepath.Join(dir, filename)
-
+			path := dir.Join(filename)
 			if path == fromFile {
 				// ignore source file
 				continue
 			}
-
 			files = append(files, path)
 		}
 	}
-
 	return files, nil
 }
 
 // checkFiles checks if the given provided files have errors but the currentFile
 // is handled separately because it can be unsaved.
-func (s *Server) checkFiles(files []string, currentFile string, currentContent string) error {
-	dir := filepath.Dir(currentFile)
+func (s *Server) checkFiles(files []os.Path, currentFile os.Path, currentContent string) error {
+	dir := currentFile.Dir()
 	var experiments []string
 	root, rootdir, found, err := config.TryLoadConfig(dir)
 	if !found {
@@ -384,7 +390,7 @@ func (s *Server) checkFiles(files []string, currentFile string, currentContent s
 		if currentFile == fname {
 			contents = []byte(currentContent)
 		} else {
-			contents, err = os.ReadFile(fname)
+			contents, err = stdos.ReadFile(fname.String())
 		}
 
 		if err != nil {

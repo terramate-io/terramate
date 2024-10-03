@@ -5,12 +5,13 @@
 package info
 
 import (
-	"os"
+	stdos "os"
 	"path/filepath"
 
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/test/hclutils"
 )
 
@@ -21,7 +22,7 @@ import (
 // compared to actual results.
 func Range(fname string, start, end hhcl.Pos) info.Range {
 	if !filepath.IsAbs(fname) {
-		fname = string(os.PathSeparator) + fname
+		fname = string(stdos.PathSeparator) + fname
 	}
 	return info.NewRange("/", hhcl.Range{
 		Filename: fname,
@@ -33,7 +34,7 @@ func Range(fname string, start, end hhcl.Pos) info.Range {
 // FixRangesOnConfig fix the ranges on the given HCL config.
 // This is necessary since on tests we don't know the sandbox project
 // path, so host absolute paths must be updated here.
-func FixRangesOnConfig(dir string, cfg hcl.Config) {
+func FixRangesOnConfig(dir os.Path, cfg hcl.Config) {
 	for i := range cfg.Asserts {
 		cfg.Asserts[i].Range = FixRange(dir, cfg.Asserts[i].Range)
 	}
@@ -54,7 +55,7 @@ func FixRangesOnConfig(dir string, cfg hcl.Config) {
 // FixRange fix the given range.
 // This is necessary since on tests we don't know the sandbox project
 // path, so host absolute paths must be updated here.
-func FixRange(rootdir string, old info.Range) info.Range {
+func FixRange(rootdir os.Path, old info.Range) info.Range {
 	// When defining test cases there is no way to know the final
 	// absolute paths since sandboxes are dynamic/temporary.
 	// So we use relative paths as host paths and make them absolute here.
@@ -64,7 +65,8 @@ func FixRange(rootdir string, old info.Range) info.Range {
 		// avoid panics since the paths are not valid (empty strings).
 		return old
 	}
-	filename := filepath.Join(rootdir, old.HostPath())
+	// TODO(i4k): review this!!!!
+	filename := rootdir.Join(old.HostPath().String())
 	return info.NewRange(rootdir, hclutils.Mkrange(filename,
 		hclutils.Start(
 			old.Start().Line(),
@@ -76,7 +78,7 @@ func FixRange(rootdir string, old info.Range) info.Range {
 			old.End().Byte())))
 }
 
-func fixRangeOnAsserts(dir string, asserts []hcl.AssertConfig) {
+func fixRangeOnAsserts(dir os.Path, asserts []hcl.AssertConfig) {
 	for i := range asserts {
 		asserts[i].Range = FixRange(dir, asserts[i].Range)
 	}

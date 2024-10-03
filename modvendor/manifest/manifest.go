@@ -5,18 +5,18 @@
 package manifest
 
 import (
-	"os"
-	"path/filepath"
+	stdos "os"
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/os"
 )
 
 // LoadFileMatcher will load a gitignore.Matcher
-func LoadFileMatcher(rootdir string) (gitignore.Matcher, error) {
-	dotTerramate := filepath.Join(rootdir, ".terramate")
-	dotTerramateInfo, err := os.Stat(dotTerramate)
+func LoadFileMatcher(rootdir os.Path) (gitignore.Matcher, error) {
+	dotTerramate := rootdir.Join(".terramate")
+	dotTerramateInfo, err := stdos.Stat(dotTerramate.String())
 
 	if err == nil && dotTerramateInfo.IsDir() {
 		cfg, err := hcl.ParseDir(rootdir, dotTerramate)

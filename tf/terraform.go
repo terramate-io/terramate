@@ -4,13 +4,14 @@
 package tf
 
 import (
-	"os"
+	stdos "os"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/hcl/v2/hclparse"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/os"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -31,13 +32,13 @@ func (m Module) IsLocal() bool {
 }
 
 // ParseModules parses blocks of type "module" containing a single label.
-func ParseModules(path string) ([]Module, error) {
+func ParseModules(path os.Path) ([]Module, error) {
 	logger := log.With().
 		Str("action", "ParseModules()").
-		Str("path", path).
+		Stringer("path", path).
 		Logger()
 
-	_, err := os.Stat(path)
+	_, err := stdos.Stat(path.String())
 	if err != nil {
 		return nil, errors.E(err, "stat failed on %q", path)
 	}
@@ -46,7 +47,7 @@ func ParseModules(path string) ([]Module, error) {
 
 	logger.Debug().Msg("Parse HCL file")
 
-	f, diags := p.ParseHCLFile(path)
+	f, diags := p.ParseHCLFile(path.String())
 	if diags.HasErrors() {
 		return nil, errors.E(ErrHCLSyntax, diags)
 	}
@@ -93,7 +94,7 @@ func ParseModules(path string) ([]Module, error) {
 
 // IsStack tells if the file defined by path is a potential stack.
 // Eg.: has a backend block or a provider block.
-func IsStack(path string) (bool, error) {
+func IsStack(path os.Path) (bool, error) {
 	logger := log.With().
 		Str("action", "IsStack").
 		Logger()
@@ -102,7 +103,7 @@ func IsStack(path string) (bool, error) {
 
 	logger.Debug().Msg("Parsing TF file")
 
-	f, diags := p.ParseHCLFile(path)
+	f, diags := p.ParseHCLFile(path.String())
 	if diags.HasErrors() {
 		return false, errors.E(ErrHCLSyntax, diags)
 	}

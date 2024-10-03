@@ -5,7 +5,6 @@ package config_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -26,9 +25,9 @@ func TestIsStack(t *testing.T) {
 	})
 
 	cfg := s.Config()
-	assert.IsTrue(t, !isStack(cfg, "/dir"))
-	assert.IsTrue(t, isStack(cfg, "/stack"))
-	assert.IsTrue(t, !isStack(cfg, "/stack/subdir"))
+	assert.IsTrue(t, !isStack(cfg, project.NewPath("/dir")))
+	assert.IsTrue(t, isStack(cfg, project.NewPath("/stack")))
+	assert.IsTrue(t, !isStack(cfg, project.NewPath("/stack/subdir")))
 }
 
 func TestValidStackIDs(t *testing.T) {
@@ -330,8 +329,8 @@ func TestConfigSkipdir(t *testing.T) {
 	assert.IsTrue(t, !found)
 }
 
-func isStack(root *config.Root, dir string) bool {
-	return config.IsStack(root, filepath.Join(root.HostDir(), dir))
+func isStack(root *config.Root, dir project.Path) bool {
+	return config.IsStack(root, root.Path().Join(dir.String()))
 }
 
 func init() {

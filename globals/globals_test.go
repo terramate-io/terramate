@@ -4,7 +4,6 @@
 package globals_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -4062,7 +4061,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, c := range tcase.configs {
-				path := filepath.Join(s.RootDir(), c.path)
+				path := s.RootDir().Join(c.path)
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
@@ -4092,7 +4091,7 @@ func testGlobals(t *testing.T, tcase testcase) {
 		s := sandbox.NoGit(t, true)
 		s.BuildTree(tcase.layout)
 		for _, globalBlock := range tcase.configs {
-			path := filepath.Join(s.RootDir(), globalBlock.path)
+			path := s.RootDir().Join(globalBlock.path)
 			filename := config.DefaultFilename
 			if globalBlock.filename != "" {
 				filename = globalBlock.filename

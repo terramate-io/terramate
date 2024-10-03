@@ -6,17 +6,19 @@ package project
 import (
 	"errors"
 	"fmt"
-	"path"
+	stdpath "path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/terramate-io/terramate/os"
+
 	"github.com/zclconf/go-cty/cty"
 )
 
 // Path is a project path.
-// The project paths are always absolute forward slashed paths with no lexical
+// The project paths can be either empty or an absolute forward slashed path with no lexical
 // processing left, which means they must be cleaned paths. See:
 //
 //	https://pkg.go.dev/path#Clean
@@ -36,28 +38,39 @@ type Runtime map[string]cty.Value
 // TODO(i4k): get rid of this limit.
 const MaxGlobalLabels = 256
 
+var empty = Path{}
+
 // NewPath creates a new project path.
 // It panics if a relative path is provided.
 func NewPath(p string) Path {
-	if !path.IsAbs(p) {
+	if p == "" {
+		return empty
+	}
+	if !stdpath.IsAbs(p) {
 		panic(fmt.Errorf("project path must be absolute but got %q", p))
 	}
+	return newpath(p)
+}
+
+// assume the path is valid.
+func newpath(p string) Path {
 	return Path{
-		path: path.Clean(p),
+		path: stdpath.Clean(p),
 	}
 }
 
 // Dir returns the path's directory.
 func (p Path) Dir() Path {
+	if p.path == "" {
+		return p
+	}
 	return Path{
-		path: path.Dir(p.String()),
+		path: stdpath.Dir(p.String()),
 	}
 }
 
 // HostPath computes the absolute host path from the provided rootdir.
-func (p Path) HostPath(rootdir string) string {
-	return filepath.Join(rootdir, filepath.FromSlash(p.path))
-}
+func (p Path) HostPath(rootdir os.Path) os.Path { return rootdir.Join(p.String()) }
 
 // HasPrefix tests whether p begins with s prefix.
 func (p Path) HasPrefix(s string) bool {
@@ -72,10 +85,10 @@ func (p Path) HasDirPrefix(s string) bool {
 	return s == p.String() || strings.HasPrefix(p.String(), s+"/")
 }
 
-// Join joins the pathstr path into p. See [path.Join] for the underlying
+// Join joins the pathstr path into p. See [stdpath.Join] for the underlying
 // implementation.
 func (p Path) Join(pathstr string) Path {
-	return NewPath(path.Join(p.String(), pathstr))
+	return NewPath(stdpath.Join(p.String(), pathstr))
 }
 
 // String returns the path as a string.
@@ -92,7 +105,7 @@ func (p *Path) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if !path.IsAbs(str) {
+	if !stdpath.IsAbs(str) {
 		return errors.New(`a project path must start with "/"`)
 	}
 	p2 := NewPath(str)
@@ -118,26 +131,18 @@ func (paths Paths) Sort() {
 
 // PrjAbsPath converts the file system absolute path absdir into an absolute
 // project path on the form /path/on/project relative to the given root.
-func PrjAbsPath(root, abspath string) Path {
-	d := filepath.ToSlash(strings.TrimPrefix(abspath, root))
-	if d == "" {
-		d = "/"
-	}
-	if d[0] != '/' {
-		// handle root=/ abspath=/file
+func PrjAbsPath(root, abspath os.Path) Path {
+	d := filepath.ToSlash(abspath.TrimPrefix(root))
+	if d == "" || d[0] != '/' {
+		// handles: root=/ abspath=/
+		//          root=/ abspath=/file
 		d = "/" + d
 	}
-	return NewPath(d)
-}
-
-// AbsPath takes the root project dir and a project's absolute path prjAbsPath
-// and returns an absolute path to the file system.
-func AbsPath(root, prjAbsPath string) string {
-	return filepath.Join(root, prjAbsPath)
+	return newpath(d)
 }
 
 // FriendlyFmtDir formats the directory in a friendly way for tooling output.
-func FriendlyFmtDir(root, wd, dir string) (string, bool) {
+func FriendlyFmtDir(root, wd os.Path, dir string) (string, bool) {
 	trimPart := PrjAbsPath(root, wd).String()
 	if !strings.HasPrefix(dir, trimPart) {
 		return "", false

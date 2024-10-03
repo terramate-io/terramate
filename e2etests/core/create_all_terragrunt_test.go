@@ -4,7 +4,6 @@
 package core_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -363,14 +362,14 @@ func TestCreateAllTerragrunt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
-			tm := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			tm := NewCLI(t, s.RootDir().Join(tc.wd))
 			res := tm.Run("create", "--all-terragrunt")
 			AssertRunResult(t,
 				res,
 				tc.want,
 			)
 			if res.Status == 0 {
-				tm := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
+				tm := NewCLI(t, s.RootDir().Join(tc.wd))
 				res := tm.Run("list", "--run-order")
 				AssertRunResult(t, res, RunExpected{
 					Stdout: nljoin(tc.wantOrder...),

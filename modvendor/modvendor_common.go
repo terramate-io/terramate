@@ -7,9 +7,8 @@ package modvendor
 
 import (
 	"path"
-	"path/filepath"
-	"strings"
 
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/tf"
 )
@@ -20,6 +19,6 @@ func targetPathDir(vendorDir project.Path, modsrc tf.Source) project.Path {
 	)
 }
 
-func sourceDir(path string, rootdir string, vendordir project.Path) string {
-	return strings.TrimPrefix(path, filepath.Join(rootdir, vendordir.String()))
+func sourceDir(path os.Path, rootdir os.Path, vendordir project.Path) string {
+	return path.TrimPrefix(rootdir.Join(vendordir.String()))
 }

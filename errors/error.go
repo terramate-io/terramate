@@ -149,7 +149,7 @@ func E(args ...interface{}) *Error {
 			start := arg.Start()
 			end := arg.End()
 			e.FileRange = hcl.Range{
-				Filename: arg.HostPath(),
+				Filename: arg.HostPath().String(),
 				Start: hcl.Pos{
 					Line:   start.Line(),
 					Column: start.Column(),
@@ -173,6 +173,13 @@ func E(args ...interface{}) *Error {
 			errs.Append(arg)
 		case string:
 			val := arg
+			if format == nil {
+				format = &val
+			} else {
+				fmtargs = append(fmtargs, val)
+			}
+		case fmt.Stringer:
+			val := arg.String()
 			if format == nil {
 				format = &val
 			} else {

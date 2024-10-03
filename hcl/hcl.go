@@ -5,10 +5,9 @@ package hcl
 
 import (
 	"fmt"
-	"os"
+	stdos "os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/gobwas/glob"
@@ -21,6 +20,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/stdlib"
@@ -85,7 +85,7 @@ type Config struct {
 	Imported RawConfig
 
 	// absdir is the absolute path to the configuration directory.
-	absdir string
+	absdir os.Path
 }
 
 // GenerateConfig includes code generation related configurations, like
@@ -406,14 +406,14 @@ type TerramateParser struct {
 	Experiments []string
 	Imported    RawConfig
 
-	rootdir   string
-	dir       string
-	files     map[string][]byte // path=content
+	rootdir   os.Path
+	dir       os.Path
+	files     map[os.Path][]byte // path=content
 	hclparser *hclparse.Parser
 	evalctx   *eval.Context
 
 	// parsedFiles stores a map of all parsed files
-	parsedFiles map[string]parsedFile
+	parsedFiles map[os.Path]parsedFile
 
 	strict bool
 	// if true, calling Parse() or MinimalParse() will fail.
@@ -440,7 +440,7 @@ func NewRunConfig() *RunConfig {
 // by this parser or by another parser instance, respectively.
 type parsedFile struct {
 	kind   parsedKind
-	origin string
+	origin os.Path
 }
 
 type parsedKind int
@@ -456,12 +456,12 @@ const (
 // The parser creates sub-parsers for parsing imports but keeps a list of all
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // Calling Parse() or MinimalParse() multiple times is an error.
-func NewTerramateParser(rootdir string, dir string, experiments ...string) (*TerramateParser, error) {
-	st, err := os.Stat(dir)
+func NewTerramateParser(rootdir, dir os.Path, experiments ...string) (*TerramateParser, error) {
+	st, err := stdos.Stat(dir.String())
 	if err != nil {
 		return nil, errors.E(err, "failed to stat directory %q", dir)
 	}
-	if !strings.HasPrefix(dir, rootdir) {
+	if !dir.HasPrefix(rootdir.String()) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
@@ -475,16 +475,16 @@ func NewTerramateParser(rootdir string, dir string, experiments ...string) (*Ter
 		Experiments: experiments,
 		rootdir:     rootdir,
 		dir:         dir,
-		files:       map[string][]byte{},
+		files:       map[os.Path][]byte{},
 		hclparser:   hclparse.NewParser(),
-		parsedFiles: make(map[string]parsedFile),
+		parsedFiles: make(map[os.Path]parsedFile),
 		evalctx:     eval.NewContext(stdlib.Functions(dir, experiments)),
 	}, nil
 }
 
 // NewStrictTerramateParser is like NewTerramateParser but will fail instead of
 // warn for harmless configuration mistakes.
-func NewStrictTerramateParser(rootdir string, dir string, experiments ...string) (*TerramateParser, error) {
+func NewStrictTerramateParser(rootdir os.Path, dir os.Path, experiments ...string) (*TerramateParser, error) {
 	parser, err := NewTerramateParser(rootdir, dir, experiments...)
 	if err != nil {
 		return nil, err
@@ -493,7 +493,7 @@ func NewStrictTerramateParser(rootdir string, dir string, experiments ...string)
 	return parser, nil
 }
 
-func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {
+func (p *TerramateParser) addParsedFile(origin os.Path, kind parsedKind, files ...os.Path) {
 	for _, file := range files {
 		p.parsedFiles[file] = parsedFile{
 			kind:   kind,
@@ -504,21 +504,19 @@ func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ..
 
 // AddDir walks over all the files in the directory dir and add all .tm and
 // .tm.hcl files to the parser.
-func (p *TerramateParser) AddDir(dir string) error {
+func (p *TerramateParser) AddDir(dir os.Path) error {
 	tmFiles, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return errors.E(err, "adding directory to terramate parser")
 	}
 
 	for _, filename := range tmFiles {
-		path := filepath.Join(dir, filename)
-
-		data, err := os.ReadFile(path)
+		data, err := stdos.ReadFile(filename.String())
 		if err != nil {
-			return errors.E(err, "reading config file %q", path)
+			return errors.E(err, "reading config file %q", filename)
 		}
 
-		if err := p.AddFileContent(path, data); err != nil {
+		if err := p.AddFileContent(filename, data); err != nil {
 			return err
 		}
 	}
@@ -527,11 +525,11 @@ func (p *TerramateParser) AddDir(dir string) error {
 }
 
 // AddFile adds a file path to be parsed.
-func (p *TerramateParser) AddFile(path string) error {
-	if !strings.HasPrefix(path, p.dir) {
+func (p *TerramateParser) AddFile(path os.Path) error {
+	if !path.HasPrefix(p.dir.String()) {
 		return errors.E("parser only allow files from directory %q", p.dir)
 	}
-	data, err := os.ReadFile(path)
+	data, err := stdos.ReadFile(path.String())
 	if err != nil {
 		return errors.E("adding file %q to parser", path, err)
 	}
@@ -539,15 +537,15 @@ func (p *TerramateParser) AddFile(path string) error {
 }
 
 // AddFileContent adds a file to the set of files to be parsed.
-func (p *TerramateParser) AddFileContent(name string, data []byte) error {
-	if !strings.HasPrefix(name, p.dir) {
+func (p *TerramateParser) AddFileContent(path os.Path, data []byte) error {
+	if !path.HasPrefix(p.dir.String()) {
 		return errors.E("parser only allow files from directory %q", p.dir)
 	}
-	if _, ok := p.files[name]; ok {
-		return errors.E(os.ErrExist, "adding file %q to the parser", name)
+	if _, ok := p.files[path]; ok {
+		return errors.E(stdos.ErrExist, "adding file %q to the parser", path)
 	}
 
-	p.files[name] = data
+	p.files[path] = data
 	return nil
 }
 
@@ -588,11 +586,11 @@ func (p *TerramateParser) Parse() error {
 }
 
 // ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
-func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
-	parsed := make(map[string]*hclsyntax.Body)
+func (p *TerramateParser) ParsedBodies() map[os.Path]*hclsyntax.Body {
+	parsed := make(map[os.Path]*hclsyntax.Body)
 	bodyMap := p.hclparser.Files()
 	for _, filename := range p.internalParsedFiles() {
-		hclfile := bodyMap[filename]
+		hclfile := bodyMap[filename.String()]
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
 		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
@@ -643,7 +641,7 @@ func (p *TerramateParser) parseSyntax() error {
 	errs := errors.L()
 	for _, name := range p.sortedFilenames() {
 		data := p.files[name]
-		_, diags := p.hclparser.ParseHCL(data, name)
+		_, diags := p.hclparser.ParseHCL(data, name.String())
 		if diags.HasErrors() {
 			errs.Append(errors.E(ErrHCLSyntax, diags))
 			continue
@@ -682,17 +680,17 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	srcBase := path.Base(src)
 	srcDir := path.Dir(src)
 	if path.IsAbs(srcDir) { // project-path
-		srcDir = filepath.Join(p.rootdir, srcDir)
+		srcDir = p.rootdir.Join(srcDir).String()
 	} else {
-		srcDir = filepath.Join(p.dir, srcDir)
+		srcDir = p.dir.Join(srcDir).String()
 	}
 
-	if srcDir == p.dir {
+	if srcDir == p.dir.String() {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			"importing files in the same directory is not permitted")
 	}
 
-	if strings.HasPrefix(p.dir, srcDir) {
+	if p.dir.HasPrefix(srcDir) {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			"importing files in the same tree is not permitted")
 	}
@@ -708,12 +706,13 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 			"import path %q returned no matches", srcVal.AsString())
 	}
 	for _, file := range matches {
-		if _, ok := p.parsedFiles[file]; ok {
+		abspath := os.NewHostPath(file)
+		if _, ok := p.parsedFiles[abspath]; ok {
 			return errors.E(ErrImport, srcAttr.Expr.Range(),
 				"file %q already parsed", file)
 		}
 
-		st, err := os.Lstat(file)
+		st, err := stdos.Lstat(file)
 		if err != nil {
 			return errors.E(
 				ErrImport,
@@ -732,14 +731,14 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 			)
 		}
 
-		fileDir := filepath.Dir(file)
+		fileDir := abspath.Dir()
 		importParser, err := NewTerramateParser(p.rootdir, fileDir)
 		if err != nil {
 			return errors.E(ErrImport, srcAttr.Expr.Range(),
 				err, "failed to create sub parser: %s", fileDir)
 		}
 
-		err = importParser.AddFile(file)
+		err = importParser.AddFile(abspath)
 		if err != nil {
 			return errors.E(ErrImport, srcAttr.Expr.Range(),
 				err)
@@ -764,34 +763,34 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 			return errors.E(ErrImport, err, "failed to merge imported configuration")
 		}
 
-		p.addParsedFile(p.dir, external, file)
+		p.addParsedFile(p.dir, external, abspath)
 	}
 	return nil
 }
 
-func (p *TerramateParser) sortedFilenames() []string {
-	filenames := []string{}
+func (p *TerramateParser) sortedFilenames() os.Paths {
+	filenames := os.Paths{}
 	for fname := range p.files {
 		filenames = append(filenames, fname)
 	}
-	sort.Strings(filenames)
+	slices.Sort(filenames)
 	return filenames
 }
 
-func (p *TerramateParser) sortedParsedFilenames() []string {
-	filenames := append([]string{}, p.internalParsedFiles()...)
-	sort.Strings(filenames)
+func (p *TerramateParser) sortedParsedFilenames() os.Paths {
+	filenames := append(os.Paths{}, p.internalParsedFiles()...)
+	slices.Sort(filenames)
 	return filenames
 }
 
-func (p *TerramateParser) internalParsedFiles() []string {
-	filenames := []string{}
+func (p *TerramateParser) internalParsedFiles() os.Paths {
+	filenames := os.Paths{}
 	for fname, parsed := range p.parsedFiles {
 		if parsed.kind == internal {
 			filenames = append(filenames, fname)
 		}
 	}
-	sort.Strings(filenames)
+	slices.Sort(filenames)
 	return filenames
 }
 
@@ -888,8 +887,8 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 }
 
 // NewConfig creates a new HCL config with dir as config directory path.
-func NewConfig(dir string) (Config, error) {
-	st, err := os.Stat(dir)
+func NewConfig(dir os.Path) (Config, error) {
+	st, err := stdos.Stat(dir.String())
 	if err != nil {
 		return Config{}, errors.E(err, "initializing config")
 	}
@@ -927,7 +926,7 @@ func (c Config) Experiments() []string {
 }
 
 // AbsDir returns the absolute path of the configuration directory.
-func (c Config) AbsDir() string { return c.absdir }
+func (c Config) AbsDir() os.Path { return c.absdir }
 
 // IsEmpty returns true if the config is empty, false otherwise.
 func (c Config) IsEmpty() bool {
@@ -944,8 +943,8 @@ func (c Config) HasGlobals() bool {
 
 // Save the configuration file using filename inside config directory.
 func (c Config) Save(filename string) (err error) {
-	cfgpath := filepath.Join(c.absdir, filename)
-	f, err := os.Create(cfgpath)
+	cfgpath := c.absdir.Join(filename)
+	f, err := stdos.Create(cfgpath.String())
 	if err != nil {
 		return errors.E(err, "saving configuration file %q", cfgpath)
 	}
@@ -967,7 +966,7 @@ func (c Config) Save(filename string) (err error) {
 // using root as project workspace, parsing all files with the suffixes .tm and
 // .tm.hcl. It parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
-func ParseDir(root string, dir string, experiments ...string) (Config, error) {
+func ParseDir(root os.Path, dir os.Path, experiments ...string) (Config, error) {
 	p, err := NewTerramateParser(root, dir, experiments...)
 	if err != nil {
 		return Config{}, err
@@ -980,7 +979,7 @@ func ParseDir(root string, dir string, experiments ...string) (Config, error) {
 }
 
 // IsRootConfig parses rootdir and tells if it contains a root config or not.
-func IsRootConfig(rootdir string) (bool, error) {
+func IsRootConfig(rootdir os.Path) (bool, error) {
 	p, err := NewTerramateParser(rootdir, rootdir)
 	if err != nil {
 		return false, err
@@ -2343,7 +2342,7 @@ func (p *TerramateParser) checkConfigSanity(_ Config) error {
 	return nil
 }
 
-func terramateConfigRunSanityCheck(parsingDir string, runblock *ast.Block) error {
+func terramateConfigRunSanityCheck(parsingDir os.Path, runblock *ast.Block) error {
 	errs := errors.L()
 	for _, attr := range runblock.Attributes.SortedList() {
 		errs.Append(attributeSanityCheckErr(parsingDir, "terramate.config.run", attr))
@@ -2357,7 +2356,7 @@ func terramateConfigRunSanityCheck(parsingDir string, runblock *ast.Block) error
 	return errs.AsError()
 }
 
-func terramateConfigBlockSanityCheck(parsingDir string, cfgblock *ast.Block) error {
+func terramateConfigBlockSanityCheck(parsingDir os.Path, cfgblock *ast.Block) error {
 	errs := errors.L()
 	for _, attr := range cfgblock.Attributes.SortedList() {
 		errs.Append(attributeSanityCheckErr(parsingDir, "terramate.config", attr))
@@ -2372,9 +2371,9 @@ func terramateConfigBlockSanityCheck(parsingDir string, cfgblock *ast.Block) err
 	return errs.AsError()
 }
 
-func blockSanityCheckErr(parsingDir string, baseBlockName string, block *ast.Block) error {
+func blockSanityCheckErr(parsingDir os.Path, baseBlockName string, block *ast.Block) error {
 	err := errors.E("block %s.%s can only be declared at the project root directory", baseBlockName, block.Type)
-	if filepath.Dir(block.Range.HostPath()) != parsingDir {
+	if block.Range.HostPath().Dir() != parsingDir {
 		err = errors.E(ErrTerramateSchema, err, block.TypeRange,
 			"imported from directory %q", parsingDir)
 	} else {
@@ -2383,9 +2382,9 @@ func blockSanityCheckErr(parsingDir string, baseBlockName string, block *ast.Blo
 	return err
 }
 
-func attributeSanityCheckErr(parsingDir string, baseBlockName string, attr ast.Attribute) error {
+func attributeSanityCheckErr(parsingDir os.Path, baseBlockName string, attr ast.Attribute) error {
 	err := errors.E("attribute %s.%s can only be declared at the project root directory", baseBlockName, attr.Name)
-	if filepath.Dir(attr.Range.HostPath()) != parsingDir {
+	if attr.Range.HostPath().Dir() != parsingDir {
 		err = errors.E(ErrTerramateSchema, err, attr.NameRange,
 			"imported from directory %q", parsingDir)
 	} else {

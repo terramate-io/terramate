@@ -6,7 +6,6 @@ package generate_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -725,16 +724,16 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	assertFileExist := func(file string) {
 		t.Helper()
 
-		path := filepath.Join(stackEntry.Path(), file)
-		if _, err := os.Stat(path); err != nil {
+		path := stackEntry.Path().Join(file)
+		if _, err := os.Stat(path.String()); err != nil {
 			t.Fatalf("want file %q to exist, instead got: %v", path, err)
 		}
 	}
 	assertFileDontExist := func(file string) {
 		t.Helper()
 
-		path := filepath.Join(stackEntry.Path(), file)
-		_, err := os.Stat(path)
+		path := stackEntry.Path().Join(file)
+		_, err := os.Stat(path.String())
 
 		if errors.Is(err, os.ErrNotExist) {
 			return
@@ -810,7 +809,7 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 		},
 	})
 
-	want := s.RootDir() + "-" + filepath.Base(s.RootDir())
+	want := s.RootDir().String() + "-" + s.RootDir().Base()
 	got := stackEntry.ReadFile(generatedFile)
 
 	assert.EqualStrings(t, want, got)

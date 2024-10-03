@@ -5,7 +5,6 @@ package github_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -29,7 +28,7 @@ func TestGetEventPR(t *testing.T) {
 		draft     bool
 	}
 
-	nonExistentEventFile := filepath.Join(test.NonExistingDir(t), "event_pull_request.json")
+	nonExistentEventFile := test.NonExistingDir(t).Join("event_pull_request.json")
 
 	type testcase struct {
 		name string
@@ -56,7 +55,7 @@ func TestGetEventPR(t *testing.T) {
 		{
 			name: "non existent path",
 			env: map[string]string{
-				"GITHUB_EVENT_PATH": nonExistentEventFile,
+				"GITHUB_EVENT_PATH": nonExistentEventFile.String(),
 			},
 			want: want{
 				err: os.ErrNotExist,

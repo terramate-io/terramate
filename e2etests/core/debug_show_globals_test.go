@@ -4,11 +4,9 @@
 package core_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
-	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/hclwrite"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -247,12 +245,12 @@ stack "/stacks/stack-name":
 				s.BuildTree(tcase.layout)
 
 				for _, globalBlock := range tcase.globals {
-					path := filepath.Join(s.RootDir(), globalBlock.path)
+					path := s.RootDir().Join(globalBlock.path)
 					test.AppendFile(t, path, "globals.tm",
 						globalBlock.add.String())
 				}
 
-				ts := NewCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
+				ts := NewCLI(t, s.RootDir().Join(tcase.wd))
 				AssertRunResult(t, ts.Run("debug", "show", "globals"), tcase.want)
 			}
 		})

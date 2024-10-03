@@ -9,6 +9,7 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/terramate-io/terramate/os"
 )
 
 // Attribute represents a parsed attribute.
@@ -22,7 +23,7 @@ type Attributes map[string]Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and the rootdir
 // of the project.
-func NewAttribute(rootdir string, val *hhcl.Attribute) Attribute {
+func NewAttribute(rootdir os.Path, val *hhcl.Attribute) Attribute {
 	return Attribute{
 		Range:     info.NewRange(rootdir, val.Range),
 		Attribute: val,
@@ -40,7 +41,7 @@ func (a Attributes) SortedList() AttributeSlice {
 }
 
 // NewAttributes creates a map of Attributes from the raw hcl.Attributes.
-func NewAttributes(rootdir string, rawAttrs hhcl.Attributes) Attributes {
+func NewAttributes(rootdir os.Path, rawAttrs hhcl.Attributes) Attributes {
 	attrs := make(Attributes)
 	for _, rawAttr := range rawAttrs {
 		attrs[rawAttr.Name] = NewAttribute(rootdir, rawAttr)

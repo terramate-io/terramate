@@ -9,7 +9,7 @@ import (
 	stdfmt "fmt"
 	"io"
 	"net/http"
-	"os"
+	stdos "os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -38,6 +38,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/tg"
@@ -542,40 +543,42 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		}
 		if err != nil {
 			printer.Stderr.Error(err)
-			os.Exit(1)
+			stdos.Exit(1)
 		}
 		output.MsgStdOut("authenticated successfully")
 		return &cli{exit: true}
 	}
 
-	wd, err := os.Getwd()
+	wdstr, err := stdos.Getwd()
 	if err != nil {
 		fatalWithDetailf(err, "getting workdir")
 	}
-
-	logger = logger.With().
-		Str("workingDir", wd).
-		Logger()
 
 	if parsedArgs.Chdir != "" {
 		logger.Debug().
 			Str("dir", parsedArgs.Chdir).
 			Msg("Changing working directory")
-		err = os.Chdir(parsedArgs.Chdir)
+		err = stdos.Chdir(parsedArgs.Chdir)
 		if err != nil {
 			fatalWithDetailf(err, "changing working dir to %s", parsedArgs.Chdir)
 		}
 
-		wd, err = os.Getwd()
+		wdstr, err = stdos.Getwd()
 		if err != nil {
 			fatalf("getting workdir: %s", err)
 		}
 	}
 
-	wd, err = filepath.EvalSymlinks(wd)
+	wdstr, err = filepath.EvalSymlinks(wdstr)
 	if err != nil {
-		fatalWithDetailf(err, "evaluating symlinks on working dir: %s", wd)
+		fatalWithDetailf(err, "evaluating symlinks on working dir: %s", wdstr)
 	}
+
+	wd := os.NewHostPath(wdstr)
+
+	logger = logger.With().
+		Stringer("workingDir", wd).
+		Logger()
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
@@ -593,7 +596,7 @@ Alternatively you can create a Terramate config to make the current directory th
 
 Please see https://terramate.io/docs/cli/configuration/project-setup for details.
 `)
-		os.Exit(1)
+		stdos.Exit(1)
 	}
 
 	err = prj.setDefaults()
@@ -610,7 +613,7 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 	}
 
 	uimode := HumanMode
-	if val := os.Getenv("CI"); envVarIsSet(val) {
+	if val := stdos.Getenv("CI"); envVarIsSet(val) {
 		uimode = AutomationMode
 	}
 
@@ -643,7 +646,7 @@ func (c *cli) run() {
 	logger := log.With().
 		Str("action", "run()").
 		Str("cmd", c.ctx.Command()).
-		Str("workingDir", c.wd()).
+		Stringer("workingDir", c.wd()).
 		Logger()
 
 	c.checkVersion()
@@ -809,8 +812,8 @@ func (c *cli) vendorDownload() {
 	ref := c.parsedArgs.Experimental.Vendor.Download.Reference
 
 	logger := log.With().
-		Str("workingDir", c.wd()).
-		Str("rootdir", c.rootdir()).
+		Stringer("workingDir", c.wd()).
+		Stringer("rootdir", c.rootdir()).
 		Str("action", "cli.vendor()").
 		Str("source", source).
 		Str("ref", ref).
@@ -872,12 +875,8 @@ func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStre
 
 func (c *cli) vendorDir() prj.Path {
 	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
-
-		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
-		if !path.IsAbs(dir) {
-			dir = prj.PrjAbsPath(c.rootdir(), c.wd()).Join(dir).String()
-		}
-		return prj.NewPath(dir)
+		hostdir := c.wd().Join(c.parsedArgs.Experimental.Vendor.Download.Dir)
+		return prj.PrjAbsPath(c.rootdir(), hostdir)
 	}
 
 	checkVendorDir := func(dir string) prj.Path {
@@ -887,28 +886,22 @@ func (c *cli) vendorDir() prj.Path {
 		return prj.NewPath(dir)
 	}
 
-	dotTerramate := filepath.Join(c.rootdir(), ".terramate")
-	dotTerramateInfo, err := os.Stat(dotTerramate)
-
+	dotTerramate := c.rootdir().Join(".terramate")
+	dotTerramateInfo, err := stdos.Stat(dotTerramate.String())
 	if err == nil && dotTerramateInfo.IsDir() {
-
-		cfg, err := hcl.ParseDir(c.rootdir(), filepath.Join(c.rootdir(), ".terramate"))
+		cfg, err := hcl.ParseDir(c.rootdir(), dotTerramate)
 		if err != nil {
 			fatalWithDetailf(err, "parsing vendor dir configuration on .terramate")
 		}
 
 		if hasVendorDirConfig(cfg) {
-
 			return checkVendorDir(cfg.Vendor.Dir)
 		}
 	}
-
 	hclcfg := c.rootNode()
 	if hasVendorDirConfig(hclcfg) {
-
 		return checkVendorDir(hclcfg.Vendor.Dir)
 	}
-
 	return prj.NewPath(defaultVendorDir)
 }
 
@@ -981,7 +974,7 @@ func (c *cli) triggerStackByFilter() {
 	}
 }
 
-func (c *cli) triggerStack(basePath string) {
+func (c *cli) triggerStack(basePathStr string) {
 	changeFlag := c.parsedArgs.Experimental.Trigger.Change
 	ignoreFlag := c.parsedArgs.Experimental.Trigger.IgnoreChange
 
@@ -1008,25 +1001,28 @@ func (c *cli) triggerStack(basePath string) {
 	if reason == "" {
 		reason = "Created using Terramate CLI without setting specific reason."
 	}
-	if !path.IsAbs(basePath) {
-		basePath = filepath.Join(c.wd(), filepath.FromSlash(basePath))
+	// TODO(i4k): ask about this!!!
+	if !filepath.IsAbs(basePathStr) {
+		basePathStr = c.wd().Join(basePathStr).String()
 	} else {
-		basePath = filepath.Join(c.rootdir(), filepath.FromSlash(basePath))
+		basePathStr = c.rootdir().Join(basePathStr).String()
 	}
-	basePath = filepath.Clean(basePath)
-	_, err := os.Lstat(basePath)
-	if errors.Is(err, os.ErrNotExist) {
+	basePathStr = filepath.Clean(basePathStr)
+	_, err := stdos.Lstat(basePathStr)
+	if errors.Is(err, stdos.ErrNotExist) {
 		fatalWithDetailf(err, "path not found")
 	}
-	tmp, err := filepath.EvalSymlinks(basePath)
+	tmp, err := filepath.EvalSymlinks(basePathStr)
 	if err != nil {
 		fatalWithDetailf(err, "failed to evaluate stack path symlinks")
 	}
-	if tmp != basePath {
-		fatal(stdfmt.Sprintf("symlinks are disallowed in the path: %s links to %s", basePath, tmp))
+	if tmp != basePathStr {
+		fatal(stdfmt.Sprintf("symlinks are disallowed in the path: %s links to %s", basePathStr, tmp))
 	}
-	if !strings.HasPrefix(basePath, c.rootdir()) {
-		fatalf("path %s is outside project", basePath)
+	basePath := os.NewHostPath(basePathStr)
+	if !basePath.HasPrefix(c.rootdir().String()) {
+		// TODO(i4k): this possibly cannot ever happen!!!
+		fatalf("path %s is outside project", basePathStr)
 	}
 	prjBasePath := prj.PrjAbsPath(c.rootdir(), basePath)
 	if c.parsedArgs.Experimental.Trigger.Status != "" && c.parsedArgs.Experimental.Trigger.Recursive {
@@ -1066,8 +1062,8 @@ func (c *cli) cloneStack() {
 	skipChildStacks := c.parsedArgs.Experimental.Clone.SkipChildStacks
 
 	// Convert to absolute paths
-	absSrcdir := filepath.Join(c.wd(), srcdir)
-	absDestdir := filepath.Join(c.wd(), destdir)
+	absSrcdir := c.wd().Join(srcdir)
+	absDestdir := c.wd().Join(destdir)
 
 	n, err := stack.Clone(c.cfg(), absDestdir, absSrcdir, skipChildStacks)
 	if err != nil {
@@ -1104,7 +1100,7 @@ func (c *cli) generate() {
 		exitCode = 1
 	}
 
-	os.Exit(exitCode)
+	stdos.Exit(exitCode)
 }
 
 // gencodeWithVendor will generate code for the whole project providing automatic
@@ -1124,7 +1120,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	log.Debug().Msg("generating code")
 
-	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
+	cwd := prj.PrjAbsPath(c.cfg().Path(), c.wd())
 	report := generate.Do(c.cfg(), cwd, c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
@@ -1439,14 +1435,14 @@ func (c *cli) initTerraform() {
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
-		os.Exit(1)
+		stdos.Exit(1)
 	}
 
 	c.output.MsgStdOutV(report.Full())
 	c.output.MsgStdOutV(vendorReport.String())
 }
 
-func (c *cli) initTerraformDir(baseDir string) error {
+func (c *cli) initTerraformDir(baseDir os.Path) error {
 	pdir := prj.PrjAbsPath(c.rootdir(), baseDir)
 	var isStack bool
 	tree, found := c.prj.root.Lookup(pdir)
@@ -1454,14 +1450,14 @@ func (c *cli) initTerraformDir(baseDir string) error {
 		isStack = tree.IsStack()
 	}
 
-	dirs, err := os.ReadDir(baseDir)
+	dirs, err := stdos.ReadDir(baseDir.String())
 	if err != nil {
 		fatalWithDetailf(err, "unable to read directory while listing directory entries")
 	}
 
 	errs := errors.L()
 	for _, f := range dirs {
-		path := filepath.Join(baseDir, f.Name())
+		path := baseDir.Join(f.Name())
 		if strings.HasPrefix(f.Name(), ".") {
 			continue
 		}
@@ -1490,7 +1486,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 
 		stackDir := baseDir
 		stackID, err := uuid.NewRandom()
-		dirBasename := filepath.Base(stackDir)
+		dirBasename := stackDir.Base()
 		if err != nil {
 			fatalWithDetailf(err, "creating stack UUID")
 		}
@@ -1521,7 +1517,7 @@ func (c *cli) createStack() {
 		return
 	}
 
-	stackHostDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+	stackHostDir := c.wd().Join(c.parsedArgs.Create.Path)
 
 	stackID := c.parsedArgs.Create.ID
 	if stackID == "" {
@@ -1535,7 +1531,7 @@ func (c *cli) createStack() {
 
 	stackName := c.parsedArgs.Create.Name
 	if stackName == "" {
-		stackName = filepath.Base(stackHostDir)
+		stackName = stackHostDir.Base()
 	}
 
 	stackDescription := c.parsedArgs.Create.Description
@@ -1610,7 +1606,7 @@ func (c *cli) createStack() {
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
-		os.Exit(1)
+		stdos.Exit(1)
 	}
 
 	c.output.MsgStdOutV(report.Minimal())
@@ -1632,7 +1628,7 @@ func (c *cli) format() {
 		}
 	case 1:
 		if c.parsedArgs.Fmt.Files[0] == "-" {
-			content, err := io.ReadAll(os.Stdin)
+			content, err := io.ReadAll(stdos.Stdin)
 			if err != nil {
 				fatalWithDetailf(err, "reading stdin")
 			}
@@ -1647,7 +1643,7 @@ func (c *cli) format() {
 				if formatted != original {
 					status = 1
 				}
-				os.Exit(status)
+				stdos.Exit(status)
 			}
 
 			stdfmt.Print(formatted)
@@ -1656,21 +1652,29 @@ func (c *cli) format() {
 
 		fallthrough
 	default:
+		files := os.Paths{}
+		for _, f := range c.parsedArgs.Fmt.Files {
+			if !filepath.IsAbs(f) {
+				files = append(files, c.wd().Join(f))
+			} else {
+				files = append(files, os.NewHostPath(f))
+			}
+		}
 		var err error
-		results, err = fmt.FormatFiles(c.wd(), c.parsedArgs.Fmt.Files)
+		results, err = fmt.FormatFiles(c.wd(), files)
 		if err != nil {
 			fatalWithDetailf(err, "formatting files")
 		}
 	}
 
 	for _, res := range results {
-		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
+		path := strings.TrimPrefix(res.Path().String(), c.wd().String()+string(filepath.Separator))
 		c.output.MsgStdOut(path)
 	}
 
 	if len(results) > 0 {
 		if c.parsedArgs.Fmt.Check {
-			os.Exit(1)
+			stdos.Exit(1)
 		}
 	}
 
@@ -1684,7 +1688,7 @@ func (c *cli) format() {
 	}
 
 	if len(results) > 0 && c.parsedArgs.Fmt.DetailedExitCode {
-		os.Exit(2)
+		stdos.Exit(2)
 	}
 }
 
@@ -1826,7 +1830,7 @@ func (c *cli) generateGraph() {
 
 	logger := log.With().
 		Str("action", "generateGraph()").
-		Str("workingDir", c.wd()).
+		Stringer("workingDir", c.wd()).
 		Logger()
 
 	switch c.parsedArgs.Experimental.RunGraph.Label {
@@ -1890,7 +1894,7 @@ func (c *cli) generateGraph() {
 		out = c.stdout
 	} else {
 
-		f, err := os.Create(outFile)
+		f, err := stdos.Create(outFile)
 		if err != nil {
 			fatalWithDetailf(err, "opening file %s", outFile)
 		}
@@ -1949,7 +1953,7 @@ func generateDot(
 func (c *cli) printRunOrder(friendlyFmt bool) {
 	logger := log.With().
 		Str("action", "printRunOrder()").
-		Str("workingDir", c.wd()).
+		Stringer("workingDir", c.wd()).
 		Logger()
 
 	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
@@ -2258,7 +2262,7 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 		runtime["target"] = cty.StringVal(c.cloud.run.target)
 	}
 
-	var tdir string
+	var tdir os.Path
 	if st != nil {
 		tdir = st.HostDir(c.cfg())
 		runtime.Merge(st.RuntimeValues(c.cfg()))
@@ -2295,9 +2299,8 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 			globalPath,
 			expr,
 			info.NewRange(c.rootdir(), hhcl.Range{
-				Filename: "<eval argument>",
-				Start:    hhcl.InitialPos,
-				End:      hhcl.InitialPos,
+				Start: hhcl.InitialPos,
+				End:   hhcl.InitialPos,
 			}),
 		)
 	}
@@ -2369,8 +2372,8 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 	return hasRemotes
 }
 
-func (c *cli) wd() string                   { return c.prj.wd }
-func (c *cli) rootdir() string              { return c.prj.rootdir }
+func (c *cli) wd() os.Path                  { return c.prj.wd }
+func (c *cli) rootdir() os.Path             { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root            { return &c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
@@ -2444,7 +2447,7 @@ func (c *cli) filterStacksByTags(entries []stack.Entry) []stack.Entry {
 func (c cli) checkVersion() {
 	logger := log.With().
 		Str("action", "cli.checkVersion()").
-		Str("root", c.rootdir()).
+		Stringer("root", c.rootdir()).
 		Logger()
 
 	rootcfg := c.rootNode()
@@ -2554,10 +2557,10 @@ func (c *cli) setupFilterTags() {
 	}
 }
 
-func newGit(basedir string) (*git.Git, error) {
+func newGit(basedir os.Path) (*git.Git, error) {
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
-		Env:        os.Environ(),
+		Env:        stdos.Environ(),
 	})
 	if err != nil {
 		return nil, err
@@ -2565,7 +2568,7 @@ func newGit(basedir string) (*git.Git, error) {
 	return g, nil
 }
 
-func lookupProject(wd string) (prj project, found bool, err error) {
+func lookupProject(wd os.Path) (prj project, found bool, err error) {
 	prj = project{
 		wd: wd,
 	}
@@ -2578,7 +2581,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	if err == nil {
 		gitabs := gitdir
 		if !filepath.IsAbs(gitabs) {
-			gitabs = filepath.Join(wd, gitdir)
+			gitabs = wd.Join(gitdir).String()
 		}
 
 		rootdir, err := filepath.EvalSymlinks(gitabs)
@@ -2586,16 +2589,17 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 		}
 
-		cfg, err := config.LoadRoot(rootdir)
+		root := os.NewHostPath(rootdir)
+		cfg, err := config.LoadRoot(root)
 		if err != nil {
 			return project{}, false, err
 		}
 
-		gw = gw.With().WorkingDir(rootdir).Wrapper()
+		gw = gw.With().WorkingDir(root).Wrapper()
 
 		prj.isRepo = true
 		prj.root = *cfg
-		prj.rootdir = rootdir
+		prj.rootdir = root
 		prj.git.wrapper = gw
 
 		mgr := stack.NewGitAwareManager(&prj.root, gw)

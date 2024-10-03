@@ -8,7 +8,6 @@ package core_test
 import (
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -47,11 +46,11 @@ func TestRunLookPathFromStackEnviron(t *testing.T) {
 
 	srcPerm := srcStat.Mode().Perm()
 
-	tdir := filepath.Join(s.RootDir(), "bin")
-	test.MkdirAll2(t, tdir, 0777)
-	dstFilename := filepath.Join(tdir, programName)
+	tdir := s.RootDir().Join("bin")
+	test.MkdirAll2(t, tdir.String(), 0777)
+	dstFilename := tdir.Join(programName)
 
-	dstFile, err := os.Create(dstFilename)
+	dstFile, err := os.Create(dstFilename.String())
 	assert.NoError(t, err)
 
 	_, err = io.Copy(dstFile, srcFile)

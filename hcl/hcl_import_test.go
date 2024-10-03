@@ -8,6 +8,7 @@ import (
 
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/project"
 	. "github.com/terramate-io/terramate/test/hclutils"
 )
 
@@ -49,7 +50,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import with non-existent file - fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -101,7 +102,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import cycle - fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -125,7 +126,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import same tree - fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -148,7 +149,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import same file multiple times - fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -176,7 +177,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "imported file imports same file multiple times - fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -208,7 +209,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import disjoint directory with unexpected terramate block",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "/stack/cfg.tm",
@@ -231,7 +232,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import disjoint directory",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "/stack/cfg.tm",
@@ -252,7 +253,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import relative directory",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "/stack/cfg.tm",
@@ -271,8 +272,8 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import relative directory outside terramate root",
-			parsedir: "project/stack",
-			rootdir:  "project",
+			parsedir: project.NewPath("/project/stack"),
+			rootdir:  project.NewPath("/project"),
 			input: []cfgfile{
 				{
 					filename: "/project/stack/cfg.tm",
@@ -294,7 +295,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import with redefinition of top-level attributes",
-			parsedir: "stack",
+			parsedir: project.NewPath("stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -318,7 +319,7 @@ func TestHCLImport(t *testing.T) {
 		},
 		{
 			name:     "import stacks - fails",
-			parsedir: "stack",
+			parsedir: project.NewPath("/stack"),
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",

@@ -4,7 +4,6 @@
 package eval_test
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -12,11 +11,12 @@ import (
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
 )
 
-func setupContext() *eval.Context {
-	ctx := eval.NewContext(stdlib.Functions(os.TempDir(), []string{}))
+func setupContext(t testing.TB) *eval.Context {
+	ctx := eval.NewContext(stdlib.Functions(test.TempDir(t), []string{}))
 	ctx.SetNamespace("global", map[string]cty.Value{
 		"true":   cty.True,
 		"false":  cty.False,
@@ -43,7 +43,7 @@ func setupContext() *eval.Context {
 
 func BenchmarkPartialEvalComplex(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`[
 		{
@@ -108,7 +108,7 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 
 func BenchmarkPartialEvalSmallString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`"terramate is fun"`)
 
@@ -127,7 +127,7 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 
 func BenchmarkPartialEvalHugeString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`"` + strings.Repeat(`terramate is fun\n`, 1000) + `"`)
 
@@ -146,7 +146,7 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 
 func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`"` + strings.Repeat(`${global.string} is fun\n`, 1000) + `"`)
 
@@ -165,7 +165,7 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 
 func BenchmarkPartialEvalObject(b *testing.B) {
 	b.StopTimer()
-	ctx := setupContext()
+	ctx := setupContext(b)
 
 	exprBytes := []byte(`{
 		a = 1

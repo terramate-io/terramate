@@ -6,14 +6,14 @@ package run
 import (
 	"cmp"
 	"fmt"
-	"os"
+	stdos "os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/run/dag"
 	"golang.org/x/exp/slices"
@@ -103,7 +103,7 @@ func buildValidStackDAG[S ~[]E, E any](
 
 	logger := log.With().
 		Str("action", "run.buildOrderedStackDAG()").
-		Str("root", root.HostDir()).
+		Stringer("root", root.Path()).
 		Logger()
 
 	isParentStack := func(s1, s2 *config.Stack) bool {
@@ -208,13 +208,13 @@ func BuildDAG(
 				continue
 			}
 
-			var abspath string
+			var abspath os.Path
 			if path.IsAbs(pathstr) {
-				abspath = filepath.Join(root.HostDir(), filepath.FromSlash(pathstr))
+				abspath = root.Path().Join(pathstr)
 			} else {
-				abspath = filepath.Join(s.HostDir(root), filepath.FromSlash(pathstr))
+				abspath = s.HostDir(root).Join(pathstr)
 			}
-			st, err := os.Stat(abspath)
+			st, err := stdos.Stat(abspath.String())
 			if err != nil {
 				logger.Debug().Str("path", pathstr).Err(err).Msgf("Invalid stack.%s path", fieldname)
 				printer.Stderr.Warn(
@@ -274,7 +274,7 @@ func BuildDAG(
 	for _, elem := range stacks {
 		logger = log.With().
 			Str("action", "run.BuildDAG()").
-			Str("path", root.HostDir()).
+			Stringer("path", root.Path()).
 			Stringer("stack", elem.Dir()).
 			Logger()
 

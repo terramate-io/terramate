@@ -7,7 +7,7 @@ package download
 import (
 	"fmt"
 	iofs "io/fs"
-	"os"
+	stdos "os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -20,6 +20,7 @@ import (
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/modvendor"
 	"github.com/terramate-io/terramate/modvendor/manifest"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/tf"
 	"github.com/zclconf/go-cty/cty"
@@ -44,7 +45,7 @@ const (
 type modinfo struct {
 	source     string
 	vendoredAt project.Path
-	origin     string
+	origin     os.Path
 	subdir     string
 }
 
@@ -73,7 +74,7 @@ type modinfo struct {
 //
 // It returns a report of everything vendored and ignored (with a reason).
 func Vendor(
-	rootdir string,
+	rootdir os.Path,
 	vendorDir project.Path,
 	modsrc tf.Source,
 	events ProgressEventStream,
@@ -91,7 +92,7 @@ func Vendor(
 // When vendorRequests is closed it will close the returned [Report] channel,
 // indicating that no more processing will be done.
 func HandleVendorRequests(
-	rootdir string,
+	rootdir os.Path,
 	vendorRequests <-chan event.VendorRequest,
 	progressEvents ProgressEventStream,
 ) <-chan Report {
@@ -99,7 +100,7 @@ func HandleVendorRequests(
 	go func() {
 		logger := log.With().
 			Str("action", "download.HandleVendorRequests()").
-			Str("rootdir", rootdir).
+			Stringer("rootdir", rootdir).
 			Logger()
 
 		logger.Debug().Msg("starting vendor request handler")
@@ -171,16 +172,16 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
 func VendorAll(
-	rootdir string,
+	rootdir os.Path,
 	vendorDir project.Path,
-	tfdir string,
+	tfdir os.Path,
 	events ProgressEventStream,
 ) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir), events)
 }
 
 func vendor(
-	rootdir string,
+	rootdir os.Path,
 	vendorDir project.Path,
 	modsrc tf.Source,
 	report Report,
@@ -225,7 +226,7 @@ func newSourcesInfo() *sourcesInfo {
 	}
 }
 
-func (s *sourcesInfo) append(source, path string) {
+func (s *sourcesInfo) append(source string, path os.Path) {
 	if _, ok := s.set[source]; ok {
 		return
 	}
@@ -248,9 +249,9 @@ func (s *sourcesInfo) delete(source string) {
 }
 
 func vendorAll(
-	rootdir string,
+	rootdir os.Path,
 	vendorDir project.Path,
-	tfdir string,
+	tfdir os.Path,
 	report Report,
 	events ProgressEventStream,
 ) Report {
@@ -258,7 +259,7 @@ func vendorAll(
 	originMap := map[string]struct{}{}
 	errs := errors.L(report.Error)
 
-	err := filepath.WalkDir(tfdir, func(path string, d iofs.DirEntry, err error) error {
+	err := filepath.WalkDir(tfdir.String(), func(path string, d iofs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -271,7 +272,7 @@ func vendorAll(
 			return nil
 		}
 
-		modules, err := tf.ParseModules(path)
+		modules, err := tf.ParseModules(os.NewHostPath(path))
 		if err != nil {
 			errs.Append(err)
 			return nil
@@ -284,7 +285,7 @@ func vendorAll(
 
 			originMap[path] = struct{}{}
 
-			sources.append(mod.Source, path)
+			sources.append(mod.Source, os.NewHostPath(path))
 		}
 		return nil
 	})
@@ -303,7 +304,7 @@ func vendorAll(
 		info.subdir = modsrc.Subdir
 
 		targetVendorDir := modvendor.AbsVendorDir(rootdir, vendorDir, modsrc)
-		st, err := os.Stat(targetVendorDir)
+		st, err := stdos.Stat(targetVendorDir.String())
 		if err == nil && st.IsDir() {
 			info.vendoredAt = modvendor.TargetDir(vendorDir, modsrc)
 			continue
@@ -333,29 +334,30 @@ func vendorAll(
 // This function is not recursive, so dependencies won't have their dependencies
 // vendored. See Vendor() for a recursive vendoring function.
 func downloadVendor(
-	rootdir string,
+	rootdir os.Path,
 	vendorDir project.Path,
 	modsrc tf.Source,
 	events ProgressEventStream,
-) (string, error) {
+) (os.Path, error) {
 	if modsrc.Ref == "" {
 		return "", errors.E(ErrModRefEmpty, "ref: %v", modsrc)
 	}
 
 	modVendorDir := modvendor.AbsVendorDir(rootdir, vendorDir, modsrc)
-	if _, err := os.Stat(modVendorDir); err == nil {
+	if _, err := stdos.Stat(modVendorDir.String()); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", modVendorDir)
 	}
 
 	// We want an initial temporary dir outside of the Terramate project
 	// to do the clone since some git setups will assume that any
 	// git clone inside a repo is a submodule.
-	clonedRepoDir, err := os.MkdirTemp("", ".tmvendor")
+	clonedRepoTmpDir, err := stdos.MkdirTemp("", ".tmvendor")
 	if err != nil {
 		return "", errors.E(err, "creating tmp clone dir")
 	}
+	clonedRepoAbsDir := os.NewHostPath(clonedRepoTmpDir)
 	defer func() {
-		if err := os.RemoveAll(clonedRepoDir); err != nil {
+		if err := stdos.RemoveAll(clonedRepoAbsDir.String()); err != nil {
 			log.Warn().Err(err).
 				Msg("deleting tmp clone dir")
 		}
@@ -366,12 +368,13 @@ func downloadVendor(
 	// leave any changes in the project vendor dir. The final step then will
 	// be an atomic op using rename, which probably wont fail since the temp dir is
 	// inside the project and the whole project is most likely on the same fs/device.
-	tmTempDir, err := os.MkdirTemp(rootdir, ".tmvendor")
+	tmTempDir, err := stdos.MkdirTemp(rootdir.String(), ".tmvendor")
 	if err != nil {
 		return "", errors.E(err, "creating tmp dir inside project")
 	}
+	targetTempAbsDir := os.NewHostPath(tmTempDir)
 	defer func() {
-		if err := os.RemoveAll(tmTempDir); err != nil {
+		if err := stdos.RemoveAll(tmTempDir); err != nil {
 			log.Warn().Err(err).
 				Msg("deleting temp dir inside terramate project")
 		}
@@ -380,9 +383,9 @@ func downloadVendor(
 	// Same strategy used on the Go toolchain:
 	// - https://github.com/golang/go/blob/2ebe77a2fda1ee9ff6fd9a3e08933ad1ebaea039/src/cmd/go/internal/get/get.go#L129
 
-	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	env := append(stdos.Environ(), "GIT_TERMINAL_PROMPT=0")
 	g, err := git.WithConfig(git.Config{
-		WorkingDir:     clonedRepoDir,
+		WorkingDir:     clonedRepoAbsDir,
 		AllowPorcelain: true,
 		Env:            env,
 	})
@@ -403,7 +406,7 @@ func downloadVendor(
 			Msg("dropped progress event, event handler is not fast enough or absent")
 	}
 
-	if err := g.Clone(modsrc.URL, clonedRepoDir); err != nil {
+	if err := g.Clone(modsrc.URL, clonedRepoAbsDir); err != nil {
 		return "", err
 	}
 
@@ -413,35 +416,35 @@ func downloadVendor(
 		return "", errors.E(err, "checking ref %s", modsrc.Ref)
 	}
 
-	if err := os.RemoveAll(filepath.Join(clonedRepoDir, ".git")); err != nil {
+	if err := stdos.RemoveAll(filepath.Join(clonedRepoTmpDir, ".git")); err != nil {
 		return "", errors.E(err, "removing .git dir from cloned repo")
 	}
 
-	matcher, err := manifest.LoadFileMatcher(clonedRepoDir)
+	matcher, err := manifest.LoadFileMatcher(clonedRepoAbsDir)
 	if err != nil {
 		return "", err
 	}
 
-	const pathSeparator string = string(os.PathSeparator)
+	const pathSeparator string = string(stdos.PathSeparator)
 
-	fileFilter := func(path string, entry os.DirEntry) bool {
+	fileFilter := func(path os.Path, entry stdos.DirEntry) bool {
 		if entry.IsDir() {
 			return true
 		}
-		abspath := filepath.Join(path, entry.Name())
-		relpath := strings.TrimPrefix(abspath, clonedRepoDir+pathSeparator)
+		abspath := path.Join(entry.Name())
+		relpath := strings.TrimPrefix(abspath.String(), clonedRepoTmpDir+pathSeparator)
 		return matcher.Match(strings.Split(relpath, pathSeparator), entry.IsDir())
 	}
 
-	if err := fs.CopyDir(tmTempDir, clonedRepoDir, fileFilter); err != nil {
+	if err := fs.CopyDir(targetTempAbsDir, clonedRepoAbsDir, fileFilter); err != nil {
 		return "", errors.E(err, "copying cloned module")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(modVendorDir), 0775); err != nil {
+	if err := stdos.MkdirAll(modVendorDir.Dir().String(), 0775); err != nil {
 		return "", errors.E(err, "creating mod dir inside vendor")
 	}
 
-	if err := os.Rename(tmTempDir, modVendorDir); err != nil {
+	if err := stdos.Rename(tmTempDir, modVendorDir.String()); err != nil {
 		// Assuming that the whole Terramate project is inside the
 		// same fs/mount/dev.
 		return "", errors.E(err, "moving module from tmp dir to vendor")
@@ -449,10 +452,10 @@ func downloadVendor(
 	return modVendorDir, nil
 }
 
-func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
+func patchFiles(rootdir os.Path, files []string, sources *sourcesInfo) error {
 	errs := errors.L()
 	for _, fname := range files {
-		bytes, err := os.ReadFile(fname)
+		bytes, err := stdos.ReadFile(fname)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -483,7 +486,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 
 			if info, ok := sources.set[sourceString]; ok && info.vendoredAt.String() != "" {
 				relPath, err := filepath.Rel(
-					filepath.Dir(fname), filepath.Join(rootdir, filepath.FromSlash(info.vendoredAt.String())),
+					filepath.Dir(fname), rootdir.Join(filepath.FromSlash(info.vendoredAt.String())).String(),
 				)
 				if err != nil {
 					errs.Append(err)
@@ -495,10 +498,10 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			}
 		}
 
-		st, err := os.Stat(fname)
+		st, err := stdos.Stat(fname)
 		errs.Append(err)
 		if err == nil {
-			errs.Append(os.WriteFile(fname, parsedFile.Bytes(), st.Mode()))
+			errs.Append(stdos.WriteFile(fname, parsedFile.Bytes(), st.Mode()))
 		}
 	}
 	return errs.AsError()

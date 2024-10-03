@@ -5,7 +5,7 @@ package stdlib
 
 import (
 	"fmt"
-	"os"
+	stdos "os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -20,6 +20,7 @@ import (
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/modvendor"
+	"github.com/terramate-io/terramate/os"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/tf"
 	"github.com/terramate-io/terramate/versions"
@@ -35,12 +36,9 @@ func init() {
 
 // Functions returns all the Terramate default functions.
 // The `basedir` must be an absolute path for an existent directory or it panics.
-func Functions(basedir string, experiments []string) map[string]function.Function {
-	if !filepath.IsAbs(basedir) {
-		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
-	}
-
-	st, err := os.Stat(basedir)
+func Functions(basedir os.Path, experiments []string) map[string]function.Function {
+	basestr := basedir.String()
+	st, err := stdos.Stat(basestr)
 	if err != nil {
 		panic(errors.E(errors.ErrInternal, err, "failed to stat context basedir %q", basedir))
 	}
@@ -48,7 +46,7 @@ func Functions(basedir string, experiments []string) map[string]function.Functio
 		panic(errors.E(errors.ErrInternal, "context basedir (%s) must be a directory", basedir))
 	}
 
-	scope := &lang.Scope{BaseDir: basedir}
+	scope := &lang.Scope{BaseDir: basestr}
 	tffuncs := scope.Functions()
 
 	// not supported functions
@@ -89,7 +87,7 @@ func Functions(basedir string, experiments []string) map[string]function.Functio
 
 // NoFS returns all Terramate functions but excluding fs-related
 // functions.
-func NoFS(basedir string, experiments []string) map[string]function.Function {
+func NoFS(basedir os.Path, experiments []string) map[string]function.Function {
 	funcs := Functions(basedir, experiments)
 	fsFuncNames := []string{
 		"tm_abspath",
@@ -260,7 +258,7 @@ func regexPatternResult(re *regexp.Regexp, str string, captureIdxs []int, retTyp
 func Name(name string) string { return "tm_" + name }
 
 // AbspathFunc returns the `tm_abspath()` hcl function.
-func AbspathFunc(basedir string) function.Function {
+func AbspathFunc(basedir os.Path) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -270,14 +268,10 @@ func AbspathFunc(basedir string) function.Function {
 		},
 		Type: function.StaticReturnType(cty.String),
 		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
-			path := args[0].AsString()
-			var abspath string
-			if filepath.IsAbs(path) {
-				abspath = path
-			} else {
-				abspath = filepath.Join(basedir, path)
+			abspath := args[0].AsString()
+			if !filepath.IsAbs(abspath) {
+				abspath = basedir.Join(abspath).String()
 			}
-
 			return cty.StringVal(filepath.Clean(abspath)), nil
 		},
 	})

@@ -44,7 +44,7 @@ func TestParallelFibonacci(t *testing.T) {
 			res := tmcli.Run("run", "--quiet", "--parallel=5", "--", HelperPath, "fibonacci")
 			AssertRunResult(t, res, RunExpected{})
 
-			b, err := os.ReadFile(s.RootDir() + fmt.Sprintf("/fib.%v/fib.txt", tc.FibN))
+			b, err := os.ReadFile(s.RootDir().Join(fmt.Sprintf("fib.%v/fib.txt", tc.FibN)).String())
 			assert.NoError(t, err)
 			got, err := strconv.ParseInt(string(b), 10, 64)
 			assert.NoError(t, err)
