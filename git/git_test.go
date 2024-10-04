@@ -462,6 +462,38 @@ func TestGetConfigValue(t *testing.T) {
 	assert.Error(t, err, "git config: non-existing key")
 }
 
+func TestListUntracked(t *testing.T) {
+	t.Parallel()
+	const (
+		remote = "origin"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	g := test.NewGitWrapper(t, repodir, []string{})
+
+	remoteDir := test.EmptyRepo(t, true)
+
+	assert.NoError(t, g.RemoteAdd(remote, remoteDir))
+	assert.NoError(t, g.Push(remote, defaultBranch))
+
+	files, err := g.ListUntracked()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(files))
+
+	test.WriteFile(t, repodir, "test.txt", "some content")
+	files, err = g.ListUntracked()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 1, len(files))
+	assert.EqualStrings(t, "test.txt", files[0])
+
+	test.WriteFile(t, filepath.Join(repodir, "deep/nested/path"), "test.txt", "some content")
+	files, err = g.ListUntracked()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 2, len(files))
+	assert.EqualStrings(t, "deep", files[0])
+	assert.EqualStrings(t, "test.txt", files[1])
+}
+
 const defaultBranch = "main"
 
 func mkOneCommitRepo(t *testing.T) string {

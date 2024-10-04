@@ -585,27 +585,28 @@ func (git *Git) Pull(remote, branch string) error {
 }
 
 // ListUntracked lists untracked files in the directories provided in dirs.
-func (git *Git) ListUntracked(dirs ...string) ([]string, error) {
-	args := []string{
-		"--others", "--exclude-standard",
-	}
-
-	if len(dirs) > 0 {
-		args = append(args, "--")
-		args = append(args, dirs...)
-	}
-
+func (git *Git) ListUntracked() ([]string, error) {
 	log.Debug().
 		Str("action", "ListUntracked()").
 		Str("workingDir", git.cfg().WorkingDir).
 		Msg("List untracked files.")
-	out, err := git.exec("ls-files", args...)
+
+	out, err := git.exec("status", "--porcelain")
 	if err != nil {
-		return nil, fmt.Errorf("ls-files: %w", err)
+		return nil, fmt.Errorf("git status --porcelain: %w", err)
 	}
 
-	return removeEmptyLines(strings.Split(out, "\n")), nil
-
+	var files []string
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "?? ") {
+			file := strings.TrimSpace(strings.TrimPrefix(line, "?? "))
+			if len(file) > 1 && file[len(file)-1] == os.PathSeparator {
+				file = file[:len(file)-1]
+			}
+			files = append(files, file)
+		}
+	}
+	return files, nil
 }
 
 // ListUncommitted lists uncommitted files in the directories provided in dirs.
