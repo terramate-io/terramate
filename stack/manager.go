@@ -481,10 +481,10 @@ func (m *Manager) filesApply(dir project.Path, apply func(fname string) error) (
 
 	if skipped {
 		// WHY: This can only happen if the user is adding a .tmskip in a modules or similar folder.
-		// Because of the historical performance issues in the "terramate generate" we adviced
-		// some customers to ".tmskip" directories with pure Terraform modules or imported only files.
-		// But change detection needs to track those directories as well so we fallback to listing the
-		// files in this case.
+		// The user must have a .tmskip in modules for several reasons but the most common
+		// are to speed up Terramate config loading or because they depend on Terraform
+		// modules (from other repos) that contain stack definitions that must not be recognized
+		// in this project.
 		f, err := os.Open(dir.HostPath(m.root.HostDir()))
 		if err != nil {
 			return errors.E(err, "opening directory %q", dir)
