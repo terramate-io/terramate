@@ -701,14 +701,9 @@ func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project
 }
 
 func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
-	untracked, err := g.ListUntracked()
+	untracked, uncommitted, err := g.ListDirtyFiles()
 	if err != nil {
-		return RepoChecks{}, errors.E(err, "listing untracked files")
-	}
-
-	uncommitted, err := g.ListUncommitted()
-	if err != nil {
-		return RepoChecks{}, errors.E(err, "listing uncommitted files")
+		return RepoChecks{}, errors.E(err, "listing dirty files")
 	}
 
 	return RepoChecks{
