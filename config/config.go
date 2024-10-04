@@ -62,6 +62,8 @@ type Tree struct {
 	// Node is the configuration of this tree node.
 	Node hcl.Config
 
+	Skipped bool // tells if this node subdirs were skipped
+
 	TerramateFiles []string
 	OtherFiles     []string
 
@@ -154,7 +156,14 @@ func (root *Root) Tree() *Tree { return &root.tree }
 func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
-func (root *Root) Lookup(path project.Path) (*Tree, bool) {
+func (root *Root) Lookup(path project.Path) (node *Tree, found bool) {
+	node, _, found = root.tree.lookup(path)
+	return node, found
+}
+
+// Lookup2 is like Lookup but returns skipped as true if the path is not found because
+// a parent directory was skipped.
+func (root *Root) Lookup2(path project.Path) (node *Tree, skipped bool, found bool) {
 	return root.tree.lookup(path)
 }
 
@@ -387,10 +396,13 @@ func (tree *Tree) stacks(cond func(*Tree) bool) List[*Tree] {
 
 // Lookup a node from the tree using a filesystem query path.
 // The abspath is relative to the current tree node.
-func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
+func (tree *Tree) lookup(abspath project.Path) (node *Tree, skipped bool, found bool) {
+	if tree.Skipped {
+		return nil, true, false
+	}
 	pathstr := abspath.String()
 	if len(pathstr) == 0 || pathstr[0] != '/' {
-		return nil, false
+		return nil, false, false
 	}
 
 	parts := strings.Split(pathstr, "/")
@@ -402,11 +414,11 @@ func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
 		}
 		node, found := cfg.Children[parts[i]]
 		if !found {
-			return nil, false
+			return nil, cfg.Skipped, false
 		}
 		cfg = node
 	}
-	return cfg, true
+	return cfg, false, true
 }
 
 // AsList returns a list with this node and all its children.
@@ -439,7 +451,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	for _, fname := range otherFiles {
 		if fname == SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
-			return NewTree(cfgdir), nil
+			return newSkippedTree(cfgdir), nil
 		}
 	}
 
@@ -616,6 +628,12 @@ func NewTree(cfgdir string) *Tree {
 		dir:      cfgdir,
 		Children: make(map[string]*Tree),
 	}
+}
+
+func newSkippedTree(cfgdir string) *Tree {
+	t := NewTree(cfgdir)
+	t.Skipped = true
+	return t
 }
 
 func (tree *Tree) hasExperiment(name string) bool {

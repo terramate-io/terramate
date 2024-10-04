@@ -135,6 +135,12 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		}
 	}
 
+	if len(m.cache.changedFiles) == 0 {
+		return &Report{
+			Checks: checks,
+		}, nil
+	}
+
 	stackSet := map[project.Path]Entry{}
 	ignoreSet := map[project.Path]struct{}{}
 
@@ -466,12 +472,44 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 }
 
 func (m *Manager) filesApply(dir project.Path, apply func(fname string) error) (err error) {
-	tree, ok := m.root.Lookup(dir)
-	if !ok {
-		return errors.E("directory not found: %s", dir)
+	var files []string
+
+	tree, skipped, ok := m.root.Lookup2(dir)
+	if !ok && !skipped {
+		panic(errors.E(errors.ErrInternal, "path is not in the config tree and not .tmskip'ed: %s", dir))
 	}
 
-	for _, fname := range tree.OtherFiles {
+	if skipped {
+		// WHY: This can only happen if the user is adding a .tmskip in a modules or similar folder.
+		// Because of the historical performance issues in the "terramate generate" we adviced
+		// some customers to ".tmskip" directories with pure Terraform modules or imported only files.
+		// But change detection needs to track those directories as well so we fallback to listing the
+		// files in this case.
+		f, err := os.Open(dir.HostPath(m.root.HostDir()))
+		if err != nil {
+			return errors.E(err, "opening directory %q", dir)
+		}
+
+		defer func() {
+			err = errors.L(err, f.Close()).AsError()
+		}()
+
+		entries, err := f.ReadDir(-1)
+		if err != nil {
+			return errors.E(err, "listing files of directory %q", dir)
+		}
+
+		for _, file := range entries {
+			if file.IsDir() {
+				continue
+			}
+			files = append(files, file.Name())
+		}
+	} else {
+		files = tree.OtherFiles
+	}
+
+	for _, fname := range files {
 		err := apply(fname)
 		if err != nil {
 			return errors.E(err, "applying operation to file %q", fname)
