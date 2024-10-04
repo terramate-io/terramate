@@ -6,7 +6,6 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -22,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
@@ -61,6 +61,9 @@ type Root struct {
 type Tree struct {
 	// Node is the configuration of this tree node.
 	Node hcl.Config
+
+	TerramateFiles []string
+	OtherFiles     []string
 
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
@@ -428,22 +431,12 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		Str("dir", cfgdir).
 		Logger()
 
-	f, err := os.Open(cfgdir)
+	tmFiles, otherFiles, dirs, err := fs.ListTerramateFiles(cfgdir)
 	if err != nil {
-		return nil, errors.E(err, "failed to open cfg directory")
+		return nil, err
 	}
 
-	defer func() {
-		err = errors.L(err, f.Close()).AsError()
-	}()
-
-	dirEntries, err := f.ReadDir(-1)
-	if err != nil {
-		return nil, errors.E(err, "failed to read files in %s", cfgdir)
-	}
-
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
+	for _, fname := range otherFiles {
 		if fname == SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return NewTree(cfgdir), nil
@@ -458,7 +451,23 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	if cfgdir != rootdir {
 		tree := NewTree(cfgdir)
 
-		cfg, err := hcl.ParseDir(rootdir, cfgdir, rootcfg.Experiments()...)
+		p, err := hcl.NewTerramateParser(rootdir, cfgdir, rootcfg.Experiments()...)
+		if err != nil {
+			return nil, err
+		}
+		for _, filename := range tmFiles {
+			path := filepath.Join(cfgdir, filename)
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, errors.E(err, "reading config file %q", path)
+			}
+
+			if err := p.AddFileContent(path, data); err != nil {
+				return nil, err
+			}
+		}
+		cfg, err := p.ParseConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -468,20 +477,21 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		}
 
 		tree.Node = cfg
+		tree.TerramateFiles = tmFiles
+		tree.OtherFiles = otherFiles
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
 		parentTree = tree
 	}
 
-	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, dirEntries)
+	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, otherFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
-		if Skip(fname) || !dirEntry.IsDir() {
+	for _, fname := range dirs {
+		if Skip(fname) {
 			continue
 		}
 
@@ -497,14 +507,13 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	return parentTree, nil
 }
 
-func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntries []fs.DirEntry) error {
+func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, files []string) error {
 	const tmgenSuffix = ".tmgen"
 
 	tmgenEnabled := rootTree.hasExperiment("tmgen")
 
 	// process all .tmgen files.
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
+	for _, fname := range files {
 		if !strings.HasSuffix(fname, tmgenSuffix) || fname[0] == '.' {
 			continue
 		}
@@ -647,7 +656,7 @@ func (root *Root) HasTerragruntStacks() bool {
 
 // IsTerragruntChangeDetectionEnabled returns true if Terragrunt change detection integration
 // must be executed.
-func (root *Root) IsTerragruntChangeDetectionEnabled() bool {
+func (root *Root) IsTerragruntChangeDetectionEnabled() (ret bool) {
 	switch opt := root.TerragruntEnabledOption(); opt {
 	case hcl.TerragruntOffOption:
 		return false

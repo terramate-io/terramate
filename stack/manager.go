@@ -79,28 +79,12 @@ func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 // List walks the basedir directory looking for terraform stacks.
 // The stacks are cached and sorted lexicographicly by the directory.
 func (m *Manager) List(checkRepo bool) (*Report, error) {
-	if m.cache.stacks != nil {
-		report := &Report{
-			Stacks: m.cache.stacks,
-		}
-		if !checkRepo {
-			return report, nil
-		}
-		var err error
-		report.Checks, err = checkRepoIsClean(m.git)
-		if err != nil {
-			return nil, errors.E(errList, err)
-		}
-		return report, nil
-	}
-	entries, err := List(m.root, m.root.Tree())
+	allstacks, err := m.allStacks()
 	if err != nil {
 		return nil, err
 	}
-
-	m.cache.stacks = entries
 	report := &Report{
-		Stacks: entries,
+		Stacks: allstacks,
 	}
 
 	if !checkRepo {
@@ -251,15 +235,9 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		delete(stackSet, ignored)
 	}
 
-	var allstacks []Entry
-	if m.cache.stacks != nil {
-		allstacks = m.cache.stacks
-	} else {
-		allstacks, err = List(m.root, m.root.Tree())
-		if err != nil {
-			return nil, errors.E(errListChanged, "searching for stacks", err)
-		}
-		m.cache.stacks = allstacks
+	allstacks, err := m.allStacks()
+	if err != nil {
+		return nil, err
 	}
 
 	tgModulesMap := make(map[project.Path]*tg.Module)
@@ -302,12 +280,12 @@ rangeStacks:
 		}
 
 		// Terraform module change detection
-		err := m.filesApply(stack.HostDir(m.root), func(file fs.DirEntry) error {
-			if path.Ext(file.Name()) != ".tf" {
+		err := m.filesApply(stack.Dir, func(fname string) error {
+			if path.Ext(fname) != ".tf" {
 				return nil
 			}
 
-			tfpath := filepath.Join(stack.HostDir(m.root), file.Name())
+			tfpath := filepath.Join(stack.HostDir(m.root), fname)
 
 			modules, err := tf.ParseModules(tfpath)
 			if err != nil {
@@ -381,6 +359,21 @@ rangeStacks:
 		Checks: checks,
 		Stacks: changedStacks,
 	}, nil
+}
+
+func (m *Manager) allStacks() ([]Entry, error) {
+	var allstacks []Entry
+	if m.cache.stacks != nil {
+		allstacks = m.cache.stacks
+	} else {
+		var err error
+		allstacks, err = List(m.root, m.root.Tree())
+		if err != nil {
+			return nil, errors.E(errListChanged, "searching for stacks", err)
+		}
+		m.cache.stacks = allstacks
+	}
+	return allstacks, nil
 }
 
 // StackByID returns the stack with the given id.
@@ -472,32 +465,18 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	return selectedStacks, nil
 }
 
-func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) (err error) {
-	f, err := os.Open(dir)
-	if err != nil {
-		return errors.E(err, "opening directory %q", dir)
+func (m *Manager) filesApply(dir project.Path, apply func(fname string) error) (err error) {
+	tree, ok := m.root.Lookup(dir)
+	if !ok {
+		return errors.E("directory not found: %s", dir)
 	}
 
-	defer func() {
-		err = errors.L(err, f.Close()).AsError()
-	}()
-
-	files, err := f.ReadDir(-1)
-	if err != nil {
-		return errors.E(err, "listing files of directory %q", dir)
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		err := apply(file)
+	for _, fname := range tree.OtherFiles {
+		err := apply(fname)
 		if err != nil {
-			return errors.E(err, "applying operation to file %q", file.Name())
+			return errors.E(err, "applying operation to file %q", fname)
 		}
 	}
-
 	return nil
 }
 
@@ -518,34 +497,35 @@ func (m *Manager) tfModuleChanged(
 		return false, "", nil
 	}
 
-	modPath := filepath.Join(basedir, mod.Source)
+	modAbsPath := filepath.Join(basedir, mod.Source)
+	modPath := project.PrjAbsPath(m.root.HostDir(), modAbsPath)
 
-	st, err := os.Stat(modPath)
+	st, err := os.Stat(modAbsPath)
 
 	// TODO(i4k): resolve symlinks
 
 	if err != nil || !st.IsDir() {
-		return false, "", errors.E("\"source\" path %q is not a directory", modPath)
+		return false, "", errors.E("\"source\" path %q is not a directory", modAbsPath)
 	}
 
 	for _, changedFile := range m.cache.changedFiles {
 		changedPath := filepath.Join(m.root.HostDir(), changedFile)
-		if strings.HasPrefix(changedPath, modPath) {
+		if strings.HasPrefix(changedPath, modAbsPath) {
 			return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
 		}
 	}
 
 	visited[mod.Source] = true
 
-	err = m.filesApply(modPath, func(file fs.DirEntry) error {
+	err = m.filesApply(modPath, func(fname string) error {
 		if changed {
 			return nil
 		}
-		if path.Ext(file.Name()) != ".tf" {
+		if path.Ext(fname) != ".tf" {
 			return nil
 		}
 
-		modules, err := tf.ParseModules(filepath.Join(modPath, file.Name()))
+		modules, err := tf.ParseModules(filepath.Join(modAbsPath, fname))
 		if err != nil {
 			return errors.E(err, "parsing module %q", mod.Source)
 		}
@@ -553,7 +533,7 @@ func (m *Manager) tfModuleChanged(
 		for _, mod2 := range modules {
 			var reason string
 
-			changed, reason, err = m.tfModuleChanged(mod2, modPath, gitBaseRef, visited)
+			changed, reason, err = m.tfModuleChanged(mod2, modAbsPath, gitBaseRef, visited)
 			if err != nil {
 				return err
 			}
