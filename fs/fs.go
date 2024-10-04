@@ -10,12 +10,12 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-// ListTerramateFiles returns a list of terramate related files from the
-// directory dir.
-func ListTerramateFiles(dir string) (filenames []string, err error) {
+// ListTerramateFiles returns the entries of directory separated (terramate files, others  and
+// directories)
+func ListTerramateFiles(dir string) (tmFiles []string, otherFiles []string, dirs []string, err error) {
 	f, err := os.Open(dir)
 	if err != nil {
-		return nil, errors.E(err, "opening directory %s for reading file entries", dir)
+		return nil, nil, nil, errors.E(err, "opening directory %s for reading file entries", dir)
 	}
 
 	defer func() {
@@ -24,49 +24,20 @@ func ListTerramateFiles(dir string) (filenames []string, err error) {
 
 	dirEntries, err := f.ReadDir(-1)
 	if err != nil {
-		return nil, errors.E(err, "reading dir to list Terramate files")
+		return nil, nil, nil, errors.E(err, "reading dir to list Terramate files")
 	}
-
-	files := []string{}
 
 	for _, entry := range dirEntries {
 		fname := entry.Name()
-		if entry.IsDir() || !isTerramateFile(fname) {
-			continue
+		if entry.IsDir() && fname[0] != '.' {
+			dirs = append(dirs, fname)
+		} else if isTerramateFile(fname) {
+			tmFiles = append(tmFiles, fname)
+		} else {
+			otherFiles = append(otherFiles, fname)
 		}
-		files = append(files, fname)
 	}
-
-	return files, nil
-}
-
-// ListTerramateDirs lists Terramate dirs, which are any dirs
-// except ones starting with ".".
-func ListTerramateDirs(dir string) ([]string, error) {
-	f, err := os.Open(dir)
-	if err != nil {
-		return nil, errors.E(err, "opening directory %s for reading file entries", dir)
-	}
-
-	defer func() {
-		err = errors.L(err, f.Close()).AsError()
-	}()
-
-	dirEntries, err := f.ReadDir(-1)
-	if err != nil {
-		return nil, errors.E(err, "reading dir to list Terramate dirs")
-	}
-
-	dirs := []string{}
-
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
-		if fname[0] == '.' || !dirEntry.IsDir() {
-			continue
-		}
-		dirs = append(dirs, fname)
-	}
-	return dirs, nil
+	return tmFiles, otherFiles, dirs, nil
 }
 
 func isTerramateFile(filename string) bool {

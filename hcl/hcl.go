@@ -505,7 +505,7 @@ func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ..
 // AddDir walks over all the files in the directory dir and add all .tm and
 // .tm.hcl files to the parser.
 func (p *TerramateParser) AddDir(dir string) error {
-	tmFiles, err := fs.ListTerramateFiles(dir)
+	tmFiles, _, _, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return errors.E(err, "adding directory to terramate parser")
 	}
