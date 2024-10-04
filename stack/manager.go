@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
@@ -31,7 +32,8 @@ type (
 		git  *git.Git
 
 		cache struct {
-			stacks []Entry
+			stacks       []Entry
+			changedFiles []string
 		}
 	}
 
@@ -140,15 +142,19 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	changedFiles, err := m.listChangedFiles(m.root.HostDir(), gitBaseRef)
-	if err != nil {
-		return nil, errors.E(errListChanged, err)
+	if m.cache.changedFiles == nil {
+		var err error
+
+		m.cache.changedFiles, err = m.listChangedFiles(m.root.HostDir(), gitBaseRef)
+		if err != nil {
+			return nil, errors.E(errListChanged, err)
+		}
 	}
 
 	stackSet := map[project.Path]Entry{}
 	ignoreSet := map[project.Path]struct{}{}
 
-	for _, path := range changedFiles {
+	for _, path := range m.cache.changedFiles {
 		abspath := filepath.Join(m.root.HostDir(), path)
 		projpath := project.PrjAbsPath(m.root.HostDir(), abspath)
 
@@ -278,7 +284,7 @@ rangeStacks:
 			continue
 		}
 
-		if changed, ok := hasChangedWatchedFiles(stack, changedFiles); ok {
+		if changed, ok := hasChangedWatchedFiles(stack, m.cache.changedFiles); ok {
 			logger.Debug().
 				Stringer("stack", stack).
 				Stringer("watchfile", changed).
@@ -344,7 +350,7 @@ rangeStacks:
 			continue
 		}
 
-		changed, why, err := m.tgModuleChanged(stack, tgMod, gitBaseRef, changedFiles, stackSet, tgModulesMap)
+		changed, why, err := m.tgModuleChanged(stack, tgMod, gitBaseRef, stackSet, tgModulesMap)
 		if err != nil {
 			return nil, errors.E(errListChanged, err, "checking if Terragrunt module changes")
 		}
@@ -522,15 +528,11 @@ func (m *Manager) tfModuleChanged(
 		return false, "", errors.E("\"source\" path %q is not a directory", modPath)
 	}
 
-	changedFiles, err := m.listChangedFiles(modPath, gitBaseRef)
-	if err != nil {
-		return false, "", errors.E(err,
-			"listing changes in the module %q",
-			mod.Source)
-	}
-
-	if len(changedFiles) > 0 {
-		return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
+	for _, changedFile := range m.cache.changedFiles {
+		changedPath := filepath.Join(m.root.HostDir(), changedFile)
+		if strings.HasPrefix(changedPath, modPath) {
+			return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
+		}
 	}
 
 	visited[mod.Source] = true
@@ -573,7 +575,7 @@ func (m *Manager) tfModuleChanged(
 }
 
 func (m *Manager) tgModuleChanged(
-	stack *config.Stack, tgMod *tg.Module, gitBaseRef string, changedFiles []string, stackSet map[project.Path]Entry, tgModuleMap map[project.Path]*tg.Module,
+	stack *config.Stack, tgMod *tg.Module, gitBaseRef string, stackSet map[project.Path]Entry, tgModuleMap map[project.Path]*tg.Module,
 ) (changed bool, why string, err error) {
 	tfMod := tf.Module{Source: tgMod.Source}
 	if tfMod.IsLocal() {
@@ -596,7 +598,7 @@ func (m *Manager) tgModuleChanged(
 			}
 		}
 
-		for _, changedFile := range changedFiles {
+		for _, changedFile := range m.cache.changedFiles {
 			changedPath := project.PrjAbsPath(m.root.HostDir(), changedFile)
 			if dep == changedPath {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
@@ -617,18 +619,16 @@ func (m *Manager) tgModuleChanged(
 			continue
 		}
 
-		changedFiles, err := m.listChangedFiles(depAbsPath, gitBaseRef)
-		if err != nil {
-			return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
-		}
-		if len(changedFiles) > 0 {
-			return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
+		for _, file := range m.cache.changedFiles {
+			if strings.HasPrefix(filepath.Join(m.root.HostDir(), file), depAbsPath) {
+				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
+			}
 		}
 
 		// if the dep is a Terragrunt module, check if it changed
 		depTgMod, ok := tgModuleMap[dep]
 		if ok {
-			changed, why, err := m.tgModuleChanged(stack, depTgMod, gitBaseRef, changedFiles, stackSet, tgModuleMap)
+			changed, why, err := m.tgModuleChanged(stack, depTgMod, gitBaseRef, stackSet, tgModuleMap)
 			if err != nil {
 				return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
 			}
