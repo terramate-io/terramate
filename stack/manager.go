@@ -33,7 +33,7 @@ type (
 
 		cache struct {
 			stacks       []Entry
-			changedFiles []string
+			changedFiles map[string][]string // gitBaseRef -> changed files
 		}
 	}
 
@@ -63,17 +63,21 @@ const errListChanged errors.Kind = "listing changed stacks error"
 
 // NewManager creates a new stack manager.
 func NewManager(root *config.Root) *Manager {
-	return &Manager{
+	m := &Manager{
 		root: root,
 	}
+	m.cache.changedFiles = make(map[string][]string)
+	return m
 }
 
 // NewGitAwareManager returns a stack manager that supports change detection.
 func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
-	return &Manager{
+	m := &Manager{
 		root: root,
 		git:  git,
 	}
+	m.cache.changedFiles = make(map[string][]string)
+	return m
 }
 
 // List walks the basedir directory looking for terraform stacks.
@@ -126,16 +130,12 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	if m.cache.changedFiles == nil {
-		var err error
-
-		m.cache.changedFiles, err = m.listChangedFiles(m.root.HostDir(), gitBaseRef)
-		if err != nil {
-			return nil, errors.E(errListChanged, err)
-		}
+	changedFiles, err := m.changedFiles(gitBaseRef)
+	if err != nil {
+		return nil, errors.E(errListChanged, err)
 	}
 
-	if len(m.cache.changedFiles) == 0 {
+	if len(changedFiles) == 0 {
 		return &Report{
 			Checks: checks,
 		}, nil
@@ -144,7 +144,7 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 	stackSet := map[project.Path]Entry{}
 	ignoreSet := map[project.Path]struct{}{}
 
-	for _, path := range m.cache.changedFiles {
+	for _, path := range changedFiles {
 		abspath := filepath.Join(m.root.HostDir(), path)
 		projpath := project.PrjAbsPath(m.root.HostDir(), abspath)
 
@@ -268,7 +268,7 @@ rangeStacks:
 			continue
 		}
 
-		if changed, ok := hasChangedWatchedFiles(stack, m.cache.changedFiles); ok {
+		if changed, ok := hasChangedWatchedFiles(stack, changedFiles); ok {
 			logger.Debug().
 				Stringer("stack", stack).
 				Stringer("watchfile", changed).
@@ -546,7 +546,11 @@ func (m *Manager) tfModuleChanged(
 		return false, "", errors.E("\"source\" path %q is not a directory", modAbsPath)
 	}
 
-	for _, changedFile := range m.cache.changedFiles {
+	changedFiles, err := m.changedFiles(gitBaseRef)
+	if err != nil {
+		return false, "", err
+	}
+	for _, changedFile := range changedFiles {
 		changedPath := filepath.Join(m.root.HostDir(), changedFile)
 		if strings.HasPrefix(changedPath, modAbsPath) {
 			return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
@@ -592,6 +596,21 @@ func (m *Manager) tfModuleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
+func (m *Manager) changedFiles(gitBaseRef string) ([]string, error) {
+	changedFiles, ok := m.cache.changedFiles[gitBaseRef]
+	if !ok {
+		var err error
+
+		changedFiles, err = m.listChangedFiles(m.root.HostDir(), gitBaseRef)
+		if err != nil {
+			return nil, errors.E(errListChanged, err)
+		}
+
+		m.cache.changedFiles[gitBaseRef] = changedFiles
+	}
+	return changedFiles, nil
+}
+
 func (m *Manager) tgModuleChanged(
 	stack *config.Stack, tgMod *tg.Module, gitBaseRef string, stackSet map[project.Path]Entry, tgModuleMap map[project.Path]*tg.Module,
 ) (changed bool, why string, err error) {
@@ -606,6 +625,11 @@ func (m *Manager) tgModuleChanged(
 		}
 	}
 
+	changedFiles, err := m.changedFiles(gitBaseRef)
+	if err != nil {
+		return false, "", err
+	}
+
 	for _, dep := range tgMod.DependsOn {
 		// if the module is a stack already detected as changed, just mark this as changed and
 		// move on. Fast path.
@@ -616,7 +640,7 @@ func (m *Manager) tgModuleChanged(
 			}
 		}
 
-		for _, changedFile := range m.cache.changedFiles {
+		for _, changedFile := range changedFiles {
 			changedPath := project.PrjAbsPath(m.root.HostDir(), changedFile)
 			if dep == changedPath {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
@@ -637,7 +661,7 @@ func (m *Manager) tgModuleChanged(
 			continue
 		}
 
-		for _, file := range m.cache.changedFiles {
+		for _, file := range changedFiles {
 			if strings.HasPrefix(filepath.Join(m.root.HostDir(), file), depAbsPath) {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
 			}
