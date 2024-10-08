@@ -37,6 +37,12 @@ type (
 		}
 	}
 
+	ChangeConfig struct {
+		BaseRef            string
+		UncommittedChanges *bool
+		UntrackedChanges   *bool
+	}
+
 	// Report is the report of project's stacks and the result of its default checks.
 	Report struct {
 		Stacks []Entry
@@ -112,7 +118,7 @@ func (m *Manager) List(checkRepo bool) (*Report, error) {
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
 // It never returns cached values.
-func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
+func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
 		Logger()
@@ -130,7 +136,36 @@ func (m *Manager) ListChanged(gitBaseRef string) (*Report, error) {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	changedFiles, err := m.changedFiles(gitBaseRef)
+	var dirtyFiles []string
+
+	allowUntracked := true
+	allowUncommitted := true
+	gitConfig, ok := m.root.ChangeDetectionGitConfig()
+	if ok {
+		if gitConfig.Untracked != nil {
+			allowUntracked = *gitConfig.Untracked
+		}
+		if gitConfig.Uncommitted != nil {
+			allowUncommitted = *gitConfig.Uncommitted
+		}
+	}
+	if cfg.UncommittedChanges != nil {
+		allowUncommitted = *cfg.UncommittedChanges
+	}
+
+	if cfg.UntrackedChanges != nil {
+		allowUntracked = *cfg.UntrackedChanges
+	}
+
+	if allowUncommitted {
+		dirtyFiles = append(dirtyFiles, checks.UncommittedFiles...)
+	}
+
+	if allowUntracked {
+		dirtyFiles = append(dirtyFiles, checks.UntrackedFiles...)
+	}
+
+	changedFiles, err := m.changedFiles(cfg.BaseRef, dirtyFiles...)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -299,7 +334,7 @@ rangeStacks:
 			}
 
 			for _, mod := range modules {
-				changed, why, err := m.tfModuleChanged(mod, stack.HostDir(m.root), gitBaseRef, make(map[string]bool))
+				changed, why, err := m.tfModuleChanged(mod, stack.HostDir(m.root), cfg.BaseRef, make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}
@@ -334,7 +369,7 @@ rangeStacks:
 			continue
 		}
 
-		changed, why, err := m.tgModuleChanged(stack, tgMod, gitBaseRef, stackSet, tgModulesMap)
+		changed, why, err := m.tgModuleChanged(stack, tgMod, cfg.BaseRef, stackSet, tgModulesMap)
 		if err != nil {
 			return nil, errors.E(errListChanged, err, "checking if Terragrunt module changes")
 		}
@@ -596,19 +631,18 @@ func (m *Manager) tfModuleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
-func (m *Manager) changedFiles(gitBaseRef string) ([]string, error) {
-	changedFiles, ok := m.cache.changedFiles[gitBaseRef]
+func (m *Manager) changedFiles(gitBaseRef string, dirtyFiles ...string) ([]string, error) {
+	_, ok := m.cache.changedFiles[gitBaseRef]
 	if !ok {
 		var err error
 
-		changedFiles, err = m.listChangedFiles(m.root.HostDir(), gitBaseRef)
+		m.cache.changedFiles[gitBaseRef], err = m.listChangedFiles(m.root.HostDir(), gitBaseRef)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}
-
-		m.cache.changedFiles[gitBaseRef] = changedFiles
 	}
-	return changedFiles, nil
+	m.cache.changedFiles[gitBaseRef] = append(m.cache.changedFiles[gitBaseRef], dirtyFiles...)
+	return m.cache.changedFiles[gitBaseRef], nil
 }
 
 func (m *Manager) tgModuleChanged(

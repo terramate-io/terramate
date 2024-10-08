@@ -890,7 +890,11 @@ func (c *cli) getAffectedStacks() []stack.Entry {
 	var report *stack.Report
 	var err error
 	if c.parsedArgs.Changed {
-		report, err = mgr.ListChanged(c.baseRef())
+		report, err = mgr.ListChanged(stack.ChangeConfig{
+			BaseRef:            c.baseRef(),
+			UntrackedChanges:   c.changeDetection.untracked,
+			UncommittedChanges: c.changeDetection.uncommitted,
+		})
 		if err != nil {
 			fatalWithDetailf(err, "listing changed stacks")
 		}

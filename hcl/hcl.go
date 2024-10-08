@@ -208,11 +208,18 @@ type GitConfig struct {
 
 // ChangeDetectionConfig is the `terramate.config.change_detection` config.
 type ChangeDetectionConfig struct {
-	Terragrunt *TerragruntConfig
+	Terragrunt *TerragruntChangeDetectionConfig
+	Git        *GitChangeDetectionConfig
 }
 
-// TerragruntConfig is the `terramate.config.change_detection.terragrunt` config.
-type TerragruntConfig struct {
+// GitChangeDetectionConfig is the `terramate.config.change_detection.git` config.
+type GitChangeDetectionConfig struct {
+	Untracked   *bool
+	Uncommitted *bool
+}
+
+// TerragruntChangeDetectionConfig is the `terramate.config.change_detection.terragrunt` config.
+type TerragruntChangeDetectionConfig struct {
 	Enabled TerragruntChangeDetectionEnabledOption
 }
 
@@ -1879,20 +1886,31 @@ func parseGenerateRootConfig(cfg *GenerateRootConfig, generateBlock *ast.MergedB
 }
 
 func parseChangeDetectionConfig(cfg *ChangeDetectionConfig, changeDetectionBlock *ast.MergedBlock) error {
-	err := changeDetectionBlock.ValidateSubBlocks("terragrunt")
+	err := changeDetectionBlock.ValidateSubBlocks("terragrunt", "git")
 	if err != nil {
 		return err
 	}
 	terragruntBlock, ok := changeDetectionBlock.Blocks[ast.NewEmptyLabelBlockType("terragrunt")]
-	if !ok {
-		return nil
+	if ok {
+		cfg.Terragrunt = &TerragruntChangeDetectionConfig{}
+		err := parseTerragruntChangeDetectionConfig(cfg.Terragrunt, terragruntBlock)
+		if err != nil {
+			return err
+		}
 	}
 
-	cfg.Terragrunt = &TerragruntConfig{}
-	return parseTerragruntConfig(cfg.Terragrunt, terragruntBlock)
+	gitBlock, ok := changeDetectionBlock.Blocks[ast.NewEmptyLabelBlockType("git")]
+	if ok {
+		cfg.Git = &GitChangeDetectionConfig{}
+		err := parseGitChangeDetectionConfig(cfg.Git, gitBlock)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func parseTerragruntConfig(cfg *TerragruntConfig, terragruntBlock *ast.MergedBlock) error {
+func parseTerragruntChangeDetectionConfig(cfg *TerragruntChangeDetectionConfig, terragruntBlock *ast.MergedBlock) error {
 	errs := errors.L()
 	errs.Append(terragruntBlock.ValidateSubBlocks())
 
@@ -1940,6 +1958,56 @@ func parseTerragruntConfig(cfg *TerragruntConfig, terragruntBlock *ast.MergedBlo
 		}
 	}
 	return nil
+}
+
+func parseGitChangeDetectionConfig(cfg *GitChangeDetectionConfig, gitBlock *ast.MergedBlock) error {
+	errs := errors.L()
+	errs.Append(gitBlock.ValidateSubBlocks())
+
+	handleAttr := func(attr ast.Attribute, option **bool) {
+		value, diags := attr.Expr.Value(nil)
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags,
+				"failed to evaluate terramate.config.change_detection.git.%s attribute", attr.Name,
+			))
+			return
+		}
+		switch value.Type() {
+		case cty.String:
+			valStr := value.AsString()
+			switch valStr {
+			case "on":
+				val := true
+				*option = &val
+			case "off":
+				val := false
+				*option = &val
+			default:
+				errs.Append(errors.E("unexpected value %q in the `terramate.config.change_detection.git.%s` attribute", valStr, attr.Name))
+			}
+		case cty.Bool:
+			valBool := value.True()
+			*option = &valBool
+		default:
+			errs.Append(errors.E("expected `string` or `bool` but type %s is set in the `terramate.config.change_detection.git.%s` attribute", attr.Name, value.Type().FriendlyName()))
+		}
+	}
+
+	for _, attr := range gitBlock.Attributes {
+		switch attr.Name {
+		case "untracked":
+			handleAttr(attr, &cfg.Untracked)
+		case "uncommitted":
+			handleAttr(attr, &cfg.Uncommitted)
+		default:
+			errs.Append(errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.change_detection.git.%s",
+				attr.Name,
+			))
+		}
+	}
+	return errs.AsError()
 }
 
 func parseRunEnv(runEnv *RunEnv, envBlock *ast.MergedBlock) error {

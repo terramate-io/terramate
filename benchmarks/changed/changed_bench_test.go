@@ -42,7 +42,7 @@ func BenchmarkChangeDetection(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report, err := manager.ListChanged("origin/main")
+		report, err := manager.ListChanged(stack.ChangeConfig{BaseRef: "origin/main"})
 		assert.NoError(b, err)
 		assert.EqualInts(b, 1, len(report.Stacks))
 		assert.EqualStrings(b, fmt.Sprintf("/stack-%d", nstacks-1), report.Stacks[0].Stack.Dir.String())
@@ -91,7 +91,7 @@ func BenchmarkChangeDetectionTFAndTG(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report, err := manager.ListChanged("origin/main")
+		report, err := manager.ListChanged(stack.ChangeConfig{BaseRef: "origin/main"})
 		assert.NoError(b, err)
 		assert.EqualInts(b, 2, len(report.Stacks))
 		assert.EqualStrings(b, fmt.Sprintf("/stack-%d", nTfStacks-1), report.Stacks[0].Stack.Dir.String())

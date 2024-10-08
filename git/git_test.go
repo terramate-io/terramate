@@ -493,16 +493,16 @@ func TestListDirtyFiles(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualInts(t, 2, len(untracked))
 	assert.EqualInts(t, 0, len(uncommitted))
-	assert.EqualStrings(t, "deep", untracked[0])
-	assert.EqualStrings(t, "test.txt", untracked[1])
+	assert.EqualStrings(t, "test.txt", untracked[0])
+	assert.EqualStrings(t, "deep/nested/path/test.txt", untracked[1])
 
 	test.WriteFile(t, repodir, "README.md", "# changed")
 	untracked, uncommitted, err = g.ListDirtyFiles()
 	assert.NoError(t, err)
 	assert.EqualInts(t, 2, len(untracked))
 	assert.EqualInts(t, 1, len(uncommitted))
-	assert.EqualStrings(t, "deep", untracked[0])
-	assert.EqualStrings(t, "test.txt", untracked[1])
+	assert.EqualStrings(t, "test.txt", untracked[0])
+	assert.EqualStrings(t, "deep/nested/path/test.txt", untracked[1])
 	assert.EqualStrings(t, "README.md", uncommitted[0])
 
 }
