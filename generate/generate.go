@@ -208,6 +208,7 @@ func doStackGeneration(
 		Logger()
 
 	report := Report{}
+	needsRegeneration := false
 
 	for _, cfg := range tree.Stacks() {
 		st, err := cfg.Stack()
@@ -258,7 +259,8 @@ func doStackGeneration(
 
 		for _, file := range generated {
 			filename := file.Label()
-			path := filepath.Join(cfg.HostDir(), filename)
+			abspath := filepath.Join(cfg.HostDir(), filename)
+			isTmFile := path.Ext(filename) == ".tm"
 			logger := logger.With().
 				Str("filename", filename).
 				Logger()
@@ -274,10 +276,13 @@ func doStackGeneration(
 			oldFileBody, oldExists := allFiles[filename]
 
 			if !oldExists || oldFileBody != body {
-				err := writeGeneratedCode(root, path, file)
+				err := writeGeneratedCode(root, abspath, file)
 				if err != nil {
 					report.addFailure(cfg.Dir(), errors.E(err, "saving file %q", filename))
 					continue
+				}
+				if !needsRegeneration && isTmFile {
+					needsRegeneration = true
 				}
 			}
 
@@ -288,6 +293,9 @@ func doStackGeneration(
 					Msg("created file")
 
 				stackReport.addCreatedFile(filename)
+				if !needsRegeneration && isTmFile {
+					needsRegeneration = true
+				}
 			} else {
 				delete(allFiles, filename)
 				if body != oldFileBody {
@@ -297,17 +305,25 @@ func doStackGeneration(
 						Msg("changed file")
 
 					stackReport.addChangedFile(filename)
+					if !needsRegeneration && isTmFile {
+						needsRegeneration = true
+					}
 				}
 			}
 		}
 
 		for filename := range allFiles {
+			isTmFile := path.Ext(filename) == ".tm"
 			log.Info().
 				Stringer("stack", cfg.Dir()).
 				Str("file", filename).
 				Msg("deleted file")
 
 			stackReport.addDeletedFile(filename)
+
+			if !needsRegeneration && isTmFile {
+				needsRegeneration = true
+			}
 
 			path := filepath.Join(cfg.HostDir(), filename)
 			err = os.Remove(path)
@@ -320,6 +336,17 @@ func doStackGeneration(
 		}
 
 		report.addDirReport(cfg.Dir(), stackReport)
+	}
+
+	if needsRegeneration {
+		fmt.Printf("regenerating files...\n")
+		err := root.LoadSubTree(project.NewPath("/"))
+		if err != nil {
+			report.BootstrapErr = err
+			return report
+		}
+		otherReport := Do(root, vendorDir, vendorRequests)
+		report = mergeReports(report, otherReport)
 	}
 
 	logger.Debug().Msg("finished generating files")
