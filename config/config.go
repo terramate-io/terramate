@@ -663,6 +663,17 @@ func (root *Root) TerragruntEnabledOption() hcl.TerragruntChangeDetectionEnabled
 	return hcl.TerragruntAutoOption // "auto" is the default.
 }
 
+// ChangeDetectionGitConfig returns the `terramate.config.change_detection.git` object config.
+func (root *Root) ChangeDetectionGitConfig() (*hcl.GitChangeDetectionConfig, bool) {
+	if root.tree.Node.Terramate != nil &&
+		root.tree.Node.Terramate.Config != nil &&
+		root.tree.Node.Terramate.Config.ChangeDetection != nil &&
+		root.tree.Node.Terramate.Config.ChangeDetection.Git != nil {
+		return root.tree.Node.Terramate.Config.ChangeDetection.Git, true
+	}
+	return nil, false
+}
+
 // HasTerragruntStacks returns true if the stack loading has detected Terragrunt files.
 func (root *Root) HasTerragruntStacks() bool {
 	b := root.hasTerragruntStacks

@@ -1882,11 +1882,13 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		})
 	})
 
-	t.Run("ensure list is not affected by untracked check", func(t *testing.T) {
+	t.Run("ensure list **is** affected by untracked check (by default)", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir())
 
-		AssertRun(t, tmcli.Run("list", "--changed"))
 		AssertRunResult(t, tmcli.Run("list"), RunExpected{
+			Stdout: nljoin("stack"),
+		})
+		AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
 			Stdout: nljoin("stack"),
 		})
 	})
@@ -1895,14 +1897,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using deprecated cmd args", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			"--disable-check-git-untracked",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -1918,14 +1923,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using --disable-safeguards=git-untracked cmd args", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"--quiet",
@@ -1941,14 +1949,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using --disable-safeguards=all cmd args", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=all",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"--quiet",
@@ -1964,14 +1975,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using -X", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"-X",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"--quiet",
@@ -1989,13 +2003,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=true")
 
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2012,13 +2029,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=1")
 
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2046,13 +2066,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2078,13 +2101,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2110,13 +2136,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2144,14 +2173,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2178,19 +2210,23 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
 			"--disable-safeguards=git-untracked",
 			"--quiet",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2216,7 +2252,10 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=none",
+			"--changed",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2227,6 +2266,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=none",
 			HelperPath,
 			"cat",
@@ -2255,6 +2295,9 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=none")
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
+			"--changed",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2265,6 +2308,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,

@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/printer"
 )
 
 type (
@@ -600,6 +602,7 @@ func (git *Git) ListDirtyFiles() ([]string, []string, error) {
 
 	var untracked []string
 	var uncommitted []string
+	var untrackedFromDirs []string
 	for _, line := range strings.Split(out, "\n") {
 		if len(line) < 4 {
 			continue
@@ -610,12 +613,37 @@ func (git *Git) ListDirtyFiles() ([]string, []string, error) {
 			if len(file) > 1 && file[len(file)-1] == os.PathSeparator {
 				file = file[:len(file)-1]
 			}
+			absfile := filepath.Join(git.cfg().WorkingDir, file)
+			st, err := os.Lstat(absfile)
+			if err != nil {
+				printer.Stderr.WarnWithDetails(fmt.Sprintf("failed to stat untracked filename: %s", absfile), err)
+				continue
+			}
+			if st.IsDir() {
+				err := filepath.Walk(absfile,
+					func(path string, info os.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+						if info.IsDir() {
+							return nil
+						}
+						relpath := strings.TrimPrefix(path, git.cfg().WorkingDir+string(filepath.Separator))
+						untrackedFromDirs = append(untrackedFromDirs, relpath)
+						return nil
+					})
+				if err != nil {
+					return nil, nil, fmt.Errorf("walking changed files in directory %s: %v", absfile, err)
+				}
+				continue
+			}
 			untracked = append(untracked, file)
 		case " M":
 			file := line[3:]
 			uncommitted = append(uncommitted, file)
 		}
 	}
+	untracked = append(untracked, untrackedFromDirs...)
 	logger.Debug().Strs("untracked", untracked).Msg("untracked files")
 	logger.Debug().Strs("uncommitted", uncommitted).Msg("uncommitted files")
 	return untracked, uncommitted, nil

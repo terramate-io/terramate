@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -150,10 +151,13 @@ type cliSpec struct {
 		cloudFilterFlags
 		Target   string `help:"Select the deployment target of the filtered stacks."`
 		RunOrder bool   `default:"false" help:"Sort listed stacks by order of execution"`
+
+		changeDetectionFlags
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
 		cloudFilterFlags
+		changeDetectionFlags
 		Target               string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
 		FromTarget           string `help:"Migrate stacks from given deployment target."`
 		EnableSharing        bool   `help:"Enable sharing of stack outputs as stack inputs."`
@@ -200,6 +204,7 @@ type cliSpec struct {
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
 			cloudFilterFlags
+			changeDetectionFlags
 			Target          string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
 			FromTarget      string `help:"Migrate stacks from given deployment target."`
 			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
@@ -253,6 +258,7 @@ type cliSpec struct {
 			IgnoreChange bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
 			Reason       string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
 			cloudFilterFlags
+			changeDetectionFlags
 		} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 		RunGraph struct {
@@ -262,6 +268,7 @@ type cliSpec struct {
 
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks (DEPRECATED)"`
+			changeDetectionFlags
 		} `hidden:"" cmd:"" help:"Show the topological ordering of the stacks (DEPRECATED)"`
 
 		Vendor struct {
@@ -334,6 +341,11 @@ type cloudFilterFlags struct {
 	DriftStatus        string `help:"Filter by Terramate Cloud drift status of the stack"`
 }
 
+type changeDetectionFlags struct {
+	EnableChangeDetection  []string `help:"Enable specific change detection modes" enum:"git-untracked,git-uncommitted"`
+	DisableChangeDetection []string `help:"Disable specific change detection modes" enum:"git-untracked,git-uncommitted"`
+}
+
 // Exec will execute terramate with the provided flags defined on args.
 // Only flags should be on the args slice.
 //
@@ -380,6 +392,13 @@ type cli struct {
 	checkpointResults chan *checkpoint.CheckResponse
 
 	tags filter.TagClause
+
+	changeDetection changeDetection
+}
+
+type changeDetection struct {
+	untracked   *bool
+	uncommitted *bool
 }
 
 func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
@@ -662,11 +681,13 @@ func (c *cli) run() {
 		c.scanCreate()
 	case "list":
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.List.EnableChangeDetection, c.parsedArgs.List.DisableChangeDetection)
 		c.printStacks()
 	case "run":
 		fatal("no command specified")
 	case "run <cmd>":
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.Run.EnableChangeDetection, c.parsedArgs.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Run.runSafeguardsCliSpec)
 		c.runOnStacks()
 	case "generate":
@@ -674,8 +695,10 @@ func (c *cli) run() {
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger":
+		c.setupChangeDetection(c.parsedArgs.Experimental.Trigger.EnableChangeDetection, c.parsedArgs.Experimental.Trigger.DisableChangeDetection)
 		c.triggerStackByFilter()
 	case "experimental trigger <stack>":
+		c.setupChangeDetection(c.parsedArgs.Experimental.Trigger.EnableChangeDetection, c.parsedArgs.Experimental.Trigger.DisableChangeDetection)
 		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
@@ -693,6 +716,7 @@ func (c *cli) run() {
 		c.generateGraph()
 	case "experimental run-order":
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.Experimental.RunOrder.EnableChangeDetection, c.parsedArgs.Experimental.RunOrder.DisableChangeDetection)
 		c.printRunOrder(false)
 	case "debug show runtime-env":
 		c.setupGit()
@@ -735,6 +759,7 @@ func (c *cli) run() {
 	case "script run <cmds>":
 		c.checkScriptEnabled()
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.Script.Run.EnableChangeDetection, c.parsedArgs.Script.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Script.Run.runSafeguardsCliSpec)
 		c.runScript()
 	default:
@@ -1228,6 +1253,37 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 }
 
+func (c *cli) checkChangeDetectionFlagConflicts(enable []string, disable []string) {
+	for _, enableOpt := range enable {
+		if slices.Contains(disable, enableOpt) {
+			fatal(errors.E("conflicting option %s in --{enable,disable}-change-detection flags", enableOpt))
+		}
+	}
+}
+
+func (c *cli) setupChangeDetection(enable []string, disable []string) {
+	c.checkChangeDetectionFlagConflicts(enable, disable)
+
+	on := true
+	off := false
+
+	if slices.Contains(enable, "git-untracked") {
+		c.changeDetection.untracked = &on
+	}
+
+	if slices.Contains(enable, "git-uncommitted") {
+		c.changeDetection.uncommitted = &on
+	}
+
+	if slices.Contains(disable, "git-untracked") {
+		c.changeDetection.untracked = &off
+	}
+
+	if slices.Contains(disable, "git-uncommitted") {
+		c.changeDetection.uncommitted = &off
+	}
+}
+
 func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.StatusFilters) (*stack.Report, error) {
 	var (
 		err    error
@@ -1237,7 +1293,11 @@ func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.Statu
 	mgr := c.stackManager()
 
 	if isChanged {
-		report, err = mgr.ListChanged(c.baseRef())
+		report, err = mgr.ListChanged(stack.ChangeConfig{
+			BaseRef:            c.baseRef(),
+			UntrackedChanges:   c.changeDetection.untracked,
+			UncommittedChanges: c.changeDetection.uncommitted,
+		})
 	} else {
 		report, err = mgr.List(true)
 	}

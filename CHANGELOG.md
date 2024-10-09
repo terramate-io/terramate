@@ -22,6 +22,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `--enable-change-detection=<options>` and `--disable-change-detection=<options>` to the commands: `terramate list`, `terramate run` and `terramate script run`. 
+  - These flags overrides both the default change detection strategy and the configuration in `terramate.config.change_detection.git` block.
+
+### Changed
+
+- **(Breaking change)** The `terramate list --changed` now considers *untracked* and * uncommitted*  files for detecting changed stacks.
+  - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
+
 ## v0.10.7
 
 ### Added
