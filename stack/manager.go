@@ -272,10 +272,6 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		}
 	}
 
-	for ignored := range ignoreSet {
-		delete(stackSet, ignored)
-	}
-
 	allstacks, err := m.allStacks()
 	if err != nil {
 		return nil, err
@@ -387,6 +383,10 @@ rangeStacks:
 			}
 			continue rangeStacks
 		}
+	}
+
+	for ignored := range ignoreSet {
+		delete(stackSet, ignored)
 	}
 
 	changedStacks := make([]Entry, 0, len(stackSet))
