@@ -6,6 +6,7 @@ package tmls_test
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -43,6 +44,65 @@ func TestDocumentOpen(t *testing.T) {
 	assert.EqualInts(t, 0, len(params.Diagnostics))
 	assert.EqualStrings(t, filepath.Join(stack.Path(), stackpkg.DefaultFilename),
 		params.URI.Filename())
+}
+
+func TestDocumentFormat(t *testing.T) {
+	t.Parallel()
+	f := lstest.Setup(t)
+
+	stack := f.Sandbox.CreateStack("stack")
+	f.Editor.CheckInitialize(f.Sandbox.RootDir())
+
+	fileContent := "  stack {\n  }"
+	stack.CreateFile(stackpkg.DefaultFilename, fileContent)
+	gotEdits, err := f.Editor.Format(path.Join(stack.RelPath(), stackpkg.DefaultFilename))
+	assert.NoError(t, err)
+
+	want := []lsp.TextEdit{
+		{
+			NewText: "",
+			Range: lsp.Range{
+				Start: lsp.Position{
+					Line:      0,
+					Character: 0,
+				},
+				End: lsp.Position{
+					Line:      1,
+					Character: 3,
+				},
+			},
+		},
+		{
+			NewText: "stack {",
+			Range: lsp.Range{
+				Start: lsp.Position{
+					Line:      0,
+					Character: 0,
+				},
+				End: lsp.Position{
+					Line:      0,
+					Character: 6,
+				},
+			},
+		},
+		{
+			NewText: "}",
+			Range: lsp.Range{
+				Start: lsp.Position{
+					Line:      1,
+					Character: 0,
+				},
+				End: lsp.Position{
+					Line:      1,
+					Character: 0,
+				},
+			},
+		},
+	}
+
+	if diff := cmp.Diff(gotEdits, want); diff != "" {
+		t.Fatalf(diff)
+	}
 }
 
 func TestDocumentOpenWithoutRootConfig(t *testing.T) {
