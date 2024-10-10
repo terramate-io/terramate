@@ -36,6 +36,7 @@ type (
 		environ   []string
 		AppendEnv []string
 
+		wd      string
 		userDir string
 	}
 
@@ -122,6 +123,12 @@ func NewInteropCLI(t *testing.T, chdir string, env ...string) CLI {
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	tm.environ = env
 	return tm
+}
+
+// SetWorkingDir sets the process working directory. Not to be confused with tm.Chdir
+// which controls the `--chdir` flag.
+func (tm *CLI) SetWorkingDir(dir string) {
+	tm.wd = dir
 }
 
 // PrependToPath prepend the provided directory to the OS's PATH
@@ -232,6 +239,7 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
 	cmd.Env = env
+	cmd.Dir = tm.wd
 
 	return &Cmd{
 		t:      t,
