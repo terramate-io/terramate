@@ -126,9 +126,6 @@ func ParseSource(modsource string) (Source, error) {
 		pathstr := path.Join(strings.Replace(u.Host, ":", "-", -1), u.Path)
 		pathstr = strings.TrimSuffix(pathstr, ".git")
 
-		if err != nil {
-			return Source{}, err
-		}
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
 		return Source{
