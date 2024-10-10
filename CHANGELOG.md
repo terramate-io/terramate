@@ -34,6 +34,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
   - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
 
+### Fixed
+
+- Fix `trigger --ignore-change` not ignoring stacks changed due to Terraform or Terragrunt changes.
+
 ## v0.10.7
 
 ### Added
