@@ -32,6 +32,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - **(Breaking change)** The `terramate list --changed` now considers *untracked* and * uncommitted*  files for detecting changed stacks.
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
 
+### Fixed
+
+- Fix `trigger --ignore-change` not ignoring stacks changed due to Terraform or Terragrunt changes.
+
 ## v0.10.7
 
 ### Added

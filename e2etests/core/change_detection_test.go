@@ -17,40 +17,43 @@ import (
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
+const testBranchName = "test-branch"
+
+func prepareBranch(t *testing.T) *sandbox.S {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stacks/s1",
+		"f:stacks/s1/main.tf:# main",
+		"s:stacks/s2",
+		"f:stacks/s2/main.tf:# main",
+		"s:stacks/s3",
+		"f:stacks/s3/main.tf:# main",
+		"f:script.tm:" + Doc(
+			Terramate(
+				Config(
+					Expr("experiments", `["scripts"]`),
+				),
+			),
+			Script(
+				Labels("test"),
+				Block("job",
+					Expr("command", fmt.Sprintf(`["%s", "stack-abs-path", "${tm_chomp(<<-EOF
+	%s
+EOF
+)}"]`, HelperPathAsHCL, s.RootDir())),
+				),
+			),
+		).String(),
+	})
+	s.Git().CommitAll("create stacks")
+	s.Git().Push("main")
+	s.Git().CheckoutNew(testBranchName)
+	return &s
+}
+
 func TestChangeDetection(t *testing.T) {
 	t.Parallel()
 	// TODO(i4k): migrate all tests in manager_test.go to use the sandbox.
-	prepareBranch := func(t *testing.T) *sandbox.S {
-		s := sandbox.New(t)
-		s.BuildTree([]string{
-			"s:stacks/s1",
-			"f:stacks/s1/main.tf:# main",
-			"s:stacks/s2",
-			"f:stacks/s2/main.tf:# main",
-			"s:stacks/s3",
-			"f:stacks/s3/main.tf:# main",
-			"f:script.tm:" + Doc(
-				Terramate(
-					Config(
-						Expr("experiments", `["scripts"]`),
-					),
-				),
-				Script(
-					Labels("test"),
-					Block("job",
-						Expr("command", fmt.Sprintf(`["%s", "stack-abs-path", "${tm_chomp(<<-EOF
-		%s
-	EOF
-	)}"]`, HelperPathAsHCL, s.RootDir())),
-					),
-				),
-			).String(),
-		})
-		s.Git().CommitAll("create stacks")
-		s.Git().Push("main")
-		s.Git().CheckoutNew("test-branch")
-		return &s
-	}
 
 	t.Run("no config, no changes", func(t *testing.T) {
 		t.Parallel()
@@ -475,5 +478,76 @@ func TestChangeDetection(t *testing.T) {
 			tmcli.Run("run", "--quiet", "--changed", "--disable-safeguards=git", "--", HelperPath, "stack-abs-path", s.RootDir()),
 			RunExpected{},
 		)
+	})
+}
+
+func TestTriggerChangeDetection(t *testing.T) {
+	t.Run("trigger --ignore + Terraform module changes", func(t *testing.T) {
+		s := prepareBranch(t)
+		s.BuildTree([]string{
+			"f:modules/mod1/main.tf:# mod1 module",
+			"f:stacks/s3/use_mod1.tf:" + Block("module",
+				Labels("something"),
+				Str("source", "../../modules/mod1"),
+			).String(),
+		})
+		s.Git().CommitAll("commit module usage")
+		s.Git().Checkout("main")
+		s.Git().Merge(testBranchName)
+		s.Git().Push("main")
+		s.Git().DeleteBranch(testBranchName)
+		s.Git().CheckoutNew(testBranchName)
+
+		tmcli := NewCLI(t, s.RootDir())
+		AssertRun(t, tmcli.Run("list", "--changed"))
+
+		// change Terraform module
+		test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod1"), "main.tf", "# changed")
+		AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
+			Stdout: nljoin("stacks/s3"),
+		})
+
+		AssertRunResult(t,
+			tmcli.Run("experimental", "trigger", "--ignore-change", "./stacks/s3"),
+			RunExpected{
+				Stdout: nljoin(`Created ignore trigger for stack "/stacks/s3"`),
+			},
+		)
+
+		AssertRun(t, tmcli.Run("list", "--changed"))
+	})
+
+	t.Run("trigger --ignore + Terragrunt module changes", func(t *testing.T) {
+		s := prepareBranch(t)
+		s.BuildTree([]string{
+			"f:modules/mod1/main.tf:# mod1 module",
+			"f:stacks/s3/terragrunt.hcl:" + Block("terraform",
+				Str("source", "../../modules/mod1"),
+			).String(),
+		})
+		s.Git().CommitAll("commit module usage")
+		s.Git().Checkout("main")
+		s.Git().Merge(testBranchName)
+		s.Git().Push("main")
+		s.Git().DeleteBranch(testBranchName)
+		s.Git().CheckoutNew(testBranchName)
+
+		tmcli := NewCLI(t, s.RootDir())
+		AssertRun(t, tmcli.Run("list", "--changed"))
+
+		// change Terraform module
+		test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod1"), "main.tf", "# changed")
+		AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
+			Stdout: nljoin("stacks/s3"),
+		})
+
+		AssertRunResult(t,
+			tmcli.Run("experimental", "trigger", "--ignore-change", "./stacks/s3"),
+			RunExpected{
+				Stdout: nljoin(`Created ignore trigger for stack "/stacks/s3"`),
+			},
+		)
+
+		AssertRun(t, tmcli.Run("list", "--changed"))
 	})
 }
