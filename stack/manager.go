@@ -32,8 +32,9 @@ type (
 		git  *git.Git
 
 		cache struct {
-			stacks       []Entry
-			changedFiles map[string][]string // gitBaseRef -> changed files
+			stacks         []Entry
+			changedFiles   map[string][]string // gitBaseRef -> changed files
+			changedModules map[string]isChangedCache
 		}
 	}
 
@@ -41,6 +42,11 @@ type (
 		BaseRef            string
 		UncommittedChanges *bool
 		UntrackedChanges   *bool
+	}
+
+	isChangedCache struct {
+		isChanged bool
+		reason    string
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -73,6 +79,7 @@ func NewManager(root *config.Root) *Manager {
 		root: root,
 	}
 	m.cache.changedFiles = make(map[string][]string)
+	m.cache.changedModules = make(map[string]isChangedCache)
 	return m
 }
 
@@ -83,6 +90,7 @@ func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 		git:  git,
 	}
 	m.cache.changedFiles = make(map[string][]string)
+	m.cache.changedModules = make(map[string]isChangedCache)
 	return m
 }
 
@@ -292,10 +300,10 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		}
 	}
 
-rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
 		if _, ok := stackSet[stack.Dir]; ok {
+			// stack already changed.
 			continue
 		}
 
@@ -313,7 +321,7 @@ rangeStacks:
 					changed,
 				),
 			}
-			continue rangeStacks
+			continue
 		}
 
 		mod, why, isChanged, err := m.checkIfStackTerraformModulesChanged(stack, cfg)
@@ -356,7 +364,7 @@ rangeStacks:
 				Stack:  stack,
 				Reason: fmt.Sprintf("stack changed because module %q changed because %s", tgMod.Path, why),
 			}
-			continue rangeStacks
+			continue
 		}
 	}
 
@@ -398,8 +406,10 @@ func (m *Manager) checkIfStackTerraformModulesChanged(stack *config.Stack, cfg C
 			return false, errors.E(errListChanged, "parsing modules", err)
 		}
 
+		stackHostDir := stack.HostDir(m.root)
+
 		for _, mod := range modules {
-			changed, why, err := m.tfModuleChanged(mod, stack.HostDir(m.root), cfg.BaseRef, make(map[string]bool))
+			changed, why, err := m.tfModuleChanged(mod, stackHostDir, cfg.BaseRef)
 			if err != nil {
 				return false, errors.E(errListChanged, err, "checking module %q", mod.Source)
 			}
@@ -585,20 +595,32 @@ func (m *Manager) filesApply(dir project.Path, apply func(fname string) (bool, e
 // called recursively. The visited keep track of the modules already parsed to
 // avoid infinite loops.
 func (m *Manager) tfModuleChanged(
-	mod tf.Module, basedir string, gitBaseRef string, visited map[string]bool,
+	mod tf.Module, basedir string, gitBaseRef string,
 ) (changed bool, why string, err error) {
-	if _, ok := visited[mod.Source]; ok {
-		return false, "", nil
+	modAbsPath := filepath.Join(basedir, mod.Source)
+	modPath := project.PrjAbsPath(m.root.HostDir(), modAbsPath)
+	modPathStr := modPath.String()
+
+	cached, ok := m.cache.changedModules[modPath.String()]
+	if ok {
+		return cached.isChanged, cached.reason, nil
 	}
+
+	defer func() {
+		_, ok := m.cache.changedModules[modPathStr]
+		if !ok {
+			m.cache.changedModules[modPathStr] = isChangedCache{
+				isChanged: changed,
+				reason:    why,
+			}
+		}
+	}()
 
 	if !mod.IsLocal() {
 		// if the source is a remote path (URL, VCS path, S3 bucket, etc) then
 		// we assume it's not changed.
 		return false, "", nil
 	}
-
-	modAbsPath := filepath.Join(basedir, mod.Source)
-	modPath := project.PrjAbsPath(m.root.HostDir(), modAbsPath)
 
 	st, err := os.Stat(modAbsPath)
 
@@ -619,8 +641,6 @@ func (m *Manager) tfModuleChanged(
 		}
 	}
 
-	visited[mod.Source] = true
-
 	err = m.filesApply(modPath, func(fname string) (bool, error) {
 		if changed {
 			return true, nil
@@ -637,17 +657,16 @@ func (m *Manager) tfModuleChanged(
 		for _, mod2 := range modules {
 			var reason string
 
-			changed, reason, err = m.tfModuleChanged(mod2, modAbsPath, gitBaseRef, visited)
+			changed, reason, err = m.tfModuleChanged(mod2, modAbsPath, gitBaseRef)
 			if err != nil {
 				return false, err
 			}
 
 			if changed {
-				why = fmt.Sprintf("%s%s changed because %s ", why, mod.Source, reason)
+				why = fmt.Sprintf("%s%s changed because %s ", why, mod2.Source, reason)
 				return true, nil
 			}
 		}
-
 		return false, nil
 	})
 
@@ -677,7 +696,7 @@ func (m *Manager) tgModuleChanged(
 ) (changed bool, why string, err error) {
 	tfMod := tf.Module{Source: tgMod.Source}
 	if tfMod.IsLocal() {
-		changed, why, err := m.tfModuleChanged(tfMod, project.AbsPath(m.root.HostDir(), tgMod.Path.String()), gitBaseRef, make(map[string]bool))
+		changed, why, err := m.tfModuleChanged(tfMod, project.AbsPath(m.root.HostDir(), tgMod.Path.String()), gitBaseRef)
 		if err != nil {
 			return false, "", errors.E(errListChanged, err, "checking if Terraform module changes (in Terragrunt context)")
 		}
