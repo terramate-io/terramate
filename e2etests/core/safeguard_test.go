@@ -133,7 +133,6 @@ func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 	cmds := []string{
 		"debug show metadata",
 		"debug show globals",
-		"experimental run-order",
 		"experimental run-graph",
 		"experimental eval 1+1",
 		"experimental partial-eval 1+1",

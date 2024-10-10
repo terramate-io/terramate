@@ -31,6 +31,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - **(Breaking change)** The `terramate list --changed` now considers *untracked* and * uncommitted*  files for detecting changed stacks.
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
+- **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
+  - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
 
 ### Fixed
 
