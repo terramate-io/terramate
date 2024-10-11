@@ -103,17 +103,7 @@ const (
 type UIMode int
 
 type cliSpec struct {
-	VersionFlag    bool     `hidden:"true" name:"version" help:"Show Terramate version."`
-	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Set working directory."`
-	GitChangeBase  string   `short:"B" optional:"true" help:"Set git base reference for computing changes."`
-	Changed        bool     `short:"c" optional:"true" help:"Filter stacks based on changes made in git."`
-	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags."`
-	NoTags         []string `optional:"true" sep:"," help:"Filter stacks by tags not being set."`
-	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'."`
-	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
-	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
-	Quiet          bool     `optional:"false" help:"Disable outputs."`
-	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+	globalCliFlags `envprefix:"TM_ARG_"`
 
 	deprecatedGlobalSafeguardsCliSpec
 
@@ -156,40 +146,8 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		cloudFilterFlags
-		changeDetectionFlags
-		Target               string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
-		FromTarget           string `help:"Migrate stacks from given deployment target."`
-		EnableSharing        bool   `help:"Enable sharing of stack outputs as stack inputs."`
-		MockOnFail           bool   `help:"Mock the output values if command fails."`
-		CloudSyncDeployment  bool   `hidden:""`
-		SyncDeployment       bool   `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
-		CloudSyncDriftStatus bool   `hidden:""`
-		SyncDriftStatus      bool   `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
-		CloudSyncPreview     bool   `hidden:""`
-		SyncPreview          bool   `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
-
-		CloudSyncLayer             preview.Layer `hidden:""`
-		Layer                      preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
-		CloudSyncTerraformPlanFile string        `hidden:""`
-		TerraformPlanFile          string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
-		TofuPlanFile               string        `default:"" help:"Add details of the OpenTofu Plan file to the synchronization to Terramate Cloud."`
-		DebugPreviewURL            string        `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
-		ContinueOnError            bool          `default:"false" help:"Do not stop execution when an error occurs."`
-		NoRecursive                bool          `default:"false" help:"Do not recurse into nested child stacks."`
-		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it."`
-		Reverse                    bool          `default:"false" help:"Reverse the order of execution."`
-		Eval                       bool          `default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
-		Terragrunt                 bool          `default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
-
-		// Note: 0 is not the real default value here, this is just a workaround.
-		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
-		// The K case is handled in the custom decoder.
-		Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
-
+		runCommandFlags `envprefix:"TM_ARG_RUN_"`
 		runSafeguardsCliSpec
-
-		Command []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
@@ -203,20 +161,7 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info for."`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			cloudFilterFlags
-			changeDetectionFlags
-			Target          string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
-			FromTarget      string `help:"Migrate stacks from given deployment target."`
-			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
-			ContinueOnError bool   `default:"false" help:"Continue executing next stacks when a command returns an error."`
-			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
-			Reverse         bool   `default:"false" help:"Reverse the order of execution."`
-
-			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
-
-			// See above comment regarding for run --parallel.
-			Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
-
+			runScriptFlags `envprefix:"TM_ARG_RUN_"`
 			runSafeguardsCliSpec
 		} `cmd:"" help:"Run a Terramate Script in stacks."`
 	} `cmd:"" help:"Use Terramate Scripts"`
@@ -305,6 +250,20 @@ type cliSpec struct {
 	Version struct{} `cmd:"" help:"Show Terramate version"`
 }
 
+type globalCliFlags struct {
+	VersionFlag    bool     `hidden:"true" name:"version" help:"Show Terramate version."`
+	Chdir          string   `env:"CHDIR" short:"C" optional:"true" predictor:"file" help:"Set working directory."`
+	GitChangeBase  string   `env:"GIT_CHANGE_BASE" short:"B" optional:"true" help:"Set git base reference for computing changes."`
+	Changed        bool     `env:"CHANGED" short:"c" optional:"true" help:"Filter stacks based on changes made in git."`
+	Tags           []string `env:"TAGS" optional:"true" sep:"none" help:"Filter stacks by tags."`
+	NoTags         []string `env:"NO_TAGS" optional:"true" sep:"," help:"Filter stacks by tags not being set."`
+	LogLevel       string   `env:"LOG_LEVEL" optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'."`
+	LogFmt         string   `env:"LOG_FMT" optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
+	LogDestination string   `env:"LOG_DESTINATION" optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
+	Quiet          bool     `env:"QUIET" optional:"false" help:"Disable outputs."`
+	Verbose        int      `env:"VERBOSE" short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+}
+
 type runSafeguardsCliSpec struct {
 	// Note: The `name` and `short` are being used to define the -X flag without longer version.
 	DisableSafeguardsAll            bool               `default:"false" name:"disable-safeguards=all" short:"X" help:"Disable all safeguards."`
@@ -338,6 +297,66 @@ type cloudFilterFlags struct {
 type changeDetectionFlags struct {
 	EnableChangeDetection  []string `help:"Enable specific change detection modes" enum:"git-untracked,git-uncommitted"`
 	DisableChangeDetection []string `help:"Disable specific change detection modes" enum:"git-untracked,git-uncommitted"`
+}
+
+type cloudTargetFlags struct {
+	Target     string `env:"TARGET" help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
+	FromTarget string `env:"FROM_TARGET" help:"Migrate stacks from given deployment target."`
+}
+
+type cloudSyncFlags struct {
+	CloudSyncDeployment  bool `hidden:""`
+	SyncDeployment       bool `env:"SYNC_DEPLOYMENT" default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
+	CloudSyncDriftStatus bool `hidden:""`
+	SyncDriftStatus      bool `env:"SYNC_DRIFT_STATUS" default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
+	CloudSyncPreview     bool `hidden:""`
+	SyncPreview          bool `env:"SYNC_PREVIEW" default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+
+	CloudSyncLayer             preview.Layer `hidden:""`
+	Layer                      preview.Layer `env:"LAYER" default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
+	CloudSyncTerraformPlanFile string        `hidden:""`
+}
+
+type commonRunFlags struct {
+	NoRecursive     bool `env:"NO_RECURSIVE" default:"false" help:"Do not recurse into nested child stacks."`
+	ContinueOnError bool `env:"CONTINUE_ON_ERROR" default:"false" help:"Continue executing next stacks when a command returns an error."`
+	DryRun          bool `env:"DRY_RUN" default:"false" help:"Plan the execution but do not execute it."`
+	Reverse         bool `env:"REVERSE" default:"false" help:"Reverse the order of execution."`
+
+	// Note: 0 is not the real default value here, this is just a workaround.
+	// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
+	// The K case is handled in the custom decoder.
+	Parallel int `env:"PARALLEL" short:"j" optional:"true" help:"Run independent stacks in parallel."`
+}
+
+type runCommandFlags struct {
+	cloudFilterFlags
+	changeDetectionFlags
+	cloudTargetFlags
+
+	EnableSharing bool `env:"ENABLE_SHARING" help:"Enable sharing of stack outputs as stack inputs."`
+	MockOnFail    bool `env:"MOCK_ON_FAIL" help:"Mock the output values if command fails."`
+
+	cloudSyncFlags
+
+	TerraformPlanFile string `env:"TERRAFORM_PLAN_FILE" default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
+	TofuPlanFile      string `env:"TOFU_PLAN_FILE" default:"" help:"Add details of the OpenTofu Plan file to the synchronization to Terramate Cloud."`
+	DebugPreviewURL   string `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
+
+	commonRunFlags
+
+	Eval       bool     `env:"EVAL" default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
+	Terragrunt bool     `env:"TERRAGRUNT" default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
+	Command    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
+}
+
+type runScriptFlags struct {
+	cloudFilterFlags
+	changeDetectionFlags
+	cloudTargetFlags
+	commonRunFlags
+
+	Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
 }
 
 // Exec will execute terramate with the provided flags defined on args.
