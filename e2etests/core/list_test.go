@@ -560,3 +560,39 @@ func TestListNoSuchFile(t *testing.T) {
 		StderrRegex: "changing working dir",
 	})
 }
+
+func TestListRunOrderNotChangedStackIgnored(t *testing.T) {
+	t.Parallel()
+
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
+	s := sandbox.New(t)
+
+	// stack must run after stack2 but stack2 didn't change.
+	s.BuildTree([]string{
+		`s:stack:after=["/stack2"]`,
+		"s:stack2",
+	})
+
+	stack := s.DirEntry("stack")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	stackMainTf.Write(mainTfContents)
+	git.CommitAll("stack changed")
+
+	cli := NewCLI(t, s.RootDir())
+
+	AssertRunResult(t, cli.ListChangedStacks(), RunExpected{Stdout: nljoin(stack.RelPath())})
+	AssertRunResult(t, cli.Run("list", "--changed", "--run-order"),
+		RunExpected{
+			Stdout: nljoin(stack.RelPath()),
+		})
+}
