@@ -950,7 +950,10 @@ script "cmd" {
 					}
 
 					cli := NewCLI(t, wd)
-					AssertRunResult(t, cli.StacksRunOrder(filterArgs...), tc.want)
+					args := []string{"run", "-X", "--quiet"}
+					args = append(args, filterArgs...)
+					args = append(args, "--", HelperPath, "stack-abs-path", s.RootDir())
+					AssertRunResult(t, cli.Run(args...), tc.want)
 					runArgs := []string{
 						"--quiet", "run", "-X", // disable all safeguards
 					}
@@ -1587,7 +1590,7 @@ script "cmd" {
 
 			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
 
-			runOrderArgs := append(baseArgs, "--quiet", "experimental", "run-order")
+			runOrderArgs := append(baseArgs, "run", "-X", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
 			AssertRunResult(t, cli.Run(runOrderArgs...), tc.want)
 
 			if s.IsGit() {

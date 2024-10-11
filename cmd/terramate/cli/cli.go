@@ -266,11 +266,6 @@ type cliSpec struct {
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
-		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks (DEPRECATED)"`
-			changeDetectionFlags
-		} `hidden:"" cmd:"" help:"Show the topological ordering of the stacks (DEPRECATED)"`
-
 		Vendor struct {
 			Download struct {
 				Dir       string `short:"d" predictor:"file" default:"" help:"dir to vendor downloaded project"`
@@ -714,10 +709,6 @@ func (c *cli) run() {
 	case "experimental run-graph":
 		c.setupGit()
 		c.generateGraph()
-	case "experimental run-order":
-		c.setupGit()
-		c.setupChangeDetection(c.parsedArgs.Experimental.RunOrder.EnableChangeDetection, c.parsedArgs.Experimental.RunOrder.DisableChangeDetection)
-		c.printRunOrder(false)
 	case "debug show runtime-env":
 		c.setupGit()
 		c.printRuntimeEnv()
@@ -2003,45 +1994,6 @@ func generateDot(
 		}
 
 		generateDot(dotGraph, graph, ancestor, s, getLabel)
-	}
-}
-
-func (c *cli) printRunOrder(friendlyFmt bool) {
-	logger := log.With().
-		Str("action", "printRunOrder()").
-		Str("workingDir", c.wd()).
-		Logger()
-
-	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
-	if err != nil {
-		fatalWithDetailf(err, "computing selected stacks")
-	}
-
-	logger.Debug().Msg("Get run order.")
-	reason, err := run.Sort(c.cfg(), stacks,
-		func(s *config.SortableStack) *config.Stack { return s.Stack })
-	if err != nil {
-		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatalWithDetailf(errors.E(err, reason), "Invalid stack configuration")
-		} else {
-			fatalWithDetailf(err, "Failed to plan execution")
-		}
-	}
-
-	for _, s := range stacks {
-		dir := s.Dir().String()
-		if !friendlyFmt {
-			printer.Stdout.Println(dir)
-			continue
-		}
-
-		friendlyDir, ok := c.friendlyFmtDir(dir)
-		if !ok {
-			printer.Stderr.Error(stdfmt.Sprintf("Unable to format stack dir %s", dir))
-			printer.Stdout.Println(dir)
-			continue
-		}
-		printer.Stdout.Println(friendlyDir)
 	}
 }
 
