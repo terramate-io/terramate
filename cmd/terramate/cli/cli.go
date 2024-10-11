@@ -258,7 +258,6 @@ type cliSpec struct {
 			IgnoreChange bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
 			Reason       string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
 			cloudFilterFlags
-			changeDetectionFlags
 		} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 		RunGraph struct {
@@ -690,10 +689,8 @@ func (c *cli) run() {
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger":
-		c.setupChangeDetection(c.parsedArgs.Experimental.Trigger.EnableChangeDetection, c.parsedArgs.Experimental.Trigger.DisableChangeDetection)
 		c.triggerStackByFilter()
 	case "experimental trigger <stack>":
-		c.setupChangeDetection(c.parsedArgs.Experimental.Trigger.EnableChangeDetection, c.parsedArgs.Experimental.Trigger.DisableChangeDetection)
 		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
