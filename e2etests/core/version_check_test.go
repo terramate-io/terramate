@@ -23,7 +23,6 @@ func TestVersionCheck(t *testing.T) {
 	checkedCmds := map[string]string{
 		"debug show metadata":    "debug show metadata",
 		"debug show globals":     "debug show globals",
-		"experimental run-order": "experimental run-order",
 		"experimental run-graph": "experimental run-graph",
 		"generate":               "generate",
 		"list":                   "list",

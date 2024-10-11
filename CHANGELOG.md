@@ -26,11 +26,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add `--enable-change-detection=<options>` and `--disable-change-detection=<options>` to the commands: `terramate list`, `terramate run` and `terramate script run`. 
   - These flags overrides both the default change detection strategy and the configuration in `terramate.config.change_detection.git` block.
+- Add support for using `TM_ARG_*` environment variables to configure cli commands.
+  Note: This is an incremental change. Only global flags and `terramate run` flags were added for now.
+  - For example: Use `TM_ARG_CHDIR=stacks/prod TM_ARG_RUN_REVERSE=1 terramate run -- terraform apply` to run from inside `stacks/prod` and with reversed execution order (which is the same as `terramate --chdir stacks/prod run --reverse -- terraform apply`).
 
 ### Changed
 
 - **(Breaking change)** The `terramate list --changed` now considers *untracked* and * uncommitted*  files for detecting changed stacks.
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
+- **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
+  - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
 
 ### Fixed
 
