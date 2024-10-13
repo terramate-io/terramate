@@ -3,13 +3,7 @@
 
 name: ci-experimental
 on:
-  push:
-    paths-ignore:
-      - 'docs/**'
-      - 'makefiles/**'
-      - '.github/**'
-      - '**/*.tm.hcl'
-      - '.tool-versions'
+  pull_request:
 
 jobs:
   build_test:
@@ -23,6 +17,9 @@ jobs:
         go: ["1.21"]
 
     steps:
+      - name: configure git
+        run: git config --global core.autocrlf input
+
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -33,9 +30,6 @@ jobs:
           tofu_version: 1.6.2
           tofu_wrapper: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: configure git
-        run: git config --global core.autocrlf false
     
       - name: make build
         run: make build
