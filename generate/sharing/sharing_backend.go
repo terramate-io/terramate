@@ -43,6 +43,7 @@ func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outpu
 				Bytes: []byte("any"),
 			},
 		})
+		blockBody.SetAttributeValue("sensitive", cty.BoolVal(in.Sensitive))
 		body.AppendBlock(varBlock)
 	}
 	for _, out := range outputs {
