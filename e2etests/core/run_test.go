@@ -783,6 +783,19 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "stack-b ordering with tag containing dots, dashes and underscores",
+			layout: []string{
+				`s:stack-a:tags=["v1.0.0-rc1_experiment"]`,
+				`s:stack-b:tags=["v1.0.1-rc1_experiment"];after=[":tag:v1.0.0-rc1_experiment"]`,
+			},
+			filterTags: []string{"v1.0.0-rc1_experiment"},
+			want: RunExpected{
+				Stdout: nljoin(
+					"/stack-a",
+				),
+			},
+		},
+		{
 			name: "stack-b after stack-a but filtered by not having tag:dev",
 			layout: []string{
 				`s:stack-a:tags=["dev"]`,
