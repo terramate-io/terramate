@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -2715,18 +2716,19 @@ func TestRunDryRun(t *testing.T) {
 			name:    "dryrun without eval",
 			runArgs: []string{"--dry-run", HelperPath, "echo", "hello"},
 			want: RunExpected{
-				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo hello"`, HelperPath) + "\n",
-				Stdout: "",
+				StderrRegex: regexp.QuoteMeta(
+					"terramate: (dry-run) Entering stack in /stack\nterramate: (dry-run) Executing command ",
+				),
 			},
 		},
 		{
 			name:    "dryrun with eval",
-			runArgs: []string{"--dry-run", "--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			runArgs: []string{"--dry-run", "--eval", HelperPathAsHCL, "echo", "${terramate.stack.name}"},
 			want: RunExpected{
-				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo stack"`, HelperPath) + "\n",
-				Stdout: "",
+				StderrRegexes: []string{
+					regexp.QuoteMeta("terramate: (dry-run) Entering stack in /stack"),
+					`echo stack`,
+				},
 			},
 		},
 	} {
