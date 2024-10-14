@@ -40,6 +40,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix `trigger --ignore-change` not ignoring stacks changed due to Terraform or Terragrunt changes.
+- Fix **Outputs Sharing** feature not generating the `output.sensitive` attribute.
 
 ## v0.10.7
 
