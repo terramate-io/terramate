@@ -50,7 +50,7 @@ func TestGenerateSharing(t *testing.T) {
 			},
 		},
 		{
-			name: "single input generated",
+			name: "single input generated - sensitive=(unset)",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -87,7 +87,60 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_name"),
 								Expr("type", "any"),
-								Bool("sensitive", true),
+							),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1"),
+						Created: []string{"test.tf"},
+					},
+				},
+			},
+		},
+		{
+			name: "single input generated - sensitive=false",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add:  enableSharingExperiment,
+				},
+				{
+					path: "/",
+					add: Block("sharing_backend",
+						Labels("name"),
+						Expr("type", "terraform"),
+						Expr("command", `["echo"]`),
+						Str("filename", "test.tf"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: Input(
+						Labels("var_name"),
+						Str("backend", "name"),
+						Expr("value", "outputs.var_name"),
+						Str("from_stack_id", "abc"),
+						Bool("sensitive", false),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test.tf": Doc(
+							Block("variable",
+								Labels("var_name"),
+								Expr("type", "any"),
+								Bool("sensitive", false),
 							),
 						),
 					},
@@ -157,7 +210,6 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_name2"),
 								Expr("type", "any"),
-								Bool("sensitive", true),
 							),
 						),
 					},
@@ -173,7 +225,7 @@ func TestGenerateSharing(t *testing.T) {
 			},
 		},
 		{
-			name: "single output generated",
+			name: "single output generated - sensitive=(unset)",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -210,7 +262,6 @@ func TestGenerateSharing(t *testing.T) {
 							Block("output",
 								Labels("var_name"),
 								Expr("value", "module.something"),
-								Bool("sensitive", true),
 							),
 						),
 					},
@@ -252,7 +303,6 @@ func TestGenerateSharing(t *testing.T) {
 						Labels("var_name1"),
 						Str("backend", "name"),
 						Expr("value", "module.something1"),
-						Bool("sensitive", false),
 					),
 				},
 				{
@@ -274,7 +324,6 @@ func TestGenerateSharing(t *testing.T) {
 							Block("output",
 								Labels("var_name1"),
 								Expr("value", "module.something1"),
-								Bool("sensitive", false),
 							),
 							Block("output",
 								Labels("var_name2"),
@@ -363,6 +412,7 @@ func TestGenerateSharing(t *testing.T) {
 							Labels("var_output4"),
 							Str("backend", "name"),
 							Expr("value", "module.something4"),
+							Bool("sensitive", false),
 						),
 						Input(
 							Labels("var_input4"),
@@ -386,7 +436,6 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_input2"),
 								Expr("type", "any"),
-								Bool("sensitive", true),
 							),
 							Block("variable",
 								Labels("var_input3"),
@@ -396,27 +445,23 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_input4"),
 								Expr("type", "any"),
-								Bool("sensitive", true),
 							),
 							Block("output",
 								Labels("var_output1"),
 								Expr("value", "module.something1"),
-								Bool("sensitive", true),
 							),
 							Block("output",
 								Labels("var_output2"),
 								Expr("value", "module.something2"),
-								Bool("sensitive", true),
 							),
 							Block("output",
 								Labels("var_output3"),
 								Expr("value", "module.something3"),
-								Bool("sensitive", true),
 							),
 							Block("output",
 								Labels("var_output4"),
 								Expr("value", "module.something4"),
-								Bool("sensitive", true),
+								Bool("sensitive", false),
 							),
 						),
 					},
@@ -467,7 +512,6 @@ func TestSharingOrphanedFilesAreDeleted(t *testing.T) {
 	expectedOutput := genhcl.Header(genhcl.DefaultComment) + Block("output",
 		Labels("name"),
 		Expr("value", "module.test"),
-		Bool("sensitive", true),
 	).String() + "\n"
 	gotOutput := s.RootEntry().ReadFile("s1/sharing.tf")
 	assert.EqualStrings(t, expectedOutput, string(gotOutput))
@@ -475,7 +519,6 @@ func TestSharingOrphanedFilesAreDeleted(t *testing.T) {
 	expectedInput := genhcl.Header(genhcl.DefaultComment) + Block("variable",
 		Labels("name"),
 		Expr("type", "any"),
-		Bool("sensitive", true),
 	).String() + "\n"
 	gotInput := s.RootEntry().ReadFile("s2/sharing.tf")
 	assert.EqualStrings(t, expectedInput, string(gotInput))
