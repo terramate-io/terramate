@@ -332,6 +332,31 @@ func TestCloudStatus(t *testing.T) {
 			},
 		},
 		{
+			name: "double check stack with dotted tags are not validated in the CLI",
+			layout: []string{
+				"s:s1:id=s1", // s1 has no tags locally
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: cloud.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+						MetaTags:   []string{"something.with.dots"},
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--status=unhealthy`},
+			want: RunExpected{
+				Stdout: nljoin("s1"),
+			},
+		},
+		{
 			name: "1 cloud stack ok, other absent, asking for deployment=failed: return nothing",
 			layout: []string{
 				"s:s1:id=s1",
