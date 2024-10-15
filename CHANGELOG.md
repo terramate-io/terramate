@@ -20,7 +20,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## v0.10.8
+## Unreleased
 
 ### Added
 
@@ -36,6 +36,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
 - **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
   - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
+- The **Outputs Sharing** feature now has no default value for the `sensitive` field of `input` and `output` blocks.
 
 ### Fixed
 
