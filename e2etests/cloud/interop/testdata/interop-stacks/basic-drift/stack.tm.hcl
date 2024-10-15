@@ -6,4 +6,5 @@ stack {
   description = "basic-drift"
   id          = "2530f1b3-2691-48dc-b418-e966f7e1441c"
   after       = ["../empty"] # only used for visualizing the graph.
+  tags        = ["interop", "tag.with.dots-and-dash_and_underscore"]
 }
