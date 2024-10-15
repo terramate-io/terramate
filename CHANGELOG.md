@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Changed
+
+- The **Outputs Sharing** feature now has no default value for the `sensitive` field of `input` and `output` blocks.
+
 ## v0.10.8
 
 ### Fixed
