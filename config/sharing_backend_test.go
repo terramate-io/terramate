@@ -35,7 +35,9 @@ func TestEvalSharingBackendInput(t *testing.T) {
 		wantErr      error
 		wantValueErr error
 	}
-	t.Helper()
+	t.Parallel()
+	falsy := false
+	truthy := true
 	for _, tc := range []testcase{
 		{
 			name: "invalid backend attribute",
@@ -77,7 +79,30 @@ func TestEvalSharingBackendInput(t *testing.T) {
 			wantErr: errors.E(`"input.from_stack_id" "id cannot contain spaces" doesn't match "^[a-zA-Z0-9_-]{1,64}$"`),
 		},
 		{
-			name: "complete working input",
+			name: "complete working input - sensitive=(unset)",
+			globals: map[string]cty.Value{
+				"my_backend":  cty.StringVal("my-backend"),
+				"other_stack": cty.StringVal("other-stack"),
+				"val":         cty.StringVal("from-global"),
+			},
+			config: Input(
+				Labels("var_name"),
+				Expr("value", `"${outputs.var_name}-${global.val}"`),
+				Expr("from_stack_id", `global.other_stack`),
+				Expr("backend", `global.my_backend`),
+			),
+			outputs: map[string]cty.Value{
+				"var_name": cty.StringVal("test"),
+			},
+			want: config.Input{
+				Name:        "var_name",
+				FromStackID: "other-stack",
+				Backend:     "my-backend",
+			},
+			wantValue: cty.StringVal("test-from-global"),
+		},
+		{
+			name: "complete working input - sensitive=false",
 			globals: map[string]cty.Value{
 				"my_backend":  cty.StringVal("my-backend"),
 				"other_stack": cty.StringVal("other-stack"),
@@ -98,7 +123,33 @@ func TestEvalSharingBackendInput(t *testing.T) {
 				Name:        "var_name",
 				FromStackID: "other-stack",
 				Backend:     "my-backend",
-				Sensitive:   false,
+				Sensitive:   &falsy,
+			},
+			wantValue: cty.StringVal("test-from-global"),
+		},
+		{
+			name: "complete working input - sensitive=true",
+			globals: map[string]cty.Value{
+				"my_backend":  cty.StringVal("my-backend"),
+				"other_stack": cty.StringVal("other-stack"),
+				"val":         cty.StringVal("from-global"),
+				"is_secret":   cty.BoolVal(true),
+			},
+			config: Input(
+				Labels("var_name"),
+				Expr("value", `"${outputs.var_name}-${global.val}"`),
+				Expr("from_stack_id", `global.other_stack`),
+				Expr("backend", `global.my_backend`),
+				Expr("sensitive", `global.is_secret`),
+			),
+			outputs: map[string]cty.Value{
+				"var_name": cty.StringVal("test"),
+			},
+			want: config.Input{
+				Name:        "var_name",
+				FromStackID: "other-stack",
+				Backend:     "my-backend",
+				Sensitive:   &truthy,
 			},
 			wantValue: cty.StringVal("test-from-global"),
 		},
@@ -171,7 +222,8 @@ func TestEvalSharingBackendOutput(t *testing.T) {
 		wantValue string
 		wantErr   error
 	}
-	t.Helper()
+	t.Parallel()
+	falsy := false
 	for _, tc := range []testcase{
 		{
 			name: "invalid backend attribute",
@@ -200,7 +252,7 @@ func TestEvalSharingBackendOutput(t *testing.T) {
 				Name:        "var_name",
 				Description: "my output description",
 				Backend:     "my-backend",
-				Sensitive:   false,
+				Sensitive:   &falsy,
 			},
 			wantValue: `module.test.var_name`,
 		},
