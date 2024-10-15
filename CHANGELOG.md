@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for dot (`.`) in the tag syntax.
+  - Now you can add tags like `v1.0.0-abc_xyz`
+
 ## v0.10.8
 
 ### Fixed
