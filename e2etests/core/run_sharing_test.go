@@ -335,7 +335,7 @@ func TestRunSharing(t *testing.T) {
 					Labels("name"),
 					Expr("type", "terraform"),
 					Str("filename", "sharing.tf"),
-					Command(HelperPath, "echo", "{}"),
+					Command(HelperPathAsHCL, "echo", "{}"),
 				).String(),
 				"s:s1:id=s1",
 				"f:s1/main.tf:" + Doc(
@@ -402,7 +402,7 @@ func TestRunSharing(t *testing.T) {
 					Labels("name"),
 					Expr("type", "terraform"),
 					Str("filename", "sharing.tf"),
-					Command(HelperPath, "echo", "$error"),
+					Command(HelperPathAsHCL, "echo", "$error"),
 				).String(),
 				"s:s1:id=s1",
 				"f:s1/main.tf:" + Doc(
