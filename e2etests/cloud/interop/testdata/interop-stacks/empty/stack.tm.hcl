@@ -6,4 +6,5 @@ stack {
   description = "empty"
   id          = "04437b1f-27a9-4eab-8e63-1df968b76f6b"
   before      = ["/testdata/example-stack", "/testdata/testserver"]
+  tags        = ["interop", "tag.with.dots-and-dash_and_underscore"]
 }
