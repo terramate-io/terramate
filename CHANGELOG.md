@@ -36,10 +36,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
 - **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
   - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
+- The **Outputs Sharing** feature now has no default value for the `sensitive` field of `input` and `output` blocks.
 
 ### Fixed
 
 - Fix `trigger --ignore-change` not ignoring stacks changed due to Terraform or Terragrunt changes.
+- Fix **Outputs Sharing** feature not generating the `output.sensitive` attribute.
+- Fix **Outputs Sharing** feature not generating the `variable.sensitive` attribute.
 
 ## v0.10.7
 

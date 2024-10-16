@@ -50,7 +50,7 @@ func TestGenerateSharing(t *testing.T) {
 			},
 		},
 		{
-			name: "single input generated",
+			name: "single input generated - sensitive=(unset)",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -102,6 +102,60 @@ func TestGenerateSharing(t *testing.T) {
 			},
 		},
 		{
+			name: "single input generated - sensitive=false",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add:  enableSharingExperiment,
+				},
+				{
+					path: "/",
+					add: Block("sharing_backend",
+						Labels("name"),
+						Expr("type", "terraform"),
+						Expr("command", `["echo"]`),
+						Str("filename", "test.tf"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: Input(
+						Labels("var_name"),
+						Str("backend", "name"),
+						Expr("value", "outputs.var_name"),
+						Str("from_stack_id", "abc"),
+						Bool("sensitive", false),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test.tf": Doc(
+							Block("variable",
+								Labels("var_name"),
+								Expr("type", "any"),
+								Bool("sensitive", false),
+							),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1"),
+						Created: []string{"test.tf"},
+					},
+				},
+			},
+		},
+		{
 			name: "multiple inputs generated from different files",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -129,6 +183,7 @@ func TestGenerateSharing(t *testing.T) {
 						Str("backend", "name"),
 						Expr("value", "outputs.var_name"),
 						Str("from_stack_id", "abc"),
+						Bool("sensitive", false),
 					),
 				},
 				{
@@ -150,6 +205,7 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_name"),
 								Expr("type", "any"),
+								Bool("sensitive", false),
 							),
 							Block("variable",
 								Labels("var_name2"),
@@ -169,7 +225,7 @@ func TestGenerateSharing(t *testing.T) {
 			},
 		},
 		{
-			name: "single output generated",
+			name: "single output generated - sensitive=(unset)",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -256,6 +312,7 @@ func TestGenerateSharing(t *testing.T) {
 						Labels("var_name2"),
 						Str("backend", "name"),
 						Expr("value", "module.something2"),
+						Bool("sensitive", true),
 					),
 				},
 			},
@@ -271,6 +328,7 @@ func TestGenerateSharing(t *testing.T) {
 							Block("output",
 								Labels("var_name2"),
 								Expr("value", "module.something2"),
+								Bool("sensitive", true),
 							),
 						),
 					},
@@ -319,6 +377,7 @@ func TestGenerateSharing(t *testing.T) {
 							Str("backend", "name"),
 							Expr("value", "outputs.something1"),
 							Str("from_stack_id", "abc"),
+							Bool("sensitive", true),
 						),
 						Output(
 							Labels("var_output2"),
@@ -347,11 +406,13 @@ func TestGenerateSharing(t *testing.T) {
 							Str("backend", "name"),
 							Expr("value", "outputs.something3"),
 							Str("from_stack_id", "abc"),
+							Bool("sensitive", false),
 						),
 						Output(
 							Labels("var_output4"),
 							Str("backend", "name"),
 							Expr("value", "module.something4"),
+							Bool("sensitive", false),
 						),
 						Input(
 							Labels("var_input4"),
@@ -370,6 +431,7 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_input1"),
 								Expr("type", "any"),
+								Bool("sensitive", true),
 							),
 							Block("variable",
 								Labels("var_input2"),
@@ -378,6 +440,7 @@ func TestGenerateSharing(t *testing.T) {
 							Block("variable",
 								Labels("var_input3"),
 								Expr("type", "any"),
+								Bool("sensitive", false),
 							),
 							Block("variable",
 								Labels("var_input4"),
@@ -398,6 +461,7 @@ func TestGenerateSharing(t *testing.T) {
 							Block("output",
 								Labels("var_output4"),
 								Expr("value", "module.something4"),
+								Bool("sensitive", false),
 							),
 						),
 					},
