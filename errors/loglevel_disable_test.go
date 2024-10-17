@@ -1,7 +1,7 @@
-// Copyright 2023 Terramate GmbH
+// Copyright 2024 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package stack_test
+package errors_test
 
 import "github.com/rs/zerolog"
 

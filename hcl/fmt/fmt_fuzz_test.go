@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/hcl/v2/hclparse"
 	"github.com/terramate-io/terramate/hcl/fmt"
 )
@@ -109,8 +108,4 @@ func formatMultiline(t *testing.T, code string) string {
 	assert.NoError(t, err)
 
 	return got
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
