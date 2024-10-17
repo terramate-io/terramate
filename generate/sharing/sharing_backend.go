@@ -43,7 +43,9 @@ func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outpu
 				Bytes: []byte("any"),
 			},
 		})
-		blockBody.SetAttributeValue("sensitive", cty.BoolVal(in.Sensitive))
+		if in.Sensitive != nil {
+			blockBody.SetAttributeValue("sensitive", cty.BoolVal(*in.Sensitive))
+		}
 		body.AppendBlock(varBlock)
 	}
 	for _, out := range outputs {
@@ -53,7 +55,9 @@ func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outpu
 		outBlock := hclwrite.NewBlock("output", []string{out.Name})
 		blockBody := outBlock.Body()
 		blockBody.SetAttributeRaw("value", ast.TokensForExpression(out.Value))
-		blockBody.SetAttributeValue("sensitive", cty.BoolVal(out.Sensitive))
+		if out.Sensitive != nil {
+			blockBody.SetAttributeValue("sensitive", cty.BoolVal(*out.Sensitive))
+		}
 		body.AppendBlock(outBlock)
 	}
 
