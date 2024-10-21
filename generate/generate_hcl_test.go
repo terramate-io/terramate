@@ -2107,7 +2107,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	report := generate.Do(s.Config(), project.NewPath("/"), project.NewPath("/modules"), nil)
+	report := generate.Do(s.Config(), project.NewPath("/"), 0, project.NewPath("/modules"), nil)
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
 	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))

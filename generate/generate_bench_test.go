@@ -61,7 +61,7 @@ func BenchmarkGenerate(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report := generate.Do(root, project.NewPath("/"), project.NewPath("/vendor"), nil)
+		report := generate.Do(root, project.NewPath("/"), 0, project.NewPath("/vendor"), nil)
 		if report.HasFailures() {
 			b.Fatal(report.Full())
 		}
@@ -116,7 +116,7 @@ func BenchmarkGenerateRegex(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report := generate.Do(root, project.NewPath("/"), project.NewPath("/vendor"), nil)
+		report := generate.Do(root, project.NewPath("/"), 0, project.NewPath("/vendor"), nil)
 		if report.HasFailures() {
 			b.Fatal(report.Full())
 		}
