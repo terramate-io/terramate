@@ -277,15 +277,9 @@ func stackGenerate(
 	}()
 	report := &Report{}
 
-	st, err := cfg.Stack()
+	_, err := cfg.Stack()
 	if err != nil {
 		report.BootstrapErr = err
-		return report
-	}
-
-	globals := globals.ForStack(root, st)
-	if err := globals.AsError(); err != nil {
-		report.addFailure(cfg.Dir(), err)
 		return report
 	}
 
