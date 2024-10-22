@@ -152,7 +152,7 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
-		Parallel         int  `env:"TM_ARG_GENERATE_PARALLEL" short:"j" optional:"true" help:"Run independent stacks in parallel."`
+		Parallel         int  `env:"TM_ARG_GENERATE_PARALLEL" short:"j" optional:"true" help:"Set the parallelism of code generation"`
 		DetailedExitCode bool `default:"false" help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
 	} `cmd:"" help:"Run Code Generation in stacks."`
 
