@@ -13,13 +13,20 @@ import (
 	"mime"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"path"
-	"strconv"
+	"strings"
 
+	hversion "github.com/apparentlymart/go-versions/versions"
+	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
+	"github.com/terramate-io/terramate/versions"
 )
 
 // Host of the official Terramate Cloud API.
@@ -28,7 +35,12 @@ const Host = "api.terramate.io"
 // BaseURL is the default cloud.terramate.io base API URL.
 const BaseURL = "https://" + Host
 
+const defaultPageSize = 50
+
 const (
+	// WellKnownCLIPath is the well-known base path.
+	WellKnownCLIPath = "/.well-known/cli.json"
+
 	// UsersPath is the users endpoint base path.
 	UsersPath = "/v1/users"
 	// MembershipsPath is the memberships endpoint base path.
@@ -39,6 +51,8 @@ const (
 	DriftsPath = "/v1/drifts"
 	// StacksPath is the stacks endpoint base path.
 	StacksPath = "/v1/stacks"
+	// ReviewRequestsPath is the review requests endpoint base path.
+	ReviewRequestsPath = "/v1/review_requests"
 )
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
@@ -62,6 +76,9 @@ type (
 		// HTTPClient is the HTTP client reused in all connections.
 		// if not set, a new instance of http.Client is created on the first request.
 		HTTPClient *http.Client
+
+		Logger *zerolog.Logger
+		noauth bool
 	}
 
 	// Credential is the interface for the credential providers.
@@ -71,61 +88,150 @@ type (
 	}
 )
 
-var debugAPIRequests bool
+var (
+	pageSize         int64 = defaultPageSize
+	debugAPIRequests bool
+)
 
 func init() {
 	if d := os.Getenv("TMC_API_DEBUG"); d == "1" || d == "true" {
 		debugAPIRequests = true
 	}
+	if sizeStr := os.Getenv("TMC_API_PAGESIZE"); sizeStr != "" {
+		size, _ := strconv.Atoi64(sizeStr)
+		if size != 0 {
+			pageSize = int64(size)
+		}
+	}
+}
+
+// CheckVersion checks if current Terramate version can be used to communicate
+// with the cloud.
+func (c *Client) CheckVersion(ctx context.Context) error {
+	client := &Client{
+		BaseURL: c.BaseURL,
+		noauth:  true,
+	}
+	wk, err := Get[WellKnown](ctx, client, client.URL(WellKnownCLIPath))
+	if err != nil {
+		if c.Logger != nil {
+			c.Logger.Trace().Err(err).Msgf("retrieving %s", WellKnownCLIPath)
+		}
+		return nil
+	}
+	version := hversion.MustParseVersion(terramate.Version())
+	version.Prerelease = ""
+	return versions.Check(version.String(), wk.RequiredVersion, false)
 }
 
 // Users retrieves the user details for the signed in user.
 func (c *Client) Users(ctx context.Context) (user User, err error) {
-	return Get[User](ctx, c, UsersPath)
+	return Get[User](ctx, c, c.URL(UsersPath))
 }
 
 // MemberOrganizations returns all organizations which are associated with the user.
 func (c *Client) MemberOrganizations(ctx context.Context) (orgs MemberOrganizations, err error) {
-	return Get[MemberOrganizations](ctx, c, MembershipsPath)
+	return Get[MemberOrganizations](ctx, c, c.URL(MembershipsPath))
 }
 
 // StacksByStatus returns all stacks for the given organization.
-func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, status stack.FilterStatus) (StacksResponse, error) {
+// It paginates as needed and returns the total stacks response.
+func (c *Client) StacksByStatus(ctx context.Context, orgUUID UUID, repository string, target string, stackFilters StatusFilters) ([]StackObject, error) {
 	path := path.Join(StacksPath, string(orgUUID))
-	if status != stack.NoFilter {
-		path += "?status=" + status.String()
+	query := url.Values{}
+	query.Set("repository", repository)
+	if target != "" {
+		query.Set("target", target)
 	}
-	return Get[StacksResponse](ctx, c, path)
+	if stackFilters.StackStatus != stack.NoFilter {
+		query.Set("status", stackFilters.StackStatus.String())
+	}
+	if stackFilters.DeploymentStatus != deployment.NoFilter {
+		query.Set("deployment_status", stackFilters.DeploymentStatus.String())
+	}
+	if stackFilters.DriftStatus != drift.NoFilter {
+		query.Set("drift_status", stackFilters.DriftStatus.String())
+	}
+	query.Set("per_page", strconv.Itoa64(pageSize))
+	url := c.URL(path)
+	lastPage := int64(1)
+	var stacks []StackObject
+	for {
+		query.Set("page", strconv.Itoa64(lastPage))
+		url.RawQuery = query.Encode()
+		resp, err := Get[StacksResponse](ctx, c, url)
+		if err != nil {
+			return nil, err
+		}
+		stacks = append(stacks, resp.Stacks...)
+		if int64(len(resp.Stacks)) < pageSize {
+			break
+		}
+		lastPage++
+	}
+	return stacks, nil
+}
+
+// ListReviewRequests retrieves the review requests for the given organization.
+func (c *Client) ListReviewRequests(ctx context.Context, orgUUID UUID) (ReviewRequestResponses, error) {
+	path := path.Join(ReviewRequestsPath, string(orgUUID))
+	query := url.Values{}
+	query.Set("per_page", strconv.Itoa64(pageSize))
+	url := c.URL(path)
+	lastPage := int64(1)
+	var reviews ReviewRequestResponses
+	for {
+		query.Set("page", strconv.Itoa64(lastPage))
+		url.RawQuery = query.Encode()
+		resp, err := Get[ReviewRequestResponsePayload](ctx, c, url)
+		if err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, resp.ReviewRequests...)
+		if int64(len(resp.ReviewRequests)) < pageSize {
+			break
+		}
+		lastPage++
+	}
+	return reviews, nil
 }
 
 // GetStack retrieves the details of the stack with given repo and metaID.
-func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, metaID string) (StackResponse, bool, error) {
-	path := path.Join(StacksPath, string(orgUUID))
-	path += fmt.Sprintf("?repository=%s&meta_id=%s", repo, metaID)
-	stacks, err := Get[StacksResponse](ctx, c, path)
+func (c *Client) GetStack(ctx context.Context, orgUUID UUID, repo, target, metaID string) (StackObject, bool, error) {
+	query := url.Values{
+		"repository": []string{repo},
+		"target":     []string{target},
+		"meta_id":    []string{strings.ToLower(metaID)},
+	}
+
+	url := c.URL(path.Join(StacksPath, string(orgUUID)), query)
+	stacks, err := Get[StacksResponse](ctx, c, url)
 	if err != nil {
-		return StackResponse{}, false, err
+		return StackObject{}, false, err
 	}
 	if len(stacks.Stacks) == 0 {
-		return StackResponse{}, false, nil
+		return StackObject{}, false, nil
 	}
 	if len(stacks.Stacks) != 1 {
-		return StackResponse{}, false, errors.E("org+repo+meta_id must be unique. Unexpected TMC backend response")
+		return StackObject{}, false, errors.E("org+repo+target+meta_id must be unique. Unexpected TMC backend response")
 	}
 	return stacks.Stacks[0], true, nil
 }
 
-// StackDrifts returns the drifts of the given stack.
-func (c *Client) StackDrifts(ctx context.Context, orgUUID UUID, stackID int, page, perPage int) (DriftsStackPayloadResponse, error) {
-	path := path.Join(StacksPath, string(orgUUID), strconv.Itoa(stackID), "drifts")
-	path += fmt.Sprintf("?page=%d&per_page=%d", page, perPage)
-	return Get[DriftsStackPayloadResponse](ctx, c, path)
+// StackLastDrift returns the drifts of the given stack.
+func (c *Client) StackLastDrift(ctx context.Context, orgUUID UUID, stackID int64) (DriftsStackPayloadResponse, error) {
+	path := path.Join(StacksPath, string(orgUUID), strconv.Itoa64(stackID), "drifts")
+	query := url.Values{
+		"page":     []string{"1"},
+		"per_page": []string{"1"},
+	}
+	return Get[DriftsStackPayloadResponse](ctx, c, c.URL(path, query))
 }
 
 // DriftDetails retrieves details of the given driftID.
-func (c *Client) DriftDetails(ctx context.Context, orgUUID UUID, stackID int, driftID int) (Drift, error) {
-	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa(stackID), strconv.Itoa(driftID))
-	return Get[Drift](ctx, c, path)
+func (c *Client) DriftDetails(ctx context.Context, orgUUID UUID, stackID int64, driftID int64) (Drift, error) {
+	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa64(stackID), strconv.Itoa64(driftID))
+	return Get[Drift](ctx, c, c.URL(path))
 }
 
 // CreateDeploymentStacks creates a new deployment for provided stacks payload.
@@ -135,6 +241,9 @@ func (c *Client) CreateDeploymentStacks(
 	deploymentUUID UUID,
 	deploymentStacksPayload DeploymentStacksPayloadRequest,
 ) (DeploymentStacksResponse, error) {
+	if deploymentUUID == "" {
+		panic(errors.E(errors.ErrInternal, "deploymentUUID must not be empty"))
+	}
 	err := deploymentStacksPayload.Validate()
 	if err != nil {
 		return DeploymentStacksResponse{}, errors.E(err, "failed to prepare the request")
@@ -143,16 +252,18 @@ func (c *Client) CreateDeploymentStacks(
 		ctx,
 		c,
 		deploymentStacksPayload,
-		DeploymentsPath,
-		string(orgUUID),
-		string(deploymentUUID),
-		"stacks",
+		c.URL(path.Join(DeploymentsPath, string(orgUUID), string(deploymentUUID), "stacks")),
 	)
 }
 
 // UpdateDeploymentStacks updates the deployment status of each stack in the payload set.
 func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID UUID, deploymentUUID UUID, payload UpdateDeploymentStacks) error {
-	_, err := Patch[EmptyResponse](ctx, c, payload, DeploymentsPath, string(orgUUID), string(deploymentUUID), "stacks")
+	_, err := Patch[EmptyResponse](
+		ctx,
+		c,
+		payload,
+		c.URL(path.Join(DeploymentsPath, string(orgUUID), string(deploymentUUID), "stacks")),
+	)
 	return err
 }
 
@@ -170,35 +281,41 @@ func (c *Client) CreateStackDrift(
 		ctx,
 		c,
 		driftPayload,
-		DriftsPath,
-		string(orgUUID),
+		c.URL(path.Join(DriftsPath, string(orgUUID))),
 	)
 }
 
-// SyncDeploymentLogs sends a batch of deployment logs to Terramate Cloud.
-func (c *Client) SyncDeploymentLogs(
+// SyncCommandLogs sends a batch of command logs to Terramate Cloud.
+func (c *Client) SyncCommandLogs(
 	ctx context.Context,
 	orgUUID UUID,
-	stackID int,
+	stackID int64,
 	deploymentUUID UUID,
-	logs DeploymentLogs,
+	logs CommandLogs,
+	stackPreviewID string,
 ) error {
 	err := logs.Validate()
 	if err != nil {
 		return errors.E(err, "failed to prepare the request")
 	}
-	// Endpoint:/v1/stacks/{org_uuid}/{stack_id}/deployments/{deployment_uuid}/logs
-	_, err = Post[EmptyResponse](
-		ctx, c, logs,
-		StacksPath, string(orgUUID), strconv.Itoa(stackID), "deployments", string(deploymentUUID), "logs",
-	)
+
+	url := c.URL(path.Join(
+		StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", string(deploymentUUID), "logs",
+	))
+
+	// if the command logs are for a stack preview, use the stack preview url.
+	if stackPreviewID != "" {
+		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), stackPreviewID, "logs"))
+	}
+
+	_, err = Post[EmptyResponse](ctx, c, logs, url)
 	return err
 }
 
 // Get requests the endpoint components list making a GET request and decode the response into the
 // entity T if validates successfully.
-func Get[T Resource](ctx context.Context, client *Client, endpoint ...string) (entity T, err error) {
-	resource, err := Request[T](ctx, client, "GET", path.Join(endpoint...), nil)
+func Get[T Resource](ctx context.Context, client *Client, u url.URL) (entity T, err error) {
+	resource, err := Request[T](ctx, client, "GET", u, nil)
 	if err != nil {
 		return entity, err
 	}
@@ -207,12 +324,12 @@ func Get[T Resource](ctx context.Context, client *Client, endpoint ...string) (e
 
 // Post requests the endpoint components list making a POST request and decode the response into the
 // entity T if validates successfully.
-func Post[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
+func Post[T Resource](ctx context.Context, client *Client, payload interface{}, url url.URL) (entity T, err error) {
 	dataPayload, err := json.Marshal(payload)
 	if err != nil {
 		return entity, errors.E(err, "marshaling request payload")
 	}
-	resource, err := Request[T](ctx, client, "POST", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
+	resource, err := Request[T](ctx, client, "POST", url, bytes.NewBuffer(dataPayload))
 	if err != nil {
 		return entity, err
 	}
@@ -221,12 +338,12 @@ func Post[T Resource](ctx context.Context, client *Client, payload interface{}, 
 
 // Patch requests the endpoint components list making a PATCH request and decode the response into the
 // entity T if validates successfully.
-func Patch[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
+func Patch[T Resource](ctx context.Context, client *Client, payload interface{}, url url.URL) (entity T, err error) {
 	dataPayload, err := json.Marshal(payload)
 	if err != nil {
 		return entity, errors.E(err, "marshaling request payload")
 	}
-	resource, err := Request[T](ctx, client, "PATCH", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
+	resource, err := Request[T](ctx, client, "PATCH", url, bytes.NewBuffer(dataPayload))
 	if err != nil {
 		return entity, err
 	}
@@ -235,12 +352,12 @@ func Patch[T Resource](ctx context.Context, client *Client, payload interface{},
 
 // Put requests the endpoint components list making a PUT request and decode the
 // response into the entity T if validated successfully.
-func Put[T Resource](ctx context.Context, client *Client, payload interface{}, endpoint ...string) (entity T, err error) {
+func Put[T Resource](ctx context.Context, client *Client, payload interface{}, url url.URL) (entity T, err error) {
 	dataPayload, err := json.Marshal(payload)
 	if err != nil {
 		return entity, errors.E(err, "marshaling request payload")
 	}
-	resource, err := Request[T](ctx, client, "PUT", path.Join(endpoint...), bytes.NewBuffer(dataPayload))
+	resource, err := Request[T](ctx, client, "PUT", url, bytes.NewBuffer(dataPayload))
 	if err != nil {
 		return entity, err
 	}
@@ -249,18 +366,18 @@ func Put[T Resource](ctx context.Context, client *Client, payload interface{}, e
 
 // Request makes a request to the Terramate Cloud using client.
 // The instantiated type gets decoded and return as the entity T,
-func Request[T Resource](ctx context.Context, c *Client, method string, resourceURL string, postBody io.Reader) (entity T, err error) {
-	if c.Credential == nil {
-		return entity, errors.E("no credential provided to %s endpoint", c.endpoint(resourceURL))
+func Request[T Resource](ctx context.Context, c *Client, method string, url url.URL, postBody io.Reader) (entity T, err error) {
+	if !c.noauth && c.Credential == nil {
+		return entity, errors.E("no credential provided to %s endpoint", url)
 	}
 
-	req, err := c.newRequest(ctx, method, resourceURL, postBody)
+	req, err := c.newRequest(ctx, method, url, postBody)
 	if err != nil {
 		return entity, err
 	}
 
 	if debugAPIRequests {
-		data, _ := httputil.DumpRequestOut(req, true)
+		data, _ := dumpRequest(req)
 		fmt.Printf(">>> %s\n\n", data)
 	}
 
@@ -285,11 +402,11 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return entity, errors.E(ErrNotFound, "%s %s", method, c.endpoint(resourceURL))
+		return entity, errors.E(ErrNotFound, "%s %s", method, url.String())
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", c.endpoint(resourceURL), resp.Status, data)
+		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", url.String(), resp.Status, data)
 	}
 
 	if resp.StatusCode == http.StatusNoContent {
@@ -312,18 +429,22 @@ func Request[T Resource](ctx context.Context, c *Client, method string, resource
 	return resource, nil
 }
 
-func (c *Client) newRequest(ctx context.Context, method string, relativeURL string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, method, c.endpoint(relativeURL), body)
+func (c *Client) newRequest(ctx context.Context, method string, url url.URL, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url.String(), body)
 	if err != nil {
 		return nil, err
 	}
-	token, err := c.Credential.Token()
-	if err != nil {
-		return nil, err
+
+	req.Header.Set("User-Agent", "terramate/v"+terramate.Version())
+	req.Header.Set("Content-Type", contentType)
+
+	if !c.noauth {
+		token, err := c.Credential.Token()
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	req.Header.Add("User-Agent", "terramate/v"+terramate.Version())
-	req.Header.Add("Authorization", "Bearer "+token)
-	req.Header.Add("Content-Type", contentType)
 	return req, nil
 }
 
@@ -334,11 +455,41 @@ func (c *Client) httpClient() *http.Client {
 	return c.HTTPClient
 }
 
-func (c *Client) endpoint(url string) string {
+// URL builds an URL for the given path and queries from the client's base URL.
+func (c *Client) URL(path string, queries ...url.Values) url.URL {
 	if c.BaseURL == "" {
 		c.BaseURL = BaseURL
 	}
-	return fmt.Sprintf("%s%s", c.BaseURL, url)
+	// c.BaseURL must be a valid URL.
+	u, _ := url.Parse(c.BaseURL)
+	u.Path = path
+
+	query := url.Values{}
+	for _, q := range queries {
+		for k, v := range q {
+			query[k] = v
+		}
+	}
+	u.RawQuery = query.Encode()
+	return *u
+}
+
+// dumpRequest returns a string representation of the request with the
+// Authorization header redacted.
+func dumpRequest(req *http.Request) ([]byte, error) {
+	reqCopy := req.Clone(req.Context())
+
+	var err error
+	if req.GetBody != nil {
+		reqCopy.Body, err = req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	reqCopy.Header.Set("Authorization", "REDACTED")
+
+	return httputil.DumpRequestOut(reqCopy, true)
 }
 
 const contentType = "application/json"

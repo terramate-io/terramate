@@ -1,6 +1,7 @@
 # Copyright 2023 Terramate GmbH
 # SPDX-License-Identifier: MPL-2.0
 
+      
 builds:
   - id: terramate
     binary: terramate
@@ -24,6 +25,7 @@ builds:
       - linux
       - darwin
       - windows
+
 archives:
   -
     name_template: >-
@@ -37,6 +39,26 @@ archives:
       - goos: windows
         format: zip
 
+    files: 
+      - ./cosign.pub
+
+nfpms:
+  - maintainer: terramate.io 
+    description: Terramate CLI is an open-source Orchestrator and Code Generator for Terraform and OpenTofu.
+    homepage: https://github.com/terramate-io/terramate/
+    license: MPL-2.0
+    formats:
+      - deb
+      - rpm
+
+furies:
+  - 
+    account: terramate
+    secret_name: FURY_TOKEN
+    formats:
+      - deb
+      - rpm
+
 dockers:
   - dockerfile: hack/release/Dockerfile
     image_templates:
@@ -45,6 +67,17 @@ dockers:
 
 checksum:
   name_template: 'checksums.txt'
+
+signs:
+  - cmd: cosign
+    args:
+      - "sign-blob"
+      - "--key=env://COSIGN_PRIVATE_KEY"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes" # needed on cosign 2.0.0+
+    artifacts: all
+
 
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
@@ -63,6 +96,16 @@ changelog:
 
 release:
   prerelease: auto
+
+  github:
+    owner: terramate-io
+    name: terramate
+
+  extra_files:
+    - glob: "./cosign.pub"
+      # Optionally, specify the destination filename at release
+      # If you omit this, it defaults to the base name of the file
+      name_template: "cosign.pub"
 
 announce:
   twitter:

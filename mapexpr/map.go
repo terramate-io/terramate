@@ -6,8 +6,8 @@ package mapexpr
 import (
 	"fmt"
 
-	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hhcl "github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -134,7 +134,7 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	evaluator := eval.NewContextFrom(ctx)
 
 	var mapErr error
-	foreach.ForEachElement(func(key, newElement cty.Value) (stop bool) {
+	foreach.ForEachElement(func(_, newElement cty.Value) (stop bool) {
 		iteratorMap := map[string]cty.Value{
 			"new": newElement,
 		}

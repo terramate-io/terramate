@@ -1,0 +1,13 @@
+[issues]
+exclude-use-default = false
+
+[[issues.exclude-rules]]
+linters = ['revive']
+path = '(.+)_test\.go'
+text = 'dot-imports:'
+
+[linters]
+enable = ['revive', 'misspell', 'gofmt', 'bodyclose']
+
+[run]
+timeout = '15m'

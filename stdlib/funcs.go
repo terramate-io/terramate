@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 
 	resyntax "regexp/syntax"
 
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/hcl/v2/ext/customdecode"
+	lang "github.com/terramate-io/opentofulib/lang"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -33,7 +35,7 @@ func init() {
 
 // Functions returns all the Terramate default functions.
 // The `basedir` must be an absolute path for an existent directory or it panics.
-func Functions(basedir string) map[string]function.Function {
+func Functions(basedir string, experiments []string) map[string]function.Function {
 	if !filepath.IsAbs(basedir) {
 		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
 	}
@@ -46,7 +48,7 @@ func Functions(basedir string) map[string]function.Function {
 		panic(errors.E(errors.ErrInternal, "context basedir (%s) must be a directory", basedir))
 	}
 
-	scope := &tflang.Scope{BaseDir: basedir}
+	scope := &lang.Scope{BaseDir: basedir}
 	tffuncs := scope.Functions()
 
 	// not supported functions
@@ -55,6 +57,9 @@ func Functions(basedir string) map[string]function.Function {
 
 	tmfuncs := map[string]function.Function{}
 	for name, function := range tffuncs {
+		if strings.Contains(name, "::") {
+			continue
+		}
 		tmfuncs["tm_"+name] = function
 	}
 
@@ -75,13 +80,21 @@ func Functions(basedir string) map[string]function.Function {
 	tmfuncs["tm_try"] = TryFunc()
 
 	tmfuncs["tm_version_match"] = VersionMatch()
+
+	if slices.Contains(experiments, "toml-functions") {
+		tmfuncs["tm_tomlencode"] = TomlEncode()
+		tmfuncs["tm_tomldecode"] = TomlDecode()
+	}
+
+	tmfuncs["tm_hclencode"] = HCLEncode()
+	tmfuncs["tm_hcldecode"] = HCLDecode()
 	return tmfuncs
 }
 
 // NoFS returns all Terramate functions but excluding fs-related
 // functions.
-func NoFS(basedir string) map[string]function.Function {
-	funcs := Functions(basedir)
+func NoFS(basedir string, experiments []string) map[string]function.Function {
+	funcs := Functions(basedir, experiments)
 	fsFuncNames := []string{
 		"tm_abspath",
 		"tm_file",
@@ -260,7 +273,7 @@ func AbspathFunc(basedir string) function.Function {
 			},
 		},
 		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			path := args[0].AsString()
 			var abspath string
 			if filepath.IsAbs(path) {
@@ -289,7 +302,7 @@ func VendorFunc(basedir, vendordir project.Path, stream chan<- event.VendorReque
 			},
 		},
 		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			// Param spec already enforce modsrc to be string.
 			source := args[0].AsString()
 			modsrc, err := tf.ParseSource(source)
@@ -338,7 +351,7 @@ func HCLExpressionFunc() function.Function {
 				Type: cty.String,
 			},
 		},
-		Type: func(args []cty.Value) (cty.Type, error) {
+		Type: func(_ []cty.Value) (cty.Type, error) {
 			return customdecode.ExpressionType, nil
 		},
 		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
@@ -372,7 +385,7 @@ func VersionMatch() function.Function {
 			}),
 		},
 		Type: function.StaticReturnType(cty.Bool),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			version := args[0].AsString()
 			constraint := args[1].AsString()
 

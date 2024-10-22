@@ -49,6 +49,39 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "tm_dynamic and .tmgen",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add:      Terramate(Config(Expr("experiments", `["tmgen"]`))),
+				},
+				{
+					path:     "/stack",
+					filename: "tm_dynamic_test.tf.tmgen",
+					add: TmDynamic(
+						Labels("my_block"),
+						Expr("for_each", `["a", "b", "c"]`),
+						Block("content"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("my_block"),
+							Block("my_block"),
+							Block("my_block"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic with content fully evaluated",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -818,6 +851,57 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "attributes from a map",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: Globals(
+						Expr("obj", `tm_tomap({
+						  a = {
+							data = "global data",
+						  },
+						  b = {
+							other_data = "global data 2"
+						  }
+						})`),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "gen.tm",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Content(
+							TmDynamic(
+								Labels("test"),
+								Expr("for_each", `global.obj`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `iter.value`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("test",
+								Str("data", "global data"),
+							),
+							Block("test",
+								Str("other_data", "global data 2"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generated blocks have attributes on same order as attributes object",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -953,9 +1037,9 @@ func TestGenerateHCLDynamic(t *testing.T) {
 						condition: true,
 						body: Doc(
 							Block("references",
+								Bool("GLOBALKEY", true),
 								Bool("globalkey", true),
 								Bool("stack", true),
-								Bool("GLOBALKEY", true),
 								Bool("test", true),
 							),
 						),

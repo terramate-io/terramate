@@ -6,8 +6,8 @@ package ast
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -29,10 +29,6 @@ func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 		return expr
 	}
 	switch e := expr.(type) {
-	case *CloneExpression:
-		return &CloneExpression{
-			Expression: CloneExpr(e.Expression),
-		}
 	case *hclsyntax.LiteralValueExpr:
 		return &hclsyntax.LiteralValueExpr{
 			Val:      e.Val,

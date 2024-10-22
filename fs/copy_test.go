@@ -30,7 +30,7 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 	})
 
 	destdir := test.TempDir(t)
-	err := fs.CopyDir(destdir, s.RootDir(), func(path string, entry os.DirEntry) bool {
+	err := fs.CopyDir(destdir, s.RootDir(), func(_ string, entry os.DirEntry) bool {
 		return entry.Name() != "notcopy" &&
 			entry.Name() != "root.config.tm"
 	})

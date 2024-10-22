@@ -417,7 +417,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
-						After: []string{},
+						After: nil,
 					},
 				},
 			},
@@ -548,7 +548,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
-						Description: "line1\nline2",
+						Description: "line1\nline2\n",
 					},
 				},
 			},

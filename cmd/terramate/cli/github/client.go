@@ -7,19 +7,28 @@ package github
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/terramate-io/terramate/errors"
 )
 
+// GitHub API errors.
 const (
 	// ErrNotFound indicates the resource does not exists.
 	ErrNotFound errors.Kind = "resource not found (HTTP Status: 404)"
 	// ErrUnprocessableEntity indicates the entity cannot be processed for any reason.
 	ErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
+
+	ErrDeviceFlowAuthPending    errors.Kind = "the authorization request is still pending"
+	ErrDeviceFlowSlowDown       errors.Kind = "too many requests, please slowdown"
+	ErrDeviceFlowAuthUnexpected errors.Kind = "unexpected device flow error"
+	ErrDeviceFlowAuthExpired    errors.Kind = "this 'device_code' has expired"
+	ErrDeviceFlowAccessDenied   errors.Kind = "user cancelled the authorization flow"
+	ErrDeviceFlowIncorrectCode  errors.Kind = "the device code provided is not valid"
 )
 
 const (
@@ -29,70 +38,31 @@ const (
 	APIDomain = "api." + Domain
 	// APIBaseURL is the default base url for the GitHub API.
 	APIBaseURL = "https://" + APIDomain
+
+	defaultTimeout = 60 * time.Second
 )
 
 type (
-	// Client is a Github HTTP client wrapper.
-	Client struct {
-		// BaseURL is the base URL used to construct the final URL of endpoints.
-		// If not set, then api.github.com is used.
-		BaseURL string
-
-		// HTTPClient sets the HTTP client used and then allows for advanced
-		// connection reuse schemes. If not set, a new http.Client is used.
-		HTTPClient *http.Client
-
-		// Token is the Github token (usually provided by the GH_TOKEN environment
-		// variable.
-		Token string
-	}
-
 	// OIDCVars is the variables used for issuing new OIDC tokens.
 	OIDCVars struct {
 		ReqURL   string
 		ReqToken string
 	}
+
+	// OAuthDeviceFlowContext holds the context information for an ongoing
+	// device authentication flow.
+	OAuthDeviceFlowContext struct {
+		clientID        string
+		UserCode        string `json:"user_code"`
+		DeviceCode      string `json:"device_code"`
+		VerificationURI string `json:"verification_uri"`
+		Interval        int    `json:"interval"`
+		ExpiresIn       int    `json:"expires_in"`
+	}
 )
 
-// PullsForCommit returns a list of pull request objects associated with the
-// given commit SHA.
-func (c *Client) PullsForCommit(ctx context.Context, repository, commit string) (pulls []Pull, err error) {
-	if !strings.Contains(repository, "/") {
-		return nil, errors.E("expects a valid Github repository of format <owner>/<name>")
-	}
-
-	url := fmt.Sprintf("%s/repos/%s/commits/%s/pulls", c.baseURL(), repository, commit)
-	data, err := c.doGet(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, &pulls)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling pull list")
-	}
-	return pulls, nil
-}
-
-// Commit retrieves information about an specific commit in the GitHub API.
-func (c *Client) Commit(ctx context.Context, repository, sha string) (*Commit, error) {
-	if !strings.Contains(repository, "/") {
-		return nil, errors.E("expects a valid Github repository of format <owner>/<name>")
-	}
-	url := fmt.Sprintf("%s/repos/%s/commits/%s", c.baseURL(), repository, sha)
-	data, err := c.doGet(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	var commit Commit
-	err = json.Unmarshal(data, &commit)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling commit info")
-	}
-	return &commit, nil
-}
-
 // OIDCToken requests a new OIDC token.
-func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err error) {
+func OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", cfg.ReqURL, nil)
 	if err != nil {
 		return "", errors.E(err, "creating Github OIDC request")
@@ -100,9 +70,31 @@ func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err
 
 	req.Header.Set("Authorization", "Bearer "+cfg.ReqToken)
 
-	data, err := c.doGetWithReq(req)
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
-		return "", errors.E(err, "reading Github OIDC response body")
+		return "", errors.E(err, "requesting GET %s", req.URL)
+	}
+
+	defer func() {
+		err = errors.L(err, resp.Body.Close()).AsError()
+	}()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.E(err, "reading response body")
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return "", errors.E(ErrNotFound, "retrieving %s", req.URL)
+	}
+
+	if resp.StatusCode == http.StatusUnprocessableEntity {
+		return "", errors.E(ErrUnprocessableEntity, "retrieving %s", req.URL)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.E("unexpected status code: %s while getting %s", resp.Status, req.URL)
 	}
 
 	type response struct {
@@ -114,61 +106,125 @@ func (c *Client) OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err
 	if err != nil {
 		return "", errors.E(err, "unmarshaling Github OIDC JSON response")
 	}
-
 	return tokresp.Value, nil
 }
 
-func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, errors.E(err, "creating pulls request")
+// OAuthDeviceFlowAuthStart starts a GitHub device authentication flow.
+// After the flow is started, you need to probe for its state using [ProbeAuthState].
+func OAuthDeviceFlowAuthStart(clientID string) (oauthCtx OAuthDeviceFlowContext, err error) {
+	const deviceCodeURL = "https://github.com/login/device/code"
+	params := url.Values{
+		"client_id": []string{clientID},
+		"scope":     []string{"user:email"},
 	}
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
-	return c.doGetWithReq(req)
-}
 
-func (c *Client) doGetWithReq(req *http.Request) ([]byte, error) {
-	client := c.httpClient()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", deviceCodeURL, strings.NewReader(params.Encode()))
+	if err != nil {
+		return OAuthDeviceFlowContext{}, errors.E(err, "failed to create request for GitHub device code")
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Accept", "application/json")
+
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.E(err, "requesting GET %s", req.URL)
+		return OAuthDeviceFlowContext{}, errors.E(err, "failed to fetch the GitHub device code")
 	}
-
 	defer func() {
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.E(err, "reading response body")
+		return OAuthDeviceFlowContext{}, errors.E(err, "failed to read data")
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.E(ErrNotFound, "retrieving %s", req.URL)
+	err = json.Unmarshal(data, &oauthCtx)
+	if err != nil {
+		return OAuthDeviceFlowContext{}, errors.E(err, "failed to unmarshal response from GitHub OAuth URL: %s", deviceCodeURL)
 	}
 
-	if resp.StatusCode == http.StatusUnprocessableEntity {
-		return nil, errors.E(ErrUnprocessableEntity, "retrieving %s", req.URL)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.E("unexpected status code: %s while getting %s", resp.Status, req.URL)
-	}
-	return data, nil
+	oauthCtx.clientID = clientID
+	return oauthCtx, nil
 }
 
-func (c *Client) baseURL() string {
-	if c.BaseURL == "" {
-		c.BaseURL = APIBaseURL
+// ProbeAuthState checks the current authentication flow state.
+// This method must be called repeatedly, respecting the oauthCtx.Interval,
+// while it returns ErrDeviceFlowPending or ErrDeviceFlowSlowDown. Eventually, the user
+// will either finish the flow, cancel the process, or the code will expire.
+// When the user finishes the process by providing the correct code, this method returns
+// the access_token and no error.
+func (oauthCtx *OAuthDeviceFlowContext) ProbeAuthState() (string, error) {
+	const uri = "https://github.com/login/oauth/access_token"
+	params := url.Values{
+		"client_id":   []string{oauthCtx.clientID},
+		"device_code": []string{oauthCtx.DeviceCode},
+		"grant_type":  []string{"urn:ietf:params:oauth:grant-type:device_code"},
 	}
-	return c.BaseURL
-}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", uri, strings.NewReader(params.Encode()))
+	if err != nil {
+		return "", err
+	}
 
-func (c *Client) httpClient() *http.Client {
-	if c.HTTPClient == nil {
-		c.HTTPClient = &http.Client{}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Accept", "application/json")
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
 	}
-	return c.HTTPClient
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	type authResponse struct {
+		AccessToken      string `json:"access_token"`
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+	}
+
+	var payloadResp authResponse
+	err = json.Unmarshal(data, &payloadResp)
+	if err != nil {
+		return "", err
+	}
+
+	switch payloadResp.Error {
+	case "":
+		// success
+		return payloadResp.AccessToken, nil
+	case "authorization_pending":
+		return "", errors.E(ErrDeviceFlowAuthPending)
+	case "expired_token":
+		return "", errors.E(ErrDeviceFlowAuthExpired)
+	case "slow_down":
+		return "", errors.E(ErrDeviceFlowSlowDown)
+	case "access_denied":
+		return "", errors.E(ErrDeviceFlowAccessDenied)
+	case "incorrect_device_code":
+		return "", errors.E(ErrDeviceFlowIncorrectCode)
+
+		// unrecoverable errors and internal bugs.
+	case "device_flow_disabled":
+		panic(errors.E(errors.ErrInternal, "device flow has not been enabled in the app settings"))
+	case "incorrect_client_credentials":
+		panic(errors.E(errors.ErrInternal, "invalid client_id %s", oauthCtx.clientID))
+	case "unsupported_grant_type":
+		panic(errors.E(errors.ErrInternal, "invalid grant type"))
+	default:
+		return "", errors.E(ErrDeviceFlowAuthUnexpected, payloadResp.ErrorDescription)
+	}
 }

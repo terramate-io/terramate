@@ -4195,7 +4195,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			root, err := config.LoadRoot(s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.Assert(t, err, tcase.want)
@@ -4205,7 +4205,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				return
 			}
 
-			stacks, err := config.LoadAllStacks(cfg)
+			stacks, err := config.LoadAllStacks(root, root.Tree())
 			assert.NoError(t, err)
 			for _, elem := range stacks {
 				report := globals.ForStack(s.Config(), elem.Stack)
@@ -4231,13 +4231,13 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 		wantGlobals := tcase.want
 
-		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if err != nil {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
 		}
 
-		stackEntries, err := stack.List(cfg)
+		stackEntries, err := stack.List(root, root.Tree())
 		assert.NoError(t, err)
 
 		var stacks config.List[*config.SortableStack]

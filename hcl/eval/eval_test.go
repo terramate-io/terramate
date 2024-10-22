@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2/hclparse"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
@@ -79,7 +79,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			ctx := eval.NewContext(stdlib.Functions(basedir))
+			ctx := eval.NewContext(stdlib.Functions(basedir, []string{}))
 
 			const attrname = "value"
 

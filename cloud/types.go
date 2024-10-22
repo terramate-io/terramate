@@ -4,8 +4,8 @@
 package cloud
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -22,6 +22,11 @@ type (
 		Validate() error
 	}
 
+	// WellKnown is the well-known payload for cli.json.
+	WellKnown struct {
+		RequiredVersion string `json:"required_version"`
+	}
+
 	// MemberOrganizations is a list of organizations associated with the member.
 	MemberOrganizations []MemberOrganization
 
@@ -35,7 +40,7 @@ type (
 
 	// MemberOrganization represents the organization associated with the member.
 	MemberOrganization struct {
-		MemberID    int    `json:"member_id,omitempty"`
+		MemberID    int64  `json:"member_id,omitempty"`
 		Name        string `json:"org_name"`
 		DisplayName string `json:"org_display_name"`
 		Domain      string `json:"org_domain"`
@@ -44,9 +49,9 @@ type (
 		Status      string `json:"status"`
 	}
 
-	// StackResponse represents a stack in the Terramate Cloud.
-	StackResponse struct {
-		ID int `json:"stack_id"`
+	// StackObject represents a stack object in the Terramate Cloud.
+	StackObject struct {
+		ID int64 `json:"stack_id"`
 		Stack
 		Status           stack.Status      `json:"status"`
 		DeploymentStatus deployment.Status `json:"deployment_status"`
@@ -61,6 +66,8 @@ type (
 	// Stack represents the stack as defined by the user HCL code.
 	Stack struct {
 		Repository      string   `json:"repository"`
+		Target          string   `json:"target,omitempty"`
+		FromTarget      string   `json:"from_target,omitempty"`
 		DefaultBranch   string   `json:"default_branch"`
 		Path            string   `json:"path"`
 		MetaID          string   `json:"meta_id"`
@@ -69,16 +76,18 @@ type (
 		MetaTags        []string `json:"meta_tags,omitempty"`
 	}
 
-	// DriftDetails represents the details of a drift.
-	DriftDetails struct {
+	// ChangesetDetails represents the details of a changeset (e.g. the terraform plan).
+	ChangesetDetails struct {
 		Provisioner    string `json:"provisioner"`
 		ChangesetASCII string `json:"changeset_ascii,omitempty"`
 		ChangesetJSON  string `json:"changeset_json,omitempty"`
+		Serial         *int64 `json:"serial,omitempty"`
 	}
 
 	// StacksResponse represents the stacks object response.
 	StacksResponse struct {
-		Stacks []StackResponse `json:"stacks"`
+		Stacks     []StackObject   `json:"stacks"`
+		Pagination PaginatedResult `json:"paginated_result"`
 	}
 
 	// DeploymentStackRequest represents the stack object of the request payload
@@ -94,9 +103,12 @@ type (
 
 	// DeploymentStackResponse represents the deployment creation response item.
 	DeploymentStackResponse struct {
-		StackID     int               `json:"stack_id"`
-		StackMetaID string            `json:"meta_id"`
-		Status      deployment.Status `json:"status"`
+		StackID     int64  `json:"stack_id"`
+		StackMetaID string `json:"meta_id"`
+		// TODO(snk): The target in the response is not handled yet. This needs to happen once we
+		// support creating deployments with the same stack/meta_id on multiple targets.
+		Target string            `json:"target"`
+		Status deployment.Status `json:"status"`
 	}
 
 	// DeploymentStacksResponse represents the list of DeploymentStackResponse.
@@ -107,17 +119,17 @@ type (
 
 	// DeploymentStacksPayloadRequest is the request payload for the creation of stack deployments.
 	DeploymentStacksPayloadRequest struct {
-		ReviewRequest *DeploymentReviewRequest `json:"review_request,omitempty"`
-		Stacks        DeploymentStackRequests  `json:"stacks"`
-		Workdir       project.Path             `json:"workdir"`
-		Metadata      *DeploymentMetadata      `json:"metadata,omitempty"`
+		ReviewRequest *ReviewRequest          `json:"review_request,omitempty"`
+		Stacks        DeploymentStackRequests `json:"stacks"`
+		Workdir       project.Path            `json:"workdir"`
+		Metadata      *DeploymentMetadata     `json:"metadata,omitempty"`
 	}
 
 	// Drift represents the drift information for a given stack.
 	Drift struct {
-		ID       int                 `json:"id"`
+		ID       int64               `json:"id"`
 		Status   drift.Status        `json:"status"`
-		Details  *DriftDetails       `json:"drift_details,omitempty"`
+		Details  *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
 	}
 
@@ -126,14 +138,15 @@ type (
 
 	// DriftsStackPayloadResponse is the payload returned when listing stack drifts.
 	DriftsStackPayloadResponse struct {
-		Drifts Drifts `json:"drifts"`
+		Drifts     Drifts          `json:"drifts"`
+		Pagination PaginatedResult `json:"paginated_result"`
 	}
 
 	// DriftStackPayloadRequest is the payload for the drift sync.
 	DriftStackPayloadRequest struct {
 		Stack      Stack               `json:"stack"`
 		Status     drift.Status        `json:"drift_status"`
-		Details    *DriftDetails       `json:"drift_details,omitempty"`
+		Details    *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata   *DeploymentMetadata `json:"metadata,omitempty"`
 		StartedAt  *time.Time          `json:"started_at,omitempty"`
 		FinishedAt *time.Time          `json:"finished_at,omitempty"`
@@ -147,13 +160,23 @@ type (
 	// It's marshaled as a flat hashmap of values.
 	// Note: no sensitive information must be stored here because it could be logged.
 	DeploymentMetadata struct {
+		GitMetadata
+		GithubMetadata
+		GitlabMetadata
+	}
+
+	// GitMetadata are the git related metadata.
+	GitMetadata struct {
 		GitCommitSHA         string     `json:"git_commit_sha,omitempty"`
 		GitCommitAuthorName  string     `json:"git_commit_author_name,omitempty"`
 		GitCommitAuthorEmail string     `json:"git_commit_author_email,omitempty"`
 		GitCommitAuthorTime  *time.Time `json:"git_commit_author_time,omitempty"`
 		GitCommitTitle       string     `json:"git_commit_title,omitempty"`
 		GitCommitDescription string     `json:"git_commit_description,omitempty"`
+	}
 
+	// GithubMetadata is the GitHub related metadata
+	GithubMetadata struct {
 		GithubPullRequestAuthorLogin      string `json:"github_pull_request_author_login,omitempty"`
 		GithubPullRequestAuthorAvatarURL  string `json:"github_pull_request_author_avatar_url,omitempty"`
 		GithubPullRequestAuthorGravatarID string `json:"github_pull_request_author_gravatar_id,omitempty"`
@@ -204,6 +227,7 @@ type (
 		GithubCommitCommitterGitDate    *time.Time `json:"github_commit_committer_git_date,omitempty"`
 
 		GithubActionsDeploymentBranch      string `json:"github_actions_deployment_branch,omitempty"`
+		GithubActionsDeploymentActor       string `json:"github_actions_deployment_actor,omitempty"`
 		GithubActionsDeploymentTriggeredBy string `json:"github_actions_triggered_by,omitempty"`
 		GithubActionsRunID                 string `json:"github_actions_run_id,omitempty"`
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
@@ -211,21 +235,99 @@ type (
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
 	}
 
-	// DeploymentReviewRequest is the review_request object.
-	DeploymentReviewRequest struct {
-		Platform    string `json:"platform"`
-		Repository  string `json:"repository"`
-		CommitSHA   string `json:"commit_sha"`
-		Number      int    `json:"number"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		URL         string `json:"url"`
+	// GitlabMetadata holds the Gitlab specific metadata.
+	GitlabMetadata struct {
+		GitlabMergeRequestAuthorID        int    `json:"gitlab_merge_request_author_id,omitempty"`
+		GitlabMergeRequestAuthorName      string `json:"gitlab_merge_request_author_name,omitempty"`
+		GitlabMergeRequestAuthorWebURL    string `json:"gitlab_merge_request_author_web_url,omitempty"`
+		GitlabMergeRequestAuthorUsername  string `json:"gitlab_merge_request_author_username,omitempty"`
+		GitlabMergeRequestAuthorAvatarURL string `json:"gitlab_merge_request_author_avatar_url,omitempty"`
+		GitlabMergeRequestAuthorState     string `json:"gitlab_merge_request_author_state,omitempty"`
+
+		GitlabMergeRequestID           int    `json:"gitlab_merge_request_id,omitempty"`
+		GitlabMergeRequestIID          int    `json:"gitlab_merge_request_iid,omitempty"`
+		GitlabMergeRequestState        string `json:"gitlab_merge_request_state,omitempty"`
+		GitlabMergeRequestCreatedAt    string `json:"gitlab_merge_request_created_at,omitempty"`
+		GitlabMergeRequestUpdatedAt    string `json:"gitlab_merge_request_updated_at,omitempty"`
+		GitlabMergeRequestTargetBranch string `json:"gitlab_merge_request_target_branch,omitempty"`
+		GitlabMergeRequestSourceBranch string `json:"gitlab_merge_request_source_branch,omitempty"`
+		GitlabMergeRequestMergeStatus  string `json:"gitlab_merge_request_merge_status,omitempty"`
+		GitlabMergeRequestWebURL       string `json:"gitlab_merge_request_web_url,omitempty"`
+
+		// CICD
+		GitlabCICDJobManual         bool   `json:"gitlab_cicd_job_manual,omitempty"`          // CI_JOB_MANUAL
+		GitlabCICDPipelineID        string `json:"gitlab_cicd_pipeline_id,omitempty"`         // CI_PIPELINE_ID
+		GitlabCICDPipelineSource    string `json:"gitlab_cicd_pipeline_source,omitempty"`     // CI_PIPELINE_SOURCE
+		GitlabCICDPipelineName      string `json:"gitlab_cicd_pipeline_name,omitempty"`       // CI_PIPELINE_NAME
+		GitlabCICDPipelineTriggered bool   `json:"gitlan_cicd_pipeline_triggered,omitempty"`  // CI_PIPELINE_TRIGGERED
+		GitlabCICDPipelineURL       string `json:"gitlab_cicd_pipeline_url,omitempty"`        // CI_PIPELINE_URL
+		GitlabCICDPipelineCreatedAt string `json:"gitlab_cicd_pipeline_created_at,omitempty"` // CI_PIPELINE_CREATED_AT
+		GitlabCICDJobID             string `json:"gitlab_cicd_job_id,omitempty"`              // CI_JOB_ID
+		GitlabCICDJobName           string `json:"gitlab_cicd_job_name,omitempty"`            // CI_JOB_NAME
+		GitlabCICDJobStartedAt      string `json:"gitlab_cicd_job_started_at,omitempty"`      // CI_JOB_STARTED_AT
+		GitlabCICDUserEmail         string `json:"gitlab_cicd_user_email,omitempty"`          // GITLAB_USER_EMAIL
+		GitlabCICDUserName          string `json:"gitlab_cicd_user_name,omitempty"`           // GITLAB_USER_NAME
+		GitlabCICDUserLogin         string `json:"gitlab_cicd_user_login,omitempty"`          // GITLAB_USER_LOGIN
+		GitlabCICDCommitBranch      string `json:"gitlab_cicd_commit_branch,omitempty"`       // CI_COMMIT_BRANCH
+
+		// either CI_COMMIT_BRANCH or CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+		GitlabCICDBranch string `json:"gitlab_cicd_branch,omitempty"`
+
+		// Only available for merge request pipelines
+		GitlabCICDMergeRequestApproved *bool `json:"gitlab_cicd_merge_request_approved,omitempty"` // CI_MERGE_REQUEST_APPROVED
 	}
+
+	// ReviewRequest is the review_request object.
+	ReviewRequest struct {
+		Platform              string     `json:"platform"`
+		Repository            string     `json:"repository"`
+		CommitSHA             string     `json:"commit_sha"`
+		Number                int        `json:"number"`
+		Title                 string     `json:"title"`
+		Description           string     `json:"description"`
+		URL                   string     `json:"url"`
+		Labels                []Label    `json:"labels,omitempty"`
+		Author                Author     `json:"author"`
+		Reviewers             Reviewers  `json:"reviewers,omitempty"`
+		Status                string     `json:"status"`
+		Draft                 bool       `json:"draft"`
+		ReviewDecision        string     `json:"review_decision,omitempty"`
+		ChangesRequestedCount int        `json:"changes_requested_count"`
+		ApprovedCount         int        `json:"approved_count"`
+		ChecksTotalCount      int        `json:"checks_total_count"`
+		ChecksFailureCount    int        `json:"checks_failure_count"`
+		ChecksSuccessCount    int        `json:"checks_success_count"`
+		CreatedAt             *time.Time `json:"created_at,omitempty"`
+		UpdatedAt             *time.Time `json:"updated_at,omitempty"`
+		PushedAt              *time.Time `json:"pushed_at,omitempty"`
+		Branch                string     `json:"branch"`
+		BaseBranch            string     `json:"base_branch"`
+	}
+
+	// Label of a review request.
+	Label struct {
+		Name        string `json:"name"`
+		Color       string `json:"color,omitempty"`
+		Description string `json:"description,omitempty"`
+	}
+
+	// Author of the change.
+	Author struct {
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url,omitempty"`
+	}
+
+	// Reviewer is the user's reviewer of a Pull/Merge Request.
+	Reviewer Author
+
+	// Reviewers is a list of reviewers.
+	Reviewers []Reviewer
 
 	// UpdateDeploymentStack is the request payload item for updating the deployment status.
 	UpdateDeploymentStack struct {
-		StackID int               `json:"stack_id"`
+		StackID int64             `json:"stack_id"`
 		Status  deployment.Status `json:"status"`
+		Details *ChangesetDetails `json:"changeset_details,omitempty"`
 	}
 
 	// UpdateDeploymentStacks is the request payload for updating the deployment status.
@@ -233,18 +335,48 @@ type (
 		Stacks []UpdateDeploymentStack `json:"stacks"`
 	}
 
-	// DeploymentLogs represents a batch of log messages.
-	DeploymentLogs []*DeploymentLog
+	// CommandLogs represents a batch of log messages.
+	CommandLogs []*CommandLog
 
 	// LogChannel is an enum-like type for the output channels supported.
 	LogChannel int
 
-	// DeploymentLog represents a single log message.
-	DeploymentLog struct {
+	// CommandLog represents a single log message.
+	CommandLog struct {
 		Line      int64      `json:"log_line"`
 		Timestamp *time.Time `json:"timestamp"`
 		Channel   LogChannel `json:"channel"`
 		Message   string     `json:"message"`
+	}
+
+	// ReviewRequestResponsePayload is the review request response payload.
+	ReviewRequestResponsePayload struct {
+		ReviewRequests ReviewRequestResponses `json:"review_requests"`
+		Pagination     PaginatedResult        `json:"paginated_result"`
+	}
+
+	// ReviewRequestResponses is a list of review request responses.
+	ReviewRequestResponses []ReviewRequestResponse
+
+	// ReviewRequestResponse is the response payload for the review request creation.
+	ReviewRequestResponse struct {
+		ID        int64  `json:"review_request_id"`
+		CommitSHA string `json:"commit_sha"`
+		Number    int    `json:"number"`
+	}
+
+	// PaginatedResult represents the pagination object.
+	PaginatedResult struct {
+		Total   int64 `json:"total"`
+		Page    int64 `json:"page"`
+		PerPage int64 `json:"per_page"`
+	}
+
+	// StatusFilters defines multiple statuses stack filters.
+	StatusFilters struct {
+		StackStatus      stack.FilterStatus
+		DeploymentStatus deployment.FilterStatus
+		DriftStatus      drift.FilterStatus
 	}
 
 	// UUID represents an UUID string.
@@ -259,10 +391,11 @@ const (
 
 var (
 	// compile-time checks to ensure resource entities implement the Resource iface.
+	_ = Resource(WellKnown{})
 	_ = Resource(User{})
 	_ = Resource(MemberOrganization{})
 	_ = Resource(MemberOrganizations{})
-	_ = Resource(StackResponse{})
+	_ = Resource(StackObject{})
 	_ = Resource(StacksResponse{})
 	_ = Resource(DeploymentStackRequest{})
 	_ = Resource(DeploymentStackRequests{})
@@ -271,36 +404,62 @@ var (
 	_ = Resource(DeploymentStacksResponse{})
 	_ = Resource(UpdateDeploymentStack{})
 	_ = Resource(UpdateDeploymentStacks{})
-	_ = Resource(DeploymentReviewRequest{})
+	_ = Resource(ReviewRequest{})
+	_ = Resource(Reviewer{})
+	_ = Resource(Reviewers{})
+	_ = Resource(Label{})
 	_ = Resource(Drifts{})
 	_ = Resource(DriftStackPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
-	_ = Resource(DriftDetails{})
-	_ = Resource(DeploymentLogs{})
-	_ = Resource(DeploymentLog{})
+	_ = Resource(ChangesetDetails{})
+	_ = Resource(CommandLogs{})
+	_ = Resource(CommandLog{})
+	_ = Resource(CreatePreviewPayloadRequest{})
+	_ = Resource(CreatePreviewResponse{})
+	_ = Resource(UpdateStackPreviewPayloadRequest{})
+	_ = Resource(ReviewRequestResponse{})
+	_ = Resource(ReviewRequestResponses{})
+	_ = Resource(ReviewRequestResponsePayload{})
 	_ = Resource(EmptyResponse(""))
 )
 
-// String representation of the list of organization associated with the user.
+// Validate the review request response payload.
+func (rr ReviewRequestResponsePayload) Validate() error {
+	if err := rr.ReviewRequests.Validate(); err != nil {
+		return err
+	}
+	return rr.Pagination.Validate()
+}
+
+// Validate the ReviewRequestResponse object.
+func (rr ReviewRequestResponse) Validate() error {
+	if rr.ID == 0 {
+		return errors.E(`missing "review_request_id" field`)
+	}
+	return nil
+}
+
+// Validate the list of review request responses.
+func (rrs ReviewRequestResponses) Validate() error {
+	return validateResourceList(rrs...)
+}
+
+// String is a human readable list of organizations associated with a user.
 func (orgs MemberOrganizations) String() string {
-	var out bytes.Buffer
-
-	write := func(s string) {
-		// only possible error is OutOfMemory which panics already
-		_, _ = out.Write([]byte(s))
+	str := make([]string, len(orgs))
+	for i, org := range orgs {
+		str[i] = fmt.Sprintf("%s (%s)", org.DisplayName, org.Name)
 	}
 
-	if len(orgs) == 0 {
-		write("none")
-	} else {
-		for i, org := range orgs {
-			write(org.Name)
-			if i+1 < len(orgs) {
-				write(", ")
-			}
-		}
+	return strings.Join(str, ", ")
+}
+
+// Validate the well-known payload.
+func (wk WellKnown) Validate() error {
+	if wk.RequiredVersion == "" {
+		return errors.E(`missing "required_version" field`)
 	}
-	return out.String()
+	return nil
 }
 
 // Validate if the user has the Terramate CLI required fields.
@@ -331,7 +490,7 @@ func (org MemberOrganization) Validate() error {
 }
 
 // Validate the stack entity.
-func (stack StackResponse) Validate() error {
+func (stack StackObject) Validate() error {
 	if stack.MetaID == "" {
 		return errors.E(`missing "meta_id" field`)
 	}
@@ -349,7 +508,7 @@ func (stacksResp StacksResponse) Validate() error {
 			return err
 		}
 	}
-	return nil
+	return stacksResp.Pagination.Validate()
 }
 
 // Validate the deployment stack request.
@@ -396,7 +555,7 @@ func (d Drift) Validate() error {
 
 // Validate a list of drifts.
 func (ds Drifts) Validate() error {
-	return validateResourceList[Drift](ds...)
+	return validateResourceList(ds...)
 }
 
 // Validate the drift request payload.
@@ -431,10 +590,15 @@ func (d DriftStackPayloadRequest) Validate() error {
 func (ds DriftStackPayloadRequests) Validate() error { return validateResourceList(ds...) }
 
 // Validate the drifts list response payload.
-func (ds DriftsStackPayloadResponse) Validate() error { return validateResourceList(ds.Drifts...) }
+func (ds DriftsStackPayloadResponse) Validate() error {
+	if err := ds.Pagination.Validate(); err != nil {
+		return err
+	}
+	return validateResourceList(ds.Drifts...)
+}
 
 // Validate the drift details.
-func (ds DriftDetails) Validate() error {
+func (ds ChangesetDetails) Validate() error {
 	if ds.Provisioner == "" && ds.ChangesetASCII == "" && ds.ChangesetJSON == "" {
 		// TODO: backend returns the `details` object even if it was not synchronized.
 		return nil
@@ -482,12 +646,31 @@ func (d DeploymentStackResponse) Validate() error {
 }
 
 // Validate the DeploymentReviewRequest object.
-func (rr DeploymentReviewRequest) Validate() error {
+func (rr ReviewRequest) Validate() error {
 	if rr.Repository == "" {
 		return errors.E(`missing "repository" field`)
 	}
+	return validateResourceList(rr.Labels...)
+}
+
+// Validate the label.
+func (l Label) Validate() error {
+	if l.Name == "" {
+		return errors.E(`missing "name" field`)
+	}
 	return nil
 }
+
+// Validate the reviewer.
+func (r Reviewer) Validate() error {
+	if r.Login == "" {
+		return errors.E(`missing "login" field`)
+	}
+	return nil
+}
+
+// Validate the reviewers list.
+func (rs Reviewers) Validate() error { return validateResourceList(rs...) }
 
 // Validate the UpdateDeploymentStack object.
 func (d UpdateDeploymentStack) Validate() error {
@@ -503,8 +686,8 @@ func (ds UpdateDeploymentStacks) Validate() error { return validateResourceList(
 // Validate the list of deployment stacks response.
 func (ds DeploymentStacksResponse) Validate() error { return validateResourceList(ds...) }
 
-// Validate a deployment log.
-func (l DeploymentLog) Validate() error {
+// Validate a command log.
+func (l CommandLog) Validate() error {
 	if l.Channel == unknownLogChannel {
 		return errors.E(`missing "channel" field`)
 	}
@@ -514,14 +697,22 @@ func (l DeploymentLog) Validate() error {
 	return nil
 }
 
-// Validate a list of deployment logs.
-func (ls DeploymentLogs) Validate() error { return validateResourceList(ls...) }
+// Validate a list of command logs.
+func (ls CommandLogs) Validate() error { return validateResourceList(ls...) }
 func validateResourceList[T Resource](resources ...T) error {
 	for _, resource := range resources {
 		err := resource.Validate()
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// Validate the "paginate_result" field.
+func (p PaginatedResult) Validate() error {
+	if p.Page == 0 {
+		return errors.E(`field "paginated_result.page" is zero or absent`)
 	}
 	return nil
 }
@@ -568,4 +759,18 @@ func (c LogChannel) String() string {
 		return "stderr"
 	}
 	return "unknown"
+}
+
+// NoStatusFilters returns a StatusFilters with no filter.
+func NoStatusFilters() StatusFilters {
+	return StatusFilters{
+		StackStatus:      stack.NoFilter,
+		DeploymentStatus: deployment.NoFilter,
+		DriftStatus:      drift.NoFilter,
+	}
+}
+
+// HasFilter tells if StackFilter has any filter set.
+func (f StatusFilters) HasFilter() bool {
+	return f.StackStatus != stack.NoFilter || f.DeploymentStatus != deployment.NoFilter || f.DriftStatus != drift.NoFilter
 }

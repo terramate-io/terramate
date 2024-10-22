@@ -8,25 +8,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/strconv"
 )
 
 // GetDrift implements the /v1/drifts/:orguuid/:stackid/:driftid endpoint.
 func GetDrift(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
 	orguuid := cloud.UUID(params.ByName("orguuid"))
-	stackid, err := strconv.Atoi(params.ByName("stackid"))
+	stackid, err := strconv.Atoi64(params.ByName("stackid"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, errors.E(err, "invalid stackid"))
 		return
 	}
 
-	driftid, err := strconv.Atoi(params.ByName("driftid"))
+	driftid, err := strconv.Atoi64(params.ByName("driftid"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, errors.E(err, "invalid driftid"))
@@ -88,7 +88,17 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	st, _, found := store.GetStackByMetaID(org, payload.Stack.MetaID)
+	// NOTE(i4k): metadata is not required but must be present in all test cases
+	if err := validateMetadata(payload.Metadata); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
+	if payload.Stack.Target == "" {
+		payload.Stack.Target = "default"
+	}
+	st, _, found := store.GetStackByMetaID(org, payload.Stack.MetaID, payload.Stack.Target)
 	if !found {
 		st = cloudstore.Stack{
 			Stack: payload.Stack,
@@ -97,6 +107,7 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	}
 	_, err = store.InsertDrift(cloud.UUID(orguuid), cloudstore.Drift{
 		StackMetaID: payload.Stack.MetaID,
+		StackTarget: payload.Stack.Target,
 		Metadata:    payload.Metadata,
 		Details:     payload.Details,
 		Status:      payload.Status,
@@ -139,10 +150,10 @@ func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p
 	}
 	res := cloud.DriftStackPayloadRequests{}
 	for _, drift := range org.Drifts {
-		st, _, ok := store.GetStackByMetaID(org, drift.StackMetaID)
+		st, _, ok := store.GetStackByMetaID(org, drift.StackMetaID, drift.StackTarget)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
-			writeString(w, fmt.Sprintf("stack not found %s", drift.StackMetaID))
+			writeString(w, fmt.Sprintf("stack not found %s:%s", drift.StackMetaID, drift.StackTarget))
 			return
 		}
 		res = append(res, cloud.DriftStackPayloadRequest{

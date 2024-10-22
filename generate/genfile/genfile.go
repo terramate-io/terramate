@@ -9,6 +9,7 @@ import (
 	"path"
 	"sort"
 
+	"github.com/gobwas/glob"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -17,9 +18,9 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
 
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -37,6 +38,12 @@ const (
 
 	// ErrConditionEval indicates an error when evaluating the condition attribute.
 	ErrConditionEval errors.Kind = "evaluating condition"
+
+	// ErrInheritEval indicates the failure to evaluate the inherit attribute.
+	ErrInheritEval errors.Kind = "evaluating inherit attribute"
+
+	// ErrInvalidInheritType indicates the inherit attribute has an invalid type.
+	ErrInvalidInheritType errors.Kind = "invalid inherit type"
 
 	// ErrLabelConflict indicates the two generate_file blocks
 	// have the same label.
@@ -60,6 +67,9 @@ type File struct {
 	condition bool
 	asserts   []config.Assert
 }
+
+// Builtin returns false for generate_file blocks.
+func (f File) Builtin() bool { return false }
 
 // Label of the original generate_file block.
 func (f File) Label() string {
@@ -120,7 +130,7 @@ func (f File) String() string {
 func Load(
 	root *config.Root,
 	st *config.Stack,
-	globals *eval.Object,
+	parentctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
@@ -137,18 +147,50 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(root, st, globals)
+
+		matchedAnyStackFilter := len(genFileBlock.StackFilters) == 0
+		for _, cond := range genFileBlock.StackFilters {
+			matched := true
+
+			for n, globs := range map[string][]glob.Glob{
+				"project path":    cond.ProjectPaths,
+				"repository path": cond.RepositoryPaths,
+			} {
+				if globs != nil && !hcl.MatchAnyGlob(globs, st.Dir.String()) {
+					log.Logger.Trace().Msgf("Skipping %q, %s doesn't match any filter in %v", st.Dir, n, globs)
+					matched = false
+					break
+				}
+			}
+
+			matchedAnyStackFilter = matchedAnyStackFilter || matched
+		}
+
+		if !matchedAnyStackFilter {
+			files = append(files, File{
+				label:     name,
+				origin:    genFileBlock.Range,
+				condition: false,
+			})
+			continue
+		}
+
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir.String(),
 			path.Dir(name)))
 
+		evalctx := parentctx.Copy()
+
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
-		file, err := Eval(genFileBlock, evalctx.Context)
+		dircfg, _ := root.Lookup(st.Dir)
+		file, skip, err := Eval(genFileBlock, dircfg, evalctx)
 		if err != nil {
 			return nil, err
 		}
-		files = append(files, file)
+		if !skip {
+			files = append(files, file)
+		}
 	}
 
 	sort.Slice(files, func(i, j int) bool {
@@ -159,21 +201,21 @@ func Load(
 }
 
 // Eval the generate_file block.
-func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
+func Eval(block hcl.GenFileBlock, cfg *config.Tree, evalctx *eval.Context) (file File, skip bool, err error) {
 	name := block.Label
-	err := lets.Load(block.Lets, evalctx)
+	err = lets.Load(block.Lets, evalctx)
 	if err != nil {
-		return File{}, err
+		return File{}, false, err
 	}
 
 	condition := true
 	if block.Condition != nil {
 		value, err := evalctx.Eval(block.Condition.Expr)
 		if err != nil {
-			return File{}, errors.E(ErrConditionEval, err)
+			return File{}, false, errors.E(ErrConditionEval, err)
 		}
 		if value.Type() != cty.Bool {
-			return File{}, errors.E(
+			return File{}, false, errors.E(
 				ErrInvalidConditionType,
 				"condition has type %s but must be boolean",
 				value.Type().FriendlyName(),
@@ -188,7 +230,30 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 			origin:    block.Range,
 			condition: condition,
 			context:   block.Context,
-		}, nil
+		}, false, nil
+	}
+
+	inherit := true
+	if block.Inherit != nil {
+		value, err := evalctx.Eval(block.Inherit.Expr)
+		if err != nil {
+			return File{}, false, errors.E(ErrInheritEval, err)
+		}
+
+		if value.Type() != cty.Bool {
+			return File{}, false, errors.E(
+				ErrInvalidInheritType,
+				`"inherit" has type %s but must be boolean`,
+				value.Type().FriendlyName(),
+			)
+		}
+
+		inherit = value.True()
+	}
+
+	if !inherit && block.Dir != cfg.Dir() {
+		// ignore non-inheritable block
+		return File{}, true, nil
 	}
 
 	asserts := make([]config.Assert, len(block.Asserts))
@@ -208,7 +273,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 	}
 
 	if err := assertsErrs.AsError(); err != nil {
-		return File{}, err
+		return File{}, false, err
 	}
 
 	if assertFailed {
@@ -218,16 +283,16 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 			condition: condition,
 			context:   block.Context,
 			asserts:   asserts,
-		}, nil
+		}, false, nil
 	}
 
 	value, err := evalctx.Eval(block.Content.Expr)
 	if err != nil {
-		return File{}, errors.E(ErrContentEval, err)
+		return File{}, false, errors.E(ErrContentEval, err)
 	}
 
 	if value.Type() != cty.String {
-		return File{}, errors.E(
+		return File{}, false, errors.E(
 			ErrInvalidContentType,
 			"content has type %s but must be string",
 			value.Type().FriendlyName(),
@@ -241,7 +306,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 		condition: condition,
 		context:   block.Context,
 		asserts:   asserts,
-	}, nil
+	}, false, nil
 }
 
 // loadGenFileBlocks will load all generate_file blocks.

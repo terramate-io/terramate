@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	. "github.com/terramate-io/terramate/test/hclutils"
@@ -403,7 +404,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							Experiments: []string{},
+							Experiments: nil,
 						},
 					},
 				},
@@ -433,12 +434,175 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "terramate.config.disable_safeguards with wrong type",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = 1
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 31, 68))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with wrong item type",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["A", 1, "B"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 43, 80))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with duplicates",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["A", "B", "A"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 45, 82))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards conflicts with deprecated configs",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["git-untracked"]
+
+								git {
+                                  check_untracked = false
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(7, 53, 152), End(7, 58, 157))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with invalid values",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["non-existent"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("cfg.tm", Start(4, 30, 67), End(4, 46, 83))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with empty set",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = []
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							DisableSafeguards: nil,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.disable_safeguards with correct values",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						    config {
+								disable_safeguards = ["git", "outdated-code"]
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							DisableSafeguards: safeguard.Keywords{
+								safeguard.Git,
+								safeguard.Outdated,
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
 }
 
 func TestHCLParserRootConfig(t *testing.T) {
+	ptr := func(s string) *string { return &s }
+	on := true
+	off := false
 	for _, tc := range []testcase{
 		{
 			name: "no config returns empty config",
@@ -538,7 +702,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 							Git: &hcl.GitConfig{
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      hcl.CheckIsUnset,
 							},
 						},
 					},
@@ -590,7 +754,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 								DefaultBranch:    "trunk",
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      hcl.CheckIsUnset,
 							},
 						},
 					},
@@ -608,7 +772,6 @@ func TestHCLParserRootConfig(t *testing.T) {
 								git {
 									default_branch          = "trunk"
 									default_remote          = "upstream"
-									default_branch_base_ref = "HEAD~2"
 									check_untracked         = false
 									check_uncommitted       = false
 									check_remote            = false
@@ -623,12 +786,11 @@ func TestHCLParserRootConfig(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch:        "trunk",
-								DefaultRemote:        "upstream",
-								DefaultBranchBaseRef: "HEAD~2",
-								CheckUntracked:       false,
-								CheckUncommitted:     false,
-								CheckRemote:          false,
+								DefaultBranch:    "trunk",
+								DefaultRemote:    "upstream",
+								CheckUntracked:   false,
+								CheckUncommitted: false,
+								CheckRemote:      hcl.CheckIsFalse,
 							},
 						},
 					},
@@ -656,7 +818,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 							Git: &hcl.GitConfig{
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      hcl.CheckIsUnset,
 							},
 						},
 					},
@@ -740,6 +902,226 @@ func TestHCLParserRootConfig(t *testing.T) {
 						Config: &hcl.RootConfig{
 							Cloud: &hcl.CloudConfig{
 								Organization: "my-org",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate.hcl_magic_header_comment_style = //",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									hcl_magic_header_comment_style = "//"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Generate: &hcl.GenerateRootConfig{
+								HCLMagicHeaderCommentStyle: ptr("//"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate.hcl_magic_header_comment_style = #",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									hcl_magic_header_comment_style = "#"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Generate: &hcl.GenerateRootConfig{
+								HCLMagicHeaderCommentStyle: ptr("#"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = auto",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "auto"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntChangeDetectionConfig{
+									Enabled: hcl.TerragruntAutoOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = off",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "off"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntChangeDetectionConfig{
+									Enabled: hcl.TerragruntOffOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.change_detection.terragrunt.enabled = force",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  terragrunt {
+							    enabled = "force"
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Terragrunt: &hcl.TerragruntChangeDetectionConfig{
+									Enabled: hcl.TerragruntForceOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "disabling terramate.config.change_detection.git",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  git {
+							    untracked = "off"
+								uncommitted = false
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Git: &hcl.GitChangeDetectionConfig{
+									Untracked:   &off,
+									Uncommitted: &off,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "enabling terramate.config.change_detection.git",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  git {
+							    untracked = "on"
+								uncommitted = true
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Git: &hcl.GitChangeDetectionConfig{
+									Untracked:   &on,
+									Uncommitted: &on,
+								},
 							},
 						},
 					},
@@ -919,6 +1301,175 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "terramate.config.generate.hcl_magic_header_comment_style is not string -- fail",
+			input: []cfgfile{
+				{
+					filename: "tm.tm",
+					body: `
+					terramate {
+						config {
+							generate {
+								hcl_magic_header_comment_style = 1
+							}
+						}
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("tm.tm", Start(5, 42, 92), End(5, 43, 93))),
+				},
+			},
+		},
+		{
+			name: "terramate.config.generate..hcl_magic_header_comment_style with unknown value",
+			input: []cfgfile{
+				{
+					filename: "tm.tm",
+					body: `
+					terramate {
+						config {
+							generate {
+								hcl_magic_header_comment_style = "/*"
+							}
+						}
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("tm.tm", Start(5, 42, 92), End(5, 46, 96))),
+				},
+			},
+		},
+		{
+			name: "generate_file with inherit and context=root -- fails",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+					generate_file "test.tf" {
+						content = "fail"
+						context = root
+						inherit = false
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+	} {
+		testParser(t, tc)
+	}
+}
+
+func TestHCLParserGenerateStackFilters(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name: "generate_file - invalid project_paths list",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_file "test.tf" {
+							stack_filter { project_paths = "*" }
+							content = "foo"
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_hcl - invalid project_paths list",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_hcl "test.tf" {
+							stack_filter { project_paths = "*" }
+							content { foo = "bar" }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file - invalid project_paths list element",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_file "test.tf" {
+							stack_filter { project_paths = ["blah", 1] }
+							content = "foo"
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_hcl - invalid project_paths list element",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_hcl "test.tf" {
+							stack_filter { project_paths = ["blah", 1] }
+							content { foo = "bar" }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file - invalid context",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+						generate_file "test.tf" {
+							context = root
+							stack_filter { project_paths = ["blah"] }
+							content = "foo"
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
@@ -959,7 +1510,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 								DefaultBranch:    "trunk",
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      hcl.CheckIsUnset,
 							},
 						},
 					},
@@ -1014,7 +1565,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 								DefaultBranch:    "trunk",
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      hcl.CheckIsUnset,
 							},
 						},
 					},
@@ -1114,7 +1665,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
-			name:     "terramate in non-root directory fails",
+			name:     "terramate.config.git in non-root directory fails",
 			parsedir: "stack",
 			input: []cfgfile{
 				{
@@ -1129,14 +1680,18 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 					filename: "stack/terramate.tm",
 					body: `
 						terramate {
+							config {
+								git {
 
+								}
+							}
 						}
 					`,
 				},
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrUnexpectedTerramate),
+					errors.E(hcl.ErrTerramateSchema),
 				},
 			},
 		},
@@ -1182,7 +1737,9 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 }
 
 func testParser(t *testing.T, tc testcase) {
+	t.Helper()
 	t.Run(tc.name, func(t *testing.T) {
+		t.Helper()
 		t.Parallel()
 		configsDir := test.TempDir(t)
 		for _, inputConfigFile := range tc.input {

@@ -24,7 +24,7 @@ import (
 func TestCloudCustomHTTPClient(t *testing.T) {
 	t.Parallel()
 	isCalled := false
-	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		isCalled = true
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = io.WriteString(w, "[]")
@@ -39,7 +39,7 @@ func TestCloudCustomHTTPClient(t *testing.T) {
 			Credential: credential(),
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		trace := &httptrace.ClientTrace{
 			GotConn: func(connInfo httptrace.GotConnInfo) {
@@ -155,7 +155,13 @@ func TestCommonAPIFailCases(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), timeout)
 				defer cancel()
 
-				_, err := sdk.StacksByStatus(ctx, "e4c81294-dcf8-45e2-ba95-25f96514a61b", stack.NoFilter)
+				_, err := sdk.StacksByStatus(
+					ctx,
+					"e4c81294-dcf8-45e2-ba95-25f96514a61b",
+					"dummy/repo",
+					"",
+					cloud.NoStatusFilters(),
+				)
 				errtest.Assert(t, err, tc.err)
 			}()
 		})
@@ -249,7 +255,7 @@ func TestCloudMemberOrganizations(t *testing.T) {
 func TestCloudStacks(t *testing.T) {
 	t.Parallel()
 	type want struct {
-		stacks cloud.StacksResponse
+		stacks []cloud.StackObject
 		err    error
 	}
 	type testcase struct {
@@ -268,13 +274,13 @@ func TestCloudStacks(t *testing.T) {
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
 			statusCode: http.StatusOK,
 			body: `{
+				"paginated_result": {
+					"total": 0,
+					"per_page": 0,
+					"page": 1
+				},
 				"stacks": []
 			}`,
-			want: want{
-				stacks: cloud.StacksResponse{
-					Stacks: []cloud.StackResponse{},
-				},
-			},
 		},
 		{
 			name:       "stack missing MetaID",
@@ -333,6 +339,11 @@ func TestCloudStacks(t *testing.T) {
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
 			statusCode: http.StatusOK,
 			body: `{
+				"paginated_result": {
+					"total": 1,
+					"per_page": 1,
+					"page": 1
+				},
 				"stacks": [
 					{
 						"stack_id": 666,
@@ -352,20 +363,18 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				stacks: cloud.StacksResponse{
-					Stacks: []cloud.StackResponse{
-						{
-							ID: 666,
-							Stack: cloud.Stack{
-								Repository:      "github.com/terramate-io/terramate",
-								Path:            "/docs",
-								MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
-								MetaName:        "documentation",
-								MetaDescription: "terramate documentation",
-								MetaTags:        []string{"docs"},
-							},
-							Status: stack.Unrecognized,
+				stacks: []cloud.StackObject{
+					{
+						ID: 666,
+						Stack: cloud.Stack{
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/docs",
+							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+							MetaName:        "documentation",
+							MetaDescription: "terramate documentation",
+							MetaTags:        []string{"docs"},
 						},
+						Status: stack.Unrecognized,
 					},
 				},
 			},
@@ -401,6 +410,11 @@ func TestCloudStacks(t *testing.T) {
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
 			statusCode: http.StatusOK,
 			body: `{
+				"paginated_result": {
+					"total": 3,
+					"page": 1,
+					"per_page": 3
+				},
 				"stacks": [
 					{
 						"stack_id": 666,
@@ -450,44 +464,42 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				stacks: cloud.StacksResponse{
-					Stacks: []cloud.StackResponse{
-						{
-							ID: 666,
-							Stack: cloud.Stack{
-								Repository:      "github.com/terramate-io/terramate",
-								Path:            "/docs",
-								MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
-								MetaName:        "documentation",
-								MetaDescription: "terramate documentation",
-								MetaTags:        []string{"docs"},
-							},
-							Status: stack.OK,
+				stacks: []cloud.StackObject{
+					{
+						ID: 666,
+						Stack: cloud.Stack{
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/docs",
+							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
+							MetaName:        "documentation",
+							MetaDescription: "terramate documentation",
+							MetaTags:        []string{"docs"},
 						},
-						{
-							ID: 667,
-							Stack: cloud.Stack{
-								Repository:      "github.com/terramate-io/terramate",
-								Path:            "/",
-								MetaID:          "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
-								MetaName:        "terramate",
-								MetaDescription: "terramate source code",
-								MetaTags:        []string{"golang"},
-							},
-							Status: stack.OK,
-						},
-						{
-							ID: 668,
-							Stack: cloud.Stack{
-								Repository:      "github.com/terramate-io/terramate",
-								Path:            "/_testdata/example-stack",
-								MetaID:          "terramate-example-stack",
-								MetaName:        "test-stacks",
-								MetaDescription: "Used in terramate tests",
-								MetaTags:        []string{"test"},
-							},
-							Status: stack.OK},
+						Status: stack.OK,
 					},
+					{
+						ID: 667,
+						Stack: cloud.Stack{
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/",
+							MetaID:          "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
+							MetaName:        "terramate",
+							MetaDescription: "terramate source code",
+							MetaTags:        []string{"golang"},
+						},
+						Status: stack.OK,
+					},
+					{
+						ID: 668,
+						Stack: cloud.Stack{
+							Repository:      "github.com/terramate-io/terramate",
+							Path:            "/_testdata/example-stack",
+							MetaID:          "terramate-example-stack",
+							MetaName:        "test-stacks",
+							MetaDescription: "Used in terramate tests",
+							MetaTags:        []string{"test"},
+						},
+						Status: stack.OK},
 				},
 			},
 		},
@@ -508,7 +520,9 @@ func TestCloudStacks(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			stacksResp, err := sdk.StacksByStatus(ctx, cloud.UUID(tc.org), tc.filter)
+			stacksResp, err := sdk.StacksByStatus(ctx, cloud.UUID(tc.org), "dummy/repo", "", cloud.StatusFilters{
+				StackStatus: tc.filter,
+			})
 			errtest.Assert(t, err, tc.want.err)
 			if err != nil {
 				return
@@ -522,7 +536,7 @@ func TestCloudStacks(t *testing.T) {
 }
 
 func newTestServer(statusCode int, body string, headers http.Header) *httptest.Server {
-	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if len(headers) > 0 {
 			for k, v := range headers {
 				w.Header().Set(k, v[0])

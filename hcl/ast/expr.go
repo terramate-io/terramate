@@ -5,14 +5,12 @@ package ast
 
 import (
 	"fmt"
-	"strings"
+	"math/big"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // ParseExpression parses the expression str.
@@ -32,20 +30,9 @@ func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	return tokens
 }
 
-// TokensForValue returns the tokens for the provided value.
-func TokensForValue(value cty.Value) hclwrite.Tokens {
-	if value.Type() == customdecode.ExpressionClosureType {
-		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
-		return TokensForExpression(closureExpr.Expression)
-	} else if value.Type() == customdecode.ExpressionType {
-		return TokensForExpression(customdecode.ExpressionFromVal(value))
-	}
-	return hclwrite.TokensForValue(value)
-}
-
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	builder := tokenBuilder{}
-	builder.build(expr)
+	builder.fromExpr(expr)
 	return builder.tokens
 }
 
@@ -57,7 +44,7 @@ func (builder *tokenBuilder) add(tokens ...*hclwrite.Token) {
 	builder.tokens = append(builder.tokens, tokens...)
 }
 
-func (builder *tokenBuilder) build(expr hcl.Expression) {
+func (builder *tokenBuilder) fromExpr(expr hcl.Expression) {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		builder.literalTokens(e)
@@ -198,12 +185,12 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 
 func (builder *tokenBuilder) templateWrapTokens(tmpl *hclsyntax.TemplateWrapExpr) {
 	builder.add(oquote(), interpBegin())
-	builder.build(tmpl.Wrapped)
+	builder.fromExpr(tmpl.Wrapped)
 	builder.add(interpEnd(), cquote())
 }
 
 func (builder *tokenBuilder) binOpTokens(binop *hclsyntax.BinaryOpExpr) {
-	builder.build(binop.LHS)
+	builder.fromExpr(binop.LHS)
 	var op *hclwrite.Token
 	switch binop.Op {
 	case hclsyntax.OpAdd:
@@ -238,7 +225,7 @@ func (builder *tokenBuilder) binOpTokens(binop *hclsyntax.BinaryOpExpr) {
 	op.SpacesBefore = 1
 	builder.add(op)
 	nexttok := len(builder.tokens)
-	builder.build(binop.RHS)
+	builder.fromExpr(binop.RHS)
 	builder.tokens[nexttok].SpacesBefore = 1
 }
 
@@ -251,19 +238,19 @@ func (builder *tokenBuilder) unaryOpTokens(unary *hclsyntax.UnaryOpExpr) {
 	default:
 		panic(fmt.Sprintf("value %+v is unexpected\n", unary.Op))
 	}
-	builder.build(unary.Val)
+	builder.fromExpr(unary.Val)
 }
 
 func (builder *tokenBuilder) parenExprTokens(parenExpr *hclsyntax.ParenthesesExpr) {
 	builder.add(oparen())
-	builder.build(parenExpr.Expression)
+	builder.fromExpr(parenExpr.Expression)
 	builder.add(cparen())
 }
 
 func (builder *tokenBuilder) tupleTokens(tuple *hclsyntax.TupleConsExpr) {
 	builder.add(obrack())
 	for i, expr := range tuple.Exprs {
-		builder.build(expr)
+		builder.fromExpr(expr)
 		if i+1 != len(tuple.Exprs) {
 			builder.add(comma())
 		}
@@ -277,10 +264,10 @@ func (builder *tokenBuilder) objectTokens(obj *hclsyntax.ObjectConsExpr) {
 		builder.add(nl())
 	}
 	for _, item := range obj.Items {
-		builder.build(item.KeyExpr)
+		builder.fromExpr(item.KeyExpr)
 		builder.add(assign(1))
 		nexttok := len(builder.tokens)
-		builder.build(item.ValueExpr)
+		builder.fromExpr(item.ValueExpr)
 		builder.tokens[nexttok].SpacesBefore = 1
 		builder.add(nl())
 	}
@@ -289,13 +276,13 @@ func (builder *tokenBuilder) objectTokens(obj *hclsyntax.ObjectConsExpr) {
 
 func (builder *tokenBuilder) objectKeyTokens(key *hclsyntax.ObjectConsKeyExpr) {
 	// TODO(i4k): review the case for key.ForceNonLiteral = true|false
-	builder.build(key.Wrapped)
+	builder.fromExpr(key.Wrapped)
 }
 
 func (builder *tokenBuilder) funcallTokens(fn *hclsyntax.FunctionCallExpr) {
 	builder.add(ident(fn.Name, 0), oparen())
 	for i, expr := range fn.Args {
-		builder.build(expr)
+		builder.fromExpr(expr)
 		if i+1 != len(fn.Args) {
 			builder.add(comma())
 		}
@@ -307,11 +294,11 @@ func (builder *tokenBuilder) funcallTokens(fn *hclsyntax.FunctionCallExpr) {
 }
 
 func (builder *tokenBuilder) conditionalTokens(cond *hclsyntax.ConditionalExpr) {
-	builder.build(cond.Condition)
+	builder.fromExpr(cond.Condition)
 	builder.add(question())
-	builder.build(cond.TrueResult)
+	builder.fromExpr(cond.TrueResult)
 	builder.add(colon())
-	builder.build(cond.FalseResult)
+	builder.fromExpr(cond.FalseResult)
 }
 
 func (builder *tokenBuilder) forExprTokens(forExpr *hclsyntax.ForExpr) {
@@ -340,11 +327,11 @@ func (builder *tokenBuilder) forExprTokens(forExpr *hclsyntax.ForExpr) {
 	builder.add(in...)
 	builder.add(colon())
 	if forExpr.KeyExpr != nil {
-		builder.build(forExpr.KeyExpr)
+		builder.fromExpr(forExpr.KeyExpr)
 		builder.add(arrow())
-		builder.build(forExpr.ValExpr)
+		builder.fromExpr(forExpr.ValExpr)
 	} else {
-		builder.build(forExpr.ValExpr)
+		builder.fromExpr(forExpr.ValExpr)
 	}
 	if forExpr.Group {
 		builder.add(ellipsis())
@@ -352,25 +339,25 @@ func (builder *tokenBuilder) forExprTokens(forExpr *hclsyntax.ForExpr) {
 	if forExpr.CondExpr != nil {
 		builder.add(ident("if", 1))
 		nexttok := len(builder.tokens)
-		builder.build(forExpr.CondExpr)
+		builder.fromExpr(forExpr.CondExpr)
 		builder.tokens[nexttok].SpacesBefore = 1
 	}
 	builder.add(end)
 }
 
 func (builder *tokenBuilder) indexTokens(index *hclsyntax.IndexExpr) {
-	builder.build(index.Collection)
+	builder.fromExpr(index.Collection)
 	builder.add(obrack())
-	builder.build(index.Key)
+	builder.fromExpr(index.Key)
 	builder.add(cbrack())
 }
 
 func (builder *tokenBuilder) splatTokens(splat *hclsyntax.SplatExpr) {
-	builder.build(splat.Source)
+	builder.fromExpr(splat.Source)
 	builder.add(obrack())
 	builder.add(star())
 	builder.add(cbrack())
-	builder.build(splat.Each)
+	builder.fromExpr(splat.Each)
 }
 
 func (builder *tokenBuilder) scopeTraversalTokens(scope *hclsyntax.ScopeTraversalExpr) {
@@ -398,7 +385,7 @@ func (builder *tokenBuilder) traversalTokens(traversals hcl.Traversal) {
 }
 
 func (builder *tokenBuilder) relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) {
-	builder.build(traversal.Source)
+	builder.fromExpr(traversal.Source)
 	builder.traversalTokens(traversal.Traversal)
 }
 
@@ -449,32 +436,50 @@ func isHeredoc(bytes []byte) bool {
 }
 
 func renderString(bytes []byte) []byte {
-	type replace struct {
-		old string
-		new string
+	length := len(bytes)
+	if length < 2 {
+		return bytes
 	}
-	str := string(bytes)
-	for _, r := range []replace{
-		{
-			old: "\\\\",
-			new: "\\",
-		},
-		{
-			old: "\\t",
-			new: "\t",
-		},
-		{
-			old: "\\n",
-			new: "\n",
-		},
-		{
-			old: `\"`,
-			new: `"`,
-		},
-	} {
-		str = strings.ReplaceAll(str, r.old, r.new)
+	// a new slice is needed to avoid modifying the original bytes.
+	out := make([]byte, 0, length)
+	for i := 0; i < length; i++ {
+		r := bytes[i]
+		if r != '\\' {
+			out = append(out, r)
+			continue
+		}
+
+		if i == length-1 {
+			out = append(out, '\\')
+			break
+		}
+
+		i++
+		r = bytes[i]
+
+		switch r {
+		default:
+			out = append(out, '\\')
+			out = append(out, r)
+		case '\\':
+			out = append(out, '\\')
+		case 'n':
+			out = append(out, '\n')
+		case 't':
+			out = append(out, '\t')
+		case '"':
+			out = append(out, '"')
+		}
 	}
-	return []byte(str)
+	return out
+}
+
+func num(n *big.Float) *hclwrite.Token {
+	srcStr := n.Text('f', -1)
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenNumberLit,
+		Bytes: []byte(srcStr),
+	}
 }
 
 func obrace() *hclwrite.Token {

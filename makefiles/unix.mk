@@ -31,20 +31,42 @@ test/testserver:
 ## build the helper binary
 .PHONY: test/helper
 test/helper:
-	go build -o bin/helper ./cmd/terramate/e2etests/cmd/helper
+	go build -o bin/helper ./e2etests/cmd/helper
 
 ## test code
 .PHONY: test
 tempdir=$(shell ./bin/helper tempdir)
 test: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
-	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 ./...
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -timeout 30m ./...
 	./bin/helper rm $(tempdir)
 
-## test if terramate works with CI git environment.
-.PHONY: test/ci
-test/ci: build
-	./bin/terramate list --changed
+## test/sync code
+.PHONY: test/sync
+tempdir=$(shell ./bin/helper tempdir)
+test/sync: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
+	TMC_API_HOST=api.stg.terramate.io \
+	TM_TEST_ROOT_TEMPDIR=$(tempdir)   \
+	TM_CLOUD_ORGANIZATION=test        \
+	GITHUB_TOKEN=$(shell cat ../my_github_token.txt) \
+	NO_COLOR=1 \
+	CI=1 \
+	./bin/terramate script run --tags golang --parallel=10 preview
+	./bin/helper rm $(tempdir)
+
+## test/interop
+.PHONY: test/interop
+test/interop: org?=test
+test/interop: backend_host?=api.stg.terramate.io
+test/interop:
+	TM_CLOUD_ORGANIZATION=$(org) TMC_API_HOST=$(backend_host) go test -v -count=1 -tags interop ./e2etests/cloud/interop/...
+
+## graph2png
+.PHONY: graph2png
+graph2png:
+	./bin/terramate experimental run-graph | dot -Tpng > graph.png
+	@echo "check the image: graph.png"
 
 ## check go modules are tidy
 .PHONY: mod/check

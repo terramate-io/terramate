@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/test/hclutils"

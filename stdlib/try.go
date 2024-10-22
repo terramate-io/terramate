@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
+	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/ext/customdecode"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -22,7 +22,7 @@ func TryFunc() function.Function {
 			Type: customdecode.ExpressionClosureType,
 		},
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return try(args)
 		},
 	})
@@ -39,17 +39,10 @@ func try(args []cty.Value) (cty.Value, error) {
 	var diags hcl.Diagnostics
 	for _, arg := range args {
 		closure := customdecode.ExpressionClosureFromVal(arg)
-		if dependsOnAnyNonFailingUnknowns(closure.Expression, closure.EvalContext) {
-			// We can't safely decide if this expression will succeed yet,
-			// and so our entire result must be unknown until we have
-			// more information.
-			return cty.DynamicVal, nil
-		}
-
 		v, moreDiags := closure.Value()
 		diags = append(diags, moreDiags...)
 		if moreDiags.HasErrors() {
-			continue // try the next one, if there is one to try
+			continue
 		}
 		return v, nil // ignore any accumulated diagnostics if one succeeds
 	}
@@ -74,17 +67,4 @@ func try(args []cty.Value) (cty.Value, error) {
 	}
 	buf.WriteString("\nAt least one expression must produce a successful result")
 	return cty.NilVal, errors.New(buf.String())
-}
-
-func dependsOnAnyNonFailingUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
-	for _, traversal := range expr.Variables() {
-		val, diags := traversal.TraverseAbs(ctx)
-		if diags.HasErrors() {
-			continue
-		}
-		if !val.IsWhollyKnown() {
-			return true
-		}
-	}
-	return false
 }

@@ -1,7 +1,7 @@
 GO_RELEASER_VERSION=v1.14.0
-GOLANGCI_LINT_VERSION ?= v1.52.2
+GOLANGCI_LINT_VERSION ?= v1.60.3
 COVERAGE_REPORT ?= coverage.txt
-RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**'
+RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**' -ignore '.tmtriggers/**' -ignore '**/*.tf'
 BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
 
 ## Build terramate tools into bin directory
@@ -19,6 +19,11 @@ build/terramate:
 build/terramate-ls:
 	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/terramate-ls$(EXEC_SUFFIX) ./cmd/terramate-ls
 
+## Build tgdeps
+.PHONY: build/tgdeps
+build/tgdeps:
+	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/tgdeps$(EXEC_SUFFIX) ./cmd/tgdeps
+
 ## Install terramate tools on the host
 .PHONY: install
 install: install/terramate install/terramate-ls
@@ -34,6 +39,11 @@ install/terramate:
 install/terramate-ls:
 	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate-ls
 
+## Install tgdeps
+.PHONY: install/tgdeps
+install/tgdeps:
+	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/tgdeps
+
 .PHONY: generate
 generate:
 	./bin/terramate generate
@@ -46,7 +56,7 @@ fmt:
 ## lint code
 .PHONY: lint
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run .
 
 ## tidy up go modules
 .PHONY: mod
@@ -132,12 +142,12 @@ bench/cleanup:
 ## executes a dry run of the release process
 .PHONY: release/dry-run
 release/dry-run:
-	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --snapshot --rm-dist
+	goreleaser release --snapshot --rm-dist 
 
 ## generates a terramate release
 .PHONY: release
 release:
-	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
+	goreleaser release --rm-dist --key $(GORELEASER_KEY)
 
 ## sync the Terramate example stack with a success status.
 .PHONY: cloud/sync/ok
@@ -146,7 +156,7 @@ cloud/sync/ok: build test/helper
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
 			--tags test \
-			run --cloud-sync-deployment --  \
+			run --sync-deployment --  \
 			$(PWD)/bin/helper true
 
 ## sync the Terramate example stack with a failed status.
@@ -156,7 +166,7 @@ cloud/sync/failed: build test/helper
 			--disable-check-git-untracked   \
 			--disable-check-git-uncommitted \
 			--tags test \
-			run --cloud-sync-deployment --  \
+			run --sync-deployment --  \
 			$(PWD)/bin/helper false
 
 ## Display help for all targets

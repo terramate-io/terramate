@@ -257,7 +257,7 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root, vendorDir, nil)
+	report := generate.Do(root, project.NewPath("/"), vendorDir, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
@@ -278,7 +278,7 @@ func (s S) LoadStack(dir project.Path) *config.Stack {
 func (s S) LoadStacks() config.List[*config.SortableStack] {
 	s.t.Helper()
 
-	entries, err := stack.List(s.Config().Tree())
+	entries, err := stack.List(s.Config(), s.Config().Tree())
 	assert.NoError(s.t, err)
 
 	var stacks config.List[*config.SortableStack]
@@ -437,7 +437,7 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 func (de DirEntry) ListGenFiles(root *config.Root) []string {
 	de.t.Helper()
 
-	files, err := generate.ListGenFiles(root, de.abspath)
+	files, err := generate.ListStackGenFiles(root, de.abspath)
 	assert.NoError(de.t, err, "listing dir generated files")
 	return files
 }
@@ -695,7 +695,7 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 			case "tags":
 				cfg.Stack.Tags = parseListSpec(t, name, value)
 			default:
-				t.Fatalf("attribute " + parts[0] + " not supported.")
+				t.Fatal("attribute " + parts[0] + " not supported.")
 			}
 		}
 
@@ -806,7 +806,7 @@ func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTr
 
 	if opts.withStrictStacks {
 		gotStrictStacks := []string{}
-		stackEntries, err := stack.List(root.Tree())
+		stackEntries, err := stack.List(root, root.Tree())
 		assert.NoError(t, err)
 
 		for _, st := range stackEntries {

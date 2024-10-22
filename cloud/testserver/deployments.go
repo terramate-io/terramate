@@ -57,6 +57,14 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// NOTE(i4k): The metadata is not required but must be present in all test cases.
+	err = validateMetadata(rPayload.Metadata)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
 	stackCommands := map[string]string{}
 
 	// deployment commit_sha is not required but must be present in all test cases.
@@ -80,11 +88,14 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var stackIDs []int
+	var stackIDs []int64
 	res := cloud.DeploymentStacksResponse{}
 	for _, s := range rPayload.Stacks {
+		if s.Stack.Target == "" {
+			s.Stack.Target = "default"
+		}
 		state := cloudstore.NewState()
-		gotStack, _, found := store.GetStackByMetaID(org, s.Stack.MetaID)
+		gotStack, _, found := store.GetStackByMetaID(org, s.Stack.MetaID, s.Stack.Target)
 		if found {
 			state = gotStack.State
 		}

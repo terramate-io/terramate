@@ -7,27 +7,31 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/stack"
 )
 
 type project struct {
-	rootdir        string
-	wd             string
-	isRepo         bool
-	root           config.Root
-	baseRef        string
-	normalizedRepo string
+	rootdir      string
+	wd           string
+	isRepo       bool
+	root         config.Root
+	baseRef      string
+	repository   *git.Repository
+	stackManager *stack.Manager
 
 	git struct {
 		wrapper                   *git.Git
 		headCommit                string
 		localDefaultBranchCommit  string
 		remoteDefaultBranchCommit string
+
+		remoteConfigured bool
+		branchConfigured bool
 
 		repoChecks stack.RepoChecks
 	}
@@ -37,45 +41,61 @@ func (p project) gitcfg() *hcl.GitConfig {
 	return p.root.Tree().Node.Terramate.Config.Git
 }
 
-func (p *project) prettyRepo() string {
-	if p.normalizedRepo != "" {
-		return p.normalizedRepo
+func (p *project) repo() (*git.Repository, error) {
+	if !p.isRepo {
+		panic(errors.E(errors.ErrInternal, "called without a repository"))
 	}
-	if p.isRepo {
-		repoURL, err := p.git.wrapper.URL(p.gitcfg().DefaultRemote)
-		if err == nil {
-			p.normalizedRepo = cloud.NormalizeGitURI(repoURL)
-		} else {
-			logger := log.With().
-				Str("action", "project.prettyRepo").
-				Logger()
+	if p.repository != nil {
+		return p.repository, nil
+	}
+	repoURL, err := p.git.wrapper.URL(p.gitcfg().DefaultRemote)
+	if err != nil {
+		return nil, err
+	}
+	r, err := git.NormalizeGitURI(repoURL)
+	if err != nil {
+		return nil, err
+	}
+	p.repository = &r
+	return p.repository, nil
+}
 
-			logger.
-				Warn().
-				Err(err).
-				Msg("failed to retrieve repository URL")
-		}
+func (p *project) prettyRepo() string {
+	r, err := p.repo()
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to retrieve repository URL", err)
+		return "<invalid>"
 	}
-	return p.normalizedRepo
+	return r.Repo
 }
 
 func (p *project) localDefaultBranchCommit() string {
 	if p.git.localDefaultBranchCommit != "" {
 		return p.git.localDefaultBranchCommit
 	}
-	logger := log.With().
-		Str("action", "localDefaultBranchCommit()").
-		Logger()
-
 	gitcfg := p.gitcfg()
 	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
 	val, err := p.git.wrapper.RevParse(refName)
 	if err != nil {
-		logger.Fatal().Err(err).Send()
+		fatalWithDetailf(err, "unable to git rev-parse")
 	}
 
 	p.git.localDefaultBranchCommit = val
 	return val
+}
+
+func (p *project) isGitFeaturesEnabled() bool {
+	return p.isRepo && p.hasCommit()
+}
+
+func (p *project) hasCommit() bool {
+	_, err := p.git.wrapper.RevParse("HEAD")
+	return err == nil
+}
+
+func (p *project) hasCommits() bool {
+	_, err := p.git.wrapper.RevParse("HEAD^")
+	return err == nil
 }
 
 func (p *project) headCommit() string {
@@ -83,13 +103,9 @@ func (p *project) headCommit() string {
 		return p.git.headCommit
 	}
 
-	logger := log.With().
-		Str("action", "headCommit()").
-		Logger()
-
 	val, err := p.git.wrapper.RevParse("HEAD")
 	if err != nil {
-		logger.Fatal().Err(err).Send()
+		fatalWithDetailf(err, "unable to git rev-parse")
 	}
 
 	p.git.headCommit = val
@@ -101,18 +117,15 @@ func (p *project) remoteDefaultCommit() string {
 		return p.git.remoteDefaultBranchCommit
 	}
 
-	logger := log.With().
-		Str("action", "remoteDefaultCommit()").
-		Logger()
-
 	gitcfg := p.gitcfg()
 	remoteRef, err := p.git.wrapper.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
-		logger.Fatal().Err(
+		fatalWithDetailf(
 			fmt.Errorf("fetching remote commit of %s/%s: %v",
 				gitcfg.DefaultRemote, gitcfg.DefaultBranch,
 				err,
-			)).Send()
+			),
+			"unable to fetch remote commit")
 	}
 
 	p.git.remoteDefaultBranchCommit = remoteRef.CommitID
@@ -135,16 +148,26 @@ func (p *project) isDefaultBranch() bool {
 
 // defaultBaseRef returns the baseRef for the current git environment.
 func (p *project) defaultBaseRef() string {
-	git := p.gitcfg()
 	if p.isDefaultBranch() &&
 		p.remoteDefaultCommit() == p.headCommit() {
-		_, err := p.git.wrapper.RevParse(git.DefaultBranchBaseRef)
+		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
 		if err == nil {
-			return git.DefaultBranchBaseRef
+			return defaultBranchBaseRef
 		}
 	}
-
 	return p.defaultBranchRef()
+}
+
+// defaultLocalBaseRef returns the baseRef in case there's no remote setup.
+func (p *project) defaultLocalBaseRef() string {
+	git := p.gitcfg()
+	if p.isDefaultBranch() {
+		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
+		if err == nil {
+			return defaultBranchBaseRef
+		}
+	}
+	return git.DefaultBranch
 }
 
 func (p project) defaultBranchRef() string {
@@ -181,15 +204,13 @@ func (p *project) setDefaults() error {
 
 	gitOpt := cfg.Terramate.Config.Git
 
-	if gitOpt.DefaultBranchBaseRef == "" {
-		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
-	}
-
-	if gitOpt.DefaultBranch == "" {
+	p.git.branchConfigured = gitOpt.DefaultBranch != ""
+	if !p.git.branchConfigured {
 		gitOpt.DefaultBranch = defaultBranch
 	}
 
-	if gitOpt.DefaultRemote == "" {
+	p.git.remoteConfigured = gitOpt.DefaultRemote != ""
+	if !p.git.remoteConfigured {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 
@@ -208,6 +229,7 @@ func (p project) checkDefaultRemote() error {
 
 	for _, remote := range remotes {
 		if remote.Name == gitcfg.DefaultRemote {
+			remote := remote
 			defRemote = &remote
 			break
 		}

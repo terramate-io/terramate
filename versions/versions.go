@@ -35,8 +35,6 @@ func Check(version string, constraint string, allowPrereleases bool) error {
 // Match checks if version matches the given constraint.
 // It only returns an error in the case of invalid version or constraint string.
 func Match(version, constraint string, allowPrereleases bool) (bool, error) {
-	var check func() bool
-
 	if allowPrereleases {
 		semver, err := versions.ParseVersion(version)
 		if err != nil {
@@ -49,24 +47,16 @@ func Match(version, constraint string, allowPrereleases bool) (bool, error) {
 		}
 
 		allowed := versions.MeetingConstraintsExact(spec)
-		check = func() bool {
-			return allowed.Has(semver)
-		}
-	} else {
-		spec, err := hclversion.NewConstraint(constraint)
-		if err != nil {
-			return false, errors.E(ErrCheck, err, "invalid constraint")
-		}
-
-		semver, err := hclversion.NewSemver(version)
-		if err != nil {
-			return false, errors.E(ErrCheck, err, "invalid version")
-		}
-
-		check = func() bool {
-			return spec.Check(semver)
-		}
+		return allowed.Has(semver), nil
 	}
 
-	return check(), nil
+	spec, err := hclversion.NewConstraint(constraint)
+	if err != nil {
+		return false, errors.E(ErrCheck, err, "invalid constraint")
+	}
+	semver, err := hclversion.NewSemver(version)
+	if err != nil {
+		return false, errors.E(ErrCheck, err, "invalid version")
+	}
+	return spec.Check(semver), nil
 }

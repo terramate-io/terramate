@@ -8,6 +8,7 @@ package git_test
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -134,6 +135,20 @@ func TestRevParse(t *testing.T) {
 	out, err := git.RevParse("main")
 	assert.NoError(t, err, "rev-parse failed")
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
+}
+
+func TestGitOptions(t *testing.T) {
+	t.Parallel()
+	repodir1 := mkOneCommitRepo(t)
+	repodir2 := mkOneCommitRepo(t)
+
+	git := test.NewGitWrapper(t, repodir1, []string{})
+	gotRepoDir1, err := git.Root()
+	assert.NoError(t, err, "root failed")
+	assert.EqualStrings(t, repodir1, gotRepoDir1)
+	gotRepoDir2, err := git.With().WorkingDir(repodir2).Wrapper().Root()
+	assert.NoError(t, err)
+	assert.EqualStrings(t, repodir2, gotRepoDir2)
 }
 
 func TestClone(t *testing.T) {
@@ -447,10 +462,57 @@ func TestGetConfigValue(t *testing.T) {
 	assert.Error(t, err, "git config: non-existing key")
 }
 
+func TestListDirtyFiles(t *testing.T) {
+	t.Parallel()
+	const (
+		remote = "origin"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	g := test.NewGitWrapper(t, repodir, []string{})
+
+	remoteDir := test.EmptyRepo(t, true)
+
+	assert.NoError(t, g.RemoteAdd(remote, remoteDir))
+	assert.NoError(t, g.Push(remote, defaultBranch))
+
+	untracked, uncommitted, err := g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(untracked))
+	assert.EqualInts(t, 0, len(uncommitted))
+
+	test.WriteFile(t, repodir, "test.txt", "some content")
+	untracked, uncommitted, err = g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 1, len(untracked))
+	assert.EqualInts(t, 0, len(uncommitted))
+	assert.EqualStrings(t, "test.txt", untracked[0])
+
+	test.WriteFile(t, filepath.Join(repodir, "deep/nested/path"), "test.txt", "some content")
+	untracked, uncommitted, err = g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 2, len(untracked))
+	assert.EqualInts(t, 0, len(uncommitted))
+	assert.EqualStrings(t, "test.txt", untracked[0])
+	assert.EqualStrings(t, "deep/nested/path/test.txt", untracked[1])
+
+	test.WriteFile(t, repodir, "README.md", "# changed")
+	untracked, uncommitted, err = g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 2, len(untracked))
+	assert.EqualInts(t, 1, len(uncommitted))
+	assert.EqualStrings(t, "test.txt", untracked[0])
+	assert.EqualStrings(t, "deep/nested/path/test.txt", untracked[1])
+	assert.EqualStrings(t, "README.md", uncommitted[0])
+
+}
+
 const defaultBranch = "main"
 
 func mkOneCommitRepo(t *testing.T) string {
-	repodir := test.EmptyRepo(t, false)
+	dir := test.EmptyRepo(t, false)
+	repodir, err := filepath.EvalSymlinks(dir)
+	assert.NoError(t, err)
 
 	// Fixing all the information used to create the SHA-1 below:
 	// CommitID: a022c39b57b1e711fb9298a05aacc699773e6d36
@@ -470,7 +532,7 @@ func mkOneCommitRepo(t *testing.T) string {
 	filename := test.WriteFile(t, repodir, "README.md", "# Test")
 	assert.NoError(t, gw.Add(filename), "git add %s", filename)
 
-	err := gw.Commit("some message")
+	err = gw.Commit("some message")
 	assert.NoError(t, err, "commit")
 
 	return repodir

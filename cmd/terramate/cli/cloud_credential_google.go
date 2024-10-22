@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	stdjson "encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"math/rand"
@@ -27,6 +28,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 )
 
 const (
@@ -48,9 +50,10 @@ type (
 		refreshToken string
 		jwtClaims    jwt.MapClaims
 		expireAt     time.Time
-		email        string
 		orgs         cloud.MemberOrganizations
 		user         cloud.User
+
+		provider string
 
 		output out.O
 		clicfg cliconfig.Config
@@ -65,21 +68,26 @@ type (
 	}
 
 	credentialInfo struct {
-		ProviderID       string `json:"providerId"`
-		Email            string `json:"email"`
-		DisplayName      string `json:"displayName"`
-		LocalID          string `json:"localId"`
-		IDToken          string `json:"idToken"`
-		Context          string `json:"context"`
-		OauthAccessToken string `json:"oauthAccessToken"`
-		OauthExpireIn    int    `json:"oauthExpireIn"`
-		RefreshToken     string `json:"refreshToken"`
-		ExpiresIn        string `json:"expiresIn"`
-		OauthIDToken     string `json:"oauthIdToken"`
-		RawUserInfo      string `json:"rawUserInfo"`
+		ProviderID        providerID `json:"providerId"`
+		Email             string     `json:"email,omitempty"`
+		EmailVerified     bool       `json:"emailVerified,omitempty"`
+		DisplayName       string     `json:"displayName"`
+		ScreenName        string     `json:"screenName"`
+		LocalID           string     `json:"localId"`
+		IDToken           string     `json:"idToken"`
+		Context           string     `json:"context"`
+		OauthAccessToken  string     `json:"oauthAccessToken"`
+		OauthExpireIn     int        `json:"oauthExpireIn"`
+		RefreshToken      string     `json:"refreshToken"`
+		ExpiresIn         string     `json:"expiresIn"`
+		OauthIDToken      string     `json:"oauthIdToken"`
+		RawUserInfo       string     `json:"rawUserInfo"`
+		NeedConfirmation  bool       `json:"needConfirmation,omitempty"`
+		VerifiedProviders []string   `json:"verifiedProvider,omitempty"`
 	}
 
 	cachedCredential struct {
+		Provider     string `json:"provider"`
 		IDToken      string `json:"id_token"`
 		RefreshToken string `json:"refresh_token"`
 	}
@@ -88,7 +96,7 @@ type (
 func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
-		errChan:        make(chan error),
+		errChan:        make(chan tokenError),
 		idpKey:         idpKey,
 	}
 
@@ -123,13 +131,13 @@ func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 
 	select {
 	case cred := <-h.credentialChan:
-		output.MsgStdOut("Logged in as %s", cred.DisplayName)
+		output.MsgStdOut("Logged in as %s", cred.UserDisplayName())
 		output.MsgStdOutV("Token: %s", cred.IDToken)
 		expire, _ := strconv.Atoi(cred.ExpiresIn)
 		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
 		return saveCredential(output, cred, clicfg)
 	case err := <-h.errChan:
-		return err
+		return err.err
 	}
 }
 
@@ -142,17 +150,19 @@ func startServer(
 	var err error
 	defer func() {
 		if err != nil {
-			h.errChan <- err
+			h.errChan <- tokenError{
+				err: err,
+			}
 		}
 	}()
 
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	var ln net.Listener
 	const maxretry = 5
 	var retry int
 	for retry = 0; retry < maxretry; retry++ {
-		addr := "127.0.0.1:" + strconv.Itoa(minPort+rand.Intn(maxPort-minPort))
+		addr := "127.0.0.1:" + strconv.Itoa(minPort+rng.Intn(maxPort-minPort))
 		s.Addr = addr
 
 		ln, err = net.Listen("tcp", addr)
@@ -221,6 +231,7 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to start authentication process")
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -240,15 +251,84 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 	return respURL, nil
 }
 
+func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credentialInfo, err error) {
+	const endpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp"
+
+	reqData, err := stdjson.Marshal(reqPayload)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+
+	url := endpointURL(endpoint, idpKey)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url.String(), bytes.NewBuffer(reqData))
+	if err != nil {
+		return credentialInfo{}, err
+	}
+
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return credentialInfo{}, errors.E(err, "failed to start authentication process")
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return credentialInfo{}, errors.E(err)
+	}
+
+	if resp.StatusCode != 200 {
+		return credentialInfo{}, errors.E("%s request returned %d", req.URL, resp.StatusCode)
+	}
+
+	var creds credentialInfo
+	err = stdjson.Unmarshal(data, &creds)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+	if creds.NeedConfirmation {
+		return credentialInfo{}, newIDPNeedConfirmationError(creds.VerifiedProviders)
+	}
+	if !creds.EmailVerified {
+		return credentialInfo{}, newEmailNotVerifiedError(creds.Email)
+	}
+	return creds, nil
+}
+
+func (c credentialInfo) UserDisplayName() string {
+	if c.DisplayName != "" {
+		return c.DisplayName
+	}
+	return c.ScreenName
+}
+
+type tokenError struct {
+	err error
+}
+
 type tokenHandler struct {
 	sync.Mutex
 
 	complete       bool
 	consentData    createAuthURIResponse
 	continueURL    string
-	errChan        chan error
+	errChan        chan tokenError
 	credentialChan chan credentialInfo
 	idpKey         string
+}
+
+type googleSignInPayload struct {
+	PostBody            string `json:"postBody,omitempty"`
+	RequestURI          string `json:"requestUri"`
+	SessionID           string `json:"sessionId,omitempty"`
+	ReturnSecureToken   bool   `json:"returnSecureToken"`
+	ReturnIdpCredential bool   `json:"returnIdpCredential"`
 }
 
 func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -267,67 +347,19 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	gotURL, _ := url.Parse(h.continueURL)
 	gotURL.RawQuery = r.URL.Query().Encode()
 
-	const signInEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp"
-
-	type payload struct {
-		RequestURI          string `json:"requestUri"`
-		SessionID           string `json:"sessionId"`
-		ReturnSecureToken   bool   `json:"returnSecureToken"`
-		ReturnIdpCredential bool   `json:"returnIdpCredential"`
-	}
-
-	postBody := payload{
+	reqPayload := googleSignInPayload{
 		RequestURI:          gotURL.String(),
 		SessionID:           h.consentData.SessionID,
 		ReturnSecureToken:   true,
 		ReturnIdpCredential: true,
 	}
 
-	data, err := stdjson.Marshal(&postBody)
+	creds, err := signInWithIDP(reqPayload, idpkey())
 	if err != nil {
-		h.handleErr(w, errors.E(err))
-		return
-	}
-
-	logger := log.With().
-		Str("action", "tokenHandler.ServeHTTP").
-		Logger()
-
-	url := endpointURL(signInEndpoint, h.idpKey)
-	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
-	if err != nil {
-		h.handleErr(w, errors.E(err, "failed to create authentication url"))
-		return
-	}
-
-	req.Header.Add("content-type", "application/json")
-
-	logger.Debug().
-		Str("url", req.URL.String()).
-		Msg("sending request")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		h.handleErr(w, errors.E(err, "failed to start authentication process"))
-		return
-	}
-
-	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		h.errChan <- errors.E(err)
-		return
-	}
-
-	if resp.StatusCode != 200 {
-		h.handleErr(w, errors.E("%s request returned %d", req.URL, resp.StatusCode))
-		return
-	}
-
-	var creds credentialInfo
-	err = stdjson.Unmarshal(data, &creds)
-	if err != nil {
-		h.handleErr(w, errors.E(err))
+		h.handleErr(w)
+		h.errChan <- tokenError{
+			err: err,
+		}
 		return
 	}
 
@@ -341,7 +373,7 @@ func (h *tokenHandler) handleOK(w http.ResponseWriter, cred credentialInfo) {
 	w.WriteHeader(http.StatusSeeOther)
 }
 
-func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
+func (h *tokenHandler) handleErr(w http.ResponseWriter) {
 	const errMessage = `
 	<html>
 		<head>
@@ -355,11 +387,11 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter, err error) {
 	`
 	w.WriteHeader(http.StatusInternalServerError)
 	_, _ = w.Write([]byte(errMessage))
-	h.errChan <- err
 }
 
 func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
 	cachePayload := cachedCredential{
+		Provider:     cred.ProviderID.String(),
 		IDToken:      cred.IDToken,
 		RefreshToken: cred.RefreshToken,
 	}
@@ -401,7 +433,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 func endpointURL(endpoint string, idpKey string) *url.URL {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		fatal(err, "failed to parse endpoint URL for createAuthURI")
+		fatalWithDetailf(err, "failed to parse endpoint URL for createAuthURI")
 	}
 
 	q := u.Query()
@@ -439,11 +471,12 @@ func (g *googleCredential) Load() (bool, error) {
 		return true, err
 	}
 	g.client.Credential = g
+	g.provider = credinfo.Provider
 	return true, g.fetchDetails()
 }
 
 func (g *googleCredential) Name() string {
-	return "Google Social Provider"
+	return g.provider
 }
 
 func (g *googleCredential) IsExpired() bool {
@@ -551,7 +584,7 @@ func (g *googleCredential) DisplayClaims() []keyValue {
 	return []keyValue{
 		{
 			key:   "email",
-			value: g.email,
+			value: g.user.Email,
 		},
 	}
 }
@@ -593,7 +626,7 @@ func (g *googleCredential) fetchDetails() error {
 
 	if err != nil {
 		if errors.IsKind(err, cloud.ErrNotFound) {
-			return errors.E(clitest.ErrCloudOnboardingIncomplete)
+			return errors.E(clitest.ErrCloudOnboardingIncomplete, ErrLoginRequired)
 		}
 		return err
 	}
@@ -603,28 +636,32 @@ func (g *googleCredential) fetchDetails() error {
 }
 
 // info display the credential details.
-func (g *googleCredential) info() {
-	g.output.MsgStdOut("status: signed in")
-	g.output.MsgStdOut("provider: %s", g.Name())
+func (g *googleCredential) info(selectedOrgName string) {
+	printer.Stdout.Println("status: signed in")
+	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
 
 	if g.user.DisplayName != "" {
-		g.output.MsgStdOut("user: %s", g.user.DisplayName)
+		printer.Stdout.Println(fmt.Sprintf("user: %s", g.user.DisplayName))
 	}
 
 	for _, kv := range g.DisplayClaims() {
-		g.output.MsgStdOut("%s: %s", kv.key, kv.value)
+		printer.Stdout.Println(fmt.Sprintf("%s: %s", kv.key, kv.value))
 	}
 
 	if len(g.orgs) > 0 {
-		g.output.MsgStdOut("organizations: %s", g.orgs)
+		printer.Stdout.Println(fmt.Sprintf("organizations: %s", g.orgs))
+	}
+
+	if selectedOrgName == "" && len(g.orgs) > 1 {
+		printer.Stderr.Warn("User is member of multiple organizations but none was selected")
 	}
 
 	if g.user.DisplayName == "" {
-		g.output.MsgStdErr("Warning: On-boarding is incomplete.  Please visit cloud.terramate.io to complete on-boarding.")
+		printer.Stderr.Warn("On-boarding is incomplete. Please visit cloud.terramate.io to complete on-boarding.")
 	}
 
 	if len(g.orgs) == 0 {
-		g.output.MsgStdErr("Warning: You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warn("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
 	}
 }
 
@@ -649,11 +686,5 @@ func (g *googleCredential) update(idToken, refreshToken string) (err error) {
 	}
 	sec, dec := math.Modf(exp)
 	g.expireAt = time.Unix(int64(sec), int64(dec*(1e9)))
-
-	email, ok := g.jwtClaims["email"].(string)
-	if !ok {
-		return errors.E(`Google JWT token has no "email" field`)
-	}
-	g.email = email
 	return nil
 }

@@ -6,6 +6,9 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '!**_test.go'
+      - '!cloud/testserver/**'
+      - '**_bench_test.go'
 
 permissions:
   pull-requests: write
@@ -20,9 +23,10 @@ jobs:
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
-      - uses: actions/setup-go@v4
+
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: run benchcheck
         id: benchmark

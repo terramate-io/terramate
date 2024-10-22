@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/fs"
@@ -24,7 +24,7 @@ import (
 	"github.com/terramate-io/terramate/tf"
 	"github.com/zclconf/go-cty/cty"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	hhcl "github.com/terramate-io/hcl/v2"
 )
 
 const (

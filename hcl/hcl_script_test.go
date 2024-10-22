@@ -6,7 +6,7 @@ package hcl_test
 import (
 	"testing"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -15,9 +15,9 @@ import (
 )
 
 func TestHCLScript(t *testing.T) {
-	makeAttribute := func(t *testing.T, name string, expr string) ast.Attribute {
+	makeAttribute := func(t *testing.T, name string, expr string) *ast.Attribute {
 		t.Helper()
-		return ast.Attribute{
+		return &ast.Attribute{
 			Attribute: &hhcl.Attribute{
 				Name: name,
 				Expr: test.NewExpr(t, expr),
@@ -26,12 +26,14 @@ func TestHCLScript(t *testing.T) {
 	}
 
 	makeCommand := func(t *testing.T, expr string) *hcl.Command {
-		parsed := hcl.Command(makeAttribute(t, "command", expr))
+		attr := makeAttribute(t, "command", expr)
+		parsed := hcl.Command(*attr)
 		return &parsed
 	}
 
 	makeCommands := func(t *testing.T, expr string) *hcl.Commands {
-		parsed := hcl.Commands(makeAttribute(t, "commands", expr))
+		attr := makeAttribute(t, "commands", expr)
+		parsed := hcl.Commands(*attr)
 		return &parsed
 	}
 
@@ -119,16 +121,30 @@ func TestHCLScript(t *testing.T) {
 					filename: "script.tm",
 					body: `
 					  script "group1" "script1" {
+						job {
+							command = ["echo", "hello"]
+						}
 					  }
 					`,
 				},
 			},
 			want: want{
-				errs: []error{
-					errors.E(hcl.ErrScriptNoDesc,
-						Mkrange("script.tm", Start(2, 8, 8), End(3, 9, 44))),
-					errors.E(hcl.ErrScriptMissingOrInvalidJob,
-						Mkrange("script.tm", Start(2, 8, 8), End(3, 9, 44))),
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Experiments: []string{"scripts"},
+						},
+					},
+					Scripts: []*hcl.Script{
+						{
+							Labels: []string{"group1", "script1"},
+							Jobs: []*hcl.ScriptJob{
+								{
+									Command: makeCommand(t, `["echo", "hello"]`),
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -161,6 +177,44 @@ func TestHCLScript(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrScriptNoLabels,
 						Mkrange("script.tm", Start(2, 8, 8), End(2, 14, 14))),
+				},
+			},
+		},
+		{
+			name: "multiple scripts with same labels",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+					  terramate {
+						  config {
+							  experiments = ["scripts"]
+						  }
+					  }
+					`,
+				},
+				{
+					filename: "script.tm",
+					body: `
+					  script "a" "b" {
+						description = "some description"
+						job {
+						  command = ["echo", "hello"]
+						}
+					  }
+					  script "a" "b" {
+						description = "other description"
+						job {
+						  command = ["echo", "other command"]
+						}
+					  }
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrScriptRedeclared,
+						Mkrange("script.tm", Start(8, 8, 136), End(8, 22, 150))),
 				},
 			},
 		},
@@ -261,7 +315,7 @@ func TestHCLScript(t *testing.T) {
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
-							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some description"`)),
+							Description: makeAttribute(t, "description", `"some description"`),
 							Jobs: []*hcl.ScriptJob{
 								{
 									Command: makeCommand(t, `["echo", "hello"]`),
@@ -341,7 +395,7 @@ func TestHCLScript(t *testing.T) {
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
-							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some description"`)),
+							Description: makeAttribute(t, "description", `"some description"`),
 							Jobs: []*hcl.ScriptJob{
 								{
 									Commands: makeCommands(t, `[["echo", "hello"], ["echo", "bye"]]`),
@@ -453,10 +507,46 @@ func TestHCLScript(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrScriptUnrecognizedAttr,
+					errors.E(hcl.ErrScriptJobUnrecognizedAttr,
 						Mkrange("script.tm", Start(6, 9, 126), End(6, 20, 137))),
 					errors.E(hcl.ErrScriptMissingOrInvalidJob,
 						Mkrange("script.tm", Start(2, 8, 8), End(8, 9, 162))),
+				},
+			},
+		},
+		{
+			name: "script with lets with unrecognized subblocks -- fails",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+					  terramate {
+						  config {
+							  experiments = ["scripts"]
+						  }
+					  }
+					`,
+				},
+				{
+					filename: "script.tm",
+					body: `
+					  script "group1" "script1" {
+						description = "some description"
+						lets {
+							whatever {
+
+							}
+						}
+						job {
+						  command = ["ls", "-l"]
+						}
+					  }
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrUnrecognizedBlock),
 				},
 			},
 		},
@@ -503,7 +593,7 @@ func TestHCLScript(t *testing.T) {
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
-							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some description"`)),
+							Description: makeAttribute(t, "description", `"some description"`),
 							Jobs: []*hcl.ScriptJob{
 								{
 									Commands: makeCommands(t, `[["echo", "hello"], ["echo", "bye"]]`),
@@ -567,7 +657,7 @@ func TestHCLScript(t *testing.T) {
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
-							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"script1 desc"`)),
+							Description: makeAttribute(t, "description", `"script1 desc"`),
 							Jobs: []*hcl.ScriptJob{
 								{
 									Commands: makeCommands(t, `[["echo", "hello"], ["echo", "bye"]]`),
@@ -576,7 +666,7 @@ func TestHCLScript(t *testing.T) {
 						},
 						{
 							Labels:      []string{"group1", "script2"},
-							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"script2 desc"`)),
+							Description: makeAttribute(t, "description", `"script2 desc"`),
 							Jobs: []*hcl.ScriptJob{
 								{
 									Commands: makeCommands(t, `[["cat", "main.tf"]]`),
@@ -622,6 +712,8 @@ func TestHCLScript(t *testing.T) {
 					  script "group1" "script1" {
 						description = "some description"
 						job {
+						  name = "hello job"
+						  description = "hello job description"
 						  command = ["echo", "hello"]
 						}
 					  }
@@ -642,10 +734,12 @@ func TestHCLScript(t *testing.T) {
 					Scripts: []*hcl.Script{
 						{
 							Labels:      []string{"group1", "script1"},
-							Description: hcl.NewScriptDescription(makeAttribute(t, "description", `"some description"`)),
+							Description: makeAttribute(t, "description", `"some description"`),
 							Jobs: []*hcl.ScriptJob{
 								{
-									Command: makeCommand(t, `["echo", "hello"]`),
+									Name:        makeAttribute(t, "name", `"hello job"`),
+									Description: makeAttribute(t, "description", `"hello job description"`),
+									Command:     makeCommand(t, `["echo", "hello"]`),
 								},
 							},
 						},

@@ -95,13 +95,13 @@ func configureLogging(logLevel string, logFmt string, output io.Writer) {
 		zloglevel, err := zerolog.ParseLevel(logLevel)
 
 		if err != nil {
-			fmt.Fprintf(defaultLogWriter, "error: failed to parse -log-level=%s\n", logLevel)
+			_, _ = fmt.Fprintf(defaultLogWriter, "error: failed to parse -log-level=%s\n", logLevel)
 			os.Exit(1)
 		}
 
 		zerolog.SetGlobalLevel(zloglevel)
 	default:
-		fmt.Fprintf(defaultLogWriter, "error: log level %q not supported\n", logLevel)
+		_, _ = fmt.Fprintf(defaultLogWriter, "error: log level %q not supported\n", logLevel)
 		os.Exit(1)
 	}
 

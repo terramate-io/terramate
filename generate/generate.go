@@ -19,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/generate/genfile"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	"github.com/terramate-io/terramate/generate/sharing"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -52,6 +53,8 @@ const (
 
 // GenFile represents a generated file loaded from a Terramate configuration.
 type GenFile interface {
+	// Builtin tells if the generated file is builtin.
+	Builtin() bool
 	// Header is the header of the generated file, if any.
 	Header() string
 	// Body is the body of the generated file, if any.
@@ -90,7 +93,7 @@ type LoadResult struct {
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
 func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
-	stacks, err := config.LoadAllStacks(root.Tree())
+	stacks, err := config.LoadAllStacks(root, root.Tree())
 	if err != nil {
 		return nil, err
 	}
@@ -104,8 +107,8 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			results[i] = res
 			continue
 		}
-
-		generated, err := loadStackCodeCfgs(root, st.Stack, loadres.Globals, vendorDir, nil)
+		cfg, _ := root.Lookup(st.Dir())
+		generated, err := loadStackCodeCfgs(root, cfg, vendorDir, nil)
 		if err != nil {
 			res.Err = errors.E(err, "while loading configs of stack %s", st.Dir())
 			results[i] = res
@@ -120,7 +123,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.Dir()}
-		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir()))
+		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir(), root.Tree().Node.Experiments()))
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -128,10 +131,14 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 				continue
 			}
 
-			file, err := genfile.Eval(block, evalctx)
+			file, skip, err := genfile.Eval(block, dircfg, evalctx)
 			if err != nil {
 				res.Err = errors.L(res.Err, err).AsError()
 				results = append(results, res)
+				continue
+			}
+
+			if skip {
 				continue
 			}
 
@@ -174,141 +181,162 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // obtained and the report needs to be inspected to check.
 func Do(
 	root *config.Root,
+	dir project.Path,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) Report {
-	stackReport := forEachStack(root, vendorDir,
-		vendorRequests, doStackGeneration)
-	rootReport := doRootGeneration(root)
+	tree, ok := root.Lookup(dir)
+	if !ok {
+		return Report{
+			BootstrapErr: errors.E("directory %s not found", dir),
+		}
+	}
+	stackReport := doStackGeneration(root, tree, vendorDir, vendorRequests)
+	rootReport := doRootGeneration(root, tree)
 	report := mergeReports(stackReport, rootReport)
-	return cleanupOrphaned(root, report)
+	return cleanupOrphaned(root, tree, report)
 }
 
 func doStackGeneration(
 	root *config.Root,
-	stack *config.Stack,
-	globals *eval.Object,
+	tree *config.Tree,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-) dirReport {
-	stackpath := stack.HostDir(root)
+) Report {
 	logger := log.With().
 		Str("action", "generate.doStackGeneration()").
-		Stringer("stack", stack.Dir).
 		Logger()
 
-	report := dirReport{}
+	report := Report{}
 
-	logger.Debug().Msg("generating files")
-
-	generated, err := loadStackCodeCfgs(root, stack, globals, vendorDir, vendorRequests)
-	if err != nil {
-		report.err = err
-		return report
-	}
-
-	errsmap := checkFileConflict(generated)
-	if len(errsmap) > 0 {
-		errs := errors.L()
-		for _, err := range errsmap {
-			errs.Append(err)
-		}
-		report.err = errs.AsError()
-		return report
-	}
-
-	err = validateStackGeneratedFiles(root, stackpath, generated)
-	if err != nil {
-		report.err = err
-		return report
-	}
-
-	allFiles, err := allStackGeneratedFiles(root, stack.HostDir(root), generated)
-	if err != nil {
-		report.err = errors.E(err, "listing all generated files")
-		return report
-	}
-
-	logger.Debug().Msg("saving generated files")
-
-	for _, file := range generated {
-		filename := file.Label()
-		path := filepath.Join(stackpath, filename)
-		logger := logger.With().
-			Str("filename", filename).
-			Logger()
-
-		if !file.Condition() {
-			logger.Debug().Msg("condition is false, ignoring file")
-			continue
-		}
-
-		body := file.Header() + file.Body()
-
-		// Change detection + remove entries that got re-generated
-		oldFileBody, oldExists := allFiles[filename]
-
-		if !oldExists || oldFileBody != body {
-			err := writeGeneratedCode(path, file)
-			if err != nil {
-				report.err = errors.E(err, "saving file %q", filename)
-				return report
-			}
-		}
-
-		if !oldExists {
-			log.Info().
-				Stringer("stack", stack.Dir).
-				Str("file", filename).
-				Msg("created file")
-
-			report.addCreatedFile(filename)
-		} else {
-			delete(allFiles, filename)
-			if body != oldFileBody {
-				log.Info().
-					Stringer("stack", stack.Dir).
-					Str("file", filename).
-					Msg("changed file")
-
-				report.addChangedFile(filename)
-			}
-		}
-	}
-
-	for filename := range allFiles {
-		log.Info().
-			Stringer("stack", stack.Dir).
-			Str("file", filename).
-			Msg("deleted file")
-
-		report.addDeletedFile(filename)
-
-		path := filepath.Join(stackpath, filename)
-		err = os.Remove(path)
+	for _, cfg := range tree.Stacks() {
+		st, err := cfg.Stack()
 		if err != nil {
-			report.err = errors.E("removing file %s", filename)
+			report.BootstrapErr = err
 			return report
 		}
 
-		delete(allFiles, filename)
+		globals := globals.ForStack(root, st)
+		if err := globals.AsError(); err != nil {
+			report.addFailure(cfg.Dir(), err)
+			continue
+		}
+
+		logger.Debug().Msg("generating files")
+
+		generated, err := loadStackCodeCfgs(root, cfg, vendorDir, vendorRequests)
+		if err != nil {
+			report.addFailure(cfg.Dir(), err)
+			continue
+		}
+
+		errsmap := checkFileConflict(generated)
+		if len(errsmap) > 0 {
+			errs := errors.L()
+			for _, err := range errsmap {
+				errs.Append(err)
+			}
+			report.addFailure(cfg.Dir(), errs.AsError())
+			continue
+		}
+
+		err = validateStackGeneratedFiles(root, cfg.HostDir(), generated)
+		if err != nil {
+			report.addFailure(cfg.Dir(), err)
+			continue
+		}
+
+		allFiles, err := allStackGeneratedFiles(root, cfg.HostDir(), generated)
+		if err != nil {
+			report.addFailure(cfg.Dir(), errors.E(err, "listing all generated files"))
+			continue
+		}
+
+		logger.Debug().Msg("saving generated files")
+
+		stackReport := dirReport{}
+
+		for _, file := range generated {
+			filename := file.Label()
+			path := filepath.Join(cfg.HostDir(), filename)
+			logger := logger.With().
+				Str("filename", filename).
+				Logger()
+
+			if !file.Condition() {
+				logger.Debug().Msg("condition is false, ignoring file")
+				continue
+			}
+
+			body := file.Header() + file.Body()
+
+			// Change detection + remove entries that got re-generated
+			oldFileBody, oldExists := allFiles[filename]
+
+			if !oldExists || oldFileBody != body {
+				err := writeGeneratedCode(root, path, file)
+				if err != nil {
+					report.addFailure(cfg.Dir(), errors.E(err, "saving file %q", filename))
+					continue
+				}
+			}
+
+			if !oldExists {
+				log.Info().
+					Stringer("stack", cfg.Dir()).
+					Str("file", filename).
+					Msg("created file")
+
+				stackReport.addCreatedFile(filename)
+			} else {
+				delete(allFiles, filename)
+				if body != oldFileBody {
+					log.Info().
+						Stringer("stack", cfg.Dir()).
+						Str("file", filename).
+						Msg("changed file")
+
+					stackReport.addChangedFile(filename)
+				}
+			}
+		}
+
+		for filename := range allFiles {
+			log.Info().
+				Stringer("stack", cfg.Dir()).
+				Str("file", filename).
+				Msg("deleted file")
+
+			stackReport.addDeletedFile(filename)
+
+			path := filepath.Join(cfg.HostDir(), filename)
+			err = os.Remove(path)
+			if err != nil {
+				report.addFailure(cfg.Dir(), errors.E("removing file %s", filename))
+				continue
+			}
+
+			delete(allFiles, filename)
+		}
+
+		report.addDirReport(cfg.Dir(), stackReport)
 	}
 
 	logger.Debug().Msg("finished generating files")
 	return report
 }
 
-func doRootGeneration(root *config.Root) Report {
+func doRootGeneration(root *config.Root, tree *config.Tree) Report {
 	logger := log.With().
 		Str("action", "generate.doRootGeneration").
 		Logger()
 
 	report := Report{}
-	evalctx := eval.NewContext(stdlib.Functions(root.HostDir()))
+	evalctx := eval.NewContext(stdlib.Functions(root.HostDir(), root.Tree().Node.Experiments()))
 	evalctx.SetNamespace("terramate", root.Runtime())
 
 	var files []GenFile
-	for _, cfg := range root.Tree().AsList() {
+	for _, cfg := range tree.AsList() {
 		logger = logger.With().
 			Stringer("configDir", cfg.Dir()).
 			Bool("isEmpty", cfg.IsEmptyConfig()).
@@ -345,10 +373,14 @@ func doRootGeneration(root *config.Root) Report {
 
 			logger.Debug().Msg("block validated successfully")
 
-			file, err := genfile.Eval(block, evalctx)
+			file, skip, err := genfile.Eval(block, cfg, evalctx)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report
+			}
+
+			if skip {
+				continue
 			}
 
 			logger.Debug().Msg("block evaluated successfully")
@@ -405,7 +437,7 @@ func handleAsserts(rootdir string, dir string, asserts []config.Assert) error {
 	return errs.AsError()
 }
 
-// ListGenFiles will list the path of all generated code inside the given dir
+// ListStackGenFiles will list the path of all generated code inside the given dir
 // and all its subdirs that are not stacks. The returned paths are relative to
 // the given dir, like:
 //
@@ -424,7 +456,7 @@ func handleAsserts(rootdir string, dir string, asserts []config.Assert) error {
 //
 // When called with a dir that is a stack this function will list all generated
 // files that are owned by the stack, since it won't search inside any child stacks.
-func ListGenFiles(root *config.Root, dir string) ([]string, error) {
+func ListStackGenFiles(root *config.Root, dir string) ([]string, error) {
 	pendingSubDirs := []string{""}
 	genfiles := []string{}
 
@@ -446,11 +478,12 @@ processSubdirs:
 		}
 
 		for _, entry := range entries {
-			if config.Skip(entry.Name()) {
-				continue
-			}
-
 			if entry.IsDir() {
+				// only dotdirs are ignored.
+				if entry.Name()[0] == '.' {
+					continue
+				}
+
 				isStack := config.IsStack(root, filepath.Join(absSubdir, entry.Name()))
 				if isStack {
 					continue
@@ -476,7 +509,7 @@ processSubdirs:
 				return nil, errors.E(err, "checking if file is generated %q", file)
 			}
 
-			if hasGenHCLHeader(string(data)) {
+			if hasGenHCLHeader(genhcl.CommentStyleFromConfig(root.Tree()), string(data)) {
 				genfiles = append(genfiles, filepath.ToSlash(
 					filepath.Join(relSubdir, entry.Name())))
 			}
@@ -486,51 +519,64 @@ processSubdirs:
 	return genfiles, nil
 }
 
-// DetectOutdated will verify if the given config has outdated code
+// DetectOutdated will verify if the given config has outdated code in the target tree
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error) {
+func DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
+		Stringer("dir", target.Dir()).
 		Logger()
 
-	stacks, err := config.LoadAllStacks(root.Tree())
-	if err != nil {
-		return nil, err
-	}
-
-	outdatedFiles := []string{}
+	outdatedFiles := newStringSet()
 	errs := errors.L()
 
 	logger.Debug().Msg("checking outdated code inside stacks")
 
-	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
+	for _, cfg := range target.Stacks() {
+		outdated, err := stackContextOutdated(root, cfg, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
 		// We want results relative to root
-		stackRelPath := stack.Dir().String()[1:]
+		dirRelPath := cfg.Dir().String()[1:]
 		for _, file := range outdated {
-			outdatedFiles = append(outdatedFiles,
-				path.Join(stackRelPath, file))
+			outdatedFiles.add(path.Join(dirRelPath, file))
 		}
 	}
 
-	// If the root of the project is a stack then there is no
-	// need to check orphaned files. All files are owned by
-	// the parent stack or its children.
-	if root.Tree().IsStack() {
-		logger.Debug().Msg("project root is stack, no need to check for orphaned files")
+	for _, cfg := range target.AsList() {
+		outdated, err := rootContextOutdated(root, cfg)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
 
-		sort.Strings(outdatedFiles)
-		return outdatedFiles, nil
+		// We want results relative to root
+		dirRelPath := cfg.Dir().String()[1:]
+		for _, file := range outdated {
+			outdatedFiles.add(path.Join(dirRelPath, file))
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	// If the base dir is a stack then there is no need to check orphaned files.
+	// All files are owned by the parent stack or its children.
+	if target.IsStack() || target.IsInsideStack() {
+		logger.Debug().Msg("target directory is stack or inside a stack, no need to check for orphaned files")
+
+		outdated := outdatedFiles.slice()
+		sort.Strings(outdated)
+		return outdated, nil
 	}
 
 	logger.Debug().Msg("checking for orphaned files")
 
-	orphanedFiles, err := ListGenFiles(root, root.HostDir())
+	orphanedFiles, err := ListStackGenFiles(root, target.HostDir())
 	if err != nil {
 		errs.Append(err)
 	}
@@ -539,42 +585,37 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 		return nil, err
 	}
 
-	outdatedFiles = append(outdatedFiles, orphanedFiles...)
-	sort.Strings(outdatedFiles)
-	return outdatedFiles, nil
+	// We want results relative to root
+	dirRelPath := target.Dir().String()[1:]
+	for _, file := range orphanedFiles {
+		outdatedFiles.add(path.Join(dirRelPath, file))
+	}
+
+	outdated := outdatedFiles.slice()
+	sort.Strings(outdated)
+	return outdated, nil
 }
 
-// stackOutdated will verify if a given stack has outdated code and return a list
-// of filenames that are outdated, ordered lexicographically.
-// If the stack has an invalid configuration it will return an error.
-func stackOutdated(
-	root *config.Root,
-	st *config.Stack,
-	vendorDir project.Path,
-) ([]string, error) {
+// stackContextOutdated will verify if a given directory has outdated code
+// for blocks with context=stack and return a list of filenames that are outdated.
+func stackContextOutdated(root *config.Root, cfg *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.stackOutdated").
-		Stringer("stack", st).
+		Stringer("stack", cfg.Dir()).
 		Logger()
 
-	report := globals.ForStack(root, st)
-	if err := report.AsError(); err != nil {
-		return nil, errors.E(err, "checking for outdated code")
-	}
+	cfgpath := cfg.HostDir()
 
-	globals := report.Globals
-	generated, err := loadStackCodeCfgs(root, st, globals, vendorDir, nil)
+	generated, err := loadStackCodeCfgs(root, cfg, vendorDir, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = validateStackGeneratedFiles(root, cfgpath, generated)
 	if err != nil {
 		return nil, err
 	}
 
-	stackpath := st.HostDir(root)
-	err = validateStackGeneratedFiles(root, stackpath, generated)
-	if err != nil {
-		return nil, err
-	}
-
-	genfilesOnFs, err := ListGenFiles(root, stackpath)
+	genfilesOnFs, err := ListStackGenFiles(root, cfgpath)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -584,24 +625,37 @@ func stackOutdated(
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
 	outdatedFiles := newStringSet(genfilesOnFs...)
-	err = updateOutdatedFiles(stackpath, generated, outdatedFiles)
+	err = updateOutdatedFiles(root, cfgpath, generated, outdatedFiles)
 	if err != nil {
-		return nil, errors.E(err, "checking for outdated files")
+		return nil, errors.E(err, "handling detected files")
 	}
-
-	outdated := outdatedFiles.slice()
-	sort.Strings(outdated)
-	return outdated, nil
+	return outdatedFiles.slice(), nil
 }
 
-func updateOutdatedFiles(
-	stackpath string,
-	generated []GenFile,
-	outdatedFiles *stringSet,
-) error {
+// rootContextOutdated will verify if the given directory has outdated code for context=root blocks
+// and return the list of outdated files.
+func rootContextOutdated(root *config.Root, cfg *config.Tree) ([]string, error) {
+	cfgpath := cfg.HostDir()
+
+	generated, err := loadRootCodeCfgs(root, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// We start with the assumption that all gen files on the stack
+	// are outdated and then update the outdated files set as we go.
+	outdatedFiles := newStringSet()
+	err = updateOutdatedFiles(root, cfgpath, generated, outdatedFiles)
+	if err != nil {
+		return nil, errors.E(err, "handling detected files")
+	}
+	return outdatedFiles.slice(), nil
+}
+
+func updateOutdatedFiles(root *config.Root, cfgpath string, generated []GenFile, outdatedFiles *stringSet) error {
 	logger := log.With().
 		Str("action", "generate.updateOutdatedFiles").
-		Str("stack", stackpath).
+		Str("stack", cfgpath).
 		Logger()
 
 	// So we can properly check blocks with condition false/true in any order
@@ -612,8 +666,15 @@ func updateOutdatedFiles(
 			Str("label", genfile.Label()).
 			Logger()
 
-		filename := genfile.Label()
-		targetpath := filepath.Join(stackpath, filename)
+		var targetpath string
+		var filename string
+		if genfile.Context() == "root" {
+			filename = genfile.Label()[1:]
+			targetpath = filepath.Join(root.HostDir(), filename)
+		} else {
+			filename = genfile.Label()
+			targetpath = filepath.Join(cfgpath, filename)
+		}
 
 		currentCode, codeFound, err := readFile(targetpath)
 		if err != nil {
@@ -666,14 +727,14 @@ func updateOutdatedFiles(
 	return nil
 }
 
-func writeGeneratedCode(target string, genfile GenFile) error {
+func writeGeneratedCode(root *config.Root, target string, genfile GenFile) error {
 	body := genfile.Header() + genfile.Body()
 
 	if genfile.Header() != "" {
 		// WHY: some file generation strategies don't provide
 		// headers, like generate_file, so we can't detect
 		// if we are overwriting a Terramate generated file.
-		if err := checkFileCanBeOverwritten(target); err != nil {
+		if err := checkFileCanBeOverwritten(root, target); err != nil {
 			return err
 		}
 	}
@@ -685,8 +746,8 @@ func writeGeneratedCode(target string, genfile GenFile) error {
 	return os.WriteFile(target, []byte(body), 0666)
 }
 
-func checkFileCanBeOverwritten(path string) error {
-	_, _, err := readGeneratedFile(path)
+func checkFileCanBeOverwritten(root *config.Root, path string) error {
+	_, _, err := readGeneratedFile(root, path)
 	return err
 }
 
@@ -697,7 +758,7 @@ func checkFileCanBeOverwritten(path string) error {
 // The returned boolean indicates if the file exists, so the contents of
 // the file + true is returned if a file is found, but if no file is found
 // it will return an empty string and false indicating that the file doesn't exist.
-func readGeneratedFile(path string) (string, bool, error) {
+func readGeneratedFile(root *config.Root, path string) (string, bool, error) {
 	data, found, err := readFile(path)
 	if err != nil {
 		return "", false, err
@@ -707,7 +768,7 @@ func readGeneratedFile(path string) (string, bool, error) {
 		return "", false, nil
 	}
 
-	if hasGenHCLHeader(data) {
+	if hasGenHCLHeader(genhcl.CommentStyleFromConfig(root.Tree()), data) {
 		return data, true, nil
 	}
 
@@ -737,49 +798,13 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(
-	*config.Root,
-	*config.Stack,
-	*eval.Object,
-	project.Path,
-	chan<- event.VendorRequest,
-) dirReport
-
-func forEachStack(
-	root *config.Root,
-	vendorDir project.Path,
-	vendorRequests chan<- event.VendorRequest,
-	fn forEachStackFunc,
-) Report {
-	report := Report{}
-
-	stacks, err := config.LoadAllStacks(root.Tree())
-	if err != nil {
-		report.BootstrapErr = err
-		return report
-	}
-
-	for _, elem := range stacks {
-		globalsReport := globals.ForStack(root, elem.Stack)
-		if err := globalsReport.AsError(); err != nil {
-			report.addFailure(elem.Dir(), errors.E(ErrLoadingGlobals, err))
-			continue
-		}
-
-		stackReport := fn(root, elem.Stack, globalsReport.Globals, vendorDir, vendorRequests)
-		report.addDirReport(elem.Dir(), stackReport)
-	}
-
-	return report
-}
-
 func allStackGeneratedFiles(
 	root *config.Root,
 	dir string,
 	genfiles []GenFile,
 ) (map[string]string, error) {
 	allFiles := map[string]string{}
-	files, err := ListGenFiles(root, dir)
+	files, err := ListStackGenFiles(root, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -911,7 +936,7 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 				Bool("fileChanged", body != diskContent).
 				Msg("writing file")
 
-			err := writeGeneratedCode(abspath, genfile)
+			err := writeGeneratedCode(root, abspath, genfile)
 			if err != nil {
 				dirReport.err = errors.E(err, "saving file %s", label)
 				report.addDirReport(dir, dirReport)
@@ -948,10 +973,10 @@ func genBlockLogger(logger zerolog.Logger, blockname, label, context string) zer
 		Logger()
 }
 
-func hasGenHCLHeader(code string) bool {
+func hasGenHCLHeader(commentStyle genhcl.CommentStyle, code string) bool {
 	// When changing headers we need to support old ones (or break).
 	// For now keeping them here, to avoid breaks.
-	for _, header := range []string{genhcl.Header, genhcl.HeaderV0} {
+	for _, header := range []string{genhcl.Header(commentStyle), genhcl.HeaderV0} {
 		if strings.HasPrefix(code, header) {
 			return true
 		}
@@ -992,8 +1017,17 @@ func validateStackGeneratedFiles(root *config.Root, stackpath string, generated 
 		abspath := filepath.Join(stackpath, relpath)
 		destdir := filepath.Dir(abspath)
 
-		// We need to check that destdir, or any of its parents, is not a symlink or a stack.
+		// We need to check that destdir, or any of its parents, is not a symlink, a stack or a dotdir.
 		for strings.HasPrefix(destdir, stackpath) && destdir != stackpath {
+			dirname := filepath.Base(destdir)
+			if dirname[0] == '.' {
+				errs.Append(errors.E(
+					ErrInvalidGenBlockLabel,
+					file.Range(),
+					"%s: generation inside dot directories are disallowed",
+					file.Label(),
+				))
+			}
 			info, err := os.Lstat(destdir)
 			if err != nil {
 				if errors.Is(err, fs.ErrNotExist) {
@@ -1138,7 +1172,7 @@ func checkFileConflict(generated []GenFile) map[string]error {
 	return errsmap
 }
 
-func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]config.Assert, error) {
+func loadAsserts(root *config.Root, st *config.Stack, evalctx *eval.Context) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", root.HostDir()).
@@ -1154,11 +1188,10 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 			Stringer("curdir", curdir).
 			Logger()
 
-		evalctx := stack.NewEvalCtx(root, st, globals)
 		cfg, ok := root.Lookup(curdir)
 		if ok {
 			for _, assertCfg := range cfg.Node.Asserts {
-				assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+				assert, err := config.EvalAssert(evalctx, assertCfg)
 				if err != nil {
 					errs.Append(err)
 				} else {
@@ -1181,26 +1214,62 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 	return asserts, nil
 }
 
+func loadRootCodeCfgs(root *config.Root, cfg *config.Tree) ([]GenFile, error) {
+	blocks := cfg.Node.Generate.Files
+
+	genfiles := []GenFile{}
+	for _, block := range blocks {
+		if block.Context != "root" {
+			continue
+		}
+		err := validateRootGenerateBlock(root, block)
+		if err != nil {
+			return nil, err
+		}
+
+		evalctx := eval.NewContext(stdlib.Functions(cfg.RootDir(), root.Tree().Node.Experiments()))
+		evalctx.SetNamespace("terramate", root.Runtime())
+
+		file, skip, err := genfile.Eval(block, cfg, evalctx)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			continue
+		}
+		genfiles = append(genfiles, file)
+	}
+	return genfiles, nil
+}
+
 func loadStackCodeCfgs(
 	root *config.Root,
-	st *config.Stack,
-	globals *eval.Object,
+	cfg *config.Tree,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
-	asserts, err := loadAsserts(root, st, globals)
+	st, err := cfg.Stack()
+	if err != nil {
+		return nil, err
+	}
+	globals := globals.ForStack(root, st)
+	if err := globals.AsError(); err != nil {
+		return nil, err
+	}
+	evalctx := stack.NewEvalCtx(root, st, globals.Globals)
+	asserts, err := loadAsserts(root, st, evalctx.Context)
 	if err != nil {
 		return nil, err
 	}
 
 	var genfilesConfigs []GenFile
 
-	genfiles, err := genfile.Load(root, st, globals, vendorDir, vendorRequests)
+	genfiles, err := genfile.Load(root, st, evalctx.Context, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(root, st, globals, vendorDir, vendorRequests)
+	genhcls, err := genhcl.Load(root, st, evalctx.Context, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
@@ -1226,24 +1295,67 @@ func loadStackCodeCfgs(
 		return nil, err
 	}
 
+	type backendFile struct {
+		inputs  config.Inputs
+		outputs config.Outputs
+	}
+
+	backendMap := map[string]*backendFile{}
+	for _, outputBlock := range cfg.Node.Outputs {
+		output, err := config.EvalOutput(evalctx.Context, outputBlock)
+		if err != nil {
+			return nil, err
+		}
+		v, ok := backendMap[output.Backend]
+		if !ok {
+			v = &backendFile{}
+		}
+		v.outputs = append(v.outputs, output)
+		backendMap[output.Backend] = v
+	}
+	for _, inputBlock := range cfg.Node.Inputs {
+		input, err := config.EvalInput(evalctx.Context, inputBlock)
+		if err != nil {
+			return nil, err
+		}
+		v, ok := backendMap[input.Backend]
+		if !ok {
+			v = &backendFile{}
+		}
+		v.inputs = append(v.inputs, input)
+		backendMap[input.Backend] = v
+	}
+	for backendName, file := range backendMap {
+		backend, ok := cfg.SharingBackend(backendName)
+		if !ok {
+			return nil, errors.E("backend %s not found", backendName)
+		}
+		sharingFile, err := sharing.PrepareFile(root, backend.Filename, file.inputs, file.outputs)
+		if err != nil {
+			return nil, err
+		}
+		genfilesConfigs = append(genfilesConfigs, sharingFile)
+	}
 	return genfilesConfigs, nil
 }
 
-func cleanupOrphaned(root *config.Root, report Report) Report {
+func cleanupOrphaned(root *config.Root, target *config.Tree, report Report) Report {
 	logger := log.With().
 		Str("action", "generate.cleanupOrphaned()").
+		Stringer("dir", target.Dir()).
 		Logger()
-	// If the root of the tree is a stack then there is nothing to do
-	// since there can't be any orphans (the root parent stack owns
-	// the entire project).
-	if root.Tree().IsStack() {
-		logger.Debug().Msg("project root is a stack, nothing to do")
+
+	defer report.sort()
+
+	// If the target tree is a stack then there is nothing to do
+	// as it was already generated at this point.
+	if target.IsStack() {
 		return report
 	}
 
 	logger.Debug().Msg("listing orphaned generated files")
 
-	orphanedGenFiles, err := ListGenFiles(root, root.HostDir())
+	orphanedGenFiles, err := ListStackGenFiles(root, target.HostDir())
 	if err != nil {
 		report.CleanupErr = err
 		return report
@@ -1253,8 +1365,8 @@ func cleanupOrphaned(root *config.Root, report Report) Report {
 	deleteFailures := map[project.Path]*errors.List{}
 
 	for _, genfile := range orphanedGenFiles {
-		genfileAbspath := filepath.Join(root.HostDir(), genfile)
-		dir := project.NewPath("/" + filepath.ToSlash(filepath.Dir(genfile)))
+		genfileAbspath := filepath.Join(target.HostDir(), genfile)
+		dir := project.PrjAbsPath(root.HostDir(), filepath.Dir(genfileAbspath))
 		if err := os.Remove(genfileAbspath); err != nil {
 			if deleteFailures[dir] == nil {
 				deleteFailures[dir] = errors.L()
@@ -1292,7 +1404,5 @@ func cleanupOrphaned(root *config.Root, report Report) Report {
 			Deleted: deletedFiles,
 		})
 	}
-
-	report.sort()
 	return report
 }

@@ -23,7 +23,7 @@ type (
 	}
 	want struct {
 		output  map[cloud.LogChannel][]byte
-		batches []cloud.DeploymentLogs
+		batches []cloud.CommandLogs
 	}
 	testcase struct {
 		name         string
@@ -54,7 +54,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: hugeLine,
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -77,7 +77,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: []byte("terramate cloud is amazing"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -98,7 +98,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: []byte("terramate\ncloud\nis\namazing"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -133,7 +133,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: []byte("\n"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -154,7 +154,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: []byte("terramate\r\ncloud\r\nis\r\namazing"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -193,7 +193,7 @@ func TestCloudLogSyncer(t *testing.T) {
 					cloud.StdoutLogChannel: []byte("A\nB\nE\nF"),
 					cloud.StderrLogChannel: []byte("C\nD\nG\nH"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -252,7 +252,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: []byte("A\nB\nC\nD\nE\nF\nG\n"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						{
 							Line:    1,
@@ -323,7 +323,7 @@ func TestCloudLogSyncer(t *testing.T) {
 				output: map[cloud.LogChannel][]byte{
 					cloud.StdoutLogChannel: []byte("first write\nwrite after idle time\nanother\nmultiline\nwrite\nhere"),
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					// first batch is due to sync interval trigger.
 					{
 						{
@@ -377,7 +377,7 @@ func TestCloudLogSyncer(t *testing.T) {
 						'a', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'v', 'a', 'l', 'i', 'd',
 					},
 				},
-				batches: []cloud.DeploymentLogs{
+				batches: []cloud.CommandLogs{
 					{
 						// sync is disabled at first non-utf8 sequence.
 						{
@@ -394,8 +394,8 @@ func TestCloudLogSyncer(t *testing.T) {
 		tc.validate(t)
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var gotBatches []cloud.DeploymentLogs
-			s := cloud.NewLogSyncerWith(func(logs cloud.DeploymentLogs) {
+			var gotBatches []cloud.CommandLogs
+			s := cloud.NewLogSyncerWith(func(logs cloud.CommandLogs) {
 				gotBatches = append(gotBatches, logs)
 			}, tc.batchSize, tc.syncInterval)
 			var stdoutBuf, stderrBuf bytes.Buffer
@@ -458,20 +458,20 @@ func (tc *testcase) validate(t *testing.T) {
 	}
 }
 
-func compareBatches(t *testing.T, got, want []cloud.DeploymentLogs) {
+func compareBatches(t *testing.T, got, want []cloud.CommandLogs) {
 	assert.EqualInts(t, len(want), len(got), "number of batches mismatch")
 
 	wantStdoutLogs, wantStderrLogs := divideBatches(want)
 	gotStdoutLogs, gotStderrLogs := divideBatches(got)
-	if diff := cmp.Diff(wantStdoutLogs, gotStdoutLogs, cmpopts.IgnoreFields(cloud.DeploymentLog{}, "Timestamp")); diff != "" {
+	if diff := cmp.Diff(wantStdoutLogs, gotStdoutLogs, cmpopts.IgnoreFields(cloud.CommandLog{}, "Timestamp")); diff != "" {
 		t.Fatalf("log stdout mismatch: %s", diff)
 	}
-	if diff := cmp.Diff(wantStderrLogs, gotStderrLogs, cmpopts.IgnoreFields(cloud.DeploymentLog{}, "Timestamp")); diff != "" {
+	if diff := cmp.Diff(wantStderrLogs, gotStderrLogs, cmpopts.IgnoreFields(cloud.CommandLog{}, "Timestamp")); diff != "" {
 		t.Fatalf("log stderr mismatch: %s", diff)
 	}
 }
 
-func divideBatches(batches []cloud.DeploymentLogs) (stdoutLogs, stderrLogs cloud.DeploymentLogs) {
+func divideBatches(batches []cloud.CommandLogs) (stdoutLogs, stderrLogs cloud.CommandLogs) {
 	for _, batch := range batches {
 		for _, log := range batch {
 			if log.Channel == cloud.StdoutLogChannel {

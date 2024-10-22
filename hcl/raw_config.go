@@ -38,15 +38,18 @@ type mergeHandler func(r *RawConfig, block *ast.Block) error
 // Terramate top-level attributes and blocks.
 func NewTopLevelRawConfig() RawConfig {
 	return NewCustomRawConfig(map[string]mergeHandler{
-		"terramate":     (*RawConfig).mergeBlock,
-		"globals":       (*RawConfig).mergeLabeledBlock,
-		"script":        (*RawConfig).addBlock,
-		"stack":         (*RawConfig).addBlock,
-		"vendor":        (*RawConfig).addBlock,
-		"generate_file": (*RawConfig).addBlock,
-		"generate_hcl":  (*RawConfig).addBlock,
-		"assert":        (*RawConfig).addBlock,
-		"import":        func(r *RawConfig, b *ast.Block) error { return nil },
+		"terramate":       (*RawConfig).mergeBlock,
+		"globals":         (*RawConfig).mergeLabeledBlock,
+		"script":          (*RawConfig).addBlock,
+		"stack":           (*RawConfig).addBlock,
+		"vendor":          (*RawConfig).addBlock,
+		"generate_file":   (*RawConfig).addBlock,
+		"generate_hcl":    (*RawConfig).addBlock,
+		"assert":          (*RawConfig).addBlock,
+		"import":          func(_ *RawConfig, _ *ast.Block) error { return nil },
+		"sharing_backend": (*RawConfig).addBlock,
+		"input":           (*RawConfig).addBlock,
+		"output":          (*RawConfig).addBlock,
 	})
 }
 

@@ -4,6 +4,8 @@
 package hclutils
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/terramate-io/terramate/test/hclwrite"
@@ -29,6 +31,41 @@ func Config(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 // Run is a helper for a "run" block.
 func Run(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("run", builders...)
+}
+
+// Script is a helper for a "script" block.
+func Script(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("script", builders...)
+}
+
+// Input is a helper for an "input" block.
+func Input(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("input", builders...)
+}
+
+// Output is a helper for an "output" block.
+func Output(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("output", builders...)
+}
+
+// Command is a helper for a "command" attribute.
+func Command(args ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(args, `","`) + `"]`
+	return Expr("command", expr)
+}
+
+// Commands is a helper for a "commands" attribute.
+func Commands(args ...[]string) hclwrite.BlockBuilder {
+	buf := bytes.Buffer{}
+	buf.WriteString("[")
+	for i, arg := range args {
+		buf.WriteString(`[` + strings.Join(arg, ",") + `]`)
+		if i != len(args)-1 {
+			buf.WriteString(",")
+		}
+	}
+	buf.WriteString("]")
+	return Expr("commands", buf.String())
 }
 
 // Vendor is a helper for a "vendor" block.
@@ -74,6 +111,29 @@ func GenerateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 // Content is a helper for a "content" block.
 func Content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("content", builders...)
+}
+
+// StackFilter is a helper for a "stack_filter" block.
+func StackFilter(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("stack_filter", builders...)
+}
+
+// ProjectPaths is a helper for adding a "project_paths" attribute.
+func ProjectPaths(paths ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(paths, `","`) + `"]`
+	return hclwrite.Expression("project_paths", expr)
+}
+
+// RepositoryPaths is a helper for adding a "project_paths" attribute.
+func RepositoryPaths(paths ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(paths, `","`) + `"]`
+	return hclwrite.Expression("repository_paths", expr)
+}
+
+// Experiments is a helper for adding an `experiments` attribute.
+func Experiments(names ...string) hclwrite.BlockBuilder {
+	expr := `["` + strings.Join(names, `","`) + `"]`
+	return hclwrite.Expression("experiments", expr)
 }
 
 // Lets is a helper for a "lets" block.

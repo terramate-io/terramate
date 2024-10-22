@@ -26,6 +26,7 @@ func TestOutdatedDetection(t *testing.T) {
 			body fmt.Stringer
 		}
 		step struct {
+			wd        string
 			layout    []string
 			vendorDir string
 			files     []file
@@ -317,7 +318,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate blocks content changed",
+			name: "generate_file block content changed",
 			steps: []step{
 				{
 					layout: []string{
@@ -397,7 +398,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate_hcl is detected on ex stack",
+			name: "generate_hcl/generate_file deletes on deleted stack",
 			steps: []step{
 				{
 					layout: []string{
@@ -437,6 +438,86 @@ func TestOutdatedDetection(t *testing.T) {
 					},
 					want: []string{
 						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file.context=root detects changed config",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("/test.txt"),
+									Expr("context", `root`),
+									Str("content", "tm is awesome"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("/test.txt"),
+									Expr("context", `root`),
+									Str("content", "tm has changed"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file.context=root detects on manually changed file",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("/test.txt"),
+									Expr("context", `root`),
+									Str("content", "tm is awesome"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "test.txt",
+							body: stringer("whatever"),
+						},
+					},
+					want: []string{
+						"test.txt",
 					},
 				},
 			},
@@ -559,6 +640,145 @@ func TestOutdatedDetection(t *testing.T) {
 						"stack-2/test.txt",
 						"test.hcl",
 						"test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "detecting orphan files from root dir",
+			steps: []step{
+				{
+					layout: []string{
+						"s:/",
+						"s:/stack-1",
+						"s:/stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+						"test.hcl",
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "stack.tm.hcl",
+							body: Doc(),
+						},
+					},
+					want: []string{
+						"test.hcl",
+					},
+				},
+			},
+		},
+		{
+			name: "running from a subdir of a stack do not misdetect as orphan files",
+			steps: []step{
+				{
+					layout: []string{
+						"s:/",
+						"s:/stack-1",
+						"s:/stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("subdir/test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("subdir/test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/subdir/test.hcl",
+						"stack-1/subdir/test.txt",
+						"stack-2/subdir/test.hcl",
+						"stack-2/subdir/test.txt",
+						"subdir/test.hcl",
+						"subdir/test.txt",
+					},
+				},
+				{
+					// this step just executes in the subdir to catch outdated code (if any)
+					wd: "/subdir",
+				},
+			},
+		},
+		{
+			name: "running from a subdir still detects orphan files",
+			steps: []step{
+				{
+					layout: []string{
+						"s:/",
+						"s:/stack-1",
+						"s:/stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("subdir/test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("subdir/test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/subdir/test.hcl",
+						"stack-1/subdir/test.txt",
+						"stack-2/subdir/test.hcl",
+						"stack-2/subdir/test.txt",
+						"subdir/test.hcl",
+						"subdir/test.txt",
+					},
+				},
+				{
+					// this step just executes in the subdir to catch outdated code (if any)
+					wd: "/subdir",
+					files: []file{
+						{
+							path: "/stack.tm.hcl",
+							body: Doc(),
+						},
+					},
+					want: []string{
+						"subdir/test.hcl",
 					},
 				},
 			},
@@ -755,6 +975,46 @@ func TestOutdatedDetection(t *testing.T) {
 					want: []string{
 						"stack-1/test.hcl",
 						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
+		{
+			name: "tmgen is detected when changed",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+					},
+					files: []file{
+						{
+							path: "terramate.tm",
+							body: Terramate(
+								Config(
+									Expr("experiments", `["tmgen"]`),
+								),
+							),
+						},
+						{
+							path: "stack-1/test.hcl.tmgen",
+							body: Doc(
+								Str("content", "tmgen"),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "stack-1/test.hcl.tmgen",
+							body: Doc(),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
 					},
 				},
 			},
@@ -1206,6 +1466,65 @@ func TestOutdatedDetection(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "detecting outdated code when stack generates in subdir",
+			steps: []step{
+				{
+					layout: []string{
+						"s:/",
+						"d:/subdir",
+						"s:/stack-1",
+						"s:/stack-2",
+						"d:/stack-1/somedir",
+						"d:/stack-2/somedir",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateHCL(
+									Labels("somedir/test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"somedir/test.hcl",
+						"stack-1/somedir/test.hcl",
+						"stack-2/somedir/test.hcl",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"somedir/test.hcl",
+						"stack-1/somedir/test.hcl",
+						"stack-2/somedir/test.hcl",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {
@@ -1232,8 +1551,16 @@ func TestOutdatedDetection(t *testing.T) {
 					vendorDir = project.NewPath(step.vendorDir)
 				}
 
-				got, err := generate.DetectOutdated(s.Config(), vendorDir)
+				target := s.Config().Tree()
+				if step.wd != "" {
+					var ok bool
+					target, ok = s.Config().Lookup(project.NewPath(step.wd))
+					if !ok {
+						panic("invalid step.wd working directory")
+					}
+				}
 
+				got, err := generate.DetectOutdated(s.Config(), target, vendorDir)
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
 					continue
@@ -1244,7 +1571,7 @@ func TestOutdatedDetection(t *testing.T) {
 				t.Log("checking that after generate outdated detection should always return empty")
 
 				s.GenerateWith(s.Config(), vendorDir)
-				got, err = generate.DetectOutdated(s.Config(), vendorDir)
+				got, err = generate.DetectOutdated(s.Config(), s.Config().Tree(), vendorDir)
 				assert.NoError(t, err)
 
 				assertEqualStringList(t, got, []string{})

@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func setupContext() *eval.Context {
-	ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
+	ctx := eval.NewContext(stdlib.Functions(os.TempDir(), []string{}))
 	ctx.SetNamespace("global", map[string]cty.Value{
 		"true":   cty.True,
 		"false":  cty.False,
@@ -97,9 +97,9 @@ func BenchmarkPartialEvalComplex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -116,9 +116,9 @@ func BenchmarkPartialEvalSmallString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -135,9 +135,9 @@ func BenchmarkPartialEvalHugeString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -154,9 +154,9 @@ func BenchmarkPartialEvalHugeInterpolatedString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -178,9 +178,9 @@ func BenchmarkPartialEvalObject(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		expr, diags := hclsyntax.ParseExpression(exprBytes, "<bench>", hcl.InitialPos)
 		if diags.HasErrors() {
-			b.Fatalf(diags.Error())
+			b.Fatal(diags.Error())
 		}
-		_, err := ctx.PartialEval(expr)
+		_, _, err := ctx.PartialEval(expr)
 		if err != nil {
 			b.Fatal(err.Error())
 		}

@@ -18,7 +18,7 @@ type EvalCtx struct {
 
 // NewEvalCtx creates a new stack evaluation context.
 func NewEvalCtx(root *config.Root, stack *config.Stack, globals *eval.Object) *EvalCtx {
-	evalctx := eval.NewContext(stdlib.Functions(stack.HostDir(root)))
+	evalctx := eval.NewContext(stdlib.Functions(stack.HostDir(root), root.Tree().Node.Experiments()))
 	evalwrapper := &EvalCtx{
 		Context: evalctx,
 		root:    root,

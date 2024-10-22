@@ -23,6 +23,9 @@ import (
 	"go.lsp.dev/uri"
 )
 
+// MethodExecuteCommand is the LSP method name for invoking server commands.
+const MethodExecuteCommand = "workspace/executeCommand"
+
 // Server is the Language Server.
 type Server struct {
 	conn      jsonrpc2.Conn
@@ -65,6 +68,9 @@ func (s *Server) buildHandlers() {
 		lsp.MethodTextDocumentDidChange:  s.handleDocumentChange,
 		lsp.MethodTextDocumentDidSave:    s.handleDocumentSaved,
 		lsp.MethodTextDocumentCompletion: s.handleCompletion,
+
+		// commands
+		MethodExecuteCommand: s.handleExecuteCommand,
 	}
 }
 
@@ -356,12 +362,15 @@ func listFiles(fromFile string) ([]string, error) {
 // is handled separately because it can be unsaved.
 func (s *Server) checkFiles(files []string, currentFile string, currentContent string) error {
 	dir := filepath.Dir(currentFile)
-	_, rootdir, found, _ := config.TryLoadConfig(dir)
+	var experiments []string
+	root, rootdir, found, err := config.TryLoadConfig(dir)
 	if !found {
 		rootdir = s.workspace
+	} else if err == nil {
+		experiments = root.Tree().Node.Experiments()
 	}
 
-	parser, err := hcl.NewTerramateParser(rootdir, dir)
+	parser, err := hcl.NewTerramateParser(rootdir, dir, experiments...)
 	if err != nil {
 		return errors.E(err, "failed to create terramate parser")
 	}

@@ -11,8 +11,10 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -55,6 +57,59 @@ func TestStackClone(t *testing.T) {
 			},
 			src:  "/stack",
 			dest: "/dir/subdir/cloned-stack",
+		},
+		{
+			name: "clone stack with import",
+			layout: []string{
+				"s:/stack",
+				"f:/stack/imports.tm:" + Block("import",
+					Str("source", "/modules/common.tm")).String(),
+				"f:/modules/common.tm:" + Globals(
+					Str("hello", "world"),
+				).String(),
+			},
+			src:  "/stack",
+			dest: "/cloned-stack",
+		},
+		{
+			name: "clone stack with wildcard import",
+			layout: []string{
+				"s:/stack",
+				"f:/stack/imports.tm:" + Block("import",
+					Str("source", "/modules/*.tm")).String(),
+				"f:/modules/common.tm:" + Globals(
+					Str("hello", "world"),
+				).String(),
+			},
+			src:  "/stack",
+			dest: "/cloned-stack",
+		},
+		{
+			name: "clone stack with relative import inside src stack",
+			layout: []string{
+				"s:/stack-a",
+				"f:/stack-a/imports.tm:" + Block("import",
+					Str("source", "module-a-imports/a.tm")).String(),
+				"f:/stack-a/module-a-imports/a.tm:" + Globals(
+					Str("hello", "world"),
+				).String(),
+			},
+			src:  "/stack-a",
+			dest: "/cloned-stack",
+		},
+		{
+			name: "clone stack with relative import outside scope of cloned stack",
+			layout: []string{
+				"s:/dir/stack-a",
+				"f:/dir/stack-a/imports.tm:" + Block("import",
+					Str("source", "../common/a.tm")).String(),
+				"f:/dir/common/a.tm:" + Globals(
+					Str("hello", "world"),
+				).String(),
+			},
+			src:     "/dir/stack-a",
+			dest:    "/cloned-stack",
+			wantErr: errors.E(hcl.ErrImport),
 		},
 		{
 			name:    "src dir must be stack",

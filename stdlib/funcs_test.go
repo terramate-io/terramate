@@ -5,6 +5,7 @@ package stdlib_test
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -129,7 +130,7 @@ func TestTmVendor(t *testing.T) {
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
-			funcs := stdlib.Functions(rootdir)
+			funcs := stdlib.Functions(rootdir, []string{})
 			funcs[stdlib.Name("vendor")] = stdlib.VendorFunc(targetdir, vendordir, events)
 			ctx := eval.NewContext(funcs)
 
@@ -162,7 +163,7 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				funcs := stdlib.Functions(rootdir)
+				funcs := stdlib.Functions(rootdir, []string{})
 				funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, nil)
 				ctx := eval.NewContext(funcs)
 
@@ -285,7 +286,7 @@ func TestStdlibTmVersionMatch(t *testing.T) {
 		tc := tc
 		t.Run(tc.expr, func(t *testing.T) {
 			rootdir := test.TempDir(t)
-			ctx := eval.NewContext(stdlib.Functions(rootdir))
+			ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
 			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
 			errors.Assert(t, err, tc.wantErr)
 			if err != nil {
@@ -304,7 +305,7 @@ func TestStdlibNewFunctionsMustPanicIfRelativeBaseDir(t *testing.T) {
 			t.Fatal("eval.NewContext() did not panic with relative basedir")
 		}
 	}()
-	_ = stdlib.Functions("relative")
+	_ = stdlib.Functions("relative", []string{})
 }
 
 func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
@@ -315,7 +316,7 @@ func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
 		}
 	}()
 
-	stdlib.Functions(filepath.Join(test.TempDir(t), "non-existent"))
+	stdlib.Functions(filepath.Join(test.TempDir(t), "non-existent"), []string{})
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
@@ -327,8 +328,62 @@ func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
 	}()
 
 	path := test.WriteFile(t, test.TempDir(t), "somefile.txt", ``)
-	_ = stdlib.Functions(path)
+	_ = stdlib.Functions(path, []string{})
 }
+
+func TestStdlibTofuSanityCheck(t *testing.T) {
+	// this test just ensures the Tofu functions are being used.
+	t.Parallel()
+
+	type testcase struct {
+		expr    string
+		wantErr error
+		want    bool
+	}
+
+	for _, tc := range []testcase{
+		{
+			// tofu function
+			expr: `tm_cidrcontains("192.168.2.0/20", "192.168.2.1")`,
+			want: true,
+		},
+		{
+			expr: `tm_strcontains("hello world", "hello")`,
+			want: true,
+		},
+		{
+			expr: `tm_timecmp("2017-11-22T00:00:00Z", "2017-11-22T00:00:00Z") == 0`,
+			want: true,
+		},
+		{
+			expr: `tm_timecmp("2017-11-22T01:00:00Z", "2017-11-22T00:00:00Z") == 1`,
+			want: true,
+		},
+		{
+			expr: `tm_startswith("hello world", "hello")`,
+			want: true,
+		},
+		{
+			expr: `tm_endswith("hello world", "world")`,
+			want: true,
+		},
+	} {
+		tc := tc
+		t.Run(tc.expr, func(t *testing.T) {
+			rootdir := test.TempDir(t)
+			ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
+			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
+			errors.Assert(t, err, tc.wantErr)
+			if err != nil {
+				return
+			}
+			gotBool := val.True()
+			assert.IsTrue(t, gotBool == tc.want)
+		})
+	}
+}
+
+func nljoin(strs ...string) string { return strings.Join(strs, "\n") + "\n" }
 
 func init() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)

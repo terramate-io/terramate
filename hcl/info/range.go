@@ -6,7 +6,7 @@ package info
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
+	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/project"
 )
 
@@ -27,6 +27,9 @@ type Range struct {
 	path       project.Path
 	start, end Pos
 }
+
+// Ranges is a list of range.
+type Ranges []Range
 
 // NewRange creates a new Range from the given [hcl.Range] and the rootdir.
 // This function assumes that the filename on the given [hcl.Range] is
@@ -132,4 +135,13 @@ func (r Range) ToHCLRange() hcl.Range {
 			Column: r.End().Column(),
 		},
 	}
+}
+
+// Paths returns the list of paths of the ranges.
+func (rrs Ranges) Paths() project.Paths {
+	var paths project.Paths
+	for _, r := range rrs {
+		paths = append(paths, r.Path())
+	}
+	return paths
 }

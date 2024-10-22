@@ -4,9 +4,9 @@
 package stdlib
 
 import (
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/ext/customdecode"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -34,7 +34,7 @@ func TernaryFunc() function.Function {
 			},
 		},
 		Type: function.StaticReturnType(cty.DynamicPseudoType),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return ternary(args[0], args[1], args[2])
 		},
 	})
@@ -51,13 +51,14 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
 	ctx := eval.NewContextFrom(closure.EvalContext)
-	newexpr, err := ctx.PartialEval(&ast.CloneExpression{
+	newexpr, _, err := ctx.PartialEval(&ast.CloneExpression{
 		Expression: closure.Expression.(hclsyntax.Expression),
 	})
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
 
+	// TODO(i4k): use our own hasUnknowns here.
 	if dependsOnUnknowns(newexpr, closure.EvalContext) {
 		return customdecode.ExpressionVal(newexpr), nil
 	}

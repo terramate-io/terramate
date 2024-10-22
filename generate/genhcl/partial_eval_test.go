@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	"github.com/terramate-io/terramate/test/hclwrite"
@@ -120,7 +121,7 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					"key" = "value"	
+					key = "value"	
 				}`),
 			),
 		},
@@ -139,7 +140,7 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					"KEY" = "value"	
+					KEY = "value"	
 				}`),
 			),
 		},
@@ -616,7 +617,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("var", `1 + 1`),
 			),
 			want: Doc(
-				Expr("var", `1 + 1`),
+				Expr("var", `2`),
 			),
 		},
 		{
@@ -629,7 +630,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "plus expression evaluated",
+			name: "plus expression with strings evaluated -- fails",
 			globals: Doc(
 				Globals(
 					Str("a", "hello"),
@@ -639,32 +640,45 @@ func TestPartialEval(t *testing.T) {
 			config: Doc(
 				Expr("var", `tm_upper(global.a) + tm_upper(global.b)`),
 			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			name: "plus expression with numbers evaluated",
+			globals: Doc(
+				Globals(
+					Number("a", 2),
+					Number("b", 2),
+				),
+			),
+			config: Doc(
+				Expr("var", `global.a*global.a + global.b*global.b`),
+			),
 			want: Doc(
-				Expr("var", `"HELLO" + "WORLD"`),
+				Expr("var", `8`),
 			),
 		},
 		{
 			name: "plus expression evaluated advanced",
 			globals: Doc(
 				Globals(
-					Str("a", "hello"),
-					Str("b", "world"),
+					Number("a", 100),
+					Number("b", 200),
 				),
 			),
 			config: Doc(
-				Expr("var", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
+				Expr("var", `tm_max(global.a, global.b) + tm_min(global.b, global.a)`),
 			),
 			want: Doc(
-				Expr("var", `"hello" + "world"`),
+				Number("var", 300),
 			),
 		},
 		{
 			name: "basic minus expression",
 			config: Doc(
-				Expr("var", `1 + 1`),
+				Expr("var", `1 - 1`),
 			),
 			want: Doc(
-				Expr("var", `1 + 1`),
+				Number("var", 0),
 			),
 		},
 		{
@@ -673,7 +687,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("var", `1 == 1 ? 0 : 1`),
 			),
 			want: Doc(
-				Expr("var", `1 == 1 ? 0 : 1`),
+				Number("var", 0),
 			),
 		},
 		{
@@ -1034,24 +1048,28 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "list for loop with global reference fails",
+			name: "list for loop with global reference",
 			globals: Globals(
 				Expr("list", `["a", "b", "c"]`),
 			),
 			config: Doc(
 				Expr("list", `[for k in global.list : k]`),
 			),
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			want: Doc(
+				Expr("list", `["a", "b", "c"]`),
+			),
 		},
 		{
-			name: "obj for loop with global reference fails",
+			name: "obj for loop with global reference",
 			globals: Globals(
 				Expr("obj", `{ a = 1}`),
 			),
 			config: Doc(
 				Expr("obj", `[for k in global.obj : k]`),
 			),
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			want: Doc(
+				Expr("obj", `[1]`),
+			),
 		},
 		{
 			name: "[for in from [for list with global references",
@@ -1061,7 +1079,9 @@ func TestPartialEval(t *testing.T) {
 			config: Doc(
 				Expr("obj", `[for s in [for s in global.list : s] : s]`),
 			),
-			wantErr: errors.E(eval.ErrForExprDisallowEval),
+			want: Doc(
+				Expr("obj", `["a", "b", "c"]`),
+			),
 		},
 		{
 			name: "mixing {for and [for",
@@ -1075,10 +1095,10 @@ func TestPartialEval(t *testing.T) {
 		{
 			name: "unary operation !",
 			config: Doc(
-				Expr("num", "!0"),
+				Expr("b", "!false"),
 			),
 			want: Doc(
-				Expr("num", "!0"),
+				Expr("b", "true"),
 			),
 		},
 		{
@@ -1127,14 +1147,14 @@ func TestPartialEval(t *testing.T) {
 		{
 			name: "conditional globals evaluation",
 			globals: Globals(
-				Str("domain", "mineiros.io"),
+				Str("domain", "terramate.io"),
 				Bool("exists", true),
 			),
 			config: Doc(
 				Expr("a", `global.exists ? global.domain : "example.com"`),
 			),
 			want: Doc(
-				Expr("a", `true ? "mineiros.io" : "example.com"`),
+				Expr("a", `"terramate.io"`),
 			),
 		},
 		{
@@ -1486,6 +1506,140 @@ EOT
 			),
 		},
 		{
+			name: "tm_hcl_expression with for-object loops",
+			globals: Globals(
+				Expr("role", `[
+                   {
+					  foo = "bar"
+				   },
+				   {
+					  foo = "baz"
+				   }
+				]`),
+			),
+			config: Doc(
+				Expr("main_role", `{
+					for k, v in global.role : v.foo => tm_hcl_expression("data.aws_iam_roles[${k}].${v.foo}.arn")
+				}`),
+			),
+			want: Doc(
+				Expr("main_role", `{
+					bar = data.aws_iam_roles[0].bar.arn
+					baz = data.aws_iam_roles[1].baz.arn
+				}`),
+			),
+		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1689
+			name: "regression test: tm_hcl_expression with for-object loops + tm_merge",
+			globals: Globals(
+				Expr("role", `[
+                   {
+					  foo = "bar"
+				   },
+				   {
+					  foo = "baz"
+				   }
+				]`),
+			),
+			config: Doc(
+				Expr("main_role", `tm_merge({}, {
+					for k, v in global.role : v.foo => tm_hcl_expression("data.aws_iam_roles[${k}].${v.foo}.arn")
+				})`),
+			),
+			want: Doc(
+				Expr("main_role", `{
+					bar = data.aws_iam_roles[0].bar.arn
+					baz = data.aws_iam_roles[1].baz.arn
+				}`),
+			),
+		},
+		{
+			// https://github.com/terramate-io/terramate/issues/1676
+			name: "regression test: tm_hcl_expression with tm_dynamic",
+			globals: Globals(
+				Labels("envs"),
+				Expr("sandbox", `{
+					required = true
+					reviewers = [
+						"a-reviewer"
+					]
+				}`),
+				Expr("staging", `{
+					required = false
+					waiter = 10
+					reviewers = [
+						"another-reviewer",
+						"a-reviewer"
+					]
+				}`),
+				Expr("production", `{
+					waiter = 100
+					reviewers = [
+						"another-reviewer"
+					]
+				}`),
+			),
+			config: Doc(
+				TmDynamic(
+					Labels("resource"),
+					Expr("for_each", `global.envs`),
+					Expr("iterator", "env"),
+					Expr("labels", `["github_environment", env.key]`),
+					Expr("attributes", `{ for k, v in env.value : k => v if !tm_can(tm_keys(v)) }`),
+				),
+			),
+			want: Doc(
+				Block("resource",
+					Labels("github_environment", "production"),
+					Expr("reviewers", `[
+						"another-reviewer",
+					  ]`),
+					Number("waiter", 100),
+				),
+				Block("resource",
+					Labels("github_environment", "sandbox"),
+					Bool("required", true),
+					Expr("reviewers", `[
+						"a-reviewer",
+					  ]`),
+				),
+				Block("resource",
+					Labels("github_environment", "staging"),
+					Bool("required", false),
+					Expr("reviewers", `[
+						"another-reviewer",
+						"a-reviewer",
+					  ]`),
+					Number("waiter", 10),
+				),
+			),
+		},
+		{
+			name: "tm_hcl_expression with for-list loops",
+			globals: Globals(
+				Expr("role", `[
+                   {
+					  foo = "bar"
+				   },
+				   {
+					  foo = "baz"
+				   }
+				]`),
+			),
+			config: Doc(
+				Expr("main_role", `[
+					for k, v in global.role : tm_hcl_expression("data.whatever[${k}].other.${v.foo}")
+				]`),
+			),
+			want: Doc(
+				Expr("main_role", `[
+					data.whatever[0].other.bar,
+					data.whatever[1].other.baz,
+				]`),
+			),
+		},
+		{
 			name: "tm_hcl_expression accessing global with interpolation",
 			globals: Globals(
 				Number("val", 1),
@@ -1715,7 +1869,7 @@ EOT
 
 			s := sandbox.NoGit(t, true)
 			stackEntry := s.CreateStack(stackname)
-			stack := stackEntry.Load(s.Config())
+			st := stackEntry.Load(s.Config())
 			path := filepath.Join(s.RootDir(), stackname)
 			if tcase.globals == nil {
 				tcase.globals = Globals()
@@ -1741,9 +1895,10 @@ EOT
 
 			assert.NoError(t, err)
 
-			globals := s.LoadStackGlobals(root, stack)
+			globals := s.LoadStackGlobals(root, st)
 			vendorDir := project.NewPath("/modules")
-			got, err := genhcl.Load(root, stack, globals, vendorDir, nil)
+			evalctx := stack.NewEvalCtx(root, st, globals)
+			got, err := genhcl.Load(root, st, evalctx.Context, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

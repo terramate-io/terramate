@@ -19,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	infotest "github.com/terramate-io/terramate/test/hclutils/info"
@@ -416,9 +417,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -487,9 +488,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("testblock2",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},
@@ -557,9 +558,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("testblock2",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},
@@ -659,9 +660,9 @@ func TestGenerateHCL(t *testing.T) {
 								Number("number", 777),
 								Block("block3",
 									EvalExpr(t, "obj", `{
-										string = "string"
-										number = 777
 										bool   = true
+										number = 777
+										string = "string"
 									}`),
 									Str("string", "string"),
 								),
@@ -781,9 +782,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("on_parent_block",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},
@@ -1392,7 +1393,7 @@ func TestGenerateHCL(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "attributes on generate_hcl block fails",
+			name:  "unrecognized attributes on generate_hcl block fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -1449,9 +1450,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -1504,9 +1505,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -1555,9 +1556,9 @@ func TestGenerateHCL(t *testing.T) {
 							Bool("bool", true),
 							Number("number", 777),
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 							Str("string", "string"),
 						),
@@ -1686,6 +1687,163 @@ func TestGenerateHCL(t *testing.T) {
 	}
 }
 
+func TestGenHCLTmGen(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name:  "if tmgen is disabled in the experiments, then the file is ignored",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "main.tf.tmgen",
+					add:      &strings.Builder{},
+				},
+			},
+		},
+		{
+			name:  "empty .tmgen file generates empty file",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "main.tf.tmgen",
+					add:      &strings.Builder{},
+				},
+			},
+			want: []result{
+				{
+					name: "main.tf",
+					hcl: genHCL{
+						condition: true,
+						body:      Doc(),
+					},
+				},
+			},
+		},
+		{
+			name:  ".tmgen file without prefix is ignored -- because it's a dotfile",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: ".tmgen",
+					add:      Block("test"),
+				},
+			},
+		},
+		{
+			name:  "generating simple main.tf",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "main.tf.tmgen",
+					add: Block("module",
+						Str("source", "something.else/etc"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "main.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Block("module",
+							Str("source", "something.else/etc"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "tmgen using globals and terramate namespace",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "terramate.tm",
+					add: Terramate(
+						Config(
+							Expr("experiments", `["tmgen"]`),
+						),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "test.tf.tmgen",
+					add: Block("testblock",
+						Expr("bool", "global.some_bool"),
+						Expr("number", "global.some_number"),
+						Expr("string", "global.some_string"),
+						Expr("stack_name", "terramate.stack.name"),
+						Expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								bool   = true
+								number = 777
+								string = "string"
+							}`),
+							Str("stack_name", "stack"),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+	} {
+		tc.run(t)
+	}
+}
+
 type (
 	hclconfig struct {
 		path     string
@@ -1718,7 +1876,7 @@ func (tcase testcase) run(t *testing.T) {
 		s := sandbox.NoGit(t, true)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
-		stack := stacks[0].Stack
+		st := stacks[0].Stack
 
 		for _, cfg := range tcase.configs {
 			filename := cfg.filename
@@ -1737,9 +1895,10 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, stack)
+		globals := s.LoadStackGlobals(cfg, st)
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(cfg, stack, globals, vendorDir, nil)
+		evalctx := stack.NewEvalCtx(cfg, st, globals)
+		got, err := genhcl.Load(cfg, st, evalctx.Context, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

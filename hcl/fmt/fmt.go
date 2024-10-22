@@ -10,15 +10,18 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/hcl/v2/hclsyntax"
+	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/fs"
 )
 
 // ErrHCLSyntax is the error kind for syntax errors.
 const ErrHCLSyntax errors.Kind = "HCL syntax error"
+
+// ErrReadFile is the error kind for any error related to reading the file content.
+const ErrReadFile errors.Kind = "failed to read file"
 
 // FormatResult represents the result of a formatting operation.
 type FormatResult struct {
@@ -62,47 +65,19 @@ func Format(src, filename string) (string, error) {
 // All files will be left untouched. To save the formatted result on disk you
 // can use FormatResult.Save for each FormatResult.
 func FormatTree(dir string) ([]FormatResult, error) {
-	files, err := fs.ListTerramateFiles(dir)
+	// TODO(i4k): use files from the config tree.
+	files, _, dirs, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
 	sort.Strings(files)
 
-	results := []FormatResult{}
 	errs := errors.L()
+	results, err := FormatFiles(dir, files)
 
-	for _, f := range files {
-		path := filepath.Join(dir, f)
-		fileContents, err := os.ReadFile(path)
-		if err != nil {
-			errs.Append(err)
-			continue
-		}
+	errs.Append(err)
 
-		currentCode := string(fileContents)
-		formatted, err := Format(currentCode, path)
-		if err != nil {
-			errs.Append(err)
-			continue
-		}
-
-		if currentCode == formatted {
-			continue
-		}
-
-		results = append(results, FormatResult{
-			path:      path,
-			formatted: formatted,
-		})
-	}
-
-	dirs, err := fs.ListTerramateDirs(dir)
-	if err != nil {
-		errs.Append(err)
-		return nil, errors.E(errFormatTree, errs)
-	}
 	sort.Strings(dirs)
-
 	for _, d := range dirs {
 		subres, err := FormatTree(filepath.Join(dir, d))
 		if err != nil {
@@ -112,6 +87,54 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		results = append(results, subres...)
 	}
 
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// FormatFiles will format all the provided Terramate paths.
+// Only Terramate configuration files can be reliably formatted with this function.
+// If HCL files for a different tool is provided, the result is unpredictable.
+//
+// Note: The provided file paths can be absolute or relative. If relative, ensure
+// working directory is corrected adjusted. The special `-` filename is treated as a
+// normal filename, then if it needs to be interpreted as `stdin` this needs to be
+// handled separately by the caller.
+//
+// Files that are already formatted are ignored. If all files are formatted
+// this function returns an empty result.
+//
+// All files will be left untouched. To save the formatted result on disk you
+// can use FormatResult.Save for each FormatResult.
+func FormatFiles(basedir string, files []string) ([]FormatResult, error) {
+	results := []FormatResult{}
+	errs := errors.L()
+
+	for _, file := range files {
+		fname := file
+		if !filepath.IsAbs(file) {
+			fname = filepath.Join(basedir, file)
+		}
+		fileContents, err := os.ReadFile(fname)
+		if err != nil {
+			errs.Append(errors.E(ErrReadFile, err))
+			continue
+		}
+		currentCode := string(fileContents)
+		formatted, err := Format(currentCode, fname)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+		if currentCode == formatted {
+			continue
+		}
+		results = append(results, FormatResult{
+			path:      fname,
+			formatted: formatted,
+		})
+	}
 	if err := errs.AsError(); err != nil {
 		return nil, err
 	}
