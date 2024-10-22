@@ -62,18 +62,15 @@ jobs:
       - name: make generate
         run: make generate
 
-      - name: fetch base ref (${{ github.base_ref }})
-        run: git fetch origin ${{ github.base_ref }}
-
       ### Check for changed stacks
 
       - name: List changed Go packages
         id: list_go_packages
-        run: terramate list --tags golang --changed --git-change-base origin/${{ github.base_ref }}
+        run: terramate list --tags golang --changed --git-change-base HEAD^
 
       - name: List changed e2e tests packages
         id: list_e2e_packages
-        run: terramate list --tags e2etests --changed --git-change-base origin/${{ github.base_ref }}
+        run: terramate list --tags e2etests --changed --git-change-base HEAD^
 
       ### Linting
 
@@ -117,7 +114,7 @@ jobs:
       - name: Else only run the changed e2e packages
         if: ${{ !steps.list_e2e_packages.outputs.stdout && steps.list_e2e_packages.outputs.stdout }}
         timeout-minutes: 30
-        run: terramate script run --tags e2etests --changed --git-change-base origin/${{ github.base_ref }} --target "${{ matrix.os.name }}-e2e" --parallel 12 deploy
+        run: terramate script run --tags e2etests --changed --git-change-base HEAD^ --target "${{ matrix.os.name }}-e2e" --parallel 12 deploy
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
