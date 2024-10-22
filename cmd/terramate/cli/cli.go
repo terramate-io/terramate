@@ -1160,25 +1160,25 @@ func (c *cli) gencodeWithVendor() (*generate.Report, download.Report) {
 
 	mergedVendorReport := download.MergeVendorReports(vendorReports)
 
-	log.Debug().Msg("generating code")
+	log.Trace().Msg("generating code")
 
 	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
 	report := generate.Do(c.cfg(), cwd, c.parsedArgs.Generate.Parallel, c.vendorDir(), vendorRequestEvents)
 
-	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
+	log.Trace().Msg("code generation finished, waiting for vendor requests to be handled")
 
 	close(vendorRequestEvents)
 
-	log.Debug().Msg("waiting for vendor report merging")
+	log.Trace().Msg("waiting for vendor report merging")
 
 	vendorReport := <-mergedVendorReport
 
-	log.Debug().Msg("waiting for all progress events")
+	log.Trace().Msg("waiting for all progress events")
 
 	close(vendorProgressEvents)
 	<-progressHandlerDone
 
-	log.Debug().Msg("all handlers stopped, generating final report")
+	log.Trace().Msg("all handlers stopped, generating final report")
 
 	return report, vendorReport
 }

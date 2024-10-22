@@ -189,6 +189,20 @@ func Do(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) *Report {
+	logger := log.With().
+		Stringer("target_dir", targetDir).
+		Logger()
+
+	startTime := time.Now()
+	defer func() {
+		endTime := time.Now()
+		logger.Debug().
+			Time("started_at", startTime).
+			Time("finished_at", endTime).
+			Dur("elapsed_time_ms", endTime.Sub(startTime)).
+			Msg("generate finished")
+	}()
+
 	tree, ok := root.Lookup(targetDir)
 	if !ok {
 		return &Report{
@@ -198,6 +212,9 @@ func Do(
 	if parallel == 0 {
 		parallel = runtime.NumCPU()
 	}
+
+	logger = logger.With().Int("parallel", parallel).Logger()
+
 	workchan := make(chan *config.Tree)
 	reportchan := make(chan *Report)
 	var wg sync.WaitGroup
@@ -394,7 +411,7 @@ func rootGenerate(root *config.Root, target project.Path) *Report {
 	var files []GenFile
 
 	for _, cfg := range root.Tree().AsList() {
-		logger = logger.With().
+		logger := logger.With().
 			Stringer("configDir", cfg.Dir()).
 			Bool("isEmpty", cfg.IsEmptyConfig()).
 			Logger()
