@@ -22,6 +22,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## v0.11.0 
+
 ### Added
 
 - Add `--enable-change-detection=<options>` and `--disable-change-detection=<options>` to the commands: `terramate list`, `terramate run` and `terramate script run`. 
@@ -29,8 +31,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for using `TM_ARG_*` environment variables to configure cli commands.
   Note: This is an incremental change. Only global flags and `terramate run` flags were added for now.
   - For example: Use `TM_ARG_CHDIR=stacks/prod TM_ARG_RUN_REVERSE=1 terramate run -- terraform apply` to run from inside `stacks/prod` and with reversed execution order (which is the same as `terramate --chdir stacks/prod run --reverse -- terraform apply`).
-- Add support for dot (`.`) in the tag syntax.
-  - Now you can add tags like `v1.0.0-abc_xyz`
 
 ### Changed
 
@@ -38,7 +38,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
 - **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
   - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
-- The **Outputs Sharing** feature now has no default value for the `sensitive` field of `input` and `output` blocks.
 
 ## v0.10.8
 
