@@ -8,18 +8,7 @@ import (
 
 	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
 )
-
-// CloneExpression is an expression wrapper that
-type CloneExpression struct {
-	hclsyntax.Expression
-}
-
-// Value evaluates the wrapped expression.
-func (clone *CloneExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
-	return clone.Expression.Value(ctx)
-}
 
 // CloneExpr clones the given expression.
 func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
