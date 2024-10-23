@@ -78,12 +78,8 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 		Origin:   block.RawOrigins[0].Range,
 		Children: children,
 		Attrs: Attributes{
-			ForEach: &ast.CloneExpression{
-				Expression: block.Attributes["for_each"].Expr.(hclsyntax.Expression),
-			},
-			Key: &ast.CloneExpression{
-				Expression: block.Attributes["key"].Expr.(hclsyntax.Expression),
-			},
+			ForEach:    block.Attributes["for_each"].Expr.(hclsyntax.Expression),
+			Key:        block.Attributes["key"].Expr.(hclsyntax.Expression),
 			ValueAttr:  valueExpr,
 			ValueBlock: valueBlock,
 			Iterator:   iterator,

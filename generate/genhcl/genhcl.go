@@ -417,13 +417,7 @@ func loadGenHCLBlocks(root *config.Root, st *config.Stack, cfgdir project.Path) 
 func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) error {
 	attrs := ast.SortRawAttributes(ast.AsHCLAttributes(src.Attributes))
 	for _, attr := range attrs {
-		// a generate_hcl.content block must be partially evaluated multiple
-		// times then the updates nodes should not be persisted.
-		expr := &ast.CloneExpression{
-			Expression: attr.Expr.(hclsyntax.Expression),
-		}
-
-		newexpr, _, err := eval.PartialEval(expr)
+		newexpr, _, err := eval.PartialEval(attr.Expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -708,11 +702,6 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 		switch name {
 		case "attributes":
 			dynAttrs.attributes = attr
-			if _, ok := attr.Expr.(*ast.CloneExpression); !ok {
-				dynAttrs.attributes.Expr = &ast.CloneExpression{
-					Expression: attr.Expr,
-				}
-			}
 
 		case "for_each":
 			dynAttrs.foreach = attr
