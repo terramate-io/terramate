@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/safeguard"
@@ -1901,8 +1900,4 @@ func TestHCLParseProvidesAllParsedBodies(t *testing.T) {
 	assert.EqualStrings(t, "generate_hcl", blocks[1].Type)
 	assert.EqualStrings(t, "generate_file", blocks[2].Type)
 	assert.EqualStrings(t, "globals", blocks[3].Type)
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
