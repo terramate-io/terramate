@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Faster code generation through parallelization.
+  - Enabled by default, use `terramate generate --parallel <n>` to control the amount of concurrent units (default = number of logical CPU cores).
+
 ## v0.11.0 
 
 ### Added
