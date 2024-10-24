@@ -600,6 +600,8 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 
 func TestHCLParserRootConfig(t *testing.T) {
 	ptr := func(s string) *string { return &s }
+	on := true
+	off := false
 	for _, tc := range []testcase{
 		{
 			name: "no config returns empty config",
@@ -984,7 +986,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							ChangeDetection: &hcl.ChangeDetectionConfig{
-								Terragrunt: &hcl.TerragruntConfig{
+								Terragrunt: &hcl.TerragruntChangeDetectionConfig{
 									Enabled: hcl.TerragruntAutoOption,
 								},
 							},
@@ -1016,7 +1018,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							ChangeDetection: &hcl.ChangeDetectionConfig{
-								Terragrunt: &hcl.TerragruntConfig{
+								Terragrunt: &hcl.TerragruntChangeDetectionConfig{
 									Enabled: hcl.TerragruntOffOption,
 								},
 							},
@@ -1048,8 +1050,76 @@ func TestHCLParserRootConfig(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							ChangeDetection: &hcl.ChangeDetectionConfig{
-								Terragrunt: &hcl.TerragruntConfig{
+								Terragrunt: &hcl.TerragruntChangeDetectionConfig{
 									Enabled: hcl.TerragruntForceOption,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "disabling terramate.config.change_detection.git",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  git {
+							    untracked = "off"
+								uncommitted = false
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Git: &hcl.GitChangeDetectionConfig{
+									Untracked:   &off,
+									Uncommitted: &off,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "enabling terramate.config.change_detection.git",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    change_detection {
+							  git {
+							    untracked = "on"
+								uncommitted = true
+							  }
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							ChangeDetection: &hcl.ChangeDetectionConfig{
+								Git: &hcl.GitChangeDetectionConfig{
+									Untracked:   &on,
+									Uncommitted: &on,
 								},
 							},
 						},
@@ -1231,7 +1301,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "terramate.config.generate..hcl_magic_header_comment_style is not string -- fail",
+			name: "terramate.config.generate.hcl_magic_header_comment_style is not string -- fail",
 			input: []cfgfile{
 				{
 					filename: "tm.tm",

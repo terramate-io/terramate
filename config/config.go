@@ -6,12 +6,12 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/exp/slices"
 
@@ -22,6 +22,7 @@ import (
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
@@ -47,7 +48,8 @@ const (
 // This type is just for ensure better type checking for the cases where a
 // configuration for the root directory is expected and not from anywhere else.
 type Root struct {
-	tree Tree
+	// tree MUST never be nil
+	tree *Tree
 
 	// hasTerragruntStacks tells if the repository has any Terragrunt stack.
 	hasTerragruntStacks *bool
@@ -62,6 +64,11 @@ type Tree struct {
 	// Node is the configuration of this tree node.
 	Node hcl.Config
 
+	Skipped bool // tells if this node subdirs were skipped
+
+	TerramateFiles []string
+	OtherFiles     []string
+
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
 
@@ -73,6 +80,9 @@ type Tree struct {
 	stack *Stack
 
 	dir string
+
+	// used for caching the loaded stack.
+	mu sync.Mutex
 }
 
 // DirElem represents a node which is represented by a directory.
@@ -123,7 +133,7 @@ func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, e
 func NewRoot(tree *Tree) *Root {
 	r := &Root{}
 	tree.root = r
-	r.tree = *tree
+	r.tree = tree
 
 	r.initRuntime()
 	return r
@@ -145,13 +155,20 @@ func LoadRoot(rootdir string) (*Root, error) {
 }
 
 // Tree returns the root configuration tree.
-func (root *Root) Tree() *Tree { return &root.tree }
+func (root *Root) Tree() *Tree { return root.tree }
 
 // HostDir returns the root directory.
 func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
-func (root *Root) Lookup(path project.Path) (*Tree, bool) {
+func (root *Root) Lookup(path project.Path) (node *Tree, found bool) {
+	node, _, found = root.tree.lookup(path)
+	return node, found
+}
+
+// Lookup2 is like Lookup but returns skipped as true if the path is not found because
+// a parent directory was skipped.
+func (root *Root) Lookup2(path project.Path) (node *Tree, skipped bool, found bool) {
 	return root.tree.lookup(path)
 }
 
@@ -270,7 +287,7 @@ func (root *Root) Runtime() project.Runtime {
 func (root *Root) initRuntime() {
 	rootfs := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(root.HostDir()),
-		"basename": cty.StringVal(filepath.Base(root.HostDir())),
+		"basename": cty.StringVal(filepath.ToSlash(filepath.Base(root.HostDir()))),
 	})
 	rootpath := cty.ObjectVal(map[string]cty.Value{
 		"fs": rootfs,
@@ -353,6 +370,8 @@ func (tree *Tree) IsInsideStack() bool {
 
 // Stack returns the stack object.
 func (tree *Tree) Stack() (*Stack, error) {
+	tree.mu.Lock()
+	defer tree.mu.Unlock()
 	if tree.stack == nil {
 		s, err := LoadStack(tree.Root(), tree.Dir())
 		if err != nil {
@@ -384,10 +403,13 @@ func (tree *Tree) stacks(cond func(*Tree) bool) List[*Tree] {
 
 // Lookup a node from the tree using a filesystem query path.
 // The abspath is relative to the current tree node.
-func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
+func (tree *Tree) lookup(abspath project.Path) (node *Tree, skipped bool, found bool) {
+	if tree.Skipped {
+		return nil, true, false
+	}
 	pathstr := abspath.String()
 	if len(pathstr) == 0 || pathstr[0] != '/' {
-		return nil, false
+		return nil, false, false
 	}
 
 	parts := strings.Split(pathstr, "/")
@@ -399,11 +421,11 @@ func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
 		}
 		node, found := cfg.Children[parts[i]]
 		if !found {
-			return nil, false
+			return nil, cfg.Skipped, false
 		}
 		cfg = node
 	}
-	return cfg, true
+	return cfg, false, true
 }
 
 // AsList returns a list with this node and all its children.
@@ -428,25 +450,15 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		Str("dir", cfgdir).
 		Logger()
 
-	f, err := os.Open(cfgdir)
+	tmFiles, otherFiles, dirs, err := fs.ListTerramateFiles(cfgdir)
 	if err != nil {
-		return nil, errors.E(err, "failed to open cfg directory")
+		return nil, err
 	}
 
-	defer func() {
-		err = errors.L(err, f.Close()).AsError()
-	}()
-
-	dirEntries, err := f.ReadDir(-1)
-	if err != nil {
-		return nil, errors.E(err, "failed to read files in %s", cfgdir)
-	}
-
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
+	for _, fname := range otherFiles {
 		if fname == SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
-			return NewTree(cfgdir), nil
+			return newSkippedTree(cfgdir), nil
 		}
 	}
 
@@ -458,7 +470,23 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	if cfgdir != rootdir {
 		tree := NewTree(cfgdir)
 
-		cfg, err := hcl.ParseDir(rootdir, cfgdir, rootcfg.Experiments()...)
+		p, err := hcl.NewTerramateParser(rootdir, cfgdir, rootcfg.Experiments()...)
+		if err != nil {
+			return nil, err
+		}
+		for _, filename := range tmFiles {
+			path := filepath.Join(cfgdir, filename)
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, errors.E(err, "reading config file %q", path)
+			}
+
+			if err := p.AddFileContent(path, data); err != nil {
+				return nil, err
+			}
+		}
+		cfg, err := p.ParseConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -468,20 +496,21 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		}
 
 		tree.Node = cfg
+		tree.TerramateFiles = tmFiles
+		tree.OtherFiles = otherFiles
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
 		parentTree = tree
 	}
 
-	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, dirEntries)
+	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, otherFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
-		if Skip(fname) || !dirEntry.IsDir() {
+	for _, fname := range dirs {
+		if Skip(fname) {
 			continue
 		}
 
@@ -497,14 +526,13 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	return parentTree, nil
 }
 
-func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, dirEntries []fs.DirEntry) error {
+func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, files []string) error {
 	const tmgenSuffix = ".tmgen"
 
 	tmgenEnabled := rootTree.hasExperiment("tmgen")
 
 	// process all .tmgen files.
-	for _, dirEntry := range dirEntries {
-		fname := dirEntry.Name()
+	for _, fname := range files {
 		if !strings.HasSuffix(fname, tmgenSuffix) || fname[0] == '.' {
 			continue
 		}
@@ -609,6 +637,12 @@ func NewTree(cfgdir string) *Tree {
 	}
 }
 
+func newSkippedTree(cfgdir string) *Tree {
+	t := NewTree(cfgdir)
+	t.Skipped = true
+	return t
+}
+
 func (tree *Tree) hasExperiment(name string) bool {
 	if tree.Parent != nil {
 		return tree.Parent.hasExperiment(name)
@@ -636,6 +670,17 @@ func (root *Root) TerragruntEnabledOption() hcl.TerragruntChangeDetectionEnabled
 	return hcl.TerragruntAutoOption // "auto" is the default.
 }
 
+// ChangeDetectionGitConfig returns the `terramate.config.change_detection.git` object config.
+func (root *Root) ChangeDetectionGitConfig() (*hcl.GitChangeDetectionConfig, bool) {
+	if root.tree.Node.Terramate != nil &&
+		root.tree.Node.Terramate.Config != nil &&
+		root.tree.Node.Terramate.Config.ChangeDetection != nil &&
+		root.tree.Node.Terramate.Config.ChangeDetection.Git != nil {
+		return root.tree.Node.Terramate.Config.ChangeDetection.Git, true
+	}
+	return nil, false
+}
+
 // HasTerragruntStacks returns true if the stack loading has detected Terragrunt files.
 func (root *Root) HasTerragruntStacks() bool {
 	b := root.hasTerragruntStacks
@@ -647,7 +692,7 @@ func (root *Root) HasTerragruntStacks() bool {
 
 // IsTerragruntChangeDetectionEnabled returns true if Terragrunt change detection integration
 // must be executed.
-func (root *Root) IsTerragruntChangeDetectionEnabled() bool {
+func (root *Root) IsTerragruntChangeDetectionEnabled() (ret bool) {
 	switch opt := root.TerragruntEnabledOption(); opt {
 	case hcl.TerragruntOffOption:
 		return false

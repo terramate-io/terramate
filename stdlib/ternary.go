@@ -8,7 +8,6 @@ import (
 	"github.com/terramate-io/hcl/v2/ext/customdecode"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -51,9 +50,7 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
 	ctx := eval.NewContextFrom(closure.EvalContext)
-	newexpr, _, err := ctx.PartialEval(&ast.CloneExpression{
-		Expression: closure.Expression.(hclsyntax.Expression),
-	})
+	newexpr, _, err := ctx.PartialEval(closure.Expression.(hclsyntax.Expression))
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}

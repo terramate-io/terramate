@@ -100,7 +100,7 @@ func TestDocumentRegressionErrorLoadingRootConfig(t *testing.T) {
 	assert.EqualStrings(t, "textDocument/publishDiagnostics", rp.req.Method(),
 		"unexpected notification request")
 	assert.EqualInts(t, 1, len(rp.p.Diagnostics), "got diagnostics for file %v: %v", rp.p.URI.Filename(), rp.p.Diagnostics)
-	assert.EqualStrings(t, file.Path(), rp.p.URI.Filename())
+	assert.EqualStrings(t, file.HostPath(), rp.p.URI.Filename())
 }
 
 func TestDocumentChange(t *testing.T) {

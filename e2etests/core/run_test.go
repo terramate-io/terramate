@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -950,7 +951,10 @@ script "cmd" {
 					}
 
 					cli := NewCLI(t, wd)
-					AssertRunResult(t, cli.StacksRunOrder(filterArgs...), tc.want)
+					args := []string{"run", "-X", "--quiet"}
+					args = append(args, filterArgs...)
+					args = append(args, "--", HelperPath, "stack-abs-path", s.RootDir())
+					AssertRunResult(t, cli.Run(args...), tc.want)
 					runArgs := []string{
 						"--quiet", "run", "-X", // disable all safeguards
 					}
@@ -1542,6 +1546,19 @@ func TestRunWantedBy(t *testing.T) {
 				StderrRegex: string(tag.ErrInvalidTag),
 			},
 		},
+		{
+			name: "stack-b ordered and filtered with tag containing dots, dashes and underscores",
+			layout: []string{
+				`s:stack-a:tags=["v1.0.0-rc1_experiment"]`,
+				`s:stack-b:tags=["v1.0.1-rc1_experiment"];after=[":tag:v1.0.0-rc1_experiment"]`,
+			},
+			filterTags: []string{"v1.0.0-rc1_experiment"},
+			want: RunExpected{
+				Stdout: nljoin(
+					"/stack-a",
+				),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
@@ -1587,7 +1604,7 @@ script "cmd" {
 
 			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
 
-			runOrderArgs := append(baseArgs, "--quiet", "experimental", "run-order")
+			runOrderArgs := append(baseArgs, "run", "-X", "--quiet", HelperPath, "stack-abs-path", s.RootDir())
 			AssertRunResult(t, cli.Run(runOrderArgs...), tc.want)
 
 			if s.IsGit() {
@@ -1882,11 +1899,13 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		})
 	})
 
-	t.Run("ensure list is not affected by untracked check", func(t *testing.T) {
+	t.Run("ensure list **is** affected by untracked check (by default)", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir())
 
-		AssertRun(t, tmcli.Run("list", "--changed"))
 		AssertRunResult(t, tmcli.Run("list"), RunExpected{
+			Stdout: nljoin("stack"),
+		})
+		AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
 			Stdout: nljoin("stack"),
 		})
 	})
@@ -1895,14 +1914,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using deprecated cmd args", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			"--disable-check-git-untracked",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -1918,14 +1940,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using --disable-safeguards=git-untracked cmd args", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"--quiet",
@@ -1941,14 +1966,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using --disable-safeguards=all cmd args", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=all",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"--quiet",
@@ -1964,14 +1992,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 	t.Run("disable check using -X", func(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"-X",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"--quiet",
@@ -1989,13 +2020,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=true")
 
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2012,13 +2046,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_CHECK_GIT_UNTRACKED=1")
 
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2046,13 +2083,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2078,13 +2118,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2110,13 +2153,16 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2144,14 +2190,17 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
@@ -2178,19 +2227,23 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		defer s.RootEntry().RemoveFile(rootConfig)
 
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
-		AssertRun(t, tmcli.Run(
+		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=git-untracked",
 			"--changed",
 			HelperPath,
 			"cat",
 			mainTfFileName,
-		))
+		), RunExpected{
+			Stdout: mainTfContents,
+		})
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
 			"--disable-safeguards=git-untracked",
 			"--quiet",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2216,7 +2269,10 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli := NewCLI(t, s.RootDir(), testEnviron(t)...)
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=none",
+			"--changed",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2227,6 +2283,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
 			"--disable-safeguards=none",
 			HelperPath,
 			"cat",
@@ -2255,6 +2312,9 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		tmcli.AppendEnv = append(tmcli.AppendEnv, "TM_DISABLE_SAFEGUARDS=none")
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
+			"--changed",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2265,6 +2325,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 
 		AssertRunResult(t, tmcli.Run(
 			"run",
+			"--quiet",
+			"--",
 			HelperPath,
 			"cat",
 			mainTfFileName,
@@ -2667,18 +2729,19 @@ func TestRunDryRun(t *testing.T) {
 			name:    "dryrun without eval",
 			runArgs: []string{"--dry-run", HelperPath, "echo", "hello"},
 			want: RunExpected{
-				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo hello"`, HelperPath) + "\n",
-				Stdout: "",
+				StderrRegex: regexp.QuoteMeta(
+					"terramate: (dry-run) Entering stack in /stack\nterramate: (dry-run) Executing command ",
+				),
 			},
 		},
 		{
 			name:    "dryrun with eval",
-			runArgs: []string{"--dry-run", "--eval", HelperPath, "echo", "${terramate.stack.name}"},
+			runArgs: []string{"--dry-run", "--eval", HelperPathAsHCL, "echo", "${terramate.stack.name}"},
 			want: RunExpected{
-				Stderr: "terramate: (dry-run) Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: (dry-run) Executing command "%s echo stack"`, HelperPath) + "\n",
-				Stdout: "",
+				StderrRegexes: []string{
+					regexp.QuoteMeta("terramate: (dry-run) Entering stack in /stack"),
+					`echo stack`,
+				},
 			},
 		},
 	} {

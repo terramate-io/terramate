@@ -461,6 +461,51 @@ func TestGetConfigValue(t *testing.T) {
 	assert.Error(t, err, "git config: non-existing key")
 }
 
+func TestListDirtyFiles(t *testing.T) {
+	t.Parallel()
+	const (
+		remote = "origin"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	g := test.NewGitWrapper(t, repodir, []string{})
+
+	remoteDir := test.EmptyRepo(t, true)
+
+	assert.NoError(t, g.RemoteAdd(remote, remoteDir))
+	assert.NoError(t, g.Push(remote, defaultBranch))
+
+	untracked, uncommitted, err := g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(untracked))
+	assert.EqualInts(t, 0, len(uncommitted))
+
+	test.WriteFile(t, repodir, "test.txt", "some content")
+	untracked, uncommitted, err = g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 1, len(untracked))
+	assert.EqualInts(t, 0, len(uncommitted))
+	assert.EqualStrings(t, "test.txt", untracked[0])
+
+	test.WriteFile(t, filepath.Join(repodir, "deep/nested/path"), "test.txt", "some content")
+	untracked, uncommitted, err = g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 2, len(untracked))
+	assert.EqualInts(t, 0, len(uncommitted))
+	assert.EqualStrings(t, "test.txt", untracked[0])
+	assert.EqualStrings(t, "deep/nested/path/test.txt", untracked[1])
+
+	test.WriteFile(t, repodir, "README.md", "# changed")
+	untracked, uncommitted, err = g.ListDirtyFiles()
+	assert.NoError(t, err)
+	assert.EqualInts(t, 2, len(untracked))
+	assert.EqualInts(t, 1, len(uncommitted))
+	assert.EqualStrings(t, "test.txt", untracked[0])
+	assert.EqualStrings(t, "deep/nested/path/test.txt", untracked[1])
+	assert.EqualStrings(t, "README.md", uncommitted[0])
+
+}
+
 const defaultBranch = "main"
 
 func mkOneCommitRepo(t *testing.T) string {

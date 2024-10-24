@@ -26,6 +26,28 @@ func TestCliMetadata(t *testing.T) {
 			name: "no stacks",
 		},
 		{
+			name: "stack at /, wd = root",
+			layout: []string{
+				"s:/",
+			},
+			want: RunExpected{
+				Stdout: `Available metadata:
+
+project metadata:
+	terramate.stacks.list=[/]
+
+stack "/":
+	terramate.stack.name="sandbox"
+	terramate.stack.description=""
+	terramate.stack.tags=[]
+	terramate.stack.path.absolute="/"
+	terramate.stack.path.basename="/"
+	terramate.stack.path.relative=""
+	terramate.stack.path.to_root="."
+`,
+			},
+		},
+		{
 			name: "one stack, wd = root",
 			layout: []string{
 				"s:stack",

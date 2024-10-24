@@ -25,7 +25,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			Labels(name),
 			Str("description", "no"),
 			Block("job",
-				Expr("command", fmt.Sprintf(`["echo", "${terramate.stack.name}", {
+				Expr("command", fmt.Sprintf(`["helper", "echo", "${terramate.stack.name}", {
 			sync_deployment = %v,
 			terraform_plan_file = "%s"
 		}]`, syncDeployment, plan)),
@@ -124,7 +124,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 					job {
 						commands = [
 						  ["echooooo", "${terramate.stack.name}"],
-						  ["echo", "ok", {sync_deployment = true}]
+						  ["helper", "echo", "ok", {sync_deployment = true}]
 						]
 					}
 				}`,
@@ -146,15 +146,15 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s1/s2:id=s1_s2",
-				fmt.Sprintf(`f:scripts.tm:script deploy {
+				`f:scripts.tm:script deploy {
 					description = "no"
 					job {
 						commands = [
-						  ["%s", "exit", "1"],
-						  ["echo", "ok", {sync_deployment = true}]
+						  ["helper", "exit", "1"],
+						  ["helper", "echo", "ok", {sync_deployment = true}]
 						]
 					}
-				}`, HelperPathAsHCL),
+				}`,
 			},
 			scriptCmd: "deploy",
 			want: want{
@@ -173,16 +173,16 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			layout: []string{
 				"s:s1:id=s1",
 				"s:s1/s2:id=s1_s2",
-				fmt.Sprintf(`f:scripts.tm:script deploy {
+				`f:scripts.tm:script deploy {
 					description = "no"
 					job {
 						commands = [
-						  ["echo", "ok"],
-						  ["%s", "exit", "1"],
+						  ["helper", "echo", "ok"],
+						  ["helper", "exit", "1"],
 						  ["echo", "ok", {sync_deployment = true}]
 						]
 					}
-				}`, HelperPathAsHCL),
+				}`,
 			},
 			scriptCmd: "deploy",
 			want: want{
@@ -309,6 +309,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				env := RemoveEnv(os.Environ(), "CI")
 				env = append(env, "TMC_API_URL=http://"+addr)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
+				cli.PrependToPath(filepath.Dir(HelperPath))
 
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 

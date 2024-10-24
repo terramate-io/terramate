@@ -102,7 +102,7 @@ func HandleVendorRequests(
 			Str("rootdir", rootdir).
 			Logger()
 
-		logger.Debug().Msg("starting vendor request handler")
+		logger.Trace().Msg("starting vendor request handler")
 
 		for vendorRequest := range vendorRequests {
 			logger = logger.With().
@@ -110,18 +110,18 @@ func HandleVendorRequests(
 				Stringer("vendorDir", vendorRequest.VendorDir).
 				Logger()
 
-			logger.Debug().Msgf("handling vendor request")
+			logger.Trace().Msgf("handling vendor request")
 
 			report := Vendor(rootdir, vendorRequest.VendorDir, vendorRequest.Source, progressEvents)
 
-			logger.Debug().Msgf("handled vendor request, sending report")
+			logger.Trace().Msgf("handled vendor request, sending report")
 
 			reportsStream <- report
 
-			logger.Debug().Msgf("report sent")
+			logger.Trace().Msgf("report sent")
 		}
 
-		logger.Debug().Msg("stopping vendor request handler")
+		logger.Trace().Msg("stopping vendor request handler")
 
 		close(reportsStream)
 	}()
@@ -141,10 +141,10 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 
 		var finalReport Report
 
-		logger.Debug().Msg("starting to merge vendor reports")
+		logger.Trace().Msg("starting to merge vendor reports")
 
 		for report := range reports {
-			logger.Debug().Msg("got vendor report, merging")
+			logger.Trace().Msg("got vendor report, merging")
 
 			if finalReport.IsEmpty() {
 				finalReport = report
@@ -154,7 +154,7 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 			finalReport.merge(report)
 		}
 
-		logger.Debug().Msg("finished merging vendor reports, sending final report")
+		logger.Trace().Msg("finished merging vendor reports, sending final report")
 
 		if !finalReport.IsEmpty() {
 			mergedReport <- finalReport
@@ -162,7 +162,7 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 
 		close(mergedReport)
 
-		logger.Debug().Msg("sent final report, finished")
+		logger.Trace().Msg("sent final report, finished")
 	}()
 	return mergedReport
 }

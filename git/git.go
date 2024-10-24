@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/printer"
 )
 
 type (
@@ -584,51 +586,67 @@ func (git *Git) Pull(remote, branch string) error {
 	return err
 }
 
-// ListUntracked lists untracked files in the directories provided in dirs.
-func (git *Git) ListUntracked(dirs ...string) ([]string, error) {
-	args := []string{
-		"--others", "--exclude-standard",
-	}
-
-	if len(dirs) > 0 {
-		args = append(args, "--")
-		args = append(args, dirs...)
-	}
-
-	log.Debug().
-		Str("action", "ListUntracked()").
+// ListDirtyFiles lists untracked and uncommitted files in the repository.
+func (git *Git) ListDirtyFiles() ([]string, []string, error) {
+	logger := log.With().
+		Str("action", "ListDirtyFiles()").
 		Str("workingDir", git.cfg().WorkingDir).
-		Msg("List untracked files.")
-	out, err := git.exec("ls-files", args...)
+		Logger()
+
+	out, err := git.exec("status", "--porcelain")
 	if err != nil {
-		return nil, fmt.Errorf("ls-files: %w", err)
+		return nil, nil, fmt.Errorf("git status --porcelain: %w", err)
 	}
 
-	return removeEmptyLines(strings.Split(out, "\n")), nil
+	logger.Debug().Str("stdout", out).Msg("`git status --porcelain` output")
 
-}
-
-// ListUncommitted lists uncommitted files in the directories provided in dirs.
-func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
-	args := []string{
-		"--modified", "--exclude-standard",
+	var untracked []string
+	var uncommitted []string
+	var untrackedFromDirs []string
+	for _, line := range strings.Split(out, "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		switch line[0:2] {
+		case "??":
+			file := line[3:]
+			if len(file) > 1 && file[len(file)-1] == os.PathSeparator {
+				file = file[:len(file)-1]
+			}
+			absfile := filepath.Join(git.cfg().WorkingDir, file)
+			st, err := os.Lstat(absfile)
+			if err != nil {
+				printer.Stderr.WarnWithDetails(fmt.Sprintf("failed to stat untracked filename: %s", absfile), err)
+				continue
+			}
+			if st.IsDir() {
+				err := filepath.Walk(absfile,
+					func(path string, info os.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+						if info.IsDir() {
+							return nil
+						}
+						relpath := strings.TrimPrefix(path, git.cfg().WorkingDir+string(filepath.Separator))
+						untrackedFromDirs = append(untrackedFromDirs, relpath)
+						return nil
+					})
+				if err != nil {
+					return nil, nil, fmt.Errorf("walking changed files in directory %s: %v", absfile, err)
+				}
+				continue
+			}
+			untracked = append(untracked, file)
+		case " M":
+			file := line[3:]
+			uncommitted = append(uncommitted, file)
+		}
 	}
-
-	if len(dirs) > 0 {
-		args = append(args, "--")
-		args = append(args, dirs...)
-	}
-
-	log.Debug().
-		Str("action", "ListUncommitted()").
-		Str("workingDir", git.cfg().WorkingDir).
-		Msg("List uncommitted files.")
-	out, err := git.exec("ls-files", args...)
-	if err != nil {
-		return nil, fmt.Errorf("ls-files: %w", err)
-	}
-
-	return removeEmptyLines(strings.Split(out, "\n")), nil
+	untracked = append(untracked, untrackedFromDirs...)
+	logger.Debug().Strs("untracked", untracked).Msg("untracked files")
+	logger.Debug().Strs("uncommitted", uncommitted).Msg("uncommitted files")
+	return untracked, uncommitted, nil
 }
 
 // ShowCommitMetadata returns common metadata associated with the given object.
@@ -774,8 +792,7 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		}
 		return "", NewCmdError(cmd.String(), stdout, stderr)
 	}
-	out := strings.TrimSpace(string(stdout))
-	return out, nil
+	return strings.TrimRight(string(stdout), "\n"), nil
 }
 
 func (git *Git) cfg() *Config { return &git.options.config }

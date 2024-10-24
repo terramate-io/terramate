@@ -36,6 +36,7 @@ type (
 		environ   []string
 		AppendEnv []string
 
+		wd      string
 		userDir string
 	}
 
@@ -122,6 +123,12 @@ func NewInteropCLI(t *testing.T, chdir string, env ...string) CLI {
 	env = append(env, "CHECKPOINT_DISABLE=1")
 	tm.environ = env
 	return tm
+}
+
+// SetWorkingDir sets the process working directory. Not to be confused with tm.Chdir
+// which controls the `--chdir` flag.
+func (tm *CLI) SetWorkingDir(dir string) {
+	tm.wd = dir
 }
 
 // PrependToPath prepend the provided directory to the OS's PATH
@@ -232,6 +239,7 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
 	cmd.Env = env
+	cmd.Dir = tm.wd
 
 	return &Cmd{
 		t:      t,
@@ -282,11 +290,6 @@ func (tm CLI) RunWithStdin(stdin string, args ...string) RunResult {
 // RunScript is a helper for executing `terramate run-script`.
 func (tm CLI) RunScript(args ...string) RunResult {
 	return tm.Run(append([]string{"script", "run"}, args...)...)
-}
-
-// StacksRunOrder is a helper for executing `terramate experimental run-order`.
-func (tm CLI) StacksRunOrder(args ...string) RunResult {
-	return tm.Run(append([]string{"experimental", "run-order"}, args...)...)
 }
 
 // StacksRunGraph is a helper for executing `terramate experimental run-graph`.

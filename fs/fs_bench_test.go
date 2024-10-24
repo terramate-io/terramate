@@ -42,7 +42,7 @@ func BenchmarkListFiles(b *testing.B) {
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		files, err := fs.ListTerramateFiles(dir)
+		files, _, _, err := fs.ListTerramateFiles(dir)
 		if err != nil {
 			b.Fatal(err)
 		}

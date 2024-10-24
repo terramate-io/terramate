@@ -65,7 +65,8 @@ func Format(src, filename string) (string, error) {
 // All files will be left untouched. To save the formatted result on disk you
 // can use FormatResult.Save for each FormatResult.
 func FormatTree(dir string) ([]FormatResult, error) {
-	files, err := fs.ListTerramateFiles(dir)
+	// TODO(i4k): use files from the config tree.
+	files, _, dirs, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
@@ -76,14 +77,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 
 	errs.Append(err)
 
-	dirs, err := fs.ListTerramateDirs(dir)
-	if err != nil {
-		errs.Append(err)
-		return nil, errors.E(errFormatTree, errs)
-	}
-
 	sort.Strings(dirs)
-
 	for _, d := range dirs {
 		subres, err := FormatTree(filepath.Join(dir, d))
 		if err != nil {

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -102,31 +103,25 @@ const (
 type UIMode int
 
 type cliSpec struct {
-	VersionFlag    bool     `hidden:"true" name:"version" help:"Show Terramate version."`
-	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Set working directory."`
-	GitChangeBase  string   `short:"B" optional:"true" help:"Set git base reference for computing changes."`
-	Changed        bool     `short:"c" optional:"true" help:"Filter stacks based on changes made in git."`
-	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags."`
-	NoTags         []string `optional:"true" sep:"," help:"Filter stacks by tags not being set."`
-	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'."`
-	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
-	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
-	Quiet          bool     `optional:"false" help:"Disable outputs."`
-	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+	globalCliFlags `envprefix:"TM_ARG_"`
 
 	deprecatedGlobalSafeguardsCliSpec
 
 	DisableCheckpoint          bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint checks for updates."`
 	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature."`
+	CPUProfiling               bool `hidden:"true" optional:"true" default:"false" help:"Create a CPU profile file when running"`
 
 	Create struct {
-		Path           string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack."`
-		ID             string   `help:"Set the ID of the stack, defaults to an UUIDv4 string."`
-		Name           string   `help:"Set the name of the stack, defaults to the basename of <path>"`
-		Description    string   `help:"Set the description of the stack, defaults to <name>"`
-		Import         []string `help:"Add 'import' block to the configuration of the new stack."`
-		After          []string `help:"Add 'after' attribute to the configuration of the new stack."`
-		Before         []string `help:"Add 'before' attribute to the configuration of the new stack."`
+		Path        string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack."`
+		ID          string   `help:"Set the ID of the stack, defaults to an UUIDv4 string."`
+		Name        string   `help:"Set the name of the stack, defaults to the basename of <path>"`
+		Description string   `help:"Set the description of the stack, defaults to <name>"`
+		Import      []string `help:"Add 'import' block to the configuration of the new stack."`
+		After       []string `help:"Add 'after' attribute to the configuration of the new stack."`
+		Before      []string `help:"Add 'before' attribute to the configuration of the new stack."`
+		Wants       []string `help:"Add 'wants' attribute to the configuration of the new stack."`
+		WantedBy    []string `help:"Add 'wanted_by' attribute to the configuration of the new stack."`
+
 		Watch          []string `help:"Add 'watch' attribute to the configuration of the new stack."`
 		IgnoreExisting bool     `help:"Skip creation without error when the stack already exist."`
 		AllTerraform   bool     `help:"Import existing Terraform Root Modules as stacks."`
@@ -147,45 +142,17 @@ type cliSpec struct {
 		cloudFilterFlags
 		Target   string `help:"Select the deployment target of the filtered stacks."`
 		RunOrder bool   `default:"false" help:"Sort listed stacks by order of execution"`
+
+		changeDetectionFlags
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		cloudFilterFlags
-		Target               string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
-		FromTarget           string `help:"Migrate stacks from given deployment target."`
-		EnableSharing        bool   `help:"Enable sharing of stack outputs as stack inputs."`
-		MockOnFail           bool   `help:"Mock the output values if command fails."`
-		CloudSyncDeployment  bool   `hidden:""`
-		SyncDeployment       bool   `default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
-		CloudSyncDriftStatus bool   `hidden:""`
-		SyncDriftStatus      bool   `default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
-		CloudSyncPreview     bool   `hidden:""`
-		SyncPreview          bool   `default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
-
-		CloudSyncLayer             preview.Layer `hidden:""`
-		Layer                      preview.Layer `default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
-		CloudSyncTerraformPlanFile string        `hidden:""`
-		TerraformPlanFile          string        `default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
-		TofuPlanFile               string        `default:"" help:"Add details of the OpenTofu Plan file to the synchronization to Terramate Cloud."`
-		DebugPreviewURL            string        `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
-		ContinueOnError            bool          `default:"false" help:"Do not stop execution when an error occurs."`
-		NoRecursive                bool          `default:"false" help:"Do not recurse into nested child stacks."`
-		DryRun                     bool          `default:"false" help:"Plan the execution but do not execute it."`
-		Reverse                    bool          `default:"false" help:"Reverse the order of execution."`
-		Eval                       bool          `default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
-		Terragrunt                 bool          `default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
-
-		// Note: 0 is not the real default value here, this is just a workaround.
-		// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
-		// The K case is handled in the custom decoder.
-		Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
-
+		runCommandFlags `envprefix:"TM_ARG_RUN_"`
 		runSafeguardsCliSpec
-
-		Command []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
+		Parallel         int  `env:"TM_ARG_GENERATE_PARALLEL" short:"j" optional:"true" help:"Set the parallelism of code generation"`
 		DetailedExitCode bool `default:"false" help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
 	} `cmd:"" help:"Run Code Generation in stacks."`
 
@@ -196,19 +163,7 @@ type cliSpec struct {
 			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to show info for."`
 		} `cmd:"" help:"Show detailed information about a script"`
 		Run struct {
-			cloudFilterFlags
-			Target          string `help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
-			FromTarget      string `help:"Migrate stacks from given deployment target."`
-			NoRecursive     bool   `default:"false" help:"Do not recurse into nested child stacks."`
-			ContinueOnError bool   `default:"false" help:"Continue executing next stacks when a command returns an error."`
-			DryRun          bool   `default:"false" help:"Plan the execution but do not execute it."`
-			Reverse         bool   `default:"false" help:"Reverse the order of execution."`
-
-			Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
-
-			// See above comment regarding for run --parallel.
-			Parallel int `short:"j" optional:"true" help:"Run independent stacks in parallel."`
-
+			runScriptFlags `envprefix:"TM_ARG_RUN_"`
 			runSafeguardsCliSpec
 		} `cmd:"" help:"Run a Terramate Script in stacks."`
 	} `cmd:"" help:"Use Terramate Scripts"`
@@ -257,10 +212,6 @@ type cliSpec struct {
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
-		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks (DEPRECATED)"`
-		} `hidden:"" cmd:"" help:"Show the topological ordering of the stacks (DEPRECATED)"`
-
 		Vendor struct {
 			Download struct {
 				Dir       string `short:"d" predictor:"file" default:"" help:"dir to vendor downloaded project"`
@@ -301,6 +252,20 @@ type cliSpec struct {
 	Version struct{} `cmd:"" help:"Show Terramate version"`
 }
 
+type globalCliFlags struct {
+	VersionFlag    bool     `hidden:"true" name:"version" help:"Show Terramate version."`
+	Chdir          string   `env:"CHDIR" short:"C" optional:"true" predictor:"file" help:"Set working directory."`
+	GitChangeBase  string   `env:"GIT_CHANGE_BASE" short:"B" optional:"true" help:"Set git base reference for computing changes."`
+	Changed        bool     `env:"CHANGED" short:"c" optional:"true" help:"Filter stacks based on changes made in git."`
+	Tags           []string `env:"TAGS" optional:"true" sep:"none" help:"Filter stacks by tags."`
+	NoTags         []string `env:"NO_TAGS" optional:"true" sep:"," help:"Filter stacks by tags not being set."`
+	LogLevel       string   `env:"LOG_LEVEL" optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'."`
+	LogFmt         string   `env:"LOG_FMT" optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
+	LogDestination string   `env:"LOG_DESTINATION" optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
+	Quiet          bool     `env:"QUIET" optional:"false" help:"Disable outputs."`
+	Verbose        int      `env:"VERBOSE" short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+}
+
 type runSafeguardsCliSpec struct {
 	// Note: The `name` and `short` are being used to define the -X flag without longer version.
 	DisableSafeguardsAll            bool               `default:"false" name:"disable-safeguards=all" short:"X" help:"Disable all safeguards."`
@@ -329,6 +294,71 @@ type cloudFilterFlags struct {
 	Status             string `help:"Filter by Terramate Cloud status of the stack."`
 	DeploymentStatus   string `help:"Filter by Terramate Cloud deployment status of the stack"`
 	DriftStatus        string `help:"Filter by Terramate Cloud drift status of the stack"`
+}
+
+type changeDetectionFlags struct {
+	EnableChangeDetection  []string `help:"Enable specific change detection modes" enum:"git-untracked,git-uncommitted"`
+	DisableChangeDetection []string `help:"Disable specific change detection modes" enum:"git-untracked,git-uncommitted"`
+}
+
+type cloudTargetFlags struct {
+	Target     string `env:"TARGET" help:"Set the deployment target for stacks synchronized to Terramate Cloud."`
+	FromTarget string `env:"FROM_TARGET" help:"Migrate stacks from given deployment target."`
+}
+
+type cloudSyncFlags struct {
+	CloudSyncDeployment  bool `hidden:""`
+	SyncDeployment       bool `env:"SYNC_DEPLOYMENT" default:"false" help:"Synchronize the command as a new deployment to Terramate Cloud."`
+	CloudSyncDriftStatus bool `hidden:""`
+	SyncDriftStatus      bool `env:"SYNC_DRIFT_STATUS" default:"false" help:"Synchronize the command as a new drift run to Terramate Cloud."`
+	CloudSyncPreview     bool `hidden:""`
+	SyncPreview          bool `env:"SYNC_PREVIEW" default:"false" help:"Synchronize the command as a new preview to Terramate Cloud."`
+
+	CloudSyncLayer             preview.Layer `hidden:""`
+	Layer                      preview.Layer `env:"LAYER" default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
+	CloudSyncTerraformPlanFile string        `hidden:""`
+}
+
+type commonRunFlags struct {
+	NoRecursive     bool `env:"NO_RECURSIVE" default:"false" help:"Do not recurse into nested child stacks."`
+	ContinueOnError bool `env:"CONTINUE_ON_ERROR" default:"false" help:"Continue executing next stacks when a command returns an error."`
+	DryRun          bool `env:"DRY_RUN" default:"false" help:"Plan the execution but do not execute it."`
+	Reverse         bool `env:"REVERSE" default:"false" help:"Reverse the order of execution."`
+
+	// Note: 0 is not the real default value here, this is just a workaround.
+	// Kong doesn't support having 0 as the default value in case the flag isn't set, but K in case it's set without a value.
+	// The K case is handled in the custom decoder.
+	Parallel int `env:"PARALLEL" short:"j" optional:"true" help:"Run independent stacks in parallel."`
+}
+
+type runCommandFlags struct {
+	cloudFilterFlags
+	changeDetectionFlags
+	cloudTargetFlags
+
+	EnableSharing bool `env:"ENABLE_SHARING" help:"Enable sharing of stack outputs as stack inputs."`
+	MockOnFail    bool `env:"MOCK_ON_FAIL" help:"Mock the output values if command fails."`
+
+	cloudSyncFlags
+
+	TerraformPlanFile string `env:"TERRAFORM_PLAN_FILE" default:"" help:"Add details of the Terraform Plan file to the synchronization to Terramate Cloud."`
+	TofuPlanFile      string `env:"TOFU_PLAN_FILE" default:"" help:"Add details of the OpenTofu Plan file to the synchronization to Terramate Cloud."`
+	DebugPreviewURL   string `hidden:"true" default:"" help:"Create a debug preview URL to Terramate Cloud details."`
+
+	commonRunFlags
+
+	Eval       bool     `env:"EVAL" default:"false" help:"Evaluate command arguments as HCL strings interpolating Globals, Functions and Metadata."`
+	Terragrunt bool     `env:"TERRAGRUNT" default:"false" help:"Use terragrunt when generating planfile for Terramate Cloud sync."`
+	Command    []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
+}
+
+type runScriptFlags struct {
+	cloudFilterFlags
+	changeDetectionFlags
+	cloudTargetFlags
+	commonRunFlags
+
+	Cmds []string `arg:"" optional:"true" passthrough:"" help:"Script to execute."`
 }
 
 // Exec will execute terramate with the provided flags defined on args.
@@ -366,7 +396,7 @@ type cli struct {
 	stderr         io.Writer
 	output         out.O // Deprecated: use printer.Stdout/Stderr
 	exit           bool
-	prj            project
+	prj            *project
 	httpClient     http.Client
 	cloud          cloudConfig
 	uimode         UIMode
@@ -377,6 +407,13 @@ type cli struct {
 	checkpointResults chan *checkpoint.CheckResponse
 
 	tags filter.TagClause
+
+	changeDetection changeDetection
+}
+
+type changeDetection struct {
+	untracked   *bool
+	uncommitted *bool
 }
 
 func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
@@ -417,6 +454,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	)
 
 	ctx, err := parser.Parse(args)
+	// Note: err is checked later due to Kong workarounds in place.
 
 	if kongExit && kongExitStatus == 0 {
 		return &cli{exit: true}
@@ -433,6 +471,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	if err != nil {
 		fatalWithDetailf(err, "parsing cli args %v", args)
 	}
+
+	// profiler is only started if Terramate is built with -tags profiler
+	startProfiler(&parsedArgs)
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
 		parsedArgs.LogDestination, stdout, stderr)
@@ -659,15 +700,19 @@ func (c *cli) run() {
 		c.scanCreate()
 	case "list":
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.List.EnableChangeDetection, c.parsedArgs.List.DisableChangeDetection)
 		c.printStacks()
 	case "run":
 		fatal("no command specified")
 	case "run <cmd>":
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.Run.EnableChangeDetection, c.parsedArgs.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Run.runSafeguardsCliSpec)
 		c.runOnStacks()
 	case "generate":
-		c.generate()
+		exitCode := c.generate()
+		stopProfiler(c.parsedArgs)
+		os.Exit(exitCode)
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger":
@@ -688,9 +733,6 @@ func (c *cli) run() {
 	case "experimental run-graph":
 		c.setupGit()
 		c.generateGraph()
-	case "experimental run-order":
-		c.setupGit()
-		c.printRunOrder(false)
 	case "debug show runtime-env":
 		c.setupGit()
 		c.printRuntimeEnv()
@@ -732,6 +774,7 @@ func (c *cli) run() {
 	case "script run <cmds>":
 		c.checkScriptEnabled()
 		c.setupGit()
+		c.setupChangeDetection(c.parsedArgs.Script.Run.EnableChangeDetection, c.parsedArgs.Script.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Script.Run.runSafeguardsCliSpec)
 		c.runScript()
 	default:
@@ -968,7 +1011,7 @@ func (c *cli) triggerStackByFilter() {
 	stackFilter := cloud.StatusFilters{
 		StackStatus: statusFilter,
 	}
-	stacksReport, err := c.listStacks(false, "", stackFilter)
+	stacksReport, err := c.listStacks(false, "", stackFilter, false)
 	if err != nil {
 		fatalWithDetailf(err, "unable to list stacks")
 	}
@@ -1041,7 +1084,7 @@ func (c *cli) triggerStack(basePath string) {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
+		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
 		if err != nil {
 			fatalWithDetailf(err, "computing selected stacks")
 		}
@@ -1077,7 +1120,7 @@ func (c *cli) cloneStack() {
 	c.generate()
 }
 
-func (c *cli) generate() {
+func (c *cli) generate() int {
 	report, vendorReport := c.gencodeWithVendor()
 
 	c.output.MsgStdOut(report.Full())
@@ -1088,7 +1131,6 @@ func (c *cli) generate() {
 
 	if !vendorReport.IsEmpty() {
 		c.output.MsgStdOut(vendorReport.String())
-
 	}
 
 	if c.parsedArgs.Generate.DetailedExitCode {
@@ -1100,13 +1142,12 @@ func (c *cli) generate() {
 	if report.HasFailures() || vendorReport.HasFailures() {
 		exitCode = 1
 	}
-
-	os.Exit(exitCode)
+	return exitCode
 }
 
 // gencodeWithVendor will generate code for the whole project providing automatic
 // vendoring of all tm_vendor calls.
-func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
+func (c *cli) gencodeWithVendor() (*generate.Report, download.Report) {
 	vendorProgressEvents := download.NewEventStream()
 	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
 
@@ -1119,25 +1160,25 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	mergedVendorReport := download.MergeVendorReports(vendorReports)
 
-	log.Debug().Msg("generating code")
+	log.Trace().Msg("generating code")
 
 	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
-	report := generate.Do(c.cfg(), cwd, c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), cwd, c.parsedArgs.Generate.Parallel, c.vendorDir(), vendorRequestEvents)
 
-	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
+	log.Trace().Msg("code generation finished, waiting for vendor requests to be handled")
 
 	close(vendorRequestEvents)
 
-	log.Debug().Msg("waiting for vendor report merging")
+	log.Trace().Msg("waiting for vendor report merging")
 
 	vendorReport := <-mergedVendorReport
 
-	log.Debug().Msg("waiting for all progress events")
+	log.Trace().Msg("waiting for all progress events")
 
 	close(vendorProgressEvents)
 	<-progressHandlerDone
 
-	log.Debug().Msg("all handlers stopped, generating final report")
+	log.Trace().Msg("all handlers stopped, generating final report")
 
 	return report, vendorReport
 }
@@ -1225,7 +1266,38 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	}
 }
 
-func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.StatusFilters) (*stack.Report, error) {
+func (c *cli) checkChangeDetectionFlagConflicts(enable []string, disable []string) {
+	for _, enableOpt := range enable {
+		if slices.Contains(disable, enableOpt) {
+			fatal(errors.E("conflicting option %s in --{enable,disable}-change-detection flags", enableOpt))
+		}
+	}
+}
+
+func (c *cli) setupChangeDetection(enable []string, disable []string) {
+	c.checkChangeDetectionFlagConflicts(enable, disable)
+
+	on := true
+	off := false
+
+	if slices.Contains(enable, "git-untracked") {
+		c.changeDetection.untracked = &on
+	}
+
+	if slices.Contains(enable, "git-uncommitted") {
+		c.changeDetection.uncommitted = &on
+	}
+
+	if slices.Contains(disable, "git-untracked") {
+		c.changeDetection.untracked = &off
+	}
+
+	if slices.Contains(disable, "git-uncommitted") {
+		c.changeDetection.uncommitted = &off
+	}
+}
+
+func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.StatusFilters, checkRepo bool) (*stack.Report, error) {
 	var (
 		err    error
 		report *stack.Report
@@ -1234,9 +1306,13 @@ func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.Statu
 	mgr := c.stackManager()
 
 	if isChanged {
-		report, err = mgr.ListChanged(c.baseRef())
+		report, err = mgr.ListChanged(stack.ChangeConfig{
+			BaseRef:            c.baseRef(),
+			UntrackedChanges:   c.changeDetection.untracked,
+			UncommittedChanges: c.changeDetection.uncommitted,
+		})
 	} else {
-		report, err = mgr.List(true)
+		report, err = mgr.List(checkRepo)
 	}
 
 	if report != nil {
@@ -1336,6 +1412,8 @@ func (c *cli) scanCreate() {
 		c.parsedArgs.Create.IgnoreExisting ||
 		len(c.parsedArgs.Create.After) != 0 ||
 		len(c.parsedArgs.Create.Before) != 0 ||
+		len(c.parsedArgs.Create.Wants) != 0 ||
+		len(c.parsedArgs.Create.WantedBy) != 0 ||
 		len(c.parsedArgs.Create.Watch) != 0 ||
 		len(c.parsedArgs.Create.Import) != 0 {
 
@@ -1421,7 +1499,7 @@ func (c *cli) initTerraform() {
 		fatalWithDetailf(err, "reloading the configuration")
 	}
 
-	c.prj.root = *root
+	c.prj.root = root
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
@@ -1555,6 +1633,8 @@ func (c *cli) createStack() {
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
+		Wants:       c.parsedArgs.Create.Wants,
+		WantedBy:    c.parsedArgs.Create.WantedBy,
 		Watch:       watch,
 		Tags:        tags,
 	}
@@ -1716,7 +1796,7 @@ func (c *cli) printStacks() {
 		DriftStatus:      parseDriftStatusFilter(driftStatusStr),
 	}
 
-	report, err := c.listStacks(c.parsedArgs.Changed, c.parsedArgs.List.Target, cloudFilters)
+	report, err := c.listStacks(c.parsedArgs.Changed, c.parsedArgs.List.Target, cloudFilters, false)
 	if err != nil {
 		fatal(err)
 	}
@@ -1795,7 +1875,7 @@ func parseDriftStatusFilter(filterStr string) drift.FilterStatus {
 }
 
 func (c *cli) printRuntimeEnv() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "listing stacks")
 	}
@@ -1939,45 +2019,6 @@ func generateDot(
 	}
 }
 
-func (c *cli) printRunOrder(friendlyFmt bool) {
-	logger := log.With().
-		Str("action", "printRunOrder()").
-		Str("workingDir", c.wd()).
-		Logger()
-
-	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
-	if err != nil {
-		fatalWithDetailf(err, "computing selected stacks")
-	}
-
-	logger.Debug().Msg("Get run order.")
-	reason, err := run.Sort(c.cfg(), stacks,
-		func(s *config.SortableStack) *config.Stack { return s.Stack })
-	if err != nil {
-		if errors.IsKind(err, dag.ErrCycleDetected) {
-			fatalWithDetailf(errors.E(err, reason), "Invalid stack configuration")
-		} else {
-			fatalWithDetailf(err, "Failed to plan execution")
-		}
-	}
-
-	for _, s := range stacks {
-		dir := s.Dir().String()
-		if !friendlyFmt {
-			printer.Stdout.Println(dir)
-			continue
-		}
-
-		friendlyDir, ok := c.friendlyFmtDir(dir)
-		if !ok {
-			printer.Stderr.Error(stdfmt.Sprintf("Unable to format stack dir %s", dir))
-			printer.Stdout.Println(dir)
-			continue
-		}
-		printer.Stdout.Println(friendlyDir)
-	}
-}
-
 func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
@@ -2026,7 +2067,7 @@ func (c *cli) generateDebug() {
 }
 
 func (c *cli) printStacksGlobals() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "listing stacks globals: listing stacks")
 	}
@@ -2055,7 +2096,7 @@ func (c *cli) printMetadata() {
 		Str("action", "cli.printMetadata()").
 		Logger()
 
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "loading metadata: listing stacks")
 	}
@@ -2114,7 +2155,7 @@ func (c *cli) checkGenCode() bool {
 }
 
 func (c *cli) ensureStackID() {
-	report, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	report, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "listing stacks")
 	}
@@ -2364,7 +2405,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 
 func (c *cli) wd() string                   { return c.prj.wd }
 func (c *cli) rootdir() string              { return c.prj.rootdir }
-func (c *cli) cfg() *config.Root            { return &c.prj.root }
+func (c *cli) cfg() *config.Root            { return c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
@@ -2375,7 +2416,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 }
 
 func (c *cli) computeSelectedStacks(ensureCleanRepo bool, target string, stackFilters cloud.StatusFilters) (config.List[*config.SortableStack], error) {
-	report, err := c.listStacks(c.parsedArgs.Changed, target, stackFilters)
+	report, err := c.listStacks(c.parsedArgs.Changed, target, stackFilters, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2558,8 +2599,8 @@ func newGit(basedir string) (*git.Git, error) {
 	return g, nil
 }
 
-func lookupProject(wd string) (prj project, found bool, err error) {
-	prj = project{
+func lookupProject(wd string) (prj *project, found bool, err error) {
+	prj = &project{
 		wd: wd,
 	}
 
@@ -2576,22 +2617,22 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 		rootdir, err := filepath.EvalSymlinks(gitabs)
 		if err != nil {
-			return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
+			return nil, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 		}
 
 		cfg, err := config.LoadRoot(rootdir)
 		if err != nil {
-			return project{}, false, err
+			return nil, false, err
 		}
 
 		gw = gw.With().WorkingDir(rootdir).Wrapper()
 
 		prj.isRepo = true
-		prj.root = *cfg
+		prj.root = cfg
 		prj.rootdir = rootdir
 		prj.git.wrapper = gw
 
-		mgr := stack.NewGitAwareManager(&prj.root, gw)
+		mgr := stack.NewGitAwareManager(prj.root, gw)
 		prj.stackManager = mgr
 
 		return prj, true, nil
@@ -2599,14 +2640,14 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	rootcfg, rootcfgpath, rootfound, err := config.TryLoadConfig(wd)
 	if err != nil {
-		return project{}, false, err
+		return nil, false, err
 	}
 	if !rootfound {
-		return project{}, false, nil
+		return nil, false, nil
 	}
 	prj.rootdir = rootcfgpath
-	prj.root = *rootcfg
-	prj.stackManager = stack.NewManager(&prj.root)
+	prj.root = rootcfg
+	prj.stackManager = stack.NewManager(prj.root)
 	return prj, true, nil
 }
 

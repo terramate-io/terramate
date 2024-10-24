@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	resyntax "regexp/syntax"
 
@@ -27,10 +28,24 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
+var regexMu sync.RWMutex
 var regexCache map[string]*regexp.Regexp
 
 func init() {
 	regexCache = map[string]*regexp.Regexp{}
+}
+
+func regexFromCache(pattern string) (re *regexp.Regexp, ok bool) {
+	regexMu.RLock()
+	re, ok = regexCache[pattern]
+	regexMu.RUnlock()
+	return re, ok
+}
+
+func cacheRegex(pattern string, re *regexp.Regexp) {
+	regexMu.Lock()
+	regexCache[pattern] = re
+	regexMu.Unlock()
 }
 
 // Functions returns all the Terramate default functions.
@@ -142,7 +157,7 @@ func Regex() function.Function {
 				return cty.DynamicVal, nil
 			}
 
-			re, ok := regexCache[args[0].AsString()]
+			re, ok := regexFromCache(args[0].AsString())
 			if !ok {
 				panic("should be in the cache")
 			}
@@ -166,7 +181,7 @@ func Regex() function.Function {
 // Returns an error if parsing fails or if the pattern uses a mixture of
 // named and unnamed capture groups, which is not permitted.
 func regexPatternResultType(pattern string) (cty.Type, error) {
-	re, ok := regexCache[pattern]
+	re, ok := regexFromCache(pattern)
 	if !ok {
 		var rawErr error
 		re, rawErr = regexp.Compile(pattern)
@@ -179,7 +194,7 @@ func regexPatternResultType(pattern string) (cty.Type, error) {
 			return cty.NilType, fmt.Errorf("error parsing pattern: %s", err)
 		}
 
-		regexCache[pattern] = re
+		cacheRegex(pattern, re)
 	}
 
 	allNames := re.SubexpNames()[1:]

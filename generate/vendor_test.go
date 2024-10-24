@@ -293,7 +293,7 @@ func TestGenerateVendorRequestEvents(t *testing.T) {
 
 	t.Log("generating code")
 
-	report := generate.Do(s.Config(), project.NewPath("/"), vendorDir, events)
+	report := generate.Do(s.Config(), project.NewPath("/"), 0, vendorDir, events)
 
 	t.Logf("generation report: %s", report.Full())
 

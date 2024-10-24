@@ -13,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/generate/genhcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // File is a sharing backend generated file.
@@ -42,6 +43,9 @@ func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outpu
 				Bytes: []byte("any"),
 			},
 		})
+		if in.Sensitive != nil {
+			blockBody.SetAttributeValue("sensitive", cty.BoolVal(*in.Sensitive))
+		}
 		body.AppendBlock(varBlock)
 	}
 	for _, out := range outputs {
@@ -51,6 +55,9 @@ func PrepareFile(root *config.Root, filename string, inputs config.Inputs, outpu
 		outBlock := hclwrite.NewBlock("output", []string{out.Name})
 		blockBody := outBlock.Body()
 		blockBody.SetAttributeRaw("value", ast.TokensForExpression(out.Value))
+		if out.Sensitive != nil {
+			blockBody.SetAttributeValue("sensitive", cty.BoolVal(*out.Sensitive))
+		}
 		body.AppendBlock(outBlock)
 	}
 

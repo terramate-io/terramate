@@ -20,7 +20,7 @@ type (
 		Backend     string
 		FromStackID string
 		value       hhcl.Expression
-		Sensitive   bool
+		Sensitive   *bool
 		mock        hhcl.Expression
 	}
 
@@ -34,7 +34,7 @@ type (
 		Description string
 		Backend     string
 		Value       hhcl.Expression
-		Sensitive   bool
+		Sensitive   *bool
 	}
 
 	// Outputs is a list of outputs.
@@ -44,11 +44,10 @@ type (
 // EvalInput evaluates an input block using the provided evaluation context.
 func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 	evaluatedInput := Input{
-		Range:     input.Range,
-		Name:      input.Name, // TODO(i4k): validate name.
-		Sensitive: true,
-		value:     input.Value,
-		mock:      input.Mock,
+		Range: input.Range,
+		Name:  input.Name, // TODO(i4k): validate name.
+		value: input.Value,
+		mock:  input.Mock,
 	}
 	var err error
 	errs := errors.L()
@@ -59,7 +58,10 @@ func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 	errs.Append(validateID(evaluatedInput.FromStackID, "input.from_stack_id"))
 
 	if input.Sensitive != nil {
-		evaluatedInput.Sensitive, err = evalBool(evalctx, input.Sensitive, "input.sensitive")
+		val, err := evalBool(evalctx, input.Sensitive, "input.sensitive")
+		if err == nil {
+			evaluatedInput.Sensitive = &val
+		}
 		errs.Append(err)
 	}
 	if err := errs.AsError(); err != nil {
@@ -93,9 +95,8 @@ func (i *Input) Mock(evalctx *eval.Context) (cty.Value, bool, error) {
 // EvalOutput evaluates an output block using the provided evaluation context.
 func EvalOutput(evalctx *eval.Context, output hcl.Output) (Output, error) {
 	evaluatedOutput := Output{
-		Name:      output.Name,
-		Sensitive: true,
-		Value:     output.Value,
+		Name:  output.Name,
+		Value: output.Value,
 	}
 	var err error
 	errs := errors.L()
@@ -104,7 +105,10 @@ func EvalOutput(evalctx *eval.Context, output hcl.Output) (Output, error) {
 		errs.Append(err)
 	}
 	if output.Sensitive != nil {
-		evaluatedOutput.Sensitive, err = evalBool(evalctx, output.Sensitive, "output.sensitive")
+		val, err := evalBool(evalctx, output.Sensitive, "output.sensitive")
+		if err == nil {
+			evaluatedOutput.Sensitive = &val
+		}
 		errs.Append(err)
 	}
 	evaluatedOutput.Backend, err = evalString(evalctx, output.Backend, "output.backend")
