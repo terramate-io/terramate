@@ -6,6 +6,7 @@ name: ci
 on:
   pull_request:
 
+
 jobs:
   build_test:
     name: Build and Test
@@ -13,7 +14,7 @@ jobs:
 
     permissions:
       id-token: write # This is required for requesting the JWT
-      contents: read  # This is required for actions/checkout
+      contents: read # This is required for actions/checkout
       pull-requests: write
       checks: read
 
@@ -25,34 +26,34 @@ jobs:
             value: "ubuntu-20.04"
           - name: macos-ventura
             value: "macos-13"
-        go: ["1.21"]
+        go: [ "1.21" ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version: ${{ matrix.go }}
 
       - name: check all packages with tests are Terramate Stacks
         run: ./hack/check-stacks.sh
 
-      - uses: opentofu/setup-opentofu@v1
+      - uses: opentofu/setup-opentofu@12f4debbf681675350b6cd1f0ff8ecfbda62027b # pin@v1
         with:
           tofu_version: 1.6.2
           tofu_wrapper: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # pin@v3
         with:
           terraform_version: "1.7.5"
           terraform_wrapper: false
 
       - name: Install Terramate
-        uses: terramate-io/terramate-action@i4k-fix-macos
+        uses: terramate-io/terramate-action@b733b79e37eda5caba8703a75b522e9053d0846e # pin@i4k-fix-macos
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -95,7 +96,7 @@ jobs:
       - name: Check Terraform formatting
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: terraform fmt -recursive -check -diff
-      
+
       ### Run the Terramate tests and create a Cloud Preview
 
       - name: Temporary PR Preview Link generation
@@ -170,7 +171,7 @@ jobs:
           cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
 
       - name: Publish Plans for Changed Stacks
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # pin@v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           header: preview-${{ matrix.os.name }}-go-${{matrix.go}}
@@ -182,26 +183,26 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
         with:
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version: '1.21'
 
-      - name: install cosign 
+      - name: install cosign
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
       - name: install goreleaser
         run: |
           curl -sL https://github.com/goreleaser/goreleaser-pro/releases/download/v1.14.0-pro/goreleaser-pro_Linux_x86_64.tar.gz -o /tmp/goreleaser.tar.gz
           cd /tmp && tar -xzf goreleaser.tar.gz && chmod +x goreleaser
           sudo mv /tmp/goreleaser /usr/local/bin/
-      
+
       - name: Create cosign.pub file
-        run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub      
-        
+        run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub
+
       - name: release dry run
         run: make release/dry-run
         env:
