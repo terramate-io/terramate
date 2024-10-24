@@ -947,8 +947,8 @@ github.com/terramate-io/go-checkpoint v1.0.0 h1:E+pBXByyRsLWQYyIeOgt25yWB4e7PN0z
 github.com/terramate-io/go-checkpoint v1.0.0/go.mod h1:UfmRlyHnecnIeW3etFv/qOVQiQEyaUiVH9OR9iAB8Qs=
 github.com/terramate-io/hcl/v2 v2.0.0-rc6 h1:UCpcMfbizpgNQGbJHtIcvDqvR+H8wHrAju112QqV8Lo=
 github.com/terramate-io/hcl/v2 v2.0.0-rc6/go.mod h1:5M0ouzGQXtZ6hnSkVPudYu1EQixH6AfFuPDqqjIkwQU=
-github.com/terramate-io/opentofulib v1.0.0-rc6 h1:a8Cli0j7QdMn0BiDfZ8/z9+6v86giS1u6zcB4nVAJlA=
-github.com/terramate-io/opentofulib v1.0.0-rc6/go.mod h1:GzEJX/rRDA7y31qcAJLTQ24PTK5pe//6WrhnaeXZ7zE=
+github.com/terramate-io/opentofulib v1.0.1 h1:x+vEbfSVjAyUaOiQJtPhB4oI7hDgklmeUVhwNQg7HR0=
+github.com/terramate-io/opentofulib v1.0.1/go.mod h1:GzEJX/rRDA7y31qcAJLTQ24PTK5pe//6WrhnaeXZ7zE=
 github.com/terramate-io/tfjson v1.0.0-rc1 h1:r4F/gesgsakfpxFPSy/wv3wnMUuY5JZcbYGK61FpQkM=
 github.com/terramate-io/tfjson v1.0.0-rc1/go.mod h1:JQdWgAhnl0nah3fB0aRfPXkPglMqx5im3cb3TvDlGMo=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20171017195756-830351dc03c6/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=

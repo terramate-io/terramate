@@ -5,6 +5,8 @@ name: benchmarks
 on:
   pull_request:
     paths:
+      - go.mod
+      - go.sum
       - '**.go'
       - '!**_test.go'
       - '!cloud/testserver/**'
