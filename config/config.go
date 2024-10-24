@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/exp/slices"
 
@@ -47,7 +48,8 @@ const (
 // This type is just for ensure better type checking for the cases where a
 // configuration for the root directory is expected and not from anywhere else.
 type Root struct {
-	tree Tree
+	// tree MUST never be nil
+	tree *Tree
 
 	// hasTerragruntStacks tells if the repository has any Terragrunt stack.
 	hasTerragruntStacks *bool
@@ -78,6 +80,9 @@ type Tree struct {
 	stack *Stack
 
 	dir string
+
+	// used for caching the loaded stack.
+	mu sync.Mutex
 }
 
 // DirElem represents a node which is represented by a directory.
@@ -128,7 +133,7 @@ func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, e
 func NewRoot(tree *Tree) *Root {
 	r := &Root{}
 	tree.root = r
-	r.tree = *tree
+	r.tree = tree
 
 	r.initRuntime()
 	return r
@@ -150,7 +155,7 @@ func LoadRoot(rootdir string) (*Root, error) {
 }
 
 // Tree returns the root configuration tree.
-func (root *Root) Tree() *Tree { return &root.tree }
+func (root *Root) Tree() *Tree { return root.tree }
 
 // HostDir returns the root directory.
 func (root *Root) HostDir() string { return root.tree.RootDir() }
@@ -365,6 +370,8 @@ func (tree *Tree) IsInsideStack() bool {
 
 // Stack returns the stack object.
 func (tree *Tree) Stack() (*Stack, error) {
+	tree.mu.Lock()
+	defer tree.mu.Unlock()
 	if tree.stack == nil {
 		s, err := LoadStack(tree.Root(), tree.Dir())
 		if err != nil {

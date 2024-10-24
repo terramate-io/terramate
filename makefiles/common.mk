@@ -9,10 +9,20 @@ BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd8279
 build: build/terramate build/terramate-ls
 	@echo "all built successfully"
 
+## Build terramate with profiler
+.PHONY: build/pprof
+build/pprof: build/pprof/terramate
+	@echo "all built successfully"
+
 ## Build the terramate binary
 .PHONY: build/terramate
 build/terramate:
 	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -o bin/terramate$(EXEC_SUFFIX) ./cmd/terramate
+
+## Build the terramate binary with profiler
+.PHONY: build/pprof/terramate
+build/pprof/terramate:
+	$(BUILD_ENV) go build $(GO_BUILD_FLAGS) -tags profiler -o bin/terramate$(EXEC_SUFFIX) ./cmd/terramate
 
 ## Build the terramate-ls binary
 .PHONY: build/terramate-ls
@@ -29,10 +39,20 @@ build/tgdeps:
 install: install/terramate install/terramate-ls
 	@echo "all tools installed successfully"
 
+## Install terramate with profiler
+.PHONY: install/pprof
+install/pprof: install/pprof/terramate
+	@echo "all tools installed successfully"
+
 ## Install the terramate binary
 .PHONY: install/terramate
 install/terramate:
 	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) ./cmd/terramate
+
+## Install the terramate binary with profiler
+.PHONY: install/pprof/terramate
+install/pprof/terramate:
+	$(BUILD_ENV) go install $(GO_BUILD_FLAGS) -tags profiler ./cmd/terramate
 
 ## Install the terramate-ls binary
 .PHONY: install/terramate-ls

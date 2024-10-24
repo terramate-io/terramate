@@ -22,11 +22,11 @@ const (
 
 func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, hasUnknowns bool, err error) {
 	switch e := expr.(type) {
-	case *ast.CloneExpression:
-		cloned := ast.CloneExpr(e.Expression)
-		return c.partialEval(cloned)
 	case *hclsyntax.LiteralValueExpr:
-		return expr, false, nil
+		return &hclsyntax.LiteralValueExpr{
+			Val:      e.Val,
+			SrcRange: e.SrcRange,
+		}, false, nil
 	case *hclsyntax.UnaryOpExpr:
 		return c.partialEvalUnaryOp(e)
 	case *hclsyntax.BinaryOpExpr:
@@ -64,21 +64,22 @@ func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, ha
 	}
 }
 
-func (c *Context) partialEvalTemplate(tmpl *hclsyntax.TemplateExpr) (*hclsyntax.TemplateExpr, bool, error) {
+func (c *Context) partialEvalTemplate(old *hclsyntax.TemplateExpr) (*hclsyntax.TemplateExpr, bool, error) {
+	new := &hclsyntax.TemplateExpr{SrcRange: old.SrcRange, Parts: make([]hclsyntax.Expression, len(old.Parts))}
 	hasUnknowns := false
-	for i, part := range tmpl.Parts {
+	for i, part := range old.Parts {
 		newexpr, partHasUnknowns, err := c.partialEval(part)
 		if err != nil {
 			return nil, false, err
 		}
 		hasUnknowns = hasUnknowns || partHasUnknowns
-		tmpl.Parts[i] = asSyntax(newexpr)
+		new.Parts[i] = asSyntax(newexpr)
 	}
-	return tmpl, hasUnknowns, nil
+	return new, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalTmplWrap(wrap *hclsyntax.TemplateWrapExpr) (hhcl.Expression, bool, error) {
-	newwrap, hasUnknowns, err := c.partialEval(wrap.Wrapped)
+func (c *Context) partialEvalTmplWrap(old *hclsyntax.TemplateWrapExpr) (hhcl.Expression, bool, error) {
+	newwrap, hasUnknowns, err := c.partialEval(old.Wrapped)
 	if err != nil {
 		return nil, false, err
 	}
@@ -89,130 +90,161 @@ func (c *Context) partialEvalTmplWrap(wrap *hclsyntax.TemplateWrapExpr) (hhcl.Ex
 		}
 		return v, hasUnknowns, nil
 	}
-
-	wrap.Wrapped = asSyntax(newwrap)
-	return wrap, hasUnknowns, nil
+	new := &hclsyntax.TemplateWrapExpr{
+		Wrapped:  asSyntax(newwrap),
+		SrcRange: old.SrcRange,
+	}
+	return new, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalTuple(tuple *hclsyntax.TupleConsExpr) (hclsyntax.Expression, bool, error) {
+func (c *Context) partialEvalTuple(old *hclsyntax.TupleConsExpr) (hclsyntax.Expression, bool, error) {
+	new := &hclsyntax.TupleConsExpr{
+		Exprs:     make([]hclsyntax.Expression, len(old.Exprs)),
+		SrcRange:  old.SrcRange,
+		OpenRange: old.OpenRange,
+	}
 	hasUnknowns := false
-	for i, v := range tuple.Exprs {
+	for i, v := range old.Exprs {
 		newexpr, itHasUnknowns, err := c.partialEval(v)
 		hasUnknowns = hasUnknowns || itHasUnknowns
 		if err != nil {
 			return nil, hasUnknowns, err
 		}
-		tuple.Exprs[i] = asSyntax(newexpr)
+		new.Exprs[i] = asSyntax(newexpr)
 	}
-	return tuple, hasUnknowns, nil
+	return new, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Expression, bool, error) {
+func (c *Context) partialEvalObject(old *hclsyntax.ObjectConsExpr) (hclsyntax.Expression, bool, error) {
+	new := &hclsyntax.ObjectConsExpr{
+		SrcRange:  old.SrcRange,
+		OpenRange: old.OpenRange,
+		Items:     make([]hclsyntax.ObjectConsItem, len(old.Items)),
+	}
 	hasUnknowns := false
-	for i, elem := range obj.Items {
-		newkey, h1, err := c.partialEval(elem.KeyExpr)
+	for i, oldelem := range old.Items {
+		// copy just in case elem is a pointer in the future
+		newelem := hclsyntax.ObjectConsItem{}
+		newkey, h1, err := c.partialEval(oldelem.KeyExpr)
 		hasUnknowns = hasUnknowns || h1
 		if err != nil {
 			return nil, false, err
 		}
-		newval, h2, err := c.partialEval(elem.ValueExpr)
+		newval, h2, err := c.partialEval(oldelem.ValueExpr)
 		hasUnknowns = hasUnknowns || h2
 		if err != nil {
 			return nil, false, err
 		}
-		elem.KeyExpr = asSyntax(newkey)
-		elem.ValueExpr = asSyntax(newval)
-		obj.Items[i] = elem
+		newelem.KeyExpr = asSyntax(newkey)
+		newelem.ValueExpr = asSyntax(newval)
+		new.Items[i] = newelem
 	}
-	return obj, hasUnknowns, nil
+	return new, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalFunc(funcall *hclsyntax.FunctionCallExpr) (hhcl.Expression, bool, error) {
-	if strings.HasPrefix(funcall.Name, "tm_") {
-		val, err := c.Eval(funcall)
+func (c *Context) partialEvalFunc(old *hclsyntax.FunctionCallExpr) (hhcl.Expression, bool, error) {
+	if strings.HasPrefix(old.Name, "tm_") {
+		val, err := c.Eval(old)
 		if err != nil {
 			return nil, false, err
 		}
 		return &hclsyntax.LiteralValueExpr{
 			Val:      val,
-			SrcRange: funcall.Range(),
+			SrcRange: old.Range(),
 		}, false, nil
 	}
 
 	// hasUnknowns is true because the function is not tm_ prefixed
-
-	for i, arg := range funcall.Args {
-		newexpr, _, err := c.partialEval(arg)
+	new := &hclsyntax.FunctionCallExpr{
+		Name:            old.Name,
+		Args:            make([]hclsyntax.Expression, len(old.Args)),
+		ExpandFinal:     old.ExpandFinal,
+		NameRange:       old.NameRange,
+		OpenParenRange:  old.OpenParenRange,
+		CloseParenRange: old.CloseParenRange,
+	}
+	for i, oldarg := range old.Args {
+		newexpr, _, err := c.partialEval(oldarg)
 		if err != nil {
 			return nil, true, err
 		}
-		funcall.Args[i] = asSyntax(newexpr)
+		new.Args[i] = asSyntax(newexpr)
 	}
-	return funcall, true, nil
+	return new, true, nil
 }
 
-func (c *Context) partialEvalIndex(index *hclsyntax.IndexExpr) (hhcl.Expression, bool, error) {
+func (c *Context) partialEvalIndex(old *hclsyntax.IndexExpr) (hhcl.Expression, bool, error) {
 	hasUnknowns := false
-	newcol, h1, err := c.partialEval(index.Collection)
+	newcol, h1, err := c.partialEval(old.Collection)
 	if err != nil {
 		return nil, false, err
 	}
-	index.Collection = asSyntax(newcol)
 	hasUnknowns = h1
-	newkey, h2, err := c.partialEval(index.Key)
+	newkey, h2, err := c.partialEval(old.Key)
 	hasUnknowns = hasUnknowns || h2
 	if err != nil {
 		return nil, false, err
 	}
-	index.Key = asSyntax(newkey)
 	if hasUnknowns {
-		return index, hasUnknowns, nil
+		return &hclsyntax.IndexExpr{
+			Key:          asSyntax(newkey),
+			Collection:   asSyntax(newcol),
+			SrcRange:     old.SrcRange,
+			OpenRange:    old.OpenRange,
+			BracketRange: old.BracketRange,
+		}, hasUnknowns, nil
 	}
-	val, err := c.Eval(index)
+	val, err := c.Eval(old)
 	if err != nil {
 		return nil, false, err
 	}
 	return &hclsyntax.LiteralValueExpr{
 		Val:      val,
-		SrcRange: index.SrcRange,
+		SrcRange: old.SrcRange,
 	}, false, nil
 }
 
-func (c *Context) partialEvalSplat(expr *hclsyntax.SplatExpr) (hhcl.Expression, bool, error) {
-	newsrc, hasUnknowns, err := c.partialEval(expr.Source)
+func (c *Context) partialEvalSplat(old *hclsyntax.SplatExpr) (hhcl.Expression, bool, error) {
+	newsrc, hasUnknowns, err := c.partialEval(old.Source)
 	if err != nil {
 		return nil, false, err
 	}
-	expr.Source = asSyntax(newsrc)
-	if hasUnknowns {
-		return expr, hasUnknowns, nil
+	new := &hclsyntax.SplatExpr{
+		Each:        ast.CloneExpr(old.Each),
+		Source:      asSyntax(newsrc),
+		Item:        old.Item, // TODO(i4k): figure how to clone this!!
+		SrcRange:    old.SrcRange,
+		MarkerRange: old.MarkerRange,
 	}
-	newEach, hasUnknowns, err := c.partialEval(expr.Each)
+	if hasUnknowns {
+		return new, hasUnknowns, nil
+	}
+	newEach, hasUnknowns, err := c.partialEval(new.Each)
 	if err != nil {
 		return nil, false, err
 	}
-	expr.Each = asSyntax(newEach)
+	new.Each = asSyntax(newEach)
 	if hasUnknowns {
-		return expr, hasUnknowns, nil
+		return new, hasUnknowns, nil
 	}
-	val, err := c.Eval(expr)
+	val, err := c.Eval(new)
 	if err != nil {
-		return expr, false, err
+		return new, false, err // TODO(i4k): why return new and err??
 	}
 	return &hclsyntax.LiteralValueExpr{
 		Val:      val,
-		SrcRange: expr.Range(),
+		SrcRange: old.Range(),
 	}, false, nil
 }
 
-func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, bool, error) {
+func (c *Context) partialEvalObjectKey(old *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, bool, error) {
 	var (
 		err         error
 		wrapped     hhcl.Expression
 		hasUnknowns bool
 	)
 
-	switch vexpr := key.Wrapped.(type) {
+	switch vexpr := old.Wrapped.(type) {
 	case *hclsyntax.ScopeTraversalExpr:
 		wrapped, hasUnknowns, err = c.partialEvalScopeTrav(vexpr, partialEvalOption{
 			// back-compatibility with old partial evaluator.
@@ -226,25 +258,38 @@ func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.E
 			forbidRootEval: false,
 		})
 	default:
-		wrapped, hasUnknowns, err = c.partialEval(key.Wrapped)
+		wrapped, hasUnknowns, err = c.partialEval(old.Wrapped)
 	}
 
 	if err != nil {
 		return nil, false, err
 	}
 
-	key.Wrapped = asSyntax(wrapped)
-	return key, hasUnknowns, nil
+	return &hclsyntax.ObjectConsKeyExpr{
+		ForceNonLiteral: old.ForceNonLiteral,
+		Wrapped:         asSyntax(wrapped),
+	}, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
-	resExpr, hasUnknowns, err := c.partialEval(forExpr.CollExpr)
+func (c *Context) partialEvalForExpr(old *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
+	resExpr, hasUnknowns, err := c.partialEval(old.CollExpr)
 	if err != nil {
 		return nil, false, err
 	}
-	forExpr.CollExpr = asSyntax(resExpr)
+	new := &hclsyntax.ForExpr{
+		CollExpr:   asSyntax(resExpr),
+		KeyVar:     old.KeyVar,
+		ValVar:     old.ValVar,
+		KeyExpr:    ast.CloneExpr(old.KeyExpr),
+		ValExpr:    ast.CloneExpr(old.ValExpr),
+		CondExpr:   ast.CloneExpr(old.CondExpr),
+		Group:      old.Group,
+		SrcRange:   old.SrcRange,
+		OpenRange:  old.OpenRange,
+		CloseRange: old.CloseRange,
+	}
 	if !hasUnknowns {
-		resExpr, hasUnknowns, err = c.evalForLoop(forExpr)
+		resExpr, hasUnknowns, err = c.evalForLoop(new)
 		if err != nil {
 			return nil, false, err
 		}
@@ -253,67 +298,77 @@ func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expressio
 		}
 	}
 
-	if forExpr.KeyExpr != nil {
-		resExpr, _, err = c.partialEval(forExpr.KeyExpr)
+	if new.KeyExpr != nil {
+		resExpr, _, err = c.partialEval(new.KeyExpr)
 		if err != nil {
 			return nil, false, err
 		}
-		forExpr.KeyExpr = asSyntax(resExpr)
+		new.KeyExpr = asSyntax(resExpr)
 	}
 
-	if forExpr.ValExpr != nil {
-		resExpr, _, err := c.partialEval(forExpr.ValExpr)
+	if new.ValExpr != nil {
+		resExpr, _, err := c.partialEval(new.ValExpr)
 		if err != nil {
 			return nil, false, err
 		}
-		forExpr.ValExpr = asSyntax(resExpr)
+		new.ValExpr = asSyntax(resExpr)
 	}
 
-	if forExpr.CondExpr != nil {
-		resExpr, _, err := c.partialEval(forExpr.CondExpr)
+	if new.CondExpr != nil {
+		resExpr, _, err := c.partialEval(new.CondExpr)
 		if err != nil {
 			return nil, false, err
 		}
-		forExpr.CondExpr = asSyntax(resExpr)
+		new.CondExpr = asSyntax(resExpr)
 	}
 
-	return forExpr, true, nil
+	return new, true, nil
 }
 
-func (c *Context) evalForLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
-	if forExpr.KeyExpr != nil {
-		return c.evalForObjectLoop(forExpr)
+func (c *Context) evalForLoop(old *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
+	if old.KeyExpr != nil {
+		return c.evalForObjectLoop(old)
 	}
-	return c.evalForListLoop(forExpr)
+	return c.evalForListLoop(old)
 }
 
-func (c *Context) evalForObjectLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
+func (c *Context) evalForObjectLoop(old *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
 	res := make(map[string]cty.Value)
-	coll, err := c.Eval(forExpr.CollExpr)
+	newcoll, err := c.Eval(old.CollExpr)
 	if err != nil {
 		return nil, false, err
 	}
-	if !coll.CanIterateElements() {
-		return nil, false, errors.E("for-expr with non-iterable collection", forExpr.CollExpr.Range())
+	if !newcoll.CanIterateElements() {
+		return nil, false, errors.E("for-expr with non-iterable collection", old.CollExpr.Range())
 	}
-	iterator := coll.ElementIterator()
+	new := &hclsyntax.ForExpr{
+		CollExpr:   ast.CloneExpr(old.CollExpr),
+		KeyExpr:    ast.CloneExpr(old.KeyExpr),
+		ValExpr:    ast.CloneExpr(old.ValExpr),
+		CondExpr:   ast.CloneExpr(old.CondExpr),
+		KeyVar:     old.KeyVar,
+		ValVar:     old.ValVar,
+		Group:      old.Group,
+		SrcRange:   old.SrcRange,
+		OpenRange:  old.OpenRange,
+		CloseRange: old.CloseRange,
+	}
+	iterator := newcoll.ElementIterator()
 	for iterator.Next() {
 		k, v := iterator.Element()
 		childCtx := c.ChildContext()
-		childCtx.hclctx.Variables[forExpr.KeyVar] = k
-		childCtx.hclctx.Variables[forExpr.ValVar] = v
+		childCtx.hclctx.Variables[old.KeyVar] = k
+		childCtx.hclctx.Variables[old.ValVar] = v
 
-		if forExpr.CondExpr != nil {
-			condExpr, hasUnknowns, err := childCtx.partialEval(&ast.CloneExpression{
-				Expression: forExpr.CondExpr,
-			})
+		if old.CondExpr != nil {
+			newCondExpr, hasUnknowns, err := childCtx.partialEval(new.CondExpr)
 			if err != nil {
 				return nil, false, err
 			}
 			if hasUnknowns {
-				return forExpr, hasUnknowns, nil
+				return new, hasUnknowns, nil
 			}
-			condVal, err := childCtx.Eval(condExpr)
+			condVal, err := childCtx.Eval(newCondExpr)
 			if err != nil {
 				return nil, false, err
 			}
@@ -324,15 +379,13 @@ func (c *Context) evalForObjectLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression
 				continue
 			}
 		}
-		resKeyExpr, hasUnknowns, err := childCtx.partialEval(&ast.CloneExpression{
-			Expression: forExpr.KeyExpr,
-		})
+		resKeyExpr, hasUnknowns, err := childCtx.partialEval(new.KeyExpr)
 		if err != nil {
 			return nil, false, err
 		}
 
 		if hasUnknowns {
-			return forExpr, hasUnknowns, nil
+			return new, hasUnknowns, nil
 		}
 
 		resKeyVal, err := childCtx.Eval(resKeyExpr)
@@ -340,16 +393,14 @@ func (c *Context) evalForObjectLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression
 			return nil, false, err
 		}
 		if resKeyVal.Type() != cty.String {
-			return nil, false, errors.E("object key must be a string", forExpr.KeyExpr.Range())
+			return nil, false, errors.E("object key must be a string", old.KeyExpr.Range())
 		}
-		resValExpr, hasUnknowns, err := childCtx.partialEval(&ast.CloneExpression{
-			Expression: forExpr.ValExpr,
-		})
+		resValExpr, hasUnknowns, err := childCtx.partialEval(old.ValExpr)
 		if err != nil {
 			return nil, false, err
 		}
 		if hasUnknowns {
-			return forExpr, hasUnknowns, nil
+			return new, hasUnknowns, nil
 		}
 		resVal, err := childCtx.Eval(resValExpr)
 		if err != nil {
@@ -359,35 +410,45 @@ func (c *Context) evalForObjectLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression
 	}
 	return &hclsyntax.LiteralValueExpr{
 		Val:      cty.ObjectVal(res),
-		SrcRange: forExpr.SrcRange,
+		SrcRange: old.SrcRange,
 	}, false, nil
 }
 
-func (c *Context) evalForListLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
+func (c *Context) evalForListLoop(old *hclsyntax.ForExpr) (hhcl.Expression, bool, error) {
 	var res []cty.Value
-	coll, err := c.Eval(forExpr.CollExpr)
+	newcoll, err := c.Eval(old.CollExpr)
 	if err != nil {
 		return nil, false, err
 	}
-	if !coll.CanIterateElements() {
-		return nil, false, errors.E("for-expr with non-iterable collection", forExpr.CollExpr.Range())
+	if !newcoll.CanIterateElements() {
+		return nil, false, errors.E("for-expr with non-iterable collection", old.CollExpr.Range())
 	}
-	iterator := coll.ElementIterator()
+	new := &hclsyntax.ForExpr{
+		CollExpr:   ast.CloneExpr(old.CollExpr),
+		KeyExpr:    ast.CloneExpr(old.KeyExpr),
+		ValExpr:    ast.CloneExpr(old.ValExpr),
+		CondExpr:   ast.CloneExpr(old.CondExpr),
+		KeyVar:     old.KeyVar,
+		ValVar:     old.ValVar,
+		Group:      old.Group,
+		SrcRange:   old.SrcRange,
+		OpenRange:  old.OpenRange,
+		CloseRange: old.CloseRange,
+	}
+	iterator := newcoll.ElementIterator()
 	for iterator.Next() {
 		k, v := iterator.Element()
 		childCtx := c.ChildContext()
-		childCtx.hclctx.Variables[forExpr.KeyVar] = k
-		childCtx.hclctx.Variables[forExpr.ValVar] = v
+		childCtx.hclctx.Variables[old.KeyVar] = k
+		childCtx.hclctx.Variables[old.ValVar] = v
 
-		if forExpr.CondExpr != nil {
-			condExpr, hasUnknowns, err := childCtx.partialEval(&ast.CloneExpression{
-				Expression: forExpr.CondExpr,
-			})
+		if old.CondExpr != nil {
+			condExpr, hasUnknowns, err := childCtx.partialEval(new.CondExpr)
 			if err != nil {
 				return nil, false, err
 			}
 			if hasUnknowns {
-				return forExpr, hasUnknowns, nil
+				return new, hasUnknowns, nil
 			}
 			condVal, err := childCtx.Eval(condExpr)
 			if err != nil {
@@ -401,14 +462,12 @@ func (c *Context) evalForListLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression, 
 			}
 		}
 
-		resValExpr, hasUnknowns, err := childCtx.partialEval(&ast.CloneExpression{
-			Expression: forExpr.ValExpr,
-		})
+		resValExpr, hasUnknowns, err := childCtx.partialEval(new.ValExpr)
 		if err != nil {
 			return nil, false, err
 		}
 		if hasUnknowns {
-			return forExpr, hasUnknowns, nil
+			return new, hasUnknowns, nil
 		}
 		resVal, err := childCtx.Eval(resValExpr)
 		if err != nil {
@@ -418,50 +477,57 @@ func (c *Context) evalForListLoop(forExpr *hclsyntax.ForExpr) (hhcl.Expression, 
 	}
 	return &hclsyntax.LiteralValueExpr{
 		Val:      cty.TupleVal(res),
-		SrcRange: forExpr.SrcRange,
+		SrcRange: new.SrcRange,
 	}, false, nil
 }
 
-func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expression, bool, error) {
-	lhs, h1, err := c.partialEval(binop.LHS)
+func (c *Context) partialEvalBinOp(old *hclsyntax.BinaryOpExpr) (hhcl.Expression, bool, error) {
+	lhs, h1, err := c.partialEval(old.LHS)
 	if err != nil {
 		return nil, false, err
 	}
-	rhs, h2, err := c.partialEval(binop.RHS)
+	rhs, h2, err := c.partialEval(old.RHS)
 	if err != nil {
 		return nil, false, err
 	}
-	binop.LHS = asSyntax(lhs)
-	binop.RHS = asSyntax(rhs)
-	return binop, h1 || h2, nil
+	return &hclsyntax.BinaryOpExpr{
+		LHS:      asSyntax(lhs),
+		RHS:      asSyntax(rhs),
+		Op:       old.Op, // not copied but this is never modified.
+		SrcRange: old.SrcRange,
+	}, h1 || h2, nil
 }
 
-func (c *Context) partialEvalUnaryOp(unary *hclsyntax.UnaryOpExpr) (hhcl.Expression, bool, error) {
-	val, hasUnknowns, err := c.partialEval(unary.Val)
+func (c *Context) partialEvalUnaryOp(old *hclsyntax.UnaryOpExpr) (hhcl.Expression, bool, error) {
+	val, hasUnknowns, err := c.partialEval(old.Val)
 	if err != nil {
 		return nil, false, err
 	}
-	unary.Val = asSyntax(val)
-	return unary, hasUnknowns, nil
+	new := &hclsyntax.UnaryOpExpr{SrcRange: old.SrcRange, SymbolRange: old.SymbolRange}
+	new.Val = asSyntax(val)
+	new.Op = old.Op
+	return new, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Expression, bool, error) {
-	newcond, h1, err := c.partialEval(cond.Condition)
+func (c *Context) partialEvalCondExpr(old *hclsyntax.ConditionalExpr) (hhcl.Expression, bool, error) {
+	newcond, h1, err := c.partialEval(old.Condition)
 	if err != nil {
 		return nil, false, err
 	}
-	newtrue, h2, err := c.partialEval(cond.TrueResult)
+	newtrue, h2, err := c.partialEval(old.TrueResult)
 	if err != nil {
 		return nil, false, err
 	}
-	newfalse, h3, err := c.partialEval(cond.FalseResult)
+	newfalse, h3, err := c.partialEval(old.FalseResult)
 	if err != nil {
 		return nil, false, err
 	}
-	cond.Condition = asSyntax(newcond)
-	cond.TrueResult = asSyntax(newtrue)
-	cond.FalseResult = asSyntax(newfalse)
-	return cond, h1 || h2 || h3, nil
+	return &hclsyntax.ConditionalExpr{
+		SrcRange:    old.SrcRange,
+		Condition:   asSyntax(newcond),
+		TrueResult:  asSyntax(newtrue),
+		FalseResult: asSyntax(newfalse),
+	}, h1 || h2 || h3, nil
 }
 
 type partialEvalOption struct {
@@ -469,33 +535,39 @@ type partialEvalOption struct {
 	forbidRootEval bool
 }
 
-func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts ...partialEvalOption) (hclsyntax.Expression, bool, error) {
+func (c *Context) partialEvalScopeTrav(old *hclsyntax.ScopeTraversalExpr, opts ...partialEvalOption) (hclsyntax.Expression, bool, error) {
 	assertPartialExprOpt(opts)
-	ns, ok := scope.Traversal[0].(hhcl.TraverseRoot)
+	new := &hclsyntax.ScopeTraversalExpr{SrcRange: old.SrcRange}
+	// shallow copy
+	new.Traversal = make(hhcl.Traversal, len(old.Traversal))
+	copy(new.Traversal, old.Traversal)
+	old = nil
+
+	ns, ok := new.Traversal[0].(hhcl.TraverseRoot)
 	if !ok {
-		return scope, false, nil
+		return new, false, nil
 	}
 	forbidRootEval := false
 	if len(opts) == 1 {
 		forbidRootEval = opts[0].forbidRootEval
 	}
-	if len(scope.Traversal) == 1 && forbidRootEval {
-		return scope, false, nil
+	if len(new.Traversal) == 1 && forbidRootEval {
+		return new, false, nil
 	}
 	if !c.HasNamespace(ns.Name) {
-		return scope, true, nil
+		return new, true, nil
 	}
-	val, err := c.Eval(scope)
+	val, err := c.Eval(new)
 	if err != nil {
 		return nil, false, err
 	}
 	return &hclsyntax.LiteralValueExpr{
 		Val:      val,
-		SrcRange: scope.SrcRange,
+		SrcRange: new.SrcRange,
 	}, false, nil
 }
 
-func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr, opts ...partialEvalOption) (hhcl.Expression, bool, error) {
+func (c *Context) partialEvalParenExpr(old *hclsyntax.ParenthesesExpr, opts ...partialEvalOption) (hhcl.Expression, bool, error) {
 	assertPartialExprOpt(opts)
 	forbidRootEval := false
 	if len(opts) == 1 {
@@ -508,37 +580,40 @@ func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr, opts ..
 		err         error
 	)
 
-	if scope, ok := paren.Expression.(*hclsyntax.ScopeTraversalExpr); ok && forbidRootEval {
+	if scope, ok := old.Expression.(*hclsyntax.ScopeTraversalExpr); ok && forbidRootEval {
 		newexpr, hasUnknowns, err = c.partialEvalScopeTrav(scope, opts...)
 	} else {
-		newexpr, hasUnknowns, err = c.partialEval(paren.Expression)
+		newexpr, hasUnknowns, err = c.partialEval(old.Expression)
 	}
 
 	if err != nil {
 		return nil, false, err
 	}
 
-	paren.Expression = asSyntax(newexpr)
-	return paren, hasUnknowns, nil
+	new := &hclsyntax.ParenthesesExpr{SrcRange: old.SrcRange}
+	new.Expression = asSyntax(newexpr)
+	return new, hasUnknowns, nil
 }
 
-func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl.Expression, bool, error) {
-	newsrc, hasUnknowns, err := c.partialEval(rel.Source)
+func (c *Context) partialEvalRelTrav(old *hclsyntax.RelativeTraversalExpr) (hhcl.Expression, bool, error) {
+	newsrc, hasUnknowns, err := c.partialEval(old.Source)
 	if err != nil {
 		return nil, false, err
 	}
-	rel.Source = asSyntax(newsrc)
+	new := &hclsyntax.RelativeTraversalExpr{SrcRange: old.SrcRange}
+	new.Traversal = make(hhcl.Traversal, len(old.Traversal))
+	copy(new.Traversal, old.Traversal)
+	new.Source = asSyntax(newsrc)
 	if hasUnknowns {
-		return rel, hasUnknowns, nil
+		return new, hasUnknowns, nil
 	}
-
-	val, err := c.Eval(rel)
+	val, err := c.Eval(old)
 	if err != nil {
 		return nil, false, err
 	}
 	return &hclsyntax.LiteralValueExpr{
 		Val:      val,
-		SrcRange: rel.SrcRange,
+		SrcRange: new.SrcRange,
 	}, false, nil
 }
 

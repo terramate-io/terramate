@@ -109,6 +109,7 @@ type cliSpec struct {
 
 	DisableCheckpoint          bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint checks for updates."`
 	DisableCheckpointSignature bool `hidden:"true" optional:"true" default:"false" help:"Disable checkpoint signature."`
+	CPUProfiling               bool `hidden:"true" optional:"true" default:"false" help:"Create a CPU profile file when running"`
 
 	Create struct {
 		Path        string   `arg:"" optional:"" name:"path" predictor:"file" help:"Path of the new stack."`
@@ -151,6 +152,7 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
+		Parallel         int  `env:"TM_ARG_GENERATE_PARALLEL" short:"j" optional:"true" help:"Set the parallelism of code generation"`
 		DetailedExitCode bool `default:"false" help:"Return a detailed exit code: 0 nothing changed, 1 an error happened, 2 changes were made."`
 	} `cmd:"" help:"Run Code Generation in stacks."`
 
@@ -394,7 +396,7 @@ type cli struct {
 	stderr         io.Writer
 	output         out.O // Deprecated: use printer.Stdout/Stderr
 	exit           bool
-	prj            project
+	prj            *project
 	httpClient     http.Client
 	cloud          cloudConfig
 	uimode         UIMode
@@ -452,6 +454,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	)
 
 	ctx, err := parser.Parse(args)
+	// Note: err is checked later due to Kong workarounds in place.
 
 	if kongExit && kongExitStatus == 0 {
 		return &cli{exit: true}
@@ -468,6 +471,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	if err != nil {
 		fatalWithDetailf(err, "parsing cli args %v", args)
 	}
+
+	// profiler is only started if Terramate is built with -tags profiler
+	startProfiler(&parsedArgs)
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
 		parsedArgs.LogDestination, stdout, stderr)
@@ -704,7 +710,9 @@ func (c *cli) run() {
 		c.setupSafeguards(c.parsedArgs.Run.runSafeguardsCliSpec)
 		c.runOnStacks()
 	case "generate":
-		c.generate()
+		exitCode := c.generate()
+		stopProfiler(c.parsedArgs)
+		os.Exit(exitCode)
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental trigger":
@@ -1112,7 +1120,7 @@ func (c *cli) cloneStack() {
 	c.generate()
 }
 
-func (c *cli) generate() {
+func (c *cli) generate() int {
 	report, vendorReport := c.gencodeWithVendor()
 
 	c.output.MsgStdOut(report.Full())
@@ -1123,7 +1131,6 @@ func (c *cli) generate() {
 
 	if !vendorReport.IsEmpty() {
 		c.output.MsgStdOut(vendorReport.String())
-
 	}
 
 	if c.parsedArgs.Generate.DetailedExitCode {
@@ -1135,13 +1142,12 @@ func (c *cli) generate() {
 	if report.HasFailures() || vendorReport.HasFailures() {
 		exitCode = 1
 	}
-
-	os.Exit(exitCode)
+	return exitCode
 }
 
 // gencodeWithVendor will generate code for the whole project providing automatic
 // vendoring of all tm_vendor calls.
-func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
+func (c *cli) gencodeWithVendor() (*generate.Report, download.Report) {
 	vendorProgressEvents := download.NewEventStream()
 	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
 
@@ -1154,25 +1160,25 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	mergedVendorReport := download.MergeVendorReports(vendorReports)
 
-	log.Debug().Msg("generating code")
+	log.Trace().Msg("generating code")
 
 	cwd := prj.PrjAbsPath(c.cfg().HostDir(), c.wd())
-	report := generate.Do(c.cfg(), cwd, c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), cwd, c.parsedArgs.Generate.Parallel, c.vendorDir(), vendorRequestEvents)
 
-	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
+	log.Trace().Msg("code generation finished, waiting for vendor requests to be handled")
 
 	close(vendorRequestEvents)
 
-	log.Debug().Msg("waiting for vendor report merging")
+	log.Trace().Msg("waiting for vendor report merging")
 
 	vendorReport := <-mergedVendorReport
 
-	log.Debug().Msg("waiting for all progress events")
+	log.Trace().Msg("waiting for all progress events")
 
 	close(vendorProgressEvents)
 	<-progressHandlerDone
 
-	log.Debug().Msg("all handlers stopped, generating final report")
+	log.Trace().Msg("all handlers stopped, generating final report")
 
 	return report, vendorReport
 }
@@ -1493,7 +1499,7 @@ func (c *cli) initTerraform() {
 		fatalWithDetailf(err, "reloading the configuration")
 	}
 
-	c.prj.root = *root
+	c.prj.root = root
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
@@ -2399,7 +2405,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 
 func (c *cli) wd() string                   { return c.prj.wd }
 func (c *cli) rootdir() string              { return c.prj.rootdir }
-func (c *cli) cfg() *config.Root            { return &c.prj.root }
+func (c *cli) cfg() *config.Root            { return c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
@@ -2593,8 +2599,8 @@ func newGit(basedir string) (*git.Git, error) {
 	return g, nil
 }
 
-func lookupProject(wd string) (prj project, found bool, err error) {
-	prj = project{
+func lookupProject(wd string) (prj *project, found bool, err error) {
+	prj = &project{
 		wd: wd,
 	}
 
@@ -2611,22 +2617,22 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 		rootdir, err := filepath.EvalSymlinks(gitabs)
 		if err != nil {
-			return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
+			return nil, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 		}
 
 		cfg, err := config.LoadRoot(rootdir)
 		if err != nil {
-			return project{}, false, err
+			return nil, false, err
 		}
 
 		gw = gw.With().WorkingDir(rootdir).Wrapper()
 
 		prj.isRepo = true
-		prj.root = *cfg
+		prj.root = cfg
 		prj.rootdir = rootdir
 		prj.git.wrapper = gw
 
-		mgr := stack.NewGitAwareManager(&prj.root, gw)
+		mgr := stack.NewGitAwareManager(prj.root, gw)
 		prj.stackManager = mgr
 
 		return prj, true, nil
@@ -2634,14 +2640,14 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	rootcfg, rootcfgpath, rootfound, err := config.TryLoadConfig(wd)
 	if err != nil {
-		return project{}, false, err
+		return nil, false, err
 	}
 	if !rootfound {
-		return project{}, false, nil
+		return nil, false, nil
 	}
 	prj.rootdir = rootcfgpath
-	prj.root = *rootcfg
-	prj.stackManager = stack.NewManager(&prj.root)
+	prj.root = rootcfg
+	prj.stackManager = stack.NewManager(prj.root)
 	return prj, true, nil
 }
 
