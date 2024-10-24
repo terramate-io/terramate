@@ -309,12 +309,15 @@ func joinResults[T any](results ...[]T) []T {
 	return all
 }
 
-func mergeReports(r1, r2 Report) Report {
-	merged := Report{}
-	merged.BootstrapErr = errors.L(r1.BootstrapErr, r2.BootstrapErr).AsError()
-	merged.CleanupErr = errors.L(r1.CleanupErr, r2.CleanupErr).AsError()
+func mergeReports(reportChan chan *Report) *Report {
+	merged := &Report{}
 
-	merged.Successes = joinResults(r1.Successes, r2.Successes)
-	merged.Failures = joinResults(r1.Failures, r2.Failures)
+	for r := range reportChan {
+		merged.BootstrapErr = errors.L(merged.BootstrapErr, r.BootstrapErr).AsError()
+		merged.CleanupErr = errors.L(merged.CleanupErr, r.CleanupErr).AsError()
+
+		merged.Successes = joinResults(merged.Successes, r.Successes)
+		merged.Failures = joinResults(merged.Failures, r.Failures)
+	}
 	return merged
 }
