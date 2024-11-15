@@ -366,6 +366,7 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 		c.cloud.run.orgName = activeOrgs[0].Name
 		c.cloud.run.orgUUID = activeOrgs[0].UUID
 	}
+
 	return nil
 }
 

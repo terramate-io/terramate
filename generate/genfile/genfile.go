@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"github.com/gobwas/glob"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -141,10 +142,15 @@ func Load(
 
 	var files []File
 
+	hasBlocksWithRootContext := false
+	hasBlocksWithStackContext := false
+
 	for _, genFileBlock := range genFileBlocks {
 		if genFileBlock.Context != StackContext {
+			hasBlocksWithRootContext = true
 			continue
 		}
+		hasBlocksWithStackContext = true
 
 		name := genFileBlock.Label
 
@@ -192,6 +198,11 @@ func Load(
 			files = append(files, file)
 		}
 	}
+
+	tel.DefaultRecord.Set(
+		tel.BoolFlag("file", hasBlocksWithStackContext, "generate"),
+		tel.BoolFlag("file-root", hasBlocksWithRootContext, "generate"),
+	)
 
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].String() < files[j].String()

@@ -22,6 +22,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add telemetry to collect anonymous usage metrics.
+  - This helps us to improve user experience by measuring which Terramate features are used most actively.
+    For further details, see [documentation](https://terramate.io/docs/cli/telemetry).
+  - Can be turned off by setting `terramate.config.telemetry.enabled = false` in the project configuration,
+    or by setting `disable_telemetry = true` in the user configuration.
+
 ### Fixed
 
 - Fix the command-line parsing of `run` and `script run` which were not failing from unknown flags.

@@ -138,6 +138,15 @@ func TestLoad(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "valid disable_telemetry",
+			cfg:  `disable_telemetry = true`,
+			want: want{
+				cfg: cliconfig.Config{
+					DisableTelemetry: true,
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

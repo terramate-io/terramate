@@ -28,6 +28,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
@@ -696,37 +697,94 @@ func (c *cli) run() {
 	logger.Debug().Msg("Handle command.")
 
 	switch c.ctx.Command() {
-	case "fmt":
+	case "fmt", "fmt <files>":
+		c.initAndSendAnalytics("fmt",
+			tel.BoolFlag("detailed-exit-code", c.parsedArgs.Fmt.DetailedExitCode),
+		)
 		c.format()
-	case "fmt <files>":
-		c.format()
+		c.waitForAnalytics()
 	case "create <path>":
+		c.initAndSendAnalytics("create")
 		c.createStack()
+		c.waitForAnalytics()
 	case "create":
+		c.initAnalytics("create",
+			tel.BoolFlag("all-terragrunt", c.parsedArgs.Create.AllTerragrunt),
+			tel.BoolFlag("all-terraform", c.parsedArgs.Create.AllTerraform),
+		)
 		c.scanCreate()
+		c.waitForAnalytics()
 	case "list":
+		c.initAndSendAnalytics("list",
+			tel.BoolFlag("filter-changed", c.parsedArgs.Changed),
+			tel.BoolFlag("filter-tags", len(c.parsedArgs.Tags) != 0),
+			tel.StringFlag("filter-status", c.parsedArgs.List.Status),
+			tel.StringFlag("filter-drift-status", c.parsedArgs.List.DriftStatus),
+			tel.StringFlag("filter-deployment-status", c.parsedArgs.List.DeploymentStatus),
+			tel.StringFlag("filter-target", c.parsedArgs.List.Target),
+			tel.BoolFlag("run-order", c.parsedArgs.List.RunOrder),
+		)
 		c.setupGit()
 		c.setupChangeDetection(c.parsedArgs.List.EnableChangeDetection, c.parsedArgs.List.DisableChangeDetection)
 		c.printStacks()
+		c.waitForAnalytics()
 	case "run":
 		fatal("no command specified")
 	case "run <cmd>":
+		c.initAndSendAnalytics("run",
+			tel.BoolFlag("filter-changed", c.parsedArgs.Changed),
+			tel.BoolFlag("filter-tags", len(c.parsedArgs.Tags) != 0),
+			tel.StringFlag("filter-status", c.parsedArgs.Run.Status),
+			tel.StringFlag("filter-drift-status", c.parsedArgs.Run.DriftStatus),
+			tel.StringFlag("filter-deployment-status", c.parsedArgs.Run.DeploymentStatus),
+			tel.StringFlag("target", c.parsedArgs.Run.Target),
+			tel.BoolFlag("sync-deployment", c.parsedArgs.Run.SyncDeployment),
+			tel.BoolFlag("sync-drift", c.parsedArgs.Run.SyncDriftStatus),
+			tel.BoolFlag("sync-preview", c.parsedArgs.Run.SyncPreview),
+			tel.StringFlag("terraform-planfile", c.parsedArgs.Run.TerraformPlanFile),
+			tel.StringFlag("tofu-planfile", c.parsedArgs.Run.TofuPlanFile),
+			tel.StringFlag("layer", string(c.parsedArgs.Run.Layer)),
+			tel.BoolFlag("terragrunt", c.parsedArgs.Run.Terragrunt),
+			tel.BoolFlag("reverse", c.parsedArgs.Run.Reverse),
+			tel.BoolFlag("parallel", c.parsedArgs.Run.Parallel > 0),
+			tel.BoolFlag("output-sharing", c.parsedArgs.Run.EnableSharing),
+			tel.BoolFlag("output-mocks", c.parsedArgs.Run.MockOnFail),
+		)
 		c.setupGit()
 		c.setupChangeDetection(c.parsedArgs.Run.EnableChangeDetection, c.parsedArgs.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Run.runSafeguardsCliSpec)
 		c.runOnStacks()
+		c.waitForAnalytics()
 	case "generate":
+		c.initAnalytics("generate",
+			tel.BoolFlag("detailed-exit-code", c.parsedArgs.Generate.DetailedExitCode),
+			tel.BoolFlag("parallel", c.parsedArgs.Generate.Parallel > 0),
+		)
 		exitCode := c.generate()
 		stopProfiler(c.parsedArgs)
+		c.sendAnalytics()
+		c.waitForAnalytics()
 		os.Exit(exitCode)
 	case "experimental clone <srcdir> <destdir>":
+		c.initAndSendAnalytics("clone")
 		c.cloneStack()
+		c.waitForAnalytics()
 	case "experimental trigger":
+		c.initAndSendAnalytics("trigger")
 		c.triggerStackByFilter()
+		c.waitForAnalytics()
 	case "experimental trigger <stack>":
+		c.initAndSendAnalytics("trigger",
+			tel.StringFlag("stack", c.parsedArgs.Experimental.Trigger.Stack),
+			tel.BoolFlag("change", c.parsedArgs.Experimental.Trigger.Change),
+			tel.BoolFlag("ignore-change", c.parsedArgs.Experimental.Trigger.IgnoreChange),
+		)
 		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
+		c.waitForAnalytics()
 	case "experimental vendor download <source> <ref>":
+		c.initAndSendAnalytics("vendor-download")
 		c.vendorDownload()
+		c.waitForAnalytics()
 	case "debug show globals":
 		c.setupGit()
 		c.printStacksGlobals()
@@ -737,8 +795,10 @@ func (c *cli) run() {
 		c.setupGit()
 		c.printMetadata()
 	case "experimental run-graph":
+		c.initAndSendAnalytics("graph")
 		c.setupGit()
 		c.generateGraph()
+		c.waitForAnalytics()
 	case "debug show runtime-env":
 		c.setupGit()
 		c.printRuntimeEnv()
@@ -757,35 +817,113 @@ func (c *cli) run() {
 	case "experimental cloud info": // Deprecated
 		fallthrough
 	case "cloud info":
+		c.initAndSendAnalytics("cloud-info")
 		c.cloudInfo()
+		c.waitForAnalytics()
 	case "experimental cloud drift show": // Deprecated
 		fallthrough
 	case "cloud drift show":
+		c.initAndSendAnalytics("cloud-drift-show")
 		c.cloudDriftShow()
+		c.waitForAnalytics()
 	case "script list":
+		c.initAndSendAnalytics("script-list")
 		c.checkScriptEnabled()
 		c.printScriptList()
+		c.waitForAnalytics()
 	case "script tree":
+		c.initAndSendAnalytics("script-tree")
 		c.checkScriptEnabled()
 		c.printScriptTree()
+		c.waitForAnalytics()
 	case "script info":
 		c.checkScriptEnabled()
 		fatal("no script specified")
 	case "script info <cmds>":
+		c.initAndSendAnalytics("script-info")
 		c.checkScriptEnabled()
 		c.printScriptInfo()
+		c.waitForAnalytics()
 	case "script run":
 		c.checkScriptEnabled()
 		fatal("no script specified")
 	case "script run <cmds>":
+		c.initAnalytics("script-run",
+			tel.BoolFlag("filter-changed", c.parsedArgs.Changed),
+			tel.BoolFlag("filter-tags", len(c.parsedArgs.Tags) != 0),
+			tel.StringFlag("filter-status", c.parsedArgs.Script.Run.Status),
+			tel.StringFlag("filter-drift-status", c.parsedArgs.Script.Run.DriftStatus),
+			tel.StringFlag("filter-deployment-status", c.parsedArgs.Script.Run.DeploymentStatus),
+			tel.StringFlag("target", c.parsedArgs.Script.Run.Target),
+			tel.BoolFlag("reverse", c.parsedArgs.Script.Run.Reverse),
+			tel.BoolFlag("parallel", c.parsedArgs.Script.Run.Parallel > 0),
+		)
 		c.checkScriptEnabled()
 		c.setupGit()
 		c.setupChangeDetection(c.parsedArgs.Script.Run.EnableChangeDetection, c.parsedArgs.Script.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Script.Run.runSafeguardsCliSpec)
 		c.runScript()
+		c.sendAnalytics()
+		c.waitForAnalytics()
 	default:
 		fatal("unexpected command sequence")
 	}
+}
+
+func (c *cli) initAnalytics(cmd string, opts ...tel.MessageOpt) {
+	cpsigfile := filepath.Join(c.clicfg.UserTerramateDir, "checkpoint_signature")
+	anasigfile := filepath.Join(c.clicfg.UserTerramateDir, "analytics_signature")
+	credfile := filepath.Join(c.clicfg.UserTerramateDir, credfile)
+
+	r := tel.DefaultRecord
+	r.Set(
+		tel.Command(cmd),
+		tel.OrgName(c.cloudOrgName()),
+		tel.DetectFromEnv(credfile, cpsigfile, anasigfile),
+		tel.StringFlag("chdir", c.parsedArgs.Chdir),
+	)
+	r.Set(opts...)
+}
+
+func (c *cli) sendAnalytics() {
+	// There are several ways to disable this, but this requires the least amount of special handling.
+	// Prepare the record, but don't send it.
+	if !c.isTelemetryEnabled() {
+		return
+	}
+
+	tel.DefaultRecord.Send(tel.SendMessageParams{
+		Timeout: 100 * time.Millisecond,
+	})
+}
+
+func (c *cli) waitForAnalytics() {
+	if err := tel.DefaultRecord.WaitForSend(); err != nil {
+		logger := log.With().
+			Str("action", "cli.waitForAnalytics()").
+			Logger()
+		logger.Debug().Err(err).Msgf("failed to wait for analytics")
+	}
+}
+
+func (c *cli) initAndSendAnalytics(cmd string, opts ...tel.MessageOpt) {
+	c.initAnalytics(cmd, opts...)
+	c.sendAnalytics()
+}
+
+func (c *cli) isTelemetryEnabled() bool {
+	if c.clicfg.DisableTelemetry {
+		return false
+	}
+
+	cfg := c.rootNode()
+	if cfg.Terramate == nil ||
+		cfg.Terramate.Config == nil ||
+		cfg.Terramate.Config.Telemetry == nil ||
+		cfg.Terramate.Config.Telemetry.Enabled == nil {
+		return true
+	}
+	return *cfg.Terramate.Config.Telemetry.Enabled
 }
 
 func (c *cli) setupSafeguards(run runSafeguardsCliSpec) {

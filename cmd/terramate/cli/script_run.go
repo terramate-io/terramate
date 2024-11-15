@@ -12,6 +12,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/hashicorp/go-uuid"
 	"github.com/terramate-io/terramate/cloud"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
@@ -134,6 +135,18 @@ func (c *cli) runScript() {
 						task.UseTerragrunt = cmd.Options.UseTerragrunt
 						task.EnableSharing = cmd.Options.EnableSharing
 						task.MockOnFail = cmd.Options.MockOnFail
+
+						tel.DefaultRecord.Set(
+							tel.BoolFlag("sync-deployment", cmd.Options.CloudSyncDeployment),
+							tel.BoolFlag("sync-drift", cmd.Options.CloudSyncDriftStatus),
+							tel.BoolFlag("sync-preview", cmd.Options.CloudSyncPreview),
+							tel.StringFlag("terraform-planfile", cmd.Options.CloudTerraformPlanFile),
+							tel.StringFlag("tofu-planfile", cmd.Options.CloudTofuPlanFile),
+							tel.StringFlag("layer", string(cmd.Options.CloudSyncLayer)),
+							tel.BoolFlag("terragrunt", cmd.Options.UseTerragrunt),
+							tel.BoolFlag("output-sharing", cmd.Options.EnableSharing),
+							tel.BoolFlag("output-mocks", cmd.Options.MockOnFail),
+						)
 					}
 					run.Tasks = append(run.Tasks, task)
 					if task.CloudSyncDeployment || task.CloudSyncDriftStatus || task.CloudSyncPreview {
