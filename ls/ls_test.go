@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	stackpkg "github.com/terramate-io/terramate/stack"
 	lstest "github.com/terramate-io/terramate/test/ls"
 	"go.lsp.dev/jsonrpc2"
@@ -525,8 +524,4 @@ stack {
 			}
 		})
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

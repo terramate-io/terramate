@@ -14,7 +14,6 @@ import (
 	"text/template"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl"
@@ -1206,8 +1205,4 @@ func newSource(t *testing.T, uri uri.URI, ref string) tf.Source {
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", uri, ref))
 	assert.NoError(t, err)
 	return source
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/test"
 )
 
@@ -34,8 +33,4 @@ func TestRepoIsSetupWithSyncRemoteOriginMain(t *testing.T) {
 		"%q remote rev doesn't match local",
 		originMainRev,
 	)
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

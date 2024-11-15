@@ -1,7 +1,7 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package ls
+package tmls
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	tmls "github.com/terramate-io/terramate/ls"
 	"github.com/terramate-io/terramate/test/sandbox"
 	"go.lsp.dev/jsonrpc2"
@@ -152,8 +151,4 @@ func DefaultInitializeResult() lsp.InitializeResult {
 			},
 		},
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

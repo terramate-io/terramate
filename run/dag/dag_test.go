@@ -11,8 +11,6 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/run/dag"
-
-	"github.com/rs/zerolog"
 )
 
 type node struct {
@@ -425,8 +423,4 @@ func assertOrder(t *testing.T, want, got []dag.ID) {
 	for i, w := range want {
 		assert.EqualStrings(t, string(w), string(got[i]), "id %d mismatch", i)
 	}
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

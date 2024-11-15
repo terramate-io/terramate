@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/rs/zerolog"
 	"github.com/terramate-io/hcl/v2/hclparse"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/test/hclwrite"
@@ -319,8 +318,4 @@ func evaluateValExpr(t *testing.T, valueExpr string) cty.Value {
 	}
 
 	return val
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
