@@ -249,6 +249,72 @@ stack "/stack":
 `,
 			},
 		},
+		{
+			name: "one stack with parent stack",
+			layout: []string{
+				`s:parent:id=parent-stack`,
+				`s:parent/child`,
+			},
+			want: RunExpected{
+				Stdout: `Available metadata:
+
+project metadata:
+	terramate.stacks.list=[/parent /parent/child]
+
+stack "/parent":
+	terramate.stack.id="parent-stack"
+	terramate.stack.name="parent"
+	terramate.stack.description=""
+	terramate.stack.tags=[]
+	terramate.stack.path.absolute="/parent"
+	terramate.stack.path.basename="parent"
+	terramate.stack.path.relative="parent"
+	terramate.stack.path.to_root=".."
+
+stack "/parent/child":
+	terramate.stack.name="child"
+	terramate.stack.description=""
+	terramate.stack.tags=[]
+	terramate.stack.path.absolute="/parent/child"
+	terramate.stack.path.basename="child"
+	terramate.stack.path.relative="parent/child"
+	terramate.stack.path.to_root="../.."
+`,
+			},
+		},
+		{
+			name: "one stack with parent stack separated by directories",
+			layout: []string{
+				`s:parent:id=parent-stack`,
+				`s:parent/some/child/stack`,
+			},
+			want: RunExpected{
+				Stdout: `Available metadata:
+
+project metadata:
+	terramate.stacks.list=[/parent /parent/some/child/stack]
+
+stack "/parent":
+	terramate.stack.id="parent-stack"
+	terramate.stack.name="parent"
+	terramate.stack.description=""
+	terramate.stack.tags=[]
+	terramate.stack.path.absolute="/parent"
+	terramate.stack.path.basename="parent"
+	terramate.stack.path.relative="parent"
+	terramate.stack.path.to_root=".."
+
+stack "/parent/some/child/stack":
+	terramate.stack.name="stack"
+	terramate.stack.description=""
+	terramate.stack.tags=[]
+	terramate.stack.path.absolute="/parent/some/child/stack"
+	terramate.stack.path.basename="stack"
+	terramate.stack.path.relative="parent/some/child/stack"
+	terramate.stack.path.to_root="../../../.."
+`,
+			},
+		},
 	} {
 		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
