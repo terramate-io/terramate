@@ -20,13 +20,13 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
         with:
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version: '1.21'
 
@@ -36,8 +36,8 @@ jobs:
           echo "result<<EOF" >> $GITHUB_OUTPUT
           echo "$(make bench/check new=${{ github.event.pull_request.head.sha }} old=${{ github.event.pull_request.base.ref }})" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-      
-      - uses: marocchino/sticky-pull-request-comment@v2
+
+      - uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # pin@v2
         with:
           header: benchmark
           message: |

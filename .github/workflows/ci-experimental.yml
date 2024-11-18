@@ -5,6 +5,7 @@ name: ci-experimental
 on:
   pull_request:
 
+
 jobs:
   build_test:
     name: Build and Test
@@ -13,24 +14,24 @@ jobs:
 
     strategy:
       matrix:
-        os: ["windows-2022"]
-        go: ["1.21"]
+        os: [ "windows-2022" ]
+        go: [ "1.21" ]
 
     steps:
       - name: configure git
         run: git config --global core.autocrlf input
 
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: opentofu/setup-opentofu@v1
+      - uses: opentofu/setup-opentofu@12f4debbf681675350b6cd1f0ff8ecfbda62027b # pin@v1
         with:
           tofu_version: 1.6.2
           tofu_wrapper: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
-    
+
       - name: make build
         run: make build
 

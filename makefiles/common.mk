@@ -93,6 +93,11 @@ license:
 license/check:
 	$(RUN_ADD_LICENSE) --check .
 
+## pin github actions versions (install with: npm install -g pin-github-action)
+.PHONY: pin-gha
+pin-gha:
+	pin-github-action ./.github/workflows/*.yml
+
 ## generates coverage report
 .PHONY: coverage
 coverage:
