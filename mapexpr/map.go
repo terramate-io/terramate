@@ -167,23 +167,23 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 				}
 
 				valueMap[attr.Name] = attrVal
+			}
 
-				for _, subBlock := range m.Attrs.ValueBlock.Blocks {
-					childEvaluator := evaluator.Copy()
-					// only `map` block allowed inside `value` block.
-					subMap, err := NewMapExpr(subBlock)
-					if err != nil {
-						mapErr = errors.E(err, "evaluating nested %q map block", subBlock.Labels[0])
-						return true
-					}
-					val, diags := subMap.Value(childEvaluator.Unwrap())
-					if diags.HasErrors() {
-						mapErr = errors.E(diags, "evaluating nested %q map block", subBlock.Labels[0])
-						return true
-					}
-
-					valueMap[subBlock.Labels[0]] = val
+			for _, subBlock := range m.Attrs.ValueBlock.Blocks {
+				childEvaluator := evaluator.Copy()
+				// only `map` block allowed inside `value` block.
+				subMap, err := NewMapExpr(subBlock)
+				if err != nil {
+					mapErr = errors.E(err, "evaluating nested %q map block", subBlock.Labels[0])
+					return true
 				}
+				val, diags := subMap.Value(childEvaluator.Unwrap())
+				if diags.HasErrors() {
+					mapErr = errors.E(diags, "evaluating nested %q map block", subBlock.Labels[0])
+					return true
+				}
+
+				valueMap[subBlock.Labels[0]] = val
 			}
 
 			valVal = cty.ObjectVal(valueMap)
