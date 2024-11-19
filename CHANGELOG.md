@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Nested `map` blocks not rendered if the `value` block contain no attributes.
+
 ## v0.11.1
 
 ### Added

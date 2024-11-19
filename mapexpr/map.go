@@ -19,7 +19,7 @@ import (
 type MapExpr struct {
 	Origin   info.Range
 	Attrs    Attributes
-	Children []*MapExpr
+	Children []varMap
 }
 
 // Attributes of the MapExpr block.
@@ -31,9 +31,14 @@ type Attributes struct {
 	ValueBlock *ast.MergedBlock
 }
 
+type varMap struct {
+	Name string
+	Map  *MapExpr
+}
+
 // NewMapExpr creates a new MapExpr instance.
 func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
-	children := []*MapExpr{}
+	children := []varMap{}
 	var valueBlock *ast.MergedBlock
 	for _, subBlock := range block.Blocks {
 		if valueBlock != nil {
@@ -49,7 +54,10 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 			if err != nil {
 				return nil, errors.E(err, "creating nested `map` expression")
 			}
-			children = append(children, m)
+			children = append(children, varMap{
+				Name: childBlock.Labels[0],
+				Map:  m,
+			})
 		}
 	}
 
@@ -169,21 +177,16 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 				valueMap[attr.Name] = attrVal
 			}
 
-			for _, subBlock := range m.Attrs.ValueBlock.Blocks {
+			for _, subMap := range m.Children {
 				childEvaluator := evaluator.Copy()
-				// only `map` block allowed inside `value` block.
-				subMap, err := NewMapExpr(subBlock)
-				if err != nil {
-					mapErr = errors.E(err, "evaluating nested %q map block", subBlock.Labels[0])
-					return true
-				}
-				val, diags := subMap.Value(childEvaluator.Unwrap())
+
+				val, diags := subMap.Map.Value(childEvaluator.Unwrap())
 				if diags.HasErrors() {
-					mapErr = errors.E(diags, "evaluating nested %q map block", subBlock.Labels[0])
+					mapErr = errors.E(diags, "evaluating nested %q map block", subMap.Name)
 					return true
 				}
 
-				valueMap[subBlock.Labels[0]] = val
+				valueMap[subMap.Name] = val
 			}
 
 			valVal = cty.ObjectVal(valueMap)
@@ -238,7 +241,7 @@ func (m *MapExpr) Variables() []hhcl.Traversal {
 		}
 
 		for _, childMap := range m.Children {
-			appendVars(childMap.Variables())
+			appendVars(childMap.Map.Variables())
 		}
 	}
 	return allvars
