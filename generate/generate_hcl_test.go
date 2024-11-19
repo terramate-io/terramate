@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
@@ -824,7 +825,7 @@ func TestGenerateHCL(t *testing.T) {
 					path: "/stacks/stack-1",
 					add: Doc(
 						Import(
-							Str("source", fmt.Sprintf("/common/%s", config.DefaultFilename)),
+							Str("source", fmt.Sprintf("/common/%s", terramate.DefaultFilename)),
 						),
 						Globals(
 							Str("local_a", "stack-1-local"),
@@ -842,7 +843,7 @@ func TestGenerateHCL(t *testing.T) {
 					path: "/stacks/stack-2",
 					add: Doc(
 						Import(
-							Str("source", fmt.Sprintf("/common/%s", config.DefaultFilename)),
+							Str("source", fmt.Sprintf("/common/%s", terramate.DefaultFilename)),
 						),
 						Globals(
 							Str("local_a", "stack-2-local"),
@@ -1122,7 +1123,7 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: Import(
-						Str("source", fmt.Sprintf("/other/%s", config.DefaultFilename)),
+						Str("source", fmt.Sprintf("/other/%s", terramate.DefaultFilename)),
 					),
 				},
 			},
@@ -2102,7 +2103,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 
 	s := sandbox.NoGit(t, true)
 	s.BuildTree([]string{
-		fmt.Sprintf("f:%s:%s", config.DefaultFilename, generateHCLConfig.String()),
+		fmt.Sprintf("f:%s:%s", terramate.DefaultFilename, generateHCLConfig.String()),
 		"s:stack",
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/generate"
@@ -456,7 +457,7 @@ func (de DirEntry) CreateConfig(body string) FileEntry {
 
 	fe := FileEntry{
 		t:        de.t,
-		hostpath: filepath.Join(de.abspath, config.DefaultFilename),
+		hostpath: filepath.Join(de.abspath, terramate.DefaultFilename),
 	}
 	fe.Write(body)
 	return fe
@@ -467,7 +468,7 @@ func (de DirEntry) DeleteConfig() {
 	de.t.Helper()
 
 	assert.NoError(de.t,
-		os.Remove(filepath.Join(de.abspath, config.DefaultFilename)),
+		os.Remove(filepath.Join(de.abspath, terramate.DefaultFilename)),
 		"removing default configuration file")
 }
 
@@ -563,7 +564,7 @@ func (se StackEntry) ModSource(mod DirEntry) string {
 func (se StackEntry) WriteConfig(cfg hcl.Config) {
 	var out bytes.Buffer
 	assert.NoError(se.t, hcl.PrintConfig(&out, cfg))
-	se.DirEntry.CreateFile(config.DefaultFilename, out.String())
+	se.DirEntry.CreateFile(terramate.DefaultFilename, out.String())
 }
 
 // DeleteStackConfig deletes the default stack definition file.
@@ -699,7 +700,7 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 			}
 		}
 
-		assert.NoError(t, cfg.Save(config.DefaultFilename),
+		assert.NoError(t, cfg.Save(terramate.DefaultFilename),
 			"BuildTree() failed to generate config file.")
 	}
 

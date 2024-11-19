@@ -49,6 +49,10 @@ name = "name"
 			sprintf("f:stacks/globals.tm:%s", unformattedHCL),
 			sprintf("f:stacks/stack-1/globals.tm:%s", unformattedHCL),
 			sprintf("f:stacks/stack-2/globals.tm:%s", unformattedHCL),
+
+			// dir below must always be ignored
+			`f:skipped-dir/.tmskip:`,
+			sprintf("f:skipped-dir/globals.tm:%s", unformattedHCL),
 		})
 	}
 

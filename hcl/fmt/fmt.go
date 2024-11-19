@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/hcl/v2/hclwrite"
@@ -65,11 +66,23 @@ func Format(src, filename string) (string, error) {
 // All files will be left untouched. To save the formatted result on disk you
 // can use FormatResult.Save for each FormatResult.
 func FormatTree(dir string) ([]FormatResult, error) {
+	logger := log.With().
+		Str("action", "FormatTree").
+		Str("dir", dir).
+		Logger()
+
 	// TODO(i4k): use files from the config tree.
-	files, _, dirs, err := fs.ListTerramateFiles(dir)
+	files, otherFiles, dirs, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
+	for _, fname := range otherFiles {
+		if fname == ".tmskip" {
+			logger.Debug().Msg("skip file found: skipping whole subtree")
+			return nil, nil
+		}
+	}
+
 	sort.Strings(files)
 
 	errs := errors.L()

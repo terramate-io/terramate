@@ -10,6 +10,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -306,7 +307,7 @@ func TestConfigSkipdir(t *testing.T) {
 	s.BuildTree([]string{
 		"s:/stack",
 		"s:/stack-2",
-		"f:/stack/" + config.SkipFilename,
+		"f:/stack/" + terramate.SkipFilename,
 		"f:/stack/ignored.tm:not valid hcl but wont be parsed",
 		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
 	})

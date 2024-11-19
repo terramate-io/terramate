@@ -9,6 +9,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
@@ -4063,7 +4064,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 			for _, c := range tcase.configs {
 				path := filepath.Join(s.RootDir(), c.path)
-				test.AppendFile(t, path, config.DefaultFilename, c.body)
+				test.AppendFile(t, path, terramate.DefaultFilename, c.body)
 			}
 
 			root, err := config.LoadRoot(s.RootDir())
@@ -4093,7 +4094,7 @@ func testGlobals(t *testing.T, tcase testcase) {
 		s.BuildTree(tcase.layout)
 		for _, globalBlock := range tcase.configs {
 			path := filepath.Join(s.RootDir(), globalBlock.path)
-			filename := config.DefaultFilename
+			filename := terramate.DefaultFilename
 			if globalBlock.filename != "" {
 				filename = globalBlock.filename
 			}
