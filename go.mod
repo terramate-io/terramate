@@ -30,7 +30,7 @@ require (
 	github.com/shurcooL/githubv4 v0.0.0-20240120211514-18a1ae0e79dc
 	github.com/terramate-io/go-checkpoint v1.0.0
 	github.com/terramate-io/hcl/v2 v2.0.0-rc6
-	github.com/terramate-io/opentofulib v1.0.0-rc6
+	github.com/terramate-io/opentofulib v1.0.1
 	github.com/terramate-io/tfjson v1.0.0-rc1
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.14.4
