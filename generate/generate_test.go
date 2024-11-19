@@ -14,7 +14,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
-	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
@@ -61,8 +61,8 @@ func TestGenerateIgnore(t *testing.T) {
 			layout: []string{
 				"s:stacks/stack",
 				"s:stacks/stack-2",
-				"f:stacks/stack-2/" + config.SkipFilename,
-				"f:not-a-stack/" + config.SkipFilename,
+				"f:stacks/stack-2/" + terramate.SkipFilename,
+				"f:not-a-stack/" + terramate.SkipFilename,
 			},
 			configs: []hclconfig{
 				{
@@ -1159,7 +1159,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				path := filepath.Join(s.RootDir(), cfg.path)
 				filename := cfg.filename
 				if filename == "" {
-					filename = config.DefaultFilename
+					filename = terramate.DefaultFilename
 				}
 				configurationFiles[filepath.Join(path, filename)] = struct{}{}
 				test.AppendFile(t, path, filename, cfg.add.String())
@@ -1255,7 +1255,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 					return nil
 				}
 
-				if d.Name() == config.DefaultFilename ||
+				if d.Name() == terramate.DefaultFilename ||
 					d.Name() == stackpkg.DefaultFilename ||
 					d.Name() == "root.config.tm" {
 					return nil

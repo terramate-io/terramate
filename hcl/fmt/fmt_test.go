@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/fmt"
@@ -1504,6 +1505,37 @@ a = 1
 	got, err := fmt.FormatTree(tmpdir)
 	assert.NoError(t, err)
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
+}
+
+func TestFormatTreeSupportsTmSkip(t *testing.T) {
+	t.Parallel()
+
+	test := func(t *testing.T, dirName string) {
+		const unformattedCode = `
+a = 1
+ b = "la"
+	c = 666
+  d = []
+`
+
+		tmpdir := test.TempDir(t)
+		if dirName != "." {
+			test.MkdirAll(t, filepath.Join(tmpdir, dirName))
+		}
+		subdir := filepath.Join(tmpdir, dirName)
+		test.WriteFile(t, subdir, terramate.SkipFilename, "")
+		test.WriteFile(t, subdir, "file.tm", unformattedCode)
+		test.WriteFile(t, subdir, "file.tm", unformattedCode)
+		test.WriteFile(t, subdir, "file.tm.hcl", unformattedCode)
+
+		got, err := fmt.FormatTree(tmpdir)
+		assert.NoError(t, err)
+		assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
+	}
+
+	t.Run("./.tmskip", func(t *testing.T) { test(t, ".") })
+	t.Run("somedir/.tmskip", func(t *testing.T) { test(t, "somedir") })
+	t.Run("somedir/otherdir/.tmskip", func(t *testing.T) { test(t, "somedir/otherdir") })
 }
 
 func assertFileContains(t *testing.T, filepath, got string) {

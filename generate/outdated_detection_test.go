@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/project"
@@ -1369,7 +1369,7 @@ func TestOutdatedDetection(t *testing.T) {
 					layout: []string{
 						"s:stack-1",
 						"s:stack-2",
-						"f:stack-2/" + config.SkipFilename,
+						"f:stack-2/" + terramate.SkipFilename,
 					},
 					files: []file{
 						{

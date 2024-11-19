@@ -17,6 +17,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -540,7 +541,7 @@ processSubdirs:
 
 		// We need to skip all other files/dirs if we find a config.SkipFilename
 		for _, entry := range entries {
-			if entry.Name() == config.SkipFilename {
+			if entry.Name() == terramate.SkipFilename {
 				continue processSubdirs
 			}
 		}

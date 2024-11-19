@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate/genhcl"
@@ -1885,7 +1886,7 @@ EOT
 			)
 
 			t.Logf("input: %s", hclcfg.String())
-			test.AppendFile(t, path, config.DefaultFilename, hclcfg.String())
+			test.AppendFile(t, path, terramate.DefaultFilename, hclcfg.String())
 
 			root, err := config.LoadRoot(s.RootDir())
 			if errors.IsAnyKind(err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {

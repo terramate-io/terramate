@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate/genhcl"
@@ -1881,7 +1882,7 @@ func (tcase testcase) run(t *testing.T) {
 		for _, cfg := range tcase.configs {
 			filename := cfg.filename
 			if filename == "" {
-				filename = config.DefaultFilename
+				filename = terramate.DefaultFilename
 			}
 			path := filepath.Join(s.RootDir(), cfg.path)
 			test.AppendFile(t, path, filename, cfg.add.String())

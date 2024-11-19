@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix `terramate fmt` not respecting the `.tmskip` file.
+
 ## v0.11.1
 
 ### Added

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -131,7 +131,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 			layout: []string{
 				genfile("genfiles/1.tf"),
 				genfile("genfiles/2.tf"),
-				genfile("genfiles/" + config.SkipFilename),
+				genfile("genfiles/" + terramate.SkipFilename),
 				genfile("genfiles/subdir/1.tf"),
 				genfile("genfiles2/1.tf"),
 			},
@@ -145,7 +145,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 			layout: []string{
 				"s:stack",
 				genfile("stack/1.tf"),
-				genfile("stack/dir/" + config.SkipFilename),
+				genfile("stack/dir/" + terramate.SkipFilename),
 				genfile("stack/dir/1.tf"),
 			},
 			want: []string{

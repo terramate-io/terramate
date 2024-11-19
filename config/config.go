@@ -32,14 +32,6 @@ import (
 )
 
 const (
-	// DefaultFilename is the name of the default Terramate configuration file.
-	DefaultFilename = "terramate.tm.hcl"
-
-	// SkipFilename is the name of Terramate skip file.
-	SkipFilename = ".tmskip"
-)
-
-const (
 	// ErrSchema indicates that the configuration has an invalid schema.
 	ErrSchema errors.Kind = "config has an invalid schema"
 )
@@ -456,7 +448,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	}
 
 	for _, fname := range otherFiles {
-		if fname == SkipFilename {
+		if fname == terramate.SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return newSkippedTree(cfgdir), nil
 		}

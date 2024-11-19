@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/modvendor"
 	"github.com/terramate-io/terramate/project"
@@ -568,7 +568,7 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 			})
 
 			s.RootEntry().CreateFile(
-				config.DefaultFilename,
+				terramate.DefaultFilename,
 				configStr,
 			)
 
