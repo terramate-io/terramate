@@ -236,6 +236,21 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	if s.ID != "" {
 		stackMapVals["id"] = cty.StringVal(s.ID)
 	}
+	cfg, _ := root.Lookup(s.Dir)
+	var parentStack *Tree
+
+	for cfg.Parent != nil {
+		cfg = cfg.Parent
+		if cfg.IsStack() {
+			parentStack = cfg
+			break
+		}
+	}
+	if parentStack != nil {
+		stackMapVals["parent"] = cty.ObjectVal(map[string]cty.Value{
+			"id": cty.StringVal(parentStack.Node.Stack.ID),
+		})
+	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
 		"name":        cty.StringVal(s.Name),         // DEPRECATED

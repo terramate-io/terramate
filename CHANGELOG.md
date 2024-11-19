@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `terramate.stack.parent.id` metadata to stacks that are part of a parent-child hierarchy.
+
 ### Fixed
 
 - Nested `map` blocks not rendered if the `value` block contain no attributes.
