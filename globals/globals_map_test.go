@@ -736,6 +736,109 @@ func TestGlobalsMap(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:   "regression test: nested map not rendered with no flat attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el.new)"),
+									Expr("value", "el.new"),
+									Expr("iterator", "el"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el2.new)"),
+									Expr("value", "el2.new"),
+									Expr("iterator", "el2"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
 	} {
 		testGlobals(t, tc)
 	}
