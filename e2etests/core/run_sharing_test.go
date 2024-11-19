@@ -72,6 +72,52 @@ func TestRunSharing(t *testing.T) {
 			},
 		},
 		{
+			name: "parent/child sharing",
+			layout: []string{
+				"f:backend.tm:" + Block("sharing_backend",
+					Labels("name"),
+					Expr("type", "terraform"),
+					Str("filename", "sharing.tf"),
+					Command("terraform", "output", "-json"),
+				).String(),
+				"s:s1:id=s1",
+				"f:s1/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s1_file"),
+						Str("content", "s1_content"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+				"f:s1/output.tm:" + Output(
+					Labels("s1_output"),
+					Str("backend", "name"),
+					Expr("value", "resource.local_file.s1_file.content"),
+				).String(),
+				"s:s1/s2",
+				"f:s1/s2/input.tm:" + Input(
+					Labels("s2_input"),
+					Str("backend", "name"),
+					Expr("value", "outputs.s1_output.value"),
+					Expr("from_stack_id", `terramate.stack.parent.id`),
+				).String(),
+				"f:s1/s2/main.tf:" + Doc(
+					Block("resource",
+						Labels("local_file", "s2_file"),
+						Expr("content", "var.s2_input"),
+						Str("filename", "${path.module}/file.txt"),
+					),
+				).String(),
+			},
+			check: func(t *testing.T, s *sandbox.S, res RunResult) {
+				AssertRunResult(t, res, RunExpected{
+					IgnoreStdout: true,
+				})
+				const expected = "s1_content"
+				assert.EqualStrings(t, expected, string(s.RootEntry().ReadFile("s1/file.txt")))
+				assert.EqualStrings(t, expected, string(s.RootEntry().ReadFile("s1/s2/file.txt")))
+			},
+		},
+		{
 			name: "input with no output counterpart",
 			layout: []string{
 				"f:backend.tm:" + Block("sharing_backend",
