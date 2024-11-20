@@ -60,6 +60,7 @@ type Tree struct {
 
 	TerramateFiles []string
 	OtherFiles     []string
+	TmGenFiles     []string
 
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
@@ -442,12 +443,12 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		Str("dir", cfgdir).
 		Logger()
 
-	tmFiles, otherFiles, dirs, err := fs.ListTerramateFiles(cfgdir)
+	filesResult, err := fs.ListTerramateFiles(cfgdir)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, fname := range otherFiles {
+	for _, fname := range filesResult.OtherFiles {
 		if fname == terramate.SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return newSkippedTree(cfgdir), nil
@@ -466,7 +467,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		if err != nil {
 			return nil, err
 		}
-		for _, filename := range tmFiles {
+		for _, filename := range filesResult.TmFiles {
 			path := filepath.Join(cfgdir, filename)
 
 			data, err := os.ReadFile(path)
@@ -488,20 +489,21 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		}
 
 		tree.Node = cfg
-		tree.TerramateFiles = tmFiles
-		tree.OtherFiles = otherFiles
+		tree.TerramateFiles = filesResult.TmFiles
+		tree.OtherFiles = filesResult.OtherFiles
+		tree.TmGenFiles = filesResult.TmGenFiles
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
 		parentTree = tree
 	}
 
-	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, otherFiles)
+	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, filesResult.TmGenFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, fname := range dirs {
+	for _, fname := range filesResult.Dirs {
 		if Skip(fname) {
 			continue
 		}
@@ -525,10 +527,6 @@ func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, files []s
 
 	// process all .tmgen files.
 	for _, fname := range files {
-		if !strings.HasSuffix(fname, tmgenSuffix) || fname[0] == '.' {
-			continue
-		}
-
 		absFname := filepath.Join(cfgdir, fname)
 
 		if !tmgenEnabled {

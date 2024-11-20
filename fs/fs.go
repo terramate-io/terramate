@@ -5,17 +5,25 @@ package fs
 
 import (
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/terramate-io/terramate/errors"
 )
 
+type ListResult struct {
+	TmFiles    []string
+	TmGenFiles []string
+	OtherFiles []string
+	Dirs       []string
+}
+
 // ListTerramateFiles returns the entries of directory separated (terramate files, others  and
 // directories)
-func ListTerramateFiles(dir string) (tmFiles []string, otherFiles []string, dirs []string, err error) {
+func ListTerramateFiles(dir string) (ListResult, error) {
 	f, err := os.Open(dir)
 	if err != nil {
-		return nil, nil, nil, errors.E(err, "opening directory %s for reading file entries", dir)
+		return ListResult{}, errors.E(err, "opening directory %s for reading file entries", dir)
 	}
 
 	defer func() {
@@ -24,20 +32,33 @@ func ListTerramateFiles(dir string) (tmFiles []string, otherFiles []string, dirs
 
 	dirEntries, err := f.ReadDir(-1)
 	if err != nil {
-		return nil, nil, nil, errors.E(err, "reading dir to list Terramate files")
+		return ListResult{}, errors.E(err, "reading dir to list Terramate files")
 	}
 
+	const tmgenExt = ".tmgen"
+
+	res := ListResult{}
 	for _, entry := range dirEntries {
 		fname := entry.Name()
-		if entry.IsDir() && fname[0] != '.' {
-			dirs = append(dirs, fname)
+		if fname[0] == '.' {
+			res.OtherFiles = append(res.OtherFiles, fname)
+			continue
+		}
+		if entry.IsDir() {
+			res.Dirs = append(res.Dirs, fname)
 		} else if isTerramateFile(fname) {
-			tmFiles = append(tmFiles, fname)
+			res.TmFiles = append(res.TmFiles, fname)
+		} else if strings.HasSuffix(fname, tmgenExt) && len(fname) > len(tmgenExt) {
+			res.TmGenFiles = append(res.TmGenFiles, fname)
 		} else {
-			otherFiles = append(otherFiles, fname)
+			res.OtherFiles = append(res.OtherFiles, fname)
 		}
 	}
-	return tmFiles, otherFiles, dirs, nil
+	sort.Strings(res.Dirs)
+	sort.Strings(res.TmFiles)
+	sort.Strings(res.TmGenFiles)
+	sort.Strings(res.OtherFiles)
+	return res, nil
 }
 
 func isTerramateFile(filename string) bool {

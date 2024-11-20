@@ -6,29 +6,49 @@ package core_test
 import (
 	stdfmt "fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/hcl/fmt"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
 func TestFormatRecursively(t *testing.T) {
 	t.Parallel()
 
-	const unformattedHCL = `
+	const unformattedTmFile = `
 globals {
 name = "name"
 		description = "desc"
 	test = true
 	}
 	`
-	formattedHCL, err := fmt.Format(unformattedHCL, "")
+	const unformattedTmGenFile = `
+block {
+a = 1
+  name = "test"
+}
+`
+	formattedTmContent, err := fmt.Format(unformattedTmFile, "")
 	assert.NoError(t, err)
-
+	formattedTmGenContent := `
+block {
+  a    = 1
+  name = "test"
+}
+`
 	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"f:enable.tmgen.tm:" + Terramate(
+			Config(
+				Expr("experiments", `["tmgen"]`),
+			),
+		).String(),
+	})
 	cli := NewCLI(t, s.RootDir())
 
 	t.Run("checking succeeds when there is no Terramate files", func(t *testing.T) {
@@ -42,23 +62,25 @@ name = "name"
 	sprintf := stdfmt.Sprintf
 	writeUnformattedFiles := func() {
 		s.BuildTree([]string{
-			sprintf("f:globals.tm:%s", unformattedHCL),
-			sprintf("f:another-stacks/globals.tm.hcl:%s", unformattedHCL),
-			sprintf("f:another-stacks/stack-1/globals.tm.hcl:%s", unformattedHCL),
-			sprintf("f:another-stacks/stack-2/globals.tm.hcl:%s", unformattedHCL),
-			sprintf("f:stacks/globals.tm:%s", unformattedHCL),
-			sprintf("f:stacks/stack-1/globals.tm:%s", unformattedHCL),
-			sprintf("f:stacks/stack-2/globals.tm:%s", unformattedHCL),
+			sprintf("f:globals.tm:%s", unformattedTmFile),
+			sprintf("f:test.hcl.tmgen:%s", unformattedTmGenFile),
+			sprintf("f:another-stacks/globals.tm.hcl:%s", unformattedTmFile),
+			sprintf("f:another-stacks/stack-1/globals.tm.hcl:%s", unformattedTmFile),
+			sprintf("f:another-stacks/stack-2/globals.tm.hcl:%s", unformattedTmFile),
+			sprintf("f:stacks/globals.tm:%s", unformattedTmFile),
+			sprintf("f:stacks/test.hcl.tmgen:%s", unformattedTmGenFile),
+			sprintf("f:stacks/stack-1/globals.tm:%s", unformattedTmFile),
+			sprintf("f:stacks/stack-2/globals.tm:%s", unformattedTmFile),
 
 			// dir below must always be ignored
 			`f:skipped-dir/.tmskip:`,
-			sprintf("f:skipped-dir/globals.tm:%s", unformattedHCL),
+			sprintf("f:skipped-dir/globals.tm:%s", unformattedTmFile),
 		})
 	}
 
 	writeUnformattedFiles()
 
-	wantedFiles := []string{
+	wantedTmFiles := []string{
 		"globals.tm",
 		"another-stacks/globals.tm.hcl",
 		"another-stacks/stack-1/globals.tm.hcl",
@@ -67,14 +89,20 @@ name = "name"
 		"stacks/stack-1/globals.tm",
 		"stacks/stack-2/globals.tm",
 	}
-	filesListOutput := func(files []string) string {
-		portablewantedFiles := make([]string, len(files))
-		for i, f := range files {
-			portablewantedFiles[i] = filepath.FromSlash(f)
-		}
-		return strings.Join(portablewantedFiles, "\n") + "\n"
+	wantedTmGenFiles := []string{
+		"test.hcl.tmgen",
+		"stacks/test.hcl.tmgen",
 	}
-	wantedFilesStr := filesListOutput(wantedFiles)
+	filesListOutput := func(tmFiles []string, tmGenFiles []string) string {
+		portableFiles := []string{}
+		files := append(append([]string{}, tmFiles...), tmGenFiles...)
+		sort.Strings(files)
+		for _, f := range files {
+			portableFiles = append(portableFiles, filepath.FromSlash(f))
+		}
+		return strings.Join(portableFiles, "\n") + "\n"
+	}
+	wantedFilesStr := filesListOutput(wantedTmFiles, wantedTmGenFiles)
 
 	assertFileContents := func(t *testing.T, path string, want string) {
 		t.Helper()
@@ -82,11 +110,14 @@ name = "name"
 		assert.EqualStrings(t, want, string(got))
 	}
 
-	assertWantedFilesContents := func(t *testing.T, want string) {
+	assertWantedFilesContents := func(t *testing.T, wantTm, wantTmGen string) {
 		t.Helper()
 
-		for _, file := range wantedFiles {
-			assertFileContents(t, file, want)
+		for _, file := range wantedTmFiles {
+			assertFileContents(t, file, wantTm)
+		}
+		for _, file := range wantedTmGenFiles {
+			assertFileContents(t, file, wantTmGen)
 		}
 	}
 
@@ -95,7 +126,7 @@ name = "name"
 			Status: 1,
 			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, unformattedHCL)
+		assertWantedFilesContents(t, unformattedTmFile, unformattedTmGenFile)
 	})
 
 	t.Run("--detailed-exit-code returns status=2 when used on unformatted files - do modify the files", func(t *testing.T) {
@@ -105,7 +136,7 @@ name = "name"
 			Status: 2,
 			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, formattedTmContent, formattedTmGenContent)
 	})
 
 	t.Run("checking fails with unformatted files on subdirs", func(t *testing.T) {
@@ -118,9 +149,9 @@ name = "name"
 				"globals.tm.hcl",
 				"stack-1/globals.tm.hcl",
 				"stack-2/globals.tm.hcl",
-			}),
+			}, nil),
 		})
-		assertWantedFilesContents(t, unformattedHCL)
+		assertWantedFilesContents(t, unformattedTmFile, unformattedTmGenFile)
 	})
 
 	t.Run("update unformatted files in place", func(t *testing.T) {
@@ -128,19 +159,19 @@ name = "name"
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{
 			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, formattedTmContent, formattedTmGenContent)
 	})
 
 	t.Run("checking succeeds when all files are formatted", func(t *testing.T) {
 		writeUnformattedFiles()
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{IgnoreStdout: true})
 		AssertRunResult(t, cli.Run("fmt", "--check"), RunExpected{})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, formattedTmContent, formattedTmGenContent)
 	})
 
 	t.Run("--detailed-exit-code returns status=0 when all files are formatted", func(t *testing.T) {
 		AssertRunResult(t, cli.Run("fmt", "--detailed-exit-code"), RunExpected{})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, formattedTmContent, formattedTmGenContent)
 	})
 
 	t.Run("--check and --detailed-exit-code conflict", func(t *testing.T) {
@@ -152,7 +183,7 @@ name = "name"
 
 	t.Run("formatting succeeds when all files are formatted", func(t *testing.T) {
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{})
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, formattedTmContent, formattedTmGenContent)
 	})
 
 	t.Run("update unformatted files in subdirs", func(t *testing.T) {
@@ -165,17 +196,17 @@ name = "name"
 				"globals.tm.hcl",
 				"stack-1/globals.tm.hcl",
 				"stack-2/globals.tm.hcl",
-			}),
+			}, nil),
 		})
 
-		assertFileContents(t, "another-stacks/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", formattedHCL)
+		assertFileContents(t, "another-stacks/globals.tm.hcl", formattedTmContent)
+		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", formattedTmContent)
+		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", formattedTmContent)
 
-		assertFileContents(t, "globals.tm", unformattedHCL)
-		assertFileContents(t, "stacks/globals.tm", unformattedHCL)
-		assertFileContents(t, "stacks/stack-1/globals.tm", unformattedHCL)
-		assertFileContents(t, "stacks/stack-2/globals.tm", unformattedHCL)
+		assertFileContents(t, "globals.tm", unformattedTmFile)
+		assertFileContents(t, "stacks/globals.tm", unformattedTmFile)
+		assertFileContents(t, "stacks/stack-1/globals.tm", unformattedTmFile)
+		assertFileContents(t, "stacks/stack-2/globals.tm", unformattedTmFile)
 
 		stacks := filepath.Join(s.RootDir(), "stacks")
 		cli = NewCLI(t, stacks)
@@ -184,24 +215,25 @@ name = "name"
 				"globals.tm",
 				"stack-1/globals.tm",
 				"stack-2/globals.tm",
-			}),
+				"test.hcl.tmgen",
+			}, nil),
 		})
 
-		assertFileContents(t, "another-stacks/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", formattedHCL)
-		assertFileContents(t, "stacks/globals.tm", formattedHCL)
-		assertFileContents(t, "stacks/stack-1/globals.tm", formattedHCL)
-		assertFileContents(t, "stacks/stack-2/globals.tm", formattedHCL)
+		assertFileContents(t, "another-stacks/globals.tm.hcl", formattedTmContent)
+		assertFileContents(t, "another-stacks/stack-1/globals.tm.hcl", formattedTmContent)
+		assertFileContents(t, "another-stacks/stack-2/globals.tm.hcl", formattedTmContent)
+		assertFileContents(t, "stacks/globals.tm", formattedTmContent)
+		assertFileContents(t, "stacks/stack-1/globals.tm", formattedTmContent)
+		assertFileContents(t, "stacks/stack-2/globals.tm", formattedTmContent)
 
-		assertFileContents(t, "globals.tm", unformattedHCL)
+		assertFileContents(t, "globals.tm", unformattedTmFile)
 
 		cli = NewCLI(t, s.RootDir())
 		AssertRunResult(t, cli.Run("fmt"), RunExpected{
-			Stdout: filesListOutput([]string{"globals.tm"}),
+			Stdout: filesListOutput([]string{"globals.tm"}, []string{"test.hcl.tmgen"}),
 		})
 
-		assertWantedFilesContents(t, formattedHCL)
+		assertWantedFilesContents(t, formattedTmContent, formattedTmGenContent)
 	})
 }
 
