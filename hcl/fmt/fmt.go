@@ -72,16 +72,19 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		Logger()
 
 	// TODO(i4k): use files from the config tree.
-	files, otherFiles, dirs, err := fs.ListTerramateFiles(dir)
+	res, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
-	for _, fname := range otherFiles {
+	for _, fname := range res.OtherFiles {
 		if fname == ".tmskip" {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return nil, nil
 		}
 	}
+
+	files := append([]string{}, res.TmFiles...)
+	files = append(files, res.TmGenFiles...)
 
 	sort.Strings(files)
 
@@ -90,8 +93,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 
 	errs.Append(err)
 
-	sort.Strings(dirs)
-	for _, d := range dirs {
+	for _, d := range res.Dirs {
 		subres, err := FormatTree(filepath.Join(dir, d))
 		if err != nil {
 			errs.Append(err)
@@ -103,6 +105,9 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	if err := errs.AsError(); err != nil {
 		return nil, err
 	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].path < results[j].path
+	})
 	return results, nil
 }
 

@@ -30,6 +30,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Nested `map` blocks not rendered if the `value` block contain no attributes.
 - Fix `terramate fmt` not respecting the `.tmskip` file.
+- Fix the `terramate fmt` not recursively formatting `.tmgen` files.
 
 ## v0.11.1
 
