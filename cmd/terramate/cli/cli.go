@@ -37,9 +37,11 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/hcl/fmt/fs"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/modvendor/download"
 	"github.com/terramate-io/terramate/printer"
+
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/terramate-io/terramate/tg"
 	"github.com/terramate-io/terramate/versions"
@@ -1695,11 +1697,11 @@ func (c *cli) format() {
 		fatalWithDetailf(errors.E("--check conflicts with --detailed-exit-code"), "Invalid args")
 	}
 
-	var results []fmt.FormatResult
+	var results []fs.FormatResult
 	switch len(c.parsedArgs.Fmt.Files) {
 	case 0:
 		var err error
-		results, err = fmt.FormatTree(c.wd())
+		results, err = fs.FormatTree(c.cfg(), c.wd2())
 		if err != nil {
 			fatalWithDetailf(err, "formatting directory %s", c.wd())
 		}
@@ -1730,7 +1732,7 @@ func (c *cli) format() {
 		fallthrough
 	default:
 		var err error
-		results, err = fmt.FormatFiles(c.wd(), c.parsedArgs.Fmt.Files)
+		results, err = fs.FormatFiles(c.wd(), c.parsedArgs.Fmt.Files)
 		if err != nil {
 			fatalWithDetailf(err, "formatting files")
 		}
@@ -2404,6 +2406,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 }
 
 func (c *cli) wd() string                   { return c.prj.wd }
+func (c *cli) wd2() prj.Path                { return prj.PrjAbsPath(c.rootdir(), c.wd()) }
 func (c *cli) rootdir() string              { return c.prj.rootdir }
 func (c *cli) cfg() *config.Root            { return c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
