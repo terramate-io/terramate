@@ -434,6 +434,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		kong.Name("terramate"),
 		kong.Description("A tool for managing terraform stacks"),
 		kong.UsageOnError(),
+		kong.Help(terramateHelpPrinter),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact:             true,
 			NoExpandSubcommands: true,
