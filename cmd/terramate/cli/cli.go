@@ -59,6 +59,8 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
 
+	_ "embed"
+
 	"github.com/posener/complete"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -416,6 +418,9 @@ type changeDetection struct {
 	uncommitted *bool
 }
 
+//go:embed cli_help.txt
+var helpSummaryText string
+
 func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
@@ -432,7 +437,7 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	parsedArgs := cliSpec{}
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terramate"),
-		kong.Description("A tool for managing terraform stacks"),
+		kong.Description(helpSummaryText),
 		kong.UsageOnError(),
 		kong.Help(terramateHelpPrinter),
 		kong.ConfigureHelp(kong.HelpOptions{

@@ -30,9 +30,6 @@ const (
 	negatableDefault = "_"
 )
 
-//go:embed cli_help.txt
-var helpSummaryText string
-
 // terramateHelpPrinter is the default HelpPrinter.
 func terramateHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
 	w := newHelpWriter(ctx, options)
@@ -46,10 +43,8 @@ func terramateHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
 }
 
 func printApp(w *helpWriter, app *kong.Application) {
-	if !w.NoAppSummary {
-		w.Printf("Usage: %s%s", app.Name, app.Summary())
-	}
-	printNodeDetail(w, app.Node, true)
+	printNodeDetail(w, app, app.Node, true)
+
 	cmds := app.Leaves(true)
 	if len(cmds) > 0 && app.HelpFlag != nil {
 		w.Print("")
@@ -65,18 +60,20 @@ func printCommand(w *helpWriter, app *kong.Application, cmd *kong.Command) {
 	if !w.NoAppSummary {
 		w.Printf("Usage: %s %s", app.Name, cmd.Summary())
 	}
-	printNodeDetail(w, cmd, true)
+	printNodeDetail(w, app, cmd, true)
 	if w.Summary && app.HelpFlag != nil {
 		w.Print("")
 		w.Printf(`Run "%s --help" for more information.`, cmd.FullPath())
 	}
 }
 
-func printNodeDetail(w *helpWriter, node *kong.Node, hide bool) {
+func printNodeDetail(w *helpWriter, app *kong.Application, node *kong.Node, hide bool) {
 	if node.Help != "" {
 		w.Print("")
-		w.Wrap(helpSummaryText)
+		w.Wrap(app.Help)
+		w.Wrap("")
 	}
+	w.Printf("Usage: %s%s", app.Name, app.Summary())
 	if w.Summary {
 		return
 	}
