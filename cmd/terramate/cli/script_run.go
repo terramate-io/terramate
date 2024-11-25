@@ -32,6 +32,16 @@ func (c *cli) runScript() {
 	c.gitSafeguardDefaultBranchIsReachable()
 	c.checkOutdatedGeneratedCode()
 
+	if len(c.parsedArgs.Script.Run.Cmds) > 0 {
+		if c.parsedArgs.Script.Run.Cmds[0] == "--" {
+			c.parsedArgs.Script.Run.Cmds = c.parsedArgs.Script.Run.Cmds[1:]
+		}
+	}
+
+	if len(c.parsedArgs.Script.Run.Cmds) == 0 {
+		fatal("script run expects cmds")
+	}
+
 	c.checkTargetsConfiguration(c.parsedArgs.Script.Run.Target, c.parsedArgs.Script.Run.FromTarget, func(isTargetSet bool) {
 		if !isTargetSet {
 			// We don't check here if any script has any sync command options enabled.
