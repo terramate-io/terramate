@@ -194,6 +194,17 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
+			name: "single Terragrunt stack with single local Terraform module changed referenced with abspath",
+			repobuilder: func(t *testing.T) repository {
+				t.Helper()
+				return singleTerragruntStackWithSingleTerraformModuleChangedFromAbsPathSourceRepo(t, "force")
+			},
+			want: listTestResult{
+				list:    []string{"/tg-stack"},
+				changed: []string{"/tg-stack"},
+			},
+		},
+		{
 			name:        "Terragrunt stack changed due to referenced file changed",
 			repobuilder: terragruntStackChangedDueToReferencedFileChangedRepo,
 			want: listTestResult{
@@ -745,6 +756,55 @@ func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T, ena
 	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
 		Block("terraform",
 			Str("source", "../modules/module1"),
+		),
+	).String())
+
+	test.WriteFile(t, module1, "main.tf", `# empty file`)
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the module
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+
+	test.WriteFile(t, module1, "main.tf", `# changed file`)
+	assert.NoError(t, g.Add(module1), "add files")
+	assert.NoError(t, g.Commit("module changed"), "commit files")
+	return repo
+}
+
+func singleTerragruntStackWithSingleTerraformModuleChangedFromAbsPathSourceRepo(t *testing.T, enabledOption string) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Block("change_detection",
+					Block("terragrunt",
+						Str("enabled", enabledOption),
+					),
+				),
+			),
+		),
+	).String())
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+
+	repo.modules = append(repo.modules, module1)
+
+	stack := test.Mkdir(t, repo.Dir, "tg-stack")
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	test.WriteFile(t, stack, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "${get_repo_root()}/modules/module1"),
 		),
 	).String())
 

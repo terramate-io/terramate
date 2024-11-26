@@ -4,6 +4,7 @@
 package test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -48,7 +49,10 @@ func EmptyRepo(t testing.TB, bare bool) string {
 	gw := NewGitWrapper(t, "", []string{})
 
 	repodir := TempDir(t)
-	err := gw.Init(repodir, DefBranch, bare)
+	// resolve symlinks
+	repodir, err := filepath.EvalSymlinks(repodir)
+	assert.NoError(t, err, "evaluating symlinks")
+	err = gw.Init(repodir, DefBranch, bare)
 	assert.NoError(t, err, "git init")
 
 	return repodir

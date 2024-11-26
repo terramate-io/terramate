@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix Terragrunt modules change detection.
+
 ## v0.11.2
 
 ### Added
