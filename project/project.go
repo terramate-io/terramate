@@ -119,6 +119,12 @@ func (paths Paths) Sort() {
 // PrjAbsPath converts the file system absolute path absdir into an absolute
 // project path on the form /path/on/project relative to the given root.
 func PrjAbsPath(root, abspath string) Path {
+	if !filepath.IsAbs(abspath) {
+		panic(fmt.Errorf("path %q is not absolute", abspath))
+	}
+	if !strings.HasPrefix(abspath, root) {
+		panic(fmt.Errorf("abspath %q does not start with root %q", abspath, root))
+	}
 	d := filepath.ToSlash(strings.TrimPrefix(abspath, root))
 	if d == "" {
 		d = "/"

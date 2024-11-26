@@ -315,8 +315,8 @@ func TestChangeDetection(t *testing.T) {
 		assert.EqualInts(t, 3, len(report.Stacks))
 		assert.EqualInts(t, 1, len(report.Checks.UntrackedFiles))
 		assert.EqualInts(t, 1, len(report.Checks.UncommittedFiles))
-		assert.EqualStrings(t, "stacks/s3/untracked.tf", report.Checks.UntrackedFiles[0])
-		assert.EqualStrings(t, "stacks/s2/main.tf", report.Checks.UncommittedFiles[0])
+		assert.EqualStrings(t, "/stacks/s3/untracked.tf", report.Checks.UntrackedFiles[0].String())
+		assert.EqualStrings(t, "/stacks/s2/main.tf", report.Checks.UncommittedFiles[0].String())
 		assert.EqualStrings(t, report.Stacks[0].Stack.Dir.String(), "/stacks/s1")
 		assert.EqualStrings(t, report.Stacks[1].Stack.Dir.String(), "/stacks/s2")
 		assert.EqualStrings(t, report.Stacks[2].Stack.Dir.String(), "/stacks/s3")
@@ -462,17 +462,17 @@ func TestChangeDetection(t *testing.T) {
 		assert.EqualInts(t, 0, len(report.Stacks))
 		assert.EqualInts(t, 4, len(report.Checks.UntrackedFiles))
 		assert.EqualInts(t, 1, len(report.Checks.UncommittedFiles))
-		assert.EqualStrings(t, "stacks/s3/untracked.tf", report.Checks.UntrackedFiles[0])
-		if !strings.HasPrefix(report.Checks.UntrackedFiles[1], ".tmtriggers/stacks/s1/ignore-change-") {
+		assert.EqualStrings(t, "/stacks/s3/untracked.tf", report.Checks.UntrackedFiles[0].String())
+		if !strings.HasPrefix(report.Checks.UntrackedFiles[1].String(), "/.tmtriggers/stacks/s1/ignore-change-") {
 			t.Errorf("unexpected untracked file: %s", report.Checks.UntrackedFiles[1])
 		}
-		if !strings.HasPrefix(report.Checks.UntrackedFiles[2], ".tmtriggers/stacks/s2/ignore-change-") {
+		if !strings.HasPrefix(report.Checks.UntrackedFiles[2].String(), "/.tmtriggers/stacks/s2/ignore-change-") {
 			t.Errorf("unexpected untracked file: %s", report.Checks.UntrackedFiles[2])
 		}
-		if !strings.HasPrefix(report.Checks.UntrackedFiles[3], ".tmtriggers/stacks/s3/ignore-change-") {
+		if !strings.HasPrefix(report.Checks.UntrackedFiles[3].String(), "/.tmtriggers/stacks/s3/ignore-change-") {
 			t.Errorf("unexpected untracked file: %s", report.Checks.UntrackedFiles[3])
 		}
-		assert.EqualStrings(t, "stacks/s2/main.tf", report.Checks.UncommittedFiles[0])
+		assert.EqualStrings(t, "/stacks/s2/main.tf", report.Checks.UncommittedFiles[0].String())
 
 		AssertRunResult(t,
 			tmcli.Run("run", "--quiet", "--changed", "--disable-safeguards=git", "--", HelperPath, "stack-abs-path", s.RootDir()),
