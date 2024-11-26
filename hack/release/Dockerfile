@@ -1,7 +1,7 @@
 # Copyright 2024 Terramate GmbH
 # SPDX-License-Identifier: MPL-2.0
 
-FROM ubuntu:23.04
+FROM ubuntu:24.04
 
 COPY terramate /usr/local/bin/terramate
 
