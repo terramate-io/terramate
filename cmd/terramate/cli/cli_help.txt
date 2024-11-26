@@ -1,0 +1,21 @@
+Terramate is the end-to-end IaC Platform for builders supporting any IaC Technology.
+
+It consists of a CLI and a Cloud Platform which in combination provide you
+with the best IaC experience you can get:
+
+- Stack Orchestration with Change Detection.
+- Code Generation.
+
+With Terramate Cloud you bring additional enterprise-grade features to your team 
+with zero additional effort:
+
+- Drift Detection and Drift Reconciliation.
+- Deployment Management and Audibility of Changes.
+- Resource Browser and Resource Policy Checks.
+- Notifications and Alerting on failures, violations, and successes.
+- Pull Request Change Previews and Collaboration.
+- Dashboards, Analytics, and Reporting.
+
+Want to know more? Book a Terramate Cloud Demo at https://terramate.io/demo today!
+
+Create your Terramate Cloud Account: https://cloud.terramate.io/ for free.
