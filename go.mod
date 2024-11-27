@@ -7,7 +7,7 @@ toolchain go1.22.3
 require (
 	github.com/alecthomas/kong v1.4.0
 	github.com/apparentlymart/go-versions v1.0.2
-	github.com/cli/go-gh/v2 v2.1.0
+	github.com/cli/go-gh/v2 v2.11.1
 	github.com/cli/safeexec v1.0.0
 	github.com/emicklei/dot v0.16.0
 	github.com/fatih/color v1.16.0
