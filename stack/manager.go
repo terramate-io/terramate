@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
@@ -33,7 +32,7 @@ type (
 
 		cache struct {
 			stacks       []Entry
-			changedFiles map[string][]string // gitBaseRef -> changed files
+			changedFiles map[string]project.Paths // gitBaseRef -> changed files
 		}
 	}
 
@@ -53,8 +52,8 @@ type (
 
 	// RepoChecks contains the info of default checks.
 	RepoChecks struct {
-		UncommittedFiles []string
-		UntrackedFiles   []string
+		UncommittedFiles project.Paths
+		UntrackedFiles   project.Paths
 	}
 
 	// Entry is a stack entry result.
@@ -72,7 +71,7 @@ func NewManager(root *config.Root) *Manager {
 	m := &Manager{
 		root: root,
 	}
-	m.cache.changedFiles = make(map[string][]string)
+	m.cache.changedFiles = make(map[string]project.Paths)
 	return m
 }
 
@@ -82,7 +81,7 @@ func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 		root: root,
 		git:  git,
 	}
-	m.cache.changedFiles = make(map[string][]string)
+	m.cache.changedFiles = make(map[string]project.Paths)
 	return m
 }
 
@@ -105,7 +104,7 @@ func (m *Manager) List(checkRepo bool) (*Report, error) {
 		return report, nil
 	}
 
-	report.Checks, err = checkRepoIsClean(m.git)
+	report.Checks, err = checkRepoIsClean(m.root.HostDir(), m.git)
 	if err != nil {
 		return nil, errors.E(errList, err)
 	}
@@ -131,12 +130,12 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		)
 	}
 
-	checks, err := checkRepoIsClean(m.git)
+	checks, err := checkRepoIsClean(m.root.HostDir(), m.git)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	var dirtyFiles []string
+	var dirtyFiles project.Paths
 
 	allowUntracked := true
 	allowUncommitted := true
@@ -179,13 +178,12 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 	stackSet := map[project.Path]Entry{}
 	ignoreSet := map[project.Path]struct{}{}
 
-	for _, path := range changedFiles {
-		abspath := filepath.Join(m.root.HostDir(), path)
-		projpath := project.PrjAbsPath(m.root.HostDir(), abspath)
-
+	for _, projpath := range changedFiles {
 		logger = logger.With().
 			Stringer("path", projpath).
 			Logger()
+
+		abspath := project.AbsPath(m.root.HostDir(), projpath.String())
 
 		triggerInfo, triggeredStack, isTriggerFile, errTriggerParse := trigger.Is(m.root, projpath)
 		if isTriggerFile {
@@ -586,8 +584,7 @@ func (m *Manager) tfModuleChanged(
 		return false, "", err
 	}
 	for _, changedFile := range changedFiles {
-		changedPath := filepath.Join(m.root.HostDir(), changedFile)
-		if strings.HasPrefix(changedPath, modAbsPath) {
+		if changedFile.HasPrefix(modPath.String()) {
 			return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
 		}
 	}
@@ -631,7 +628,7 @@ func (m *Manager) tfModuleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
-func (m *Manager) changedFiles(gitBaseRef string, dirtyFiles ...string) ([]string, error) {
+func (m *Manager) changedFiles(gitBaseRef string, dirtyFiles ...project.Path) (project.Paths, error) {
 	_, ok := m.cache.changedFiles[gitBaseRef]
 	if !ok {
 		var err error
@@ -675,8 +672,7 @@ func (m *Manager) tgModuleChanged(
 		}
 
 		for _, changedFile := range changedFiles {
-			changedPath := project.PrjAbsPath(m.root.HostDir(), changedFile)
-			if dep == changedPath {
+			if dep == changedFile {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
 			}
 		}
@@ -696,7 +692,7 @@ func (m *Manager) tgModuleChanged(
 		}
 
 		for _, file := range changedFiles {
-			if strings.HasPrefix(filepath.Join(m.root.HostDir(), file), depAbsPath) {
+			if file.HasPrefix(dep.String()) {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
 			}
 		}
@@ -718,7 +714,7 @@ func (m *Manager) tgModuleChanged(
 }
 
 // listChangedFiles lists all changed files in the dir directory.
-func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
+func (m *Manager) listChangedFiles(dir string, gitBaseRef string) (project.Paths, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "stat failed on %q", dir)
@@ -741,16 +737,24 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 	}
 
 	if baseRef == headRef {
-		return []string{}, nil
+		return project.Paths{}, nil
 	}
 
-	return dirWrapper.DiffNames(baseRef, headRef)
+	relpaths, err := dirWrapper.DiffNames(baseRef, headRef)
+	if err != nil {
+		return project.Paths{}, errors.E(err, "git diff-tree failed")
+	}
+	var paths project.Paths
+	for _, relpath := range relpaths {
+		paths = append(paths, project.PrjAbsPath(dir, filepath.Join(dir, relpath)))
+	}
+	return paths, nil
 }
 
-func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
+func hasChangedWatchedFiles(stack *config.Stack, changedFiles project.Paths) (project.Path, bool) {
 	for _, watchFile := range stack.Watch {
 		for _, file := range changedFiles {
-			if file == watchFile.String()[1:] { // project paths
+			if file.String() == watchFile.String() {
 				return watchFile, true
 			}
 		}
@@ -758,15 +762,28 @@ func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project
 	return project.Path{}, false
 }
 
-func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
+func checkRepoIsClean(rootdir string, g *git.Git) (RepoChecks, error) {
 	untracked, uncommitted, err := g.ListDirtyFiles()
 	if err != nil {
 		return RepoChecks{}, errors.E(err, "listing dirty files")
 	}
 
+	var (
+		prjUntracked   project.Paths
+		prjUncommitted project.Paths
+	)
+
+	for _, file := range untracked {
+		prjUntracked = append(prjUntracked, project.NewPath("/"+file))
+	}
+
+	for _, file := range uncommitted {
+		prjUncommitted = append(prjUncommitted, project.NewPath("/"+file))
+	}
+
 	return RepoChecks{
-		UntrackedFiles:   untracked,
-		UncommittedFiles: uncommitted,
+		UntrackedFiles:   prjUntracked,
+		UncommittedFiles: prjUncommitted,
 	}, nil
 }
 

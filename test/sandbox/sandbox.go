@@ -791,7 +791,7 @@ func assertTree(t testing.TB, root *config.Root, layout []string, opts *assertTr
 
 		case "s", "stack":
 			stackdir, _ := popArg(spec)
-			prjStackdir := project.PrjAbsPath(rootdir, stackdir)
+			prjStackdir := project.PrjAbsPath(rootdir, filepath.Join(rootdir, stackdir))
 
 			if opts.withStrictStacks {
 				wantStrictStacks = append(wantStrictStacks, prjStackdir.String())

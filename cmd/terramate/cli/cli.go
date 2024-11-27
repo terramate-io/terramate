@@ -1221,10 +1221,10 @@ func (c *cli) checkGitUncommited() bool {
 	return !cfg.Terramate.Config.HasSafeguardDisabled(safeguard.GitUncommitted)
 }
 
-func debugFiles(files []string, msg string) {
+func debugFiles(files prj.Paths, msg string) {
 	for _, file := range files {
 		log.Debug().
-			Str("file", file).
+			Stringer("file", file).
 			Msg(msg)
 	}
 }
@@ -2335,7 +2335,7 @@ func (c *cli) setupEvalContext(st *config.Stack, overrideGlobals map[string]stri
 			globalPath,
 			expr,
 			info.NewRange(c.rootdir(), hhcl.Range{
-				Filename: "<eval argument>",
+				Filename: filepath.Join(c.rootdir(), "<cmdline>"),
 				Start:    hhcl.InitialPos,
 				End:      hhcl.InitialPos,
 			}),
