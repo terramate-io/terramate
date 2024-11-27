@@ -450,10 +450,74 @@ func TestTerragruntScanModules(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "local module directory also tracked as dependency",
+			layout: []string{
+				`f:some/dir/terragrunt.hcl:` + Doc(
+					Block("terraform",
+						Str("source", "${get_repo_root()}/modules/some"),
+					),
+					Block("include",
+						Labels("root"),
+						Expr("path", `find_in_parent_folders()`),
+					),
+					Block("dependency",
+						Labels("other2"), // other2 declared before other: result must be sorted.
+						Str("config_path", "../other2/dir"),
+					),
+					Block("dependency",
+						Labels("other"),
+						Str("config_path", "../other/dir"),
+					),
+				).String(),
+				`f:modules/some/main.tf:# empty file`,
+				`f:some/other/dir/terragrunt.hcl:` + Doc(
+					Bool("skip", true),
+					Block("terraform",
+						Str("source", "https://some.etc/prj"),
+					)).String(),
+				`f:some/other2/dir/terragrunt.hcl:` + Block("terraform",
+					Str("source", "https://some.etc/prj"),
+				).String(),
+				`f:terragrunt.hcl:` + Doc(
+					Block("terraform"),
+				).String(),
+				`f:common.tfvars:a = "1"`,
+				`f:regional.tfvars:b = "2"`,
+			},
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/some/dir"),
+						Source:     "../../modules/some",
+						ConfigFile: project.NewPath("/some/dir/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/some/other/dir"),
+							project.NewPath("/some/other2/dir"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+						After: project.Paths{
+							project.NewPath("/some/other/dir"),
+							project.NewPath("/some/other2/dir"),
+						},
+					},
+					{
+						Path:       project.NewPath("/some/other/dir"),
+						Source:     "https://some.etc/prj",
+						ConfigFile: project.NewPath("/some/other/dir/terragrunt.hcl"),
+					},
+					{
+						Path:       project.NewPath("/some/other2/dir"),
+						Source:     "https://some.etc/prj",
+						ConfigFile: project.NewPath("/some/other2/dir/terragrunt.hcl"),
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.NoGit(t, false)
+			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			basedir := tc.basedir
 			if basedir.String() == "" {

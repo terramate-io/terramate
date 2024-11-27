@@ -136,6 +136,23 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 		tgMod := stack.Modules[0]
 		mod.Source = *tgConfig.Terraform.Source
 		dependsOn := map[project.Path]struct{}{}
+
+		_, err = os.Lstat(mod.Source)
+		// if the source is a directory, we assume it is a local module.
+		if err == nil && filepath.IsAbs(mod.Source) {
+			src, err := filepath.EvalSymlinks(mod.Source)
+			if err != nil {
+				return nil, errors.E(err, "evaluating symlinks in %q", mod.Source)
+			}
+			// we normalize local paths as relative to the module.
+			// so this is compatible with Terraform module sources.
+			rel, err := filepath.Rel(cfgOpts.WorkingDir, src)
+			if err != nil {
+				return nil, errors.E(err, "normalizing local path %q", mod.Source)
+			}
+			mod.Source = rel
+		}
+
 		for _, path := range mod.DependsOn {
 			dependsOn[path] = struct{}{}
 		}
