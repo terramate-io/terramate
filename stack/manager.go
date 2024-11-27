@@ -32,8 +32,9 @@ type (
 		git  *git.Git
 
 		cache struct {
-			stacks       []Entry
-			changedFiles map[string][]string // gitBaseRef -> changed files
+			stacks         []Entry
+			changedFiles   map[string][]string // gitBaseRef -> changed files
+			changedModules map[string]isChangedCache
 		}
 	}
 
@@ -41,6 +42,11 @@ type (
 		BaseRef            string
 		UncommittedChanges *bool
 		UntrackedChanges   *bool
+	}
+
+	isChangedCache struct {
+		isChanged bool
+		reason    string
 	}
 
 	// Report is the report of project's stacks and the result of its default checks.
@@ -73,6 +79,7 @@ func NewManager(root *config.Root) *Manager {
 		root: root,
 	}
 	m.cache.changedFiles = make(map[string][]string)
+	m.cache.changedModules = make(map[string]isChangedCache)
 	return m
 }
 
@@ -83,6 +90,7 @@ func NewGitAwareManager(root *config.Root, git *git.Git) *Manager {
 		git:  git,
 	}
 	m.cache.changedFiles = make(map[string][]string)
+	m.cache.changedModules = make(map[string]isChangedCache)
 	return m
 }
 
@@ -292,10 +300,10 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		}
 	}
 
-rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
 		if _, ok := stackSet[stack.Dir]; ok {
+			// stack already changed.
 			continue
 		}
 
@@ -313,50 +321,25 @@ rangeStacks:
 					changed,
 				),
 			}
-			continue rangeStacks
+			continue
 		}
 
-		// Terraform module change detection
-		err := m.filesApply(stack.Dir, func(fname string) error {
-			if path.Ext(fname) != ".tf" {
-				return nil
-			}
-
-			tfpath := filepath.Join(stack.HostDir(m.root), fname)
-
-			modules, err := tf.ParseModules(tfpath)
-			if err != nil {
-				return errors.E(errListChanged, "parsing modules", err)
-			}
-
-			for _, mod := range modules {
-				changed, why, err := m.tfModuleChanged(mod, stack.HostDir(m.root), cfg.BaseRef, make(map[string]bool))
-				if err != nil {
-					return errors.E(errListChanged, err, "checking module %q", mod.Source)
-				}
-
-				if changed {
-					logger.Debug().
-						Stringer("stack", stack).
-						Str("configFile", tfpath).
-						Msg("Module changed.")
-
-					stack.IsChanged = true
-					stackSet[stack.Dir] = Entry{
-						Stack: stack,
-						Reason: fmt.Sprintf(
-							"stack changed because %q changed because %s",
-							mod.Source, why,
-						),
-					}
-					return nil
-				}
-			}
-			return nil
-		})
-
+		mod, why, isChanged, err := m.checkIfStackTerraformModulesChanged(stack, cfg)
 		if err != nil {
-			return nil, errors.E(errListChanged, "checking if Terraform module changes", err)
+			return nil, errors.E(errListChanged, err)
+		}
+
+		if isChanged {
+			stack.IsChanged = true
+			stackSet[stack.Dir] = Entry{
+				Stack: stack,
+				Reason: fmt.Sprintf(
+					"stack changed because %q changed because %s",
+					mod.Source, why,
+				),
+			}
+
+			continue
 		}
 
 		// tgModulesMap is only populated if Terragrunt is enabled.
@@ -381,7 +364,7 @@ rangeStacks:
 				Stack:  stack,
 				Reason: fmt.Sprintf("stack changed because module %q changed because %s", tgMod.Path, why),
 			}
-			continue rangeStacks
+			continue
 		}
 	}
 
@@ -400,6 +383,57 @@ rangeStacks:
 		Checks: checks,
 		Stacks: changedStacks,
 	}, nil
+}
+
+func (m *Manager) checkIfStackTerraformModulesChanged(stack *config.Stack, cfg ChangeConfig) (
+	changedModule tf.Module, reason string, isChanged bool, err error,
+) {
+	logger := log.With().
+		Str("action", "checkIfStackTerraformModulesChanged").
+		Stringer("stack", stack.Dir).
+		Logger()
+
+	// Terraform module change detection
+	err = m.filesApply(stack.Dir, func(fname string) (bool, error) {
+		if path.Ext(fname) != ".tf" {
+			return false, nil
+		}
+
+		tfpath := filepath.Join(stack.HostDir(m.root), fname)
+
+		modules, err := tf.ParseModules(tfpath)
+		if err != nil {
+			return false, errors.E(errListChanged, "parsing modules", err)
+		}
+
+		stackHostDir := stack.HostDir(m.root)
+
+		for _, mod := range modules {
+			changed, why, err := m.tfModuleChanged(mod, stackHostDir, cfg.BaseRef)
+			if err != nil {
+				return false, errors.E(errListChanged, err, "checking module %q", mod.Source)
+			}
+
+			if changed {
+				logger.Debug().
+					Str("configFile", tfpath).
+					Msg("Module changed.")
+
+				isChanged = changed
+				reason = why
+				changedModule = mod
+
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+
+	if err != nil {
+		return tf.Module{}, "", false, errors.E(errListChanged, "checking if Terraform module changes", err)
+	}
+
+	return changedModule, reason, isChanged, nil
 }
 
 func (m *Manager) allStacks() ([]Entry, error) {
@@ -506,7 +540,7 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (c
 	return selectedStacks, nil
 }
 
-func (m *Manager) filesApply(dir project.Path, apply func(fname string) error) (err error) {
+func (m *Manager) filesApply(dir project.Path, apply func(fname string) (bool, error)) error {
 	var files []string
 
 	tree, skipped, ok := m.root.Lookup2(dir)
@@ -545,9 +579,12 @@ func (m *Manager) filesApply(dir project.Path, apply func(fname string) error) (
 	}
 
 	for _, fname := range files {
-		err := apply(fname)
+		stop, err := apply(fname)
 		if err != nil {
 			return errors.E(err, "applying operation to file %q", fname)
+		}
+		if stop {
+			break
 		}
 	}
 	return nil
@@ -558,20 +595,32 @@ func (m *Manager) filesApply(dir project.Path, apply func(fname string) error) (
 // called recursively. The visited keep track of the modules already parsed to
 // avoid infinite loops.
 func (m *Manager) tfModuleChanged(
-	mod tf.Module, basedir string, gitBaseRef string, visited map[string]bool,
+	mod tf.Module, basedir string, gitBaseRef string,
 ) (changed bool, why string, err error) {
-	if _, ok := visited[mod.Source]; ok {
-		return false, "", nil
+	modAbsPath := filepath.Join(basedir, mod.Source)
+	modPath := project.PrjAbsPath(m.root.HostDir(), modAbsPath)
+	modPathStr := modPath.String()
+
+	cached, ok := m.cache.changedModules[modPath.String()]
+	if ok {
+		return cached.isChanged, cached.reason, nil
 	}
+
+	defer func() {
+		_, ok := m.cache.changedModules[modPathStr]
+		if !ok {
+			m.cache.changedModules[modPathStr] = isChangedCache{
+				isChanged: changed,
+				reason:    why,
+			}
+		}
+	}()
 
 	if !mod.IsLocal() {
 		// if the source is a remote path (URL, VCS path, S3 bucket, etc) then
 		// we assume it's not changed.
 		return false, "", nil
 	}
-
-	modAbsPath := filepath.Join(basedir, mod.Source)
-	modPath := project.PrjAbsPath(m.root.HostDir(), modAbsPath)
 
 	st, err := os.Stat(modAbsPath)
 
@@ -592,36 +641,33 @@ func (m *Manager) tfModuleChanged(
 		}
 	}
 
-	visited[mod.Source] = true
-
-	err = m.filesApply(modPath, func(fname string) error {
+	err = m.filesApply(modPath, func(fname string) (bool, error) {
 		if changed {
-			return nil
+			return true, nil
 		}
 		if path.Ext(fname) != ".tf" {
-			return nil
+			return false, nil
 		}
 
 		modules, err := tf.ParseModules(filepath.Join(modAbsPath, fname))
 		if err != nil {
-			return errors.E(err, "parsing module %q", mod.Source)
+			return false, errors.E(err, "parsing module %q", mod.Source)
 		}
 
 		for _, mod2 := range modules {
 			var reason string
 
-			changed, reason, err = m.tfModuleChanged(mod2, modAbsPath, gitBaseRef, visited)
+			changed, reason, err = m.tfModuleChanged(mod2, modAbsPath, gitBaseRef)
 			if err != nil {
-				return err
+				return false, err
 			}
 
 			if changed {
-				why = fmt.Sprintf("%s%s changed because %s ", why, mod.Source, reason)
-				return nil
+				why = fmt.Sprintf("%s%s changed because %s ", why, mod2.Source, reason)
+				return true, nil
 			}
 		}
-
-		return nil
+		return false, nil
 	})
 
 	if err != nil {
@@ -650,7 +696,7 @@ func (m *Manager) tgModuleChanged(
 ) (changed bool, why string, err error) {
 	tfMod := tf.Module{Source: tgMod.Source}
 	if tfMod.IsLocal() {
-		changed, why, err := m.tfModuleChanged(tfMod, project.AbsPath(m.root.HostDir(), tgMod.Path.String()), gitBaseRef, make(map[string]bool))
+		changed, why, err := m.tfModuleChanged(tfMod, project.AbsPath(m.root.HostDir(), tgMod.Path.String()), gitBaseRef)
 		if err != nil {
 			return false, "", errors.E(errListChanged, err, "checking if Terraform module changes (in Terragrunt context)")
 		}
@@ -748,6 +794,9 @@ func (m *Manager) listChangedFiles(dir string, gitBaseRef string) ([]string, err
 }
 
 func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
+	if len(changedFiles) == 0 {
+		return project.Path{}, false
+	}
 	for _, watchFile := range stack.Watch {
 		for _, file := range changedFiles {
 			if file == watchFile.String()[1:] { // project paths
