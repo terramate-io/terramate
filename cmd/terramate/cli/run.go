@@ -498,7 +498,7 @@ func (c *cli) runAll(
 						err := cmd.Run()
 						if err != nil {
 							if !task.MockOnFail {
-								errs.Append(errors.E(err, "failed to execute: %s (stderr: %s)", cmd.String(), stderr.Bytes()))
+								errs.Append(errors.E(err, "failed to execute: (cmd: %s) (stdout: %s) (stderr: %s)", cmd.String(), stdout.String(), stderr.String()))
 								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								failedTaskIndex = taskIndex
@@ -508,7 +508,10 @@ func (c *cli) runAll(
 								break tasksLoop
 							}
 
-							printer.Stderr.Warnf("failed to execute `sharing_backend` command: %v", err)
+							printer.Stderr.WarnWithDetails(
+								"failed to execute `sharing_backend` command",
+								errors.E(err, "(cmd: %s) (stdout: %s) (stderr: %s)", cmd.String(), stdout.String(), stderr.String()),
+							)
 						} else {
 							stdoutBytes := stdout.Bytes()
 							typ, err := json.ImpliedType(stdoutBytes)

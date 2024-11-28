@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix Outputs Sharing error handling by adding stdout and stderr context of the error.
+
 ## v0.11.3
 
 ### Fixed
