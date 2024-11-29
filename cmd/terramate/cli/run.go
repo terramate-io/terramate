@@ -119,12 +119,6 @@ func selectPlanFile(terraformPlan, tofuPlan string) (planfile, provisioner strin
 func (c *cli) runOnStacks() {
 	c.gitSafeguardDefaultBranchIsReachable()
 
-	if len(c.parsedArgs.Run.Command) > 0 {
-		if c.parsedArgs.Run.Command[0] == "--" {
-			c.parsedArgs.Run.Command = c.parsedArgs.Run.Command[1:]
-		}
-	}
-
 	if len(c.parsedArgs.Run.Command) == 0 {
 		fatal("run expects a cmd")
 	}

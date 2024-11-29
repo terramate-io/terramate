@@ -19,11 +19,6 @@ import (
 const (
 	defaultIndent        = 2
 	defaultColumnPadding = 4
-
-	// negatableDefault is a placeholder value for the Negatable tag to indicate
-	// the negated flag is --no-<flag-name>. This is needed as at the time of
-	// parsing a tag, the field's flag name is not yet known.
-	negatableDefault = "_"
 )
 
 // terramateHelpPrinter is the default HelpPrinter.
@@ -310,24 +305,28 @@ func formatFlag(haveShort bool, flag *kong.Flag) string {
 	flagString := ""
 	name := flag.Name
 	isBool := flag.IsBool()
-	isCounter := flag.IsCounter()
-
-	short := ""
 	if flag.Short != 0 {
-		short = "-" + string(flag.Short) + ", "
-	} else if haveShort {
-		short = "    "
+		if isBool && flag.Tag.Negatable {
+			flagString += fmt.Sprintf("-%c, --[no-]%s", flag.Short, name)
+		} else {
+			flagString += fmt.Sprintf("-%c, --%s", flag.Short, name)
+		}
+	} else {
+		if isBool && flag.Tag.Negatable {
+			if haveShort {
+				flagString = fmt.Sprintf("    --[no-]%s", name)
+			} else {
+				flagString = fmt.Sprintf("--[no-]%s", name)
+			}
+		} else {
+			if haveShort {
+				flagString += fmt.Sprintf("    --%s", name)
+			} else {
+				flagString += fmt.Sprintf("--%s", name)
+			}
+		}
 	}
-
-	if isBool && flag.Tag.Negatable == negatableDefault {
-		name = "[no-]" + name
-	} else if isBool && flag.Tag.Negatable != "" {
-		name += "/" + flag.Tag.Negatable
-	}
-
-	flagString += fmt.Sprintf("%s--%s", short, name)
-
-	if !isBool && !isCounter {
+	if !isBool {
 		flagString += fmt.Sprintf("=%s", flag.FormatPlaceHolder())
 	}
 	return flagString

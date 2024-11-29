@@ -1467,12 +1467,29 @@ func (c *cli) initTerragrunt() {
 		if err != nil {
 			fatalWithDetailf(err, "creating stack UUID")
 		}
+		after := []string{}
+		for _, otherMod := range mod.After.Strings() {
+			// Parent stack modules must be excluded because of implicit filesystem ordering.
+			// Parent stacks are always executed before child stacks.
+			if mod.Path.HasPrefix(otherMod + "/") {
+				continue
+			}
+			// after stacks must not be defined as child stacks
+			// because it contradicts the Terramate implicit filesystem ordering.
+			if strings.HasPrefix(otherMod, mod.Path.String()+"/") {
+				fatalWithDetailf(
+					errors.E("Module %q is defined as a child of the module stack it depends on, which contradicts the Terramate implicit filesystem ordering.", otherMod),
+					"You may consider moving stack %s elsewhere not conflicting with filesystem ordering.", otherMod,
+				)
+			}
+			after = append(after, otherMod)
+		}
 		stackSpec := config.Stack{
 			Dir:         mod.Path,
 			ID:          stackID.String(),
 			Name:        dirBasename,
 			Description: dirBasename,
-			After:       mod.After.Strings(),
+			After:       after,
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)
