@@ -1609,7 +1609,7 @@ func (c *cli) initTerragrunt() {
 		for _, otherMod := range mod.After.Strings() {
 			// Parent stack modules must be excluded because of implicit filesystem ordering.
 			// Parent stacks are always executed before child stacks.
-			if mod.Path.HasPrefix(otherMod + "/") {
+			if otherMod == "/" || mod.Path.HasPrefix(otherMod+"/") {
 				continue
 			}
 			// after stacks must not be defined as child stacks
