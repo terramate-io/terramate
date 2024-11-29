@@ -23,13 +23,19 @@ package tg
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
+
+	tmerrors "github.com/terramate-io/terramate/errors"
 
 	"github.com/gruntwork-io/go-commons/errors"
 	tgconfig "github.com/gruntwork-io/terragrunt/config"
 	"github.com/gruntwork-io/terragrunt/util"
+	"github.com/mitchellh/go-homedir"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -37,8 +43,8 @@ import (
 
 type tgFunction func(ctx *tgconfig.ParsingContext, rootdir string, mod *Module, args []string) (string, error)
 
-// findInParentFoldersFunc implements the Terragrunt `find_in_parent_folders` function.
-func findInParentFoldersFunc(pctx *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
+// tgFindInParentFoldersFuncImpl implements the Terragrunt `find_in_parent_folders` function.
+func tgFindInParentFoldersFuncImpl(pctx *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
 	return wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, findInParentFoldersImpl)
 }
 
@@ -113,8 +119,8 @@ func findInParentFoldersImpl(
 	}
 }
 
-// readTerragruntConfigFunc implements the Terragrunt `read_terragrunt_config` function.
-func readTerragruntConfigFunc(ctx *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
+// tgReadTerragruntConfigFuncImpl implements the Terragrunt `read_terragrunt_config` function.
+func tgReadTerragruntConfigFuncImpl(ctx *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
 	return function.New(&function.Spec{
 		// Takes one required string param
 		Params: []function.Parameter{
@@ -173,8 +179,8 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, configPath string, d
 	return tgconfig.TerragruntConfigAsCty(cfg)
 }
 
-// readTFVarsFile reads a *.tfvars or *.tfvars.json file and returns the contents as a JSON encoded string
-func readTFVarsFile(ctx *tgconfig.ParsingContext, rootdir string, mod *Module, args []string) (string, error) {
+// tgReadTFVarsFileFuncImpl reads a *.tfvars or *.tfvars.json file and returns the contents as a JSON encoded string
+func tgReadTFVarsFileFuncImpl(ctx *tgconfig.ParsingContext, rootdir string, mod *Module, args []string) (string, error) {
 	if len(args) != 1 {
 		return "", errors.WithStackTrace(tgconfig.WrongNumberOfParamsError{Func: "read_tfvars_file", Expected: "1", Actual: len(args)})
 	}
@@ -216,6 +222,68 @@ func readTFVarsFile(ctx *tgconfig.ParsingContext, rootdir string, mod *Module, a
 	}
 
 	return string(data), nil
+}
+
+func tgFileFuncImpl(_ *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "path",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			basedir := filepath.Join(rootdir, filepath.FromSlash(mod.Path.String()))
+			path := args[0].AsString()
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(basedir, path)
+			}
+			if path != rootdir && !strings.HasPrefix(path, rootdir+string(filepath.Separator)) {
+				printer.Stderr.WarnWithDetails("Terramate change detection cannot track files outside the project. Ignoring",
+					tmerrors.E("The file(%q) is outside project root %q", path, rootdir),
+				)
+			} else {
+				mod.DependsOn = append(mod.DependsOn, project.PrjAbsPath(rootdir, path))
+			}
+			src, err := readFileBytes(basedir, path)
+			if err != nil {
+				err = function.NewArgError(0, err)
+				return cty.UnknownVal(cty.String), err
+			}
+
+			if !utf8.Valid(src) {
+				return cty.UnknownVal(cty.String), fmt.Errorf("contents of %s are not valid UTF-8; use the filebase64 function to obtain the Base64 encoded contents or the other file functions (e.g. filemd5, filesha256) to obtain file hashing results instead", path)
+			}
+			return cty.StringVal(string(src)), nil
+		},
+	})
+}
+
+func readFileBytes(baseDir, path string) ([]byte, error) {
+	path, err := homedir.Expand(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand ~: %s", err)
+	}
+
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(baseDir, path)
+	}
+
+	// Ensure that the path is canonical for the host OS
+	path = filepath.Clean(path)
+
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		// ReadFile does not return Terraform-user-friendly error
+		// messages, so we'll provide our own.
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("no file exists at %s; this function works only with files that are distributed as part of the configuration source code, so if this file will be created by a resource in this configuration you must instead obtain this result from an attribute of that resource", path)
+		}
+		return nil, fmt.Errorf("failed to read %s", path)
+	}
+
+	return src, nil
 }
 
 // getCleanedTargetConfigPath returns a cleaned path to the target config (the `terragrunt.hcl` or

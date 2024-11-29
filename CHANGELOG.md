@@ -24,6 +24,9 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add support for tracking `file()` usages in Terragrunt files for enhancing the change detection.
+  - Now if you have Terragrunt modules that directly read files from elsewhere in the project, Terramate will
+  mark the stack changed whenever the aforementioned file changes.
 - Add telemetry to collect anonymous usage metrics.
   - This helps us to improve user experience by measuring which Terramate features are used most actively.
     For further details, see [documentation](https://terramate.io/docs/cli/telemetry).
