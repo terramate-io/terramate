@@ -1701,6 +1701,11 @@ func (c *cli) initTerraformDir(baseDir string) error {
 		fatalWithDetailf(err, "unable to read directory while listing directory entries")
 	}
 
+	var tags []string
+	for _, tag := range c.parsedArgs.Tags {
+		tags = append(tags, strings.Split(tag, ",")...)
+	}
+
 	errs := errors.L()
 	for _, f := range dirs {
 		path := filepath.Join(baseDir, f.Name())
@@ -1741,6 +1746,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 			ID:          stackID.String(),
 			Name:        dirBasename,
 			Description: dirBasename,
+			Tags:        tags,
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)
