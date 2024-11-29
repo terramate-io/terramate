@@ -23,16 +23,6 @@ import (
 )
 
 func (c *cli) printScriptInfo() {
-	if len(c.parsedArgs.Script.Info.Cmds) > 0 {
-		if c.parsedArgs.Script.Info.Cmds[0] == "--" {
-			c.parsedArgs.Script.Info.Cmds = c.parsedArgs.Script.Info.Cmds[1:]
-		}
-	}
-
-	if len(c.parsedArgs.Script.Info.Cmds) == 0 {
-		fatal("script info expects cmds")
-	}
-
 	labels := c.parsedArgs.Script.Info.Cmds
 
 	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())

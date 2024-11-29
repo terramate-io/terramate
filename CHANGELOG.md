@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix the command-line parsing of `run` and `script run` which were not failing from unknown flags.
+
 ## v0.11.3
 
 ### Fixed
