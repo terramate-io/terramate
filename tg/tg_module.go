@@ -100,9 +100,12 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 
 		// Override the predefined functions to intercept the function calls that process paths.
 		pctx.PredefinedFunctions = make(map[string]function.Function)
-		pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = findInParentFoldersFunc(pctx, rootdir, mod)
-		pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = readTerragruntConfigFunc(pctx, rootdir, mod)
-		pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, readTFVarsFile)
+		pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, rootdir, mod)
+		pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, rootdir, mod)
+		pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, tgReadTFVarsFileFuncImpl)
+
+		// override Terraform function
+		pctx.PredefinedFunctions["file"] = tgFileFuncImpl(pctx, rootdir, mod)
 
 		// Here we parse the Terragrunt file which calls into our overrided functions.
 		// After this returns, the module's DependsOn will be populated.

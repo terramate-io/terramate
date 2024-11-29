@@ -151,7 +151,7 @@ func TestParallelSharingOutputFailure(t *testing.T) {
 		RunExpected{
 			Status:       1,
 			IgnoreStdout: true,
-			StderrRegex:  regexp.QuoteMeta("failed to execute: does_not_exist"),
+			StderrRegex:  regexp.QuoteMeta("failed to execute: (cmd: does_not_exist)"),
 		},
 	)
 	AssertRunResult(t,
@@ -159,7 +159,7 @@ func TestParallelSharingOutputFailure(t *testing.T) {
 		RunExpected{
 			Status:       1,
 			IgnoreStdout: true,
-			StderrRegex:  regexp.QuoteMeta("failed to execute: does_not_exist"),
+			StderrRegex:  regexp.QuoteMeta("failed to execute: (cmd: does_not_exist)"),
 		},
 	)
 	AssertRunResult(t,
@@ -167,7 +167,7 @@ func TestParallelSharingOutputFailure(t *testing.T) {
 		RunExpected{
 			Status:       1,
 			IgnoreStdout: true,
-			StderrRegex:  regexp.QuoteMeta("failed to execute: does_not_exist"),
+			StderrRegex:  regexp.QuoteMeta("failed to execute: (cmd: does_not_exist)"),
 		},
 	)
 }
