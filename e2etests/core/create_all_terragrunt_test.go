@@ -438,6 +438,68 @@ func TestCreateAllTerragrunt(t *testing.T) {
 				StderrRegex: "Found a dependency cycle between modules",
 			},
 		},
+		{
+			name: "Terragrunt with dependency defined outside of the Terramate project",
+			layout: []string{
+				hclfile("terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module2"),
+						Str("config_path", `../other`),
+					),
+					Block("dependencies",
+						Expr("paths", `["../other"]`),
+					))),
+				hclfile("../other/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+			},
+			want: RunExpected{
+				StderrRegexes: []string{
+					regexp.QuoteMeta("Warning: Dependency outside of Terramate project detected in `dependency.config_path` configuration. Ignoring."),
+					regexp.QuoteMeta("Warning: Dependency outside of Terramate project detected in `dependencies.paths` configuration. Ignoring."),
+				},
+				Stdout: nljoin(
+					"Created stack /",
+				),
+			},
+			wantOrder: []string{"."},
+		},
+		{
+			name: "Terragrunt with dependency defined outside of the Terramate project (sharing same base path)",
+			layout: []string{
+				hclfile("terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module2"),
+						Str("config_path", `../sandboxy`),
+					),
+					Block("dependencies",
+						Expr("paths", `["../sandboxy"]`),
+					))),
+				hclfile("../sandboxy/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+			},
+			want: RunExpected{
+				StderrRegexes: []string{
+					regexp.QuoteMeta("Warning: Dependency outside of Terramate project detected in `dependency.config_path` configuration. Ignoring."),
+					regexp.QuoteMeta("Warning: Dependency outside of Terramate project detected in `dependencies.paths` configuration. Ignoring."),
+				},
+				Stdout: nljoin(
+					"Created stack /",
+				),
+			},
+			wantOrder: []string{"."},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

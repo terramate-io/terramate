@@ -122,8 +122,14 @@ func PrjAbsPath(root, abspath string) Path {
 	if !filepath.IsAbs(abspath) {
 		panic(fmt.Errorf("path %q is not absolute", abspath))
 	}
+	if root == abspath {
+		return NewPath("/")
+	}
+	if !strings.HasSuffix(root, string(filepath.Separator)) { // accounts for root=/
+		root = root + string(filepath.Separator)
+	}
 	if !strings.HasPrefix(abspath, root) {
-		panic(fmt.Errorf("abspath %q does not start with root %q", abspath, root))
+		panic(fmt.Errorf(`abspath %q does not start with root %q`, abspath, root))
 	}
 	d := filepath.ToSlash(strings.TrimPrefix(abspath, root))
 	if d == "" {

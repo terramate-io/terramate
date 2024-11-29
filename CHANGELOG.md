@@ -34,6 +34,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix the command-line parsing of `run` and `script run` which were not failing from unknown flags.
 - Fix `create --all-terragrunt` creating Terragrunt stacks with cycles.
+- Panic in the Terragrunt integration when the project had modules with dependency paths outside the current Terramate project.
+  - Now Terramate throw a warning for such configurations.
 
 ## v0.11.3
 
