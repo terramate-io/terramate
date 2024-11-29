@@ -14,6 +14,7 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/hcl/v2/hclwrite"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -201,6 +202,10 @@ func Load(
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
+
+	tel.DefaultRecord.Set(
+		tel.BoolFlag("hcl", len(hclBlocks) != 0, "generate"),
+	)
 
 	commentStyle := CommentStyleFromConfig(root.Tree())
 

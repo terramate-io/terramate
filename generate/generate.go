@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -1330,6 +1331,10 @@ func loadStackCodeCfgs(
 	if err != nil {
 		return nil, err
 	}
+
+	tel.DefaultRecord.Set(
+		tel.BoolFlag("asserts", len(asserts) > 0),
+	)
 
 	var genfilesConfigs []GenFile
 

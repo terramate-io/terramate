@@ -5,11 +5,12 @@ package tg
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/gruntwork-io/go-commons/env"
 	"github.com/gruntwork-io/terragrunt/config"
@@ -18,6 +19,7 @@ import (
 	"github.com/gruntwork-io/terragrunt/util"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -180,6 +182,11 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 				if !filepath.IsAbs(depPath) {
 					depPath = filepath.Join(tgMod.Path, depPath)
 				}
+				if depPath != rootdir && !strings.HasPrefix(depPath, rootdir+string(filepath.Separator)) {
+					warnDependencyOutsideProject(mod, depPath, "dependency.config_path")
+
+					continue
+				}
 				dependsOn[project.PrjAbsPath(rootdir, depPath)] = struct{}{}
 			}
 		}
@@ -191,14 +198,17 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 		}
 
 		if tgConfig.Dependencies != nil {
-			for _, dep := range tgConfig.Dependencies.Paths {
-				var p project.Path
-				if !path.IsAbs(dep) {
-					p = mod.Path.Join(dep)
-				} else {
-					logger.Debug().Str("dep-path", dep).Msg("ignore absolute path")
+			for _, depPath := range tgConfig.Dependencies.Paths {
+				if !filepath.IsAbs(depPath) {
+					depPath = filepath.Join(tgMod.Path, depPath)
+				}
+				if depPath != rootdir && !strings.HasPrefix(depPath, rootdir+string(filepath.Separator)) {
+					warnDependencyOutsideProject(mod, depPath, "dependencies.paths")
+
 					continue
 				}
+
+				p := project.PrjAbsPath(rootdir, depPath)
 				mod.After = append(mod.After, p)
 			}
 			mod.After.Sort()
@@ -251,4 +261,12 @@ func newTerragruntOptions(dir string) *options.TerragruntOptions {
 	opts.OriginalIAMRoleOptions = opts.IAMRoleOptions
 
 	return opts
+}
+
+func warnDependencyOutsideProject(mod *Module, dep string, field string) {
+	printer.Stderr.WarnWithDetails(fmt.Sprintf("Dependency outside of Terramate project detected in `%s` configuration. Ignoring.", field),
+		errors.E("The Terragrunt module %s depends on the module at %s, which is located outside of the your current"+
+			" Terramate project. To resolve this ensure the dependent module is part of your Terramate project.",
+			mod.Path, dep),
+	)
 }

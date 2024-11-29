@@ -251,6 +251,11 @@ type TargetsConfig struct {
 	Enabled bool
 }
 
+// TelemetryConfig represents Terramate telemetry configuration.
+type TelemetryConfig struct {
+	Enabled *bool
+}
+
 // RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
 	Git               *GitConfig
@@ -260,6 +265,7 @@ type RootConfig struct {
 	Cloud             *CloudConfig
 	Experiments       []string
 	DisableSafeguards safeguard.Keywords
+	Telemetry         *TelemetryConfig
 }
 
 // ManifestDesc represents a parsed manifest description.
@@ -1753,7 +1759,7 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "change_detection", "run", "cloud", "targets"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "change_detection", "run", "cloud", "targets", "telemetry"))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
@@ -1783,6 +1789,12 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 	if ok {
 		cfg.ChangeDetection = &ChangeDetectionConfig{}
 		errs.Append(parseChangeDetectionConfig(cfg.ChangeDetection, changeDetectionBlock))
+	}
+
+	telemetryBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("telemetry")]
+	if ok {
+		cfg.Telemetry = &TelemetryConfig{}
+		errs.Append(parseTelemetryConfigBlock(cfg.Telemetry, telemetryBlock))
 	}
 
 	return errs.AsError()
@@ -1953,6 +1965,50 @@ func parseTerragruntChangeDetectionConfig(cfg *TerragruntChangeDetectionConfig, 
 			errs.Append(errors.E(
 				attr.NameRange,
 				"unrecognized attribute terramate.config.change_detection.terragrunt.%s",
+				attr.Name,
+			))
+		}
+	}
+	return nil
+}
+
+func parseTelemetryConfigBlock(cfg *TelemetryConfig, telemetryBlock *ast.MergedBlock) error {
+	errs := errors.L()
+
+	for _, attr := range telemetryBlock.Attributes {
+		switch attr.Name {
+		case "enabled":
+			value, diags := attr.Expr.Value(nil)
+			if diags.HasErrors() {
+				errs.Append(errors.E(diags,
+					"failed to evaluate terramate.config.telemetry.%s attribute", attr.Name,
+				))
+				continue
+			}
+			switch value.Type() {
+			case cty.String:
+				valStr := value.AsString()
+				switch valStr {
+				case "on":
+					v := true
+					cfg.Enabled = &v
+				case "off":
+					v := false
+					cfg.Enabled = &v
+				default:
+					errs.Append(errors.E("unexpected value %q in the `terramate.config.telemetry.%s` attribute", valStr, attr.Name))
+				}
+			case cty.Bool:
+				v := value.True()
+				cfg.Enabled = &v
+			default:
+				errs.Append(errors.E("expected `string` or `bool` but type %s is set in the `terramate.config.telemetry.%s` attribute", attr.Name, value.Type().FriendlyName()))
+			}
+
+		default:
+			errs.Append(errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.telemetry.%s",
 				attr.Name,
 			))
 		}
