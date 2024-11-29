@@ -370,7 +370,10 @@ func TestRunSharing(t *testing.T) {
 						"local_file.s3_file",
 					},
 					NoStdoutRegex: "local_file.s2_file",
-					StderrRegex:   regexp.QuoteMeta("Warning: failed to execute `sharing_backend` command: exit status 1"),
+					StderrRegexes: []string{
+						regexp.QuoteMeta("Warning: failed to execute `sharing_backend`"),
+						regexp.QuoteMeta("helper exit 1) (stdout: ) (stderr: ): exit status 1"),
+					},
 				})
 			},
 		},
