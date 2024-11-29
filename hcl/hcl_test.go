@@ -1128,6 +1128,62 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "disabling terramate.config.telemetry with string",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    telemetry {
+							  enabled = "off"
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Telemetry: &hcl.TelemetryConfig{
+								Enabled: &off,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "disabling terramate.config.telemetry with bool",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    telemetry {
+							  enabled = false
+							}
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Telemetry: &hcl.TelemetryConfig{
+								Enabled: &off,
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}

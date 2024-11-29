@@ -29,6 +29,7 @@ const (
 type Config struct {
 	DisableCheckpoint          bool
 	DisableCheckpointSignature bool
+	DisableTelemetry           bool
 	UserTerramateDir           string
 }
 
@@ -76,6 +77,11 @@ func LoadFrom(fname string) (Config, error) {
 				return Config{}, err
 			}
 			cfg.DisableCheckpointSignature = val.True()
+		case "disable_telemetry":
+			if err := checkBoolType(val, name); err != nil {
+				return Config{}, err
+			}
+			cfg.DisableTelemetry = val.True()
 		case "user_terramate_dir":
 			if err := checkStrType(val, name); err != nil {
 				return Config{}, err
