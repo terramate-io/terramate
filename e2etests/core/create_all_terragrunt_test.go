@@ -5,6 +5,7 @@ package core_test
 
 import (
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -210,27 +211,27 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			wantOrder: []string{"stack"},
 		},
 		{
-			name: "terragrunt module at root with dependencies at /modules",
+			name: "terragrunt module at /A with dependencies at /modules",
 			layout: []string{
-				hclfile("terragrunt.hcl", Doc(
+				hclfile("A/terragrunt.hcl", Doc(
 					Block("terraform",
 						Str("source", "github.com/some/repo"),
 					),
 					Block("dependencies",
-						Expr("paths", `["modules/mod1"]`),
+						Expr("paths", `["../modules/B"]`),
 					),
 				)),
-				hclfile("modules/mod1/terragrunt.hcl", Block("terraform",
+				hclfile("modules/B/terragrunt.hcl", Block("terraform",
 					Str("source", "github.com/some/repo"),
 				)),
 			},
 			want: RunExpected{
 				Stdout: nljoin(
-					"Created stack /",
-					"Created stack /modules/mod1",
+					"Created stack /A",
+					"Created stack /modules/B",
 				),
 			},
-			wantOrder: []string{"modules/mod1", "."},
+			wantOrder: []string{"modules/B", "A"},
 		},
 		{
 			name: "multiple orderings using dependencies block",
@@ -333,6 +334,85 @@ func TestCreateAllTerragrunt(t *testing.T) {
 				),
 			},
 			wantOrder: []string{"3", "2", "1"},
+		},
+		{
+			name: "nested terragrunt modules",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+				hclfile("1/2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module3"),
+						Str("config_path", `..`),
+					),
+				),
+				),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /1",
+					"Created stack /1/2",
+				),
+			},
+			wantOrder: []string{"1", "1/2"},
+		},
+		{
+			name: "nested terragrunt modules conflicting with Terramate filesystem ordering",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module3"),
+						Str("config_path", `./2`),
+					),
+				),
+				),
+				hclfile("1/2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+			},
+			want: RunExpected{
+				Status:      1,
+				StderrRegex: regexp.QuoteMeta(`Module "/1/2" is defined as a child of the module stack it depends on`),
+			},
+			wantOrder: []string{"1", "1/2"},
+		},
+		{
+			name: "nested terragrunt modules with sharing same prefix path",
+			layout: []string{
+				hclfile("A/foo/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependency",
+						Labels("module3"),
+						Str("config_path", `../foobar`),
+					),
+				),
+				),
+				hclfile("A/foobar/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /A/foo",
+					"Created stack /A/foobar",
+				),
+			},
+			wantOrder: []string{"A/foobar", "A/foo"},
 		},
 		{
 			name: "Terragrunt definitions with ciclic ordering",

@@ -25,6 +25,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix the command-line parsing of `run` and `script run` which were not failing from unknown flags.
+- Fix `create --all-terragrunt` creating Terragrunt stacks with cycles.
 
 ## v0.11.3
 
