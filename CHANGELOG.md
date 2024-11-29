@@ -24,7 +24,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- Fix Outputs Sharing error handling by adding stdout and stderr context of the error.
+- Improve the error reporting of the Outputs Sharing feature.
 
 ## v0.11.3
 
