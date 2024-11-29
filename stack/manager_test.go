@@ -194,6 +194,28 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
+			name: "opening files to read mark stack as changed",
+			repobuilder: func(t *testing.T) repository {
+				t.Helper()
+				return singleTerragruntStackWithDependentOnFileChangedRepo(t, "force")
+			},
+			want: listTestResult{
+				list:    []string{"/stack1", "/stack2"},
+				changed: []string{"/stack1"},
+			},
+		},
+		{
+			name: "opening file outside repo to read, ignores the file and give a warning",
+			repobuilder: func(t *testing.T) repository {
+				t.Helper()
+				return singleTerragruntStackWithDependentOnFileOutsideRepo(t, "force")
+			},
+			want: listTestResult{
+				list:    []string{"/stack1", "/stack2"},
+				changed: []string{},
+			},
+		},
+		{
 			name: "single Terragrunt stack with single local Terraform module changed referenced with abspath",
 			repobuilder: func(t *testing.T) repository {
 				t.Helper()
@@ -773,6 +795,125 @@ func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T, ena
 	test.WriteFile(t, module1, "main.tf", `# changed file`)
 	assert.NoError(t, g.Add(module1), "add files")
 	assert.NoError(t, g.Commit("module changed"), "commit files")
+	return repo
+}
+
+func singleTerragruntStackWithDependentOnFileChangedRepo(t *testing.T, enabledOption string) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Block("change_detection",
+					Block("terragrunt",
+						Str("enabled", enabledOption),
+					),
+				),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, repo.Dir, "hello.txt", "good world")
+
+	stack1 := test.Mkdir(t, repo.Dir, "stack1")
+	stack2 := test.Mkdir(t, repo.Dir, "stack2")
+
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+
+	repo.modules = append(repo.modules, module1)
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+
+	createStack(t, root, stack1)
+	createStack(t, root, stack2)
+
+	test.WriteFile(t, stack1, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "../modules/module1"),
+		),
+		Block("locals",
+			Expr("hello", `file("../hello.txt")`),
+		),
+	).String())
+
+	test.WriteFile(t, module1, "main.tf", `# empty file`)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the hello.txt
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+
+	test.WriteFile(t, repo.Dir, "hello.txt", `evil world`)
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("hello changed"), "commit files")
+	return repo
+}
+
+func singleTerragruntStackWithDependentOnFileOutsideRepo(t *testing.T, enabledOption string) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Block("change_detection",
+					Block("terragrunt",
+						Str("enabled", enabledOption),
+					),
+				),
+			),
+		),
+	).String())
+
+	test.WriteFile(t, filepath.Dir(repo.Dir), "hello.txt", "good world")
+
+	stack1 := test.Mkdir(t, repo.Dir, "stack1")
+	stack2 := test.Mkdir(t, repo.Dir, "stack2")
+
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+
+	repo.modules = append(repo.modules, module1)
+
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+
+	createStack(t, root, stack1)
+	createStack(t, root, stack2)
+
+	test.WriteFile(t, stack1, "terragrunt.hcl", Doc(
+		Block("terraform",
+			Str("source", "../modules/module1"),
+		),
+		Block("locals",
+			Expr("hello", `file("../../hello.txt")`),
+		),
+	).String())
+
+	test.WriteFile(t, module1, "main.tf", `# empty file`)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// now we branch again and modify the hello.txt
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+
+	test.WriteFile(t, filepath.Dir(repo.Dir), "hello.txt", `evil world`)
+	test.WriteFile(t, repo.Dir, "bleh.txt", `anything just to have a commit`)
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("hello changed"), "commit files")
 	return repo
 }
 
