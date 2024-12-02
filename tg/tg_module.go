@@ -137,9 +137,21 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 			continue
 		}
 
-		// first module is the module at cfgfile directory.
-		tgMod := stack.Modules[0]
+		var tgMod *configstack.TerraformModule
+		for _, m := range stack.Modules {
+			if m.Path == cfgOpts.WorkingDir {
+				tgMod = m
+				break
+			}
+		}
+
+		// sanity check
+		if tgMod == nil {
+			panic(errors.E(errors.ErrInternal, "%s found but module not found in subfolders. Please report this bug.", cfgfile))
+		}
+
 		mod.Source = *tgConfig.Terraform.Source
+
 		dependsOn := map[project.Path]struct{}{}
 
 		_, err = os.Lstat(mod.Source)
@@ -177,20 +189,29 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 			// "dependency" block is TerragruntDependencies
 			// they get automatically added into tgConfig.Dependencies.Paths
 			for _, dep := range tgConfig.TerragruntDependencies {
-				logger.Trace().Str("dep-path", dep.ConfigPath).Msg("found dependency")
 				if dep.Enabled != nil && !*dep.Enabled {
 					continue
 				}
-				depPath := dep.ConfigPath
-				if !filepath.IsAbs(depPath) {
-					depPath = filepath.Join(tgMod.Path, depPath)
+				depAbsPath := dep.ConfigPath
+				if !filepath.IsAbs(depAbsPath) {
+					depAbsPath = filepath.Join(tgMod.Path, depAbsPath)
 				}
-				if depPath != rootdir && !strings.HasPrefix(depPath, rootdir+string(filepath.Separator)) {
-					warnDependencyOutsideProject(mod, depPath, "dependency.config_path")
+
+				logger.Trace().
+					Str("mod-path", tgMod.Path).
+					Str("dep-path", dep.ConfigPath).
+					Str("dep-abs-path", depAbsPath).
+					Msg("found dependency (in dependency.config_path)")
+
+				if depAbsPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
+					warnDependencyOutsideProject(mod, depAbsPath, "dependency.config_path")
 
 					continue
 				}
-				dependsOn[project.PrjAbsPath(rootdir, depPath)] = struct{}{}
+
+				depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
+
+				dependsOn[depProjectPath] = struct{}{}
 			}
 		}
 
@@ -202,17 +223,26 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 
 		if tgConfig.Dependencies != nil {
 			for _, depPath := range tgConfig.Dependencies.Paths {
+				depAbsPath := depPath
 				if !filepath.IsAbs(depPath) {
-					depPath = filepath.Join(tgMod.Path, depPath)
+					depAbsPath = filepath.Join(tgMod.Path, filepath.FromSlash(depPath))
 				}
-				if depPath != rootdir && !strings.HasPrefix(depPath, rootdir+string(filepath.Separator)) {
-					warnDependencyOutsideProject(mod, depPath, "dependencies.paths")
+
+				logger.Trace().
+					Str("mod-path", mod.Path.String()).
+					Str("dep-path", depPath).
+					Str("dep-abs-path", depAbsPath).
+					Msg("found dependency (in dependencies.paths)")
+
+				if depPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
+					warnDependencyOutsideProject(mod, depAbsPath, "dependencies.paths")
 
 					continue
 				}
 
-				p := project.PrjAbsPath(rootdir, depPath)
-				mod.After = append(mod.After, p)
+				depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
+
+				mod.After = append(mod.After, depProjectPath)
 			}
 			mod.After.Sort()
 		}
