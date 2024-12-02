@@ -17,6 +17,7 @@ import (
 	errtest "github.com/terramate-io/terramate/test/errors"
 	. "github.com/terramate-io/terramate/test/hclutils"
 	"github.com/terramate-io/terramate/test/hclutils/info"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 type (
@@ -43,6 +44,8 @@ type (
 )
 
 func TestHCLParserTerramateBlock(t *testing.T) {
+	truth := true
+	falsy := false
 	for _, tc := range []testcase{
 		{
 			name: "unrecognized blocks",
@@ -588,6 +591,84 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 							DisableSafeguards: safeguard.Keywords{
 								safeguard.Git,
 								safeguard.Outdated,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.order_of_execution.nested=false",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: Terramate(
+						Config(
+							Block("order_of_execution",
+								Bool("nested", false),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							OrderOfExecution: &hcl.OrderOfExecutionConfig{
+								Nested: &falsy,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "empty terramate.config.order_of_execution block",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								order_of_execution {
+								
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							OrderOfExecution: &hcl.OrderOfExecutionConfig{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.order_of_execution.nested=true",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: Terramate(
+						Config(
+							Block("order_of_execution",
+								Bool("nested", true),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							OrderOfExecution: &hcl.OrderOfExecutionConfig{
+								Nested: &truth,
 							},
 						},
 					},

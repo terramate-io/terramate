@@ -106,28 +106,30 @@ func buildValidStackDAG[S ~[]E, E any](
 		Str("root", root.HostDir()).
 		Logger()
 
-	isParentStack := func(s1, s2 *config.Stack) bool {
-		return s1.Dir.HasPrefix(s2.Dir.String() + "/")
-	}
+	if isFsOrderingEnabled(root) {
+		isParentStack := func(s1, s2 *config.Stack) bool {
+			return s1.Dir.HasPrefix(s2.Dir.String() + "/")
+		}
 
-	getStackDir := func(s E) string {
-		return getStack(s).Dir.String()
-	}
+		getStackDir := func(s E) string {
+			return getStack(s).Dir.String()
+		}
 
-	slices.SortStableFunc(items, func(a, b E) int {
-		return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
-	})
+		slices.SortStableFunc(items, func(a, b E) int {
+			return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
+		})
 
-	for _, a := range items {
-		for _, b := range items {
-			if getStack(a).Dir == getStack(b).Dir {
-				continue
-			}
+		for _, a := range items {
+			for _, b := range items {
+				if getStack(a).Dir == getStack(b).Dir {
+					continue
+				}
 
-			if isParentStack(getStack(a), getStack(b)) {
-				logger.Debug().Msgf("stack %q runs before %q since it is its parent", getStackDir(a), getStackDir(b))
+				if isParentStack(getStack(a), getStack(b)) {
+					logger.Debug().Msgf("stack %q runs before %q since it is its parent", getStackDir(a), getStackDir(b))
 
-				getStack(b).AppendBefore(getStack(a).Dir.String())
+					getStack(b).AppendBefore(getStack(a).Dir.String())
+				}
 			}
 		}
 	}
@@ -297,4 +299,15 @@ func toids(values config.List[*config.SortableStack]) []dag.ID {
 		ids = append(ids, dag.ID(v.Dir().String()))
 	}
 	return ids
+}
+
+func isFsOrderingEnabled(root *config.Root) bool {
+	cfg := root.Tree().Node
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.OrderOfExecution != nil &&
+		cfg.Terramate.Config.OrderOfExecution.Nested != nil {
+		return *cfg.Terramate.Config.OrderOfExecution.Nested
+	}
+	return true
 }
