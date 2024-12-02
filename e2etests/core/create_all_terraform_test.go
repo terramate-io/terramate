@@ -6,10 +6,13 @@ package core_test
 import (
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	errtest "github.com/terramate-io/terramate/test/errors"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -40,7 +43,7 @@ func TestCreateWithAllTerraformModuleAtRoot(t *testing.T) {
 }
 
 func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
-	test := func(t *testing.T, generate bool) {
+	test := func(t *testing.T, generate bool, tags []string) {
 		s := sandbox.NoGit(t, true)
 		backendBlock := Block("terraform",
 			Block("backend",
@@ -76,6 +79,9 @@ func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
 		if !generate {
 			args = append(args, "--no-generate")
 		}
+		if len(tags) > 0 {
+			args = append(args, "--tags", strings.Join(tags, ","))
+		}
 		AssertRunResult(t,
 			tm.Run(args...),
 			RunExpected{
@@ -87,6 +93,9 @@ func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
 			},
 		)
 
+		root := s.ReloadConfig()
+
+		sort.Strings(tags)
 		for _, path := range []string{
 			"/prod/stacks/A",
 			"/prod/stacks/B",
@@ -102,15 +111,29 @@ func TestCreateWithAllTerraformModuleDeepDownInTheTree(t *testing.T) {
 			} else {
 				errtest.Assert(t, err, os.ErrNotExist)
 			}
+
+			stTree, ok := root.Lookup(project.NewPath(path))
+			assert.IsTrue(t, ok)
+			stack, err := stTree.Stack()
+			assert.NoError(t, err)
+			assert.EqualInts(t, len(tags), len(stack.Tags))
+			sort.Strings(stack.Tags)
+			for i, tag := range tags {
+				assert.EqualStrings(t, tag, stack.Tags[i])
+			}
 		}
 	}
 
 	t.Run("with generation", func(t *testing.T) {
-		test(t, true)
+		test(t, true, []string{})
 	})
 
 	t.Run("without generation", func(t *testing.T) {
-		test(t, false)
+		test(t, false, []string{})
+	})
+
+	t.Run("with tags", func(t *testing.T) {
+		test(t, false, []string{"tag1", "tag2"})
 	})
 }
 

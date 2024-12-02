@@ -32,7 +32,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     For further details, see [documentation](https://terramate.io/docs/cli/telemetry).
   - Can be turned off by setting `terramate.config.telemetry.enabled = false` in the project configuration,
     or by setting `disable_telemetry = true` in the user configuration.
-- Add `create --all-terragrunt --tags a,b,c` for creating stacks with the given tags.
+- Add `create --all-terragrunt --tags a,b,c` for creating all discovered Terragrunt stacks with the given tags.
+- Add `create --all-terraform --tags a,b,c` for creating all discovered Terraform stacks with the given tags.
 
 ### Fixed
 
