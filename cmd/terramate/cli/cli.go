@@ -708,7 +708,7 @@ func (c *cli) run() {
 		c.createStack()
 		c.waitForAnalytics()
 	case "create":
-		c.initAnalytics("create",
+		c.initAndSendAnalytics("create",
 			tel.BoolFlag("all-terragrunt", c.parsedArgs.Create.AllTerragrunt),
 			tel.BoolFlag("all-terraform", c.parsedArgs.Create.AllTerraform),
 		)
