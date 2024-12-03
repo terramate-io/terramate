@@ -565,6 +565,97 @@ func TestTerragruntScanModules(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "nested Terraform modules",
+			layout: []string{
+				`f:terragrunt/terragrunt.hcl:` + Doc(
+					Block("remote_state",
+						Expr("generate", `{"path": "backend.tf", if_exists: "overwrite_terragrunt"}`),
+					),
+					Block("backend",
+						Labels("provider"),
+						Str("path", "provider.tf"),
+						Str("if_exists", "overwrite_terragrunt"),
+						Str("content", "a"),
+					),
+				).String(),
+				`f:terragrunt/dev/a1/b1/terragrunt.hcl:` + Doc(
+					Terraform(
+						Str("source", "https://some.etc/prj"),
+					),
+					Expr("inputs", `[]`),
+				).String(),
+				`f:terragrunt/dev/a2/b2/c2_1/d2/terragrunt.hcl:` + Doc(
+					Terraform(
+						Str("source", "https://some.etc/prj"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../../../../a1/b1"]`),
+					),
+					Block("dependency", Labels("b1"),
+						Str("config_path", "../../../../a1/b1"),
+						Expr("mock_outputs_allowed_terraform_commands", `["validate", "plan", "refresh"]`),
+						Str("mock_outputs_merge_strategy_with_state", "shallow"),
+					),
+				).String(),
+				`f:terragrunt/dev/a2/b2/c2_2/terragrunt.hcl:` + Doc(
+					Terraform(
+						Str("source", "https://some.etc/prj"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../c2_3", "../../../a1/b1"]`),
+					),
+					Block("dependency", Labels("c2_3"),
+						Str("config_path", "../c2_3"),
+						Expr("mock_outputs_allowed_terraform_commands", `["validate", "plan", "refresh"]`),
+						Str("mock_outputs_merge_strategy_with_state", "shallow"),
+					),
+					Expr("inputs", `[]`),
+				).String(),
+				`f:terragrunt/dev/a2/b2/c2_3/terragrunt.hcl:` + Doc(
+					Terraform(
+						Str("source", "https://some.etc/prj"),
+					),
+				).String(),
+			},
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/terragrunt/dev/a1/b1"),
+						ConfigFile: project.NewPath("/terragrunt/dev/a1/b1/terragrunt.hcl"),
+						Source:     "https://some.etc/prj",
+					},
+					{
+						Path:       project.NewPath("/terragrunt/dev/a2/b2/c2_1/d2"),
+						ConfigFile: project.NewPath("/terragrunt/dev/a2/b2/c2_1/d2/terragrunt.hcl"),
+						Source:     "https://some.etc/prj",
+						After: project.Paths{
+							project.NewPath("/terragrunt/dev/a1/b1"),
+						},
+						DependsOn: project.Paths{
+							project.NewPath("/terragrunt/dev/a1/b1"),
+						},
+					},
+					{
+						Path:       project.NewPath("/terragrunt/dev/a2/b2/c2_2"),
+						ConfigFile: project.NewPath("/terragrunt/dev/a2/b2/c2_2/terragrunt.hcl"),
+						Source:     "https://some.etc/prj",
+						After: project.Paths{
+							project.NewPath("/terragrunt/dev/a1/b1"),
+							project.NewPath("/terragrunt/dev/a2/b2/c2_3"),
+						},
+						DependsOn: project.Paths{
+							project.NewPath("/terragrunt/dev/a2/b2/c2_3"),
+						},
+					},
+					{
+						Path:       project.NewPath("/terragrunt/dev/a2/b2/c2_3"),
+						ConfigFile: project.NewPath("/terragrunt/dev/a2/b2/c2_3/terragrunt.hcl"),
+						Source:     "https://some.etc/prj",
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

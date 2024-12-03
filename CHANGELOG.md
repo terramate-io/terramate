@@ -42,6 +42,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Improve the error reporting of the Outputs Sharing feature.
 - Fix crash in the Terragrunt integration when the project had modules with dependency paths outside the current Terramate project.
   - A warning will be shown for such configurations.
+- Fix the Terragrunt scanner not supporting nested modules.
 
 ## v0.11.3
 
