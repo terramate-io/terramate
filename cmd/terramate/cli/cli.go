@@ -708,7 +708,7 @@ func (c *cli) run() {
 		c.createStack()
 		c.waitForAnalytics()
 	case "create":
-		c.initAnalytics("create",
+		c.initAndSendAnalytics("create",
 			tel.BoolFlag("all-terragrunt", c.parsedArgs.Create.AllTerragrunt),
 			tel.BoolFlag("all-terraform", c.parsedArgs.Create.AllTerraform),
 		)
@@ -1605,6 +1605,7 @@ func (c *cli) initTerragrunt() {
 		if err != nil {
 			fatalWithDetailf(err, "creating stack UUID")
 		}
+
 		after := []string{}
 		for _, otherMod := range mod.After.Strings() {
 			// Parent stack modules must be excluded because of implicit filesystem ordering.
@@ -1622,11 +1623,18 @@ func (c *cli) initTerragrunt() {
 			}
 			after = append(after, otherMod)
 		}
+
+		var tags []string
+		for _, tag := range c.parsedArgs.Tags {
+			tags = append(tags, strings.Split(tag, ",")...)
+		}
+
 		stackSpec := config.Stack{
 			Dir:         mod.Path,
 			ID:          stackID.String(),
 			Name:        dirBasename,
 			Description: dirBasename,
+			Tags:        tags,
 			After:       after,
 		}
 
@@ -1693,6 +1701,11 @@ func (c *cli) initTerraformDir(baseDir string) error {
 		fatalWithDetailf(err, "unable to read directory while listing directory entries")
 	}
 
+	var tags []string
+	for _, tag := range c.parsedArgs.Tags {
+		tags = append(tags, strings.Split(tag, ",")...)
+	}
+
 	errs := errors.L()
 	for _, f := range dirs {
 		path := filepath.Join(baseDir, f.Name())
@@ -1733,6 +1746,7 @@ func (c *cli) initTerraformDir(baseDir string) error {
 			ID:          stackID.String(),
 			Name:        dirBasename,
 			Description: dirBasename,
+			Tags:        tags,
 		}
 
 		err = stack.Create(c.cfg(), stackSpec)

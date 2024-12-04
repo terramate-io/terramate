@@ -6,9 +6,13 @@ package core_test
 import (
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test/hclwrite"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
@@ -19,6 +23,7 @@ func TestCreateAllTerragrunt(t *testing.T) {
 	type testcase struct {
 		name      string
 		layout    []string
+		tags      []string
 		wd        string
 		want      RunExpected
 		wantOrder []string
@@ -54,6 +59,25 @@ func TestCreateAllTerragrunt(t *testing.T) {
 				Stdout: nljoin("Created stack /"),
 			},
 			wantOrder: []string{"."},
+		},
+		{
+			name: "terragrunt modules with tags",
+			layout: []string{
+				hclfile("stacks/a/terragrunt.hcl", Block("terraform",
+					Str("source", "github.com/some/repo"),
+				)),
+				hclfile("stacks/b/terragrunt.hcl", Block("terraform",
+					Str("source", "github.com/some/repo"),
+				)),
+				hclfile("stacks/c/terragrunt.hcl", Block("terraform",
+					Str("source", "github.com/some/repo"),
+				)),
+			},
+			tags: []string{"terragrunt", "terraform"},
+			want: RunExpected{
+				Stdout: nljoin("Created stack /stacks/a", "Created stack /stacks/b", "Created stack /stacks/c"),
+			},
+			wantOrder: []string{"stacks/a", "stacks/b", "stacks/c"},
 		},
 		{
 			name: "terragrunt module at /dir but terraform.source imported from /_common",
@@ -506,7 +530,11 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 			tm := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			res := tm.Run("create", "--all-terragrunt")
+			args := []string{"create", "--all-terragrunt"}
+			if len(tc.tags) > 0 {
+				args = append(args, "--tags", strings.Join(tc.tags, ","))
+			}
+			res := tm.Run(args...)
 			AssertRunResult(t,
 				res,
 				tc.want,
@@ -517,6 +545,35 @@ func TestCreateAllTerragrunt(t *testing.T) {
 				AssertRunResult(t, res, RunExpected{
 					Stdout: nljoin(tc.wantOrder...),
 				})
+
+				if len(tc.tags) == 0 {
+					return
+				}
+
+				// check if tags are present
+				root := s.ReloadConfig()
+				rootTree := root.Tree()
+				if tc.wd != "" {
+					if !filepath.IsAbs(tc.wd) {
+						tc.wd = filepath.Join(s.RootDir(), tc.wd)
+					}
+					rootTree, _ = root.Lookup(project.PrjAbsPath(s.RootDir(), tc.wd))
+				}
+
+				assert.EqualInts(t, len(tc.wantOrder), len(rootTree.Stacks()))
+
+				for _, tree := range rootTree.Stacks() {
+					st, err := tree.Stack()
+					assert.NoError(t, err)
+
+					assert.EqualInts(t, len(tc.tags), len(st.Tags))
+
+					for _, tag := range tc.tags {
+						if !slices.Contains(st.Tags, tag) {
+							t.Errorf("stack %s does not have tag %s", st.Dir, tag)
+						}
+					}
+				}
 			}
 		})
 	}

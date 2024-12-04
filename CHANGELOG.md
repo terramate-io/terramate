@@ -20,7 +20,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.11.4
 
 ### Added
 
@@ -32,6 +32,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     For further details, see [documentation](https://terramate.io/docs/cli/telemetry).
   - Can be turned off by setting `terramate.config.telemetry.enabled = false` in the project configuration,
     or by setting `disable_telemetry = true` in the user configuration.
+- Add `create --all-terragrunt --tags a,b,c` for creating all discovered Terragrunt stacks with the given tags.
+- Add `create --all-terraform --tags a,b,c` for creating all discovered Terraform stacks with the given tags.
 
 ### Fixed
 
@@ -40,6 +42,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Improve the error reporting of the Outputs Sharing feature.
 - Fix crash in the Terragrunt integration when the project had modules with dependency paths outside the current Terramate project.
   - A warning will be shown for such configurations.
+- Fix the Terragrunt scanner not supporting nested modules.
 
 ## v0.11.3
 
