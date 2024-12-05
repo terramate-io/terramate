@@ -544,7 +544,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "stack-b after stack-a after parent (fs ordering disabled)",
+			name: "stack-b after stack-a after parent - fs ordering disabled",
 			layout: []string{
 				`s:parent/stack-b:after=["/parent/stack-a"]`,
 				`s:parent/stack-a`,
@@ -938,7 +938,7 @@ func TestCLIRunOrder(t *testing.T) {
 					copy(copiedLayout, tc.layout)
 					if tc.fsOrderingDisabled {
 						copiedLayout = append(copiedLayout,
-							fmt.Sprintf("file:disable_fs_ordering:%s", Terramate(
+							fmt.Sprintf("f:disable_fs_ordering.tm:%s", Terramate(
 								Config(
 									Block("order_of_execution",
 										Bool("nested", false),

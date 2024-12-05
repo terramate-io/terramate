@@ -106,6 +106,10 @@ func buildValidStackDAG[S ~[]E, E any](
 		Str("root", root.HostDir()).
 		Logger()
 
+	slices.SortStableFunc(items, func(a, b E) int {
+		return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
+	})
+
 	if isFsOrderingEnabled(root) {
 		isParentStack := func(s1, s2 *config.Stack) bool {
 			return s1.Dir.HasPrefix(s2.Dir.String() + "/")
@@ -114,10 +118,6 @@ func buildValidStackDAG[S ~[]E, E any](
 		getStackDir := func(s E) string {
 			return getStack(s).Dir.String()
 		}
-
-		slices.SortStableFunc(items, func(a, b E) int {
-			return strings.Compare(getStack(a).Dir.String(), getStack(b).Dir.String())
-		})
 
 		for _, a := range items {
 			for _, b := range items {
