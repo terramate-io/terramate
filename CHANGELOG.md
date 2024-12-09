@@ -86,6 +86,17 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
   - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
 
+## v0.10.9
+
+### Added
+
+- Add support for dot (`.`) in the tag syntax.
+  - Now you can add tags like `v1.0.0-abc_xyz`
+
+### Changed
+
+- The **Outputs Sharing** feature now has no default value for the `sensitive` field of `input` and `output` blocks.
+
 ## v0.10.8
 
 ### Fixed
@@ -178,6 +189,15 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for generating files relative to working directory. Both examples below only generate files inside `some/dir`:
   - `terramate -C some/dir generate`
   - `cd some/dir && terramate generate`
+
+## v0.9.5
+
+### Fixed
+
+- Fix the repository normalization for Gitlab subgroups.
+  - Now it supports repository URLs like `https://gitlab.com/my-company-name/my-group-name/my-other-group/repo-name`.
+- Fix a deadlock in the `terramate run` and `terramate script run` parallelism by
+  releasing the resources in case of errors or if dry-run mode is enabled.
 
 ## v0.9.4
 
@@ -297,6 +317,18 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Tested
 
 - Issue a test-only release that includes everything that was published in v0.6.5
+
+## v0.6.7
+
+### Fixed
+
+- Fix potential crash when trying to obtain the pull request metadata associated with a Github repository.
+
+## v0.6.6
+
+### Fixed
+
+- Fix issue with handling paginated responses from Github API when retrieving review and GHA action metadata.
 
 ## v0.6.5
 
@@ -464,6 +496,23 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Fix a panic in language server with a project containing errors on root directory
 - Fix the execution order when using `tag` filter in `after/before` in conjunction with implicit order for nested stacks. (BREAKING CHANGE)
 - Fix escape sequences being interpreted in heredocs (issue #1449)
+
+## v0.4.8
+
+### Fixed
+
+- Fixed inconsistency in `stack.id` case-sensitivity when `--cloud-sync-*` flags are used.
+
+### Changed
+
+- Reverted change in the previous release because the fix didn't address all cases.
+
+## v0.4.7
+
+### Fixed
+
+- Remove lowercase validation from `stack.meta_id` (`stack.id` in the stack block)
+  - This would allow users to sync stacks to Terramate Cloud with upper case characters in the `stack.id` attribute.
 
 ## v0.4.6
 
