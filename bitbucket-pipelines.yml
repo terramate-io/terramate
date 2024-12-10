@@ -1,0 +1,8 @@
+image: atlassian/default-image:3
+
+pipelines:
+  default:
+    - step:
+        name: 'Build and Test'
+        script:
+          - make test
