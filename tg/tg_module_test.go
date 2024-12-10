@@ -477,6 +477,32 @@ func TestTerragruntScanModules(t *testing.T) {
 			},
 		},
 		{
+			name: "module reading file in same dir",
+			layout: []string{
+				`f:abc/terragrunt.hcl:` + Doc(
+					Block("terraform",
+						Str("source", "https://some.etc/prj"),
+					),
+					Block("locals",
+						Expr("hello", `file("hello.txt")`),
+					),
+				).String(),
+				`f:abc/hello.txt:world`,
+			},
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/abc"),
+						Source:     "https://some.etc/prj",
+						ConfigFile: project.NewPath("/abc/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/abc/hello.txt"),
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "module reading non-existent file",
 			layout: []string{
 				`f:abc/terragrunt.hcl:` + Doc(

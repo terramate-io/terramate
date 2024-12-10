@@ -23,12 +23,12 @@ package tg
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/rs/zerolog/log"
 	tmerrors "github.com/terramate-io/terramate/errors"
 
 	"github.com/gruntwork-io/go-commons/errors"
@@ -236,17 +236,33 @@ func tgFileFuncImpl(_ *tgconfig.ParsingContext, rootdir string, mod *Module) fun
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			basedir := filepath.Join(rootdir, filepath.FromSlash(mod.Path.String()))
 			path := args[0].AsString()
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(basedir, path)
-			}
-			if path != rootdir && !strings.HasPrefix(path, rootdir+string(filepath.Separator)) {
+
+			logger := log.With().
+				Str("action", "terragrunt::file()").
+				Stringer("module", mod.Path).
+				Stringer("module-confile", mod.ConfigFile).
+				Str("basedir", basedir).
+				Str("path", path).
+				Logger()
+
+			logger.Debug().Msg("Terragrunt file() function called")
+
+			src, newpath, err := readFileBytes(basedir, path)
+
+			if newpath != rootdir && !strings.HasPrefix(newpath, rootdir+string(filepath.Separator)) {
 				printer.Stderr.WarnWithDetails("Terramate change detection cannot track files outside the project. Ignoring",
-					tmerrors.E("The file(%q) is outside project root %q", path, rootdir),
+					tmerrors.E("The file(%q) is outside project root %q", newpath, rootdir),
 				)
-			} else {
-				mod.DependsOn = append(mod.DependsOn, project.PrjAbsPath(rootdir, path))
 			}
-			src, err := readFileBytes(basedir, path)
+
+			// keep track of the dependency file only if newpath is computed.
+			// we ignore errors here because the file might not exist.
+			if newpath != "" {
+				mod.DependsOn = append(mod.DependsOn, project.PrjAbsPath(rootdir, newpath))
+
+				logger.Debug().Str("newpath", newpath).Msg("path computed as a dependency of module")
+			}
+
 			if err != nil {
 				err = function.NewArgError(0, err)
 				return cty.UnknownVal(cty.String), err
@@ -255,35 +271,36 @@ func tgFileFuncImpl(_ *tgconfig.ParsingContext, rootdir string, mod *Module) fun
 			if !utf8.Valid(src) {
 				return cty.UnknownVal(cty.String), fmt.Errorf("contents of %s are not valid UTF-8; use the filebase64 function to obtain the Base64 encoded contents or the other file functions (e.g. filemd5, filesha256) to obtain file hashing results instead", path)
 			}
+
 			return cty.StringVal(string(src)), nil
 		},
 	})
 }
 
-func readFileBytes(baseDir, path string) ([]byte, error) {
-	path, err := homedir.Expand(path)
+func readFileBytes(baseDir, path string) (data []byte, abspath string, err error) {
+	abspath, err = homedir.Expand(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand ~: %s", err)
+		return nil, "", fmt.Errorf("failed to expand ~: %s", err)
 	}
 
 	if !filepath.IsAbs(path) {
-		path = filepath.Join(baseDir, path)
+		abspath = filepath.Join(baseDir, abspath)
 	}
 
 	// Ensure that the path is canonical for the host OS
-	path = filepath.Clean(path)
+	abspath = filepath.Clean(abspath)
 
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(abspath)
 	if err != nil {
 		// ReadFile does not return Terraform-user-friendly error
 		// messages, so we'll provide our own.
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no file exists at %s; this function works only with files that are distributed as part of the configuration source code, so if this file will be created by a resource in this configuration you must instead obtain this result from an attribute of that resource", path)
+			return nil, abspath, fmt.Errorf("no file exists at %s; this function works only with files that are distributed as part of the configuration source code, so if this file will be created by a resource in this configuration you must instead obtain this result from an attribute of that resource", path)
 		}
-		return nil, fmt.Errorf("failed to read %s", path)
+		return nil, abspath, fmt.Errorf("failed to read %s", path)
 	}
 
-	return src, nil
+	return src, abspath, nil
 }
 
 // getCleanedTargetConfigPath returns a cleaned path to the target config (the `terragrunt.hcl` or
