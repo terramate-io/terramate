@@ -66,6 +66,13 @@ func OrgUUID(orgUUID cloud.UUID) MessageOpt {
 	}
 }
 
+// AuthUser sets the auth user.
+func AuthUser(authUser cloud.UUID) MessageOpt {
+	return func(msg *Message) {
+		msg.AuthUser = string(authUser)
+	}
+}
+
 // DetectFromEnv detects platform, auth type, signature, architecture and OS from the environment.
 func DetectFromEnv(credfile, cpsigfile, anasigfile string) MessageOpt {
 	return func(msg *Message) {

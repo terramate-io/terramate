@@ -70,6 +70,8 @@ const (
 type Message struct {
 	Platform PlatformType `json:"platform,omitempty"`
 	Auth     AuthType     `json:"auth,omitempty"`
+	// AuthUser is the TMC user UUID.
+	AuthUser string `json:"auth_user,omitempty"`
 
 	Signature string `json:"signature,omitempty"`
 	OrgName   string `json:"org_name,omitempty"`
