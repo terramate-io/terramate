@@ -24,15 +24,28 @@ import (
 // PlatformType is the CI/CD platform.
 type PlatformType int
 
+// nolint:revive
 const (
 	// PlatformLocal represents the local user environment.
 	PlatformLocal PlatformType = iota
-	// PlatformGithub is the GitHub Actions platform.
 	PlatformGithub
-	// PlatformGitlab is the GitLab CI platform.
 	PlatformGitlab
-	// PlatformGenericCI is a generic CI/CD platform.
 	PlatformGenericCI
+	PlatformAppVeyor
+	PlatformAzureDevops
+	PlatformBamboo
+	PlatformBitBucket
+	PlatformBuddyWorks
+	PlatformBuildKite
+	PlatformCircleCI
+	PlatformCirrus
+	PlatformCodeBuild
+	PlatformHeroku
+	PlatformHudson
+	PlatformJenkins
+	PlatformMyGet
+	PlatformTeamCity
+	PlatformTravis
 )
 
 // AuthType is the authentication method that was used.
@@ -77,6 +90,36 @@ func DetectPlatformFromEnv() PlatformType {
 		return PlatformGithub
 	} else if isEnvVarSet("GITLAB_CI") {
 		return PlatformGitlab
+	} else if isEnvVarSet("BITBUCKET_BUILD_NUMBER") {
+		return PlatformBitBucket
+	} else if isEnvVarSet("TF_BUILD") {
+		return PlatformAzureDevops
+	} else if isEnvVarSet("APPVEYOR") {
+		return PlatformAppVeyor
+	} else if isEnvVarSet("bamboo.buildKey") {
+		return PlatformBamboo
+	} else if isEnvVarSet("BUDDY") {
+		return PlatformBuddyWorks
+	} else if isEnvVarSet("BUILDKITE") {
+		return PlatformBuildKite
+	} else if isEnvVarSet("CIRCLECI") {
+		return PlatformCircleCI
+	} else if isEnvVarSet("CIRRUS_CI") {
+		return PlatformCirrus
+	} else if isEnvVarSet("CODEBUILD_CI") {
+		return PlatformCodeBuild
+	} else if isEnvVarSet("HEROKU_TEST_RUN_ID") {
+		return PlatformHeroku
+	} else if strings.HasPrefix(os.Getenv("BUILD_TAG"), "hudson-") {
+		return PlatformHudson
+	} else if isEnvVarSet("JENKINS_URL") {
+		return PlatformJenkins
+	} else if os.Getenv("BuildRunner") == "MyGet" {
+		return PlatformMyGet
+	} else if isEnvVarSet("TEAMCITY_VERSION") {
+		return PlatformTeamCity
+	} else if isEnvVarSet("TRAVIS") {
+		return PlatformTravis
 	} else if isEnvVarSet("CI") {
 		return PlatformGenericCI
 	}
