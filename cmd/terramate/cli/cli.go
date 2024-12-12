@@ -873,11 +873,16 @@ func (c *cli) initAnalytics(cmd string, opts ...tel.MessageOpt) {
 	anasigfile := filepath.Join(c.clicfg.UserTerramateDir, "analytics_signature")
 	credfile := filepath.Join(c.clicfg.UserTerramateDir, credfile)
 
+	var repo *git.Repository
+	if c.prj.isRepo {
+		repo, _ = c.prj.repo()
+	}
+
 	r := tel.DefaultRecord
 	r.Set(
 		tel.Command(cmd),
 		tel.OrgName(c.cloudOrgName()),
-		tel.DetectFromEnv(credfile, cpsigfile, anasigfile),
+		tel.DetectFromEnv(credfile, cpsigfile, anasigfile, repo),
 		tel.StringFlag("chdir", c.parsedArgs.Chdir),
 	)
 	r.Set(opts...)

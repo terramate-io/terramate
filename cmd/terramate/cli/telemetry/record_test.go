@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test/sandbox"
 
 	. "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
@@ -33,12 +34,18 @@ func TestRecordLifecycle(t *testing.T) {
 	cpsigfile := filepath.Join(s.RootDir(), "userdir/checkpoint_signature")
 	anasigfile := filepath.Join(s.RootDir(), "userdir/analytics_signature")
 
+	repo := &git.Repository{
+		Owner: "owner",
+	}
+
 	// Create a record and set data.
 	rec := NewRecord()
 	rec.Set(
 		Command("my-command"),
 		OrgName("hello-org"),
-		DetectFromEnv(credfile, cpsigfile, anasigfile),
+		OrgUUID("b1a15394-e622-4a88-9e01-25b3cdc1d28e"),
+		DetectFromEnv(credfile, cpsigfile, anasigfile, repo),
+		AuthUser("1234567"),
 		BoolFlag("flag1", true),
 		BoolFlag("flag2", false),
 		StringFlag("flag3", "something"),
@@ -72,6 +79,7 @@ func TestRecordLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.EqualInts(t, int(PlatformGithub), int(gotMsg.Platform))
+	assert.EqualStrings(t, "owner", gotMsg.PlatformUser)
 
 	assert.EqualStrings(t, "a1a15394-e622-4a88-9e01-25b3cdc1d28f", gotMsg.Signature)
 
@@ -80,6 +88,7 @@ func TestRecordLifecycle(t *testing.T) {
 
 	assert.EqualStrings(t, "my-command", gotMsg.Command)
 	assert.EqualStrings(t, "hello-org", gotMsg.OrgName)
+	assert.EqualStrings(t, "b1a15394-e622-4a88-9e01-25b3cdc1d28e", gotMsg.OrgUUID)
 
 	if diff := cmp.Diff([]string{"flag1", "flag3", "flag5"}, gotMsg.Details); diff != "" {
 		t.Errorf("unexpected flag details: %s", diff)

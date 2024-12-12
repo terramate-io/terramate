@@ -11,6 +11,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test/sandbox"
 
 	. "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
@@ -34,9 +35,55 @@ func TestDetectPlatformFromEnv(t *testing.T) {
 					t.Setenv(k2, "")
 				}
 			}
-			assert.EqualInts(t, int(want), int(DetectPlatformFromEnv()))
+			platform, user := DetectPlatformFromEnv(nil)
+			assert.EqualInts(t, int(want), int(platform))
+			assert.EqualStrings(t, "", user)
 		})
 	}
+
+	t.Run("Github user", func(t *testing.T) {
+		for k := range tests {
+			if k != "GITHUB_ACTIONS" {
+				t.Setenv(k, "")
+			}
+		}
+		t.Setenv("GITHUB_ACTIONS", "1")
+		repo := &git.Repository{
+			Owner: "github-owner",
+		}
+		_, user := DetectPlatformFromEnv(repo)
+		assert.EqualStrings(t, "github-owner", user)
+	})
+
+	t.Run("Gitlab user", func(t *testing.T) {
+		for k := range tests {
+			if k != "GITLAB_CI" {
+				t.Setenv(k, "")
+			}
+		}
+		t.Setenv("GITLAB_CI", "1")
+		repo := &git.Repository{
+			Owner: "gitlab-owner",
+		}
+		_, user := DetectPlatformFromEnv(repo)
+		assert.EqualStrings(t, "gitlab-owner", user)
+	})
+
+	t.Run("Bitbucket user", func(t *testing.T) {
+		for k := range tests {
+			if k != "BITBUCKET_BUILD_NUMBER" {
+				t.Setenv(k, "")
+			}
+		}
+
+		t.Setenv("BITBUCKET_BUILD_NUMBER", "123")
+		t.Setenv("BITBUCKET_WORKSPACE", "bitbucket-owner")
+		repo := &git.Repository{
+			Owner: "not-used",
+		}
+		_, user := DetectPlatformFromEnv(repo)
+		assert.EqualStrings(t, "bitbucket-owner", user)
+	})
 }
 
 func TestDetectAuthTypeFromEnv(t *testing.T) {
