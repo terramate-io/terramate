@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"slices"
 	"sync"
+
+	"github.com/terramate-io/terramate/cloud"
 )
 
 // Record is used to aggregate telemetry data over the runtime of the application.
@@ -54,6 +56,13 @@ func Command(cmd string) MessageOpt {
 func OrgName(orgName string) MessageOpt {
 	return func(msg *Message) {
 		msg.OrgName = orgName
+	}
+}
+
+// OrgUUID sets the organization uuid.
+func OrgUUID(orgUUID cloud.UUID) MessageOpt {
+	return func(msg *Message) {
+		msg.OrgUUID = string(orgUUID)
 	}
 }
 

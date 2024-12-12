@@ -73,6 +73,7 @@ type Message struct {
 
 	Signature string `json:"signature,omitempty"`
 	OrgName   string `json:"org_name,omitempty"`
+	OrgUUID   string `json:"org_uuid,omitempty"`
 
 	Arch string `json:"arch,omitempty"`
 	OS   string `json:"os,omitempty"`
