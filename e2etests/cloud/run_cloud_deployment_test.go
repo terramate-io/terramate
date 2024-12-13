@@ -1015,8 +1015,13 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 type credential struct{}
 
-func (c *credential) Token() (string, error) {
-	return "abcd", nil
+func (c *credential) ApplyCredentials(req *http.Request) error {
+	req.Header.Set("Authorization", "Bearer abcd")
+	return nil
+}
+
+func (c *credential) RedactCredentials(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer REDACTED")
 }
 
 type eventsResponse map[string][]string

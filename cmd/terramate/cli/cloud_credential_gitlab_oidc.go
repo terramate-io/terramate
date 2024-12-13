@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -71,6 +72,10 @@ func (g *gitlabOIDC) Load() (bool, error) {
 	return true, g.fetchDetails()
 }
 
+func (g *gitlabOIDC) HasExpiration() bool {
+	return true
+}
+
 func (g *gitlabOIDC) Name() string {
 	return gitlabOIDCProviderName
 }
@@ -109,6 +114,19 @@ func (g *gitlabOIDC) Token() (string, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return g.token, nil
+}
+
+func (g *gitlabOIDC) ApplyCredentials(req *http.Request) error {
+	token, err := g.Token()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	return nil
+}
+
+func (g *gitlabOIDC) RedactCredentials(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer REDACTED")
 }
 
 // Validate if the credential is ready to be used.

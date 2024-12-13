@@ -5,6 +5,7 @@ package cloud
 
 import (
 	"context"
+	"net/http"
 	"path"
 
 	"testing"
@@ -34,4 +35,9 @@ func PutStack(t *testing.T, addr string, orgUUID cloud.UUID, st cloud.StackObjec
 
 type credential struct{}
 
-func (c *credential) Token() (string, error) { return "abcd", nil }
+func (c *credential) ApplyCredentials(req *http.Request) error {
+	req.Header.Set("Authorization", "Bearer abcd")
+	return nil
+}
+
+func (c *credential) RedactCredentials(req *http.Request) {}

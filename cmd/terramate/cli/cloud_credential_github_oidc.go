@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
 	"net/url"
 	"os"
 	"sync"
@@ -80,6 +81,10 @@ func (g *githubOIDC) Load() (bool, error) {
 
 func (g *githubOIDC) Name() string {
 	return githubOIDCProviderName
+}
+
+func (g *githubOIDC) HasExpiration() bool {
+	return true
 }
 
 func (g *githubOIDC) IsExpired() bool {
@@ -177,11 +182,22 @@ func (g *githubOIDC) Token() (string, error) {
 	return g.token, nil
 }
 
+func (g *githubOIDC) ApplyCredentials(req *http.Request) error {
+	token, err := g.Token()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	return nil
+}
+
+func (g *githubOIDC) RedactCredentials(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer REDACTED")
+}
+
 // Validate if the credential is ready to be used.
 func (g *githubOIDC) fetchDetails() error {
-	const apiTimeout = 5 * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 	orgs, err := g.client.MemberOrganizations(ctx)
 	if err != nil {

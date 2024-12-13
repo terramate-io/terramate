@@ -503,7 +503,7 @@ func (g *googleCredential) Refresh() (err error) {
 		}()
 	}
 
-	const oidcTimeout = 3 // seconds
+	const oidcTimeout = 60 // seconds
 	const refreshTokenURL = "https://securetoken.googleapis.com/v1/token"
 
 	type RequestBody struct {
@@ -574,6 +574,10 @@ func (g *googleCredential) Refresh() (err error) {
 	}, g.clicfg)
 }
 
+func (g *googleCredential) HasExpiration() bool {
+	return true
+}
+
 func (g *googleCredential) Claims() jwt.MapClaims {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -601,6 +605,19 @@ func (g *googleCredential) Token() (string, error) {
 	return g.token, nil
 }
 
+func (g *googleCredential) ApplyCredentials(req *http.Request) error {
+	token, err := g.Token()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	return nil
+}
+
+func (g *googleCredential) RedactCredentials(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer REDACTED")
+}
+
 func (g *googleCredential) fetchDetails() error {
 	var (
 		err  error
@@ -609,7 +626,7 @@ func (g *googleCredential) fetchDetails() error {
 	)
 
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
 		orgs, err = g.client.MemberOrganizations(ctx)
 	}()
@@ -619,7 +636,7 @@ func (g *googleCredential) fetchDetails() error {
 	}
 
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
 		user, err = g.client.Users(ctx)
 	}()

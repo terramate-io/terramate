@@ -79,6 +79,7 @@ type (
 	// Member represents the organization member.
 	Member struct {
 		UserUUID cloud.UUID `json:"user_uuid"`
+		APIKey   string     `json:"apikey"`
 		Role     string     `json:"role"`
 		Status   string     `json:"status"`
 		MemberID int64      // implicit from the members list position index.
@@ -239,6 +240,28 @@ outer:
 	for _, org := range d.Orgs {
 		for _, member := range org.Members {
 			if member.UserUUID == user.UUID {
+				orgCopy := org
+				member.Org = &orgCopy
+				memberships = append(memberships, member)
+				continue outer
+			}
+		}
+	}
+	sort.Slice(memberships, func(i, j int) bool {
+		return memberships[i].Org.Name < memberships[j].Org.Name
+	})
+	return memberships
+}
+
+// GetMemberships returns the organizations that user is member of.
+func (d *Data) GetMembershipsForKey(key string) []Member {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	var memberships []Member
+outer:
+	for _, org := range d.Orgs {
+		for _, member := range org.Members {
+			if member.APIKey == key {
 				orgCopy := org
 				member.Org = &orgCopy
 				memberships = append(memberships, member)
