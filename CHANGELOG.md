@@ -24,7 +24,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
-- Add support for Terramate Cloud API keys.
+- Add support for Terramate Cloud API keys for machine-to-machine communication.
+  - You can connect to Terramate Cloud using API keys exported as `TMC_TOKEN` environment variable.
 
 ## v0.11.4
 
