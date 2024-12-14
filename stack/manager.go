@@ -36,6 +36,7 @@ type (
 		}
 	}
 
+	// ChangeConfig is the configuration for the ListChanged method.
 	ChangeConfig struct {
 		BaseRef            string
 		UncommittedChanges *bool
@@ -104,7 +105,7 @@ func (m *Manager) List(checkRepo bool) (*Report, error) {
 		return report, nil
 	}
 
-	report.Checks, err = checkRepoIsClean(m.root.HostDir(), m.git)
+	report.Checks, err = checkRepoIsClean(m.git)
 	if err != nil {
 		return nil, errors.E(errList, err)
 	}
@@ -130,7 +131,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		)
 	}
 
-	checks, err := checkRepoIsClean(m.root.HostDir(), m.git)
+	checks, err := checkRepoIsClean(m.git)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -762,7 +763,7 @@ func hasChangedWatchedFiles(stack *config.Stack, changedFiles project.Paths) (pr
 	return project.Path{}, false
 }
 
-func checkRepoIsClean(rootdir string, g *git.Git) (RepoChecks, error) {
+func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 	untracked, uncommitted, err := g.ListDirtyFiles()
 	if err != nil {
 		return RepoChecks{}, errors.E(err, "listing dirty files")

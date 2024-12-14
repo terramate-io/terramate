@@ -30,11 +30,15 @@ type (
 )
 
 const (
-	OK           Status = 1 << iota // OK status is used when the stack ran successfully.
-	Drifted                         // Drifted status is used when a stack definition is different from that of the current status.
-	Failed                          // Failed status indicates the deployment of the stack failed.
-	Unrecognized                    // Unrecognized indicates any status returned from TMC but still not recognized by the client.
-	lastStatus   = Unrecognized
+	// OK status is used when the stack ran successfully.
+	OK Status = 1 << iota
+	// Drifted status is used when a stack definition is different from that of the current status.
+	Drifted
+	// Failed status indicates the deployment of the stack failed.
+	Failed
+	// Unrecognized indicates any status returned from TMC but still not recognized by the client.
+	Unrecognized
+	lastStatus = Unrecognized
 )
 
 const (

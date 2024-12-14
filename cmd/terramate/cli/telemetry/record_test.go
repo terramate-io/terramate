@@ -59,8 +59,7 @@ func TestRecordLifecycle(t *testing.T) {
 		Client: cl,
 	})
 
-	rec.WaitForSend()
-
+	assert.NoError(t, rec.WaitForSend())
 	assert.EqualInts(t, 1, len(tr.receivedReqs))
 
 	req := tr.receivedReqs[0]

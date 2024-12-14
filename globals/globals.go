@@ -369,13 +369,6 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 						}
 					}
 
-					min := func(a, b int) int {
-						if a < b {
-							return a
-						}
-						return b
-					}
-
 					for accessPath := range pendingExprs {
 						found := true
 						accessPathPaths := accessPath.Path()

@@ -30,12 +30,18 @@ type (
 )
 
 const (
-	OK           Status = 1 << iota // OK status is used when the stack ran successfully.
-	Pending                         // Pending is a temporary status set when the deployment is about to commence.
-	Running                         // Running is a temporary status as part of an still ongoing deployment.
-	Failed                          // Failed status indicates the deployment of the stack failed.
-	Canceled                        // Canceled indicates the deployment of the stack was canceled.
-	Unrecognized                    // Unrecognized indicates any deployment status returned from TMC but not recognized by this client version.
+	// OK status is used when the stack ran successfully.
+	OK Status = 1 << iota
+	// Pending is a temporary status set when the deployment is about to commence.
+	Pending
+	// Running is a temporary status as part of an still ongoing deployment.
+	Running
+	// Failed status indicates the deployment of the stack failed.
+	Failed
+	// Canceled indicates the deployment of the stack was canceled.
+	Canceled
+	// Unrecognized indicates any deployment status returned from TMC but not recognized by this client version.
+	Unrecognized
 	lastStatus
 )
 
