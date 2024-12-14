@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	// embed the help template
 	_ "embed"
 
 	"github.com/alecthomas/kong"
@@ -285,6 +286,8 @@ func writeTwoColumns(w *helpWriter, rows [][2]string) {
 
 	for _, row := range rows {
 		buf := bytes.NewBuffer(nil)
+
+		//nolint:all
 		doc.ToText(buf, row[1], "", strings.Repeat(" ", defaultIndent), w.width-leftSize-defaultColumnPadding)
 		lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 

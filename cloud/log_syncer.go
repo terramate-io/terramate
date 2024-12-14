@@ -243,10 +243,3 @@ func dropByte(data []byte, b byte) []byte {
 	}
 	return data
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

@@ -23,7 +23,6 @@ package tg
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -233,7 +232,7 @@ func tgFileFuncImpl(_ *tgconfig.ParsingContext, rootdir string, mod *Module) fun
 			},
 		},
 		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			basedir := filepath.Join(rootdir, filepath.FromSlash(mod.Path.String()))
 			path := args[0].AsString()
 			if !filepath.IsAbs(path) {
@@ -273,7 +272,7 @@ func readFileBytes(baseDir, path string) ([]byte, error) {
 	// Ensure that the path is canonical for the host OS
 	path = filepath.Clean(path)
 
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(path)
 	if err != nil {
 		// ReadFile does not return Terraform-user-friendly error
 		// messages, so we'll provide our own.

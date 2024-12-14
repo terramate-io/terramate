@@ -29,12 +29,18 @@ type (
 )
 
 const (
-	OK           Status = 1 << iota // OK status is used when the stack is not drifted.
-	Unknown                         // Unknown indicates the drift detection was not executed yet.
-	Drifted                         // Drifted status indicates the stack is drifted.
-	Failed                          // Failed status indicates the drift detection of the stack failed.
-	Unrecognized                    // Unrecognized indicates any drift status returned from TMC but not recognized by this client version.
-	lastStatus   = Failed
+	// OK status is used when the stack is not drifted.
+	OK Status = 1 << iota
+	// Unknown indicates the drift detection was not executed yet.
+	Unknown
+	// Drifted status indicates the stack is drifted.
+	Drifted
+	// Failed status indicates the drift detection of the stack failed.
+	Failed
+	// Unrecognized indicates any drift status returned from TMC but not
+	// recognized by this client version.
+	Unrecognized
+	lastStatus = Failed
 )
 
 const (

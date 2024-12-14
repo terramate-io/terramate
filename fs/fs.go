@@ -11,6 +11,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+// ListResult contains the result of listing a directory.
 type ListResult struct {
 	TmFiles    []string
 	TmGenFiles []string
