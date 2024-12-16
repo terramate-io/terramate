@@ -12,6 +12,7 @@ import (
 
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
+	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
 
@@ -34,10 +35,12 @@ func newAPIKey(output out.O, client *cloud.Client) *APIKey {
 	}
 }
 
+// Name returns the name of the authentication method.
 func (a *APIKey) Name() string {
 	return "API Key"
 }
 
+// Load loads the API key from the environment.
 func (a *APIKey) Load() (bool, error) {
 	a.token = os.Getenv(apiKeyEnvName)
 	if a.token == "" {
@@ -56,29 +59,33 @@ func (a *APIKey) Load() (bool, error) {
 	return true, nil
 }
 
+// Token returns the API key token.
 func (a *APIKey) Token() (string, error) {
 	return a.token, nil // never expires
 }
 
+// ApplyCredentials applies the API key to the request.
 func (a *APIKey) ApplyCredentials(req *http.Request) error {
-	req.Header.Set("X-API-KEY", a.token)
+	req.SetBasicAuth(a.token, "")
 	return nil
 }
 
+// RedactCredentials redacts the API key from the request.
 func (a *APIKey) RedactCredentials(req *http.Request) {
-	req.Header.Set("X-API-KEY", "REDACTED")
+	req.SetBasicAuth("REDACTED", "")
 }
 
-func (a *APIKey) HasExpiration() bool {
-	return false
-}
+// HasExpiration returns false because the CLI has no information about the expiration of the API key.
+func (a *APIKey) HasExpiration() bool { return false }
 
+// IsExpired returns false because the CLI has no information about the expiration of the API key.
 func (a *APIKey) IsExpired() bool {
 	return false
 }
 
+// ExpireAt should never be called.
 func (a *APIKey) ExpireAt() time.Time {
-	return time.Time{}
+	panic(errors.E(errors.ErrInternal, "API key does not expire"))
 }
 
 // info display the credential details.

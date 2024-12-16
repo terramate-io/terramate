@@ -253,7 +253,7 @@ outer:
 	return memberships
 }
 
-// GetMemberships returns the organizations that user is member of.
+// GetMembershipsForKey returns the memberships for the given key.
 func (d *Data) GetMembershipsForKey(key string) []Member {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

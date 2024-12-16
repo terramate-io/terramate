@@ -4,7 +4,7 @@
 # Define the apikeys of the testserver.
 
 globals "testserver" "apikeys" "some_key" {
-  value = "tmco_v1_mykey_checksum"
+  value = "tmco_mykey_checksum"
 }
 
 globals "testserver" "memberships" "terramate" {

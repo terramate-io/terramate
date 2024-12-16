@@ -9,6 +9,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // GetMemberships is the testserver GET /memberships handler.
@@ -23,10 +24,16 @@ func GetMemberships(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 	if found {
 		memberships = store.GetMemberships(user)
 	} else {
-		key := r.Header.Get("X-Api-Key")
-		if key == "" {
+		key, found, err := apikeyFromRequest(r)
+		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			writeErr(w, err)
+			return
+		}
+
+		if !found {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeErr(w, errors.E("no valid authentication method"))
 			return
 		}
 

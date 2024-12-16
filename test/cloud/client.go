@@ -40,4 +40,4 @@ func (c *credential) ApplyCredentials(req *http.Request) error {
 	return nil
 }
 
-func (c *credential) RedactCredentials(req *http.Request) {}
+func (c *credential) RedactCredentials(_ *http.Request) {}

@@ -117,16 +117,11 @@ func (g *gitlabOIDC) Token() (string, error) {
 }
 
 func (g *gitlabOIDC) ApplyCredentials(req *http.Request) error {
-	token, err := g.Token()
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	return nil
+	return applyJWTBasedCredentials(req, g)
 }
 
 func (g *gitlabOIDC) RedactCredentials(req *http.Request) {
-	req.Header.Set("Authorization", "Bearer REDACTED")
+	redactJWTBasedCredentials(req)
 }
 
 // Validate if the credential is ready to be used.

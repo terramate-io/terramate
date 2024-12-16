@@ -443,7 +443,10 @@ func (c *Client) newRequest(ctx context.Context, method string, url url.URL, bod
 	req.Header.Set("Content-Type", contentType)
 
 	if !c.noauth {
-		c.Credential.ApplyCredentials(req)
+		err := c.Credential.ApplyCredentials(req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return req, nil
 }

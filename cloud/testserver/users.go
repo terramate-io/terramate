@@ -32,7 +32,9 @@ func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, bool,
 	if authorization == "" {
 		return cloud.User{}, false, nil
 	}
-
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		return cloud.User{}, false, nil
+	}
 	tokenStr := strings.TrimPrefix(authorization, "Bearer ")
 	if tokenStr == "" {
 		return cloud.User{}, true, errors.E("no bearer token")

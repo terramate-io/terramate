@@ -183,16 +183,11 @@ func (g *githubOIDC) Token() (string, error) {
 }
 
 func (g *githubOIDC) ApplyCredentials(req *http.Request) error {
-	token, err := g.Token()
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	return nil
+	return applyJWTBasedCredentials(req, g)
 }
 
 func (g *githubOIDC) RedactCredentials(req *http.Request) {
-	req.Header.Set("Authorization", "Bearer REDACTED")
+	redactJWTBasedCredentials(req)
 }
 
 // Validate if the credential is ready to be used.

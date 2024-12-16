@@ -606,16 +606,11 @@ func (g *googleCredential) Token() (string, error) {
 }
 
 func (g *googleCredential) ApplyCredentials(req *http.Request) error {
-	token, err := g.Token()
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	return nil
+	return applyJWTBasedCredentials(req, g)
 }
 
 func (g *googleCredential) RedactCredentials(req *http.Request) {
-	req.Header.Set("Authorization", "Bearer REDACTED")
+	redactJWTBasedCredentials(req)
 }
 
 func (g *googleCredential) fetchDetails() error {
