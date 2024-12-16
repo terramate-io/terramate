@@ -385,8 +385,10 @@ type (
 
 const (
 	unknownLogChannel LogChannel = iota
-	StdoutLogChannel             // StdoutLogChannel is the stdout channel
-	StderrLogChannel             // StderrLogChannel is the stderr channel
+	// StdoutLogChannel is the stdout channel
+	StdoutLogChannel
+	// StderrLogChannel is the stderr channel
+	StderrLogChannel
 )
 
 var (

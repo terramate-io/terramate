@@ -9,6 +9,7 @@ import (
 	"net/url"
 )
 
+// Endpoint returns the real telemetry endpoint.
 func Endpoint() url.URL {
 	var u url.URL
 	u.Scheme = "https"

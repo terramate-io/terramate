@@ -50,7 +50,7 @@ func Command(cmd string) MessageOpt {
 	}
 }
 
-// Command sets the organization name.
+// OrgName sets the organization name.
 func OrgName(orgName string) MessageOpt {
 	return func(msg *Message) {
 		msg.OrgName = orgName

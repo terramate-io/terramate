@@ -18,15 +18,20 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // PlatformType is the CI/CD platform.
 type PlatformType int
 
 const (
+	// PlatformLocal represents the local user environment.
 	PlatformLocal PlatformType = iota
+	// PlatformGithub is the GitHub Actions platform.
 	PlatformGithub
+	// PlatformGitlab is the GitLab CI platform.
 	PlatformGitlab
+	// PlatformGenericCI is a generic CI/CD platform.
 	PlatformGenericCI
 )
 
@@ -34,11 +39,17 @@ const (
 type AuthType int
 
 const (
+	// AuthNone represents no authentication.
 	AuthNone AuthType = iota
+	// AuthIDPGoogle represents Google IDP authentication.
 	AuthIDPGoogle
+	// AuthIDPGithub represents GitHub IDP authentication.
 	AuthIDPGithub
+	// AuthOIDCGithub represents GitHub OIDC authentication.
 	AuthOIDCGithub
+	// AuthOIDCGitlab represents GitLab OIDC authentication.
 	AuthOIDCGitlab
+	// AuthAPIKey represents API key authentication.
 	AuthAPIKey
 )
 
@@ -68,20 +79,18 @@ func DetectPlatformFromEnv() PlatformType {
 		return PlatformGitlab
 	} else if isEnvVarSet("CI") {
 		return PlatformGenericCI
-	} else {
-		return PlatformLocal
 	}
+	return PlatformLocal
 }
 
-// DetectPlatformFromEnv detects AuthType based on environment variables and credentials.
+// DetectAuthTypeFromEnv detects AuthType based on environment variables and credentials.
 func DetectAuthTypeFromEnv(credpath string) AuthType {
 	if isEnvVarSet("ACTIONS_ID_TOKEN_REQUEST_TOKEN") {
 		return AuthOIDCGithub
 	} else if isEnvVarSet("TM_GITLAB_ID_TOKEN") {
 		return AuthOIDCGitlab
-	} else {
-		return getAuthProviderFromCredentials(credpath)
 	}
+	return getAuthProviderFromCredentials(credpath)
 }
 
 // ReadSignature parses a signature file. It works for checkpoint and analytics signatures as both use the same format.
@@ -218,8 +227,13 @@ func doSendMessage(msg *Message, p SendMessageParams) error {
 
 	req.Header.Set("User-Agent", "terramate/v"+terramate.Version())
 	req.Header.Set("Content-Type", "application/json")
-	_, err = p.Client.Do(req)
-	return err
+	errs := errors.L()
+	resp, err := p.Client.Do(req)
+	errs.Append(err)
+	if err == nil {
+		errs.Append(resp.Body.Close())
+	}
+	return errs.AsError()
 }
 
 // userMessage is suffixed to the uid file.
