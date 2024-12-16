@@ -11,45 +11,94 @@ import (
 
 	"github.com/madlambda/spells/assert"
 
+	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test/sandbox"
 
 	. "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 )
 
 func TestDetectPlatformFromEnv(t *testing.T) {
-	allEnvs := []string{"GITHUB_ACTIONS", "GITLAB_CI", "CI"}
+	tests := map[string]PlatformType{
+		"GITHUB_ACTIONS":         PlatformGithub,
+		"GITLAB_CI":              PlatformGitlab,
+		"BITBUCKET_BUILD_NUMBER": PlatformBitBucket,
+		"TF_BUILD":               PlatformAzureDevops,
+		"CI":                     PlatformGenericCI,
+	}
 
-	for k, want := range map[string]PlatformType{
-		"GITHUB_ACTIONS": PlatformGithub,
-		"GITLAB_CI":      PlatformGitlab,
-		"CI":             PlatformGenericCI,
-	} {
+	for k, want := range tests {
 		t.Run(k, func(t *testing.T) {
-			for _, e := range allEnvs {
-				if e == k {
-					t.Setenv(e, "1")
+			for k2 := range tests {
+				if k == k2 {
+					t.Setenv(k, "1")
 				} else {
-					t.Setenv(e, "")
+					t.Setenv(k2, "")
 				}
 			}
-			assert.EqualInts(t, int(want), int(DetectPlatformFromEnv()))
+			platform, user := DetectPlatformFromEnv(nil)
+			assert.EqualInts(t, int(want), int(platform))
+			assert.EqualStrings(t, "", user)
 		})
 	}
+
+	t.Run("Github user", func(t *testing.T) {
+		for k := range tests {
+			if k != "GITHUB_ACTIONS" {
+				t.Setenv(k, "")
+			}
+		}
+		t.Setenv("GITHUB_ACTIONS", "1")
+		repo := &git.Repository{
+			Owner: "github-owner",
+		}
+		_, user := DetectPlatformFromEnv(repo)
+		assert.EqualStrings(t, "github-owner", user)
+	})
+
+	t.Run("Gitlab user", func(t *testing.T) {
+		for k := range tests {
+			if k != "GITLAB_CI" {
+				t.Setenv(k, "")
+			}
+		}
+		t.Setenv("GITLAB_CI", "1")
+		repo := &git.Repository{
+			Owner: "gitlab-owner",
+		}
+		_, user := DetectPlatformFromEnv(repo)
+		assert.EqualStrings(t, "gitlab-owner", user)
+	})
+
+	t.Run("Bitbucket user", func(t *testing.T) {
+		for k := range tests {
+			if k != "BITBUCKET_BUILD_NUMBER" {
+				t.Setenv(k, "")
+			}
+		}
+
+		t.Setenv("BITBUCKET_BUILD_NUMBER", "123")
+		t.Setenv("BITBUCKET_WORKSPACE", "bitbucket-owner")
+		repo := &git.Repository{
+			Owner: "not-used",
+		}
+		_, user := DetectPlatformFromEnv(repo)
+		assert.EqualStrings(t, "bitbucket-owner", user)
+	})
 }
 
 func TestDetectAuthTypeFromEnv(t *testing.T) {
-	allEnvs := []string{"ACTIONS_ID_TOKEN_REQUEST_TOKEN", "TM_GITLAB_ID_TOKEN"}
-
-	for k, want := range map[string]AuthType{
+	tests := map[string]AuthType{
 		"ACTIONS_ID_TOKEN_REQUEST_TOKEN": AuthOIDCGithub,
 		"TM_GITLAB_ID_TOKEN":             AuthOIDCGitlab,
-	} {
+	}
+
+	for k, want := range tests {
 		t.Run(k, func(t *testing.T) {
-			for _, e := range allEnvs {
-				if e == k {
-					t.Setenv(e, "1")
+			for k2 := range tests {
+				if k == k2 {
+					t.Setenv(k, "1")
 				} else {
-					t.Setenv(e, "")
+					t.Setenv(k2, "")
 				}
 			}
 			assert.EqualInts(t, int(want), int(DetectAuthTypeFromEnv("")))
@@ -61,8 +110,8 @@ func TestDetectAuthTypeFromEnv(t *testing.T) {
 		s.BuildTree([]string{
 			`f:userdir/credentials.tmrc.json:{"provider": "Google"}`,
 		})
-		for _, e := range allEnvs {
-			t.Setenv(e, "")
+		for k := range tests {
+			t.Setenv(k, "")
 		}
 		assert.EqualInts(t, int(AuthIDPGoogle), int(DetectAuthTypeFromEnv(filepath.Join(s.RootDir(), "userdir/credentials.tmrc.json"))))
 	})
@@ -72,8 +121,8 @@ func TestDetectAuthTypeFromEnv(t *testing.T) {
 		s.BuildTree([]string{
 			`f:userdir/credentials.tmrc.json:{"provider": "GitHub"}`,
 		})
-		for _, e := range allEnvs {
-			t.Setenv(e, "")
+		for k := range tests {
+			t.Setenv(k, "")
 		}
 		assert.EqualInts(t, int(AuthIDPGithub), int(DetectAuthTypeFromEnv(filepath.Join(s.RootDir(), "userdir/credentials.tmrc.json"))))
 	})

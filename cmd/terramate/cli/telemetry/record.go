@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"slices"
 	"sync"
+
+	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/git"
 )
 
 // Record is used to aggregate telemetry data over the runtime of the application.
@@ -57,10 +60,24 @@ func OrgName(orgName string) MessageOpt {
 	}
 }
 
-// DetectFromEnv detects platform, auth type, signature, architecture and OS from the environment.
-func DetectFromEnv(credfile, cpsigfile, anasigfile string) MessageOpt {
+// OrgUUID sets the organization uuid.
+func OrgUUID(orgUUID cloud.UUID) MessageOpt {
 	return func(msg *Message) {
-		msg.Platform = DetectPlatformFromEnv()
+		msg.OrgUUID = string(orgUUID)
+	}
+}
+
+// AuthUser sets the auth user.
+func AuthUser(authUser cloud.UUID) MessageOpt {
+	return func(msg *Message) {
+		msg.AuthUser = string(authUser)
+	}
+}
+
+// DetectFromEnv detects platform, platform_user, auth type, signature, architecture and OS from the environment.
+func DetectFromEnv(credfile, cpsigfile, anasigfile string, repo *git.Repository) MessageOpt {
+	return func(msg *Message) {
+		msg.Platform, msg.PlatformUser = DetectPlatformFromEnv(repo)
 
 		msg.Auth = DetectAuthTypeFromEnv(credfile)
 		msg.Signature, _ = GenerateOrReadSignature(cpsigfile, anasigfile)
