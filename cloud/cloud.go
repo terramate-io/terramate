@@ -83,8 +83,12 @@ type (
 
 	// Credential is the interface for the credential providers.
 	Credential interface {
-		// Token retrieves a new token ready be used (the credential provider must refresh the token if needed)
-		Token() (string, error)
+		// ApplyCredentials applies the credential to the given request.
+		ApplyCredentials(req *http.Request) error
+
+		// RedactCredentials redacts the credential from the given request.
+		// This is used for dumping the request without exposing the credential.
+		RedactCredentials(req *http.Request)
 	}
 )
 
@@ -377,7 +381,7 @@ func Request[T Resource](ctx context.Context, c *Client, method string, url url.
 	}
 
 	if debugAPIRequests {
-		data, _ := dumpRequest(req)
+		data, _ := c.dumpRequest(req)
 		fmt.Printf(">>> %s\n\n", data)
 	}
 
@@ -439,11 +443,10 @@ func (c *Client) newRequest(ctx context.Context, method string, url url.URL, bod
 	req.Header.Set("Content-Type", contentType)
 
 	if !c.noauth {
-		token, err := c.Credential.Token()
+		err := c.Credential.ApplyCredentials(req)
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	return req, nil
 }
@@ -475,8 +478,8 @@ func (c *Client) URL(path string, queries ...url.Values) url.URL {
 }
 
 // dumpRequest returns a string representation of the request with the
-// Authorization header redacted.
-func dumpRequest(req *http.Request) ([]byte, error) {
+// Authentication/Authorization header redacted.
+func (c *Client) dumpRequest(req *http.Request) ([]byte, error) {
 	reqCopy := req.Clone(req.Context())
 
 	var err error
@@ -487,7 +490,9 @@ func dumpRequest(req *http.Request) ([]byte, error) {
 		}
 	}
 
-	reqCopy.Header.Set("Authorization", "REDACTED")
+	if !c.noauth {
+		c.Credential.RedactCredentials(reqCopy)
+	}
 
 	return httputil.DumpRequestOut(reqCopy, true)
 }

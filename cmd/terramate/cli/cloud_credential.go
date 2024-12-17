@@ -3,6 +3,8 @@
 
 package cli
 
+import "net/http"
+
 type providerID string
 
 func (p providerID) String() string {
@@ -14,4 +16,17 @@ func (p providerID) String() string {
 	default:
 		return string(p)
 	}
+}
+
+func applyJWTBasedCredentials(req *http.Request, cred credential) error {
+	token, err := cred.Token()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	return nil
+}
+
+func redactJWTBasedCredentials(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer REDACTED")
 }

@@ -556,6 +556,11 @@ func credential() cloud.Credential {
 
 type mockCred struct{}
 
-func (*mockCred) Token() (string, error) {
-	return "I am a token", nil
+func (*mockCred) ApplyCredentials(req *http.Request) error {
+	req.Header.Set("Authorization", "Bearer I am a token")
+	return nil
+}
+
+func (*mockCred) RedactCredentials(req *http.Request) {
+	req.Header.Set("Authorization", "REDACTED")
 }
