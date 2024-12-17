@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for unprefixed Bitbucket URLs in Terraform `module.source`.
+
 ## v0.11.4
 
 ### Added
