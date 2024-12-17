@@ -9,17 +9,36 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
+	"github.com/terramate-io/terramate/errors"
 )
 
 // GetMemberships is the testserver GET /memberships handler.
 func GetMemberships(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	user, err := userFromRequest(store, r)
+	user, found, err := userFromRequest(store, r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		writeErr(w, err)
 		return
 	}
-	memberships := store.GetMemberships(user)
+	var memberships []cloudstore.Member
+	if found {
+		memberships = store.GetMemberships(user)
+	} else {
+		key, found, err := apikeyFromRequest(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeErr(w, err)
+			return
+		}
+
+		if !found {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeErr(w, errors.E("no valid authentication method"))
+			return
+		}
+
+		memberships = store.GetMembershipsForKey(key)
+	}
 	var retMemberships cloud.MemberOrganizations
 	for _, member := range memberships {
 		retMemberships = append(retMemberships, cloud.MemberOrganization{

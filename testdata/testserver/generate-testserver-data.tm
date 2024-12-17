@@ -11,5 +11,6 @@ generate_file "cloud.data.json" {
     orgs       = global.testserver.orgs,
     users      = global.testserver.users,
     well_known = let.well_known,
+    apikeys    = global.testserver.apikeys,
   })
 }

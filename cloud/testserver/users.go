@@ -16,8 +16,8 @@ import (
 
 // GetUsers implements the /v1/users endpoint.
 func GetUsers(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	user, err := userFromRequest(store, r)
-	if err != nil {
+	user, found, err := userFromRequest(store, r)
+	if err != nil || !found {
 		w.WriteHeader(http.StatusUnauthorized)
 		writeErr(w, err)
 		return
@@ -27,15 +27,17 @@ func GetUsers(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, _ 
 	marshalWrite(w, user)
 }
 
-func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, error) {
+func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, bool, error) {
 	authorization := r.Header.Get("Authorization")
 	if authorization == "" {
-		return cloud.User{}, errors.E("no authorization header")
+		return cloud.User{}, false, nil
 	}
-
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		return cloud.User{}, false, nil
+	}
 	tokenStr := strings.TrimPrefix(authorization, "Bearer ")
 	if tokenStr == "" {
-		return cloud.User{}, errors.E("no bearer token")
+		return cloud.User{}, true, errors.E("no bearer token")
 	}
 
 	var jwtParser jwt.Parser
@@ -43,13 +45,13 @@ func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, error
 	claims := jwt.MapClaims{}
 	_, _, err := jwtParser.ParseUnverified(tokenStr, claims)
 	if err != nil {
-		return cloud.User{}, errors.E(err, "parsing jwt token")
+		return cloud.User{}, true, errors.E(err, "parsing jwt token")
 	}
 
 	email := claims["email"].(string)
 	user, found := store.GetUser(email)
 	if !found {
-		return cloud.User{}, errors.E("email %s not found", email)
+		return cloud.User{}, true, errors.E("email %s not found", email)
 	}
-	return user, nil
+	return user, true, nil
 }

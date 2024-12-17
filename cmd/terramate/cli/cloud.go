@@ -145,6 +145,7 @@ type credential interface {
 	Name() string
 	Load() (bool, error)
 	Token() (string, error)
+	HasExpiration() bool
 	IsExpired() bool
 	ExpireAt() time.Time
 
@@ -185,6 +186,7 @@ func (rs cloudRunState) cloudPreviewID(metaID string) (string, bool) {
 
 func (c *cli) credentialPrecedence(output out.O) []credential {
 	return []credential{
+		newAPIKey(output, c.cloud.client),
 		newGithubOIDC(output, c.cloud.client),
 		newGitlabOIDC(output, c.cloud.client),
 		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg, c.cloud.client),
@@ -499,7 +501,9 @@ func (c *cli) cloudInfo() {
 	c.cred().info(c.cloudOrgName())
 
 	// verbose info
-	c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
+	if c.cred().HasExpiration() {
+		c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
+	}
 }
 
 func (c *cli) cloudDriftShow() {

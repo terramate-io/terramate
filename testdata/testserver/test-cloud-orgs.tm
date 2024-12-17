@@ -21,8 +21,9 @@ globals "testserver" "orgs" "terramate" {
   uuid         = "deadbeef-dead-dead-dead-deaddeadbeef"
 
   members = [
-    for username, membership in global.testserver.memberships.terramate : {
-      user_uuid = global.testserver.users[username].user_uuid
+    for name, membership in global.testserver.memberships.terramate : {
+      user_uuid = tm_try(global.testserver.users[name].user_uuid, null)
+      apikey    = tm_try(global.testserver.apikeys[name].value, null)
       role      = membership.role
       status    = membership.status
     }
