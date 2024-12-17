@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
@@ -22,6 +23,7 @@ type project struct {
 	root         *config.Root
 	baseRef      string
 	repository   *git.Repository
+	platform     *ci.PlatformType
 	stackManager *stack.Manager
 
 	git struct {
@@ -58,6 +60,15 @@ func (p *project) repo() (*git.Repository, error) {
 	}
 	p.repository = &r
 	return p.repository, nil
+}
+
+func (p *project) ciPlatform() ci.PlatformType {
+	if p.platform != nil {
+		return *p.platform
+	}
+	platform := ci.DetectPlatformFromEnv()
+	p.platform = &platform
+	return platform
 }
 
 func (p *project) prettyRepo() string {

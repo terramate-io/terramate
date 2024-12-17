@@ -5,10 +5,12 @@ package telemetry
 
 import (
 	"errors"
+	"os"
 	"runtime"
 	"slices"
 	"sync"
 
+	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/git"
 )
@@ -75,9 +77,18 @@ func AuthUser(authUser cloud.UUID) MessageOpt {
 }
 
 // DetectFromEnv detects platform, platform_user, auth type, signature, architecture and OS from the environment.
-func DetectFromEnv(credfile, cpsigfile, anasigfile string, repo *git.Repository) MessageOpt {
+func DetectFromEnv(credfile, cpsigfile, anasigfile string, plat ci.PlatformType, repo *git.Repository) MessageOpt {
 	return func(msg *Message) {
-		msg.Platform, msg.PlatformUser = DetectPlatformFromEnv(repo)
+		msg.Platform = plat
+
+		if repo != nil {
+			switch plat {
+			case ci.PlatformBitBucket:
+				msg.PlatformUser = os.Getenv("BITBUCKET_WORKSPACE")
+			default:
+				msg.PlatformUser = repo.Owner
+			}
+		}
 
 		msg.Auth = DetectAuthTypeFromEnv(credfile)
 		msg.Signature, _ = GenerateOrReadSignature(cpsigfile, anasigfile)

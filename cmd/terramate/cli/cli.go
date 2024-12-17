@@ -882,7 +882,7 @@ func (c *cli) initAnalytics(cmd string, opts ...tel.MessageOpt) {
 	r.Set(
 		tel.Command(cmd),
 		tel.OrgName(c.cloudOrgName()),
-		tel.DetectFromEnv(credfile, cpsigfile, anasigfile, repo),
+		tel.DetectFromEnv(credfile, cpsigfile, anasigfile, c.prj.ciPlatform(), repo),
 		tel.StringFlag("chdir", c.parsedArgs.Chdir),
 	)
 	r.Set(opts...)

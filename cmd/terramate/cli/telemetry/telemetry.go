@@ -18,35 +18,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/git"
-)
-
-// PlatformType is the CI/CD platform.
-type PlatformType int
-
-// nolint:revive
-const (
-	// PlatformLocal represents the local user environment.
-	PlatformLocal PlatformType = iota
-	PlatformGithub
-	PlatformGitlab
-	PlatformGenericCI
-	PlatformAppVeyor
-	PlatformAzureDevops
-	PlatformBamboo
-	PlatformBitBucket
-	PlatformBuddyWorks
-	PlatformBuildKite
-	PlatformCircleCI
-	PlatformCirrus
-	PlatformCodeBuild
-	PlatformHeroku
-	PlatformHudson
-	PlatformJenkins
-	PlatformMyGet
-	PlatformTeamCity
-	PlatformTravis
 )
 
 // AuthType is the authentication method that was used.
@@ -69,7 +42,7 @@ const (
 
 // Message is the analytics data that will be collected.
 type Message struct {
-	Platform PlatformType `json:"platform,omitempty"`
+	Platform ci.PlatformType `json:"platform,omitempty"`
 	// PlatformUser is a platform-specific identifier.
 	PlatformUser string `json:"platform_user,omitempty"`
 
@@ -89,59 +62,6 @@ type Message struct {
 
 	// Details stores features or flags used by the command.
 	Details []string `json:"details,omitempty"`
-}
-
-// DetectPlatformFromEnv detects PlatformType based on environment variables.
-func DetectPlatformFromEnv(repo *git.Repository) (typ PlatformType, user string) {
-	if isEnvVarSet("GITHUB_ACTIONS") {
-		typ = PlatformGithub
-	} else if isEnvVarSet("GITLAB_CI") {
-		typ = PlatformGitlab
-	} else if isEnvVarSet("BITBUCKET_BUILD_NUMBER") {
-		typ = PlatformBitBucket
-	} else if isEnvVarSet("TF_BUILD") {
-		typ = PlatformAzureDevops
-	} else if isEnvVarSet("APPVEYOR") {
-		typ = PlatformAppVeyor
-	} else if isEnvVarSet("bamboo.buildKey") {
-		typ = PlatformBamboo
-	} else if isEnvVarSet("BUDDY") {
-		typ = PlatformBuddyWorks
-	} else if isEnvVarSet("BUILDKITE") {
-		typ = PlatformBuildKite
-	} else if isEnvVarSet("CIRCLECI") {
-		typ = PlatformCircleCI
-	} else if isEnvVarSet("CIRRUS_CI") {
-		typ = PlatformCirrus
-	} else if isEnvVarSet("CODEBUILD_CI") {
-		typ = PlatformCodeBuild
-	} else if isEnvVarSet("HEROKU_TEST_RUN_ID") {
-		typ = PlatformHeroku
-	} else if strings.HasPrefix(os.Getenv("BUILD_TAG"), "hudson-") {
-		typ = PlatformHudson
-	} else if isEnvVarSet("JENKINS_URL") {
-		typ = PlatformJenkins
-	} else if os.Getenv("BuildRunner") == "MyGet" {
-		typ = PlatformMyGet
-	} else if isEnvVarSet("TEAMCITY_VERSION") {
-		typ = PlatformTeamCity
-	} else if isEnvVarSet("TRAVIS") {
-		typ = PlatformTravis
-	} else if isEnvVarSet("CI") {
-		typ = PlatformGenericCI
-	} else {
-		typ = PlatformLocal
-	}
-
-	if repo != nil {
-		switch typ {
-		case PlatformBitBucket:
-			user = os.Getenv("BITBUCKET_WORKSPACE")
-		default:
-			user = repo.Owner
-		}
-	}
-	return
 }
 
 // DetectAuthTypeFromEnv detects AuthType based on environment variables and credentials.
