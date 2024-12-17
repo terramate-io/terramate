@@ -19,20 +19,34 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/git"
 )
 
 // PlatformType is the CI/CD platform.
 type PlatformType int
 
+// nolint:revive
 const (
 	// PlatformLocal represents the local user environment.
 	PlatformLocal PlatformType = iota
-	// PlatformGithub is the GitHub Actions platform.
 	PlatformGithub
-	// PlatformGitlab is the GitLab CI platform.
 	PlatformGitlab
-	// PlatformGenericCI is a generic CI/CD platform.
 	PlatformGenericCI
+	PlatformAppVeyor
+	PlatformAzureDevops
+	PlatformBamboo
+	PlatformBitBucket
+	PlatformBuddyWorks
+	PlatformBuildKite
+	PlatformCircleCI
+	PlatformCirrus
+	PlatformCodeBuild
+	PlatformHeroku
+	PlatformHudson
+	PlatformJenkins
+	PlatformMyGet
+	PlatformTeamCity
+	PlatformTravis
 )
 
 // AuthType is the authentication method that was used.
@@ -56,10 +70,16 @@ const (
 // Message is the analytics data that will be collected.
 type Message struct {
 	Platform PlatformType `json:"platform,omitempty"`
-	Auth     AuthType     `json:"auth,omitempty"`
+	// PlatformUser is a platform-specific identifier.
+	PlatformUser string `json:"platform_user,omitempty"`
+
+	Auth AuthType `json:"auth,omitempty"`
+	// AuthUser is the TMC user UUID.
+	AuthUser string `json:"auth_user,omitempty"`
 
 	Signature string `json:"signature,omitempty"`
 	OrgName   string `json:"org_name,omitempty"`
+	OrgUUID   string `json:"org_uuid,omitempty"`
 
 	Arch string `json:"arch,omitempty"`
 	OS   string `json:"os,omitempty"`
@@ -72,15 +92,56 @@ type Message struct {
 }
 
 // DetectPlatformFromEnv detects PlatformType based on environment variables.
-func DetectPlatformFromEnv() PlatformType {
+func DetectPlatformFromEnv(repo *git.Repository) (typ PlatformType, user string) {
 	if isEnvVarSet("GITHUB_ACTIONS") {
-		return PlatformGithub
+		typ = PlatformGithub
 	} else if isEnvVarSet("GITLAB_CI") {
-		return PlatformGitlab
+		typ = PlatformGitlab
+	} else if isEnvVarSet("BITBUCKET_BUILD_NUMBER") {
+		typ = PlatformBitBucket
+	} else if isEnvVarSet("TF_BUILD") {
+		typ = PlatformAzureDevops
+	} else if isEnvVarSet("APPVEYOR") {
+		typ = PlatformAppVeyor
+	} else if isEnvVarSet("bamboo.buildKey") {
+		typ = PlatformBamboo
+	} else if isEnvVarSet("BUDDY") {
+		typ = PlatformBuddyWorks
+	} else if isEnvVarSet("BUILDKITE") {
+		typ = PlatformBuildKite
+	} else if isEnvVarSet("CIRCLECI") {
+		typ = PlatformCircleCI
+	} else if isEnvVarSet("CIRRUS_CI") {
+		typ = PlatformCirrus
+	} else if isEnvVarSet("CODEBUILD_CI") {
+		typ = PlatformCodeBuild
+	} else if isEnvVarSet("HEROKU_TEST_RUN_ID") {
+		typ = PlatformHeroku
+	} else if strings.HasPrefix(os.Getenv("BUILD_TAG"), "hudson-") {
+		typ = PlatformHudson
+	} else if isEnvVarSet("JENKINS_URL") {
+		typ = PlatformJenkins
+	} else if os.Getenv("BuildRunner") == "MyGet" {
+		typ = PlatformMyGet
+	} else if isEnvVarSet("TEAMCITY_VERSION") {
+		typ = PlatformTeamCity
+	} else if isEnvVarSet("TRAVIS") {
+		typ = PlatformTravis
 	} else if isEnvVarSet("CI") {
-		return PlatformGenericCI
+		typ = PlatformGenericCI
+	} else {
+		typ = PlatformLocal
 	}
-	return PlatformLocal
+
+	if repo != nil {
+		switch typ {
+		case PlatformBitBucket:
+			user = os.Getenv("BITBUCKET_WORKSPACE")
+		default:
+			user = repo.Owner
+		}
+	}
+	return
 }
 
 // DetectAuthTypeFromEnv detects AuthType based on environment variables and credentials.

@@ -698,24 +698,24 @@ func (c *cli) run() {
 
 	switch c.ctx.Command() {
 	case "fmt", "fmt <files>":
-		c.initAndSendAnalytics("fmt",
+		c.initAnalytics("fmt",
 			tel.BoolFlag("detailed-exit-code", c.parsedArgs.Fmt.DetailedExitCode),
 		)
 		c.format()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "create <path>":
-		c.initAndSendAnalytics("create")
+		c.initAnalytics("create")
 		c.createStack()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "create":
-		c.initAndSendAnalytics("create",
+		c.initAnalytics("create",
 			tel.BoolFlag("all-terragrunt", c.parsedArgs.Create.AllTerragrunt),
 			tel.BoolFlag("all-terraform", c.parsedArgs.Create.AllTerraform),
 		)
 		c.scanCreate()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "list":
-		c.initAndSendAnalytics("list",
+		c.initAnalytics("list",
 			tel.BoolFlag("filter-changed", c.parsedArgs.Changed),
 			tel.BoolFlag("filter-tags", len(c.parsedArgs.Tags) != 0),
 			tel.StringFlag("filter-status", c.parsedArgs.List.Status),
@@ -727,11 +727,11 @@ func (c *cli) run() {
 		c.setupGit()
 		c.setupChangeDetection(c.parsedArgs.List.EnableChangeDetection, c.parsedArgs.List.DisableChangeDetection)
 		c.printStacks()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "run":
 		fatal("no command specified")
 	case "run <cmd>":
-		c.initAndSendAnalytics("run",
+		c.initAnalytics("run",
 			tel.BoolFlag("filter-changed", c.parsedArgs.Changed),
 			tel.BoolFlag("filter-tags", len(c.parsedArgs.Tags) != 0),
 			tel.StringFlag("filter-status", c.parsedArgs.Run.Status),
@@ -754,7 +754,7 @@ func (c *cli) run() {
 		c.setupChangeDetection(c.parsedArgs.Run.EnableChangeDetection, c.parsedArgs.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Run.runSafeguardsCliSpec)
 		c.runOnStacks()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "generate":
 		c.initAnalytics("generate",
 			tel.BoolFlag("detailed-exit-code", c.parsedArgs.Generate.DetailedExitCode),
@@ -762,29 +762,28 @@ func (c *cli) run() {
 		)
 		exitCode := c.generate()
 		stopProfiler(c.parsedArgs)
-		c.sendAnalytics()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 		os.Exit(exitCode)
 	case "experimental clone <srcdir> <destdir>":
-		c.initAndSendAnalytics("clone")
+		c.initAnalytics("clone")
 		c.cloneStack()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "experimental trigger":
-		c.initAndSendAnalytics("trigger")
+		c.initAnalytics("trigger")
 		c.triggerStackByFilter()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "experimental trigger <stack>":
-		c.initAndSendAnalytics("trigger",
+		c.initAnalytics("trigger",
 			tel.StringFlag("stack", c.parsedArgs.Experimental.Trigger.Stack),
 			tel.BoolFlag("change", c.parsedArgs.Experimental.Trigger.Change),
 			tel.BoolFlag("ignore-change", c.parsedArgs.Experimental.Trigger.IgnoreChange),
 		)
 		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "experimental vendor download <source> <ref>":
-		c.initAndSendAnalytics("vendor-download")
+		c.initAnalytics("vendor-download")
 		c.vendorDownload()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "debug show globals":
 		c.setupGit()
 		c.printStacksGlobals()
@@ -795,10 +794,10 @@ func (c *cli) run() {
 		c.setupGit()
 		c.printMetadata()
 	case "experimental run-graph":
-		c.initAndSendAnalytics("graph")
+		c.initAnalytics("graph")
 		c.setupGit()
 		c.generateGraph()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "debug show runtime-env":
 		c.setupGit()
 		c.printRuntimeEnv()
@@ -817,33 +816,33 @@ func (c *cli) run() {
 	case "experimental cloud info": // Deprecated
 		fallthrough
 	case "cloud info":
-		c.initAndSendAnalytics("cloud-info")
+		c.initAnalytics("cloud-info")
 		c.cloudInfo()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "experimental cloud drift show": // Deprecated
 		fallthrough
 	case "cloud drift show":
-		c.initAndSendAnalytics("cloud-drift-show")
+		c.initAnalytics("cloud-drift-show")
 		c.cloudDriftShow()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "script list":
-		c.initAndSendAnalytics("script-list")
+		c.initAnalytics("script-list")
 		c.checkScriptEnabled()
 		c.printScriptList()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "script tree":
-		c.initAndSendAnalytics("script-tree")
+		c.initAnalytics("script-tree")
 		c.checkScriptEnabled()
 		c.printScriptTree()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "script info":
 		c.checkScriptEnabled()
 		fatal("no script specified")
 	case "script info <cmds>":
-		c.initAndSendAnalytics("script-info")
+		c.initAnalytics("script-info")
 		c.checkScriptEnabled()
 		c.printScriptInfo()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	case "script run":
 		c.checkScriptEnabled()
 		fatal("no script specified")
@@ -863,8 +862,7 @@ func (c *cli) run() {
 		c.setupChangeDetection(c.parsedArgs.Script.Run.EnableChangeDetection, c.parsedArgs.Script.Run.DisableChangeDetection)
 		c.setupSafeguards(c.parsedArgs.Script.Run.runSafeguardsCliSpec)
 		c.runScript()
-		c.sendAnalytics()
-		c.waitForAnalytics()
+		c.sendAndWaitForAnalytics()
 	default:
 		fatal("unexpected command sequence")
 	}
@@ -875,17 +873,22 @@ func (c *cli) initAnalytics(cmd string, opts ...tel.MessageOpt) {
 	anasigfile := filepath.Join(c.clicfg.UserTerramateDir, "analytics_signature")
 	credfile := filepath.Join(c.clicfg.UserTerramateDir, credfile)
 
+	var repo *git.Repository
+	if c.prj.isRepo {
+		repo, _ = c.prj.repo()
+	}
+
 	r := tel.DefaultRecord
 	r.Set(
 		tel.Command(cmd),
 		tel.OrgName(c.cloudOrgName()),
-		tel.DetectFromEnv(credfile, cpsigfile, anasigfile),
+		tel.DetectFromEnv(credfile, cpsigfile, anasigfile, repo),
 		tel.StringFlag("chdir", c.parsedArgs.Chdir),
 	)
 	r.Set(opts...)
 }
 
-func (c *cli) sendAnalytics() {
+func (c *cli) sendAndWaitForAnalytics() {
 	// There are several ways to disable this, but this requires the least amount of special handling.
 	// Prepare the record, but don't send it.
 	if !c.isTelemetryEnabled() {
@@ -895,20 +898,13 @@ func (c *cli) sendAnalytics() {
 	tel.DefaultRecord.Send(tel.SendMessageParams{
 		Timeout: 100 * time.Millisecond,
 	})
-}
 
-func (c *cli) waitForAnalytics() {
 	if err := tel.DefaultRecord.WaitForSend(); err != nil {
 		logger := log.With().
-			Str("action", "cli.waitForAnalytics()").
+			Str("action", "cli.sendAndWaitForAnalytics()").
 			Logger()
 		logger.Debug().Err(err).Msgf("failed to wait for analytics")
 	}
-}
-
-func (c *cli) initAndSendAnalytics(cmd string, opts ...tel.MessageOpt) {
-	c.initAnalytics(cmd, opts...)
-	c.sendAnalytics()
 }
 
 func (c *cli) isTelemetryEnabled() bool {

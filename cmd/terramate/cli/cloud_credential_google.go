@@ -27,6 +27,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -644,6 +645,9 @@ func (g *googleCredential) fetchDetails() error {
 	}
 	g.orgs = orgs
 	g.user = user
+
+	tel.DefaultRecord.Set(tel.AuthUser(g.user.UUID))
+
 	return nil
 }
 

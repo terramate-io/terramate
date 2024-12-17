@@ -27,6 +27,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
+	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 
 	"golang.org/x/oauth2"
 
@@ -367,6 +368,10 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 
 		c.cloud.run.orgName = activeOrgs[0].Name
 		c.cloud.run.orgUUID = activeOrgs[0].UUID
+	}
+
+	if c.cloud.run.orgUUID != "" {
+		tel.DefaultRecord.Set(tel.OrgUUID(c.cloud.run.orgUUID))
 	}
 
 	return nil
