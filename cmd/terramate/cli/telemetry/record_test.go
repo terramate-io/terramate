@@ -5,6 +5,7 @@ package telemetry_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/test/sandbox"
 
@@ -28,8 +30,6 @@ func TestRecordLifecycle(t *testing.T) {
 		"f:userdir/checkpoint_signature:a1a15394-e622-4a88-9e01-25b3cdc1d28f\nThis was\ngenerated",
 	})
 
-	t.Setenv("GITHUB_ACTIONS", "1")
-
 	credfile := filepath.Join(s.RootDir(), "userdir/credentials.tmrc.json")
 	cpsigfile := filepath.Join(s.RootDir(), "userdir/checkpoint_signature")
 	anasigfile := filepath.Join(s.RootDir(), "userdir/analytics_signature")
@@ -44,7 +44,7 @@ func TestRecordLifecycle(t *testing.T) {
 		Command("my-command"),
 		OrgName("hello-org"),
 		OrgUUID("b1a15394-e622-4a88-9e01-25b3cdc1d28e"),
-		DetectFromEnv(credfile, cpsigfile, anasigfile, repo),
+		DetectFromEnv(credfile, cpsigfile, anasigfile, ci.PlatformGithub, repo),
 		AuthUser("1234567"),
 		BoolFlag("flag1", true),
 		BoolFlag("flag2", false),
@@ -78,7 +78,7 @@ func TestRecordLifecycle(t *testing.T) {
 	err := json.NewDecoder(req.Body).Decode(&gotMsg)
 	assert.NoError(t, err)
 
-	assert.EqualInts(t, int(PlatformGithub), int(gotMsg.Platform))
+	assert.EqualInts(t, int(ci.PlatformGithub), int(gotMsg.Platform))
 	assert.EqualStrings(t, "owner", gotMsg.PlatformUser)
 
 	assert.EqualStrings(t, "a1a15394-e622-4a88-9e01-25b3cdc1d28f", gotMsg.Signature)
@@ -96,4 +96,80 @@ func TestRecordLifecycle(t *testing.T) {
 
 	storedSig := ReadSignature(anasigfile)
 	assert.EqualStrings(t, "a1a15394-e622-4a88-9e01-25b3cdc1d28f", storedSig)
+}
+
+func TestDetectUser(t *testing.T) {
+	tests := map[string]ci.PlatformType{
+		"GITHUB_ACTIONS":         ci.PlatformGithub,
+		"GITLAB_CI":              ci.PlatformGitlab,
+		"BITBUCKET_BUILD_NUMBER": ci.PlatformBitBucket,
+		"TF_BUILD":               ci.PlatformAzureDevops,
+		"CI":                     ci.PlatformGenericCI,
+	}
+
+	// clean envs
+	for k := range tests {
+		t.Setenv(k, "")
+	}
+
+	// clean CI oidc envs
+	t.Setenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
+	t.Setenv("ACTIONS_ID_TOKEN_REQUEST_URL", "")
+	t.Setenv("TM_GITLAB_ID_TOKEN", "")
+
+	s := sandbox.New(t)
+
+	// Setup credentials and an existing checkpoint signature.
+	s.BuildTree([]string{
+		`f:userdir/credentials.tmrc.json:{"provider": "Google"}`,
+		"f:userdir/checkpoint_signature:a1a15394-e622-4a88-9e01-25b3cdc1d28f\nThis was\ngenerated",
+	})
+
+	credfile := filepath.Join(s.RootDir(), "userdir/credentials.tmrc.json")
+	cpsigfile := filepath.Join(s.RootDir(), "userdir/checkpoint_signature")
+	anasigfile := filepath.Join(s.RootDir(), "userdir/analytics_signature")
+
+	repo := &git.Repository{
+		Owner: "owner",
+	}
+
+	for ciEnv, ciPlat := range tests {
+		ciPlat := ciPlat
+		t.Run(fmt.Sprintf("DetectUser-%s=1, no repo", ciEnv), func(t *testing.T) {
+			msgFunc := DetectFromEnv(credfile, cpsigfile, anasigfile, ciPlat, nil)
+			var got Message
+			msgFunc(&got)
+			if diff := cmp.Diff(got, Message{
+				Platform:     ciPlat,
+				PlatformUser: "",
+				Auth:         AuthIDPGoogle,
+				Signature:    "a1a15394-e622-4a88-9e01-25b3cdc1d28f",
+				Arch:         runtime.GOARCH,
+				OS:           runtime.GOOS,
+			}); diff != "" {
+				t.Errorf("unexpected message: %s", diff)
+			}
+		})
+
+		t.Run(fmt.Sprintf("DetectUser-%s=1, with repo", ciEnv), func(t *testing.T) {
+			expectedUser := "owner"
+			if ciPlat == ci.PlatformBitBucket {
+				t.Setenv("BITBUCKET_WORKSPACE", "bitbucket-owner")
+				expectedUser = "bitbucket-owner"
+			}
+			msgFunc := DetectFromEnv(credfile, cpsigfile, anasigfile, ciPlat, repo)
+			var got Message
+			msgFunc(&got)
+			if diff := cmp.Diff(got, Message{
+				Platform:     ciPlat,
+				PlatformUser: expectedUser,
+				Auth:         AuthIDPGoogle,
+				Signature:    "a1a15394-e622-4a88-9e01-25b3cdc1d28f",
+				Arch:         runtime.GOARCH,
+				OS:           runtime.GOOS,
+			}); diff != "" {
+				t.Errorf("unexpected message: %s", diff)
+			}
+		})
+	}
 }
