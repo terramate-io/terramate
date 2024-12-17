@@ -415,6 +415,17 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "bitbucket.org URLs are supported",
+			source: "bitbucket.org/hashicorp/terraform-consul-aws",
+			want: want{
+				parsed: tf.Source{
+					URL:        "https://bitbucket.org/hashicorp/terraform-consul-aws.git",
+					Path:       "bitbucket.org/hashicorp/terraform-consul-aws",
+					PathScheme: "https",
+				},
+			},
+		},
+		{
 			name:   "local is not supported",
 			source: "./vpc-module.zip",
 			want: want{
@@ -445,13 +456,6 @@ func TestParseGitSources(t *testing.T) {
 		{
 			name:   "registry is not supported",
 			source: "app.terraform.io/example-corp/k8s-cluster/azurerm",
-			want: want{
-				err: errors.E(tf.ErrUnsupportedModSrc),
-			},
-		},
-		{
-			name:   "bitbucket is not supported",
-			source: "bitbucket.org/hashicorp/terraform-consul-aws",
 			want: want{
 				err: errors.E(tf.ErrUnsupportedModSrc),
 			},

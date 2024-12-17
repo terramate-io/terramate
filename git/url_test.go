@@ -128,6 +128,39 @@ func TestNormalizeGitURL(t *testing.T) {
 			},
 		},
 		{
+			name: "bitbucket https url without .git suffix",
+			raw:  "https://bitbucket.org/terramate/terramate",
+			normalized: git.Repository{
+				RawURL: "https://bitbucket.org/terramate/terramate",
+				Host:   "bitbucket.org",
+				Repo:   "bitbucket.org/terramate/terramate",
+				Owner:  "terramate",
+				Name:   "terramate",
+			},
+		},
+		{
+			name: "bitbucket https url",
+			raw:  "https://bitbucket.org/terramate/terramate.git",
+			normalized: git.Repository{
+				RawURL: "https://bitbucket.org/terramate/terramate.git",
+				Host:   "bitbucket.org",
+				Repo:   "bitbucket.org/terramate/terramate",
+				Owner:  "terramate",
+				Name:   "terramate",
+			},
+		},
+		{
+			name: "bitbucket ssh url",
+			raw:  "git@bitbucket.org:terramate/terramate.git",
+			normalized: git.Repository{
+				RawURL: "git@bitbucket.org:terramate/terramate.git",
+				Host:   "bitbucket.org",
+				Repo:   "bitbucket.org/terramate/terramate",
+				Owner:  "terramate",
+				Name:   "terramate",
+			},
+		},
+		{
 			name: "no owner",
 			raw:  "https://example.com/path",
 			normalized: git.Repository{

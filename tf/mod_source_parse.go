@@ -50,7 +50,10 @@ const (
 // Source references that are not Git/Github are not supported.
 func ParseSource(modsource string) (Source, error) {
 	switch {
-	case strings.HasPrefix(modsource, "github.com"):
+	// Github: https://developer.hashicorp.com/terraform/language/modules/sources#github
+	// Bitbucket: https://developer.hashicorp.com/terraform/language/modules/sources#bitbucket
+	// Note: mercurial is deprecated in Bitbucket so we are not supporting it in modules.
+	case strings.HasPrefix(modsource, "github.com") || strings.HasPrefix(modsource, "bitbucket.org"):
 		u, err := url.Parse(modsource)
 		if err != nil {
 			return Source{}, errors.E(ErrInvalidModSrc, err,
