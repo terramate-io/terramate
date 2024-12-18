@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
@@ -570,6 +571,14 @@ func (m *Manager) tfModuleChanged(
 	}
 
 	modAbsPath := filepath.Join(basedir, mod.Source)
+	rootdir := m.root.Tree().RootDir()
+	if modAbsPath != rootdir && !strings.HasPrefix(modAbsPath, rootdir+string(filepath.Separator)) {
+		printer.Stderr.WarnWithDetails("skipping module call outside of the root directory", errors.E(
+			"module at %q references path %s (abspath %s) outside of the project root",
+			basedir, mod.Source, modAbsPath,
+		))
+		return false, "", nil
+	}
 	modPath := project.PrjAbsPath(m.root.HostDir(), modAbsPath)
 
 	st, err := os.Stat(modAbsPath)
