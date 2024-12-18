@@ -57,7 +57,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 
 	createdAt := toTime(t, "2011-01-26T19:01:12Z")
 	updatedAt := toTime(t, "2011-01-26T19:01:12Z")
-	pushedAt := toTime(t, "2024-02-09T12:38:30Z")
+	pushedAt := toTime(t, "2024-02-09T12:38:30Z").Unix()
 
 	for _, tc := range []testcase{
 		{
@@ -187,7 +187,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
-						PushedAt:    pushedAt,
+						PushedAt:    &pushedAt,
 						Author: cloud.Author{
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -293,7 +293,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
-						PushedAt:    pushedAt,
+						PushedAt:    &pushedAt,
 						Author: cloud.Author{
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",

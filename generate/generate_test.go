@@ -924,6 +924,9 @@ func TestGenerateCleanup(t *testing.T) {
 }
 
 func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
+	if os.Getenv("BITBUCKET_BUILD_NUMBER") != "" {
+		t.Skip("TODO(i4k): Investigate why Bitbucket pipelines has issues with chmod'ing /tmp files")
+	}
 	t.Parallel()
 
 	s := sandbox.NoGit(t, true)

@@ -825,7 +825,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				s.Env = append(s.Env, tc.env...)
 
 				s.BuildTree(tc.layout)
-				env := RemoveEnv(os.Environ(), "CI")
+				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
 				env = append(env, tc.env...)
 
@@ -953,9 +953,11 @@ func TestRunGithubTokenDetection(t *testing.T) {
 		}
 	})
 
+	env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
+
 	t.Run("GH_TOKEN detection", func(t *testing.T) {
 		t.Parallel()
-		tm := NewCLI(t, s.RootDir())
+		tm := NewCLI(t, s.RootDir(), env...)
 		tm.LogLevel = "debug"
 		tm.AppendEnv = append(tm.AppendEnv, "GH_TOKEN=abcd")
 		tm.AppendEnv = append(tm.AppendEnv, "TMC_API_URL=http://"+l.Addr().String())
@@ -971,7 +973,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 
 	t.Run("GITHUB_TOKEN detection", func(t *testing.T) {
 		t.Parallel()
-		tm := NewCLI(t, s.RootDir())
+		tm := NewCLI(t, s.RootDir(), env...)
 		tm.AppendEnv = append(tm.AppendEnv, "GITHUB_TOKEN=abcd")
 		tm.AppendEnv = append(tm.AppendEnv, "TMC_API_URL=http://"+l.Addr().String())
 		tm.LogLevel = "debug"

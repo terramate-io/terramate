@@ -692,7 +692,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				s.BuildTree(tc.layout)
 				s.Git().CommitAll("all stacks committed")
 
-				env := RemoveEnv(s.Env, "CI")
+				env := RemoveEnv(s.Env, "CI", "GITHUB_ACTIONS")
 				env = append(env, tc.env...)
 				env = append(env, "TMC_API_URL=http://"+addr)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
@@ -780,7 +780,7 @@ func TestSyncPlanSerial(t *testing.T) {
 		DefaultRemoteBranchName: "main",
 	})
 
-	env := RemoveEnv(os.Environ(), "CI")
+	env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 	env = append(env, `TF_VAR_content=my secret`)
 	env = append(env, "TMC_API_URL=http://"+addr)
 

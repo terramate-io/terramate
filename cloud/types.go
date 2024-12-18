@@ -163,6 +163,7 @@ type (
 		GitMetadata
 		GithubMetadata
 		GitlabMetadata
+		BitbucketMetadata
 	}
 
 	// GitMetadata are the git related metadata.
@@ -277,6 +278,29 @@ type (
 		GitlabCICDMergeRequestApproved *bool `json:"gitlab_cicd_merge_request_approved,omitempty"` // CI_MERGE_REQUEST_APPROVED
 	}
 
+	// BitbucketMetadata holds the Bitbucket specific metadata.
+	BitbucketMetadata struct {
+		BitbucketPipelinesBuildNumber               string `json:"bitbucket_pipelines_build_number,omitempty"`
+		BitbucketPipelinesPipelineUUID              string `json:"bitbucket_pipelines_pipeline_uuid,omitempty"`
+		BitbucketPipelinesCommit                    string `json:"bitbucket_pipelines_commit,omitempty"`
+		BitbucketPipelinesWorkspace                 string `json:"bitbucket_pipelines_workspace,omitempty"`
+		BitbucketPipelinesRepoSlug                  string `json:"bitbucket_pipelines_repo_slug,omitempty"`
+		BitbucketPipelinesRepoUUID                  string `json:"bitbucket_pipelines_repo_uuid,omitempty"`
+		BitbucketPipelinesRepoFullName              string `json:"bitbucket_pipelines_repo_full_name,omitempty"`
+		BitbucketPipelinesBranch                    string `json:"bitbucket_pipelines_branch,omitempty"`
+		BitbucketPipelinesDestinationBranch         string `json:"bitbucket_pipelines_destination_branch,omitempty"`
+		BitbucketPipelinesTag                       string `json:"bitbucket_pipelines_tag,omitempty"` // only available in tag events.
+		BitbucketPipelinesStepTriggererUUID         string `json:"bitbucket_pipelines_step_triggerer_uuid,omitempty"`
+		BitbucketPipelinesParallelStep              string `json:"bitbucket_pipelines_parallel_step,omitempty"`
+		BitbucketPipelinesParallelStepCount         string `json:"bitbucket_pipelines_parallel_step_count,omitempty"`
+		BitbucketPipelinesPRID                      string `json:"bitbucket_pipelines_pr_id,omitempty"` // only available in PR events.
+		BitbucketPipelinesStepUUID                  string `json:"bitbucket_pipelines_step_uuid,omitempty"`
+		BitbucketPipelinesDeploymentEnvironment     string `json:"bitbucket_pipelines_deployment_environment,omitempty"`
+		BitbucketPipelinesDeploymentEnvironmentUUID string `json:"bitbucket_pipelines_deployment_environment_uuid,omitempty"`
+		BitbucketPipelinesProjectKey                string `json:"bitbucket_pipelines_project_key,omitempty"`
+		BitbucketPipelinesProjectUUID               string `json:"bitbucket_pipelines_project_uuid,omitempty"`
+	}
+
 	// ReviewRequest is the review_request object.
 	ReviewRequest struct {
 		Platform              string     `json:"platform"`
@@ -299,7 +323,7 @@ type (
 		ChecksSuccessCount    int        `json:"checks_success_count"`
 		CreatedAt             *time.Time `json:"created_at,omitempty"`
 		UpdatedAt             *time.Time `json:"updated_at,omitempty"`
-		PushedAt              *time.Time `json:"pushed_at,omitempty"`
+		PushedAt              *int64     `json:"pushed_at,omitempty"`
 		Branch                string     `json:"branch"`
 		BaseBranch            string     `json:"base_branch"`
 	}

@@ -88,7 +88,7 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 				s.BuildTree(tc.layout)
 
 				s.Git().CommitAll("all stacks committed")
-				env := RemoveEnv(os.Environ(), "CI")
+				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
@@ -191,7 +191,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				s.BuildTree(tc.layout)
 				s.Git().CommitAll("all stacks committed")
 
-				env := RemoveEnv(os.Environ(), "CI")
+				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
