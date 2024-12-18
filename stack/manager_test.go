@@ -146,6 +146,14 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
+			name:        "single stack: dependent module changed has source path outside project root",
+			repobuilder: singleStackDependentModuleChangedWithSourceOutsideRepo,
+			want: listTestResult{
+				list:    []string{"/stack"},
+				changed: []string{},
+			},
+		},
+		{
 			name:        "multiple stack: single module changed",
 			repobuilder: multipleStackOneChangedModule,
 			want: listTestResult{
@@ -705,6 +713,49 @@ module "module2" {
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 
+	return repo
+}
+
+func singleStackDependentModuleChangedWithSourceOutsideRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+	module2 := test.Mkdir(t, modules, "module2")
+
+	repo.modules = append(repo.modules, module1, module2)
+
+	stack := test.Mkdir(t, repo.Dir, "stack")
+	root, err := config.LoadRoot(repo.Dir)
+	assert.NoError(t, err)
+	createStack(t, root, stack)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+
+	test.WriteFile(t, stack, "main.tf", `
+module "module1" {
+	source = "../modules/module1"
+}
+`)
+	test.WriteFile(t, module1, "main.tf", `
+module "module2" {
+	source = "../../../../../../../module2"
+}
+`)
+
+	test.WriteFile(t, module2, "main.tf", `# nothing here`)
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+	assert.NoError(t, g.Push("origin", "main"))
+
+	assert.NoError(t, g.Checkout("change-module", true))
+
+	test.WriteFile(t, module2, "main.tf", `
+# any change
+`)
+
+	assert.NoError(t, g.Add(repo.Dir), "add main.tf")
+	assert.NoError(t, g.Commit("commit module1/main.tf"), "commit main.tf")
 	return repo
 }
 
