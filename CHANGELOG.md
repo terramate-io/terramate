@@ -29,6 +29,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - The API Key configuration has precedence over all other authentication methods.
 - Add support for unprefixed Bitbucket URLs in Terraform `module.source`.
 
+### Fixed
+
+- Fix `terramate list --changed` panic when a Terraform module references a path outside the project root.
+
 ## v0.11.4
 
 ### Added
