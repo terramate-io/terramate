@@ -1079,7 +1079,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 	}
 
 	// TODO(i4k): Bitbucket does not provide a final review decision from the API but we
-	//  can infer it from the reviewers + participants fields.
+	// can infer it from the reviewers + participants fields.
 	reviewDecision := ""
 	if len(pr.Reviewers) > 0 {
 		reviewDecision = "review_required"
@@ -1105,6 +1105,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		Status:      pr.State,
 		Author: cloud.Author{
 			Login:     pr.Author.DisplayName,
+			ID:        pr.Author.UUID,
 			AvatarURL: avatarURL,
 		},
 		Branch:                c.cloud.run.metadata.BitbucketPipelinesBranch,

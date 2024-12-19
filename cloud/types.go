@@ -339,6 +339,7 @@ type (
 	Author struct {
 		Login     string `json:"login"`
 		AvatarURL string `json:"avatar_url,omitempty"`
+		ID        string `json:"id,omitempty"`
 	}
 
 	// Reviewer is the user's reviewer of a Pull/Merge Request.
