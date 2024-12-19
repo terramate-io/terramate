@@ -9,7 +9,7 @@ import (
 	stdfmt "fmt"
 	"net/url"
 	"os"
-	"strconv"
+
 	"strings"
 	"time"
 
@@ -19,15 +19,18 @@ import (
 	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
 	githubql "github.com/shurcooL/githubv4"
+	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/bitbucket"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
+	"github.com/terramate-io/terramate/strconv"
 
 	"golang.org/x/oauth2"
 
@@ -41,10 +44,11 @@ import (
 )
 
 const (
-	defaultCloudTimeout  = 60 * time.Second
-	defaultGoogleTimeout = defaultCloudTimeout
-	defaultGithubTimeout = defaultCloudTimeout
-	defaultGitlabTimeout = defaultCloudTimeout
+	defaultCloudTimeout     = 60 * time.Second
+	defaultGoogleTimeout    = defaultCloudTimeout
+	defaultGithubTimeout    = defaultCloudTimeout
+	defaultGitlabTimeout    = defaultCloudTimeout
+	defaultBitbucketTimeout = defaultCloudTimeout
 )
 
 const (
@@ -56,6 +60,7 @@ const (
 
 const githubDomain = "github.com"
 const gitlabDomain = "gitlab.com"
+const bitbucketDomain = "bitbucket.org"
 
 const (
 	githubErrNotFound            errors.Kind = "resource not found (HTTP Status: 404)"
@@ -127,7 +132,7 @@ type cloudRunState struct {
 	stackMeta2PreviewIDs map[string]string
 	reviewRequest        *cloud.ReviewRequest
 	rrEvent              struct {
-		pushedAt  *time.Time
+		pushedAt  *int64
 		commitSHA string
 	}
 	metadata *cloud.DeploymentMetadata
@@ -637,13 +642,25 @@ func (c *cli) detectCloudMetadata() {
 		printer.Stderr.WarnWithDetails("skipping fetch of review_request information", err)
 		return
 	}
-	switch r.Host {
-	case githubDomain:
+	switch c.prj.ciPlatform() {
+	case ci.PlatformGithub:
 		c.detectGithubMetadata(r.Owner, r.Name)
-	case gitlabDomain:
+	case ci.PlatformGitlab:
 		c.detectGitlabMetadata(r.Owner, r.Name)
+	case ci.PlatformBitBucket:
+		c.detectBitbucketMetadata(r.Owner, r.Name)
+	case ci.PlatformLocal:
+		// in case of running locally, we collect the metadata based on the repository host.
+		switch r.Host {
+		case githubDomain:
+			c.detectGithubMetadata(r.Owner, r.Name)
+		case gitlabDomain:
+			c.detectGitlabMetadata(r.Owner, r.Name)
+		case bitbucketDomain:
+			c.detectBitbucketMetadata(r.Owner, r.Name)
+		}
 	default:
-		logger.Debug().Msgf("Skipping metadata collection for git provider: %s", r.Host)
+		logger.Debug().Msgf("Skipping metadata collection for ci provider: %s", c.prj.ciPlatform())
 	}
 }
 
@@ -681,7 +698,11 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 	} else {
 		logger.Debug().Msg("got pull_request details from GITHUB_EVENT_PATH")
 		pushedAt := prFromEvent.GetHead().GetRepo().GetPushedAt()
-		c.cloud.run.rrEvent.pushedAt = pushedAt.GetTime()
+		var pushedInt int64
+		if t := pushedAt.GetTime(); t != nil {
+			pushedInt = t.Unix()
+		}
+		c.cloud.run.rrEvent.pushedAt = &pushedInt
 		c.cloud.run.rrEvent.commitSHA = prFromEvent.GetHead().GetSHA()
 		prNumber = prFromEvent.GetNumber()
 	}
@@ -787,7 +808,7 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 	}
 
 	if idStr := os.Getenv("CI_PROJECT_ID"); idStr != "" {
-		client.ProjectID, _ = strconv.Atoi(idStr)
+		client.ProjectID, _ = strconv.Atoi64(idStr)
 	}
 
 	if gitlabAPIURL := os.Getenv("TM_GITLAB_API_URL"); gitlabAPIURL != "" {
@@ -841,11 +862,108 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 		}
 	}
 	if !pushedAt.IsZero() {
-		c.cloud.run.rrEvent.pushedAt = &pushedAt
+		pushedAtInt := pushedAt.Unix()
+		c.cloud.run.rrEvent.pushedAt = &pushedAtInt
 	}
 
 	c.cloud.run.rrEvent.commitSHA = mr.SHA
 	c.cloud.run.reviewRequest = c.newGitlabReviewRequest(mr)
+}
+
+func (c *cli) detectBitbucketMetadata(owner, reponame string) {
+	logger := log.With().
+		Str("normalized_repository", c.prj.prettyRepo()).
+		Str("head_commit", c.prj.headCommit()).
+		Str("action", "detectBitbucketMetadata").
+		Logger()
+
+	md := c.cloud.run.metadata
+
+	c.setBitbucketPipelinesMetadata(md)
+
+	if md.BitbucketPipelinesBuildNumber == "" {
+		printer.Stderr.Warn("No Bitbucket CI build number detected. Skipping metadata collection.")
+		return
+	}
+
+	token := os.Getenv("BITBUCKET_TOKEN")
+	if token == "" {
+		printer.Stderr.WarnWithDetails(
+			"Export BITBUCKET_TOKEN with your Bitbucket access token for enabling metadata collection",
+			errors.E("No Bitbucket token detected. Some relevant data cannot be collected."),
+		)
+	}
+
+	client := bitbucket.Client{
+		HTTPClient: &c.httpClient,
+		Workspace:  owner,
+		RepoSlug:   reponame,
+		Token:      token,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultBitbucketTimeout)
+	defer cancel()
+	prs, err := client.GetPullRequestsByCommit(ctx, md.BitbucketPipelinesCommit)
+	if err != nil {
+		printer.Stderr.WarnWithDetails(
+			"failed to retrieve pull requests associated with commit. "+
+				"Note that Bitbucket requires enabling the Pull Requests API in the UI. "+
+				"Check our Bitbucket documentation page at https://terramate.io/docs/cli/automation/bitbucket-pipelines/",
+			err)
+
+		return
+	}
+
+	if len(prs) == 0 {
+		printer.Stderr.Warn("No pull requests associated with commit")
+		return
+	}
+
+	// check the right PR based on source and destination branches
+	var pullRequest *bitbucket.PR
+	for _, pr := range prs {
+		pr := pr
+
+		// only PR events have source and destination branches
+		if md.BitbucketPipelinesDestinationBranch != "" &&
+			pr.Source.Branch.Name == md.BitbucketPipelinesBranch && pr.Destination.Branch.Name == md.BitbucketPipelinesDestinationBranch {
+			pullRequest = &pr
+			break
+		} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) {
+			// the pr.MergeCommit.Hash contains a short 12 character commit hash
+			pullRequest = &pr
+			break
+		}
+	}
+
+	if pullRequest == nil {
+		printer.Stderr.Warn("No pull request found with matching source and destination branches")
+		return
+	}
+
+	// The pullRequest.source.commit.hash is a short 12 character commit hash
+
+	var commitHash string
+	commit, err := client.GetCommit(ctx, pullRequest.Source.Commit.ShortHash)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to retrieve commit information", err)
+	} else {
+		commitHash = commit.ShortHash
+	}
+
+	pullRequest.Source.Commit.SHA = commitHash
+
+	buildNumber, err := strconv.Atoi64(md.BitbucketPipelinesBuildNumber)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse Bitbucket CI build number", err)
+		return
+	}
+
+	c.cloud.run.rrEvent.pushedAt = &buildNumber
+	c.cloud.run.rrEvent.commitSHA = commitHash
+	c.cloud.run.reviewRequest = c.newBitbucketReviewRequest(pullRequest)
+
+	logger.Debug().Msg("Bitbucket metadata detected")
 }
 
 func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
@@ -875,7 +993,8 @@ func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to parse CI_PIPELINE_CREATED_AT time", err)
 	} else {
-		c.cloud.run.rrEvent.pushedAt = &createdAt
+		createdAtInt := createdAt.Unix()
+		c.cloud.run.rrEvent.pushedAt = &createdAtInt
 	}
 	var mrApproved *bool
 	if str := os.Getenv("CI_MERGE_REQUEST_APPROVED"); str != "" {
@@ -883,6 +1002,120 @@ func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
 		mrApproved = &b
 	}
 	md.GitlabCICDMergeRequestApproved = mrApproved
+}
+
+func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
+	md.BitbucketPipelinesBuildNumber = os.Getenv("BITBUCKET_BUILD_NUMBER")
+	md.BitbucketPipelinesPipelineUUID = os.Getenv("BITBUCKET_PIPELINE_UUID")
+	md.BitbucketPipelinesCommit = os.Getenv("BITBUCKET_COMMIT")
+	md.BitbucketPipelinesWorkspace = os.Getenv("BITBUCKET_WORKSPACE")
+	md.BitbucketPipelinesRepoSlug = os.Getenv("BITBUCKET_REPO_SLUG")
+	md.BitbucketPipelinesRepoUUID = os.Getenv("BITBUCKET_REPO_UUID")
+	md.BitbucketPipelinesRepoFullName = os.Getenv("BITBUCKET_REPO_FULL_NAME")
+	md.BitbucketPipelinesBranch = os.Getenv("BITBUCKET_BRANCH")
+	md.BitbucketPipelinesTag = os.Getenv("BITBUCKET_TAG")
+	md.BitbucketPipelinesParallelStep = os.Getenv("BITBUCKET_PARALLEL_STEP")
+	md.BitbucketPipelinesParallelStepCount = os.Getenv("BITBUCKET_PARALLEL_STEP_COUNT")
+	md.BitbucketPipelinesPRID = os.Getenv("BITBUCKET_PR_ID")
+	md.BitbucketPipelinesDestinationBranch = os.Getenv("BITBUCKET_PR_DESTINATION_BRANCH")
+	md.BitbucketPipelinesStepUUID = os.Getenv("BITBUCKET_STEP_UUID")
+	md.BitbucketPipelinesDeploymentEnvironment = os.Getenv("BITBUCKET_DEPLOYMENT_ENVIRONMENT")
+	md.BitbucketPipelinesDeploymentEnvironmentUUID = os.Getenv("BITBUCKET_DEPLOYMENT_ENVIRONMENT_UUID")
+	md.BitbucketPipelinesProjectKey = os.Getenv("BITBUCKET_PROJECT_KEY")
+	md.BitbucketPipelinesProjectUUID = os.Getenv("BITBUCKET_PROJECT_UUID")
+	md.BitbucketPipelinesStepTriggererUUID = os.Getenv("BITBUCKET_STEP_TRIGGERER_UUID")
+}
+
+func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
+	createdAt, err := time.Parse(time.RFC3339, pr.CreatedOn)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse PR created_on time", err)
+	}
+	updatedAt, err := time.Parse(time.RFC3339, pr.UpdatedOn)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse PR updated_on time", err)
+	}
+	var avatarURL string
+	if pr.Author.Links != nil && pr.Author.Links.Avatar != nil {
+		avatarURL = pr.Author.Links.Avatar.Href
+	}
+
+	uniqueReviewers := make(map[string]cloud.Reviewer)
+
+	var reviewerApprovalCount int
+	var reviewerChangesRequestedCount int
+	var changesRequestedCount int
+	var approvalCount int
+	var reviewers []cloud.Reviewer
+	for _, participant := range pr.Participants {
+		state, ok := participant.State.(string)
+		if !ok {
+			continue
+		}
+
+		if participant.Role == "REVIEWER" {
+			uniqueReviewers[participant.User.DisplayName] = cloud.Reviewer{
+				Login:     participant.User.DisplayName,
+				AvatarURL: participant.User.Links.Avatar.Href,
+			}
+		}
+
+		switch state {
+		case "changes_requested":
+			changesRequestedCount++
+			if participant.Role == "REVIEWER" {
+				reviewerChangesRequestedCount++
+			}
+		case "approved":
+			approvalCount++
+			if participant.Role == "REVIEWER" {
+				reviewerApprovalCount++
+			}
+		}
+
+	}
+	for _, reviewer := range uniqueReviewers {
+		reviewers = append(reviewers, reviewer)
+	}
+
+	// TODO(i4k): Bitbucket does not provide a final review decision from the API but we
+	//  can infer it from the reviewers + participants fields.
+	reviewDecision := ""
+	if len(pr.Reviewers) > 0 {
+		reviewDecision = "review_required"
+		if reviewerApprovalCount > 0 {
+			reviewDecision = "approved"
+		}
+		if reviewerChangesRequestedCount > 0 {
+			reviewDecision = "changes_requested"
+		}
+	}
+
+	rr := &cloud.ReviewRequest{
+		Platform:    "bitbucket",
+		Repository:  c.prj.prettyRepo(),
+		URL:         pr.Links.HTML.Href,
+		Number:      pr.ID,
+		Title:       pr.Title,
+		Description: pr.Summary.Raw,
+		CommitSHA:   pr.Source.Commit.SHA,
+		Draft:       false, // Bitbucket Cloud does not support draft PRs.
+		CreatedAt:   &createdAt,
+		UpdatedAt:   &updatedAt,
+		Status:      pr.State,
+		Author: cloud.Author{
+			Login:     pr.Author.DisplayName,
+			AvatarURL: avatarURL,
+		},
+		Branch:                c.cloud.run.metadata.BitbucketPipelinesBranch,
+		BaseBranch:            c.cloud.run.metadata.BitbucketPipelinesDestinationBranch,
+		ChangesRequestedCount: changesRequestedCount,
+		ApprovedCount:         approvalCount,
+		ReviewDecision:        reviewDecision,
+		Reviewers:             reviewers,
+		// Note(i4k): PushedAt will be set only in previews.
+	}
+	return rr
 }
 
 func getGithubPRByNumberOrCommit(githubClient *github.Client, ghToken, owner, repo string, number int, commit string) (*github.PullRequest, error) {
@@ -1232,9 +1465,6 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	mrUpdatedAt, err := time.Parse(time.RFC3339, mr.UpdatedAt)
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to parse MR.updated_at field", err)
-
-		t := *c.cloud.run.rrEvent.pushedAt
-		mrUpdatedAt = t
 	}
 	var mrCreatedAt *time.Time
 	if mrCreatedAtVal, err := time.Parse(time.RFC3339, mr.CreatedAt); err != nil {

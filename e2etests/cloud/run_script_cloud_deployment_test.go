@@ -306,7 +306,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 				s.BuildTree(layout)
 				s.Git().CommitAll("all stacks committed")
 
-				env := RemoveEnv(os.Environ(), "CI")
+				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(HelperPath))

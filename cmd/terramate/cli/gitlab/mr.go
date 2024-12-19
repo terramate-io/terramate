@@ -35,7 +35,7 @@ type (
 		// Token is the Gitlab token (usually provided by the GITLAB_TOKEN environment variable.
 		Token string
 
-		ProjectID int
+		ProjectID int64
 		Group     string
 		Project   string
 	}

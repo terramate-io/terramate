@@ -1255,7 +1255,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					if len(subcase.cmd) == 0 {
 						t.Fatal("invalid testcase: cmd not set")
 					}
-					env := RemoveEnv(os.Environ(), "CI")
+					env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 					if subcase.uimode == cli.AutomationMode {
 						env = append(env, "CI=true")
 					}

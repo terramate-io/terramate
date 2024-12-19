@@ -79,6 +79,51 @@ func DetectPlatformFromEnv() PlatformType {
 	return typ
 }
 
+func (plat PlatformType) String() string {
+	switch plat {
+	case PlatformLocal:
+		return "local"
+	case PlatformGithub:
+		return "github"
+	case PlatformGitlab:
+		return "gitlab"
+	case PlatformGenericCI:
+		return "generic"
+	case PlatformAppVeyor:
+		return "appveyor"
+	case PlatformAzureDevops:
+		return "azuredevops"
+	case PlatformBamboo:
+		return "bamboo"
+	case PlatformBitBucket:
+		return "bitbucket"
+	case PlatformBuddyWorks:
+		return "buddyworks"
+	case PlatformBuildKite:
+		return "buildkite"
+	case PlatformCircleCI:
+		return "circleci"
+	case PlatformCirrus:
+		return "cirrus"
+	case PlatformCodeBuild:
+		return "codebuild"
+	case PlatformHeroku:
+		return "heroku"
+	case PlatformHudson:
+		return "hudson"
+	case PlatformJenkins:
+		return "jenkins"
+	case PlatformMyGet:
+		return "myget"
+	case PlatformTeamCity:
+		return "teamcity"
+	case PlatformTravis:
+		return "travis"
+	default:
+		return "unknown"
+	}
+}
+
 func isEnvVarSet(key string) bool {
 	val := os.Getenv(key)
 	return val != "" && val != "0" && val != "false"

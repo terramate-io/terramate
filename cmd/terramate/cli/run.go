@@ -45,7 +45,7 @@ const (
 	// ErrRunCommandNotExecuted represents the error when the command was not executed for whatever reason.
 	ErrRunCommandNotExecuted errors.Kind = "command not found"
 
-	cloudSyncPreviewCICDWarning = "--sync-preview is only supported in GitHub Actions workflows or Gitlab CICD pipelines"
+	cloudSyncPreviewCICDWarning = "--sync-preview is only supported in GitHub Actions workflows, Gitlab CICD pipelines or Bitbucket Cloud Pipelines"
 )
 
 // stackRun contains a list of tasks to be run per stack.
@@ -202,7 +202,7 @@ func (c *cli) runOnStacks() {
 		c.detectCloudMetadata()
 	}
 
-	isCICD := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != ""
+	isCICD := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != "" || os.Getenv("BITBUCKET_BUILD_NUMBER") != ""
 	if c.parsedArgs.Run.SyncPreview && !isCICD {
 		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
 		c.disableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
@@ -797,6 +797,11 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 
 	c.cloud.run.reviewRequest.PushedAt = c.cloud.run.rrEvent.pushedAt
 
+	// preview always requires a commit_sha, so if the API failed to provide it, we should give the HEAD commit.
+	if c.cloud.run.rrEvent.commitSHA == "" {
+		c.cloud.run.rrEvent.commitSHA = c.prj.headCommit()
+	}
+
 	technology := "other"
 	technologyLayer := "default"
 	for _, run := range runs {
@@ -816,7 +821,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 			Runs:            previewRuns,
 			AffectedStacks:  affectedStacksMap,
 			OrgUUID:         c.cloud.run.orgUUID,
-			PushedAt:        c.cloud.run.rrEvent.pushedAt.Unix(),
+			PushedAt:        *c.cloud.run.rrEvent.pushedAt,
 			CommitSHA:       c.cloud.run.rrEvent.commitSHA,
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,

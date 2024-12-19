@@ -66,7 +66,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 
 	createdAt := toTime(t, "2011-01-26T19:01:12Z")
 	updatedAt := toTime(t, "2011-01-26T19:01:12Z")
-	pushedAt := toTime(t, "2024-02-09T12:38:30Z")
+	pushedAt := toTime(t, "2024-02-09T12:38:30Z").Unix()
 
 	for _, tc := range []testcase{
 		{
@@ -135,7 +135,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					PushedAt:        pushedAt.Unix(),                            // pushed_at from the pull request event (not from API)
+					PushedAt:        pushedAt,                                   // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
 						{
@@ -155,7 +155,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
-						PushedAt:    pushedAt,
+						PushedAt:    &pushedAt,
 						Author: cloud.Author{
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -222,7 +222,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					PreviewID:       "1",
 					Technology:      "terraform",
 					TechnologyLayer: "default",
-					PushedAt:        pushedAt.Unix(),                            // pushed_at from the pull request event (not from API)
+					PushedAt:        pushedAt,                                   // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
 					StackPreviews: []*cloudstore.StackPreview{
 						{
@@ -252,7 +252,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
-						PushedAt:    pushedAt,
+						PushedAt:    &pushedAt,
 						Author: cloud.Author{
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -320,7 +320,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
-						PushedAt:    pushedAt,
+						PushedAt:    &pushedAt,
 						Branch:      "new-topic",
 						BaseBranch:  "master",
 					},

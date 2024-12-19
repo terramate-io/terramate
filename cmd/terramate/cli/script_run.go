@@ -197,7 +197,7 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 		feats = append(feats, cloudFeatScriptSyncPreview)
 	}
 
-	isCI := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != ""
+	isCI := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != "" || os.Getenv("BITBUCKET_BUILD_NUMBER") != ""
 	if len(previewRuns) > 0 && !isCI {
 		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
 		c.disableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))

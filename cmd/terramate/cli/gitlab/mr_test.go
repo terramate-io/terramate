@@ -92,7 +92,7 @@ func checkMethod(t *testing.T, method string, r *http.Request) {
 	assert.EqualStrings(t, method, r.Method)
 }
 
-func setup(t *testing.T, projectID int) (*http.ServeMux, *gitlab.Client) {
+func setup(t *testing.T, projectID int64) (*http.ServeMux, *gitlab.Client) {
 	mux := http.NewServeMux()
 
 	// server is a test HTTP server used to provide mock API responses.
