@@ -157,7 +157,7 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 		"rendered",
 		"summary",
 		"state",
-		"author",
+		"author.*",
 		"source.branch.name",
 		"source.commit.hash",
 		"destination.branch.name",
