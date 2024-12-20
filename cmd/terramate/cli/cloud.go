@@ -985,6 +985,7 @@ func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
 	md.GitlabCICDJobStartedAt = os.Getenv("CI_JOB_STARTED_AT")
 	md.GitlabCICDUserEmail = os.Getenv("GITLAB_USER_EMAIL")
 	md.GitlabCICDUserName = os.Getenv("GITLAB_USER_NAME")
+	md.GitlabCICDUserID = os.Getenv("GITLAB_USER_ID")
 	md.GitlabCICDUserLogin = os.Getenv("GITLAB_USER_LOGIN")
 	md.GitlabCICDCommitBranch = os.Getenv("CI_COMMIT_BRANCH")
 	md.GitlabCICDBranch = md.GitlabCICDCommitBranch
@@ -1300,6 +1301,7 @@ func setDefaultGitMetadata(md *cloud.DeploymentMetadata, commit *git.CommitMetad
 }
 
 func setGithubActionsMetadata(md *cloud.DeploymentMetadata) {
+	md.GithubActionsDeploymentActorID = os.Getenv("GITHUB_ACTOR_ID")
 	md.GithubActionsDeploymentActor = os.Getenv("GITHUB_ACTOR")
 	md.GithubActionsDeploymentTriggeredBy = os.Getenv("GITHUB_TRIGGERING_ACTOR")
 	md.GithubActionsDeploymentBranch = os.Getenv("GITHUB_REF_NAME")

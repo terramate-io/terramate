@@ -228,6 +228,7 @@ type (
 		GithubCommitCommitterGitDate    *time.Time `json:"github_commit_committer_git_date,omitempty"`
 
 		GithubActionsDeploymentBranch      string `json:"github_actions_deployment_branch,omitempty"`
+		GithubActionsDeploymentActorID     string `json:"github_actions_deployment_actor_id,omitempty"`
 		GithubActionsDeploymentActor       string `json:"github_actions_deployment_actor,omitempty"`
 		GithubActionsDeploymentTriggeredBy string `json:"github_actions_triggered_by,omitempty"`
 		GithubActionsRunID                 string `json:"github_actions_run_id,omitempty"`
@@ -267,6 +268,7 @@ type (
 		GitlabCICDJobName           string `json:"gitlab_cicd_job_name,omitempty"`            // CI_JOB_NAME
 		GitlabCICDJobStartedAt      string `json:"gitlab_cicd_job_started_at,omitempty"`      // CI_JOB_STARTED_AT
 		GitlabCICDUserEmail         string `json:"gitlab_cicd_user_email,omitempty"`          // GITLAB_USER_EMAIL
+		GitlabCICDUserID            string `json:"gitlab_cicd_user_id,omitempty"`             // GITLAB_USER_ID
 		GitlabCICDUserName          string `json:"gitlab_cicd_user_name,omitempty"`           // GITLAB_USER_NAME
 		GitlabCICDUserLogin         string `json:"gitlab_cicd_user_login,omitempty"`          // GITLAB_USER_LOGIN
 		GitlabCICDCommitBranch      string `json:"gitlab_cicd_commit_branch,omitempty"`       // CI_COMMIT_BRANCH
