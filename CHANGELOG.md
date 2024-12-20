@@ -20,7 +20,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.11.5
 
 ### Added
 
@@ -28,6 +28,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - You can connect to Terramate Cloud using API keys exported as `TMC_TOKEN` environment variable.
   - The API Key configuration has precedence over all other authentication methods.
 - Add support for unprefixed Bitbucket URLs in Terraform `module.source`.
+- Add support for Bitbucket Cloud Pipelines in the Terramate Cloud features.
 
 ### Fixed
 
