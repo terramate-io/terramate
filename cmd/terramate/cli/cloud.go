@@ -1057,6 +1057,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 			uniqueReviewers[participant.User.DisplayName] = cloud.Reviewer{
 				Login:     participant.User.DisplayName,
 				AvatarURL: participant.User.Links.Avatar.Href,
+				ID:        participant.User.UUID,
 			}
 		}
 
