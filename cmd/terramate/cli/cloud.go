@@ -1105,8 +1105,8 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		UpdatedAt:   &updatedAt,
 		Status:      pr.State,
 		Author: cloud.Author{
-			Login:     pr.Author.DisplayName,
 			ID:        pr.Author.UUID,
+			Login:     pr.Author.DisplayName,
 			AvatarURL: avatarURL,
 		},
 		Branch:                c.cloud.run.metadata.BitbucketPipelinesBranch,
@@ -1384,6 +1384,7 @@ func (c *cli) newGithubReviewRequest(
 ) *cloud.ReviewRequest {
 	author := cloud.Author{}
 	if user := pull.GetUser(); user != nil {
+		author.ID = strconv.Itoa64(int64(user.GetID()))
 		author.Login = user.GetLogin()
 		author.AvatarURL = user.GetAvatarURL()
 	}
@@ -1434,14 +1435,19 @@ func (c *cli) newGithubReviewRequest(
 			rr.ApprovedCount++
 		}
 
-		login := review.GetUser().GetLogin()
+		user := review.GetUser()
+		if user == nil {
+			continue
+		}
 
+		login := user.GetLogin()
 		if _, found := uniqueReviewers[login]; found {
 			continue
 		}
 		uniqueReviewers[login] = struct{}{}
 
 		rr.Reviewers = append(rr.Reviewers, cloud.Reviewer{
+			ID:        strconv.Itoa64(user.GetID()),
 			Login:     login,
 			AvatarURL: review.GetUser().GetAvatarURL(),
 		})
@@ -1487,6 +1493,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 		UpdatedAt:   &mrUpdatedAt,
 		Status:      mr.State,
 		Author: cloud.Author{
+			ID:        strconv.Itoa64(int64(mr.Author.ID)),
 			Login:     mr.Author.Username,
 			AvatarURL: mr.Author.AvatarURL,
 		},
@@ -1500,6 +1507,9 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 			Name: l,
 		})
 	}
+
+	// TODO(i4k): implement reviewers for Gitlab
+
 	return rr
 }
 

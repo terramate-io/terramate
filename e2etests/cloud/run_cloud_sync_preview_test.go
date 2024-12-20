@@ -157,6 +157,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
 						Author: cloud.Author{
+							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
 						},
@@ -254,6 +255,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
 						Author: cloud.Author{
+							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
 						},
@@ -316,13 +318,17 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
 						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
-						Author:      cloud.Author{Login: "octocat", AvatarURL: "https://github.com/images/error/octocat_happy.gif"},
-						Status:      "open",
-						CreatedAt:   createdAt,
-						UpdatedAt:   updatedAt,
-						PushedAt:    &pushedAt,
-						Branch:      "new-topic",
-						BaseBranch:  "master",
+						Author: cloud.Author{
+							ID:        "1",
+							Login:     "octocat",
+							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+						},
+						Status:     "open",
+						CreatedAt:  createdAt,
+						UpdatedAt:  updatedAt,
+						PushedAt:   &pushedAt,
+						Branch:     "new-topic",
+						BaseBranch: "master",
 					},
 					StackPreviews: []*cloudstore.StackPreview{
 						{
