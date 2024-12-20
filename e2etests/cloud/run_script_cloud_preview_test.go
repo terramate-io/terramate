@@ -189,6 +189,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
 						Author: cloud.Author{
+							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
 						},
@@ -295,6 +296,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
 						Author: cloud.Author{
+							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
 						},
