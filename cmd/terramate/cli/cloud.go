@@ -694,7 +694,7 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 	var prNumber int
 	prFromEvent, err := tmgithub.GetEventPR()
 	if err != nil {
-		logger.Debug().Err(err).Msg("unable to get pull_request details from GITHUB_EVENT_PATH")
+		logger.Warn().Err(err).Msg("unable to get pull_request details from GITHUB_EVENT_PATH")
 	} else {
 		logger.Debug().Msg("got pull_request details from GITHUB_EVENT_PATH")
 		pushedAt := prFromEvent.GetHead().GetRepo().GetPushedAt()
@@ -731,7 +731,7 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 
 	pull, err := getGithubPRByNumberOrCommit(githubClient, ghToken, owner, reponame, prNumber, headCommit)
 	if err != nil {
-		logger.Debug().Err(err).
+		logger.Warn().Err(err).
 			Int("number", prNumber).
 			Msg("failed to retrieve pull_request")
 		return

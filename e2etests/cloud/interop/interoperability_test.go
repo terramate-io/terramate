@@ -47,7 +47,7 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 			env = append(env, "GITHUB_ACTIONS=1")
 			tmcli := NewInteropCLI(t, datapath(t, stackpath), env...)
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet",
+				tmcli.Run("run", "--log-level=warn",
 					"--",
 					TerraformTestPath,
 					"init",
@@ -58,7 +58,7 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 				},
 			)
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet",
+				tmcli.Run("run", "--log-level=warn",
 					"--sync-preview",
 					"--terraform-plan-file=out.plan",
 					"--target", defaultTarget,
@@ -72,7 +72,6 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 					StderrRegexes: []string{
 						"Preview created",
 					},
-					IgnoreStdout: true,
 				},
 			)
 		})
