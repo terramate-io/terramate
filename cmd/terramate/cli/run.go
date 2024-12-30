@@ -26,6 +26,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/run"
 	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/scheduler"
@@ -380,9 +381,7 @@ func (c *cli) runAll(
 	}()
 
 	// map of stackName -> map of backendName -> outputs
-	type stackOutputs map[prj.Path]map[string]cty.Value
-
-	allOutputs := stackOutputs{}
+	allOutputs := run.NewOnceMap[string, *run.OnceMap[string, cty.Value]]()
 
 	err = sched.Run(func(run stackRun) error {
 		errs := errors.L()
@@ -476,12 +475,12 @@ func (c *cli) runAll(
 						}
 						break tasksLoop
 					}
-					_, ok = allOutputs[otherStack.Dir]
-					if !ok {
-						allOutputs[otherStack.Dir] = make(map[string]cty.Value)
-					}
-					_, ok = allOutputs[otherStack.Dir][backend.Name]
-					if !ok {
+
+					stackOutputs, _ := allOutputs.GetOrInit(otherStack.Dir.String(), func() (*runutil.OnceMap[string, cty.Value], error) {
+						return runutil.NewOnceMap[string, cty.Value](), nil
+					})
+
+					outputsVal, err := stackOutputs.GetOrInit(backend.Name, func() (cty.Value, error) {
 						var stdout bytes.Buffer
 						var stderr bytes.Buffer
 						cmd := exec.Command(backend.Command[0], backend.Command[1:]...)
@@ -492,14 +491,15 @@ func (c *cli) runAll(
 						err := cmd.Run()
 						if err != nil {
 							if !task.MockOnFail {
-								errs.Append(errors.E(err, "failed to execute: (cmd: %s) (stdout: %s) (stderr: %s)", cmd.String(), stdout.String(), stderr.String()))
+								err := errors.E(err, "failed to execute: (cmd: %s) (stdout: %s) (stderr: %s)", cmd.String(), stdout.String(), stderr.String())
+								errs.Append(err)
 								c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								failedTaskIndex = taskIndex
 								if !continueOnError {
 									cancel()
 								}
-								break tasksLoop
+								return cty.Value{}, err
 							}
 
 							printer.Stderr.WarnWithDetails(
@@ -518,7 +518,8 @@ func (c *cli) runAll(
 								if !continueOnError {
 									cancel()
 								}
-								break tasksLoop
+								return cty.Value{}, err
+
 							}
 							inputVal, err = json.Unmarshal(stdoutBytes, typ)
 							if err != nil {
@@ -530,13 +531,16 @@ func (c *cli) runAll(
 								if !continueOnError {
 									cancel()
 								}
-								break tasksLoop
+								return cty.Value{}, err
 							}
 						}
-						allOutputs[otherStack.Dir][backend.Name] = inputVal
+						return inputVal, nil
+					})
+					if err != nil {
+						break tasksLoop
 					}
-					stackOutputs := allOutputs[otherStack.Dir][backend.Name]
-					evalctx.SetNamespaceRaw("outputs", stackOutputs)
+
+					evalctx.SetNamespaceRaw("outputs", outputsVal)
 					inputVal, inputErr := input.Value(evalctx)
 					mockVal, mockFound, mockErr := input.Mock(evalctx)
 
