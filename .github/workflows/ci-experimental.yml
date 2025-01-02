@@ -26,7 +26,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: opentofu/setup-opentofu@12f4debbf681675350b6cd1f0ff8ecfbda62027b # pin@v1
+      - uses: opentofu/setup-opentofu@592200bd4b9bbf4772ace78f887668b1aee8f716 # pin@v1.0.5
         with:
           tofu_version: 1.6.2
           tofu_wrapper: false

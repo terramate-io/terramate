@@ -4,6 +4,7 @@
 package core_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -581,4 +582,86 @@ func TestRunSharing(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestRunSharingParallel(t *testing.T) {
+	// This test triggers the race condition described in SC-14248.
+	t.Parallel()
+
+	layout := []string{
+		"f:backend.tm:" + Block("sharing_backend",
+			Labels("name"),
+			Expr("type", "terraform"),
+			Str("filename", "sharing.tf"),
+			Command("terraform", "output", "-json"),
+		).String(),
+		"s:s1:id=s1",
+		"f:s1/main.tf:" + Doc(
+			Block("resource",
+				Labels("local_file", "s1_file"),
+				Str("content", "s1_content"),
+				Str("filename", "${path.module}/file.txt"),
+			),
+		).String(),
+		"f:s1/output.tm:" + Output(
+			Labels("s1_output"),
+			Str("backend", "name"),
+			Expr("value", "resource.local_file.s1_file.content"),
+		).String(),
+	}
+
+	for i := 2; i < 5; i++ {
+		layout = append(layout,
+			fmt.Sprintf(`s:s%d:after=["/s1"]`, i),
+			fmt.Sprintf("f:s%d/input.tm:", i)+Input(
+				Labels(fmt.Sprintf("s%d_input", i)),
+				Str("backend", "name"),
+				Expr("value", "outputs.s1_output.value"),
+				Str("from_stack_id", "s1"),
+			).String(),
+			fmt.Sprintf("f:s%d/main.tf:", i)+Doc(
+				Block("resource",
+					Labels("local_file", fmt.Sprintf("s%d_file", i)),
+					Expr("content", fmt.Sprintf("var.s%d_input", i)),
+					Str("filename", "${path.module}/file.txt"),
+				),
+			).String(),
+		)
+	}
+
+	layout = append(layout,
+		"f:exp.tm:"+Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+	)
+
+	s := sandbox.New(t)
+	s.BuildTree(layout)
+
+	tmcli := NewCLI(t, s.RootDir())
+	tmcli.PrependToPath(filepath.Dir(TerraformTestPath))
+	res := tmcli.Run("run", HelperPath, "echo", "hello")
+
+	if res.Status == 0 {
+		// generate safeguard must trigger
+		t.Fatal("run must fail if sharing is not generated")
+	}
+
+	AssertRunResult(t, tmcli.Run("generate"), RunExpected{
+		IgnoreStdout: true,
+	})
+	AssertRunResult(t, tmcli.Run("run", "--quiet", "-X", "terraform", "init"),
+		RunExpected{
+			IgnoreStdout: true,
+		},
+	)
+	s.Git().CommitAll("all")
+
+	AssertRunResult(t, tmcli.Run("run", "--quiet", "--enable-sharing", "--mock-on-fail", "--parallel=10", "terraform", "apply", "-auto-approve"),
+		RunExpected{
+			IgnoreStdout: true,
+		},
+	)
 }
