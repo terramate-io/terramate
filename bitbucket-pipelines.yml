@@ -12,7 +12,9 @@ pipelines:
     '**':
       - step:
           name: 'build Terramate'
+          oidc: true
           script:
+            - curl -H "Authorization: Bearer $BITBUCKET_STEP_OIDC_TOKEN" "https://api.bitbucket.org/2.0/users/${BITBUCKET_STEP_TRIGGERER_UUID}" | jq
             - make build
             - go install github.com/hashicorp/hc-install/cmd/hc-install@latest
             - hc-install install -version 1.6.0 terraform
