@@ -1025,6 +1025,22 @@ func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
 	md.BitbucketPipelinesProjectKey = os.Getenv("BITBUCKET_PROJECT_KEY")
 	md.BitbucketPipelinesProjectUUID = os.Getenv("BITBUCKET_PROJECT_UUID")
 	md.BitbucketPipelinesStepTriggererUUID = os.Getenv("BITBUCKET_STEP_TRIGGERER_UUID")
+
+	client := bitbucket.Client{
+		HTTPClient: &c.httpClient,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultBitbucketTimeout)
+	defer cancel()
+	user, err := client.GetUser(ctx, md.BitbucketPipelinesStepTriggererUUID)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to retrieve user information", err)
+	} else {
+		md.BitbucketPipelinesTriggeredByAccountID = user.AccountID
+		md.BitbucketPipelinesTriggeredByNickname = user.Nickname
+		md.BitbucketPipelinesTriggeredByDisplayName = user.DisplayName
+		md.BitbucketPipelinesTriggeredByAvatarURL = user.Links.Avatar.Href
+	}
 }
 
 func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
@@ -1035,10 +1051,6 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 	updatedAt, err := time.Parse(time.RFC3339, pr.UpdatedOn)
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to parse PR updated_on time", err)
-	}
-	var avatarURL string
-	if pr.Author.Links != nil && pr.Author.Links.Avatar != nil {
-		avatarURL = pr.Author.Links.Avatar.Href
 	}
 
 	uniqueReviewers := make(map[string]cloud.Reviewer)
@@ -1108,7 +1120,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		Author: cloud.Author{
 			ID:        pr.Author.UUID,
 			Login:     pr.Author.DisplayName,
-			AvatarURL: avatarURL,
+			AvatarURL: pr.Author.Links.Avatar.Href,
 		},
 		Branch:                c.cloud.run.metadata.BitbucketPipelinesBranch,
 		BaseBranch:            c.cloud.run.metadata.BitbucketPipelinesDestinationBranch,
