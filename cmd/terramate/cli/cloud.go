@@ -907,6 +907,7 @@ func (c *cli) detectBitbucketMetadata(owner, reponame string) {
 	if err != nil {
 		printer.Stderr.WarnWithDetails(
 			"failed to retrieve pull requests associated with commit. "+
+				"Check if the Bitbucket token is valid and has the required permissions. "+
 				"Note that Bitbucket requires enabling the Pull Requests API in the UI. "+
 				"Check our Bitbucket documentation page at https://terramate.io/docs/cli/automation/bitbucket-pipelines/",
 			err)
