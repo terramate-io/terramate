@@ -62,7 +62,7 @@ type (
 		HTML *struct {
 			Href string `json:"href,omitempty"`
 		} `json:"html"`
-		Avatar *struct {
+		Avatar struct {
 			Href string `json:"href,omitempty"`
 		} `json:"avatar"`
 	}
@@ -71,7 +71,7 @@ type (
 	User struct {
 		Type        string `json:"type"`
 		DisplayName string `json:"display_name"`
-		Links       *Links `json:"links"`
+		Links       Links  `json:"links"`
 		UUID        string `json:"uuid"`
 		AccountID   string `json:"account_id"`
 		Nickname    string `json:"nickname"`
@@ -314,6 +314,52 @@ func (c *Client) GetCommit(ctx context.Context, commit string) (Commit, error) {
 	}
 
 	return commitData, nil
+}
+
+// GetUser fetches the user by its UUID.
+func (c *Client) GetUser(ctx context.Context, uuid string) (u User, err error) {
+	url := fmt.Sprintf("%s/users/%s",
+		c.baseURL(), uuid)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	if c.HTTPClient == nil {
+		c.HTTPClient = &http.Client{}
+	}
+
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to execute request: %w", err)
+	}
+
+	defer func() {
+		err = errors.L(err, resp.Body.Close()).AsError()
+	}()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return User{}, errors.E(err, "reading response body")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return User{}, fmt.Errorf("unexpected status code: %d (%s)", resp.StatusCode, data)
+	}
+
+	err = json.Unmarshal(data, &u)
+	if err != nil {
+		return User{}, errors.E(err, "unmarshaling user")
+	}
+
+	return u, nil
 }
 
 func (c *Client) baseURL() string {

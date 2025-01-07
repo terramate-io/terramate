@@ -293,6 +293,10 @@ type (
 		BitbucketPipelinesDestinationBranch         string `json:"bitbucket_pipelines_destination_branch,omitempty"`
 		BitbucketPipelinesTag                       string `json:"bitbucket_pipelines_tag,omitempty"` // only available in tag events.
 		BitbucketPipelinesStepTriggererUUID         string `json:"bitbucket_pipelines_step_triggerer_uuid,omitempty"`
+		BitbucketPipelinesTriggeredByAccountID      string `json:"bitbucket_pipelines_triggered_by_account_id,omitempty"`
+		BitbucketPipelinesTriggeredByNickname       string `json:"bitbucket_pipelines_triggered_by_nickname,omitempty"`
+		BitbucketPipelinesTriggeredByDisplayName    string `json:"bitbucket_pipelines_triggered_by_display_name,omitempty"`
+		BitbucketPipelinesTriggeredByAvatarURL      string `json:"bitbucket_pipelines_triggered_by_avatar_url,omitempty"`
 		BitbucketPipelinesParallelStep              string `json:"bitbucket_pipelines_parallel_step,omitempty"`
 		BitbucketPipelinesParallelStepCount         string `json:"bitbucket_pipelines_parallel_step_count,omitempty"`
 		BitbucketPipelinesPRID                      string `json:"bitbucket_pipelines_pr_id,omitempty"` // only available in PR events.
