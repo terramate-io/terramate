@@ -65,8 +65,11 @@ type (
 	}
 )
 
-const errList errors.Kind = "listing stacks error"
-const errListChanged errors.Kind = "listing changed stacks error"
+// List errors
+const (
+	ErrList        errors.Kind = "listing stacks error"
+	ErrListChanged errors.Kind = "listing changed stacks error"
+)
 
 // NewManager creates a new stack manager.
 func NewManager(root *config.Root) *Manager {
@@ -108,7 +111,7 @@ func (m *Manager) List(checkRepo bool) (*Report, error) {
 
 	report.Checks, err = checkRepoIsClean(m.git)
 	if err != nil {
-		return nil, errors.E(errList, err)
+		return nil, errors.E(ErrList, err)
 	}
 	return report, nil
 }
@@ -126,7 +129,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 
 	if !m.git.IsRepository() {
 		return nil, errors.E(
-			errListChanged,
+			ErrListChanged,
 			"the path \"%s\" is not a git repository",
 			m.root.HostDir(),
 		)
@@ -134,7 +137,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 
 	checks, err := checkRepoIsClean(m.git)
 	if err != nil {
-		return nil, errors.E(errListChanged, err)
+		return nil, errors.E(ErrListChanged, err)
 	}
 
 	var dirtyFiles project.Paths
@@ -168,7 +171,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 
 	changedFiles, err := m.changedFiles(cfg.BaseRef, dirtyFiles...)
 	if err != nil {
-		return nil, errors.E(errListChanged, err)
+		return nil, errors.E(ErrListChanged, err)
 	}
 
 	if len(changedFiles) == 0 {
@@ -228,7 +231,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 
 			s, err := config.NewStackFromHCL(m.root.HostDir(), cfg.Node)
 			if err != nil {
-				return nil, errors.E(errListChanged, err)
+				return nil, errors.E(ErrListChanged, err)
 			}
 
 			stackSet[s.Dir] = Entry{
@@ -263,7 +266,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 
 		s, err := config.NewStackFromHCL(m.root.HostDir(), stackTree.Node)
 		if err != nil {
-			return nil, errors.E(errListChanged, err)
+			return nil, errors.E(ErrListChanged, err)
 		}
 
 		stackSet[s.Dir] = Entry{
@@ -284,7 +287,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		// discover Terragrunt modules
 		tgModules, err = tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
 		if err != nil {
-			return nil, errors.E(errListChanged, err, "scanning terragrunt modules")
+			return nil, errors.E(ErrListChanged, err, "scanning terragrunt modules")
 		}
 
 		for _, mod := range tgModules {
@@ -326,13 +329,13 @@ rangeStacks:
 
 			modules, err := tf.ParseModules(tfpath)
 			if err != nil {
-				return errors.E(errListChanged, "parsing modules", err)
+				return errors.E(ErrListChanged, "parsing modules", err)
 			}
 
 			for _, mod := range modules {
 				changed, why, err := m.tfModuleChanged(mod, stack.HostDir(m.root), cfg.BaseRef, make(map[string]bool))
 				if err != nil {
-					return errors.E(errListChanged, err, "checking module %q", mod.Source)
+					return errors.E(ErrListChanged, err, "checking module %q", mod.Source)
 				}
 
 				if changed {
@@ -356,7 +359,7 @@ rangeStacks:
 		})
 
 		if err != nil {
-			return nil, errors.E(errListChanged, "checking if Terraform module changes", err)
+			return nil, errors.E(ErrListChanged, "checking if Terraform module changes", err)
 		}
 
 		// tgModulesMap is only populated if Terragrunt is enabled.
@@ -367,7 +370,7 @@ rangeStacks:
 
 		changed, why, err := m.tgModuleChanged(stack, tgMod, cfg.BaseRef, stackSet, tgModulesMap)
 		if err != nil {
-			return nil, errors.E(errListChanged, err, "checking if Terragrunt module changes")
+			return nil, errors.E(ErrListChanged, err, "checking if Terragrunt module changes")
 		}
 
 		if changed {
@@ -410,7 +413,7 @@ func (m *Manager) allStacks() ([]Entry, error) {
 		var err error
 		allstacks, err = List(m.root, m.root.Tree())
 		if err != nil {
-			return nil, errors.E(errListChanged, "searching for stacks", err)
+			return nil, errors.E(ErrListChanged, "searching for stacks", err)
 		}
 		m.cache.stacks = allstacks
 	}
@@ -645,7 +648,7 @@ func (m *Manager) changedFiles(gitBaseRef string, dirtyFiles ...project.Path) (p
 
 		m.cache.changedFiles[gitBaseRef], err = m.listChangedFiles(m.root.HostDir(), gitBaseRef)
 		if err != nil {
-			return nil, errors.E(errListChanged, err)
+			return nil, errors.E(ErrListChanged, err)
 		}
 	}
 	m.cache.changedFiles[gitBaseRef] = append(m.cache.changedFiles[gitBaseRef], dirtyFiles...)
@@ -659,7 +662,7 @@ func (m *Manager) tgModuleChanged(
 	if tfMod.IsLocal() {
 		changed, why, err := m.tfModuleChanged(tfMod, project.AbsPath(m.root.HostDir(), tgMod.Path.String()), gitBaseRef, make(map[string]bool))
 		if err != nil {
-			return false, "", errors.E(errListChanged, err, "checking if Terraform module changes (in Terragrunt context)")
+			return false, "", errors.E(ErrListChanged, err, "checking if Terraform module changes (in Terragrunt context)")
 		}
 		if changed {
 			return true, fmt.Sprintf("module %q changed because %s", tgMod.Path, why), nil
@@ -694,7 +697,7 @@ func (m *Manager) tgModuleChanged(
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
+			return false, "", errors.E(ErrListChanged, "checking if Terragrunt module changes", err)
 		}
 		if !info.IsDir() {
 			// if it's not a directory, then if changed it shall have been detected by the changedFiles.
@@ -712,7 +715,7 @@ func (m *Manager) tgModuleChanged(
 		if ok {
 			changed, why, err := m.tgModuleChanged(stack, depTgMod, gitBaseRef, stackSet, tgModuleMap)
 			if err != nil {
-				return false, "", errors.E(errListChanged, "checking if Terragrunt module changes", err)
+				return false, "", errors.E(ErrListChanged, "checking if Terragrunt module changes", err)
 			}
 			if changed {
 				return true, fmt.Sprintf("module %q changed because %q changed because %s", tgMod.Path, dep, why), nil
