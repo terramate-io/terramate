@@ -1455,11 +1455,13 @@ func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.Statu
 		report, err = mgr.List(checkRepo)
 	}
 
-	if report != nil {
-		// memoize the list of affected stacks so they can be retrieved later
-		// without computing the list again
-		c.affectedStacks = report.Stacks
+	if err != nil {
+		return nil, err
 	}
+
+	// memoize the list of affected stacks so they can be retrieved later
+	// without computing the list again
+	c.affectedStacks = report.Stacks
 
 	if stackFilters.HasFilter() {
 		if !c.prj.isRepo {
@@ -1499,10 +1501,6 @@ func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.Statu
 			}
 		}
 		report.Stacks = stacks
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	c.prj.git.repoChecks = report.Checks

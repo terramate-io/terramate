@@ -13,14 +13,17 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/stack"
+
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/stack"
+	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/hclwrite"
+
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -94,7 +97,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Unknown,
 					},
@@ -105,7 +108,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -137,7 +140,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Failed,
 					},
@@ -158,7 +161,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Failed,
 					},
@@ -179,7 +182,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -203,7 +206,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -227,7 +230,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -251,7 +254,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -275,7 +278,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -299,7 +302,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "gitlab.com/unknown-io/other",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.OK,
 					},
@@ -320,7 +323,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.Drifted,
 					},
@@ -345,7 +348,7 @@ func TestCloudStatus(t *testing.T) {
 						MetaTags:   []string{"something.with.dots"},
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.Drifted,
 					},
@@ -369,7 +372,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -390,7 +393,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.Drifted,
 					},
@@ -414,7 +417,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.OK,
 					},
@@ -425,7 +428,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -446,7 +449,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.OK,
 					},
@@ -457,7 +460,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -478,7 +481,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.OK,
 					},
@@ -489,7 +492,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -513,7 +516,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.Drifted,
 					},
@@ -524,7 +527,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -548,7 +551,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.Drifted,
 					},
@@ -559,7 +562,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -584,7 +587,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Failed,
+						Status:           cloudstack.Failed,
 						DeploymentStatus: deployment.Failed,
 						DriftStatus:      drift.OK,
 					},
@@ -595,7 +598,7 @@ func TestCloudStatus(t *testing.T) {
 						Repository: "github.com/terramate-io/terramate",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -621,7 +624,7 @@ func TestCloudStatus(t *testing.T) {
 						Target:     "default",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -633,7 +636,7 @@ func TestCloudStatus(t *testing.T) {
 						Target:     "stage",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.Drifted,
+						Status:           cloudstack.Drifted,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.Drifted,
 					},
@@ -645,7 +648,7 @@ func TestCloudStatus(t *testing.T) {
 						Target:     "stage",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -670,7 +673,7 @@ func TestCloudStatus(t *testing.T) {
 						Target:     "default",
 					},
 					State: cloudstore.StackState{
-						Status:           stack.OK,
+						Status:           cloudstack.OK,
 						DeploymentStatus: deployment.OK,
 						DriftStatus:      drift.OK,
 					},
@@ -798,6 +801,43 @@ func TestCloudStatus(t *testing.T) {
 	}
 }
 
+func TestCloudStatusRegresionCrash(t *testing.T) {
+	t.Parallel()
+
+	// Terramate crashed due to an oversight in error handling.
+	// This test ensures that the crash does not happen again.
+
+	store, err := cloudstore.LoadDatastore(testserverJSONFile)
+	assert.NoError(t, err)
+	addr := startFakeTMCServer(t, store)
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"f:terramate.tm:" + Doc(
+			Block("terramate",
+				Block("config",
+					Block("git",
+						Str("default_branch", "master"),
+					),
+				),
+			),
+		).String(),
+	})
+
+	s.Git().SetRemoteURL("origin", "git@github.com:terramate-io/terramate.git")
+
+	env := RemoveEnv(os.Environ(), "CI")
+	env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+
+	cli := NewCLI(t, filepath.Join(s.RootDir()), env...)
+	args := []string{"list", "--status=ok", "--changed"}
+	result := cli.Run(args...)
+	AssertRunResult(t, result, RunExpected{
+		Status:      1,
+		StderrRegex: string(stack.ErrListChanged),
+	})
+}
+
 func paginationTestcase(perPage int) cloudStatusTestcase {
 	const nstacks = 100
 
@@ -814,7 +854,7 @@ func paginationTestcase(perPage int) cloudStatusTestcase {
 				Repository: "github.com/terramate-io/terramate",
 			},
 			State: cloudstore.StackState{
-				Status:           stack.Failed,
+				Status:           cloudstack.Failed,
 				DeploymentStatus: deployment.Failed,
 				DriftStatus:      drift.OK,
 			},
