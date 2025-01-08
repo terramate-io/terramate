@@ -22,6 +22,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add `terramate [run, script run] --{include,only}-output-dependencies` flags.
+  - These flags are needed for initializing the output dependencies of stacks which had its dependencies not changed in the same run.
+  - The `--include-output-dependencies` flag includes the output dependencies in the execution order.
+  - The `--only-output-dependencies` flag only includes the output dependencies in the execution order.
+
 ## v0.11.7
 
 ### Fixed

@@ -665,3 +665,224 @@ func TestRunSharingParallel(t *testing.T) {
 		},
 	)
 }
+
+func TestRunOutputDependencies(t *testing.T) {
+	t.Parallel()
+
+	t.Run("--*-output-dependencies must show an error if experiment is disabled", func(t *testing.T) {
+		t.Parallel()
+		s := sandbox.New(t)
+		// NOTE: outputs-sharing experiment is still not enabled by default.
+
+		s.BuildTree([]string{
+			`f:terramate.tm:` + Terramate(
+				Config(
+					Experiments("scripts"),
+				),
+			).String(),
+			`f:script.tm:` + Script(
+				Labels("test"),
+				Block("job",
+					Command(HelperPathAsHCL, "stack-abs-path", fmt.Sprintf(`${tm_chomp(<<-EOF
+					%s
+				EOF
+				)}`, s.RootDir())),
+				),
+			).String(),
+		})
+
+		expected := RunExpected{
+			Status:      1,
+			StderrRegex: regexp.QuoteMeta("--include-output-dependencies requires the 'outputs-sharing' experiment enabled"),
+		}
+		tmcli := NewCLI(t, s.RootDir())
+		AssertRunResult(t, tmcli.Run("run", "-X", "--include-output-dependencies", "--", HelperPath, "stack-abs-path", s.RootDir()), expected)
+		AssertRunResult(t, tmcli.Run("script", "run", "-X", "--include-output-dependencies", "test"), expected)
+		AssertRunResult(t, tmcli.Run("run", "-X", "--only-output-dependencies", "--", HelperPath, "stack-abs-path", s.RootDir()), expected)
+		AssertRunResult(t, tmcli.Run("script", "run", "-X", "--only-output-dependencies", "test"), expected)
+	})
+
+	type fixture struct {
+		sandbox        *sandbox.S
+		dependencyPath string
+		dependentPath  string
+	}
+
+	setupSandbox := func(t *testing.T) fixture {
+		s := sandbox.New(t)
+		const stackDependencyName = "stack-dependency"
+		const stackDependentName = "stack-dependent"
+		s.BuildTree([]string{
+			`f:terramate.tm:` + Terramate(
+				Config(
+					Experiments(hcl.SharingIsCaringExperimentName, "scripts"),
+				),
+			).String(),
+			`f:script.tm:` + Script(
+				Labels("test"),
+				Block("job",
+					Expr("command", fmt.Sprintf(
+						`["%s", "stack-abs-path", env.TM_TEST_BASEDIR]`, HelperPathAsHCL),
+					),
+				),
+			).String(),
+			`f:sharing.tm:` + Block("sharing_backend",
+				Labels("default"),
+				Expr("type", "terraform"),
+				Command("terraform", "output", "-json"),
+				Str("filename", "_sharing.tf"),
+			).String(),
+			"s:" + stackDependencyName + `:id=` + stackDependencyName,
+			`s:` + stackDependentName + `:after=["/stack-dependency"];tags=["dependent"]`,
+		})
+
+		s.RootEntry().CreateFile(stackDependencyName+"/outputs.tm", Block("output",
+			Labels("output1"),
+			Str("backend", "default"),
+			Expr("value", "some.value"),
+		).String())
+
+		s.RootEntry().CreateFile(stackDependentName+"/inputs.tm", Block("input",
+			Labels("input1"),
+			Str("backend", "default"),
+			Expr("value", "outputs.output1.value"),
+			Str("from_stack_id", stackDependencyName),
+		).String())
+
+		s.Generate()
+		s.Git().CommitAll("initial commit")
+		s.Git().Push("main")
+		return fixture{
+			sandbox:        &s,
+			dependencyPath: "/" + stackDependencyName,
+			dependentPath:  "/" + stackDependentName,
+		}
+	}
+
+	t.Run("must not show the output dependencies by default", func(t *testing.T) {
+		t.Parallel()
+		f := setupSandbox(t)
+
+		// without any filters should just execute the stacks in scope
+
+		{
+			expected := RunExpected{Stdout: nljoin(f.dependencyPath, f.dependentPath)}
+			cli := NewCLI(t, f.sandbox.RootDir())
+			cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+			AssertRunResult(t, cli.Run("run", "--quiet", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), expected)
+			AssertRunResult(t, cli.Run("script", "run", "--quiet", "test"), expected)
+		}
+
+		{
+			for _, stack := range []string{f.dependencyPath, f.dependentPath} {
+				expected := RunExpected{Stdout: nljoin(stack)}
+				cli := NewCLI(t, filepath.Join(f.sandbox.RootDir(), stack))
+				cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+				AssertRunResult(t, cli.Run("run", "--quiet", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), expected)
+				AssertRunResult(t, cli.Run("script", "run", "--quiet", "test"), expected)
+			}
+		}
+
+		{
+			// when filtering, no output dependencies should be shown (by default)
+
+			git := f.sandbox.Git()
+			git.CheckoutNew("change-stack-dependent")
+			f.sandbox.DirEntry(f.dependentPath).CreateFile("main.tf", "# add file")
+
+			expected := RunExpected{Stdout: nljoin(f.dependentPath)}
+
+			cli := NewCLI(t, f.sandbox.RootDir())
+			cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+			AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--changed", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), expected)
+			AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--tags=dependent", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), expected)
+			AssertRunResult(t, cli.Run("script", "run", "-X", "--changed", "--quiet", "test"), expected)
+			AssertRunResult(t, cli.Run("script", "run", "-X", "--tags=dependent", "--quiet", "test"), expected)
+		}
+	})
+
+	t.Run("--*-output-dependencies pull dependencies", func(t *testing.T) {
+		t.Parallel()
+		f := setupSandbox(t)
+
+		// if dependency also changed, they must return once (no duplicates).
+
+		f.sandbox.Git().CheckoutNew("change-both-stacks")
+
+		cli := NewCLI(t, f.sandbox.RootDir())
+		f.sandbox.DirEntry(f.dependencyPath).CreateFile("main.tf", "# add file")
+		f.sandbox.DirEntry(f.dependentPath).CreateFile("main.tf", "# add file")
+
+		AssertRunResult(t, cli.Run("run", "--quiet", "--changed", "-X", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), RunExpected{
+			Stdout: nljoin(f.dependencyPath, f.dependentPath),
+		})
+
+		f.sandbox.Git().CommitAll("change both")
+		f.sandbox.Git().Checkout("main")
+		f.sandbox.Git().Merge("change-both-stacks")
+		f.sandbox.Git().Push("main")
+
+		f.sandbox.Git().CheckoutNew("change-dependent")
+
+		{
+			// --*-output-dependencies must pull dependencies if they are out of scope
+			// scope=changed
+
+			cli := NewCLI(t, f.sandbox.RootDir())
+			cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+
+			normalExpected := RunExpected{Stdout: nljoin(f.dependentPath)}
+			f.sandbox.DirEntry(f.dependentPath).CreateFile("main.tf", "# changed file")
+			AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--changed", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), normalExpected) // sanity check
+
+			inclExpected := RunExpected{Stdout: nljoin(f.dependencyPath, f.dependentPath)}
+			AssertRunResult(t, cli.Run("run", "--quiet", "-X", "--quiet", "--changed", "--include-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), inclExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--quiet", "-X", "--quiet", "--include-output-dependencies", "test"), inclExpected)
+			onlyExpected := RunExpected{Stdout: nljoin(f.dependencyPath)}
+			AssertRunResult(t, cli.Run("run", "--quiet", "-X", "--quiet", "--changed", "--only-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), onlyExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--quiet", "-X", "--quiet", "--only-output-dependencies", "test"), onlyExpected)
+		}
+
+		{
+			// --*-output-dependencies must pull dependencies if they are out of scope
+			// scope=path
+
+			cwd := filepath.Join(f.sandbox.RootDir(), f.dependentPath)
+			cli := NewCLI(t, cwd)
+			cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+
+			normalExpected := RunExpected{Stdout: nljoin(f.dependentPath)}
+			f.sandbox.DirEntry(f.dependentPath).CreateFile("main.tf", "# changed file")
+			AssertRunResult(t, cli.Run("run", "--quiet", "-X", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), normalExpected) // sanity check
+
+			inclExpected := RunExpected{Stdout: nljoin(f.dependencyPath, f.dependentPath)}
+			AssertRunResult(t, cli.Run("run", "--quiet", "-X", "--include-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), inclExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--quiet", "-X", "--include-output-dependencies", "test"), inclExpected)
+
+			onlyExpected := RunExpected{Stdout: nljoin(f.dependencyPath)}
+			AssertRunResult(t, cli.Run("run", "--quiet", "-X", "--only-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), onlyExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--quiet", "-X", "--only-output-dependencies", "test"), onlyExpected)
+		}
+
+		{
+			// --*-output-dependencies must pull dependencies if they are out of scope
+			// scope=tags
+
+			cli := NewCLI(t, f.sandbox.RootDir())
+			cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+
+			normalExpected := RunExpected{Stdout: nljoin(f.dependentPath)}
+			f.sandbox.DirEntry(f.dependentPath).CreateFile("main.tf", "# changed file")
+			AssertRunResult(t, cli.Run("run", "--tags=dependent", "--quiet", "-X", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), normalExpected) // sanity check
+
+			inclExpected := RunExpected{Stdout: nljoin(f.dependencyPath, f.dependentPath)}
+			AssertRunResult(t, cli.Run("run", "--tags=dependent", "--quiet", "-X", "--include-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), inclExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--tags=dependent", "--quiet", "-X", "--include-output-dependencies", "test"), inclExpected)
+
+			onlyExpected := RunExpected{Stdout: nljoin(f.dependencyPath)}
+			AssertRunResult(t, cli.Run("run", "--tags=dependent", "--quiet", "-X", "--only-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), onlyExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--tags=dependent", "--quiet", "-X", "--only-output-dependencies", "test"), onlyExpected)
+
+		}
+	})
+}
