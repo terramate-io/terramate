@@ -25,7 +25,7 @@ import (
 func (c *cli) printScriptInfo() {
 	labels := c.parsedArgs.Script.Info.Cmds
 
-	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	stacks, err := c.computeSelectedStacks(false, outputsSharingFlags{}, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
 		fatalWithDetailf(err, "computing selected stacks")
 	}

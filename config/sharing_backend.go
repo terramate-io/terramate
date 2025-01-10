@@ -41,6 +41,11 @@ type (
 	Outputs []Output
 )
 
+// EvalInputFromStackID the `from_stack_id` field of an input block using the provided evaluation context.
+func EvalInputFromStackID(evalctx *eval.Context, input hcl.Input) (string, error) {
+	return evalString(evalctx, input.FromStackID, "input.from_stack_id")
+}
+
 // EvalInput evaluates an input block using the provided evaluation context.
 func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 	evaluatedInput := Input{

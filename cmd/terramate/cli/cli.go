@@ -152,6 +152,7 @@ type cliSpec struct {
 	Run struct {
 		runCommandFlags `envprefix:"TM_ARG_RUN_"`
 		runSafeguardsCliSpec
+		outputsSharingFlags
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
@@ -168,6 +169,7 @@ type cliSpec struct {
 		Run struct {
 			runScriptFlags `envprefix:"TM_ARG_RUN_"`
 			runSafeguardsCliSpec
+			outputsSharingFlags
 		} `cmd:"" help:"Run a Terramate Script in stacks."`
 	} `cmd:"" help:"Use Terramate Scripts"`
 
@@ -302,6 +304,11 @@ type cloudFilterFlags struct {
 type changeDetectionFlags struct {
 	EnableChangeDetection  []string `help:"Enable specific change detection modes" enum:"git-untracked,git-uncommitted"`
 	DisableChangeDetection []string `help:"Disable specific change detection modes" enum:"git-untracked,git-uncommitted"`
+}
+
+type outputsSharingFlags struct {
+	IncludeOutputDependencies bool `help:"Include stacks that are dependencies of the selected stacks. (requires outputs-sharing experiment enabled)"`
+	OnlyOutputDependencies    bool `help:"Only include stacks that are dependencies of the selected stacks. (requires outputs-sharing experiment enabled)"`
 }
 
 type cloudTargetFlags struct {
@@ -1151,7 +1158,7 @@ func (c *cli) triggerStackByFilter() {
 	stackFilter := cloud.StatusFilters{
 		StackStatus: statusFilter,
 	}
-	stacksReport, err := c.listStacks(false, "", stackFilter, false)
+	stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, stackFilter, false)
 	if err != nil {
 		fatalWithDetailf(err, "unable to list stacks")
 	}
@@ -2189,19 +2196,19 @@ func generateDot(
 }
 
 func (c *cli) generateDebug() {
-	// TODO(KATCIPIS): When we introduce config defined on root context
-	// we need to know blocks that have root context, since they should
-	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "generate debug: selecting stacks")
 	}
 
 	selectedStacks := map[prj.Path]struct{}{}
-	for _, stack := range stacks {
-		log.Debug().Msgf("selected stack: %s", stack.Dir())
+	for _, entry := range report.Stacks {
+		stackdir := entry.Stack.HostDir(c.cfg())
+		if stackdir == c.wd() || strings.HasPrefix(stackdir, c.wd()+string(filepath.Separator)) {
+			log.Debug().Msgf("selected stack: %s", entry.Stack.Dir)
 
-		selectedStacks[stack.Dir()] = struct{}{}
+			selectedStacks[entry.Stack.Dir] = struct{}{}
+		}
 	}
 
 	results, err := generate.Load(c.cfg(), c.vendorDir())
@@ -2584,7 +2591,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool, target string, stackFilters cloud.StatusFilters) (config.List[*config.SortableStack], error) {
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, outputFlags outputsSharingFlags, target string, stackFilters cloud.StatusFilters) (config.List[*config.SortableStack], error) {
 	report, err := c.listStacks(c.parsedArgs.Changed, target, stackFilters, true)
 	if err != nil {
 		return nil, err
@@ -2602,7 +2609,96 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool, target string, stackFi
 	if err != nil {
 		return nil, errors.E(err, "adding wanted stacks")
 	}
-	return stacks, nil
+	return c.addOutputDependencies(outputFlags, stacks), nil
+}
+
+func (c *cli) addOutputDependencies(outputFlags outputsSharingFlags, stacks config.List[*config.SortableStack]) config.List[*config.SortableStack] {
+	logger := log.With().
+		Str("action", "cli.addOutputDependencies()").
+		Logger()
+
+	if !outputFlags.IncludeOutputDependencies && !outputFlags.OnlyOutputDependencies {
+		logger.Debug().Msg("output dependencies not requested")
+		return stacks
+	}
+
+	if outputFlags.IncludeOutputDependencies && outputFlags.OnlyOutputDependencies {
+		fatal(errors.E("--include-output-dependencies and --only-output-dependencies cannot be used together"))
+	}
+	if (outputFlags.IncludeOutputDependencies || outputFlags.OnlyOutputDependencies) && !c.cfg().HasExperiment(hcl.SharingIsCaringExperimentName) {
+		fatal(errors.E("--include-output-dependencies requires the '%s' experiment enabled", hcl.SharingIsCaringExperimentName))
+	}
+
+	stacksMap := map[string]*config.SortableStack{}
+	for _, stack := range stacks {
+		stacksMap[stack.Stack.Dir.String()] = stack
+	}
+
+	rootcfg := c.cfg()
+	depIDs := map[string]struct{}{}
+	depOrigins := map[string][]string{} // id -> stack paths
+	for _, st := range stacks {
+		evalctx := c.setupEvalContext(st.Stack, map[string]string{})
+		cfg, _ := rootcfg.Lookup(st.Stack.Dir)
+		for _, inputcfg := range cfg.Node.Inputs {
+			fromStackID, err := config.EvalInputFromStackID(evalctx, inputcfg)
+			if err != nil {
+				fatalWithDetailf(err, "evaluating `input.%s.from_stack_id`", inputcfg.Name)
+			}
+			depIDs[fromStackID] = struct{}{}
+			depOrigins[fromStackID] = append(depOrigins[fromStackID], st.Stack.Dir.String())
+
+			logger.Debug().
+				Str("stack", st.Stack.Dir.String()).
+				Str("dependency", fromStackID).
+				Msg("stack has output dependency")
+		}
+	}
+
+	mgr := c.stackManager()
+	outputsMap := map[string]*config.SortableStack{}
+	for depID := range depIDs {
+		st, found, err := mgr.StackByID(depID)
+		if err != nil {
+			fatalWithDetailf(err, "loading output dependencies of selected stacks")
+		}
+		if !found {
+			fatalWithDetailf(errors.E("dependency stack %s not found", depID), "loading output dependencies of selected stacks")
+		}
+
+		var reason string
+		depsOf := depOrigins[depID]
+		if len(depsOf) == 1 {
+			reason = stdfmt.Sprintf("Output dependency of stack %s", depsOf[0])
+		} else {
+			reason = stdfmt.Sprintf("Output dependency of stacks %s", strings.Join(depsOf, ", "))
+		}
+
+		logger.Debug().
+			Str("stack", st.Dir.String()).
+			Str("reason", reason).
+			Msg("adding output dependency")
+
+		outputsMap[st.Dir.String()] = &config.SortableStack{
+			Stack: st,
+		}
+	}
+
+	if outputFlags.IncludeOutputDependencies {
+		for _, dep := range outputsMap {
+			if _, found := stacksMap[dep.Stack.Dir.String()]; !found {
+				stacks = append(stacks, dep)
+			}
+		}
+		return stacks
+	}
+
+	// only output dependencies
+	stacks = config.List[*config.SortableStack]{}
+	for _, dep := range outputsMap {
+		stacks = append(stacks, dep)
+	}
+	return stacks
 }
 
 func (c *cli) filterStacks(stacks []stack.Entry) []stack.Entry {

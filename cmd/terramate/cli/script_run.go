@@ -58,7 +58,7 @@ func (c *cli) runScript() {
 		statusFilter := parseStatusFilter(c.parsedArgs.Script.Run.Status)
 		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Script.Run.DeploymentStatus)
 		driftFilter := parseDriftStatusFilter(c.parsedArgs.Script.Run.DriftStatus)
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Script.Run.Target, cloud.StatusFilters{
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Script.Run.outputsSharingFlags, c.parsedArgs.Script.Run.Target, cloud.StatusFilters{
 			StackStatus:      statusFilter,
 			DeploymentStatus: deploymentFilter,
 			DriftStatus:      driftFilter,

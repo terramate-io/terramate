@@ -391,7 +391,7 @@ func (s S) DirEntry(relpath string) DirEntry {
 	}
 
 	if path.IsAbs(relpath) {
-		t.Fatalf("DirEntry() needs a relative path but given %q", relpath)
+		relpath = relpath[1:]
 	}
 
 	abspath := filepath.Join(s.rootdir, filepath.FromSlash(relpath))

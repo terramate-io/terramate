@@ -144,7 +144,7 @@ func (c *cli) runOnStacks() {
 		stackFilter := parseStatusFilter(c.parsedArgs.Run.Status)
 		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Run.DeploymentStatus)
 		driftFilter := parseDriftStatusFilter(c.parsedArgs.Run.DriftStatus)
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.Target, cloud.StatusFilters{
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.outputsSharingFlags, c.parsedArgs.Run.Target, cloud.StatusFilters{
 			StackStatus:      stackFilter,
 			DeploymentStatus: deploymentFilter,
 			DriftStatus:      driftFilter,

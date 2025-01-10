@@ -220,6 +220,24 @@ func (root *Root) StacksByTagsFilters(filters []string) (project.Paths, error) {
 	}).Paths(), nil
 }
 
+// StackByID returns the stack with the given ID.
+func (root *Root) StackByID(id string) (*Stack, bool, error) {
+	stacks := root.tree.stacks(func(tree *Tree) bool {
+		return tree.IsStack() && tree.Node.Stack.ID == id
+	})
+	if len(stacks) == 0 {
+		return nil, false, nil
+	}
+	if len(stacks) > 1 {
+		printer.Stderr.Warnf("multiple stacks with the same ID %q found.", id)
+	}
+	stack, err := stacks[0].Stack()
+	if err != nil {
+		return nil, true, err
+	}
+	return stack, true, nil
+}
+
 // LoadSubTree loads a subtree located at cfgdir into the current tree.
 func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	var parent project.Path
