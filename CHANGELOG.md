@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix the sync of `base_branch` information in the Terramate Cloud deployment.
+
 ## v0.11.7
 
 ### Added
