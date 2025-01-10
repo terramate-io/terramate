@@ -51,48 +51,91 @@ generate_hcl "test2.hcl" {
 }
 `
 	)
-	s := sandbox.NoGit(t, true)
-	s.BuildTree([]string{"d:stack"})
 
-	stackEntry := s.DirEntry("stack")
-	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
-		stackID, stackName, stackDesc))
+	setupTest := func(t *testing.T) *sandbox.S {
+		s := sandbox.NoGit(t, true)
+		s.BuildTree([]string{"d:stack"})
 
-	tmcli := NewCLI(t, s.RootDir())
-	res := tmcli.Run("experimental", "clone", srcStack, destStack)
+		stackEntry := s.DirEntry("stack")
+		stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
+			stackID, stackName, stackDesc))
 
-	AssertRunResult(t, res, RunExpected{
-		StdoutRegex: cloneSuccessMsg(1, srcStack, destStack),
+		return &s
+	}
+
+	doTest := func(t *testing.T, generationEnabled bool) {
+		s := setupTest(t)
+		tmcli := NewCLI(t, s.RootDir())
+
+		args := []string{"experimental", "clone"}
+		if !generationEnabled {
+			args = append(args, "--no-generate")
+		}
+		args = append(args, srcStack, destStack)
+		res := tmcli.Run(args...)
+
+		AssertRunResult(t, res, RunExpected{
+			StdoutRegex: cloneSuccessMsg(1, srcStack, destStack),
+		})
+
+		destdir := filepath.Join(s.RootDir(), destStack)
+		cfg := test.ParseTerramateConfig(t, destdir)
+		if cfg.Stack == nil {
+			t.Fatalf("cloned stack has no stack block: %v", cfg)
+		}
+		if cfg.Stack.ID == "" {
+			t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
+		}
+		if cfg.Stack.ID == stackID {
+			t.Fatalf("want cloned stack to have different ID, got %s == %s", cfg.Stack.ID, stackID)
+		}
+
+		assert.EqualStrings(t, stackName, cfg.Stack.Name)
+		assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
+
+		want := fmt.Sprintf(stackCfgTemplate, cfg.Stack.ID, stackName, stackDesc)
+
+		clonedStackEntry := s.DirEntry(destStack)
+		got := string(clonedStackEntry.ReadFile(stackCfgFilename))
+
+		assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
+
+		if generationEnabled {
+			// Checking that code was also generated already
+			genHCL := string(clonedStackEntry.ReadFile("test.hcl"))
+			genHCL2 := string(clonedStackEntry.ReadFile("test2.hcl"))
+
+			test.AssertGenCodeEquals(t, genHCL, `a = "literal"`)
+			test.AssertGenCodeEquals(t, genHCL2, `b = null`)
+
+			AssertRunResult(t,
+				tmcli.Run("run", "--quiet", HelperPath, "echo", "outdated safeguard must not trigger"),
+				RunExpected{
+					StdoutRegex: "outdated safeguard must not trigger\n",
+				},
+			)
+		} else {
+			AssertRunResult(t,
+				tmcli.Run("run", "--quiet", HelperPath, "echo", "outdated safeguard must trigger"),
+				RunExpected{
+					Status:      1,
+					StderrRegex: "outdated code found",
+				},
+			)
+		}
+	}
+
+	t.Run("clone stack with generate", func(t *testing.T) {
+		t.Parallel()
+
+		doTest(t, true)
 	})
 
-	destdir := filepath.Join(s.RootDir(), destStack)
-	cfg := test.ParseTerramateConfig(t, destdir)
-	if cfg.Stack == nil {
-		t.Fatalf("cloned stack has no stack block: %v", cfg)
-	}
-	if cfg.Stack.ID == "" {
-		t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
-	}
-	if cfg.Stack.ID == stackID {
-		t.Fatalf("want cloned stack to have different ID, got %s == %s", cfg.Stack.ID, stackID)
-	}
+	t.Run("clone stack without generate", func(t *testing.T) {
+		t.Parallel()
 
-	assert.EqualStrings(t, stackName, cfg.Stack.Name)
-	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
-
-	want := fmt.Sprintf(stackCfgTemplate, cfg.Stack.ID, stackName, stackDesc)
-
-	clonedStackEntry := s.DirEntry(destStack)
-	got := string(clonedStackEntry.ReadFile(stackCfgFilename))
-
-	assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
-
-	// Checking that code was also generated already
-	genHCL := string(clonedStackEntry.ReadFile("test.hcl"))
-	genHCL2 := string(clonedStackEntry.ReadFile("test2.hcl"))
-
-	test.AssertGenCodeEquals(t, genHCL, `a = "literal"`)
-	test.AssertGenCodeEquals(t, genHCL2, `b = null`)
+		doTest(t, false)
+	})
 }
 
 func TestCloneStacksWithChildren(t *testing.T) {
