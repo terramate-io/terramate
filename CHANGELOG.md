@@ -29,6 +29,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - The `--include-output-dependencies` flag includes the output dependencies in the execution order.
   - The `--only-output-dependencies` flag only includes the output dependencies in the execution order.
 
+### Fixed
+
+- Fix the sync of `base_branch` information in the Terramate Cloud deployment.
+
 ## v0.11.7
 
 ### Fixed
