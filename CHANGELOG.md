@@ -35,6 +35,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## v0.11.7
 
+### Added
+
+- Add `--no-generate` to `terramate experimental clone` to skip the generation phase after the clone.
+
 ### Fixed
 
 - Fix an edge case crash in `terramate list` when using the `--status` flag.

@@ -201,6 +201,7 @@ type cliSpec struct {
 			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned."`
 			DestDir         string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack."`
 			SkipChildStacks bool   `default:"false" help:"Do not clone nested child stacks."`
+			NoGenerate      bool   `help:"Do not run code generation after cloning the stacks."`
 		} `cmd:"" help:"Clone a stack."`
 
 		Trigger struct {
@@ -1262,8 +1263,12 @@ func (c *cli) cloneStack() {
 	}
 
 	c.output.MsgStdOut("Cloned %d stack(s) from %s to %s with success", n, srcdir, destdir)
-	c.output.MsgStdOut("Generating code on the new cloned stack(s)")
 
+	if c.parsedArgs.Experimental.Clone.NoGenerate {
+		return
+	}
+
+	c.output.MsgStdOut("Generating code on the new cloned stack(s)")
 	c.generate()
 }
 
