@@ -33,6 +33,7 @@ type (
 
 		cache struct {
 			stacks       []Entry
+			stacksMap    map[string]Entry
 			changedFiles map[string]project.Paths // gitBaseRef -> changed files
 		}
 	}
@@ -46,7 +47,7 @@ type (
 
 	// Report is the report of project's stacks and the result of its default checks.
 	Report struct {
-		Stacks []Entry
+		Stacks config.List[Entry]
 
 		// Checks contains the result info of default checks.
 		Checks RepoChecks
@@ -70,6 +71,8 @@ const (
 	ErrList        errors.Kind = "listing stacks error"
 	ErrListChanged errors.Kind = "listing changed stacks error"
 )
+
+var _ config.List[Entry]
 
 // NewManager creates a new stack manager.
 func NewManager(root *config.Root) *Manager {
@@ -392,12 +395,12 @@ rangeStacks:
 		delete(stackSet, ignored)
 	}
 
-	changedStacks := make([]Entry, 0, len(stackSet))
+	changedStacks := make(config.List[Entry], 0, len(stackSet))
 	for _, stack := range stackSet {
 		changedStacks = append(changedStacks, stack)
 	}
 
-	sort.Sort(EntrySlice(changedStacks))
+	sort.Sort(changedStacks)
 
 	return &Report{
 		Checks: checks,
@@ -416,22 +419,30 @@ func (m *Manager) allStacks() ([]Entry, error) {
 			return nil, errors.E(ErrListChanged, "searching for stacks", err)
 		}
 		m.cache.stacks = allstacks
+		m.cache.stacksMap = make(map[string]Entry)
+		for _, stack := range allstacks {
+			// at this point, the stack.ID is unique (if set)
+			if stack.Stack.ID != "" {
+				m.cache.stacksMap[stack.Stack.ID] = stack
+			}
+		}
 	}
 	return allstacks, nil
 }
 
 // StackByID returns the stack with the given id.
 func (m *Manager) StackByID(id string) (*config.Stack, bool, error) {
-	report, err := m.List(false)
-	if err != nil {
-		return nil, false, err
-	}
-	for _, entry := range report.Stacks {
-		if entry.Stack.ID == id {
-			return entry.Stack, true, nil
+	if m.cache.stacksMap == nil {
+		_, err := m.allStacks()
+		if err != nil {
+			return nil, false, err
 		}
 	}
-	return nil, false, nil
+	stack, ok := m.cache.stacksMap[id]
+	if !ok {
+		return nil, false, nil
+	}
+	return stack.Stack, true, nil
 }
 
 // AddWantedOf returns all wanted stacks from the given stacks.
@@ -800,9 +811,7 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 	}, nil
 }
 
-// EntrySlice implements the Sort interface.
-type EntrySlice []Entry
-
-func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir.String() < x[j].Stack.Dir.String() }
-func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+// Dir returns the directory of the entry
+func (e Entry) Dir() project.Path {
+	return e.Stack.Dir
+}
