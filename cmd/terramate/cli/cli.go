@@ -196,6 +196,15 @@ type cliSpec struct {
 		} `cmd:"" help:"Interact with Terramate Cloud Drift Detection."`
 	} `cmd:"" help:"Interact with Terramate Cloud"`
 
+	Trigger struct {
+		Stack        string `arg:"" optional:"true" name:"stack" predictor:"file" help:"The stacks path."`
+		Recursive    bool   `default:"false" help:"Recursively triggers all child stacks of the given path"`
+		Change       bool   `default:"false" help:"Trigger stacks as changed"`
+		IgnoreChange bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
+		Reason       string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
+		cloudFilterFlags
+	} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
+
 	Experimental struct {
 		Clone struct {
 			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned."`
@@ -211,7 +220,7 @@ type cliSpec struct {
 			IgnoreChange bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
 			Reason       string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
 			cloudFilterFlags
-		} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
+		} `cmd:"" hidden:"" help:"Mark a stack as changed so it will be triggered in Change Detection. (DEPRECATED)"`
 
 		RunGraph struct {
 			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
@@ -776,17 +785,23 @@ func (c *cli) run() {
 		c.initAnalytics("clone")
 		c.cloneStack()
 		c.sendAndWaitForAnalytics()
-	case "experimental trigger":
+	case "experimental trigger": // Deprecated
+		c.parsedArgs.Trigger = c.parsedArgs.Experimental.Trigger
+		fallthrough
+	case "trigger":
 		c.initAnalytics("trigger")
 		c.triggerStackByFilter()
 		c.sendAndWaitForAnalytics()
-	case "experimental trigger <stack>":
+	case "experimental trigger <stack>": // Deprecated
+		c.parsedArgs.Trigger = c.parsedArgs.Experimental.Trigger
+		fallthrough
+	case "trigger <stack>":
 		c.initAnalytics("trigger",
-			tel.StringFlag("stack", c.parsedArgs.Experimental.Trigger.Stack),
-			tel.BoolFlag("change", c.parsedArgs.Experimental.Trigger.Change),
-			tel.BoolFlag("ignore-change", c.parsedArgs.Experimental.Trigger.IgnoreChange),
+			tel.StringFlag("stack", c.parsedArgs.Trigger.Stack),
+			tel.BoolFlag("change", c.parsedArgs.Trigger.Change),
+			tel.BoolFlag("ignore-change", c.parsedArgs.Trigger.IgnoreChange),
 		)
-		c.triggerStack(c.parsedArgs.Experimental.Trigger.Stack)
+		c.triggerStack(c.parsedArgs.Trigger.Stack)
 		c.sendAndWaitForAnalytics()
 	case "experimental vendor download <source> <ref>":
 		c.initAnalytics("vendor-download")
@@ -1123,6 +1138,9 @@ func migrateFlagAliases(parsedArgs *cliSpec) {
 
 	// experimental trigger
 	migrateStringFlag(&parsedArgs.Experimental.Trigger.Status, parsedArgs.Experimental.Trigger.CloudStatus)
+
+	// trigger
+	migrateStringFlag(&parsedArgs.Trigger.Status, parsedArgs.Trigger.CloudStatus)
 }
 
 func migrateStringFlag(flag *string, alias string) {
@@ -1138,8 +1156,8 @@ func migrateBoolFlag(flag *bool, alias bool) {
 }
 
 func (c *cli) triggerStackByFilter() {
-	expStatus := c.parsedArgs.Experimental.Trigger.ExperimentalStatus
-	cloudStatus := c.parsedArgs.Experimental.Trigger.Status
+	expStatus := c.parsedArgs.Trigger.ExperimentalStatus
+	cloudStatus := c.parsedArgs.Trigger.Status
 	if expStatus != "" && cloudStatus != "" {
 		fatal("--experimental-status and --status cannot be used together")
 	}
@@ -1153,7 +1171,7 @@ func (c *cli) triggerStackByFilter() {
 		fatal("trigger command expects either a stack path or the --status flag")
 	}
 	statusFilter := parseStatusFilter(statusStr)
-	if statusFilter != cloudstack.NoFilter && c.parsedArgs.Experimental.Trigger.Recursive {
+	if statusFilter != cloudstack.NoFilter && c.parsedArgs.Trigger.Recursive {
 		fatal("cloud filters such as --status are incompatible with --recursive flag")
 	}
 	stackFilter := cloud.StatusFilters{
@@ -1170,8 +1188,8 @@ func (c *cli) triggerStackByFilter() {
 }
 
 func (c *cli) triggerStack(basePath string) {
-	changeFlag := c.parsedArgs.Experimental.Trigger.Change
-	ignoreFlag := c.parsedArgs.Experimental.Trigger.IgnoreChange
+	changeFlag := c.parsedArgs.Trigger.Change
+	ignoreFlag := c.parsedArgs.Trigger.IgnoreChange
 
 	if changeFlag && ignoreFlag {
 		fatal("flags --change and --ignore-change are conflicting")
@@ -1192,7 +1210,7 @@ func (c *cli) triggerStack(basePath string) {
 		kindName = "change"
 	}
 
-	reason := c.parsedArgs.Experimental.Trigger.Reason
+	reason := c.parsedArgs.Trigger.Reason
 	if reason == "" {
 		reason = "Created using Terramate CLI without setting specific reason."
 	}
@@ -1217,11 +1235,11 @@ func (c *cli) triggerStack(basePath string) {
 		fatalf("path %s is outside project", basePath)
 	}
 	prjBasePath := prj.PrjAbsPath(c.rootdir(), basePath)
-	if c.parsedArgs.Experimental.Trigger.Status != "" && c.parsedArgs.Experimental.Trigger.Recursive {
+	if c.parsedArgs.Trigger.Status != "" && c.parsedArgs.Trigger.Recursive {
 		fatal("cloud filters such as --status are incompatible with --recursive flag")
 	}
 	var stacks config.List[*config.SortableStack]
-	if !c.parsedArgs.Experimental.Trigger.Recursive {
+	if !c.parsedArgs.Trigger.Recursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prjBasePath)
 		if err != nil {
 			fatalWithDetailf(err, "loading stack in current directory")

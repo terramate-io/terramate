@@ -444,7 +444,7 @@ func TestChangeDetection(t *testing.T) {
 
 		tmcli := NewCLI(t, s.RootDir())
 		AssertRunResult(t,
-			tmcli.Run("experimental", "trigger", "--ignore-change", "--recursive", "./stacks"),
+			tmcli.Run("trigger", "--ignore-change", "--recursive", "./stacks"),
 			RunExpected{
 				Stdout: nljoin(
 					`Created ignore trigger for stack "/stacks/s1"`,
@@ -482,72 +482,82 @@ func TestChangeDetection(t *testing.T) {
 }
 
 func TestTriggerChangeDetection(t *testing.T) {
-	t.Run("trigger --ignore + Terraform module changes", func(t *testing.T) {
-		s := prepareBranch(t)
-		s.BuildTree([]string{
-			"f:modules/mod1/main.tf:# mod1 module",
-			"f:stacks/s3/use_mod1.tf:" + Block("module",
-				Labels("something"),
-				Str("source", "../../modules/mod1"),
-			).String(),
-		})
-		s.Git().CommitAll("commit module usage")
-		s.Git().Checkout("main")
-		s.Git().Merge(testBranchName)
-		s.Git().Push("main")
-		s.Git().DeleteBranch(testBranchName)
-		s.Git().CheckoutNew(testBranchName)
+	// Run both to test that argument migration works between experimental and non-experimental.
+	// Not every test will be done for both.
+	for _, argsStr := range []string{"experimental trigger", "trigger"} {
+		t.Run("trigger --ignore + Terraform module changes, "+argsStr, func(t *testing.T) {
+			s := prepareBranch(t)
+			s.BuildTree([]string{
+				"f:modules/mod1/main.tf:# mod1 module",
+				"f:stacks/s3/use_mod1.tf:" + Block("module",
+					Labels("something"),
+					Str("source", "../../modules/mod1"),
+				).String(),
+			})
+			s.Git().CommitAll("commit module usage")
+			s.Git().Checkout("main")
+			s.Git().Merge(testBranchName)
+			s.Git().Push("main")
+			s.Git().DeleteBranch(testBranchName)
+			s.Git().CheckoutNew(testBranchName)
 
-		tmcli := NewCLI(t, s.RootDir())
-		AssertRun(t, tmcli.Run("list", "--changed"))
+			tmcli := NewCLI(t, s.RootDir())
+			AssertRun(t, tmcli.Run("list", "--changed"))
 
-		// change Terraform module
-		test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod1"), "main.tf", "# changed")
-		AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
-			Stdout: nljoin("stacks/s3"),
-		})
+			// change Terraform module
+			test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod1"), "main.tf", "# changed")
+			AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
+				Stdout: nljoin("stacks/s3"),
+			})
 
-		AssertRunResult(t,
-			tmcli.Run("experimental", "trigger", "--ignore-change", "./stacks/s3"),
-			RunExpected{
-				Stdout: nljoin(`Created ignore trigger for stack "/stacks/s3"`),
-			},
-		)
+			args := strings.Split(argsStr, " ")
+			args = append(args, "--ignore-change", "./stacks/s3")
 
-		AssertRun(t, tmcli.Run("list", "--changed"))
-	})
+			AssertRunResult(t,
+				tmcli.Run(args...),
+				RunExpected{
+					Stdout: nljoin(`Created ignore trigger for stack "/stacks/s3"`),
+				},
+			)
 
-	t.Run("trigger --ignore + Terragrunt module changes", func(t *testing.T) {
-		s := prepareBranch(t)
-		s.BuildTree([]string{
-			"f:modules/mod1/main.tf:# mod1 module",
-			"f:stacks/s3/terragrunt.hcl:" + Block("terraform",
-				Str("source", "../../modules/mod1"),
-			).String(),
-		})
-		s.Git().CommitAll("commit module usage")
-		s.Git().Checkout("main")
-		s.Git().Merge(testBranchName)
-		s.Git().Push("main")
-		s.Git().DeleteBranch(testBranchName)
-		s.Git().CheckoutNew(testBranchName)
-
-		tmcli := NewCLI(t, s.RootDir())
-		AssertRun(t, tmcli.Run("list", "--changed"))
-
-		// change Terraform module
-		test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod1"), "main.tf", "# changed")
-		AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
-			Stdout: nljoin("stacks/s3"),
+			AssertRun(t, tmcli.Run("list", "--changed"))
 		})
 
-		AssertRunResult(t,
-			tmcli.Run("experimental", "trigger", "--ignore-change", "./stacks/s3"),
-			RunExpected{
-				Stdout: nljoin(`Created ignore trigger for stack "/stacks/s3"`),
-			},
-		)
+		t.Run("trigger --ignore + Terragrunt module changes, "+argsStr, func(t *testing.T) {
+			s := prepareBranch(t)
+			s.BuildTree([]string{
+				"f:modules/mod1/main.tf:# mod1 module",
+				"f:stacks/s3/terragrunt.hcl:" + Block("terraform",
+					Str("source", "../../modules/mod1"),
+				).String(),
+			})
+			s.Git().CommitAll("commit module usage")
+			s.Git().Checkout("main")
+			s.Git().Merge(testBranchName)
+			s.Git().Push("main")
+			s.Git().DeleteBranch(testBranchName)
+			s.Git().CheckoutNew(testBranchName)
 
-		AssertRun(t, tmcli.Run("list", "--changed"))
-	})
+			tmcli := NewCLI(t, s.RootDir())
+			AssertRun(t, tmcli.Run("list", "--changed"))
+
+			// change Terraform module
+			test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod1"), "main.tf", "# changed")
+			AssertRunResult(t, tmcli.Run("list", "--changed"), RunExpected{
+				Stdout: nljoin("stacks/s3"),
+			})
+
+			args := strings.Split(argsStr, " ")
+			args = append(args, "--ignore-change", "./stacks/s3")
+
+			AssertRunResult(t,
+				tmcli.Run(args...),
+				RunExpected{
+					Stdout: nljoin(`Created ignore trigger for stack "/stacks/s3"`),
+				},
+			)
+
+			AssertRun(t, tmcli.Run("list", "--changed"))
+		})
+	}
 }

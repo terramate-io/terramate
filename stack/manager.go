@@ -207,11 +207,7 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 			}
 
 			if errTriggerParse != nil {
-				printer.Stderr.WarnWithDetails(
-					fmt.Sprintf("skipping malformed trigger file: %s", projpath),
-					errTriggerParse,
-				)
-				continue
+				return nil, errors.E(ErrListChanged, errTriggerParse)
 			}
 
 			logger.Debug().Msg("trigger file change detected")
