@@ -1,7 +1,7 @@
 // Copyright 2024 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package cli
+package auth
 
 import (
 	"fmt"
@@ -19,7 +19,8 @@ import (
 
 const defaultGitHubClientID = "08e1f8d6f599c7ec48c5"
 
-func githubLogin(output out.O, tmcBaseURL string, idpKey string, clicfg cliconfig.Config) error {
+// GithubLogin logs in the user using GitHub.
+func GithubLogin(output out.O, tmcBaseURL string, clicfg cliconfig.Config) error {
 	token, err := githubAuth()
 	if err != nil {
 		return err
@@ -37,7 +38,7 @@ func githubLogin(output out.O, tmcBaseURL string, idpKey string, clicfg cliconfi
 		ReturnSecureToken:   true,
 	}
 
-	cred, err := signInWithIDP(reqPayload, idpKey)
+	cred, err := signInWithIDP(reqPayload, idpkey())
 	if err != nil {
 		return err
 	}

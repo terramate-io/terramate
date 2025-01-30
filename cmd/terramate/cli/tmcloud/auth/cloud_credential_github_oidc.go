@@ -1,7 +1,7 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package cli
+package auth
 
 import (
 	"context"
@@ -21,7 +21,10 @@ import (
 	"github.com/terramate-io/terramate/printer"
 )
 
-const githubOIDCProviderName = "GitHub Actions OIDC"
+const (
+	defaultGithubTimeout   = 60 * time.Second
+	githubOIDCProviderName = "GitHub Actions OIDC"
+)
 
 type githubOIDC struct {
 	mu        sync.RWMutex
@@ -42,8 +45,8 @@ type githubOIDC struct {
 
 func newGithubOIDC(output out.O, client *cloud.Client) *githubOIDC {
 	return &githubOIDC{
-		output: output,
 		client: client,
+		output: output,
 	}
 }
 
@@ -202,7 +205,7 @@ func (g *githubOIDC) fetchDetails() error {
 	return nil
 }
 
-func (g *githubOIDC) info(selectedOrgName string) {
+func (g *githubOIDC) Info(selectedOrgName string) {
 	if len(g.orgs) > 0 && g.orgs[0].Status == "trusted" {
 		printer.Stdout.Println("status: signed in")
 	} else {
@@ -228,6 +231,7 @@ func (g *githubOIDC) info(selectedOrgName string) {
 	}
 }
 
-func (g *githubOIDC) organizations() cloud.MemberOrganizations {
+// Organizations that the GitHub OIDC token belong to.
+func (g *githubOIDC) Organizations() cloud.MemberOrganizations {
 	return g.orgs
 }
