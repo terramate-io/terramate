@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -63,7 +64,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	env := RemoveEnv(os.Environ(), "CI")
 	env = append(env, "TMC_API_URL=http://"+addr, "CI=")
 	cli := NewCLI(t, s.RootDir(), env...)
-	AssertRunResult(t, cli.Run("experimental", "trigger", "--status=unhealthy"), RunExpected{
+	AssertRunResult(t, cli.Run("trigger", "--status=unhealthy"), RunExpected{
 		IgnoreStdout: true,
 	})
 
@@ -644,51 +645,55 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 		},
 	} {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
-			store, err := cloudstore.LoadDatastore(testserverJSONFile)
-			assert.NoError(t, err)
+		for _, argStr := range []string{"experimental trigger", "trigger"} {
+			t.Run(tc.name+", "+argStr, func(t *testing.T) {
+				t.Parallel()
 
-			addr := startFakeTMCServer(t, store)
-
-			s := sandbox.New(t)
-			s.BuildTree(tc.layout)
-			repository := tc.repository
-			repositoryURL := tc.repository
-			if repository == "" {
-				repository = "github.com/terramate-io/terramate"
-			}
-			if !filepath.IsAbs(repository) {
-				repositoryURL = fmt.Sprintf("https://%s.git", repository)
-			}
-			if len(tc.layout) > 0 {
-				s.Git().CommitAll("all stacks committed")
-			}
-			s.Git().Push("main")
-			s.Git().CheckoutNew("trigger-the-stacks")
-
-			s.Git().SetRemoteURL("origin", repositoryURL)
-
-			org := store.MustOrgByName("terramate")
-
-			for _, st := range tc.stacks {
-				_, err := store.UpsertStack(org.UUID, st)
+				store, err := cloudstore.LoadDatastore(testserverJSONFile)
 				assert.NoError(t, err)
-			}
-			env := RemoveEnv(os.Environ(), "CI")
-			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
-			cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
-			args := []string{"experimental", "trigger"}
-			args = append(args, tc.flags...)
-			result := cli.Run(args...)
-			AssertRunResult(t, result, tc.want.trigger)
 
-			if tc.want.trigger.Status == 0 {
-				s.Git().CommitAll("stacks triggered", true)
-				cli = NewCLI(t, filepath.Join(s.RootDir()), env...)
-				AssertRunResult(t, cli.ListChangedStacks(), tc.want.list)
-			}
-		})
+				addr := startFakeTMCServer(t, store)
+
+				s := sandbox.New(t)
+				s.BuildTree(tc.layout)
+				repository := tc.repository
+				repositoryURL := tc.repository
+				if repository == "" {
+					repository = "github.com/terramate-io/terramate"
+				}
+				if !filepath.IsAbs(repository) {
+					repositoryURL = fmt.Sprintf("https://%s.git", repository)
+				}
+				if len(tc.layout) > 0 {
+					s.Git().CommitAll("all stacks committed")
+				}
+				s.Git().Push("main")
+				s.Git().CheckoutNew("trigger-the-stacks")
+
+				s.Git().SetRemoteURL("origin", repositoryURL)
+
+				org := store.MustOrgByName("terramate")
+
+				for _, st := range tc.stacks {
+					_, err := store.UpsertStack(org.UUID, st)
+					assert.NoError(t, err)
+				}
+				env := RemoveEnv(os.Environ(), "CI")
+				env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
+				args := strings.Split(argStr, " ")
+				args = append(args, tc.flags...)
+				result := cli.Run(args...)
+				AssertRunResult(t, result, tc.want.trigger)
+
+				if tc.want.trigger.Status == 0 {
+					s.Git().CommitAll("stacks triggered", true)
+					cli = NewCLI(t, filepath.Join(s.RootDir()), env...)
+					AssertRunResult(t, cli.ListChangedStacks(), tc.want.list)
+				}
+			})
+		}
+
 	}
 }
