@@ -1,7 +1,7 @@
 // Copyright 2024 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package cli
+package auth
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -22,15 +21,12 @@ const apiKeyEnvName = "TMC_TOKEN"
 type APIKey struct {
 	token string
 
-	orgs cloud.MemberOrganizations
-
-	output out.O
+	orgs   cloud.MemberOrganizations
 	client *cloud.Client
 }
 
-func newAPIKey(output out.O, client *cloud.Client) *APIKey {
+func newAPIKey(client *cloud.Client) *APIKey {
 	return &APIKey{
-		output: output,
 		client: client,
 	}
 }
@@ -88,8 +84,8 @@ func (a *APIKey) ExpireAt() time.Time {
 	panic(errors.E(errors.ErrInternal, "API key does not expire"))
 }
 
-// info display the credential details.
-func (a *APIKey) info(selectedOrgName string) {
+// Info display the credential details.
+func (a *APIKey) Info(selectedOrgName string) {
 	printer.Stdout.Println("status: signed in")
 	printer.Stdout.Println(fmt.Sprintf("provider: %s", a.Name()))
 
@@ -102,6 +98,7 @@ func (a *APIKey) info(selectedOrgName string) {
 	}
 }
 
-func (a *APIKey) organizations() cloud.MemberOrganizations {
+// Organizations that the API key belong to.
+func (a *APIKey) Organizations() cloud.MemberOrganizations {
 	return a.orgs
 }

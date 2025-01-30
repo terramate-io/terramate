@@ -29,6 +29,8 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud/auth"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
@@ -598,9 +600,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	case "cloud login":
 		var err error
 		if parsedArgs.Cloud.Login.Github {
-			err = githubLogin(output, cloudBaseURL(), idpkey(), clicfg)
+			err = auth.GithubLogin(output, tmcloud.BaseURL(), clicfg)
 		} else {
-			err = googleLogin(output, idpkey(), clicfg)
+			err = auth.GoogleLogin(output, clicfg)
 		}
 		if err != nil {
 			printer.Stderr.Error(err)
@@ -894,7 +896,6 @@ func (c *cli) run() {
 func (c *cli) initAnalytics(cmd string, opts ...tel.MessageOpt) {
 	cpsigfile := filepath.Join(c.clicfg.UserTerramateDir, "checkpoint_signature")
 	anasigfile := filepath.Join(c.clicfg.UserTerramateDir, "analytics_signature")
-	credfile := filepath.Join(c.clicfg.UserTerramateDir, credfile)
 
 	var repo *git.Repository
 	if c.prj.isRepo {
@@ -905,7 +906,7 @@ func (c *cli) initAnalytics(cmd string, opts ...tel.MessageOpt) {
 	r.Set(
 		tel.Command(cmd),
 		tel.OrgName(c.cloudOrgName()),
-		tel.DetectFromEnv(credfile, cpsigfile, anasigfile, c.prj.ciPlatform(), repo),
+		tel.DetectFromEnv(auth.CredentialFile(c.clicfg), cpsigfile, anasigfile, c.prj.ciPlatform(), repo),
 		tel.StringFlag("chdir", c.parsedArgs.Chdir),
 	)
 	r.Set(opts...)
@@ -2608,7 +2609,7 @@ func (c *cli) cfg() *config.Root            { return c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
-func (c *cli) cred() credential             { return c.cloud.client.Credential.(credential) }
+func (c *cli) cred() auth.Credential        { return c.cloud.client.Credential.(auth.Credential) }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
