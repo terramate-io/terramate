@@ -1,7 +1,7 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package cli
+package auth
 
 import (
 	"bytes"
@@ -29,6 +29,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/errors/verbosity"
 	"github.com/terramate-io/terramate/printer"
 )
 
@@ -40,6 +41,8 @@ const (
 
 	minPort = 40000
 	maxPort = 52023
+
+	defaultGoogleTimeout = 60 * time.Second
 )
 
 type (
@@ -56,9 +59,9 @@ type (
 
 		provider string
 
-		output out.O
 		clicfg cliconfig.Config
 		client *cloud.Client
+		output out.O
 	}
 
 	createAuthURIResponse struct {
@@ -94,11 +97,12 @@ type (
 	}
 )
 
-func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
+// GoogleLogin logs in the user using Google OAuth.
+func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
 		errChan:        make(chan tokenError),
-		idpKey:         idpKey,
+		idpKey:         idpkey(),
 	}
 
 	mux := http.NewServeMux()
@@ -113,7 +117,7 @@ func googleLogin(output out.O, idpKey string, clicfg cliconfig.Config) error {
 
 	go startServer(s, h, redirectURLChan, consentDataChan)
 
-	consentData, err := createAuthURI(<-redirectURLChan, idpKey)
+	consentData, err := createAuthURI(<-redirectURLChan, h.idpKey)
 	if err != nil {
 		return err
 	}
@@ -434,7 +438,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 func endpointURL(endpoint string, idpKey string) *url.URL {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		fatalWithDetailf(err, "failed to parse endpoint URL for createAuthURI")
+		printer.Stderr.FatalWithDetails("failed to parse endpoint URL for createAuthURI", err)
 	}
 
 	q := u.Query()
@@ -443,17 +447,12 @@ func endpointURL(endpoint string, idpKey string) *url.URL {
 	return u
 }
 
-func newGoogleCredential(
-	output out.O,
-	idpKey string,
-	clicfg cliconfig.Config,
-	client *cloud.Client,
-) *googleCredential {
+func newGoogleCredential(output out.O, clicfg cliconfig.Config, client *cloud.Client) *googleCredential {
 	return &googleCredential{
-		output: output,
 		clicfg: clicfg,
-		idpKey: idpKey,
+		idpKey: idpkey(),
 		client: client,
+		output: output,
 	}
 }
 
@@ -651,8 +650,8 @@ func (g *googleCredential) fetchDetails() error {
 	return nil
 }
 
-// info display the credential details.
-func (g *googleCredential) info(selectedOrgName string) {
+// Info display the credential details.
+func (g *googleCredential) Info(selectedOrgName string) {
 	printer.Stdout.Println("status: signed in")
 	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
 
@@ -681,8 +680,8 @@ func (g *googleCredential) info(selectedOrgName string) {
 	}
 }
 
-// organizations returns the list of organizations associated with the credential.
-func (g *googleCredential) organizations() cloud.MemberOrganizations {
+// Organizations returns the list of organizations associated with the credential.
+func (g *googleCredential) Organizations() cloud.MemberOrganizations {
 	return g.orgs
 }
 
@@ -703,4 +702,42 @@ func (g *googleCredential) update(idToken, refreshToken string) (err error) {
 	sec, dec := math.Modf(exp)
 	g.expireAt = time.Unix(int64(sec), int64(dec*(1e9)))
 	return nil
+}
+
+// newIDPNeedConfirmationError creates an error indicating the user has multiple providers set up and
+// linking them is needed.
+func newIDPNeedConfirmationError(verifiedProviders []string) *errors.DetailedError {
+	err := errors.D("The account was already set up with another email provider.")
+
+	if len(verifiedProviders) > 0 {
+		err = err.WithDetailf(verbosity.V1, "Please login using one of the methods below:")
+		for _, providerDomain := range verifiedProviders {
+			switch providerDomain {
+			case "google.com":
+				err = err.WithDetailf(verbosity.V1, "- Run 'terramate cloud login --google' to login with your Google account")
+			case "github.com":
+				err = err.WithDetailf(verbosity.V1, "- Run 'terramate cloud login --github' to login with your GitHub account")
+			}
+			err = err.WithDetailf(verbosity.V1, "Alternatively, visit https://cloud.terramate.io and authenticate with the Social login to link the accounts.")
+		}
+	} else {
+		err = err.WithDetailf(verbosity.V1, "Visit https://cloud.terramate.io and authenticate to link the accounts.")
+	}
+
+	return err.WithCode(ErrIDPNeedConfirmation)
+}
+
+// newEmailNotVerifiedError creates an error indicating that user's email need to be verified.
+func newEmailNotVerifiedError(email string) *errors.DetailedError {
+	return errors.D("Email %s is not verified.", email).
+		WithDetailf(verbosity.V1, "Please login to https://cloud.terramate.io to verify your email and continue the sign up process.").
+		WithCode(ErrEmailNotVerified)
+}
+
+func idpkey() string {
+	idpKey := os.Getenv("TMC_API_IDP_KEY")
+	if idpKey == "" {
+		idpKey = defaultAPIKey
+	}
+	return idpKey
 }

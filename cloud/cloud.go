@@ -70,7 +70,6 @@ type (
 		// BaseURL is the cloud base endpoint URL.
 		// If not set, it defaults to [BaseURL].
 		BaseURL    string
-		IDPKey     string
 		Credential Credential
 
 		// HTTPClient is the HTTP client reused in all connections.

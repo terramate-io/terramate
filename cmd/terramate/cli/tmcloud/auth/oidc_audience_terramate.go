@@ -3,7 +3,7 @@
 
 //go:build !defaultAudience
 
-package cli
+package auth
 
 import "github.com/terramate-io/terramate/cloud"
 
