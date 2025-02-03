@@ -20,12 +20,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.11.9
 
 ### Changed
 
 - Promote `terramate experimental trigger` to `terramate trigger`.
   - Invalid trigger files will now be detected as an error instead of being skipped.
+    This should not change behaviour in any expected use cases, so it is not a breaking change.
 
 ## v0.11.8
 
