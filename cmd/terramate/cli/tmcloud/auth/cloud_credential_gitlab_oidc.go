@@ -1,7 +1,7 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package cli
+package auth
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -31,13 +30,11 @@ type gitlabOIDC struct {
 
 	orgs cloud.MemberOrganizations
 
-	output out.O
 	client *cloud.Client
 }
 
-func newGitlabOIDC(output out.O, client *cloud.Client) *gitlabOIDC {
+func newGitlabOIDC(client *cloud.Client) *gitlabOIDC {
 	return &gitlabOIDC{
-		output: output,
 		client: client,
 	}
 }
@@ -138,7 +135,8 @@ func (g *gitlabOIDC) fetchDetails() error {
 	return nil
 }
 
-func (g *gitlabOIDC) info(selectedOrgName string) {
+// Info display the credential details.
+func (g *gitlabOIDC) Info(selectedOrgName string) {
 	if len(g.orgs) > 0 && g.orgs[0].Status == "trusted" {
 		printer.Stdout.Println("status: signed in")
 	} else {
@@ -164,6 +162,7 @@ func (g *gitlabOIDC) info(selectedOrgName string) {
 	}
 }
 
-func (g *gitlabOIDC) organizations() cloud.MemberOrganizations {
+// Organizations that the GitLab OIDC belong to.
+func (g *gitlabOIDC) Organizations() cloud.MemberOrganizations {
 	return g.orgs
 }

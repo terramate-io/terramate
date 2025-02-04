@@ -1,7 +1,7 @@
 // Copyright 2024 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package cli
+package auth
 
 import "net/http"
 
@@ -18,7 +18,7 @@ func (p providerID) String() string {
 	}
 }
 
-func applyJWTBasedCredentials(req *http.Request, cred credential) error {
+func applyJWTBasedCredentials(req *http.Request, cred Credential) error {
 	token, err := cred.Token()
 	if err != nil {
 		return err

@@ -3,7 +3,7 @@
 
 //go:build defaultAudience
 
-package cli
+package auth
 
 func oidcAudience() string {
 	return ""

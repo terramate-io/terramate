@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cli/go-gh/v2/pkg/auth"
-	"github.com/golang-jwt/jwt"
+	ghauth "github.com/cli/go-gh/v2/pkg/auth"
+
 	"github.com/google/go-github/v58/github"
 	"github.com/hashicorp/go-uuid"
 	"github.com/rs/zerolog/log"
@@ -30,6 +30,8 @@ import (
 	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud/auth"
 	"github.com/terramate-io/terramate/strconv"
 
 	"golang.org/x/oauth2"
@@ -65,16 +67,6 @@ const bitbucketDomain = "bitbucket.org"
 const (
 	githubErrNotFound            errors.Kind = "resource not found (HTTP Status: 404)"
 	githubErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
-
-	// ErrLoginRequired is an error indicating that user has to login to the cloud.
-	ErrLoginRequired errors.Kind = "cloud login required"
-
-	// ErrIDPNeedConfirmation is an error indicating the user has multiple providers set up and
-	// linking them is needed.
-	ErrIDPNeedConfirmation errors.Kind = "the account was already set up with another email provider"
-
-	// ErrEmailNotVerified is an error indicating that user's email need to be verified.
-	ErrEmailNotVerified errors.Kind = "email is not verified"
 )
 
 // newCloudRequiredError creates an error indicating that a cloud login is required to use requested features.
@@ -89,36 +81,6 @@ func newCloudRequiredError(requestedFeatures []string) *errors.DetailedError {
 		WithDetailf(verbosity.V1, "To create a free account, visit https://cloud.terramate.io.")
 
 	return err.WithCode(clitest.ErrCloud)
-}
-
-// newIDPNeedConfirmationError creates an error indicating the user has multiple providers set up and
-// linking them is needed.
-func newIDPNeedConfirmationError(verifiedProviders []string) *errors.DetailedError {
-	err := errors.D("The account was already set up with another email provider.")
-
-	if len(verifiedProviders) > 0 {
-		err = err.WithDetailf(verbosity.V1, "Please login using one of the methods below:")
-		for _, providerDomain := range verifiedProviders {
-			switch providerDomain {
-			case "google.com":
-				err = err.WithDetailf(verbosity.V1, "- Run 'terramate cloud login --google' to login with your Google account")
-			case "github.com":
-				err = err.WithDetailf(verbosity.V1, "- Run 'terramate cloud login --github' to login with your GitHub account")
-			}
-			err = err.WithDetailf(verbosity.V1, "Alternatively, visit https://cloud.terramate.io and authenticate with the Social login to link the accounts.")
-		}
-	} else {
-		err = err.WithDetailf(verbosity.V1, "Visit https://cloud.terramate.io and authenticate to link the accounts.")
-	}
-
-	return err.WithCode(ErrIDPNeedConfirmation)
-}
-
-// newEmailNotVerifiedError creates an error indicating that user's email need to be verified.
-func newEmailNotVerifiedError(email string) *errors.DetailedError {
-	return errors.D("Email %s is not verified.", email).
-		WithDetailf(verbosity.V1, "Please login to https://cloud.terramate.io to verify your email and continue the sign up process.").
-		WithCode(ErrEmailNotVerified)
 }
 
 type cloudRunState struct {
@@ -146,25 +108,6 @@ type cloudConfig struct {
 	run cloudRunState
 }
 
-type credential interface {
-	Name() string
-	Load() (bool, error)
-	Token() (string, error)
-	HasExpiration() bool
-	IsExpired() bool
-	ExpireAt() time.Time
-
-	// private interface
-
-	organizations() cloud.MemberOrganizations
-	info(selectedOrgName string)
-}
-
-type keyValue struct {
-	key   string
-	value string
-}
-
 func (rs *cloudRunState) setMeta2CloudID(metaID string, id int64) {
 	if rs.stackMeta2ID == nil {
 		rs.stackMeta2ID = make(map[string]int64)
@@ -187,15 +130,6 @@ func (rs *cloudRunState) setMeta2PreviewID(metaID string, previewID string) {
 func (rs cloudRunState) cloudPreviewID(metaID string) (string, bool) {
 	id, ok := rs.stackMeta2PreviewIDs[strings.ToLower(metaID)]
 	return id, ok
-}
-
-func (c *cli) credentialPrecedence(output out.O) []credential {
-	return []credential{
-		newAPIKey(output, c.cloud.client),
-		newGithubOIDC(output, c.cloud.client),
-		newGitlabOIDC(output, c.cloud.client),
-		newGoogleCredential(output, c.cloud.client.IDPKey, c.clicfg, c.cloud.client),
-	}
 }
 
 func (c *cli) cloudEnabled() bool {
@@ -288,7 +222,7 @@ func (c *cli) cloudOrgName() string {
 func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	err := c.loadCredential()
 	if err != nil {
-		if errors.IsKind(err, ErrLoginRequired) {
+		if errors.IsKind(err, auth.ErrLoginRequired) {
 			return newCloudRequiredError(requestedFeatures).WithCause(err)
 		}
 		printer.Stderr.ErrorWithDetails("failed to load the cloud credentials", err)
@@ -296,7 +230,7 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	}
 
 	// at this point we know user is onboarded, ie has at least 1 organization.
-	orgs := c.cred().organizations()
+	orgs := c.cred().Organizations()
 
 	useOrgName := c.cloudOrgName()
 	c.cloud.run.orgName = useOrgName
@@ -503,7 +437,7 @@ func (c *cli) cloudInfo() {
 		// TODO: Better error message.
 		fatalWithDetailf(err, "failed to load credentials")
 	}
-	c.cred().info(c.cloudOrgName())
+	c.cred().Info(c.cloudOrgName())
 
 	// verbose info
 	if c.cred().HasExpiration() {
@@ -707,7 +641,7 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 		prNumber = prFromEvent.GetNumber()
 	}
 
-	ghToken, tokenSource := auth.TokenForHost(githubDomain)
+	ghToken, tokenSource := ghauth.TokenForHost(githubDomain)
 	if ghToken == "" {
 		printer.Stderr.WarnWithDetails(
 			"Export GITHUB_TOKEN with your GitHub credentials for enabling metadata collection",
@@ -1529,14 +1463,13 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 }
 
 func (c *cli) loadCredential() error {
-	cloudURL := cloudBaseURL()
+	cloudURL := tmcloud.BaseURL()
 	clientLogger := log.With().
 		Str("tmc_url", cloudURL).
 		Logger()
 
 	c.cloud.client = &cloud.Client{
 		BaseURL:    cloudURL,
-		IDPKey:     idpkey(),
 		HTTPClient: &c.httpClient,
 		Logger:     &clientLogger,
 	}
@@ -1550,7 +1483,7 @@ func (c *cli) loadCredential() error {
 		return errors.E(err, clitest.ErrCloudCompat)
 	}
 
-	probes := c.credentialPrecedence(c.output)
+	probes := auth.ProbingPrecedence(c.output, c.cloud.client, c.clicfg)
 	var found bool
 	for _, probe := range probes {
 		var err error
@@ -1563,7 +1496,7 @@ func (c *cli) loadCredential() error {
 		}
 	}
 	if !found {
-		return errors.E("no credential found", ErrLoginRequired)
+		return errors.E("no credential found", auth.ErrLoginRequired)
 	}
 	return nil
 }
@@ -1587,41 +1520,6 @@ func (c *cli) ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
 		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
 		c.handleCriticalError(errors.E(clitest.ErrCloudStacksWithoutID))
 	}
-}
-
-func tokenClaims(token string) (jwt.MapClaims, error) {
-	jwtParser := &jwt.Parser{}
-	tokParsed, _, err := jwtParser.ParseUnverified(token, jwt.MapClaims{})
-	if err != nil {
-		return nil, errors.E(err, "parsing jwt token")
-	}
-
-	if claims, ok := tokParsed.Claims.(jwt.MapClaims); ok {
-		return claims, nil
-	}
-	return nil, errors.E("invalid jwt token claims")
-}
-
-func cloudBaseURL() string {
-	var baseURL string
-	cloudHost := os.Getenv("TMC_API_HOST")
-	cloudURL := os.Getenv("TMC_API_URL")
-	if cloudHost != "" {
-		baseURL = "https://" + cloudHost
-	} else if cloudURL != "" {
-		baseURL = cloudURL
-	} else {
-		baseURL = cloud.BaseURL
-	}
-	return baseURL
-}
-
-func idpkey() string {
-	idpKey := os.Getenv("TMC_API_IDP_KEY")
-	if idpKey == "" {
-		idpKey = defaultAPIKey
-	}
-	return idpKey
 }
 
 func cloudError() error {
