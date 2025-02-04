@@ -327,12 +327,8 @@ func Get[T Resource](ctx context.Context, client *Client, u url.URL) (entity T, 
 
 // Post requests the endpoint components list making a POST request and decode the response into the
 // entity T if validates successfully.
-func Post[T Resource](ctx context.Context, client *Client, payload interface{}, url url.URL) (entity T, err error) {
-	dataPayload, err := json.Marshal(payload)
-	if err != nil {
-		return entity, errors.E(err, "marshaling request payload")
-	}
-	resource, err := Request[T](ctx, client, "POST", url, bytes.NewBuffer(dataPayload))
+func Post[T Resource](ctx context.Context, client *Client, payload any, url url.URL) (entity T, err error) {
+	resource, err := Request[T](ctx, client, "POST", url, payload)
 	if err != nil {
 		return entity, err
 	}
@@ -342,11 +338,7 @@ func Post[T Resource](ctx context.Context, client *Client, payload interface{}, 
 // Patch requests the endpoint components list making a PATCH request and decode the response into the
 // entity T if validates successfully.
 func Patch[T Resource](ctx context.Context, client *Client, payload interface{}, url url.URL) (entity T, err error) {
-	dataPayload, err := json.Marshal(payload)
-	if err != nil {
-		return entity, errors.E(err, "marshaling request payload")
-	}
-	resource, err := Request[T](ctx, client, "PATCH", url, bytes.NewBuffer(dataPayload))
+	resource, err := Request[T](ctx, client, "PATCH", url, payload)
 	if err != nil {
 		return entity, err
 	}
@@ -356,11 +348,7 @@ func Patch[T Resource](ctx context.Context, client *Client, payload interface{},
 // Put requests the endpoint components list making a PUT request and decode the
 // response into the entity T if validated successfully.
 func Put[T Resource](ctx context.Context, client *Client, payload interface{}, url url.URL) (entity T, err error) {
-	dataPayload, err := json.Marshal(payload)
-	if err != nil {
-		return entity, errors.E(err, "marshaling request payload")
-	}
-	resource, err := Request[T](ctx, client, "PUT", url, bytes.NewBuffer(dataPayload))
+	resource, err := Request[T](ctx, client, "PUT", url, payload)
 	if err != nil {
 		return entity, err
 	}
@@ -369,14 +357,18 @@ func Put[T Resource](ctx context.Context, client *Client, payload interface{}, u
 
 // Request makes a request to the Terramate Cloud using client.
 // The instantiated type gets decoded and return as the entity T,
-func Request[T Resource](ctx context.Context, c *Client, method string, url url.URL, postBody io.Reader) (entity T, err error) {
+// The payload is encoded accordingly to the rules below:
+// - If payload is nil, no body is sent and no Content-Type is set.
+// - If payload is a []byte or string, it is sent as is and the Content-Type is set to text/plain.
+// - If payload is any other type, it is marshaled to JSON and the Content-Type is set to application/json.
+func Request[T Resource](ctx context.Context, c *Client, method string, url url.URL, payload any) (res T, err error) {
 	if !c.noauth && c.Credential == nil {
-		return entity, errors.E("no credential provided to %s endpoint", url)
+		return res, errors.E("no credential provided to %s endpoint", url)
 	}
 
-	req, err := c.newRequest(ctx, method, url, postBody)
+	req, err := c.newRequest(ctx, method, url, payload)
 	if err != nil {
-		return entity, err
+		return res, err
 	}
 
 	if debugAPIRequests {
@@ -387,7 +379,7 @@ func Request[T Resource](ctx context.Context, c *Client, method string, url url.
 	client := c.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
-		return entity, err
+		return res, err
 	}
 
 	if debugAPIRequests {
@@ -401,45 +393,50 @@ func Request[T Resource](ctx context.Context, c *Client, method string, url url.
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return entity, err
+		return res, err
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return entity, errors.E(ErrNotFound, "%s %s", method, url.String())
+		return res, errors.E(ErrNotFound, "%s %s", method, url.String())
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return entity, errors.E(ErrUnexpectedStatus, "%s: status: %s, content: %s", url.String(), resp.Status, data)
+		return res, errors.E(ErrUnexpectedStatus, "%s: status: %d, content: %s", url.String(), resp.StatusCode, data)
 	}
 
 	if resp.StatusCode == http.StatusNoContent {
-		return entity, nil
+		return res, nil
 	}
 
-	if ctype, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); ctype != contentType {
-		return entity, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", contentType, ctype)
+	ctype, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if ctype != objectContentType {
+		return res, errors.E(ErrUnexpectedResponseBody, "client expects the Content-Type: %s but got %s", objectContentType, ctype)
 	}
 
-	var resource T
-	err = json.Unmarshal(data, &resource)
+	err = json.Unmarshal(data, &res)
 	if err != nil {
-		return entity, errors.E(ErrUnexpectedResponseBody, err, "status: %d, data: %s", resp.StatusCode, data)
+		return res, errors.E(ErrUnexpectedResponseBody, err, "status: %d, data: %s", resp.StatusCode, data)
 	}
-	err = resource.Validate()
+	err = res.Validate()
 	if err != nil {
-		return entity, errors.E(ErrUnexpectedResponseBody, err)
+		return res, errors.E(ErrUnexpectedResponseBody, err)
 	}
-	return resource, nil
+	return res, nil
 }
 
-func (c *Client) newRequest(ctx context.Context, method string, url url.URL, body io.Reader) (*http.Request, error) {
+func (c *Client) newRequest(ctx context.Context, method string, url url.URL, payload any) (*http.Request, error) {
+	body, ctype, err := preparePayload(payload)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, method, url.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("User-Agent", "terramate/v"+terramate.Version())
-	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Content-Type", ctype)
 
 	if !c.noauth {
 		err := c.Credential.ApplyCredentials(req)
@@ -496,4 +493,25 @@ func (c *Client) dumpRequest(req *http.Request) ([]byte, error) {
 	return httputil.DumpRequestOut(reqCopy, true)
 }
 
-const contentType = "application/json"
+func preparePayload(payload any) (body io.Reader, ctype string, err error) {
+	if payload != nil {
+		switch v := payload.(type) {
+		case []byte:
+			body = bytes.NewBuffer(v)
+			ctype = "text/plain"
+		case string:
+			body = strings.NewReader(v)
+			ctype = "text/plain"
+		default:
+			data, err := json.Marshal(payload)
+			if err != nil {
+				return nil, "", errors.E("marshaling request payload", err)
+			}
+			body = bytes.NewBuffer(data)
+			ctype = objectContentType
+		}
+	}
+	return body, ctype, nil
+}
+
+const objectContentType = "application/json"

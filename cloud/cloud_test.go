@@ -5,6 +5,7 @@ package cloud_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -167,6 +168,75 @@ func TestCommonAPIFailCases(t *testing.T) {
 		})
 	}
 }
+
+func TestRequestContentType(t *testing.T) {
+	type testcase struct {
+		name    string
+		payload any
+		want    string
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "no payload -- no content type",
+			payload: nil,
+		},
+		{
+			name:    "plain string uses text/plain",
+			payload: "hello",
+			want:    "text/plain",
+		},
+		{
+			name:    "byte slice uses text/plain",
+			payload: []byte("hello"),
+			want:    "text/plain",
+		},
+		{
+			name: "anything else uses application/json",
+			payload: struct {
+				Name string `json:"name"`
+			}{
+				Name: "John Doe",
+			},
+			want: "application/json",
+		},
+	} {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Request() response must always be application/json
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+				w.WriteHeader(http.StatusOK)
+				_, _ = io.WriteString(w, fmt.Sprintf(`{"ctype": %q}`, r.Header.Get("Content-Type")))
+			}))
+			defer s.Close()
+
+			sdk := cloud.Client{
+				BaseURL:    s.URL,
+				HTTPClient: s.Client(),
+				Credential: credential(),
+			}
+
+			const timeout = 3 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			resp, err := cloud.Request[testCtypeResponse](ctx, &sdk, http.MethodPost, sdk.URL("/"), tc.payload)
+			assert.NoError(t, err)
+
+			assert.EqualStrings(t, tc.want, string(resp.Ctype))
+		})
+	}
+}
+
+type testCtypeResponse struct {
+	Ctype string `json:"ctype"`
+}
+
+func (t testCtypeResponse) Validate() error { return nil }
 
 func TestCloudMemberOrganizations(t *testing.T) {
 	t.Parallel()
