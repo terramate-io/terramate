@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
@@ -45,13 +46,24 @@ type (
 		Domain      string     `json:"domain"`
 		Status      string     `json:"status"`
 
-		Members        []Member                   `json:"members"`
-		Stacks         []Stack                    `json:"stacks"`
-		Deployments    map[cloud.UUID]*Deployment `json:"deployments"`
-		Drifts         []Drift                    `json:"drifts"`
-		Previews       []Preview                  `json:"previews"`
-		ReviewRequests []cloud.ReviewRequest      `json:"review_requests"`
+		Members        []Member                     `json:"members"`
+		Stacks         []Stack                      `json:"stacks"`
+		Deployments    map[cloud.UUID]*Deployment   `json:"deployments"`
+		Drifts         []Drift                      `json:"drifts"`
+		Previews       []Preview                    `json:"previews"`
+		ReviewRequests []cloud.ReviewRequest        `json:"review_requests"`
+		Outputs        map[string]cloud.StoreOutput `json:"outputs"` // map of (encoded key) -> output'
 	}
+
+	// OutputKey is the primary key of an output.
+	OutputKey struct {
+		OrgUUID     cloud.UUID `json:"org_uuid"`
+		Repository  string     `json:"repository"`
+		StackMetaID string     `json:"stack_meta_id"`
+		Target      string     `json:"target"`
+		Name        string     `json:"name"`
+	}
+
 	//Preview is the preview model.
 	Preview struct {
 		PreviewID string `json:"preview_id"`
@@ -228,6 +240,9 @@ func (d *Data) GetOrg(uuid cloud.UUID) (Org, bool) {
 func (d *Data) UpsertOrg(org Org) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.Orgs == nil {
+		d.Orgs = make(map[string]Org)
+	}
 	d.Orgs[org.Name] = org
 }
 
@@ -635,6 +650,86 @@ func (d *Data) GetGithubPullRequestResponse() json.RawMessage {
 	return d.Github.GetPullRequestResponse
 }
 
+// InsertOutput inserts the given output into the store.
+func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error {
+	org, found := d.GetOrg(orgUUID)
+	if !found {
+		return errors.E(ErrNotExists, "org uuid %s", orgUUID)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if org.Outputs == nil {
+		org.Outputs = make(map[string]cloud.StoreOutput)
+	}
+	key, err := encodeOutputPK(output.StoreOutputKey)
+	if err != nil {
+		return errors.E(err, "failed primary key constraint")
+	}
+	if _, exists := org.Outputs[key]; exists {
+		return errors.E(ErrAlreadyExists, "output key %s", key)
+	}
+	output.ID = cloud.UUID(uuid.New().String())
+	output.CreatedAt = time.Now().UTC()
+	output.UpdatedAt = output.CreatedAt
+	org.Outputs[key] = *output
+	d.Orgs[org.Name] = org
+	return nil
+}
+
+// UpdateOutputValue updates the value of the output.
+func (d *Data) UpdateOutputValue(orgUUID cloud.UUID, id cloud.UUID, newval string) error {
+	org, found := d.GetOrg(orgUUID)
+	if !found {
+		return errors.E(ErrNotExists, "org uuid %s", orgUUID)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for key, output := range org.Outputs {
+		if output.ID == id {
+			output.Value = newval
+			output.UpdatedAt = time.Now().UTC()
+			org.Outputs[key] = output
+			d.Orgs[org.Name] = org
+			return nil
+		}
+	}
+	return errors.E(ErrNotExists, "output id %s", id)
+}
+
+// DeleteOutput deletes the output with the given id.
+func (d *Data) DeleteOutput(orgUUID cloud.UUID, id cloud.UUID) error {
+	org, found := d.GetOrg(orgUUID)
+	if !found {
+		return errors.E(ErrNotExists, "org uuid %s", orgUUID)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for key, output := range org.Outputs {
+		if output.ID == id {
+			delete(org.Outputs, key)
+			d.Orgs[org.Name] = org
+			return nil
+		}
+	}
+	return errors.E(ErrNotExists, "output id %s", id)
+}
+
+// GetOutput retrieves the output for the given id.
+func (d *Data) GetOutput(orgUUID cloud.UUID, id cloud.UUID) (cloud.StoreOutput, error) {
+	org, found := d.GetOrg(orgUUID)
+	if !found {
+		return cloud.StoreOutput{}, errors.E(ErrNotExists, "org uuid %s", orgUUID)
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for _, output := range org.Outputs {
+		if output.ID == id {
+			return output, nil
+		}
+	}
+	return cloud.StoreOutput{}, errors.E(ErrNotExists, "output id %s", id)
+}
+
 func (d *Data) getStackPreviewByMetaID(spMetaID string, stackPreviews []*StackPreview) (*StackPreview, int64, bool) {
 	for i := range stackPreviews {
 		if stackPreviews[i].Stack.MetaID == spMetaID {
@@ -714,4 +809,21 @@ func (org Org) Clone() Org {
 	neworg.ReviewRequests = slices.Clone(org.ReviewRequests)
 	neworg.Previews = slices.Clone(org.Previews)
 	return neworg
+}
+
+// encodeOutputPK encodes the output primary key.
+func encodeOutputPK(k cloud.StoreOutputKey) (string, error) {
+	if k.OrgUUID == "" {
+		return "", errors.E("org uuid is required")
+	}
+	if k.Repository == "" {
+		return "", errors.E("repository is required")
+	}
+	if k.StackMetaID == "" {
+		return "", errors.E("stack meta id is required")
+	}
+	if k.Target == "" {
+		return "", errors.E("stack target is required")
+	}
+	return string(k.OrgUUID) + "|" + k.Repository + "|" + k.StackMetaID + "|" + k.Target + "|" + k.Name, nil
 }

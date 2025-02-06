@@ -410,6 +410,32 @@ type (
 		DriftStatus      drift.FilterStatus
 	}
 
+	// StoreOutputRequest is the request payload for storing a output in /v1/store/<org>/outputs endpoint.
+	StoreOutputRequest struct {
+		Key   StoreOutputKey `json:"key"`
+		Value string         `json:"value"`
+	}
+
+	// StoreOutputKey is the key field of the StoreOutputRequest payload.
+	StoreOutputKey struct {
+		OrgUUID     UUID   `json:"org_uuid"`
+		Repository  string `json:"repository"`
+		StackMetaID string `json:"stack_meta_id"`
+		Target      string `json:"target,omitempty"`
+		Name        string `json:"name"`
+	}
+
+	// StoreOutput represents an output stored in the Terramate Cloud.
+	StoreOutput struct {
+		ID UUID `json:"id"`
+
+		StoreOutputKey
+
+		Value     string    `json:"value"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
+
 	// UUID represents an UUID string.
 	UUID string
 )
@@ -453,6 +479,8 @@ var (
 	_ = Resource(ReviewRequestResponse{})
 	_ = Resource(ReviewRequestResponses{})
 	_ = Resource(ReviewRequestResponsePayload{})
+	_ = Resource(StoreOutputRequest{})
+	_ = Resource(StoreOutput{})
 	_ = Resource(EmptyResponse(""))
 )
 
@@ -806,4 +834,47 @@ func NoStatusFilters() StatusFilters {
 // HasFilter tells if StackFilter has any filter set.
 func (f StatusFilters) HasFilter() bool {
 	return f.StackStatus != stack.NoFilter || f.DeploymentStatus != deployment.NoFilter || f.DriftStatus != drift.NoFilter
+}
+
+// Validate the StoreOutputRequest object.
+func (s StoreOutputRequest) Validate() error {
+	if s.Key.Repository == "" {
+		return errors.E(`missing "repository" field`)
+	}
+	if s.Key.StackMetaID == "" {
+		return errors.E(`missing "stack_meta_id" field`)
+	}
+	if s.Key.Name == "" {
+		return errors.E(`missing "name" field`)
+	}
+	return nil
+}
+
+// Validate the StoreOutputResponse object.
+func (s StoreOutput) Validate() error {
+	if s.ID == "" {
+		return errors.E(`missing "id" field`)
+	}
+	if s.OrgUUID == "" {
+		return errors.E(`missing "org_uuid" field`)
+	}
+	if s.Repository == "" {
+		return errors.E(`missing "repository" field`)
+	}
+	if s.StackMetaID == "" {
+		return errors.E(`missing "stack_meta_id" field`)
+	}
+	if s.Target == "" {
+		return errors.E(`missing "target" field`)
+	}
+
+	// Value can be an empty string.
+
+	if s.CreatedAt.IsZero() {
+		return errors.E(`missing "created_at" field`)
+	}
+	if s.UpdatedAt.IsZero() {
+		return errors.E(`missing "updated_at" field`)
+	}
+	return nil
 }
