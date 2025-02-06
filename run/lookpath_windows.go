@@ -76,7 +76,7 @@ func findExecutable(file string, exts []string) (string, error) {
 // errors.Is(err, ErrDot). See the package documentation for more details.
 func LookPath(file string, environ []string) (string, error) {
 	var exts []string
-	x, _ := getEnv(`PATHEXT`, environ)
+	x, _ := Getenv(`PATHEXT`, environ)
 	if x != "" {
 		for _, e := range strings.Split(strings.ToLower(x), `;`) {
 			if e == "" {
@@ -112,13 +112,13 @@ func LookPath(file string, environ []string) (string, error) {
 		dotf   string
 		dotErr error
 	)
-	if _, found := getEnv("NoDefaultCurrentDirectoryInExePath", environ); !found {
+	if _, found := Getenv("NoDefaultCurrentDirectoryInExePath", environ); !found {
 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
 			dotf, dotErr = f, errors.E(ErrDot, file)
 		}
 	}
 
-	path, _ := getEnv("path", environ)
+	path, _ := Getenv("path", environ)
 	for _, dir := range filepath.SplitList(path) {
 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
 			if dotErr != nil {

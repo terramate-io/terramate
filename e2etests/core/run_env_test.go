@@ -13,12 +13,13 @@ import (
 )
 
 type runEnvTestcase struct {
-	name   string
-	layout []string
-	wd     string
-	args   []string
-	env    []string
-	want   RunExpected
+	name    string
+	layout  []string
+	wd      string
+	args    []string
+	runArgs []string
+	env     []string
+	want    RunExpected
 }
 
 func TestRunEnv(t *testing.T) {
@@ -36,7 +37,7 @@ func TestRunEnv(t *testing.T) {
 				`s:stack`,
 			},
 			env:  []string{"FOO=TEST"},
-			args: []string{HelperPath, "env", "FOO"},
+			args: []string{"env", "FOO"},
 			want: RunExpected{
 				Stdout: nljoin("/stack: TEST"),
 			},
@@ -59,7 +60,7 @@ func TestRunEnv(t *testing.T) {
 				`s:s2/a`,
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"env", "FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR",
@@ -96,7 +97,7 @@ func TestRunEnv(t *testing.T) {
 				).String(),
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"env", "FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
@@ -142,7 +143,7 @@ func TestRunEnv(t *testing.T) {
 				).String(),
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"env", "FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
@@ -188,7 +189,7 @@ func TestRunEnv(t *testing.T) {
 				).String(),
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"env", "FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
@@ -234,7 +235,7 @@ func TestRunEnv(t *testing.T) {
 				).String(),
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
@@ -260,7 +261,7 @@ func TestRunEnv(t *testing.T) {
 				`s:s2`,
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO",
@@ -289,7 +290,7 @@ func TestRunEnv(t *testing.T) {
 				`s:s2/a`,
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR"},
+			args: []string{"FOO", "BAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR",
@@ -332,7 +333,7 @@ func TestRunEnv(t *testing.T) {
 				).String(),
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR1", "BAR2"},
+			args: []string{"FOO", "BAR1", "BAR2"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR1",
@@ -374,7 +375,7 @@ func TestRunEnv(t *testing.T) {
 					)).String(),
 			},
 			env:  []string{"FOO=FOO"},
-			args: []string{HelperPath, "env", "FOO", "BAR", "CAR"},
+			args: []string{"FOO", "BAR", "CAR"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO",
@@ -384,13 +385,28 @@ func TestRunEnv(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "--terragrunt export TERRAGRUNT_FORWARD_TF_STDOUT and TERRAGRUNT_LOG_FORMAT",
+			layout: []string{
+				"s:stack",
+			},
+			runArgs: []string{"--terragrunt"},
+			args:    []string{"TERRAGRUNT_FORWARD_TF_STDOUT", "TERRAGRUNT_LOG_FORMAT"},
+			want: RunExpected{
+				Stdout: nljoin("/stack: true", "/stack: bare"),
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 			tmcli := NewCLI(t, filepath.Join(s.RootDir(), tc.wd), tc.env...)
-			args := []string{"run", "--quiet", "--", HelperPath, "env", s.RootDir()}
+			args := []string{"run", "--quiet"}
+			if len(tc.runArgs) > 0 {
+				args = append(args, tc.runArgs...)
+			}
+			args = append(args, "--", HelperPath, "env", s.RootDir())
 			args = append(args, tc.args...)
 			got := tmcli.Run(args...)
 			AssertRunResult(t, got, tc.want)

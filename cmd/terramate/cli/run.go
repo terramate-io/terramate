@@ -27,6 +27,7 @@ import (
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
+
 	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/scheduler"
@@ -381,7 +382,7 @@ func (c *cli) runAll(
 	}()
 
 	// map of stackName -> map of backendName -> outputs
-	allOutputs := run.NewOnceMap[string, *run.OnceMap[string, cty.Value]]()
+	allOutputs := runutil.NewOnceMap[string, *run.OnceMap[string, cty.Value]]()
 
 	err = sched.Run(func(run stackRun) error {
 		errs := errors.L()
@@ -419,6 +420,15 @@ func (c *cli) runAll(
 
 			cfg, _ := c.cfg().Lookup(run.Stack.Dir)
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
+			if task.UseTerragrunt {
+				if _, found := runutil.Getenv("TERRAGRUNT_FORWARD_TF_STDOUT", environ); !found {
+					environ = append(environ, "TERRAGRUNT_FORWARD_TF_STDOUT=true")
+				}
+				if _, found := runutil.Getenv("TERRAGRUNT_LOG_FORMAT", environ); !found {
+					environ = append(environ, "TERRAGRUNT_LOG_FORMAT=bare")
+				}
+			}
+
 			if task.EnableSharing {
 				for _, in := range cfg.Node.Inputs {
 					evalctx := c.setupEvalContext(run.Stack, map[string]string{})
