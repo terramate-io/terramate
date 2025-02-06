@@ -53,6 +53,8 @@ const (
 	StacksPath = "/v1/stacks"
 	// ReviewRequestsPath is the review requests endpoint base path.
 	ReviewRequestsPath = "/v1/review_requests"
+	// StorePath is the store endpoint base path.
+	StorePath = "/v1/store"
 )
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
@@ -60,6 +62,9 @@ const ErrUnexpectedStatus errors.Kind = "unexpected status code"
 
 // ErrNotFound indicates the requested resource does not exist in the server.
 const ErrNotFound errors.Kind = "resource not found (HTTP Status 404)"
+
+// ErrConflict indicates the request contains conflicting data (eg.: duplicated resource)
+const ErrConflict errors.Kind = "conflict (HTTP Status 409)"
 
 // ErrUnexpectedResponseBody indicates the server responded with an unexpected body.
 const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
@@ -315,6 +320,49 @@ func (c *Client) SyncCommandLogs(
 	return err
 }
 
+// CreateStoreOutput creates a new output in the Terramate Cloud store.
+func (c *Client) CreateStoreOutput(ctx context.Context, orgUUID UUID, output StoreOutputRequest) (StoreOutput, error) {
+	err := output.Validate()
+	if err != nil {
+		return StoreOutput{}, errors.E(err, "failed to prepare the request")
+	}
+	return Post[StoreOutput](
+		ctx,
+		c,
+		output,
+		c.URL(path.Join(StorePath, string(orgUUID), "outputs")),
+	)
+}
+
+// GetStoreOutput retrieves the output from the Terramate Cloud store.
+func (c *Client) GetStoreOutput(ctx context.Context, orgUUID UUID, id UUID) (StoreOutput, error) {
+	return Get[StoreOutput](
+		ctx,
+		c,
+		c.URL(path.Join(StorePath, string(orgUUID), "outputs", string(id))),
+	)
+}
+
+// UpdateStoreOutputValue updates the value of the output in the Terramate Cloud store.
+func (c *Client) UpdateStoreOutputValue(ctx context.Context, orgUUID UUID, id UUID, value string) error {
+	_, err := Put[EmptyResponse](
+		ctx,
+		c,
+		value,
+		c.URL(path.Join(StorePath, string(orgUUID), "outputs", string(id), "value")),
+	)
+	return err
+}
+
+// DeleteStoreOutput deletes the output from the Terramate Cloud store.
+func (c *Client) DeleteStoreOutput(ctx context.Context, orgUUID UUID, id UUID) error {
+	return Delete[EmptyResponse](
+		ctx,
+		c,
+		c.URL(path.Join(StorePath, string(orgUUID), "outputs", string(id))),
+	)
+}
+
 // Get requests the endpoint components list making a GET request and decode the response into the
 // entity T if validates successfully.
 func Get[T Resource](ctx context.Context, client *Client, u url.URL) (entity T, err error) {
@@ -353,6 +401,12 @@ func Put[T Resource](ctx context.Context, client *Client, payload interface{}, u
 		return entity, err
 	}
 	return resource, nil
+}
+
+// Delete requests the endpoint url with a DELETE method.
+func Delete[T Resource](ctx context.Context, client *Client, url url.URL) error {
+	_, err := Request[T](ctx, client, "DELETE", url, nil)
+	return err
 }
 
 // Request makes a request to the Terramate Cloud using client.
@@ -398,6 +452,10 @@ func Request[T Resource](ctx context.Context, c *Client, method string, url url.
 
 	if resp.StatusCode == http.StatusNotFound {
 		return res, errors.E(ErrNotFound, "%s %s", method, url.String())
+	}
+
+	if resp.StatusCode == http.StatusConflict {
+		return res, errors.E(ErrConflict, "%s %s", method, url.String())
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

@@ -10,6 +10,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
+	"github.com/terramate-io/terramate/errors"
 )
 
 const testUUID = "deadbeef-dead-dead-dead-deaddeafbeef"
@@ -122,4 +123,68 @@ func TestGetUser(t *testing.T) {
 	if diff := cmp.Diff(expectedUser, user); diff != "" {
 		t.Fatal(diff)
 	}
+}
+
+func TestStoreOutputCRUD(t *testing.T) {
+	const orgUUID = "88ae6cb4-ee56-40aa-a024-84af44e1f5aa"
+	dstore := cloudstore.Data{}
+	dstore.UpsertOrg(cloudstore.Org{
+		UUID:        orgUUID,
+		Name:        "testorg",
+		DisplayName: "Test Org",
+		Outputs:     make(map[string]cloud.StoreOutput),
+	})
+
+	// Create
+	output := cloud.StoreOutput{
+		StoreOutputKey: cloud.StoreOutputKey{
+			OrgUUID:     orgUUID,
+			Name:        "output1",
+			Repository:  "github.com/terramate-io/terramate",
+			StackMetaID: "test-stack",
+			Target:      "test-target",
+		},
+		Value: "output1-value",
+	}
+	err := dstore.InsertOutput(orgUUID, &output)
+	assert.NoError(t, err)
+	assert.IsTrue(t, !output.CreatedAt.IsZero())
+	assert.IsTrue(t, !output.UpdatedAt.IsZero())
+	assert.IsTrue(t, output.ID != "")
+
+	// Create must fail
+	err = dstore.InsertOutput(orgUUID, &output)
+	assert.IsError(t, err, errors.E(cloudstore.ErrAlreadyExists))
+
+	// Read
+	readOutput, err := dstore.GetOutput(orgUUID, output.ID)
+	assert.NoError(t, err)
+	if diff := cmp.Diff(output, readOutput); diff != "" {
+		t.Fatalf("unexpected output: %s", diff)
+	}
+
+	// Update
+	err = dstore.UpdateOutputValue(orgUUID, output.ID, "updated-value")
+	assert.NoError(t, err)
+
+	// Read
+	readOutput, err = dstore.GetOutput(orgUUID, output.ID)
+	assert.NoError(t, err)
+	assert.EqualStrings(t, "updated-value", readOutput.Value)
+
+	// Delete
+	err = dstore.DeleteOutput(orgUUID, output.ID)
+	assert.NoError(t, err)
+
+	// Read must fail
+	_, err = dstore.GetOutput(orgUUID, output.ID)
+	assert.IsError(t, err, errors.E(cloudstore.ErrNotExists))
+
+	// Update must fail
+	err = dstore.UpdateOutputValue(orgUUID, output.ID, "updated-value-again")
+	assert.IsError(t, err, errors.E(cloudstore.ErrNotExists))
+
+	// Delete must fail
+	err = dstore.DeleteOutput(orgUUID, output.ID)
+	assert.IsError(t, err, errors.E(cloudstore.ErrNotExists))
 }

@@ -113,6 +113,13 @@ func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[st
 		router.GET(cloud.PreviewsPath+"/:orguuid/:preview_id", handler(store, GetPreview))
 	}
 
+	if enabled[cloud.StorePath] {
+		router.POST(cloud.StorePath+"/:orguuid/outputs", handler(store, PostStoreOutput))
+		router.GET(cloud.StorePath+"/:orguuid/outputs/:id", handler(store, GetStoreOutput))
+		router.PUT(cloud.StorePath+"/:orguuid/outputs/:id/value", handler(store, PutStoreOutputValue))
+		router.DELETE(cloud.StorePath+"/:orguuid/outputs/:id", handler(store, DeleteStoreOutput))
+	}
+
 	if enabled["github_api"] {
 		router.GET("/repos/:owner/:repo/pulls/:pull_number", handlerGithub(store, GetPullRequest))
 		router.GET("/repos/:owner/:repo/pulls/:pull_number/reviews", handlerGithub(store, ListReviews))
@@ -143,6 +150,7 @@ func EnableAllConfig() map[string]bool {
 		cloud.DriftsPath:       true,
 		cloud.StacksPath:       true,
 		cloud.PreviewsPath:     true,
+		cloud.StorePath:        true,
 		"github_api":           true,
 	}
 }
