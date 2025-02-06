@@ -114,7 +114,10 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	return envVars, nil
 }
 
-func getEnv(key string, environ []string) (string, bool) {
+// Getenv returns the value of the environment variable named by the key,
+// which is assumed to be case-insensitive, from the given environment.
+// If the variable is not present in the environment, found is false.
+func Getenv(key string, environ []string) (val string, found bool) {
 	for i := len(environ) - 1; i >= 0; i-- {
 		env := environ[i]
 		for j := 0; j < len(env); j++ {

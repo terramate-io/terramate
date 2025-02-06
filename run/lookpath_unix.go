@@ -42,7 +42,7 @@ func LookPath(file string, environ []string) (string, error) {
 		}
 		return "", errors.E(ErrNotFound, err, file)
 	}
-	path, _ := getEnv("PATH", environ)
+	path, _ := Getenv("PATH", environ)
 	for _, dir := range filepath.SplitList(path) {
 		if dir == "" {
 			// Unix shell semantics: path element "" means "."
