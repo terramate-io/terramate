@@ -22,6 +22,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix Terragrunt stdout/stderr log in Terramate Cloud.
+  - Terragrunt changed the output format in newer versions, which causes issues with output formatting in Terramate Cloud.
+    To keep the old output format, we export the following variables when running `terramate run --terragrunt -- cmd`.
+    - `TERRAGRUNT_FORWARD_TF_STDOUT=true`
+    - `TERRAGRUNT_LOG_FORMAT=bare`
+
 ## v0.11.9
 
 ### Changed
