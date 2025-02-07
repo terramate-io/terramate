@@ -343,6 +343,24 @@ func (c *Client) GetStoreOutput(ctx context.Context, orgUUID UUID, id UUID) (Sto
 	)
 }
 
+// LookupStoreOutput retrieves the output from the Terramate Cloud store by its key.
+func (c *Client) LookupStoreOutput(ctx context.Context, orgUUID UUID, key StoreOutputKey) (StoreOutput, error) {
+	query := url.Values{
+		"repository":    []string{key.Repository},
+		"stack_meta_id": []string{key.StackMetaID},
+		"name":          []string{string(key.Name)},
+	}
+	if key.Target != "" {
+		// let backend choose the default value.
+		query.Set("target", string(key.Target))
+	}
+	return Get[StoreOutput](
+		ctx,
+		c,
+		c.URL(path.Join(StorePath, string(orgUUID), "outputs"), query),
+	)
+}
+
 // UpdateStoreOutputValue updates the value of the output in the Terramate Cloud store.
 func (c *Client) UpdateStoreOutputValue(ctx context.Context, orgUUID UUID, id UUID, value string) error {
 	_, err := Put[EmptyResponse](
