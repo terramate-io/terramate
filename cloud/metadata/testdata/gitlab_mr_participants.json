@@ -1,0 +1,11 @@
+[
+    {
+        "id": 1,
+        "username": "bob",
+        "name": "Bob",
+        "state": "active",
+        "locked": false,
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/1/avatar.png",
+        "web_url": "https://gitlab.com/bob"
+    }
+]

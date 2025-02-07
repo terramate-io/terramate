@@ -23,6 +23,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/metadata"
 	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/bitbucket"
@@ -714,6 +715,9 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 	}
 
 	c.cloud.run.reviewRequest = c.newGithubReviewRequest(pull, reviews, checks, merged, reviewDecision)
+
+	// New grouping structure.
+	md.GithubPullRequest = metadata.NewGithubPullRequest(pull, reviews)
 }
 
 func (c *cli) detectGitlabMetadata(group string, projectName string) {
@@ -757,6 +761,7 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 	headCommit := c.prj.headCommit()
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGitlabTimeout)
 	defer cancel()
+
 	mr, found, err := client.MRForCommit(ctx, headCommit)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to retrieve Merge Requests associated with commit")
@@ -802,6 +807,21 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 
 	c.cloud.run.rrEvent.commitSHA = mr.SHA
 	c.cloud.run.reviewRequest = c.newGitlabReviewRequest(mr)
+
+	reviewers, err := client.MRReviewers(ctx, mr.IID)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to retrieve Merge Request reviewers")
+		return
+	}
+
+	participants, err := client.MRParticipants(ctx, mr.IID)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to retrieve Merge Request participants")
+		return
+	}
+
+	// New grouping structure.
+	md.GitlabMergeRequest = metadata.NewGitlabMergeRequest(&mr, reviewers, participants)
 }
 
 func (c *cli) detectBitbucketMetadata(owner, reponame string) {
@@ -897,6 +917,9 @@ func (c *cli) detectBitbucketMetadata(owner, reponame string) {
 	c.cloud.run.rrEvent.pushedAt = &buildNumber
 	c.cloud.run.rrEvent.commitSHA = commitHash
 	c.cloud.run.reviewRequest = c.newBitbucketReviewRequest(pullRequest)
+
+	// New grouping structure.
+	md.BitbucketPullRequest = metadata.NewBitbucketPullRequest(pullRequest)
 
 	logger.Debug().Msg("Bitbucket metadata detected")
 }
@@ -1288,6 +1311,9 @@ func setGithubCommitMetadata(md *cloud.DeploymentMetadata, commit *github.Reposi
 	md.GithubCommitCommitterGitEmail = commit.GetCommit().GetCommitter().GetEmail()
 	commiterDate := commit.GetCommit().GetCommitter().GetDate()
 	md.GithubCommitCommitterGitDate = commiterDate.GetTime()
+
+	// New grouping structure.
+	md.GithubCommit = metadata.NewGithubCommit(commit)
 }
 
 func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest) {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/metadata"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -235,6 +236,9 @@ type (
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
 		GithubActionsWorkflowName          string `json:"github_actions_workflow_name,omitempty"`
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
+
+		GithubCommit      *metadata.GithubCommit      `json:"github_commit,omitempty"`
+		GithubPullRequest *metadata.GithubPullRequest `json:"github_pull_request,omitempty"`
 	}
 
 	// GitlabMetadata holds the Gitlab specific metadata.
@@ -278,6 +282,8 @@ type (
 
 		// Only available for merge request pipelines
 		GitlabCICDMergeRequestApproved *bool `json:"gitlab_cicd_merge_request_approved,omitempty"` // CI_MERGE_REQUEST_APPROVED
+
+		GitlabMergeRequest *metadata.GitlabMergeRequest `json:"gitlab_merge_request,omitempty"`
 	}
 
 	// BitbucketMetadata holds the Bitbucket specific metadata.
@@ -305,6 +311,8 @@ type (
 		BitbucketPipelinesDeploymentEnvironmentUUID string `json:"bitbucket_pipelines_deployment_environment_uuid,omitempty"`
 		BitbucketPipelinesProjectKey                string `json:"bitbucket_pipelines_project_key,omitempty"`
 		BitbucketPipelinesProjectUUID               string `json:"bitbucket_pipelines_project_uuid,omitempty"`
+
+		BitbucketPullRequest *metadata.BitbucketPullRequest `json:"bitbucket_pull_request,omitempty"`
 	}
 
 	// ReviewRequest is the review_request object.
