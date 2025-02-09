@@ -429,11 +429,10 @@ type (
 	StoreOutput struct {
 		ID UUID `json:"id"`
 
-		StoreOutputKey
-
-		Value     string    `json:"value"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
+		Key       StoreOutputKey `json:"key"`
+		Value     string         `json:"value"`
+		CreatedAt time.Time      `json:"created_at"`
+		UpdatedAt time.Time      `json:"updated_at"`
 	}
 
 	// UUID represents an UUID string.
@@ -855,16 +854,16 @@ func (s StoreOutput) Validate() error {
 	if s.ID == "" {
 		return errors.E(`missing "id" field`)
 	}
-	if s.OrgUUID == "" {
+	if s.Key.OrgUUID == "" {
 		return errors.E(`missing "org_uuid" field`)
 	}
-	if s.Repository == "" {
+	if s.Key.Repository == "" {
 		return errors.E(`missing "repository" field`)
 	}
-	if s.StackMetaID == "" {
+	if s.Key.StackMetaID == "" {
 		return errors.E(`missing "stack_meta_id" field`)
 	}
-	if s.Target == "" {
+	if s.Key.Target == "" {
 		return errors.E(`missing "target" field`)
 	}
 

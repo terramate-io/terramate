@@ -137,7 +137,7 @@ func TestStoreOutputCRUD(t *testing.T) {
 
 	// Create
 	output := cloud.StoreOutput{
-		StoreOutputKey: cloud.StoreOutputKey{
+		Key: cloud.StoreOutputKey{
 			OrgUUID:     orgUUID,
 			Name:        "output1",
 			Repository:  "github.com/terramate-io/terramate",
