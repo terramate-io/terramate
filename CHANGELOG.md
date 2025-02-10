@@ -29,6 +29,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     To keep the old output format, we export the following variables when running `terramate run --terragrunt -- cmd`.
     - `TERRAGRUNT_FORWARD_TF_STDOUT=true`
     - `TERRAGRUNT_LOG_FORMAT=bare`
+- Fix Terramate Cloud plan creation command not using environ defined in `terramate.config.run.env`.
+  - This can lead to a version mismatch between the user-supplied run command and the one used for creating the plan details.
 
 ## v0.11.9
 

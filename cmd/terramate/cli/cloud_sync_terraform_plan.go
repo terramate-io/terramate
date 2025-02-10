@@ -17,9 +17,11 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
-	runpkg "github.com/terramate-io/terramate/run"
+
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
+
+	runpkg "github.com/terramate-io/terramate/run"
 )
 
 const terraformShowTimeout = 300 * time.Second
