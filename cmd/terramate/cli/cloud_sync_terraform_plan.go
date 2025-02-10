@@ -17,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
+	runpkg "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
 )
@@ -126,21 +127,34 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 		cmdName = "terraform"
 	}
 
+	cmdPath, err := runpkg.LookPath(cmdName, run.Env)
+	if err != nil {
+		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "looking up executable for %s: %w", cmdName, err)
+	}
+
+	env := run.Env
+
 	args := []string{"show"}
 	args = append(args, flags...)
 	if run.Task.UseTerragrunt {
 		args = append(args, "--terragrunt-non-interactive")
+
+		env = make([]string, len(run.Env))
+		copy(env, run.Env)
+
+		env = append(env, "TERRAGRUNT_FORWARD_TF_STDOUT=true")
+		env = append(env, "TERRAGRUNT_LOG_FORMAT=bare")
 	}
 	args = append(args, planfile)
 
 	ctx, cancel := context.WithTimeout(context.Background(), terraformShowTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd := exec.CommandContext(ctx, cmdPath, args...)
 	cmd.Dir = run.Stack.Dir.HostPath(c.rootdir())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = run.Env
+	cmd.Env = env
 
 	logger := log.With().
 		Str("action", "runTerraformShow").
@@ -149,7 +163,7 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 		Str("command", cmd.String()).
 		Logger()
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return "", errors.E(clitest.ErrCloudTerraformPlanFile, "command timed out: %s", cmd.String())

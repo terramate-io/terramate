@@ -420,14 +420,6 @@ func (c *cli) runAll(
 
 			cfg, _ := c.cfg().Lookup(run.Stack.Dir)
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
-			if task.UseTerragrunt {
-				if _, found := runutil.Getenv("TERRAGRUNT_FORWARD_TF_STDOUT", environ); !found {
-					environ = append(environ, "TERRAGRUNT_FORWARD_TF_STDOUT=true")
-				}
-				if _, found := runutil.Getenv("TERRAGRUNT_LOG_FORMAT", environ); !found {
-					environ = append(environ, "TERRAGRUNT_LOG_FORMAT=bare")
-				}
-			}
 
 			if task.EnableSharing {
 				for _, in := range cfg.Node.Inputs {

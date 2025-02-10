@@ -28,6 +28,13 @@ func main() {
 		log.Fatalf("%s requires at least one subcommand argument", os.Args[0])
 	}
 
+	execName := filepath.Base(os.Args[0])
+	switch execName {
+	case "terragrunt", "terragrunt.exe":
+		terragrunt(os.Args[1:]...)
+		return
+	}
+
 	// note: unrecovered panic() aborts the program with exit code 2 and this
 	// could be confused with a *detected drift* (see: run --sync-drift-status)
 	// then avoid panics here and do proper os.Exit(1) in case of errors.
@@ -72,6 +79,8 @@ func main() {
 		fibonacci()
 	case "git-normalization":
 		gitnorm(os.Args[2])
+	case "terragrunt":
+		terragrunt(os.Args[2:]...)
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
