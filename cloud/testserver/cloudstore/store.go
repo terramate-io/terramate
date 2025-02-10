@@ -661,7 +661,7 @@ func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error
 	if org.Outputs == nil {
 		org.Outputs = make(map[string]cloud.StoreOutput)
 	}
-	key, err := encodeOutputPK(output.StoreOutputKey)
+	key, err := encodeOutputPK(output.Key)
 	if err != nil {
 		return errors.E(err, "failed primary key constraint")
 	}
