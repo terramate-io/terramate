@@ -52,7 +52,7 @@ func PostStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Requ
 	}
 
 	output := cloud.StoreOutput{
-		StoreOutputKey: cloud.StoreOutputKey{
+		Key: cloud.StoreOutputKey{
 			OrgUUID:     orgUUID,
 			Repository:  outputRequest.Key.Repository,
 			StackMetaID: outputRequest.Key.StackMetaID,
