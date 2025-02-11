@@ -385,17 +385,6 @@ func TestRunEnv(t *testing.T) {
 				),
 			},
 		},
-		{
-			name: "--terragrunt export TERRAGRUNT_FORWARD_TF_STDOUT and TERRAGRUNT_LOG_FORMAT",
-			layout: []string{
-				"s:stack",
-			},
-			runArgs: []string{"--terragrunt"},
-			args:    []string{"TERRAGRUNT_FORWARD_TF_STDOUT", "TERRAGRUNT_LOG_FORMAT"},
-			want: RunExpected{
-				Stdout: nljoin("/stack: true", "/stack: bare"),
-			},
-		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

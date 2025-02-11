@@ -17,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
+
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
 
@@ -133,10 +134,18 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "looking up executable for %s: %w", cmdName, err)
 	}
 
+	env := run.Env
+
 	args := []string{"show"}
 	args = append(args, flags...)
 	if run.Task.UseTerragrunt {
 		args = append(args, "--terragrunt-non-interactive")
+
+		env = make([]string, len(run.Env))
+		copy(env, run.Env)
+
+		env = append(env, "TERRAGRUNT_FORWARD_TF_STDOUT=true")
+		env = append(env, "TERRAGRUNT_LOG_FORMAT=bare")
 	}
 	args = append(args, planfile)
 
@@ -147,7 +156,7 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 	cmd.Dir = run.Stack.Dir.HostPath(c.rootdir())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = run.Env
+	cmd.Env = env
 
 	logger := log.With().
 		Str("action", "runTerraformShow").

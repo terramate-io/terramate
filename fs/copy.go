@@ -64,7 +64,7 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 			return err
 		}
 
-		if err := copyFile(destpath, srcpath); err != nil {
+		if err := CopyFile(destpath, srcpath); err != nil {
 			return errors.E(err, "copying src to dest file")
 		}
 	}
@@ -79,7 +79,8 @@ func CopyAll(dstdir, srcdir string) error {
 	})
 }
 
-func copyFile(destfile, srcfile string) error {
+// CopyFile copies a file from srcfile to destfile.
+func CopyFile(destfile, srcfile string) error {
 	src, err := os.Open(srcfile)
 	if err != nil {
 		return errors.E(err, "opening source file")
