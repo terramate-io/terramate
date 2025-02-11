@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Synchronize additional metadata about PR collaborators (reviewers, assignees, etc.) to Terramate Cloud so that actionable items can be shown to the linked users.
+
 ### Fixed
 
 - Fix Terragrunt stdout/stderr log in Terramate Cloud.
