@@ -115,6 +115,7 @@ func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[st
 
 	if enabled[cloud.StorePath] {
 		router.POST(cloud.StorePath+"/:orguuid/outputs", handler(store, PostStoreOutput))
+		router.GET(cloud.StorePath+"/:orguuid/outputs", handler(store, LookupStoreOutput))
 		router.GET(cloud.StorePath+"/:orguuid/outputs/:id", handler(store, GetStoreOutput))
 		router.PUT(cloud.StorePath+"/:orguuid/outputs/:id/value", handler(store, PutStoreOutputValue))
 		router.DELETE(cloud.StorePath+"/:orguuid/outputs/:id", handler(store, DeleteStoreOutput))

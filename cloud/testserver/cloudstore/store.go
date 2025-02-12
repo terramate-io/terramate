@@ -661,7 +661,7 @@ func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error
 	if org.Outputs == nil {
 		org.Outputs = make(map[string]cloud.StoreOutput)
 	}
-	key, err := encodeOutputPK(output.StoreOutputKey)
+	key, err := encodeOutputPK(output.Key)
 	if err != nil {
 		return errors.E(err, "failed primary key constraint")
 	}
@@ -728,6 +728,25 @@ func (d *Data) GetOutput(orgUUID cloud.UUID, id cloud.UUID) (cloud.StoreOutput, 
 		}
 	}
 	return cloud.StoreOutput{}, errors.E(ErrNotExists, "output id %s", id)
+}
+
+// GetOutputByKey retrieves the output for the given key.
+func (d *Data) GetOutputByKey(orgUUID cloud.UUID, key cloud.StoreOutputKey) (cloud.StoreOutput, error) {
+	org, found := d.GetOrg(orgUUID)
+	if !found {
+		return cloud.StoreOutput{}, errors.E(ErrNotExists, "org uuid %s", orgUUID)
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	keystr, err := encodeOutputPK(key)
+	if err != nil {
+		return cloud.StoreOutput{}, errors.E(err, "failed primary key constraint")
+	}
+	output, exists := org.Outputs[keystr]
+	if !exists {
+		return cloud.StoreOutput{}, errors.E(ErrNotExists, "output key %s", keystr)
+	}
+	return output, nil
 }
 
 func (d *Data) getStackPreviewByMetaID(spMetaID string, stackPreviews []*StackPreview) (*StackPreview, int64, bool) {

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -45,25 +46,27 @@ type (
 
 	// MR is a Gitlab Merge Request.
 	MR struct {
-		ID             int      `json:"id"`
-		IID            int      `json:"iid"`
-		ProjectID      int      `json:"project_id"`
-		Title          string   `json:"title"`
-		Description    string   `json:"description,omitempty"`
-		State          string   `json:"state"`
-		CreatedAt      string   `json:"created_at,omitempty"`
-		UpdatedAt      string   `json:"updated_at,omitempty"`
-		TargetBranch   string   `json:"target_branch"`
-		SourceBranch   string   `json:"source_branch"`
-		Upvotes        int      `json:"upvotes"`
-		Downvotes      int      `json:"downvotes"`
-		Author         User     `json:"author"`
-		Labels         []string `json:"labels"`
-		Draft          bool     `json:"draft"`
-		WorkInProgress bool     `json:"work_in_progress"`
-		SHA            string   `json:"sha"`
-		MergeStatus    string   `json:"merge_status"`
-		WebURL         string   `json:"web_url"`
+		ID                  int      `json:"id"`
+		IID                 int      `json:"iid"`
+		ProjectID           int      `json:"project_id"`
+		Title               string   `json:"title"`
+		Description         string   `json:"description,omitempty"`
+		State               string   `json:"state"`
+		CreatedAt           string   `json:"created_at,omitempty"`
+		UpdatedAt           string   `json:"updated_at,omitempty"`
+		TargetBranch        string   `json:"target_branch"`
+		SourceBranch        string   `json:"source_branch"`
+		Upvotes             int      `json:"upvotes"`
+		Downvotes           int      `json:"downvotes"`
+		Author              User     `json:"author"`
+		Labels              []string `json:"labels"`
+		Draft               bool     `json:"draft"`
+		WorkInProgress      bool     `json:"work_in_progress"`
+		SHA                 string   `json:"sha"`
+		MergeStatus         string   `json:"merge_status"`
+		DetailedMergeStatus string   `json:"detailed_merge_status"`
+		WebURL              string   `json:"web_url"`
+		Assignees           []User   `json:"assignees"`
 
 		// fields below are available but not used:
 		// - assignee
@@ -90,6 +93,13 @@ type (
 		AvatarURL string `json:"avatar_url"`
 		State     string `json:"state"`
 	}
+
+	// MRReviewer is a Merge Request reviewer.
+	MRReviewer struct {
+		User      *User      `json:"user"`
+		State     string     `json:"state"`
+		CreatedAt *time.Time `json:"created_at"`
+	}
 )
 
 // MRForCommit returns the with first Merge Requests associated with the provided commit SHA.
@@ -113,6 +123,48 @@ func (c *Client) MRForCommit(ctx context.Context, sha string) (mr MR, found bool
 		return MR{}, false, nil
 	}
 	return mrs[0], true, nil
+}
+
+// MRReviewers returns the the reviewers for the given MR.
+func (c *Client) MRReviewers(ctx context.Context, mrIID int) ([]MRReviewer, error) {
+	var url string
+	if c.ProjectID != 0 {
+		url = fmt.Sprintf("%s/projects/%d/merge_requests/%d/reviewers", c.baseURL(), c.ProjectID, mrIID)
+	} else {
+		url = fmt.Sprintf("%s/projects/%s/merge_requests/%d/reviewers", c.baseURL(), c.projectRef(), mrIID)
+	}
+	data, err := c.doGet(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
+	var reviewers []MRReviewer
+	err = json.Unmarshal(data, &reviewers)
+	if err != nil {
+		return nil, errors.E(err, "unmarshaling reviewers list")
+	}
+	return reviewers, nil
+}
+
+// MRParticipants returns the the participants for the given MR.
+func (c *Client) MRParticipants(ctx context.Context, mrIID int) ([]User, error) {
+	var url string
+	if c.ProjectID != 0 {
+		url = fmt.Sprintf("%s/projects/%d/merge_requests/%d/participants", c.baseURL(), c.ProjectID, mrIID)
+	} else {
+		url = fmt.Sprintf("%s/projects/%s/merge_requests/%d/participants", c.baseURL(), c.projectRef(), mrIID)
+	}
+	data, err := c.doGet(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
+	var participants []User
+	err = json.Unmarshal(data, &participants)
+	if err != nil {
+		return nil, errors.E(err, "unmarshaling participants list")
+	}
+	return participants, nil
 }
 
 func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {

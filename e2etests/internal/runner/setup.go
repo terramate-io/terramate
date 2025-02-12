@@ -6,9 +6,12 @@ package runner
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/fs"
+	"github.com/terramate-io/terramate/test"
 )
 
 const terraformInstallVersion = "1.5.0"
@@ -51,6 +54,27 @@ func Setup(projectRoot string) (err error) {
 		HelperPath, err = BuildTestHelper(projectRoot, toolsetTestPath)
 		if err != nil {
 			err = errors.E(err, "failed to setup e2e tests")
+			return
+		}
+
+		// also copies a variant of helper named "terragrunt" for simple e2e testing cases.
+		terragruntTestPath := filepath.Join(toolsetTestPath, "terragrunt"+platExeSuffix())
+		err = fs.CopyFile(terragruntTestPath, HelperPath)
+		if err != nil {
+			err = errors.E(err, "failed to make a copy of the helper binary")
+			return
+		}
+
+		var st os.FileInfo
+		st, err = os.Stat(HelperPath)
+		if err != nil {
+			err = errors.E(err, "failed to stat the helper binary")
+			return
+		}
+
+		err = test.Chmod(terragruntTestPath, st.Mode())
+		if err != nil {
+			err = errors.E(err, "failed to set the helper binary executable")
 			return
 		}
 

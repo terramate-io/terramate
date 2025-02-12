@@ -800,6 +800,29 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "flag --terragrunt exports environment variables that control stdout.",
+			layout: []string{
+				"s:s1:id=s1",
+				"copy:s1:testdata/cloud-sync-drift-plan-file",
+			},
+			runflags: []string{`--terragrunt`, `--eval`, `--terraform-plan-file=out.tfplan`},
+			cmd:      []string{HelperPathAsHCL, "echo", "${terramate.stack.path.absolute}"},
+			env: []string{
+				`TF_VAR_content=my secret`,
+			},
+			want: want{
+				run: RunExpected{
+					// NOTE(i4k): Not the ideal way of testing this but the test "terragrunt" command exits with 1
+					// if the required environment variables are not set.
+					Status: 0,
+					Stdout: nljoin("/s1"),
+				},
+				events: eventsResponse{
+					"s1": []string{"pending", "running", "ok"},
+				},
+			},
+		},
 	} {
 		for _, isParallel := range []bool{false, true} {
 			tc := tc
@@ -828,11 +851,14 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
 				env = append(env, tc.env...)
+				env, ok := test.PrependToPath(env, filepath.Dir(TerraformTestPath))
+				assert.IsTrue(t, ok)
+				env, ok = test.PrependToPath(env, filepath.Dir(HelperPath)) // so our test "terragrunt" can be found.
+				assert.IsTrue(t, ok)
 
 				if slices.Contains(tc.runflags, "--enable-sharing") {
 					s.Generate()
 					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-					cli.PrependToPath(filepath.Dir(TerraformTestPath))
 					AssertRunResult(t, cli.Run("run", "-X", "--quiet", "--", "terraform", "init"), RunExpected{
 						Status:       0,
 						IgnoreStdout: true,
@@ -842,8 +868,6 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				s.Git().CommitAll("all stacks committed")
 
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
-				cli.PrependToPath(filepath.Dir(TerraformTestPath))
-
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 
 				runflags := []string{

@@ -131,7 +131,7 @@ type (
 		Reason            string       `json:"reason"`
 		CreatedOn         string       `json:"created_on"`
 		UpdatedOn         string       `json:"updated_on"`
-		Reviewers         []Actor      `json:"reviewers"`
+		Reviewers         []User       `json:"reviewers"`
 		Participants      []Actor      `json:"participants"`
 		Links             Links        `json:"links"`
 	}
@@ -169,7 +169,7 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 		"reason",
 		"created_on",
 		"updated_on",
-		"reviewers.type", // only one field to force pull entries.
+		"reviewers",
 		"participants",
 		"links",
 	}

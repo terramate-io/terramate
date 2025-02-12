@@ -1,0 +1,103 @@
+[
+    {
+        "id": 1234,
+        "iid": 1,
+        "project_id": 4567,
+        "title": "My branch",
+        "description": "",
+        "state": "opened",
+        "created_at": "2025-01-15T13:22:03.540Z",
+        "updated_at": "2025-02-06T13:39:40.958Z",
+        "merged_by": null,
+        "merge_user": null,
+        "merged_at": null,
+        "closed_by": null,
+        "closed_at": null,
+        "target_branch": "main",
+        "source_branch": "branch",
+        "user_notes_count": 8,
+        "upvotes": 0,
+        "downvotes": 0,
+        "author": {
+            "id": 1,
+            "username": "bob",
+            "name": "Bob",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/1/avatar.png",
+            "web_url": "https://gitlab.com/bob"
+        },
+        "assignees": [
+            {
+                "id": 1,
+                "username": "bob",
+                "name": "Bob",
+                "state": "active",
+                "locked": false,
+                "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/1/avatar.png",
+                "web_url": "https://gitlab.com/bob"
+            }
+        ],
+        "assignee": {
+            "id": 1,
+            "username": "bob",
+            "name": "Bob",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/1/avatar.png",
+            "web_url": "https://gitlab.com/bob"
+        },
+        "reviewers": [
+            {
+                "id": 1,
+                "username": "bob",
+                "name": "Bob",
+                "state": "active",
+                "locked": false,
+                "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/1/avatar.png",
+                "web_url": "https://gitlab.com/bob"
+            }
+        ],
+        "source_project_id": 51574023,
+        "target_project_id": 51574023,
+        "labels": [],
+        "draft": false,
+        "imported": false,
+        "imported_from": "none",
+        "work_in_progress": false,
+        "milestone": null,
+        "merge_when_pipeline_succeeds": false,
+        "merge_status": "can_be_merged",
+        "detailed_merge_status": "mergeable",
+        "merge_after": null,
+        "sha": "38bde1666c87f29bd4735ba7a0cdd2105e35375a",
+        "merge_commit_sha": null,
+        "squash_commit_sha": null,
+        "discussion_locked": null,
+        "should_remove_source_branch": null,
+        "force_remove_source_branch": null,
+        "prepared_at": "2025-01-15T13:22:05.301Z",
+        "reference": "!1",
+        "references": {
+            "short": "!1",
+            "relative": "!1",
+            "full": "bob/branch!1"
+        },
+        "web_url": "https://gitlab.com/bob/branch/-/merge_requests/1",
+        "time_stats": {
+            "time_estimate": 0,
+            "total_time_spent": 0,
+            "human_time_estimate": null,
+            "human_total_time_spent": null
+        },
+        "squash": false,
+        "squash_on_merge": false,
+        "task_completion_status": {
+            "count": 0,
+            "completed_count": 0
+        },
+        "has_conflicts": false,
+        "blocking_discussions_resolved": true,
+        "approvals_before_merge": null
+    }
+]

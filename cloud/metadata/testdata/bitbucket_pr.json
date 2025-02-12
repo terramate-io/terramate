@@ -1,0 +1,177 @@
+{
+    "values": [
+      {
+        "comment_count": 0,
+        "task_count": 0,
+        "type": "pullrequest",
+        "id": 2,
+        "title": "bitbucket-pipelines.yml edited online with Bitbucket",
+        "rendered": {},
+        "state": "OPEN",
+        "merge_commit": null,
+        "close_source_branch": false,
+        "closed_by": null,
+        "author": {
+          "display_name": "Bob",
+          "links": {
+            "self": {
+              "href": "https://api.bitbucket.org/2.0/users/%7B920a82eb-aaaa-4139-a337-83073962d5db%7D"
+            },
+            "avatar": {
+              "href": "https://secure.gravatar.com/avatar/ecaf3a24654979238b684208e343fb76?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FS-2.png"
+            },
+            "html": {
+              "href": "https://bitbucket.org/%7B920a82eb-aaaa-4139-a337-83073962d5db%7D/"
+            }
+          },
+          "created_on": "2024-12-20T10:01:50.522664+00:00",
+          "is_active": true,
+          "type": "user",
+          "uuid": "{920a82eb-aaaa-4139-a337-83073962d5db}",
+          "has_2fa_enabled": null,
+          "properties": {},
+          "is_staff": false,
+          "account_id": "712020:c9f5aeed-0ee0-4f02-8885-5303325c66d7",
+          "nickname": "Bob",
+          "account_status": "active",
+          "location": null,
+          "zoneinfo": null,
+          "organization": null,
+          "department": null,
+          "job_title": null
+        },
+        "reason": "",
+        "created_on": "2025-02-06T23:00:21.623350+00:00",
+        "updated_on": "2025-02-06T23:01:07.611555+00:00",
+        "destination": {
+          "branch": {
+            "name": "main"
+          }
+        },
+        "source": {
+          "branch": {
+            "name": "test-branch"
+          },
+          "commit": {
+            "hash": "96e4cd3fc959"
+          }
+        },
+        "reviewers": [
+          {
+              "display_name": "Other",
+              "links": {
+              "self": {
+                  "href": "https://api.bitbucket.org/2.0/users/%7Be255a910-aaaa-4db4-a19b-ec53fa25cd87%7D"
+              },
+              "avatar": {
+                  "href": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/712020:b02170cf-5850-47e1-a90c-176d96c57a86/978423f4-9b79-4026-874a-4f29c4e7d679/128"
+              },
+              "html": {
+                  "href": "https://bitbucket.org/%7Be255a910-aaaa-4db4-a19b-ec53fa25cd87%7D/"
+              }
+              },
+              "type": "user",
+              "uuid": "{e255a910-aaaa-4db4-a19b-ec53fa25cd87}",
+              "account_id": "712020:b02170cf-5850-47e1-a90c-176d96c57a86",
+              "nickname": "OtherNick"
+          }
+        ],
+        "participants": [
+          {
+              "type": "participant",
+              "user": {
+              "display_name": "Bob",
+              "links": {
+                  "self": {
+                  "href": "https://api.bitbucket.org/2.0/users/%7B920a82eb-aaaa-4139-a337-83073962d5db%7D"
+                  },
+                  "avatar": {
+                  "href": "https://secure.gravatar.com/avatar/ecaf3a24654979238b684208e343fb76?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FS-2.png"
+                  },
+                  "html": {
+                  "href": "https://bitbucket.org/%7B920a82eb-aaaa-4139-a337-83073962d5db%7D/"
+                  }
+              },
+              "type": "user",
+              "uuid": "{920a82eb-aaaa-4139-a337-83073962d5db}",
+              "account_id": "712020:c9f5aeed-0ee0-4f02-8885-5303325c66d7",
+              "nickname": "Bob"
+              },
+              "role": "PARTICIPANT",
+              "approved": true,
+              "state": "approved",
+              "participated_on": "2025-02-06T23:36:12.643152+00:00"
+          },
+          {
+              "type": "participant",
+              "user": {
+              "display_name": "Other",
+              "links": {
+                  "self": {
+                  "href": "https://api.bitbucket.org/2.0/users/%7Be255a910-aaaa-4db4-a19b-ec53fa25cd87%7D"
+                  },
+                  "avatar": {
+                  "href": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/712020:b02170cf-5850-47e1-a90c-176d96c57a86/978423f4-9b79-4026-874a-4f29c4e7d679/128"
+                  },
+                  "html": {
+                  "href": "https://bitbucket.org/%7Be255a910-aaaa-4db4-a19b-ec53fa25cd87%7D/"
+                  }
+              },
+              "type": "user",
+              "uuid": "{e255a910-aaaa-4db4-a19b-ec53fa25cd87}",
+              "account_id": "712020:b02170cf-5850-47e1-a90c-176d96c57a86",
+              "nickname": "OtherNick"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "state": null,
+              "participated_on": null
+          }
+        ],
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2"
+          },
+          "html": {
+            "href": "https://bitbucket.org/workspace1/repo1/pull-requests/2"
+          },
+          "commits": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/commits"
+          },
+          "approve": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/approve"
+          },
+          "request-changes": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/request-changes"
+          },
+          "diff": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/diff/workspace1/repo1:96e4cd3fc959%0D6479e0fe5da3?from_pullrequest_id=2&topic=true"
+          },
+          "diffstat": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/diffstat/workspace1/repo1:96e4cd3fc959%0D6479e0fe5da3?from_pullrequest_id=2&topic=true"
+          },
+          "comments": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/comments"
+          },
+          "activity": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/activity"
+          },
+          "merge": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/merge"
+          },
+          "decline": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/decline"
+          },
+          "statuses": {
+            "href": "https://api.bitbucket.org/2.0/repositories/workspace1/repo1/pullrequests/2/statuses"
+          }
+        },
+        "summary": {
+          "type": "rendered",
+          "raw": "",
+          "markup": "markdown",
+          "html": ""
+        }
+      }
+    ]
+  }

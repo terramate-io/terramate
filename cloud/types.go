@@ -11,6 +11,7 @@ import (
 
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/metadata"
 	"github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
@@ -235,6 +236,9 @@ type (
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
 		GithubActionsWorkflowName          string `json:"github_actions_workflow_name,omitempty"`
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
+
+		GithubCommit      *metadata.GithubCommit      `json:"github_commit,omitempty"`
+		GithubPullRequest *metadata.GithubPullRequest `json:"github_pull_request,omitempty"`
 	}
 
 	// GitlabMetadata holds the Gitlab specific metadata.
@@ -278,6 +282,8 @@ type (
 
 		// Only available for merge request pipelines
 		GitlabCICDMergeRequestApproved *bool `json:"gitlab_cicd_merge_request_approved,omitempty"` // CI_MERGE_REQUEST_APPROVED
+
+		GitlabMergeRequest *metadata.GitlabMergeRequest `json:"gitlab_merge_request,omitempty"`
 	}
 
 	// BitbucketMetadata holds the Bitbucket specific metadata.
@@ -305,6 +311,8 @@ type (
 		BitbucketPipelinesDeploymentEnvironmentUUID string `json:"bitbucket_pipelines_deployment_environment_uuid,omitempty"`
 		BitbucketPipelinesProjectKey                string `json:"bitbucket_pipelines_project_key,omitempty"`
 		BitbucketPipelinesProjectUUID               string `json:"bitbucket_pipelines_project_uuid,omitempty"`
+
+		BitbucketPullRequest *metadata.BitbucketPullRequest `json:"bitbucket_pull_request,omitempty"`
 	}
 
 	// ReviewRequest is the review_request object.
@@ -429,11 +437,10 @@ type (
 	StoreOutput struct {
 		ID UUID `json:"id"`
 
-		StoreOutputKey
-
-		Value     string    `json:"value"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
+		Key       StoreOutputKey `json:"key"`
+		Value     string         `json:"value"`
+		CreatedAt time.Time      `json:"created_at"`
+		UpdatedAt time.Time      `json:"updated_at"`
 	}
 
 	// UUID represents an UUID string.
@@ -855,16 +862,16 @@ func (s StoreOutput) Validate() error {
 	if s.ID == "" {
 		return errors.E(`missing "id" field`)
 	}
-	if s.OrgUUID == "" {
+	if s.Key.OrgUUID == "" {
 		return errors.E(`missing "org_uuid" field`)
 	}
-	if s.Repository == "" {
+	if s.Key.Repository == "" {
 		return errors.E(`missing "repository" field`)
 	}
-	if s.StackMetaID == "" {
+	if s.Key.StackMetaID == "" {
 		return errors.E(`missing "stack_meta_id" field`)
 	}
-	if s.Target == "" {
+	if s.Key.Target == "" {
 		return errors.E(`missing "target" field`)
 	}
 

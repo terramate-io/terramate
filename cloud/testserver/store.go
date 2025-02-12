@@ -52,7 +52,7 @@ func PostStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Requ
 	}
 
 	output := cloud.StoreOutput{
-		StoreOutputKey: cloud.StoreOutputKey{
+		Key: cloud.StoreOutputKey{
 			OrgUUID:     orgUUID,
 			Repository:  outputRequest.Key.Repository,
 			StackMetaID: outputRequest.Key.StackMetaID,
@@ -101,6 +101,43 @@ func GetStoreOutput(store *cloudstore.Data, w http.ResponseWriter, _ *http.Reque
 	}
 
 	output, err := store.GetOutput(orgUUID, outputID)
+	if err != nil {
+		if errors.Is(err, errors.E(cloudstore.ErrNotExists)) {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		writeErr(w, err)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(output)
+	if err != nil {
+		log.Err(err).Msg("failed to encode output")
+	}
+}
+
+// LookupStoreOutput implements the GET /v1/store/:orguuid/outputs endpoint.
+func LookupStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	orgUUID := cloud.UUID(params.ByName("orguuid"))
+	if orgUUID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		writeString(w, "orguuid is required")
+		return
+	}
+	target := r.URL.Query().Get("target")
+	if target == "" {
+		target = "default"
+	}
+	output, err := store.GetOutputByKey(orgUUID, cloud.StoreOutputKey{
+		OrgUUID:     orgUUID,
+		Repository:  r.URL.Query().Get("repository"),
+		StackMetaID: r.URL.Query().Get("stack_meta_id"),
+		Target:      target,
+		Name:        r.URL.Query().Get("name"),
+	})
 	if err != nil {
 		if errors.Is(err, errors.E(cloudstore.ErrNotExists)) {
 			w.WriteHeader(http.StatusNotFound)
