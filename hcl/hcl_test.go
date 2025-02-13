@@ -10,6 +10,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/safeguard"
@@ -902,6 +903,34 @@ func TestHCLParserRootConfig(t *testing.T) {
 						Config: &hcl.RootConfig{
 							Cloud: &hcl.CloudConfig{
 								Organization: "my-org",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.config.cloud.location",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								cloud {
+									location = "us"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Cloud: &hcl.CloudConfig{
+								Location: cloud.US,
 							},
 						},
 					},

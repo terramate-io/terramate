@@ -16,6 +16,7 @@ import (
 	"github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclparse"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -244,6 +245,8 @@ type CloudConfig struct {
 	Organization string
 
 	Targets *TargetsConfig
+
+	Location cloud.Region
 }
 
 // TargetsConfig represents Terramate targets configuration.
@@ -2179,7 +2182,7 @@ func checkSafeguardConfigConflict(cfg *RootConfig, attr ast.Attribute) error {
 	return nil
 }
 
-func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
+func parseCloudConfig(cloudcfg *CloudConfig, cloudBlock *ast.MergedBlock) error {
 	errs := errors.L()
 
 	for _, attr := range cloudBlock.Attributes.SortedList() {
@@ -2202,7 +2205,30 @@ func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
 				continue
 			}
 
-			cloud.Organization = value.AsString()
+			cloudcfg.Organization = value.AsString()
+
+		case "location":
+			if value.Type() != cty.String {
+				errs.Append(attrErr(attr,
+					"terramate.config.cloud.location is not a string but %q",
+					value.Type().FriendlyName(),
+				))
+
+				continue
+			}
+
+			location, err := cloud.ParseRegion(value.AsString())
+			if err != nil {
+				errs.Append(attrErr(attr,
+					"terramate.config.cloud.location is not a valid region (%s) but %q",
+					cloud.AvailableRegions(),
+					value.AsString(),
+				))
+
+				continue
+			}
+
+			cloudcfg.Location = location
 
 		default:
 			errs.Append(errors.E(
@@ -2217,9 +2243,9 @@ func parseCloudConfig(cloud *CloudConfig, cloudBlock *ast.MergedBlock) error {
 
 	targetsBlock, ok := cloudBlock.Blocks[ast.NewEmptyLabelBlockType("targets")]
 	if ok {
-		cloud.Targets = &TargetsConfig{}
+		cloudcfg.Targets = &TargetsConfig{}
 
-		errs.Append(parseTargetsConfig(cloud.Targets, targetsBlock))
+		errs.Append(parseTargetsConfig(cloudcfg.Targets, targetsBlock))
 	}
 
 	return errs.AsError()

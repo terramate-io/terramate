@@ -5,21 +5,15 @@ package tmcloud
 
 import (
 	"os"
-
-	"github.com/terramate-io/terramate/cloud"
 )
 
-// BaseURL returns the base URL for the TMC API.
-func BaseURL() string {
-	var baseURL string
-	cloudHost := os.Getenv("TMC_API_HOST")
-	cloudURL := os.Getenv("TMC_API_URL")
-	if cloudHost != "" {
-		baseURL = "https://" + cloudHost
-	} else if cloudURL != "" {
-		baseURL = cloudURL
-	} else {
-		baseURL = cloud.BaseURL(cloud.EU)
+// EnvBaseURL returns the base URL for the TMC API.
+func EnvBaseURL() (string, bool) {
+	if cloudHost := os.Getenv("TMC_API_HOST"); cloudHost != "" {
+		return "https://" + cloudHost, true
 	}
-	return baseURL
+	if cloudURL := os.Getenv("TMC_API_URL"); cloudURL != "" {
+		return cloudURL, true
+	}
+	return "", false
 }

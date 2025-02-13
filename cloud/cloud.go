@@ -86,11 +86,15 @@ type (
 		Logger *zerolog.Logger
 		noauth bool
 
+		// mu guards the changes in Client attributes concurrently.
 		mu sync.Mutex
 	}
 
 	// Region is the Terramate Cloud region (EU, US, etc).
 	Region int
+
+	// Regions is a list of cloud regions.
+	Regions []Region
 
 	// Credential is the interface for the credential providers.
 	Credential interface {
@@ -105,6 +109,8 @@ type (
 
 // Available cloud locations.
 const (
+	// For backward compatibility we want the zero value to be the default
+	// if not set in the [cloud.Client] struct.
 	EU Region = iota
 	US
 	invalidRegion
@@ -130,7 +136,7 @@ func init() {
 // BaseURL returns the API base URL for the given region.
 func BaseURL(region Region) string {
 	if region == EU {
-		return BaseDomain
+		return "https://" + BaseDomain
 	}
 	return "https://" + region.String() + "." + BaseDomain
 }
@@ -593,6 +599,18 @@ func (c *Client) dumpRequest(req *http.Request) ([]byte, error) {
 	return httputil.DumpRequestOut(reqCopy, true)
 }
 
+// ParseRegion parses a user-supplied region name.
+func ParseRegion(str string) (Region, error) {
+	switch str {
+	case "eu":
+		return EU, nil
+	case "us":
+		return US, nil
+	default:
+		return invalidRegion, errors.E("unknown cloud region: %s", str)
+	}
+}
+
 // String returns the string representation of the region.
 func (r Region) String() string {
 	switch r {
@@ -603,6 +621,28 @@ func (r Region) String() string {
 	default:
 		panic(errors.E("invalid region", r))
 	}
+}
+
+// String returns the string representation of the regions list.
+func (rs Regions) String() string {
+	var regions []string
+	for _, r := range rs {
+		regions = append(regions, r.String())
+	}
+	return strings.Join(regions, ", ")
+}
+
+// AvailableRegions returns a list of available cloud regions.
+func AvailableRegions() Regions {
+	return Regions{EU, US}
+}
+
+// HTMLURL returns the Terramate Cloud frontend URL.
+func HTMLURL(region Region) string {
+	if region == EU {
+		return "https://cloud.terramate.io"
+	}
+	return "https://" + region.String() + ".cloud.terramate.io"
 }
 
 func preparePayload(payload any) (body io.Reader, ctype string, err error) {

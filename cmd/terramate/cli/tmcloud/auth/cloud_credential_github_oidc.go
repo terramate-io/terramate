@@ -227,7 +227,7 @@ func (g *githubOIDC) Info(selectedOrgName string) {
 	}
 
 	if len(g.orgs) == 0 {
-		printer.Stderr.Warn("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warnf("You are not part of an organization. Please visit %s to create an organization.", cloud.HTMLURL(g.client.Region))
 	}
 }
 
