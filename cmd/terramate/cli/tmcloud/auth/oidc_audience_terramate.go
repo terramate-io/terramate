@@ -8,5 +8,5 @@ package auth
 import "github.com/terramate-io/terramate/cloud"
 
 func oidcAudience() string {
-	return cloud.Host
+	return cloud.BaseDomain // do not include the region.
 }
