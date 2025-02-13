@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
 	hversion "github.com/apparentlymart/go-versions/versions"
 	"github.com/rs/zerolog"
@@ -29,11 +30,8 @@ import (
 	"github.com/terramate-io/terramate/versions"
 )
 
-// Host of the official Terramate Cloud API.
-const Host = "api.terramate.io"
-
-// BaseURL is the default cloud.terramate.io base API URL.
-const BaseURL = "https://" + Host
+// BaseDomain is the Terramate Cloud base domain.
+const BaseDomain = "api.terramate.io"
 
 const defaultPageSize = 50
 
@@ -72,8 +70,12 @@ const ErrUnexpectedResponseBody errors.Kind = "unexpected API response body"
 type (
 	// Client is the cloud SDK client.
 	Client struct {
+		// Region where the client must connect. Default is EU.
+		// Note: this is only used if the BaseURL is not set.
+		Region Region
+
 		// BaseURL is the cloud base endpoint URL.
-		// If not set, it defaults to [BaseURL].
+		// If not set, it defaults to calling `BaseURL(client.Region)`.
 		BaseURL    string
 		Credential Credential
 
@@ -83,7 +85,12 @@ type (
 
 		Logger *zerolog.Logger
 		noauth bool
+
+		mu sync.Mutex
 	}
+
+	// Region is the Terramate Cloud region (EU, US, etc).
+	Region int
 
 	// Credential is the interface for the credential providers.
 	Credential interface {
@@ -94,6 +101,13 @@ type (
 		// This is used for dumping the request without exposing the credential.
 		RedactCredentials(req *http.Request)
 	}
+)
+
+// Available cloud locations.
+const (
+	EU Region = iota
+	US
+	invalidRegion
 )
 
 var (
@@ -111,6 +125,14 @@ func init() {
 			pageSize = int64(size)
 		}
 	}
+}
+
+// BaseURL returns the API base URL for the given region.
+func BaseURL(region Region) string {
+	if region == EU {
+		return BaseDomain
+	}
+	return "https://" + region.String() + "." + BaseDomain
 }
 
 // CheckVersion checks if current Terramate version can be used to communicate
@@ -532,9 +554,11 @@ func (c *Client) httpClient() *http.Client {
 
 // URL builds an URL for the given path and queries from the client's base URL.
 func (c *Client) URL(path string, queries ...url.Values) url.URL {
+	c.mu.Lock()
 	if c.BaseURL == "" {
-		c.BaseURL = BaseURL
+		c.BaseURL = BaseURL(c.Region)
 	}
+	c.mu.Unlock()
 	// c.BaseURL must be a valid URL.
 	u, _ := url.Parse(c.BaseURL)
 	u.Path = path
@@ -567,6 +591,18 @@ func (c *Client) dumpRequest(req *http.Request) ([]byte, error) {
 	}
 
 	return httputil.DumpRequestOut(reqCopy, true)
+}
+
+// String returns the string representation of the region.
+func (r Region) String() string {
+	switch r {
+	case EU:
+		return "eu"
+	case US:
+		return "us"
+	default:
+		panic(errors.E("invalid region", r))
+	}
 }
 
 func preparePayload(payload any) (body io.Reader, ctype string, err error) {

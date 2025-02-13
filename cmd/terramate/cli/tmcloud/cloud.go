@@ -19,7 +19,7 @@ func BaseURL() string {
 	} else if cloudURL != "" {
 		baseURL = cloudURL
 	} else {
-		baseURL = cloud.BaseURL
+		baseURL = cloud.BaseURL(cloud.EU)
 	}
 	return baseURL
 }
