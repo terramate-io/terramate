@@ -21,7 +21,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/preview"
-	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
 )
@@ -94,8 +93,6 @@ func TestCreatePreview(t *testing.T) {
 				CommitSHA:       "2fef3ab48c543322e911bc53baec6196231e95bc",
 				Technology:      "terraform",
 				TechnologyLayer: "default",
-				Repository:      "https://github.com/owner/repo",
-				DefaultBranch:   "main",
 				ReviewRequest: &cloud.ReviewRequest{
 					Platform:    "github",
 					Repository:  "https://github.com/owner/repo",
@@ -188,15 +185,17 @@ func TestUpdateStackPreview(t *testing.T) {
 	}
 }
 
-func makeAffectedStacks(num int) map[string]*config.Stack {
-	affectedStacks := map[string]*config.Stack{}
+func makeAffectedStacks(num int) map[string]cloud.Stack {
+	affectedStacks := map[string]cloud.Stack{}
 	for i := 0; i < num; i++ {
-		affectedStacks[strconv.Itoa(i)] = &config.Stack{
-			Dir:         project.NewPath("/somepath" + strconv.Itoa(i)),
-			ID:          uuid.NewString(),
-			Name:        "stack" + strconv.Itoa(i),
-			Description: "desc of stack" + strconv.Itoa(i),
-			Tags:        []string{"tag1", "tag2"},
+		affectedStacks[strconv.Itoa(i)] = cloud.Stack{
+			Path:            project.NewPath("/somepath" + strconv.Itoa(i)).String(),
+			MetaID:          uuid.NewString(),
+			MetaName:        "stack" + strconv.Itoa(i),
+			MetaDescription: "desc of stack" + strconv.Itoa(i),
+			MetaTags:        []string{"tag1", "tag2"},
+			Repository:      "https://github.com/owner/repo",
+			DefaultBranch:   "main",
 		}
 	}
 
@@ -207,14 +206,8 @@ func makeRunContexts(num int, cmd []string) []cloud.RunContext {
 	runs := make([]cloud.RunContext, num)
 	for i := 0; i < num; i++ {
 		runs[i] = cloud.RunContext{
-			Stack: &config.Stack{
-				Dir:         project.NewPath("/somepath" + strconv.Itoa(i)),
-				ID:          uuid.NewString(),
-				Name:        "stack" + strconv.Itoa(i),
-				Description: "desc of stack" + strconv.Itoa(i),
-				Tags:        []string{"tag1", "tag2"},
-			},
-			Cmd: cmd,
+			StackID: uuid.NewString(),
+			Cmd:     cmd,
 		}
 	}
 
