@@ -782,14 +782,24 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 	previewRuns := make([]cloud.RunContext, len(runs))
 	for i, run := range runs {
 		previewRuns[i] = cloud.RunContext{
-			Stack: run.Stack,
-			Cmd:   run.Task.Cmd,
+			StackID: run.Stack.ID,
+			Cmd:     run.Task.Cmd,
 		}
 	}
 
-	affectedStacksMap := map[string]*config.Stack{}
+	affectedStacksMap := map[string]cloud.Stack{}
 	for _, st := range c.getAffectedStacks() {
-		affectedStacksMap[st.Stack.ID] = st.Stack
+		affectedStacksMap[st.Stack.ID] = cloud.Stack{
+			Path:            st.Stack.Dir.String(),
+			MetaID:          strings.ToLower(st.Stack.ID),
+			MetaName:        st.Stack.Name,
+			MetaDescription: st.Stack.Description,
+			MetaTags:        st.Stack.Tags,
+			Repository:      c.prj.prettyRepo(),
+			Target:          target,
+			FromTarget:      fromTarget,
+			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
+		}
 	}
 
 	if c.cloud.run.reviewRequest == nil || c.cloud.run.rrEvent.pushedAt == nil {
@@ -831,10 +841,6 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 			CommitSHA:       c.cloud.run.rrEvent.commitSHA,
 			Technology:      technology,
 			TechnologyLayer: technologyLayer,
-			Repository:      c.prj.prettyRepo(),
-			Target:          target,
-			FromTarget:      fromTarget,
-			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
 			ReviewRequest:   c.cloud.run.reviewRequest,
 			Metadata:        c.cloud.run.metadata,
 		},

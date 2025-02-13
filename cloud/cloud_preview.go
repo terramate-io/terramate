@@ -6,10 +6,8 @@ package cloud
 import (
 	"context"
 	"path"
-	"strings"
 
 	"github.com/terramate-io/terramate/cloud/preview"
-	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -22,23 +20,19 @@ const (
 
 // RunContext is the context for a run
 type RunContext struct {
-	Stack *config.Stack
-	Cmd   []string
+	StackID string
+	Cmd     []string
 }
 
 // CreatePreviewOpts is the options for the CreatePreview function
 type CreatePreviewOpts struct {
 	Runs            []RunContext
-	AffectedStacks  map[string]*config.Stack
+	AffectedStacks  map[string]Stack
 	OrgUUID         UUID
 	PushedAt        int64
 	CommitSHA       string
 	Technology      string
 	TechnologyLayer string
-	Repository      string
-	Target          string
-	FromTarget      string
-	DefaultBranch   string
 	ReviewRequest   *ReviewRequest
 	Metadata        *DeploymentMetadata
 }
@@ -94,7 +88,7 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 
 	previewStacksMap := map[string]RunContext{}
 	for _, run := range opts.Runs {
-		previewStacksMap[run.Stack.ID] = run
+		previewStacksMap[run.StackID] = run
 	}
 
 	// loop over all affected stacks, if an item is present in the
@@ -103,20 +97,10 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 		stack := PreviewStack{
 			PreviewStatus: preview.StackStatusAffected,
 			Cmd:           []string{},
-			Stack: Stack{
-				Repository:      opts.Repository,
-				Target:          opts.Target,
-				FromTarget:      opts.FromTarget,
-				Path:            affectedStack.Dir.String(),
-				MetaID:          strings.ToLower(affectedStack.ID),
-				MetaName:        affectedStack.Name,
-				MetaDescription: affectedStack.Description,
-				MetaTags:        affectedStack.Tags,
-				DefaultBranch:   opts.DefaultBranch,
-			},
+			Stack:         affectedStack,
 		}
 
-		if previewStack, found := previewStacksMap[affectedStack.ID]; found {
+		if previewStack, found := previewStacksMap[affectedStack.MetaID]; found {
 			stack.PreviewStatus = preview.StackStatusPending
 			stack.Cmd = previewStack.Cmd
 		}
