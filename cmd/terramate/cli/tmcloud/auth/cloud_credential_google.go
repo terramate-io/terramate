@@ -638,7 +638,7 @@ func (g *googleCredential) fetchDetails() error {
 
 	if err != nil {
 		if errors.IsKind(err, cloud.ErrNotFound) {
-			return errors.E(clitest.ErrCloudOnboardingIncomplete, ErrLoginRequired)
+			return errors.E(clitest.ErrCloudOnboardingIncomplete)
 		}
 		return err
 	}

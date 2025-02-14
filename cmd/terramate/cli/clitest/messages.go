@@ -23,6 +23,9 @@ const (
 	// CloudLoginRequiredMessage is the message displayed when cloud login is required.
 	CloudLoginRequiredMessage = "This command uses Terramate Cloud features and requires you to be logged in"
 
+	// CloudOnboardingIncompleteMessage is the message displayed when the onboarding process is incomplete.
+	CloudOnboardingIncompleteMessage = "You need to complete the Terramate Cloud onboarding process before using this feature"
+
 	// CloudTargetsNotEnabledMessage is the message displayed when the targets feature is not enabled.
 	CloudTargetsNotEnabledMessage = `The \"targets\" feature is not enabled`
 
