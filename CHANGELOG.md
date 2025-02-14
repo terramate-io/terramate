@@ -25,6 +25,9 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Synchronize additional metadata about PR collaborators (reviewers, assignees, etc.) to Terramate Cloud so that actionable items can be shown to the linked users.
+- Add `terramate.config.cloud.location` attribute to set the Terramate Cloud region to use.
+  - If you set `terramate.config.cloud.location = "us"` then [https://us.cloud.terramate.io](https://us.cloud.terramate.io) URL is used for all cloud features.
+  - If not set, the default is `eu`.
 
 ### Fixed
 
@@ -35,6 +38,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `TERRAGRUNT_LOG_FORMAT=bare`
 - Fix Terramate Cloud plan creation command not using environ defined in `terramate.config.run.env`.
   - This can lead to a version mismatch between the user-supplied run command and the one used for creating the plan details.
+- Fix misleading error message in the case that Terramate Cloud onboarding is incomplete.
 
 ## v0.11.9
 
