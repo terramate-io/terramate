@@ -70,8 +70,8 @@ const (
 	githubErrUnprocessableEntity errors.Kind = "entity cannot be processed (HTTP Status: 422)"
 )
 
-// newCloudRequiredError creates an error indicating that a cloud login is required to use requested features.
-func newCloudRequiredError(requestedFeatures []string) *errors.DetailedError {
+// newCloudLoginRequiredError creates an error indicating that a cloud login is required to use requested features.
+func newCloudLoginRequiredError(requestedFeatures []string) *errors.DetailedError {
 	err := errors.D(clitest.CloudLoginRequiredMessage)
 
 	for _, s := range requestedFeatures {
@@ -82,6 +82,12 @@ func newCloudRequiredError(requestedFeatures []string) *errors.DetailedError {
 		WithDetailf(verbosity.V1, "To create a free account, visit https://cloud.terramate.io.")
 
 	return err.WithCode(clitest.ErrCloud)
+}
+
+func newCloudOnboardingIncompleteError(region cloud.Region) *errors.DetailedError {
+	err := errors.D(clitest.CloudOnboardingIncompleteMessage)
+	err = err.WithDetailf(verbosity.V1, "Visit %s to setup your account.", cloud.HTMLURL(region))
+	return err.WithCode(clitest.ErrCloudOnboardingIncomplete)
 }
 
 type cloudRunState struct {
@@ -224,7 +230,10 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	err := c.loadCredential()
 	if err != nil {
 		if errors.IsKind(err, auth.ErrLoginRequired) {
-			return newCloudRequiredError(requestedFeatures).WithCause(err)
+			return newCloudLoginRequiredError(requestedFeatures).WithCause(err)
+		}
+		if errors.IsKind(err, clitest.ErrCloudOnboardingIncomplete) {
+			return newCloudOnboardingIncompleteError(c.cloud.client.Region).WithCause(err)
 		}
 		printer.Stderr.ErrorWithDetails("failed to load the cloud credentials", err)
 		return cloudError()
@@ -435,8 +444,16 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 func (c *cli) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
-		// TODO: Better error message.
-		fatalWithDetailf(err, "failed to load credentials")
+		if errors.IsKind(err, auth.ErrLoginRequired) {
+			fatalWithDetailf(
+				newCloudLoginRequiredError([]string{"The `terramate cloud info` shows information about your current credentials to Terramate Cloud."}).WithCause(err),
+				"failed to load the cloud credentials",
+			)
+		}
+		if errors.IsKind(err, clitest.ErrCloudOnboardingIncomplete) {
+			fatal(newCloudOnboardingIncompleteError(c.cloud.client.Region))
+		}
+		fatalWithDetailf(err, "failed to load the cloud credentials")
 	}
 	c.cred().Info(c.cloudOrgName())
 
@@ -449,7 +466,7 @@ func (c *cli) cloudInfo() {
 func (c *cli) cloudDriftShow() {
 	err := c.setupCloudConfig(nil)
 	if err != nil {
-		fatalWithDetailf(err, "unable to setup cloud configuration")
+		fatal(err)
 	}
 	st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 	if err != nil {
