@@ -151,7 +151,7 @@ func (c *cli) runOnStacks() {
 			DriftStatus:      driftFilter,
 		})
 		if err != nil {
-			fatalWithDetailf(err, "computing selected stacks")
+			fatal(err)
 		}
 	}
 

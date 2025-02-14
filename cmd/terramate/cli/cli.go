@@ -1184,7 +1184,7 @@ func (c *cli) triggerStackByFilter() {
 	}
 	stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, stackFilter, false)
 	if err != nil {
-		fatalWithDetailf(err, "unable to list stacks")
+		fatal(err)
 	}
 
 	for _, st := range c.filterStacksByWorkingDir(stacksReport.Stacks) {
