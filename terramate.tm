@@ -17,6 +17,7 @@ terramate {
     }
 
     cloud {
+      location     = "eu"
       organization = "terramate-tests"
 
       targets {

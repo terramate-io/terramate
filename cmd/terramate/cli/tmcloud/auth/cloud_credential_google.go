@@ -672,11 +672,11 @@ func (g *googleCredential) Info(selectedOrgName string) {
 	}
 
 	if g.user.DisplayName == "" {
-		printer.Stderr.Warn("On-boarding is incomplete. Please visit cloud.terramate.io to complete on-boarding.")
+		printer.Stderr.Warnf("On-boarding is incomplete. Please visit %s to complete on-boarding.", cloud.HTMLURL(g.client.Region))
 	}
 
 	if len(g.orgs) == 0 {
-		printer.Stderr.Warn("You are not part of an organization. Please visit cloud.terramate.io to create an organization.")
+		printer.Stderr.Warnf("You are not part of an organization. Please visit %s to create an organization.", cloud.HTMLURL(g.client.Region))
 	}
 }
 

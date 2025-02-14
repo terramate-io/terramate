@@ -25,6 +25,7 @@ import (
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -673,7 +674,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
-							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+							regexp.QuoteMeta(`You are not part of an organization. Please visit https://cloud.terramate.io to create an organization.`),
 						},
 					},
 				},
@@ -685,7 +686,63 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 0,
 						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
 						StderrRegexes: []string{
-							`You are not part of an organization. Please visit cloud.terramate.io to create an organization.`,
+							regexp.QuoteMeta(`You are not part of an organization. Please visit https://cloud.terramate.io to create an organization.`),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:      "check membership messages uses correct regional URLs",
+			endpoints: testserver.DisableEndpoints(cloud.MembershipsPath),
+			customEndpoints: testserver.Custom{
+				Routes: map[string]testserver.Route{
+					"GET": {
+						Path: cloud.MembershipsPath,
+						Handler: testserver.Handler(
+							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+								writeJSON(w, `[]`)
+							},
+						),
+					},
+				},
+			},
+			layout: []string{
+				"s:stack:id=test",
+				"f:region.tm:" + Terramate(
+					Config(
+						Block("cloud",
+							Str("location", "us"),
+						),
+					),
+				).String(),
+			},
+			subcases: []subtestcase{
+				{
+					name:   "cloud info",
+					uimode: cli.HumanMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
+						StderrRegexes: []string{
+							regexp.QuoteMeta(
+								`You are not part of an organization. Please visit https://us.cloud.terramate.io to create an organization.`,
+							),
+						},
+					},
+				},
+				{
+					name:   "cloud info",
+					uimode: cli.AutomationMode,
+					cmd:    []string{"cloud", "info"},
+					want: RunExpected{
+						Status: 0,
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\n",
+						StderrRegexes: []string{
+							regexp.QuoteMeta(
+								`You are not part of an organization. Please visit https://us.cloud.terramate.io to create an organization.`,
+							),
 						},
 					},
 				},

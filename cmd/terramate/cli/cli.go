@@ -600,7 +600,11 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 	case "cloud login":
 		var err error
 		if parsedArgs.Cloud.Login.Github {
-			err = auth.GithubLogin(output, tmcloud.BaseURL(), clicfg)
+			tmcURL, foundEnv := tmcloud.EnvBaseURL()
+			if !foundEnv {
+				tmcURL = cloud.BaseURL(cloud.EU)
+			}
+			err = auth.GithubLogin(output, tmcURL, clicfg)
 		} else {
 			err = auth.GoogleLogin(output, clicfg)
 		}
@@ -2610,6 +2614,13 @@ func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
 func (c *cli) cred() auth.Credential        { return c.cloud.client.Credential.(auth.Credential) }
+func (c *cli) cloudRegion() cloud.Region {
+	rootcfg := c.rootNode()
+	if rootcfg.Terramate != nil && rootcfg.Terramate.Config != nil && rootcfg.Terramate.Config.Cloud != nil {
+		return rootcfg.Terramate.Config.Cloud.Location
+	}
+	return cloud.EU
+}
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
