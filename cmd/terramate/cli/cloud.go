@@ -1489,15 +1489,22 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 }
 
 func (c *cli) loadCredential() error {
-	cloudURL := tmcloud.BaseURL()
+	region := c.cloudRegion()
+	cloudURL, envFound := tmcloud.EnvBaseURL()
+	if !envFound {
+		cloudURL = cloud.BaseURL(region)
+	}
 	clientLogger := log.With().
 		Str("tmc_url", cloudURL).
 		Logger()
 
 	c.cloud.client = &cloud.Client{
-		BaseURL:    cloudURL,
+		Region:     region, // always set so we can use it in error messages
 		HTTPClient: &c.httpClient,
 		Logger:     &clientLogger,
+	}
+	if envFound {
+		c.cloud.client.BaseURL = cloudURL
 	}
 	c.cloud.output = c.output
 

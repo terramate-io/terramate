@@ -878,7 +878,7 @@ func (c *cli) writePreviewURL() {
 		}
 	}
 
-	cloudURL := "https://cloud.terramate.io"
+	cloudURL := cloud.HTMLURL(c.cloud.client.Region)
 	if c.cloud.client.BaseURL == "https://api.stg.terramate.io" {
 		cloudURL = "https://cloud.stg.terramate.io"
 	}
