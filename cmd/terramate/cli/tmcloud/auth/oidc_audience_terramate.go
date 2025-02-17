@@ -7,6 +7,6 @@ package auth
 
 import "github.com/terramate-io/terramate/cloud"
 
-func oidcAudience() string {
-	return cloud.BaseDomain // do not include the region.
+func oidcAudience(region cloud.Region) string {
+	return cloud.BaseDomain(region)
 }

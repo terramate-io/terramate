@@ -31,7 +31,7 @@ import (
 )
 
 // BaseDomain is the Terramate Cloud base domain.
-const BaseDomain = "api.terramate.io"
+const apiBaseDomain = "api.terramate.io"
 
 const defaultPageSize = 50
 
@@ -133,12 +133,20 @@ func init() {
 	}
 }
 
-// BaseURL returns the API base URL for the given region.
+// BaseURL returns the API base URL for the Terramate Cloud.
 func BaseURL(region Region) string {
 	if region == EU {
-		return "https://" + BaseDomain
+		return "https://" + apiBaseDomain
 	}
-	return "https://" + region.String() + "." + BaseDomain
+	return "https://" + region.String() + "." + apiBaseDomain
+}
+
+// BaseDomain returns the API base domain for the Terramate Cloud.
+func BaseDomain(region Region) string {
+	if region == EU {
+		return apiBaseDomain
+	}
+	return region.String() + "." + apiBaseDomain
 }
 
 // CheckVersion checks if current Terramate version can be used to communicate
