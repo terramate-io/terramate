@@ -5,6 +5,8 @@
 
 package auth
 
-func oidcAudience() string {
+import "github.com/terramate-io/terramate/cloud"
+
+func oidcAudience(_ cloud.Region) string {
 	return ""
 }

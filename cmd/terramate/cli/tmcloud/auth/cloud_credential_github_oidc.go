@@ -61,7 +61,7 @@ func (g *githubOIDC) Load() (bool, error) {
 
 	g.reqToken = os.Getenv(envReqTok)
 
-	audience := oidcAudience()
+	audience := oidcAudience(g.client.Region)
 	if audience != "" {
 		u, err := url.Parse(g.reqURL)
 		if err != nil {
