@@ -61,6 +61,7 @@ type Tree struct {
 	TerramateFiles []string
 	OtherFiles     []string
 	TmGenFiles     []string
+	ChildrenDirs   []string
 
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
@@ -510,6 +511,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		tree.TerramateFiles = filesResult.TmFiles
 		tree.OtherFiles = filesResult.OtherFiles
 		tree.TmGenFiles = filesResult.TmGenFiles
+		tree.ChildrenDirs = filesResult.Dirs
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
