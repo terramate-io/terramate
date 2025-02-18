@@ -23,8 +23,11 @@ func TestMain(m *testing.M) {
 	projectRoot := filepath.Join(packageDir, "../..")
 	err = Setup(projectRoot)
 	if err != nil {
-		log.Fatalf("failed to setup e2e tests: %v", err)
+		log.Printf("failed to setup e2e tests: %v", err)
+		Teardown()
+		os.Exit(1)
 	}
-	defer Teardown()
-	os.Exit(m.Run())
+	code := m.Run()
+	Teardown()
+	os.Exit(code)
 }

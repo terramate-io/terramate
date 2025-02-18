@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/terramate-io/terramate/e2etests/internal/runner"
+	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 )
 
 const testserverJSONFile = "testdata/cloud.data.json"
@@ -24,12 +24,15 @@ func TestMain(m *testing.M) {
 	// this file is inside cmd/terramate/e2etests/cloud
 	// change code below if it's not the case anymore.
 	projectRoot := filepath.Join(packageDir, "../..")
-	err = runner.Setup(projectRoot)
+	err = Setup(projectRoot)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("failed to setup e2e tests: %v", err)
+		Teardown()
+		os.Exit(1)
 	}
-	defer runner.Teardown()
-	os.Exit(m.Run())
+	code := m.Run()
+	Teardown()
+	os.Exit(code)
 }
 
 func nljoin(stacks ...string) string {

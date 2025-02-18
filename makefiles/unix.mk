@@ -38,8 +38,7 @@ test/helper:
 tempdir=$(shell ./bin/helper tempdir)
 test: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
-	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -timeout 30m ./...
-	./bin/helper rm $(tempdir)
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -timeout 30m ./... || ./bin/helper rm $(tempdir)
 
 ## test/sync code
 .PHONY: test/sync
@@ -52,8 +51,7 @@ test/sync: test/helper build
 	GITHUB_TOKEN=$(shell cat ../my_github_token.txt) \
 	NO_COLOR=1 \
 	CI=1 \
-	./bin/terramate script run --tags golang --parallel=10 preview
-	./bin/helper rm $(tempdir)
+	./bin/terramate script run --tags golang --parallel=10 preview || ./bin/helper rm $(tempdir)
 
 ## test/interop
 .PHONY: test/interop
