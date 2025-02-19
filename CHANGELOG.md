@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Fixed
+
+- Fix `terramate cloud login --github` when the Github email is not verified but the associated Firebase account is verified.
+
 ## v0.12.0
 
 ### Added

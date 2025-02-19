@@ -300,9 +300,16 @@ func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credenti
 	if creds.NeedConfirmation {
 		return credentialInfo{}, newIDPNeedConfirmationError(creds.VerifiedProviders)
 	}
-	if !creds.EmailVerified {
+
+	claims, err := tokenClaims(creds.IDToken)
+	if err != nil {
+		return credentialInfo{}, err
+	}
+
+	if emailVerified, ok := claims["email_verified"].(bool); ok && !emailVerified {
 		return credentialInfo{}, newEmailNotVerifiedError(creds.Email)
 	}
+
 	return creds, nil
 }
 
