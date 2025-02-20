@@ -5,5 +5,5 @@
 
 package cli
 
-func startProfiler(_ *cliSpec) {}
-func stopProfiler(_ *cliSpec)  {}
+func startProfiler(_ *CliSpec) {}
+func stopProfiler(_ *CliSpec)  {}

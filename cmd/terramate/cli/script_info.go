@@ -22,8 +22,8 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func (c *cli) printScriptInfo() {
-	labels := c.parsedArgs.Script.Info.Cmds
+func (c *CLI) printScriptInfo() {
+	labels := c.ParsedArgs.Script.Info.Cmds
 
 	stacks, err := c.computeSelectedStacks(false, outputsSharingFlags{}, cloudstack.AnyTarget, cloud.NoStatusFilters())
 	if err != nil {
@@ -31,11 +31,11 @@ func (c *cli) printScriptInfo() {
 	}
 
 	m := newScriptsMatcher(labels)
-	m.Search(c.cfg(), stacks)
+	m.Search(c.Config(), stacks)
 
 	if len(m.Results) == 0 {
 		c.output.MsgStdErr(color.RedString("script not found: ") +
-			strings.Join(c.parsedArgs.Script.Info.Cmds, " "))
+			strings.Join(c.ParsedArgs.Script.Info.Cmds, " "))
 		os.Exit(1)
 	}
 

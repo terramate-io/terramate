@@ -17,10 +17,10 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func (c *cli) printScriptTree() {
+func (c *CLI) printScriptTree() {
 	srcpath := prj.PrjAbsPath(c.rootdir(), c.wd())
 
-	cfg, found := c.cfg().Lookup(srcpath)
+	cfg, found := c.Config().Lookup(srcpath)
 	if !found {
 		return
 	}

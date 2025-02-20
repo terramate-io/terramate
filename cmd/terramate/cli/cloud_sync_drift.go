@@ -14,7 +14,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
+func (c *CLI) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
 	st := run.Stack
 
 	logger := log.With().
@@ -58,10 +58,10 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 
 	_, err = c.cloud.client.CreateStackDrift(ctx, c.cloud.run.orgUUID, cloud.DriftStackPayloadRequest{
 		Stack: cloud.Stack{
-			Repository:      c.prj.prettyRepo(),
+			Repository:      c.Project.prettyRepo(),
 			Target:          run.Task.CloudTarget,
 			FromTarget:      run.Task.CloudFromTarget,
-			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
+			DefaultBranch:   c.Project.gitcfg().DefaultBranch,
 			Path:            st.Dir.String(),
 			MetaID:          strings.ToLower(st.ID),
 			MetaName:        st.Name,

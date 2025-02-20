@@ -29,11 +29,11 @@ const (
 	cloudFeatScriptSyncPreview     = "Script option 'sync_preview' is a Terramate Cloud feature to synchronize deployment previews to Terramate Cloud."
 )
 
-func (c *cli) runScript() {
+func (c *CLI) runScript() {
 	c.gitSafeguardDefaultBranchIsReachable()
 	c.checkOutdatedGeneratedCode()
 
-	c.checkTargetsConfiguration(c.parsedArgs.Script.Run.Target, c.parsedArgs.Script.Run.FromTarget, func(isTargetSet bool) {
+	c.CheckTargetsConfiguration(c.ParsedArgs.Script.Run.Target, c.ParsedArgs.Script.Run.FromTarget, func(isTargetSet bool) {
 		if !isTargetSet {
 			// We don't check here if any script has any sync command options enabled.
 			// We assume yes and so --target must be set.
@@ -42,8 +42,8 @@ func (c *cli) runScript() {
 	})
 
 	var stacks config.List[*config.SortableStack]
-	if c.parsedArgs.Script.Run.NoRecursive {
-		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+	if c.ParsedArgs.Script.Run.NoRecursive {
+		st, found, err := config.TryLoadStack(c.Config(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatalWithDetailf(err, "failed to load stack in current directory")
 		}
@@ -55,10 +55,10 @@ func (c *cli) runScript() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		statusFilter := parseStatusFilter(c.parsedArgs.Script.Run.Status)
-		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Script.Run.DeploymentStatus)
-		driftFilter := parseDriftStatusFilter(c.parsedArgs.Script.Run.DriftStatus)
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Script.Run.outputsSharingFlags, c.parsedArgs.Script.Run.Target, cloud.StatusFilters{
+		statusFilter := ParseStatusFilter(c.ParsedArgs.Script.Run.Status)
+		deploymentFilter := ParseDeploymentStatusFilter(c.ParsedArgs.Script.Run.DeploymentStatus)
+		driftFilter := ParseDriftStatusFilter(c.ParsedArgs.Script.Run.DriftStatus)
+		stacks, err = c.computeSelectedStacks(true, c.ParsedArgs.Script.Run.outputsSharingFlags, c.ParsedArgs.Script.Run.Target, cloud.StatusFilters{
 			StackStatus:      statusFilter,
 			DeploymentStatus: deploymentFilter,
 			DriftStatus:      driftFilter,
@@ -69,16 +69,16 @@ func (c *cli) runScript() {
 	}
 
 	// search for the script and prepare a list of script/stack entries
-	m := newScriptsMatcher(c.parsedArgs.Script.Run.Cmds)
-	m.Search(c.cfg(), stacks)
+	m := newScriptsMatcher(c.ParsedArgs.Script.Run.Cmds)
+	m.Search(c.Config(), stacks)
 
 	if len(m.Results) == 0 {
 		c.output.MsgStdErr(color.RedString("script not found: ") +
-			strings.Join(c.parsedArgs.Script.Run.Cmds, " "))
+			strings.Join(c.ParsedArgs.Script.Run.Cmds, " "))
 		os.Exit(1)
 	}
 
-	if c.parsedArgs.Script.Run.DryRun {
+	if c.ParsedArgs.Script.Run.DryRun {
 		c.output.MsgStdErr("This is a dry run, commands will not be executed.")
 	}
 
@@ -89,7 +89,7 @@ func (c *cli) runScript() {
 			continue
 		}
 
-		if !c.parsedArgs.Quiet {
+		if !c.ParsedArgs.Quiet {
 			c.output.MsgStdErr("Script %s at %s having %s job(s)",
 				color.GreenString(fmt.Sprintf("%d", scriptIdx)),
 				color.BlueString(result.ScriptCfg.Range.String()),
@@ -100,7 +100,7 @@ func (c *cli) runScript() {
 		for _, st := range result.Stacks {
 			run := stackRun{Stack: st.Stack}
 
-			ectx, err := scriptEvalContext(c.cfg(), st.Stack, c.parsedArgs.Script.Run.Target)
+			ectx, err := scriptEvalContext(c.Config(), st.Stack, c.ParsedArgs.Script.Run.Target)
 			if err != nil {
 				fatalWithDetailf(err, "failed to get context")
 			}
@@ -114,8 +114,8 @@ func (c *cli) runScript() {
 				for cmdIdx, cmd := range job.Commands() {
 					task := stackRunTask{
 						Cmd:             cmd.Args,
-						CloudTarget:     c.parsedArgs.Script.Run.Target,
-						CloudFromTarget: c.parsedArgs.Script.Run.FromTarget,
+						CloudTarget:     c.ParsedArgs.Script.Run.Target,
+						CloudFromTarget: c.ParsedArgs.Script.Run.FromTarget,
 						ScriptIdx:       scriptIdx,
 						ScriptJobIdx:    jobIdx,
 						ScriptCmdIdx:    cmdIdx,
@@ -162,20 +162,20 @@ func (c *cli) runScript() {
 	c.prepareScriptForCloudSync(runs)
 
 	err := c.runAll(runs, runAllOptions{
-		Quiet:           c.parsedArgs.Quiet,
-		DryRun:          c.parsedArgs.Script.Run.DryRun,
-		Reverse:         c.parsedArgs.Script.Run.Reverse,
+		Quiet:           c.ParsedArgs.Quiet,
+		DryRun:          c.ParsedArgs.Script.Run.DryRun,
+		Reverse:         c.ParsedArgs.Script.Run.Reverse,
 		ScriptRun:       true,
-		ContinueOnError: c.parsedArgs.Script.Run.ContinueOnError,
-		Parallel:        c.parsedArgs.Script.Run.Parallel,
+		ContinueOnError: c.ParsedArgs.Script.Run.ContinueOnError,
+		Parallel:        c.ParsedArgs.Script.Run.Parallel,
 	})
 	if err != nil {
 		fatalWithDetailf(err, "one or more commands failed")
 	}
 }
 
-func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
-	if c.parsedArgs.Script.Run.DryRun {
+func (c *CLI) prepareScriptForCloudSync(runs []stackRun) {
+	if c.ParsedArgs.Script.Run.DryRun {
 		return
 	}
 
@@ -204,7 +204,7 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 		return
 	}
 
-	if !c.prj.isRepo {
+	if !c.Project.isRepo {
 		c.handleCriticalError(errors.E("cloud features require a git repository"))
 		return
 	}
@@ -241,7 +241,7 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 
 	if len(previewRuns) > 0 {
 		// HACK: Target and FromTarget are passed through opts for preview and not used from the runs.
-		for metaID, previewID := range c.createCloudPreview(previewRuns, c.parsedArgs.Script.Run.Target, c.parsedArgs.Script.Run.FromTarget) {
+		for metaID, previewID := range c.createCloudPreview(previewRuns, c.ParsedArgs.Script.Run.Target, c.ParsedArgs.Script.Run.FromTarget) {
 			c.cloud.run.setMeta2PreviewID(metaID, previewID)
 		}
 	}
@@ -278,8 +278,8 @@ func scriptEvalContext(root *config.Root, st *config.Stack, target string) (*eva
 	return evalctx, nil
 }
 
-func (c *cli) checkScriptEnabled() {
-	if !c.cfg().HasExperiment("scripts") {
+func (c *CLI) checkScriptEnabled() {
+	if !c.Config().HasExperiment("scripts") {
 		printer.Stderr.Error(`The "scripts" feature is not enabled`)
 		printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute.`)
 		printer.Stderr.Println(`Example:

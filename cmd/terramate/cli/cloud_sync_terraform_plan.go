@@ -34,7 +34,7 @@ const (
 	ProvisionerOpenTofu = "opentofu"
 )
 
-func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails, error) {
+func (c *CLI) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails, error) {
 	planfile := run.Task.CloudPlanFile
 	provisioner := run.Task.CloudPlanProvisioner
 
@@ -48,7 +48,7 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 		return nil, errors.E(clitest.ErrCloudInvalidTerraformPlanFilePath, "path must be relative to the running stack")
 	}
 
-	absPlanFilePath := filepath.Join(run.Stack.HostDir(c.cfg()), planfile)
+	absPlanFilePath := filepath.Join(run.Stack.HostDir(c.Config()), planfile)
 
 	// Terragrunt writes the plan to a temporary directory, so we cannot check for its existence.
 	if !run.Task.UseTerragrunt {
@@ -114,7 +114,7 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 	return newJSONPlanData, nil
 }
 
-func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, error) {
+func (c *CLI) runTerraformShow(run stackCloudRun, flags ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
 	planfile := run.Task.CloudPlanFile

@@ -118,10 +118,10 @@ func selectPlanFile(terraformPlan, tofuPlan string) (planfile, provisioner strin
 	return
 }
 
-func (c *cli) runOnStacks() {
+func (c *CLI) runOnStacks() {
 	c.gitSafeguardDefaultBranchIsReachable()
 
-	if len(c.parsedArgs.Run.Command) == 0 {
+	if len(c.ParsedArgs.Run.Command) == 0 {
 		fatal("run expects a cmd")
 	}
 
@@ -129,8 +129,8 @@ func (c *cli) runOnStacks() {
 	c.checkCloudSync()
 
 	var stacks config.List[*config.SortableStack]
-	if c.parsedArgs.Run.NoRecursive {
-		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+	if c.ParsedArgs.Run.NoRecursive {
+		st, found, err := config.TryLoadStack(c.Config(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatalWithDetailf(err, "loading stack in current directory")
 		}
@@ -142,10 +142,10 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stackFilter := parseStatusFilter(c.parsedArgs.Run.Status)
-		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Run.DeploymentStatus)
-		driftFilter := parseDriftStatusFilter(c.parsedArgs.Run.DriftStatus)
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.outputsSharingFlags, c.parsedArgs.Run.Target, cloud.StatusFilters{
+		stackFilter := ParseStatusFilter(c.ParsedArgs.Run.Status)
+		deploymentFilter := ParseDeploymentStatusFilter(c.ParsedArgs.Run.DeploymentStatus)
+		driftFilter := ParseDriftStatusFilter(c.ParsedArgs.Run.DriftStatus)
+		stacks, err = c.computeSelectedStacks(true, c.ParsedArgs.Run.outputsSharingFlags, c.ParsedArgs.Run.Target, cloud.StatusFilters{
 			StackStatus:      stackFilter,
 			DeploymentStatus: deploymentFilter,
 			DriftStatus:      driftFilter,
@@ -155,34 +155,34 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
-	if c.parsedArgs.Run.SyncDeployment && c.parsedArgs.Run.SyncDriftStatus {
+	if c.ParsedArgs.Run.SyncDeployment && c.ParsedArgs.Run.SyncDriftStatus {
 		fatal("--sync-deployment conflicts with --sync-drift-status")
 	}
 
-	if c.parsedArgs.Run.SyncPreview && (c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus) {
+	if c.ParsedArgs.Run.SyncPreview && (c.ParsedArgs.Run.SyncDeployment || c.ParsedArgs.Run.SyncDriftStatus) {
 		fatal("cannot use --sync-preview with --sync-deployment or --sync-drift-status")
 	}
 
-	if c.parsedArgs.Run.TerraformPlanFile != "" && c.parsedArgs.Run.TofuPlanFile != "" {
+	if c.ParsedArgs.Run.TerraformPlanFile != "" && c.ParsedArgs.Run.TofuPlanFile != "" {
 		fatal("--terraform-plan-file conflicts with --tofu-plan-file")
 	}
 
-	planFile, planProvisioner := selectPlanFile(c.parsedArgs.Run.TerraformPlanFile, c.parsedArgs.Run.TofuPlanFile)
+	planFile, planProvisioner := selectPlanFile(c.ParsedArgs.Run.TerraformPlanFile, c.ParsedArgs.Run.TofuPlanFile)
 
-	if planFile == "" && c.parsedArgs.Run.SyncPreview {
+	if planFile == "" && c.ParsedArgs.Run.SyncPreview {
 		fatal("--sync-preview requires --terraform-plan-file or -tofu-plan-file")
 	}
 
-	cloudSyncEnabled := c.parsedArgs.Run.SyncDeployment || c.parsedArgs.Run.SyncDriftStatus || c.parsedArgs.Run.SyncPreview
+	cloudSyncEnabled := c.ParsedArgs.Run.SyncDeployment || c.ParsedArgs.Run.SyncDriftStatus || c.ParsedArgs.Run.SyncPreview
 
-	if c.parsedArgs.Run.TerraformPlanFile != "" && !cloudSyncEnabled {
+	if c.ParsedArgs.Run.TerraformPlanFile != "" && !cloudSyncEnabled {
 		fatal("--terraform-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
-	} else if c.parsedArgs.Run.TofuPlanFile != "" && !cloudSyncEnabled {
+	} else if c.ParsedArgs.Run.TofuPlanFile != "" && !cloudSyncEnabled {
 		fatal("--tofu-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
 	}
 
-	c.checkTargetsConfiguration(c.parsedArgs.Run.Target, c.parsedArgs.Run.FromTarget, func(isTargetSet bool) {
-		isStatusSet := c.parsedArgs.Run.Status != ""
+	c.CheckTargetsConfiguration(c.ParsedArgs.Run.Target, c.ParsedArgs.Run.FromTarget, func(isTargetSet bool) {
+		isStatusSet := c.ParsedArgs.Run.Status != ""
 		isUsingCloudFeat := cloudSyncEnabled || isStatusSet
 
 		if isTargetSet && !isUsingCloudFeat {
@@ -192,12 +192,12 @@ func (c *cli) runOnStacks() {
 		}
 	})
 
-	if c.parsedArgs.Run.FromTarget != "" && !cloudSyncEnabled {
+	if c.ParsedArgs.Run.FromTarget != "" && !cloudSyncEnabled {
 		fatal("--from-target must be used together with --sync-deployment, --sync-drift-status, or --sync-preview")
 	}
 
 	if cloudSyncEnabled {
-		if !c.prj.isRepo {
+		if !c.Project.isRepo {
 			fatal("cloud features requires a git repository")
 		}
 		c.ensureAllStackHaveIDs(stacks)
@@ -205,7 +205,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	isCICD := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != "" || os.Getenv("BITBUCKET_BUILD_NUMBER") != ""
-	if c.parsedArgs.Run.SyncPreview && !isCICD {
+	if c.ParsedArgs.Run.SyncPreview && !isCICD {
 		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
 		c.disableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
 	}
@@ -218,22 +218,22 @@ func (c *cli) runOnStacks() {
 			Stack:         st.Stack,
 			Tasks: []stackRunTask{
 				{
-					Cmd:                  c.parsedArgs.Run.Command,
-					CloudTarget:          c.parsedArgs.Run.Target,
-					CloudFromTarget:      c.parsedArgs.Run.FromTarget,
-					CloudSyncDeployment:  c.parsedArgs.Run.SyncDeployment,
-					CloudSyncDriftStatus: c.parsedArgs.Run.SyncDriftStatus,
-					CloudSyncPreview:     c.parsedArgs.Run.SyncPreview,
+					Cmd:                  c.ParsedArgs.Run.Command,
+					CloudTarget:          c.ParsedArgs.Run.Target,
+					CloudFromTarget:      c.ParsedArgs.Run.FromTarget,
+					CloudSyncDeployment:  c.ParsedArgs.Run.SyncDeployment,
+					CloudSyncDriftStatus: c.ParsedArgs.Run.SyncDriftStatus,
+					CloudSyncPreview:     c.ParsedArgs.Run.SyncPreview,
 					CloudPlanFile:        planFile,
 					CloudPlanProvisioner: planProvisioner,
-					CloudSyncLayer:       c.parsedArgs.Run.Layer,
-					UseTerragrunt:        c.parsedArgs.Run.Terragrunt,
-					EnableSharing:        c.parsedArgs.Run.EnableSharing,
-					MockOnFail:           c.parsedArgs.Run.MockOnFail,
+					CloudSyncLayer:       c.ParsedArgs.Run.Layer,
+					UseTerragrunt:        c.ParsedArgs.Run.Terragrunt,
+					EnableSharing:        c.ParsedArgs.Run.EnableSharing,
+					MockOnFail:           c.ParsedArgs.Run.MockOnFail,
 				},
 			},
 		}
-		if c.parsedArgs.Run.Eval {
+		if c.ParsedArgs.Run.Eval {
 			run.Tasks[0].Cmd, err = c.evalRunArgs(run.Stack, run.Tasks[0].Cmd)
 			if err != nil {
 				fatalWithDetailf(err, "unable to evaluate command")
@@ -242,28 +242,28 @@ func (c *cli) runOnStacks() {
 		runs = append(runs, run)
 	}
 
-	if c.parsedArgs.Run.SyncDeployment {
+	if c.ParsedArgs.Run.SyncDeployment {
 		// This will just select all runs, since the CloudSyncDeployment was set just above.
 		// Still, it's convenient to re-use this function here.
 		deployRuns := selectCloudStackTasks(runs, isDeploymentTask)
 		c.createCloudDeployment(deployRuns)
 	}
 
-	if c.parsedArgs.Run.SyncPreview && c.cloudEnabled() {
+	if c.ParsedArgs.Run.SyncPreview && c.cloudEnabled() {
 		// See comment above.
 		previewRuns := selectCloudStackTasks(runs, isPreviewTask)
-		for metaID, previewID := range c.createCloudPreview(previewRuns, c.parsedArgs.Run.Target, c.parsedArgs.Run.FromTarget) {
+		for metaID, previewID := range c.createCloudPreview(previewRuns, c.ParsedArgs.Run.Target, c.ParsedArgs.Run.FromTarget) {
 			c.cloud.run.setMeta2PreviewID(metaID, previewID)
 		}
 	}
 
 	err = c.runAll(runs, runAllOptions{
-		Quiet:           c.parsedArgs.Quiet,
-		DryRun:          c.parsedArgs.Run.DryRun,
-		Reverse:         c.parsedArgs.Run.Reverse,
+		Quiet:           c.ParsedArgs.Quiet,
+		DryRun:          c.ParsedArgs.Run.DryRun,
+		Reverse:         c.ParsedArgs.Run.Reverse,
 		ScriptRun:       false,
-		ContinueOnError: c.parsedArgs.Run.ContinueOnError,
-		Parallel:        c.parsedArgs.Run.Parallel,
+		ContinueOnError: c.ParsedArgs.Run.ContinueOnError,
+		Parallel:        c.ParsedArgs.Run.Parallel,
 	})
 	if err != nil {
 		fatalWithDetailf(err, "one or more commands failed")
@@ -291,13 +291,13 @@ type runAllOptions struct {
 // stacks.
 // If SIGINT is sent 3x then Terramate will send a SIGKILL to the currently
 // running process and abort the execution of all subsequent stacks.
-func (c *cli) runAll(
+func (c *CLI) runAll(
 	runs []stackRun,
 	opts runAllOptions,
 ) error {
 	// Construct a DAG from the list of stackRuns, based on the implicit and
 	// explicit dependencies between stacks.
-	d, reason, err := runutil.BuildDAGFromStacks(c.cfg(), runs,
+	d, reason, err := runutil.BuildDAGFromStacks(c.Config(), runs,
 		func(run stackRun) *config.Stack { return run.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
@@ -418,7 +418,7 @@ func (c *cli) runAll(
 				Bool("mock_on_fail", task.MockOnFail).
 				Logger()
 
-			cfg, _ := c.cfg().Lookup(run.Stack.Dir)
+			cfg, _ := c.Config().Lookup(run.Stack.Dir)
 			environ := newEnvironFrom(stackEnvs[run.Stack.Dir])
 
 			if task.EnableSharing {
@@ -488,7 +488,7 @@ func (c *cli) runAll(
 						cmd := exec.Command(backend.Command[0], backend.Command[1:]...)
 						cmd.Stdout = &stdout
 						cmd.Stderr = &stderr
-						cmd.Dir = otherStack.HostDir(c.cfg())
+						cmd.Dir = otherStack.HostDir(c.Config())
 						var inputVal cty.Value
 						err := cmd.Run()
 						if err != nil {
@@ -588,7 +588,7 @@ func (c *cli) runAll(
 			}
 
 			cmd := exec.Command(cmdPath, task.Cmd[1:]...)
-			cmd.Dir = run.Stack.HostDir(c.cfg())
+			cmd.Dir = run.Stack.HostDir(c.Config())
 			cmd.Env = environ
 
 			stdout := c.stdout
@@ -719,7 +719,7 @@ func (c *cli) runAll(
 	return err
 }
 
-func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandLogs) {
+func (c *CLI) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandLogs) {
 	data, _ := stdjson.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -763,11 +763,11 @@ func newEnvironFrom(stackEnviron []string) []string {
 	return environ
 }
 
-func (c *cli) loadAllStackEnvs(runs []stackRun) (map[prj.Path]runutil.EnvVars, error) {
+func (c *CLI) loadAllStackEnvs(runs []stackRun) (map[prj.Path]runutil.EnvVars, error) {
 	errs := errors.L()
 	stackEnvs := map[prj.Path]runutil.EnvVars{}
 	for _, run := range runs {
-		env, err := runutil.LoadEnv(c.cfg(), run.Stack)
+		env, err := runutil.LoadEnv(c.Config(), run.Stack)
 		errs.Append(err)
 		stackEnvs[run.Stack.Dir] = env
 	}
@@ -778,7 +778,7 @@ func (c *cli) loadAllStackEnvs(runs []stackRun) (map[prj.Path]runutil.EnvVars, e
 	return stackEnvs, nil
 }
 
-func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string) map[string]string {
+func (c *CLI) createCloudPreview(runs []stackCloudRun, target, fromTarget string) map[string]string {
 	previewRuns := make([]cloud.RunContext, len(runs))
 	for i, run := range runs {
 		previewRuns[i] = cloud.RunContext{
@@ -795,10 +795,10 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 			MetaName:        st.Stack.Name,
 			MetaDescription: st.Stack.Description,
 			MetaTags:        st.Stack.Tags,
-			Repository:      c.prj.prettyRepo(),
+			Repository:      c.Project.prettyRepo(),
 			Target:          target,
 			FromTarget:      fromTarget,
-			DefaultBranch:   c.prj.gitcfg().DefaultBranch,
+			DefaultBranch:   c.Project.gitcfg().DefaultBranch,
 		}
 	}
 
@@ -815,7 +815,7 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 
 	// preview always requires a commit_sha, so if the API failed to provide it, we should give the HEAD commit.
 	if c.cloud.run.rrEvent.commitSHA == "" {
-		c.cloud.run.rrEvent.commitSHA = c.prj.headCommit()
+		c.cloud.run.rrEvent.commitSHA = c.Project.headCommit()
 	}
 
 	technology := "other"
@@ -853,14 +853,14 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 
 	printer.Stderr.Success(stdfmt.Sprintf("Preview created (id: %s)", createdPreview.ID))
 
-	if c.parsedArgs.Run.DebugPreviewURL != "" {
+	if c.ParsedArgs.Run.DebugPreviewURL != "" {
 		c.writePreviewURL()
 	}
 
 	return createdPreview.StackPreviewsByMetaID
 }
 
-func (c *cli) writePreviewURL() {
+func (c *CLI) writePreviewURL() {
 	rrNumber := 0
 	if c.cloud.run.metadata != nil && c.cloud.run.metadata.GithubPullRequestNumber != 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -872,7 +872,7 @@ func (c *cli) writePreviewURL() {
 		}
 		for _, review := range reviews {
 			if review.Number == c.cloud.run.metadata.GithubPullRequestNumber &&
-				review.CommitSHA == c.prj.headCommit() {
+				review.CommitSHA == c.Project.headCommit() {
 				rrNumber = int(review.ID)
 			}
 		}
@@ -891,7 +891,7 @@ func (c *cli) writePreviewURL() {
 			rrNumber)
 	}
 
-	err := os.WriteFile(c.parsedArgs.Run.DebugPreviewURL, []byte(url), 0644)
+	err := os.WriteFile(c.ParsedArgs.Run.DebugPreviewURL, []byte(url), 0644)
 	if err != nil {
 		printer.Stderr.Warn(stdfmt.Sprintf("unable to write preview URL to file: %v", err))
 	}
@@ -900,7 +900,7 @@ func (c *cli) writePreviewURL() {
 // getAffectedStacks returns the list of stacks affected by the current command.
 // c.affectedStacks is expected to be already set, if not it will be computed
 // and cached.
-func (c *cli) getAffectedStacks() []stack.Entry {
+func (c *CLI) getAffectedStacks() []stack.Entry {
 	if c.affectedStacks != nil {
 		return c.affectedStacks
 	}
@@ -909,7 +909,7 @@ func (c *cli) getAffectedStacks() []stack.Entry {
 
 	var report *stack.Report
 	var err error
-	if c.parsedArgs.Changed {
+	if c.ParsedArgs.Changed {
 		report, err = mgr.ListChanged(stack.ChangeConfig{
 			BaseRef:            c.baseRef(),
 			UntrackedChanges:   c.changeDetection.untracked,
@@ -934,10 +934,10 @@ const targetIDRegexPattern = "^[a-z0-9][-_a-z0-9]*[a-z0-9]$"
 
 var targetIDRegex = regexp.MustCompile(targetIDRegexPattern)
 
-func (c *cli) checkTargetsConfiguration(targetArg, fromTargetArg string, cloudCheckFn func(bool)) {
+func (c *CLI) CheckTargetsConfiguration(targetArg, fromTargetArg string, cloudCheckFn func(bool)) {
 	isTargetSet := targetArg != ""
 	isFromTargetSet := fromTargetArg != ""
-	isTargetsEnabled := c.cfg().HasExperiment("targets") && c.cfg().IsTargetsEnabled()
+	isTargetsEnabled := c.Config().HasExperiment("targets") && c.Config().IsTargetsEnabled()
 
 	if isTargetSet {
 		if !isTargetsEnabled {

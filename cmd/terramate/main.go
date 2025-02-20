@@ -17,5 +17,5 @@ import (
 )
 
 func main() {
-	cli.Exec(terramate.Version(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	cli.Exec(terramate.Version(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr, nil)
 }

@@ -18,7 +18,7 @@ import (
 	prj "github.com/terramate-io/terramate/project"
 )
 
-func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
+func (c *CLI) createCloudDeployment(deployRuns []stackCloudRun) {
 	// Assume each task in deployRuns has the CloudSyncDeployment set.
 	logger := log.With().
 		Logger()
@@ -41,8 +41,8 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 		ghRepo              string
 	)
 
-	if c.prj.isRepo {
-		r, err := repository.Parse(c.prj.prettyRepo())
+	if c.Project.isRepo {
+		r, err := repository.Parse(c.Project.prettyRepo())
 		if err != nil {
 			logger.Debug().
 				Msg("repository cannot be normalized: skipping pull request retrievals for commit")
@@ -50,7 +50,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 			ghRepo = r.Owner + "/" + r.Name
 		}
 
-		deploymentCommitSHA = c.prj.headCommit()
+		deploymentCommitSHA = c.Project.headCommit()
 	}
 
 	ghRunID := os.Getenv("GITHUB_RUN_ID")
@@ -85,10 +85,10 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 				MetaName:        run.Stack.Name,
 				MetaDescription: run.Stack.Description,
 				MetaTags:        tags,
-				Repository:      c.prj.prettyRepo(),
+				Repository:      c.Project.prettyRepo(),
 				Target:          run.Task.CloudTarget,
 				FromTarget:      run.Task.CloudFromTarget,
-				DefaultBranch:   c.prj.gitcfg().DefaultBranch,
+				DefaultBranch:   c.Project.gitcfg().DefaultBranch,
 				Path:            run.Stack.Dir.String(),
 			},
 			CommitSHA:         deploymentCommitSHA,
@@ -128,7 +128,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 	}
 }
 
-func (c *cli) cloudSyncDeployment(run stackCloudRun, err error) {
+func (c *CLI) cloudSyncDeployment(run stackCloudRun, err error) {
 	var status deployment.Status
 	switch {
 	case err == nil:
@@ -144,7 +144,7 @@ func (c *cli) cloudSyncDeployment(run stackCloudRun, err error) {
 	c.doCloudSyncDeployment(run, status)
 }
 
-func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status) {
+func (c *CLI) doCloudSyncDeployment(run stackCloudRun, status deployment.Status) {
 	logger := log.With().
 		Str("organization", string(c.cloud.run.orgUUID)).
 		Str("stack", run.Stack.RelPath()).

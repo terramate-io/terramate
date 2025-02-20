@@ -16,8 +16,8 @@ import (
 	"github.com/terramate-io/terramate/stack"
 )
 
-type project struct {
-	rootdir      string
+type Project struct {
+	Rootdir      string
 	wd           string
 	isRepo       bool
 	root         *config.Root
@@ -39,11 +39,11 @@ type project struct {
 	}
 }
 
-func (p project) gitcfg() *hcl.GitConfig {
+func (p Project) gitcfg() *hcl.GitConfig {
 	return p.root.Tree().Node.Terramate.Config.Git
 }
 
-func (p *project) repo() (*git.Repository, error) {
+func (p *Project) repo() (*git.Repository, error) {
 	if !p.isRepo {
 		panic(errors.E(errors.ErrInternal, "called without a repository"))
 	}
@@ -62,7 +62,7 @@ func (p *project) repo() (*git.Repository, error) {
 	return p.repository, nil
 }
 
-func (p *project) ciPlatform() ci.PlatformType {
+func (p *Project) ciPlatform() ci.PlatformType {
 	if p.platform != nil {
 		return *p.platform
 	}
@@ -71,7 +71,7 @@ func (p *project) ciPlatform() ci.PlatformType {
 	return platform
 }
 
-func (p *project) prettyRepo() string {
+func (p *Project) prettyRepo() string {
 	r, err := p.repo()
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to retrieve repository URL", err)
@@ -80,7 +80,7 @@ func (p *project) prettyRepo() string {
 	return r.Repo
 }
 
-func (p *project) localDefaultBranchCommit() string {
+func (p *Project) localDefaultBranchCommit() string {
 	if p.git.localDefaultBranchCommit != "" {
 		return p.git.localDefaultBranchCommit
 	}
@@ -95,21 +95,21 @@ func (p *project) localDefaultBranchCommit() string {
 	return val
 }
 
-func (p *project) isGitFeaturesEnabled() bool {
+func (p *Project) isGitFeaturesEnabled() bool {
 	return p.isRepo && p.hasCommit()
 }
 
-func (p *project) hasCommit() bool {
+func (p *Project) hasCommit() bool {
 	_, err := p.git.wrapper.RevParse("HEAD")
 	return err == nil
 }
 
-func (p *project) hasCommits() bool {
+func (p *Project) hasCommits() bool {
 	_, err := p.git.wrapper.RevParse("HEAD^")
 	return err == nil
 }
 
-func (p *project) headCommit() string {
+func (p *Project) headCommit() string {
 	if p.git.headCommit != "" {
 		return p.git.headCommit
 	}
@@ -123,7 +123,7 @@ func (p *project) headCommit() string {
 	return val
 }
 
-func (p *project) remoteDefaultCommit() string {
+func (p *Project) remoteDefaultCommit() string {
 	if p.git.remoteDefaultBranchCommit != "" {
 		return p.git.remoteDefaultBranchCommit
 	}
@@ -143,7 +143,7 @@ func (p *project) remoteDefaultCommit() string {
 	return p.git.remoteDefaultBranchCommit
 }
 
-func (p *project) isDefaultBranch() bool {
+func (p *Project) isDefaultBranch() bool {
 	git := p.gitcfg()
 	branch, err := p.git.wrapper.CurrentBranch()
 	if err != nil {
@@ -158,7 +158,7 @@ func (p *project) isDefaultBranch() bool {
 }
 
 // defaultBaseRef returns the baseRef for the current git environment.
-func (p *project) defaultBaseRef() string {
+func (p *Project) defaultBaseRef() string {
 	if p.isDefaultBranch() &&
 		p.remoteDefaultCommit() == p.headCommit() {
 		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
@@ -170,7 +170,7 @@ func (p *project) defaultBaseRef() string {
 }
 
 // defaultLocalBaseRef returns the baseRef in case there's no remote setup.
-func (p *project) defaultLocalBaseRef() string {
+func (p *Project) defaultLocalBaseRef() string {
 	git := p.gitcfg()
 	if p.isDefaultBranch() {
 		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
@@ -181,12 +181,12 @@ func (p *project) defaultLocalBaseRef() string {
 	return git.DefaultBranch
 }
 
-func (p project) defaultBranchRef() string {
+func (p Project) defaultBranchRef() string {
 	git := p.gitcfg()
 	return git.DefaultRemote + "/" + git.DefaultBranch
 }
 
-func (p *project) setDefaults() error {
+func (p *Project) setDefaults() error {
 	logger := log.With().
 		Str("action", "setDefaults()").
 		Str("workingDir", p.wd).
@@ -228,7 +228,7 @@ func (p *project) setDefaults() error {
 	return nil
 }
 
-func (p project) checkDefaultRemote() error {
+func (p Project) checkDefaultRemote() error {
 	remotes, err := p.git.wrapper.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
@@ -265,7 +265,7 @@ func (p project) checkDefaultRemote() error {
 	)
 }
 
-func (p *project) checkRemoteDefaultBranchIsReachable() error {
+func (p *Project) checkRemoteDefaultBranchIsReachable() error {
 	gitcfg := p.gitcfg()
 
 	remoteDesc := fmt.Sprintf("remote(%s/%s)", gitcfg.DefaultRemote, gitcfg.DefaultBranch)

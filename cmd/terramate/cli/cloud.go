@@ -139,17 +139,17 @@ func (rs cloudRunState) cloudPreviewID(metaID string) (string, bool) {
 	return id, ok
 }
 
-func (c *cli) cloudEnabled() bool {
+func (c *CLI) cloudEnabled() bool {
 	return !c.cloud.disabled
 }
 
-func (c *cli) disableCloudFeatures(err error) {
+func (c *CLI) disableCloudFeatures(err error) {
 	printer.Stderr.WarnWithDetails(clitest.CloudDisablingMessage, errors.E(err.Error()))
 
 	c.cloud.disabled = true
 }
 
-func (c *cli) handleCriticalError(err error) {
+func (c *CLI) handleCriticalError(err error) {
 	if err != nil {
 		if c.uimode == HumanMode {
 			fatal(err)
@@ -180,19 +180,19 @@ func isDeploymentTask(t stackRunTask) bool { return t.CloudSyncDeployment }
 func isDriftTask(t stackRunTask) bool      { return t.CloudSyncDriftStatus }
 func isPreviewTask(t stackRunTask) bool    { return t.CloudSyncPreview }
 
-func (c *cli) checkCloudSync() {
-	if !c.parsedArgs.Run.SyncDeployment && !c.parsedArgs.Run.SyncDriftStatus && !c.parsedArgs.Run.SyncPreview {
+func (c *CLI) checkCloudSync() {
+	if !c.ParsedArgs.Run.SyncDeployment && !c.ParsedArgs.Run.SyncDriftStatus && !c.ParsedArgs.Run.SyncPreview {
 		return
 	}
 
 	var feats []string
-	if c.parsedArgs.Run.SyncDeployment {
+	if c.ParsedArgs.Run.SyncDeployment {
 		feats = append(feats, cloudFeatSyncDeployment)
 	}
-	if c.parsedArgs.Run.SyncDriftStatus {
+	if c.ParsedArgs.Run.SyncDriftStatus {
 		feats = append(feats, cloudFeatSyncDriftStatus)
 	}
-	if c.parsedArgs.Run.SyncPreview {
+	if c.ParsedArgs.Run.SyncPreview {
 		feats = append(feats, cloudFeatSyncPreview)
 	}
 
@@ -203,14 +203,14 @@ func (c *cli) checkCloudSync() {
 		return
 	}
 
-	if c.parsedArgs.Run.SyncDeployment {
+	if c.ParsedArgs.Run.SyncDeployment {
 		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
 		c.cloud.run.runUUID = cloud.UUID(uuid)
 	}
 }
 
-func (c *cli) cloudOrgName() string {
+func (c *CLI) cloudOrgName() string {
 	orgName := os.Getenv("TM_CLOUD_ORGANIZATION")
 	if orgName != "" {
 		return orgName
@@ -226,7 +226,7 @@ func (c *cli) cloudOrgName() string {
 	return ""
 }
 
-func (c *cli) setupCloudConfig(requestedFeatures []string) error {
+func (c *CLI) setupCloudConfig(requestedFeatures []string) error {
 	err := c.loadCredential()
 	if err != nil {
 		if errors.IsKind(err, auth.ErrLoginRequired) {
@@ -326,7 +326,7 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	return nil
 }
 
-func (c *cli) cloudSyncBefore(run stackCloudRun) {
+func (c *CLI) cloudSyncBefore(run stackCloudRun) {
 	if !c.cloudEnabled() {
 		return
 	}
@@ -340,7 +340,7 @@ func (c *cli) cloudSyncBefore(run stackCloudRun) {
 	}
 }
 
-func (c *cli) cloudSyncAfter(run stackCloudRun, res runResult, err error) {
+func (c *CLI) cloudSyncAfter(run stackCloudRun, res runResult, err error) {
 	if !c.cloudEnabled() {
 		return
 	}
@@ -358,7 +358,7 @@ func (c *cli) cloudSyncAfter(run stackCloudRun, res runResult, err error) {
 	}
 }
 
-func (c *cli) doPreviewBefore(run stackCloudRun) {
+func (c *CLI) doPreviewBefore(run stackCloudRun) {
 	stackPreviewID, ok := c.cloud.run.cloudPreviewID(run.Stack.ID)
 	if !ok {
 		c.disableCloudFeatures(errors.E(errors.ErrInternal, "failed to get previewID"))
@@ -382,7 +382,7 @@ func (c *cli) doPreviewBefore(run stackCloudRun) {
 		Msg("Setting stack preview status")
 }
 
-func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
+func (c *CLI) doPreviewAfter(run stackCloudRun, res runResult) {
 	planfile := run.Task.CloudPlanFile
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
@@ -441,7 +441,7 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 	}
 }
 
-func (c *cli) cloudInfo() {
+func (c *CLI) cloudInfo() {
 	err := c.loadCredential()
 	if err != nil {
 		if errors.IsKind(err, auth.ErrLoginRequired) {
@@ -463,12 +463,12 @@ func (c *cli) cloudInfo() {
 	}
 }
 
-func (c *cli) cloudDriftShow() {
+func (c *CLI) cloudDriftShow() {
 	err := c.setupCloudConfig(nil)
 	if err != nil {
 		fatal(err)
 	}
-	st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
+	st, found, err := config.TryLoadStack(c.Config(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 	if err != nil {
 		fatalWithDetailf(err, "loading stack in current directory")
 	}
@@ -479,13 +479,13 @@ func (c *cli) cloudDriftShow() {
 		fatal("The stack must have an ID for using TMC features")
 	}
 
-	target := c.parsedArgs.Cloud.Drift.Show.Target
+	target := c.ParsedArgs.Cloud.Drift.Show.Target
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
 	isTargetConfigEnabled := false
-	c.checkTargetsConfiguration(target, "", func(isTargetEnabled bool) {
+	c.CheckTargetsConfiguration(target, "", func(isTargetEnabled bool) {
 		if !isTargetEnabled {
 			fatal("--target must be set when terramate.config.cloud.targets.enabled is true")
 		}
@@ -496,7 +496,7 @@ func (c *cli) cloudDriftShow() {
 		target = "default"
 	}
 
-	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.prj.prettyRepo(), target, st.ID)
+	stackResp, found, err := c.cloud.client.GetStack(ctx, c.cloud.run.orgUUID, c.Project.prettyRepo(), target, st.ID)
 	if err != nil {
 		fatalWithDetailf(err, "unable to fetch stack")
 	}
@@ -539,21 +539,21 @@ func (c *cli) cloudDriftShow() {
 	c.output.MsgStdOut(driftData.Details.ChangesetASCII)
 }
 
-func (c *cli) detectCloudMetadata() {
+func (c *CLI) detectCloudMetadata() {
 	logger := log.With().
-		Str("normalized_repository", c.prj.prettyRepo()).
-		Str("head_commit", c.prj.headCommit()).
+		Str("normalized_repository", c.Project.prettyRepo()).
+		Str("head_commit", c.Project.headCommit()).
 		Str("action", "detectCloudMetadata").
 		Logger()
 
-	prettyRepo := c.prj.prettyRepo()
-	if prettyRepo == "local" || c.prj.repository == nil {
+	prettyRepo := c.Project.prettyRepo()
+	if prettyRepo == "local" || c.Project.repository == nil {
 		printer.Stderr.Warn(errors.E("skipping review_request and remote metadata for local repository"))
 		return
 	}
 
 	c.cloud.run.metadata = &cloud.DeploymentMetadata{}
-	c.cloud.run.metadata.GitCommitSHA = c.prj.headCommit()
+	c.cloud.run.metadata.GitCommitSHA = c.Project.headCommit()
 
 	md := c.cloud.run.metadata
 
@@ -581,7 +581,7 @@ func (c *cli) detectCloudMetadata() {
 		}
 	}()
 
-	if commit, err := c.prj.git.wrapper.ShowCommitMetadata("HEAD"); err == nil {
+	if commit, err := c.Project.git.wrapper.ShowCommitMetadata("HEAD"); err == nil {
 		setDefaultGitMetadata(md, commit)
 	} else {
 		logger.Warn().
@@ -589,12 +589,12 @@ func (c *cli) detectCloudMetadata() {
 			Msg("failed to retrieve commit information from git")
 	}
 
-	r, err := c.prj.repo()
+	r, err := c.Project.repo()
 	if err != nil {
 		printer.Stderr.WarnWithDetails("skipping fetch of review_request information", err)
 		return
 	}
-	switch c.prj.ciPlatform() {
+	switch c.Project.ciPlatform() {
 	case ci.PlatformGithub:
 		c.detectGithubMetadata(r.Owner, r.Name)
 	case ci.PlatformGitlab:
@@ -612,14 +612,14 @@ func (c *cli) detectCloudMetadata() {
 			c.detectBitbucketMetadata(r.Owner, r.Name)
 		}
 	default:
-		logger.Debug().Msgf("Skipping metadata collection for ci provider: %s", c.prj.ciPlatform())
+		logger.Debug().Msgf("Skipping metadata collection for ci provider: %s", c.Project.ciPlatform())
 	}
 }
 
-func (c *cli) detectGithubMetadata(owner, reponame string) {
+func (c *CLI) detectGithubMetadata(owner, reponame string) {
 	logger := log.With().
-		Str("normalized_repository", c.prj.prettyRepo()).
-		Str("head_commit", c.prj.headCommit()).
+		Str("normalized_repository", c.Project.prettyRepo()).
+		Str("head_commit", c.Project.headCommit()).
 		Str("action", "detectGithubMetadata").
 		Logger()
 
@@ -632,7 +632,7 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 	logger = logger.With().Str("github_repository", ghRepo).Logger()
 
 	// HTTP Client
-	githubClient := github.NewClient(&c.httpClient)
+	githubClient := github.NewClient(&c.HTTPClient)
 
 	if githubAPIURL := os.Getenv("TM_GITHUB_API_URL"); githubAPIURL != "" {
 		githubBaseURL, err := url.Parse(githubAPIURL)
@@ -671,7 +671,7 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 	logger.Debug().Msgf("GitHub token obtained from %s", tokenSource)
 	githubClient = githubClient.WithAuthToken(ghToken)
 
-	headCommit := c.prj.headCommit()
+	headCommit := c.Project.headCommit()
 
 	if ghCommit, err := getGithubCommit(githubClient, owner, reponame, headCommit); err == nil {
 		setGithubCommitMetadata(md, ghCommit)
@@ -737,10 +737,10 @@ func (c *cli) detectGithubMetadata(owner, reponame string) {
 	md.GithubPullRequest = metadata.NewGithubPullRequest(pull, reviews)
 }
 
-func (c *cli) detectGitlabMetadata(group string, projectName string) {
+func (c *CLI) detectGitlabMetadata(group string, projectName string) {
 	logger := log.With().
-		Str("normalized_repository", c.prj.prettyRepo()).
-		Str("head_commit", c.prj.headCommit()).
+		Str("normalized_repository", c.Project.prettyRepo()).
+		Str("head_commit", c.Project.headCommit()).
 		Str("action", "detectGitlabMetadata").
 		Logger()
 
@@ -756,7 +756,7 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 	}
 
 	client := gitlab.Client{
-		HTTPClient: &c.httpClient,
+		HTTPClient: &c.HTTPClient,
 		Group:      group,
 		Project:    projectName,
 		Token:      token,
@@ -775,7 +775,7 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 		client.BaseURL = gitlabBaseURL.String()
 	}
 
-	headCommit := c.prj.headCommit()
+	headCommit := c.Project.headCommit()
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGitlabTimeout)
 	defer cancel()
 
@@ -841,10 +841,10 @@ func (c *cli) detectGitlabMetadata(group string, projectName string) {
 	md.GitlabMergeRequest = metadata.NewGitlabMergeRequest(&mr, reviewers, participants)
 }
 
-func (c *cli) detectBitbucketMetadata(owner, reponame string) {
+func (c *CLI) detectBitbucketMetadata(owner, reponame string) {
 	logger := log.With().
-		Str("normalized_repository", c.prj.prettyRepo()).
-		Str("head_commit", c.prj.headCommit()).
+		Str("normalized_repository", c.Project.prettyRepo()).
+		Str("head_commit", c.Project.headCommit()).
 		Str("action", "detectBitbucketMetadata").
 		Logger()
 
@@ -866,7 +866,7 @@ func (c *cli) detectBitbucketMetadata(owner, reponame string) {
 	}
 
 	client := bitbucket.Client{
-		HTTPClient: &c.httpClient,
+		HTTPClient: &c.HTTPClient,
 		Workspace:  owner,
 		RepoSlug:   reponame,
 		Token:      token,
@@ -941,7 +941,7 @@ func (c *cli) detectBitbucketMetadata(owner, reponame string) {
 	logger.Debug().Msg("Bitbucket metadata detected")
 }
 
-func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
+func (c *CLI) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
 	envBool := func(name string) bool {
 		val := os.Getenv(name)
 		return val == "true"
@@ -980,7 +980,7 @@ func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
 	md.GitlabCICDMergeRequestApproved = mrApproved
 }
 
-func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
+func (c *CLI) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
 	md.BitbucketPipelinesBuildNumber = os.Getenv("BITBUCKET_BUILD_NUMBER")
 	md.BitbucketPipelinesPipelineUUID = os.Getenv("BITBUCKET_PIPELINE_UUID")
 	md.BitbucketPipelinesCommit = os.Getenv("BITBUCKET_COMMIT")
@@ -1002,7 +1002,7 @@ func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
 	md.BitbucketPipelinesStepTriggererUUID = os.Getenv("BITBUCKET_STEP_TRIGGERER_UUID")
 
 	client := bitbucket.Client{
-		HTTPClient: &c.httpClient,
+		HTTPClient: &c.HTTPClient,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultBitbucketTimeout)
@@ -1018,7 +1018,7 @@ func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
 	}
 }
 
-func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
+func (c *CLI) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 	createdAt, err := time.Parse(time.RFC3339, pr.CreatedOn)
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to parse PR created_on time", err)
@@ -1082,7 +1082,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 
 	rr := &cloud.ReviewRequest{
 		Platform:    "bitbucket",
-		Repository:  c.prj.prettyRepo(),
+		Repository:  c.Project.prettyRepo(),
 		URL:         pr.Links.HTML.Href,
 		Number:      pr.ID,
 		Title:       pr.Title,
@@ -1367,7 +1367,7 @@ func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest)
 	md.GithubPullRequestAuthorGravatarID = pull.GetUser().GetGravatarID()
 }
 
-func (c *cli) newGithubReviewRequest(
+func (c *CLI) newGithubReviewRequest(
 	pull *github.PullRequest,
 	reviews []*github.PullRequestReview,
 	checks []*github.CheckRun,
@@ -1384,7 +1384,7 @@ func (c *cli) newGithubReviewRequest(
 	pullUpdatedAt := pull.GetUpdatedAt()
 	rr := &cloud.ReviewRequest{
 		Platform:       "github",
-		Repository:     c.prj.prettyRepo(),
+		Repository:     c.Project.prettyRepo(),
 		URL:            pull.GetHTMLURL(),
 		Number:         pull.GetNumber(),
 		Title:          pull.GetTitle(),
@@ -1458,7 +1458,7 @@ func (c *cli) newGithubReviewRequest(
 	return rr
 }
 
-func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
+func (c *CLI) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	if c.cloud.run.rrEvent.pushedAt == nil {
 		panic(errors.E(errors.ErrInternal, "CI pushed_at is nil"))
 	}
@@ -1474,7 +1474,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	}
 	rr := &cloud.ReviewRequest{
 		Platform:    "gitlab",
-		Repository:  c.prj.prettyRepo(),
+		Repository:  c.Project.prettyRepo(),
 		URL:         mr.WebURL,
 		Number:      mr.IID,
 		Title:       mr.Title,
@@ -1505,7 +1505,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	return rr
 }
 
-func (c *cli) loadCredential() error {
+func (c *CLI) loadCredential() error {
 	region := c.cloudRegion()
 	cloudURL, envFound := tmcloud.EnvBaseURL()
 	if !envFound {
@@ -1517,7 +1517,7 @@ func (c *cli) loadCredential() error {
 
 	c.cloud.client = &cloud.Client{
 		Region:     region, // always set so we can use it in error messages
-		HTTPClient: &c.httpClient,
+		HTTPClient: &c.HTTPClient,
 		Logger:     &clientLogger,
 	}
 	if envFound {
@@ -1533,7 +1533,7 @@ func (c *cli) loadCredential() error {
 		return errors.E(err, clitest.ErrCloudCompat)
 	}
 
-	probes := auth.ProbingPrecedence(c.output, c.cloud.client, c.clicfg)
+	probes := auth.ProbingPrecedence(c.output, c.cloud.client, c.CLIConfig)
 	var found bool
 	for _, probe := range probes {
 		var err error
@@ -1551,7 +1551,7 @@ func (c *cli) loadCredential() error {
 	return nil
 }
 
-func (c *cli) ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
+func (c *CLI) ensureAllStackHaveIDs(stacks config.List[*config.SortableStack]) {
 	logger := log.With().
 		Str("action", "cli.ensureAllStackHaveIDs").
 		Logger()

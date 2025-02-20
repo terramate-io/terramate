@@ -17,10 +17,10 @@ type scriptListEntry struct {
 
 type scriptListMap map[string]*scriptListEntry
 
-func (c *cli) printScriptList() {
+func (c *CLI) printScriptList() {
 	srcpath := prj.PrjAbsPath(c.rootdir(), c.wd())
 
-	cfg, found := c.cfg().Lookup(srcpath)
+	cfg, found := c.Config().Lookup(srcpath)
 	if !found {
 		return
 	}
