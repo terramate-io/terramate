@@ -34,6 +34,10 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
+      - uses: docker://ghcr.io/terramate-io/terramate:latest
+        with:
+          args: -C /github/workspace cloud info
+
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version: ${{ matrix.go }}
