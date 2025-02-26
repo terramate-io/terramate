@@ -13,6 +13,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/hcl/fmt"
+	"github.com/terramate-io/terramate/hcl/fmt/fs"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -258,7 +259,7 @@ func TestFmtFiles(t *testing.T) {
 			files: []string{"non-existent.tm"},
 			want: want{
 				res: RunExpected{
-					StderrRegex: string(fmt.ErrReadFile),
+					StderrRegex: string(fs.ErrReadFile),
 					Status:      1,
 				},
 			},
