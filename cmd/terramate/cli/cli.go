@@ -475,9 +475,20 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		fatalWithDetailf(err, "creating cli parser")
 	}
 
+	isShellCompletion := false
 	kongplete.Complete(parser,
 		kongplete.WithPredictor("file", complete.PredictFiles("*")),
+		kongplete.WithExitFunc(func(code int) {
+			isShellCompletion = true
+			// no need to continue if we are just calling completions
+			os.Exit(code)
+		}),
 	)
+
+	if isShellCompletion {
+		// Completion is handled and if we don't exit now the help text will be printed as well
+		return &cli{exit: true}
+	}
 
 	ctx, err := parser.Parse(args)
 	// Note: err is checked later due to Kong workarounds in place.
