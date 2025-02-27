@@ -304,19 +304,13 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 
 			return errors.E(clitest.ErrCloudOnboardingIncomplete)
 		}
-		if len(activeOrgs) > 1 {
-			printer.Stderr.ErrorWithDetails(
-				"Invalid cloud configuration",
-				errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
-					"terramate.config.cloud.organization configuration attribute to a specific available organization: %s",
-					activeOrgs,
-				),
-			)
-			return cloudError()
-		}
-
-		c.cloud.run.orgName = activeOrgs[0].Name
-		c.cloud.run.orgUUID = activeOrgs[0].UUID
+		printer.Stderr.ErrorWithDetails(
+			"Missing cloud configuration",
+			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
+				"terramate.config.cloud.organization configuration attribute to a specific organization",
+			),
+		)
+		return cloudError()
 	}
 
 	if c.cloud.run.orgUUID != "" {

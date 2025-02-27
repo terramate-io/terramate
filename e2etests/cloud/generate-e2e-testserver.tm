@@ -23,9 +23,10 @@ generate_file "testdata/cloud.data.json" {
 
   # default organizations of the e2e test server.
   lets {
+    default_org = "terramate"
     orgs = {
-      terramate = {
-        name         = "terramate"
+      (let.default_org) = {
+        name         = let.default_org
         display_name = "Terramate"
         domain       = "terramate.io"
         status       = "active"
@@ -62,9 +63,10 @@ generate_file "testdata/cloud.data.json" {
   }
 
   content = tm_jsonencode({
-    orgs       = let.orgs,
-    users      = let.users,
-    well_known = let.well_known,
+    default_org = let.default_org
+    orgs        = let.orgs,
+    users       = let.users,
+    well_known  = let.well_known,
     github = {
       get_pull_request_response = let.github_get_pull_request_response,
       get_commit_response       = let.github_get_commit_response,
