@@ -17,26 +17,55 @@
 
 <p align="center">
   <a href="https://terramate.io/docs/cli/getting-started">🚀 Getting Started</a> | <a href="https://terramate.io/docs/cli">📖 Documentation</a> |  <a href="https://play.terramate.io">💻 Playground</a>
-   <!-- | <a href="https://jobs.ashbyhq.com/terramate" title="Terramate Job Board">🙌 Join Us</a> -->
+   | <a href="https://jobs.ashbyhq.com/terramate" title="Terramate Job Board">🙌 Join Us</a>
 </p>
 
 <br>
 <br>
 
-## What is Terramate CLI?
+## What is Terramate?
 
-Terramate CLI is an open-source Infrastructure as Code (IaC) code generation and orchestration tool for Terraform,
-OpenTofu and Terragrunt. With Terramate, you can:
+Terramate CLI is an open-source orchestration and code generation engine that allows Infrastructure as Code (IaC) such
+as Terraform, OpenTofu, Terragrunt and Kubernetes to scale.
 
-(a) **Simplify complex codebases** to make your work more productive and reliable. Break down large state files with
-stacks to reduce run-time and blast radius and keep them DRY with native code generation.
+Terramate CLI can optionally be paired with [Terramate Cloud](https://terramate.io), a fully managed SaaS service that
+adds additional features to manage and observe all your infrastructure managed with IaC in one or multiple repositories.
 
-(b) **Automate and orchestrate Terraform, OpenTofu and Terragrunt in any CI/CD** using Pull Request automation, GitOps
-blueprints, and workflow tooling with zero-config orchestration and change detection.
+With Terramate, you can:
 
-(c) **Provide the foundation to later leverage Terramate Cloud**, a management layer that gives you visibility, control, and actionable insights into your infra.
+1. Break up large, monolithic state files into multiple smaller stacks to limit blast radius, reduce runtimes and unlock better collaboration.
+2. Reduce code duplication by programmatically generating native Terraform backend and provider configurations or any other arbitrary files using the Terramate compiler.
+3. Using a graph-based orchestration engine, orchestrate any command such as `terraform apply` in stacks. Only deploy stacks that contain changes using change detection built on top of Git.
+4. Automate your IaC using pull requests and GitOps workflows that turn your existing CI/CD, such as GitHub Actions, GitLab CI/CD, BitBucket Pipelines, Azure DevOps, etc, into infrastructure vending machines.
+5. Use Terramate Cloud to add observability, drift detection, asset management, misconfiguration detection, incident management, developer self-service with scaffolding, and Slack notifications.
+
+## Why Terramate?
+
+Terramate is an extremely lightweight approach that can be onboarded to any existing IaC project with a single command
+and without touching any existing configurations. Terramate doesn't require access to your state backend, code or
+cloud accounts, which makes it safe and secure to use in any environment. When you start using Terramate, you can adopt
+it on a per-feature basis, and there's no additional risk because Terramate doesn't inflict any hard lock-in.
+
+If you want to learn more, take a look at our [how it works](https://terramate.io/docs/how-it-works) guide.
+
+## Benefits
+
+- **Instant Onboarding:** Onboard Terramate to any existing architecture with a single step. No refactoring required.
+- **Full Flexibility:** Terramate supports any architecture. Workspaces, Directories, Terragrunt, TFVars - we've got you covered.
+- **No Lock-in:** On- and off-board Terramate at any point in time. No vendor lock-in is inflicted on you.
+- **Bring your CI/CD:** Terramate isn't a CI/CD platform. Instead, use your existing CI/CD, which is cost-efficient and secure.
+- **Unlimited Parallelism:** Run highly concurrent workflows that allow teams to collaborate in parallel without causing waiting times.
+- **Best Security:** No access to your state or cloud accounts is required. Terramate is secure by design.
+- **Developer Experience:** Remove guesswork and config sprawl by imposing structure, workflows and best practices.
+- **Unlimited Integrations:** Terramate integrates seamlessly with all your tools, such as GitHub or Slack.
+- **Native IaC:** No need to learn a new syntax! With Teramate, everything is configured as code using HCL.
+- **Serverless:** Using Terramate doesn't require you to run and maintain any additional infrastructure.
 
 ## Installation
+
+### Installing Terramate CLI
+
+Start by installing Terramate CLI.
 
 With brew:
 
@@ -52,69 +81,67 @@ go install github.com/terramate-io/terramate/cmd/...@latest
 
 For other installation methods, please see the [documentation](https://terramate.io/docs/cli/installation).
 
+### Connect the CLI to Terramate Cloud
+
+To get the most out of Terramate, [sign up for a free Terramate Cloud account](https://cloud.terramate.io) and connect
+Terramate CLI with your Terramate Cloud account:
+
+```sh
+terramate cloud login
+```
 
 ## Getting Started
 
-The fastest way to get started with Terramate is our [getting started guide](https://terramate.io/docs/cli/getting-started/).
+Terramate can be onboarded to any existing Terraform, OpenTofu, or Terragrunt with a single command and without requiring
+any refactoring. For details, please see the following guides:
 
-## Why simplify complex codebases?
-
-As Terraform and OpenTofu offer no standard pattern on how to organize code efficiently, projects quickly sprawl out of
-control. The consequences are ***code complexity***, ***long-running pipelines***,
-***large blast radius***, ***drift***, and ***poor governance***.
-
-Terramate CLI enables a new approach to eliminating the root cause of these consequences: using a modular and efficient
-approach called Terramate Stacks. A stack is a combination of infrastructure code, state and configuration, which can be
-nested to split state further.
-
-Organizationally, a stack is a way to establish an ownership model. By consistently sizing stacks into isolated units
-that your team members can quickly understand, assuming ownership of your infra becomes a lot simpler.
-Terramate CLI supports Terraform, OpenTofu and Terragrunt, and can be run locally as well as in your existing VCS
-(Github, Gitlab) CI/CD.
-
-Terramate CLI is designed to work especially well with [Terramate Cloud](https://cloud.terramate.io), which provides
-an IaC management layer and offers a generous free tier. 
+- [Start with existing Terraform project](https://terramate.io/docs/cli/on-boarding/terraform)
+- [Start with existing OpenTofu project](https://terramate.io/docs/cli/on-boarding/opentofu)
+- [Start with existing Terragrunt project](https://terramate.io/docs/cli/on-boarding/terragrunt)
+- [Start from scratch](https://terramate.io/docs/cli/getting-started/)
 
 ## Features
 
+- **Multiple Environments**: Manage multiple environments using any existing approach such as workspaces, directories, Terragrunt, TFVars, partial backend configuration, and more.
+- **Dependencies**: Manage dependencies among environments with output sharing and graph-based orchestration.
 - **Orchestration:** Run any command and configurable workflows in stacks with unlimited concurrency.
 - **Change Detection:** Only execute stacks that contain changes. Allows to detect changes in referenced Terraform and
 OpenTofu modules as well as Terragrunt dependencies.
-- **Code Generation:** Generate code such **HCL**, **JSON** and **YAML** to keep your stacks DRY (Don't repeat yourself). Comes with
-support for global variables and functions.
-- **Automation Blueprints:** Pre-configured GitOps workflows for GitHub, GitLab, BitBucket and Atlantis to enable Pull
+- **Code Generation:** Generate code such **HCL**, **JSON** and **YAML** to keep your stacks [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) (Don't repeat yourself).
+- **Automation Blueprints:** Pre-configured GitOps workflows for GitHub Actions, GitLab CI/CD, BitBucket Pipelines and others to enable Pull
 Automation with plan previews in your existing CI/CD.
-- **Drift Management:** Detect and reconcile drift with scheduled workflows.
+- **Drift Management:** Detect and reconcile drift with scheduled workflows and post-deployment drift detection.
 - **Observability, Visibility and Insights:** Provides actionable insights and observability into your stacks, deployments,
 and resources.
+- **Misconfiguration Detection**: Detect and remediate misconfigurations with more than 500+ pre-configured policies using frameworks such as the Center of Internet Security Benchmarks (CIS).
+- **Asset Management**: Get an inventory of all your infrastructure resources managed by multiple teams, environments and repositories. 
+- **Audit Trail**: Track and review all infrastructure changes for compliance and security.
+- **Alerts**: Manage incidents such as failed deployments or drift with alerts that are automatically assigned to the right teams and individuals.
+- **Slack Integrations**: Integrate notifications in a centralized Slack channel or via our Slack Bot to directly notify users without causing notification fatigue.
+- **Scaffolding**: Enable developer-self service by allowing developers to scaffold complex infrastructure configurations without having to know tools such as Terraform or Terramate in detail.
 
+## Terramate CLI vs Terramate Cloud
 
-## Terramate Cloud
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./terramate_platform_overview_dark.png">
+  <img alt="Terramate Platform" src="./terramate_platform_overview_light.png">
+</picture>
 
-[Terramate Cloud](https://cloud.terramate.io?ref=github) provides you with the best IaC management experience possible. It helps you orchestrate your stacks
-in your existing CI/CD platform, such as GitHub Actions, GitLab and Bitbucket Pipelines, so you don't need to buy yet
-another CI/CD vendor.
+## Learn more
 
-It also provides a powerful dashboard that adds **observability** and **insights**, **deployment metrics**
-(e.g., **DORA**), **notifications**, **drift management**, **asset management,** and more for your stacks to provide
-the developer experience and infrastructure to build, scale and observe all your infrastructure managed with IaC.
-
-![Terramate Cloud Dashboard](dashboard.png "Terramate Cloud Dashboard")
+- [How does it work?](https://terramate.io/docs/how-it-works)
+- [Documentation](https://terramate.io/docs/)
+- [Terramate Blog](https://terramate.io/rethinking-iac/)
+- [Playground](https://play.terramate.io/)
+<!-- - [How-to guides](https://terramate.io/docs/how-it-works) TODO: add video guides-->
 
 ## Join the Community
 
-- Join our [Discord](https://discord.gg/CyzcScEPkc)
-- Contact us via email at [hello@terramate.io](mailto:hello@terramate.io)
+- Join our [Discord](https://terramate.io/discord)
 - Follow us on [X](https://twitter.com/terramateio)
 - Follow us on [LinkedIn](https://www.linkedin.com/company/terramate-io)
-
-## Additional Resources
-
-- [Documentation](https://terramate.io/docs)
-- [Playground](https://play.terramate.io/)
-- [Getting started guide](https://terramate.io/docs/cli/getting-started/)
-- [Terramate Blog](https://terramate.io/rethinking-iac/)
-
+- Contact us via email at [hello@terramate.io](mailto:hello@terramate.io)
+****
 ## Reporting Bugs, Requesting Features, or Contributing to Terramate
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/terramate-io/terramate/issues/new)
