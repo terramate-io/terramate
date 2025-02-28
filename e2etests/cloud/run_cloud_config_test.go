@@ -111,7 +111,7 @@ func TestCloudConfig(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			store, err := cloudstore.LoadDatastore(testserverJSONFile)
+			store, _, err := cloudstore.LoadDatastore(testserverJSONFile)
 			assert.NoError(t, err)
 
 			store.UpsertOrg(cloudstore.Org{

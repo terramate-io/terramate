@@ -17,7 +17,7 @@ import (
 func TestPostPreviews(t *testing.T) {
 	orguuid := "deadbeef-dead-dead-dead-deaddeadbeef"
 	const testserverJSONFile = "../../testdata/testserver/cloud.data.json"
-	store, err := cloudstore.LoadDatastore(testserverJSONFile)
+	store, _, err := cloudstore.LoadDatastore(testserverJSONFile)
 	assert.NoError(t, err)
 	router := Router(store)
 

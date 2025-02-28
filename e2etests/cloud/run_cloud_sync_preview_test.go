@@ -356,9 +356,10 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			t.Parallel()
 
 			cloudData := tc.cloudData
+			defaultOrg := "terramate"
 			if cloudData == nil {
 				var err error
-				cloudData, err = cloudstore.LoadDatastore(testserverJSONFile)
+				cloudData, defaultOrg, err = cloudstore.LoadDatastore(testserverJSONFile)
 				assert.NoError(t, err)
 			}
 			addr := startFakeTMCServer(t, cloudData)
@@ -378,6 +379,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 			env = append(env, "TM_GITHUB_API_URL=http://"+addr+"/")
 			env = append(env, "GITHUB_EVENT_PATH="+tc.githubEventPath)
 			env = append(env, "GITHUB_TOKEN=fake_token")
+			env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 			env = append(env, tc.env...)
 			cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 			cli.PrependToPath(filepath.Dir(TerraformTestPath))

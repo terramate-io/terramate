@@ -29,7 +29,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 		repository = "github.com/terramate-io/terramate"
 	)
 
-	store, err := cloudstore.LoadDatastore(testserverJSONFile)
+	store, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 	assert.NoError(t, err)
 
 	addr := startFakeTMCServer(t, store)
@@ -45,7 +45,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("trigger-the-stack")
 
-	org := store.MustOrgByName("terramate")
+	org := store.MustOrgByName(defaultOrg)
 
 	_, err = store.UpsertStack(org.UUID, cloudstore.Stack{
 		Stack: cloud.Stack{
@@ -63,6 +63,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	git.SetRemoteURL("origin", fmt.Sprintf(`https://%s.git`, repository))
 	env := RemoveEnv(os.Environ(), "CI")
 	env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+	env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 	cli := NewCLI(t, s.RootDir(), env...)
 	AssertRunResult(t, cli.Run("trigger", "--status=unhealthy"), RunExpected{
 		IgnoreStdout: true,
@@ -650,7 +651,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			t.Run(tc.name+", "+argStr, func(t *testing.T) {
 				t.Parallel()
 
-				store, err := cloudstore.LoadDatastore(testserverJSONFile)
+				store, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 				assert.NoError(t, err)
 
 				addr := startFakeTMCServer(t, store)
@@ -673,7 +674,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 
 				s.Git().SetRemoteURL("origin", repositoryURL)
 
-				org := store.MustOrgByName("terramate")
+				org := store.MustOrgByName(defaultOrg)
 
 				for _, st := range tc.stacks {
 					_, err := store.UpsertStack(org.UUID, st)
@@ -681,6 +682,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				}
 				env := RemoveEnv(os.Environ(), "CI")
 				env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+				env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), tc.workingDir), env...)
 				args := strings.Split(argStr, " ")
 				args = append(args, tc.flags...)
@@ -694,6 +696,5 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				}
 			})
 		}
-
 	}
 }

@@ -834,9 +834,10 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				cloudData := tc.cloudData
+				defaultOrg := "terramate"
 				if cloudData == nil {
 					var err error
-					cloudData, err = cloudstore.LoadDatastore(testserverJSONFile)
+					cloudData, defaultOrg, err = cloudstore.LoadDatastore(testserverJSONFile)
 					assert.NoError(t, err)
 				}
 				addr := startFakeTMCServer(t, cloudData)
@@ -850,6 +851,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 				s.BuildTree(tc.layout)
 				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
+				env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 				env = append(env, tc.env...)
 				env, ok := test.PrependToPath(env, filepath.Dir(TerraformTestPath))
 				assert.IsTrue(t, ok)
@@ -948,7 +950,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 	l, err := net.Listen("tcp", ":0")
 	assert.NoError(t, err)
 
-	store, err := cloudstore.LoadDatastore(testserverJSONFile)
+	store, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 	assert.NoError(t, err)
 
 	fakeserver := &http.Server{
@@ -977,7 +979,8 @@ func TestRunGithubTokenDetection(t *testing.T) {
 		}
 	})
 
-	env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
+	env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS", "GITHUB_TOKEN")
+	env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 
 	t.Run("GH_TOKEN detection", func(t *testing.T) {
 		t.Parallel()
@@ -1018,7 +1021,7 @@ func TestRunGithubTokenDetection(t *testing.T) {
 			t.Skip("gh tool not installed")
 		}
 
-		tm := NewCLI(t, s.RootDir())
+		tm := NewCLI(t, s.RootDir(), env...)
 		tm.AppendEnv = append(tm.AppendEnv, "TMC_API_URL=http://"+l.Addr().String())
 		tm.LogLevel = "debug"
 		ghConfigDir := test.TempDir(t)

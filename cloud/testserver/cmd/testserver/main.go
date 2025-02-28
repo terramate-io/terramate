@@ -18,7 +18,7 @@ func main() {
 	if len(os.Args) == 2 {
 		datafile = os.Args[1]
 	}
-	store, err := cloudstore.LoadDatastore(datafile)
+	store, _, err := cloudstore.LoadDatastore(datafile)
 	if err != nil {
 		panic(err)
 	}
