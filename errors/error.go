@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/terramate/exit"
 	"github.com/terramate-io/terramate/hcl/info"
 )
 
@@ -39,6 +40,8 @@ type Error struct {
 
 	// Err holds the underlying error.
 	Err error
+
+	exit *exit.Status
 }
 
 // Kind defines the kind of an error.
@@ -77,6 +80,10 @@ const separator = ": "
 //
 //   - [hcl.Diagnostic]
 //     Same behavior as hcl.Diagnostics but for a single diagnostic.
+//
+//   - [exit.Status]
+//     The exit code chosen by the error reporter. The caller can decide if exit() is needed.
+//     This is useful when using CLI as a library. Eg.: calling Terramate packages from a http server.
 //
 //   - string
 //     The error description. It supports formatting using the Go's fmt verbs
@@ -167,6 +174,9 @@ func E(args ...interface{}) *Error {
 			errs.Append(&arg)
 		case *hcl.Diagnostic:
 			errs.Append(arg)
+		case exit.Status:
+			exitcode := arg
+			e.exit = &exitcode
 		case *List:
 			errs.Append(arg)
 		case error:
@@ -275,7 +285,7 @@ func E(args ...interface{}) *Error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == ""
+	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.exit == nil
 }
 
 func (e *Error) error(fields []interface{}, verbose bool) string {
@@ -361,6 +371,28 @@ func (e *Error) AsList() *List {
 	}
 
 	return L(e)
+}
+
+// HasExitStatus tells if the error has an associated exit status.
+// Useful if the caller needs to decide to abort or not depending on error.
+func (e *Error) HasExitStatus() bool { return e.exit != nil }
+
+// ExitStatus returns a reasonable exit code for the error.
+func (e *Error) ExitStatus() exit.Status {
+	if e.HasExitStatus() {
+		return *e.exit
+	}
+	return exit.Failed // it's an error after all.
+}
+
+func ExitStatus(err error) exit.Status {
+	if err == nil {
+		return exit.OK
+	}
+	if e, ok := err.(*Error); ok {
+		return e.ExitStatus()
+	}
+	return exit.Failed
 }
 
 // Message returns the error message without some metadata.

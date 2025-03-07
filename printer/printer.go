@@ -25,11 +25,22 @@ var (
 	Stderr = NewPrinter(os.Stderr)
 	// Stdout is the default stdout printer
 	Stdout = NewPrinter(os.Stdout)
+
+	DefaultPrinters = Printers{
+		Stdout: Stdout,
+		Stderr: Stderr,
+	}
 )
 
-// Printer encapuslates an io.Writer
+// Printer encapsulates an io.Writer
 type Printer struct {
 	w io.Writer
+}
+
+// Printers groups stdout and stderr printers.
+type Printers struct {
+	Stdout *Printer
+	Stderr *Printer
 }
 
 // NewPrinter creates a new Printer with the provider io.Writer e.g.: stdio,

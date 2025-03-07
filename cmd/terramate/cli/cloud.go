@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	stdjson "encoding/json"
+	"fmt"
 	stdfmt "fmt"
 	"net/url"
 	"os"
@@ -37,7 +38,6 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/errors/verbosity"
@@ -110,7 +110,6 @@ type cloudRunState struct {
 type cloudConfig struct {
 	disabled bool
 	client   *cloud.Client
-	output   out.O
 
 	run cloudRunState
 }
@@ -453,7 +452,9 @@ func (c *cli) cloudInfo() {
 
 	// verbose info
 	if c.cred().HasExpiration() {
-		c.cloud.output.MsgStdOutV("next token refresh in: %s", time.Until(c.cred().ExpireAt()))
+		if c.parsedArgs.Verbose > 0 {
+			printer.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(c.cred().ExpireAt())))
+		}
 	}
 }
 
@@ -1517,7 +1518,6 @@ func (c *cli) loadCredential() error {
 	if envFound {
 		c.cloud.client.BaseURL = cloudURL
 	}
-	c.cloud.output = c.output
 
 	// checks if this client version can communicate with Terramate Cloud.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -1527,7 +1527,7 @@ func (c *cli) loadCredential() error {
 		return errors.E(err, clitest.ErrCloudCompat)
 	}
 
-	probes := auth.ProbingPrecedence(c.output, c.cloud.client, c.clicfg)
+	probes := auth.ProbingPrecedence(printer.DefaultPrinters, c.cloud.client, c.clicfg)
 	var found bool
 	for _, probe := range probes {
 		var err error
