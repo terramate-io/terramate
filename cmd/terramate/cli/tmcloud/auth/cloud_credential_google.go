@@ -26,7 +26,6 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/errors/verbosity"
@@ -59,9 +58,9 @@ type (
 
 		provider string
 
-		clicfg cliconfig.Config
-		client *cloud.Client
-		output out.O
+		clicfg   cliconfig.Config
+		client   *cloud.Client
+		printers printer.Printers
 	}
 
 	createAuthURIResponse struct {
@@ -98,7 +97,7 @@ type (
 )
 
 // GoogleLogin logs in the user using Google OAuth.
-func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
+func GoogleLogin(printers printer.Printers, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
 		errChan:        make(chan tokenError),
@@ -124,23 +123,23 @@ func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 
 	consentDataChan <- consentData
 
-	output.MsgStdOutV("trying to open URL in the browser: %s", consentData.AuthURI)
+	printers.Stdout.Println(fmt.Sprintf("trying to open URL in the browser: %s", consentData.AuthURI))
 
 	err = browser.OpenURL(consentData.AuthURI)
 	if err != nil {
-		output.MsgStdErr("failed to open URL in the browser")
-		output.MsgStdOut("Please visit the url: %s", consentData.AuthURI)
+		printers.Stdout.Println("failed to open URL in the browser")
+		printers.Stdout.Println(fmt.Sprintf("Please visit the url: %s", consentData.AuthURI))
 	} else {
-		output.MsgStdOut("Please continue the authentication process in the browser.")
+		printers.Stdout.Println("Please continue the authentication process in the browser.")
 	}
 
 	select {
 	case cred := <-h.credentialChan:
-		output.MsgStdOut("Logged in as %s", cred.UserDisplayName())
-		output.MsgStdOutV("Token: %s", cred.IDToken)
+		printers.Stdout.Println(fmt.Sprintf("Logged in as %s", cred.UserDisplayName()))
+		printers.Stdout.Println(fmt.Sprintf("Token: %s", cred.IDToken))
 		expire, _ := strconv.Atoi(cred.ExpiresIn)
-		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-		return saveCredential(output, cred, clicfg)
+		printers.Stdout.Println(fmt.Sprintf("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z)))
+		return saveCredential(printers, cred, clicfg)
 	case err := <-h.errChan:
 		return err.err
 	}
@@ -401,7 +400,7 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(errMessage))
 }
 
-func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
+func saveCredential(printers printer.Printers, cred credentialInfo, clicfg cliconfig.Config) error {
 	cachePayload := cachedCredential{
 		Provider:     cred.ProviderID.String(),
 		IDToken:      cred.IDToken,
@@ -419,11 +418,11 @@ func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) 
 		return errors.E(err, "failed to cache credentials")
 	}
 
-	output.MsgStdOutV("credentials cached at %s", credfile)
+	printers.Stdout.Println(fmt.Sprintf("credentials cached at %s", credfile))
 	return nil
 }
 
-func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bool, error) {
+func loadCredential(printers printer.Printers, clicfg cliconfig.Config) (cachedCredential, bool, error) {
 	credFile := filepath.Join(clicfg.UserTerramateDir, credfile)
 	_, err := os.Lstat(credFile)
 	if err != nil {
@@ -438,7 +437,7 @@ func loadCredential(output out.O, clicfg cliconfig.Config) (cachedCredential, bo
 	if err != nil {
 		return cachedCredential{}, true, err
 	}
-	output.MsgStdOutV("credentials loaded from %s", credFile)
+	printers.Stdout.Println(fmt.Sprintf("credentials loaded from %s", credFile))
 	return cred, true, nil
 }
 
@@ -454,17 +453,17 @@ func endpointURL(endpoint string, idpKey string) *url.URL {
 	return u
 }
 
-func newGoogleCredential(output out.O, clicfg cliconfig.Config, client *cloud.Client) *googleCredential {
+func newGoogleCredential(printers printer.Printers, clicfg cliconfig.Config, client *cloud.Client) *googleCredential {
 	return &googleCredential{
-		clicfg: clicfg,
-		idpKey: idpkey(),
-		client: client,
-		output: output,
+		clicfg:   clicfg,
+		idpKey:   idpkey(),
+		client:   client,
+		printers: printers,
 	}
 }
 
 func (g *googleCredential) Load() (bool, error) {
-	credinfo, found, err := loadCredential(g.output, g.clicfg)
+	credinfo, found, err := loadCredential(g.printers, g.clicfg)
 	if err != nil {
 		return false, err
 	}
@@ -500,12 +499,12 @@ func (g *googleCredential) ExpireAt() time.Time {
 
 func (g *googleCredential) Refresh() (err error) {
 	if g.token != "" {
-		g.output.MsgStdOutV("refreshing token...")
+		g.printers.Stdout.Println("refreshing token...")
 
 		defer func() {
 			if err == nil {
-				g.output.MsgStdOutV("token successfully refreshed.")
-				g.output.MsgStdOutV("next token refresh in: %s", time.Until(g.ExpireAt()))
+				g.printers.Stdout.Println("token successfully refreshed.")
+				g.printers.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(g.ExpireAt())))
 			}
 		}()
 	}
@@ -546,7 +545,7 @@ func (g *googleCredential) Refresh() (err error) {
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			g.output.MsgStdErrV("failed to close response body: %v", err)
+			g.printers.Stderr.Println(fmt.Sprintf("failed to close response body: %v", err))
 		}
 	}()
 
@@ -569,13 +568,11 @@ func (g *googleCredential) Refresh() (err error) {
 	if err != nil {
 		return err
 	}
-
 	err = g.update(tokresp.IDToken, g.refreshToken)
 	if err != nil {
 		return err
 	}
-
-	return saveCredential(g.output, credentialInfo{
+	return saveCredential(g.printers, credentialInfo{
 		IDToken:      g.token,
 		RefreshToken: g.refreshToken,
 	}, g.clicfg)

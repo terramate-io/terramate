@@ -10,8 +10,8 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 )
 
 const (
@@ -44,12 +44,12 @@ type Credential interface {
 }
 
 // ProbingPrecedence returns the probing precedence for the loading of credentials.
-func ProbingPrecedence(output out.O, client *cloud.Client, clicfg cliconfig.Config) []Credential {
+func ProbingPrecedence(printers printer.Printers, client *cloud.Client, clicfg cliconfig.Config) []Credential {
 	return []Credential{
 		newAPIKey(client),
-		newGithubOIDC(output, client),
+		newGithubOIDC(printers, client),
 		newGitlabOIDC(client),
-		newGoogleCredential(output, clicfg, client),
+		newGoogleCredential(printers, clicfg, client),
 	}
 }
 

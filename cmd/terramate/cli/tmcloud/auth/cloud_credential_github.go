@@ -12,7 +12,6 @@ import (
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -20,7 +19,7 @@ import (
 const defaultGitHubClientID = "08e1f8d6f599c7ec48c5"
 
 // GithubLogin logs in the user using GitHub.
-func GithubLogin(output out.O, tmcBaseURL string, clicfg cliconfig.Config) error {
+func GithubLogin(printers printer.Printers, tmcBaseURL string, clicfg cliconfig.Config) error {
 	token, err := githubAuth()
 	if err != nil {
 		return err
@@ -43,11 +42,11 @@ func GithubLogin(output out.O, tmcBaseURL string, clicfg cliconfig.Config) error
 		return err
 	}
 
-	output.MsgStdOut("Logged in as %s", cred.UserDisplayName())
-	output.MsgStdOutV("Token: %s", cred.IDToken)
+	printers.Stdout.Println(fmt.Sprintf("Logged in as %s", cred.UserDisplayName()))
+	printers.Stdout.Println(fmt.Sprintf("Token: %s", cred.IDToken))
 	expire, _ := strconv.Atoi(cred.ExpiresIn)
-	output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-	return saveCredential(output, cred, clicfg)
+	printers.Stdout.Println(fmt.Sprintf("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z)))
+	return saveCredential(printers, cred, clicfg)
 }
 
 func githubAuth() (string, error) {

@@ -16,7 +16,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -39,14 +38,14 @@ type githubOIDC struct {
 	reqToken string
 	orgs     cloud.MemberOrganizations
 
-	output out.O
-	client *cloud.Client
+	printers printer.Printers
+	client   *cloud.Client
 }
 
-func newGithubOIDC(output out.O, client *cloud.Client) *githubOIDC {
+func newGithubOIDC(printers printer.Printers, client *cloud.Client) *githubOIDC {
 	return &githubOIDC{
-		client: client,
-		output: output,
+		client:   client,
+		printers: printers,
 	}
 }
 
@@ -104,12 +103,12 @@ func (g *githubOIDC) ExpireAt() time.Time {
 
 func (g *githubOIDC) Refresh() (err error) {
 	if g.token != "" {
-		g.output.MsgStdOutV("refreshing token...")
+		g.printers.Stdout.Println("refreshing token...")
 
 		defer func() {
 			if err == nil {
-				g.output.MsgStdOutV("token successfully refreshed.")
-				g.output.MsgStdOutV("next token refresh in: %s", time.Until(g.ExpireAt()))
+				g.printers.Stdout.Println("token successfully refreshed.")
+				g.printers.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(g.ExpireAt())))
 			}
 		}()
 	}

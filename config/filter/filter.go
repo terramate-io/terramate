@@ -203,3 +203,58 @@ func parseTagClause(filter string) (TagClause, error) {
 	}
 	return rootNode, nil
 }
+
+func ParseTags(tags, noTags []string) (filters TagClause, err error) {
+	clauses, found, err := ParseTagClauses(tags...)
+	if err != nil {
+		return filters, errors.E(err, "unable to parse tag clauses")
+	}
+	if found {
+		filters = clauses
+	}
+
+	for _, val := range noTags {
+		err := tag.Validate(val)
+		if err != nil {
+			return filters, errors.E(err, "unable validate tag")
+		}
+	}
+	var noClauses TagClause
+	if len(noTags) == 0 {
+		return filters, nil
+	}
+	if len(noTags) == 1 {
+		noClauses = TagClause{
+			Op:  NEQ,
+			Tag: noTags[0],
+		}
+	} else {
+		var children []TagClause
+		for _, tagname := range noTags {
+			children = append(children, TagClause{
+				Op:  NEQ,
+				Tag: tagname,
+			})
+		}
+		noClauses = TagClause{
+			Op:       AND,
+			Children: children,
+		}
+	}
+
+	if filters.IsEmpty() {
+		filters = noClauses
+		return
+	}
+
+	switch filters.Op {
+	case AND:
+		filters.Children = append(filters.Children, noClauses)
+	default:
+		filters = TagClause{
+			Op:       AND,
+			Children: []TagClause{filters, noClauses},
+		}
+	}
+	return filters, nil
+}
