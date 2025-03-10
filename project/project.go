@@ -47,6 +47,8 @@ func NewPath(p string) Path {
 	}
 }
 
+func InvalidPath() Path { return Path{} }
+
 // Dir returns the path's directory.
 func (p Path) Dir() Path {
 	return Path{

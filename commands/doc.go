@@ -1,3 +1,6 @@
+// Copyright 2025 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 // Package commands define all Terramate commands.
 // All commands must:
 // - Be defined in its own package (eg.: ./commands/generate)

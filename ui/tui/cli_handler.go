@@ -1,3 +1,6 @@
+// Copyright 2025 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 package tui
 
 import (
@@ -30,21 +33,11 @@ import (
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 )
 
-const (
-	// HumanMode is the default normal mode when Terramate is executed at the user's machine.
-	HumanMode UIMode = iota
-	// AutomationMode is the mode when Terramate executes in the CI/CD environment.
-	AutomationMode
-)
-
 const ErrSetup errors.Kind = "failed to setup Terramate"
 
 type handlerState struct {
 	tags filter.TagClause
 }
-
-// UIMode defines different modes of operation for the cli.
-type UIMode int
 
 func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Executor, found bool, cont bool, err error) {
 	// NOTE(i4k): c.root is nil
@@ -164,11 +157,9 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 		return nil, false, false, errors.E(ErrSetup, err, "evaluating symlinks on working dir: %s", c.state.wd)
 	}
 
-	uimode := HumanMode
 	if val := os.Getenv("CI"); envVarIsSet(val) {
-		uimode = AutomationMode
+		c.state.uimode = engine.AutomationMode
 	}
-	c.state.uimode = uimode
 	return nil, false, true, nil
 }
 
@@ -338,6 +329,30 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			NoGenerate:      parsedArgs.Experimental.Clone.NoGenerate,
 			Printers:        c.printers,
 		}, true, false, nil
+	case "run":
+		return nil, false, false, errors.E("no command specified")
+	case "run <cmd>":
+		c.InitAnalytics("run",
+			tel.BoolFlag("filter-changed", parsedArgs.Changed),
+			tel.BoolFlag("filter-tags", len(parsedArgs.Tags) != 0),
+			tel.StringFlag("filter-status", parsedArgs.Run.Status),
+			tel.StringFlag("filter-drift-status", parsedArgs.Run.DriftStatus),
+			tel.StringFlag("filter-deployment-status", parsedArgs.Run.DeploymentStatus),
+			tel.StringFlag("target", parsedArgs.Run.Target),
+			tel.BoolFlag("sync-deployment", parsedArgs.Run.SyncDeployment),
+			tel.BoolFlag("sync-drift", parsedArgs.Run.SyncDriftStatus),
+			tel.BoolFlag("sync-preview", parsedArgs.Run.SyncPreview),
+			tel.StringFlag("terraform-planfile", parsedArgs.Run.TerraformPlanFile),
+			tel.StringFlag("tofu-planfile", parsedArgs.Run.TofuPlanFile),
+			tel.StringFlag("layer", string(parsedArgs.Run.Layer)),
+			tel.BoolFlag("terragrunt", parsedArgs.Run.Terragrunt),
+			tel.BoolFlag("reverse", parsedArgs.Run.Reverse),
+			tel.BoolFlag("parallel", parsedArgs.Run.Parallel > 0),
+			tel.BoolFlag("output-sharing", parsedArgs.Run.EnableSharing),
+			tel.BoolFlag("output-mocks", parsedArgs.Run.MockOnFail),
+		)
+
+		c.runOnStacks()
 	}
 
 	panic("not yet")

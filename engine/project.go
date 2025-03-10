@@ -39,16 +39,16 @@ type Project struct {
 	platform     *ci.PlatformType
 	stackManager *stack.Manager
 
-	git struct {
-		wrapper                   *git.Git
-		headCommit                string
-		localDefaultBranchCommit  string
-		remoteDefaultBranchCommit string
+	Git struct {
+		Wrapper                   *git.Git
+		HeadCommit                string
+		LocalDefaultBranchCommit  string
+		RemoteDefaultBranchCommit string
 
-		remoteConfigured bool
-		branchConfigured bool
+		RemoteConfigured bool
+		BranchConfigured bool
 
-		repoChecks stack.RepoChecks
+		RepoChecks stack.RepoChecks
 	}
 }
 
@@ -83,7 +83,7 @@ func NewProject(wd string) (prj *Project, found bool, err error) {
 		prj.isRepo = true
 		prj.root = cfg
 		prj.rootdir = rootdir
-		prj.git.wrapper = gw
+		prj.Git.Wrapper = gw
 
 		mgr := stack.NewGitAwareManager(prj.root, gw)
 		prj.stackManager = mgr
@@ -117,7 +117,7 @@ func newGit(basedir string) (*git.Git, error) {
 	return g, nil
 }
 
-func (p *Project) gitcfg() *hcl.GitConfig {
+func (p *Project) GitConfig() *hcl.GitConfig {
 	return p.root.Tree().Node.Terramate.Config.Git
 }
 
@@ -128,7 +128,7 @@ func (p *Project) Repo() (*git.Repository, error) {
 	if p.repository != nil {
 		return p.repository, nil
 	}
-	repoURL, err := p.git.wrapper.URL(p.gitcfg().DefaultRemote)
+	repoURL, err := p.Git.Wrapper.URL(p.GitConfig().DefaultRemote)
 	if err != nil {
 		return nil, err
 	}
@@ -171,41 +171,41 @@ func (p *Project) setupGitValues() error {
 }
 
 func (p *Project) computeHeadCommit() error {
-	if p.git.headCommit != "" {
+	if p.Git.HeadCommit != "" {
 		return nil
 	}
 
-	val, err := p.git.wrapper.RevParse("HEAD")
+	val, err := p.Git.Wrapper.RevParse("HEAD")
 	if err != nil {
 		return errors.E(err, "unable to git rev-parse")
 	}
 
-	p.git.headCommit = val
+	p.Git.HeadCommit = val
 	return nil
 }
 
 func (p *Project) computeLocalDefaultBranchCommit() error {
-	if p.git.localDefaultBranchCommit != "" {
+	if p.Git.LocalDefaultBranchCommit != "" {
 		return nil
 	}
-	gitcfg := p.gitcfg()
+	gitcfg := p.GitConfig()
 	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
-	val, err := p.git.wrapper.RevParse(refName)
+	val, err := p.Git.Wrapper.RevParse(refName)
 	if err != nil {
 		return errors.E(err, "unable to git rev-parse")
 	}
 
-	p.git.localDefaultBranchCommit = val
+	p.Git.LocalDefaultBranchCommit = val
 	return nil
 }
 
 func (p *Project) computeRemoteDefaultCommit() error {
-	if p.git.remoteDefaultBranchCommit != "" {
+	if p.Git.RemoteDefaultBranchCommit != "" {
 		return nil
 	}
 
-	gitcfg := p.gitcfg()
-	remoteRef, err := p.git.wrapper.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
+	gitcfg := p.GitConfig()
+	remoteRef, err := p.Git.Wrapper.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
 		return errors.E(
 			fmt.Errorf("fetching remote commit of %s/%s: %v",
@@ -214,33 +214,33 @@ func (p *Project) computeRemoteDefaultCommit() error {
 			),
 			"unable to fetch remote commit")
 	}
-	p.git.remoteDefaultBranchCommit = remoteRef.CommitID
+	p.Git.RemoteDefaultBranchCommit = remoteRef.CommitID
 	return nil
 }
 
-func (p *Project) isGitFeaturesEnabled() bool {
+func (p *Project) IsGitFeaturesEnabled() bool {
 	return p.isRepo && p.hasCommit()
 }
 
 func (p *Project) hasCommit() bool {
-	_, err := p.git.wrapper.RevParse("HEAD")
+	_, err := p.Git.Wrapper.RevParse("HEAD")
 	return err == nil
 }
 
 func (p *Project) hasCommits() bool {
-	_, err := p.git.wrapper.RevParse("HEAD^")
+	_, err := p.Git.Wrapper.RevParse("HEAD^")
 	return err == nil
 }
 
 func (p *Project) isDefaultBranch() bool {
-	git := p.gitcfg()
-	branch, err := p.git.wrapper.CurrentBranch()
+	git := p.GitConfig()
+	branch, err := p.Git.Wrapper.CurrentBranch()
 	if err != nil {
 		// WHY?
 		// The current branch name (the symbolic-ref of the HEAD) is not always
 		// available, in this case we naively check if HEAD == local origin/main.
 		// This case usually happens in the git setup of CIs.
-		return p.git.localDefaultBranchCommit == p.git.headCommit
+		return p.Git.LocalDefaultBranchCommit == p.Git.HeadCommit
 	}
 
 	return branch == git.DefaultBranch
@@ -249,8 +249,8 @@ func (p *Project) isDefaultBranch() bool {
 // defaultBaseRef returns the baseRef for the current git environment.
 func (p *Project) defaultBaseRef() string {
 	if p.isDefaultBranch() &&
-		p.git.remoteDefaultBranchCommit == p.git.headCommit {
-		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
+		p.Git.RemoteDefaultBranchCommit == p.Git.HeadCommit {
+		_, err := p.Git.Wrapper.RevParse(defaultBranchBaseRef)
 		if err == nil {
 			return defaultBranchBaseRef
 		}
@@ -260,9 +260,9 @@ func (p *Project) defaultBaseRef() string {
 
 // defaultLocalBaseRef returns the baseRef in case there's no remote setup.
 func (p *Project) defaultLocalBaseRef() string {
-	git := p.gitcfg()
+	git := p.GitConfig()
 	if p.isDefaultBranch() {
-		_, err := p.git.wrapper.RevParse(defaultBranchBaseRef)
+		_, err := p.Git.Wrapper.RevParse(defaultBranchBaseRef)
 		if err == nil {
 			return defaultBranchBaseRef
 		}
@@ -271,7 +271,7 @@ func (p *Project) defaultLocalBaseRef() string {
 }
 
 func (p Project) defaultBranchRef() string {
-	git := p.gitcfg()
+	git := p.GitConfig()
 	return git.DefaultRemote + "/" + git.DefaultBranch
 }
 
@@ -304,27 +304,27 @@ func (p *Project) setDefaults() error {
 
 	gitOpt := cfg.Terramate.Config.Git
 
-	p.git.branchConfigured = gitOpt.DefaultBranch != ""
-	if !p.git.branchConfigured {
+	p.Git.BranchConfigured = gitOpt.DefaultBranch != ""
+	if !p.Git.BranchConfigured {
 		gitOpt.DefaultBranch = defaultBranch
 	}
 
-	p.git.remoteConfigured = gitOpt.DefaultRemote != ""
-	if !p.git.remoteConfigured {
+	p.Git.RemoteConfigured = gitOpt.DefaultRemote != ""
+	if !p.Git.RemoteConfigured {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 	return nil
 }
 
 func (p Project) checkDefaultRemote() error {
-	remotes, err := p.git.wrapper.Remotes()
+	remotes, err := p.Git.Wrapper.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
 	}
 
 	var defRemote *git.Remote
 
-	gitcfg := p.gitcfg()
+	gitcfg := p.GitConfig()
 
 	for _, remote := range remotes {
 		if remote.Name == gitcfg.DefaultRemote {
@@ -354,27 +354,27 @@ func (p Project) checkDefaultRemote() error {
 }
 
 func (p *Project) checkRemoteDefaultBranchIsReachable() error {
-	gitcfg := p.gitcfg()
+	gitcfg := p.GitConfig()
 
 	remoteDesc := fmt.Sprintf("remote(%s/%s)", gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 
 	logger := log.With().
-		Str("head_hash", p.git.headCommit).
+		Str("head_hash", p.Git.HeadCommit).
 		Str("default_branch", remoteDesc).
-		Str("default_hash", p.git.remoteDefaultBranchCommit).
+		Str("default_hash", p.Git.RemoteDefaultBranchCommit).
 		Logger()
 
 	outOfDateErr := errors.E(
 		ErrCurrentHeadIsOutOfDate,
 		"Please update the current branch with the latest changes from the default branch.",
 	)
-	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.git.headCommit, p.git.remoteDefaultBranchCommit)
+	mergeBaseCommitID, err := p.Git.Wrapper.MergeBase(p.Git.HeadCommit, p.Git.RemoteDefaultBranchCommit)
 	if err != nil {
 		logger.Debug().
 			Msg("A common merge-base can not be determined between HEAD and default branch")
 		return outOfDateErr
 	}
-	if mergeBaseCommitID != p.git.remoteDefaultBranchCommit {
+	if mergeBaseCommitID != p.Git.RemoteDefaultBranchCommit {
 		logger.Debug().
 			Str("merge_base_hash", mergeBaseCommitID).
 			Msg("The default branch is not equal to the common merge-base of HEAD")

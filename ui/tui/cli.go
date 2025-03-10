@@ -1,3 +1,6 @@
+// Copyright 2025 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 package tui
 
 import (
@@ -75,7 +78,7 @@ type state struct {
 	verbose int
 	output  out.O
 	wd      string
-	uimode  UIMode
+	uimode  engine.UIMode
 }
 
 type Option func(*CLI) error
@@ -131,6 +134,7 @@ func NewCLI(opts ...Option) (*CLI, error) {
 	}
 	c.printers.Stdout = printer.NewPrinter(c.state.stdout)
 	c.printers.Stderr = printer.NewPrinter(c.state.stderr)
+	c.state.uimode = engine.HumanMode
 	return c, nil
 }
 
@@ -171,6 +175,7 @@ func (c *CLI) Exec(args []string) {
 	}
 
 	ctx := context.WithValue(context.Background(), KongContext, kctx)
+
 	cmd, ok, cont, err := c.beforeConfigHandler(ctx, c)
 	if err != nil {
 		printer.Stderr.Error(err)

@@ -1,13 +1,21 @@
+// Copyright 2025 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 package engine
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/rs/zerolog/log"
+	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud/auth"
@@ -15,10 +23,17 @@ import (
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/config/tag"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
+	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
+	"github.com/terramate-io/terramate/stdlib"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -32,6 +47,16 @@ const targetIDRegexPattern = "^[a-z0-9][-_a-z0-9]*[a-z0-9]$"
 
 var targetIDRegex = regexp.MustCompile(targetIDRegexPattern)
 
+const (
+	// HumanMode is the default normal mode when Terramate is executed at the user's machine.
+	HumanMode UIMode = iota
+	// AutomationMode is the mode when Terramate executes in the CI/CD environment.
+	AutomationMode
+)
+
+// UIMode defines different modes of operation for the cli.
+type UIMode int
+
 type (
 	Engine struct {
 		project *Project
@@ -41,6 +66,8 @@ type (
 		state      state
 
 		printers printer.Printers
+
+		uimode UIMode
 	}
 
 	GitFilter struct {
@@ -52,6 +79,9 @@ type (
 	}
 
 	state struct {
+		stdout         io.Writer
+		stderr         io.Writer
+		stdin          io.Reader
 		affectedStacks config.List[stack.Entry]
 
 		cloud cloudState
@@ -60,7 +90,7 @@ type (
 
 func NoGitFilter() GitFilter { return GitFilter{} }
 
-func Load(wd string, printers printer.Printers) (e *Engine, found bool, err error) {
+func Load(wd string, uimode UIMode, printers printer.Printers) (e *Engine, found bool, err error) {
 	prj, found, err := NewProject(wd)
 	if err != nil {
 		return nil, false, err
@@ -75,21 +105,22 @@ func Load(wd string, printers printer.Printers) (e *Engine, found bool, err erro
 	if prj.isRepo {
 		prj.setupGitValues()
 	}
+
 	return &Engine{
 		project:  prj,
 		printers: printers,
+		uimode:   uimode,
 	}, true, nil
 }
 
 func (e *Engine) wd() string                   { return e.project.wd }
 func (e *Engine) rootdir() string              { return e.project.rootdir }
-func (e *Engine) cfg() *config.Root            { return e.project.root }
-func (e *Engine) baseRef() string              { return e.project.baseRef }
+func (e *Engine) BaseRef() string              { return e.project.baseRef }
 func (e *Engine) stackManager() *stack.Manager { return e.project.stackManager }
-func (e *Engine) rootNode() hcl.Config         { return e.project.root.Tree().Node }
+func (e *Engine) RootNode() hcl.Config         { return e.project.root.Tree().Node }
 func (e *Engine) cred() auth.Credential        { return e.state.cloud.client.Credential.(auth.Credential) }
 func (e *Engine) cloudRegion() cloud.Region {
-	rootcfg := e.rootNode()
+	rootcfg := e.RootNode()
 	if rootcfg.Terramate != nil && rootcfg.Terramate.Config != nil && rootcfg.Terramate.Config.Cloud != nil {
 		return rootcfg.Terramate.Config.Cloud.Location
 	}
@@ -139,7 +170,7 @@ func (e *Engine) ListStacks(gitfilter GitFilter, target string, stackFilters clo
 		if !e.project.isRepo {
 			return nil, errors.E("cloud filters requires a git repository")
 		}
-		err := e.setupCloudConfig([]string{cloudFeatStatus})
+		err := e.SetupCloudConfig([]string{cloudFeatStatus})
 		if err != nil {
 			return nil, err
 		}
@@ -175,8 +206,121 @@ func (e *Engine) ListStacks(gitfilter GitFilter, target string, stackFilters clo
 		report.Stacks = stacks
 	}
 
-	e.project.git.repoChecks = report.Checks
+	e.project.Git.RepoChecks = report.Checks
 	return report, nil
+}
+
+func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClause, ensureCleanRepo bool, outputFlags OutputsSharingOptions, target string, stackFilters cloud.StatusFilters) (config.List[*config.SortableStack], error) {
+	report, err := e.ListStacks(gitfilter, target, stackFilters, true)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := e.FilterStacks(report.Stacks, tags)
+	stacks := make(config.List[*config.SortableStack], len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack.Sortable()
+	}
+
+	stacks, err = e.stackManager().AddWantedOf(stacks)
+	if err != nil {
+		return nil, errors.E(err, "adding wanted stacks")
+	}
+	return e.addOutputDependencies(outputFlags, stacks)
+}
+
+func (e *Engine) addOutputDependencies(outputFlags OutputsSharingOptions, stacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
+	logger := log.With().
+		Str("action", "engine.addOutputDependencies()").
+		Logger()
+
+	if !outputFlags.IncludeOutputDependencies && !outputFlags.OnlyOutputDependencies {
+		logger.Debug().Msg("output dependencies not requested")
+		return stacks, nil
+	}
+
+	if outputFlags.IncludeOutputDependencies && outputFlags.OnlyOutputDependencies {
+		return nil, errors.E("--include-output-dependencies and --only-output-dependencies cannot be used together")
+	}
+	if (outputFlags.IncludeOutputDependencies || outputFlags.OnlyOutputDependencies) && !e.Config().HasExperiment(hcl.SharingIsCaringExperimentName) {
+		return nil, errors.E("--include-output-dependencies requires the '%s' experiment enabled", hcl.SharingIsCaringExperimentName)
+	}
+
+	stacksMap := map[string]*config.SortableStack{}
+	for _, stack := range stacks {
+		stacksMap[stack.Stack.Dir.String()] = stack
+	}
+
+	rootcfg := e.Config()
+	depIDs := map[string]struct{}{}
+	depOrigins := map[string][]string{} // id -> stack paths
+	for _, st := range stacks {
+		evalctx, err := e.setupEvalContext(st.Stack, map[string]string{})
+		if err != nil {
+			return nil, err
+		}
+		cfg, _ := rootcfg.Lookup(st.Stack.Dir)
+		for _, inputcfg := range cfg.Node.Inputs {
+			fromStackID, err := config.EvalInputFromStackID(evalctx, inputcfg)
+			if err != nil {
+				return nil, errors.E(err, "evaluating `input.%s.from_stack_id`", inputcfg.Name)
+			}
+			depIDs[fromStackID] = struct{}{}
+			depOrigins[fromStackID] = append(depOrigins[fromStackID], st.Stack.Dir.String())
+
+			logger.Debug().
+				Str("stack", st.Stack.Dir.String()).
+				Str("dependency", fromStackID).
+				Msg("stack has output dependency")
+		}
+	}
+
+	mgr := e.stackManager()
+	outputsMap := map[string]*config.SortableStack{}
+	for depID := range depIDs {
+		st, found, err := mgr.StackByID(depID)
+		if err != nil {
+			return nil, errors.E(err, "loading output dependencies of selected stacks")
+		}
+		if !found {
+			return nil, errors.E(
+				errors.E("dependency stack %s not found", depID),
+				"loading output dependencies of selected stacks")
+		}
+
+		var reason string
+		depsOf := depOrigins[depID]
+		if len(depsOf) == 1 {
+			reason = fmt.Sprintf("Output dependency of stack %s", depsOf[0])
+		} else {
+			reason = fmt.Sprintf("Output dependency of stacks %s", strings.Join(depsOf, ", "))
+		}
+
+		logger.Debug().
+			Str("stack", st.Dir.String()).
+			Str("reason", reason).
+			Msg("adding output dependency")
+
+		outputsMap[st.Dir.String()] = &config.SortableStack{
+			Stack: st,
+		}
+	}
+
+	if outputFlags.IncludeOutputDependencies {
+		for _, dep := range outputsMap {
+			if _, found := stacksMap[dep.Stack.Dir.String()]; !found {
+				stacks = append(stacks, dep)
+			}
+		}
+		return stacks, nil
+	}
+
+	// only output dependencies
+	stacks = config.List[*config.SortableStack]{}
+	for _, dep := range outputsMap {
+		stacks = append(stacks, dep)
+	}
+	return stacks, nil
 }
 
 func (e *Engine) FilterStacks(stacks []stack.Entry, tags filter.TagClause) []stack.Entry {
@@ -224,13 +368,13 @@ func (e *Engine) FriendlyFmtDir(dir string) (string, bool) {
 }
 
 func (e *Engine) setupGit(gitfilter GitFilter) error {
-	if !gitfilter.IsChanged || !e.project.isGitFeaturesEnabled() {
+	if !gitfilter.IsChanged || !e.project.IsGitFeaturesEnabled() {
 		return nil
 	}
 
 	remoteCheckFailed := false
 	if err := e.project.checkDefaultRemote(); err != nil {
-		if e.project.git.remoteConfigured {
+		if e.project.Git.RemoteConfigured {
 			return errors.E(err, "checking git default remote")
 		} else {
 			remoteCheckFailed = true
@@ -245,6 +389,57 @@ func (e *Engine) setupGit(gitfilter GitFilter) error {
 		e.project.baseRef = e.project.defaultBaseRef()
 	}
 	return nil
+}
+
+func (e *Engine) setupEvalContext(st *config.Stack, overrideGlobals map[string]string) (*eval.Context, error) {
+	runtime := e.Config().Runtime()
+
+	if e.state.cloud.run.target != "" {
+		runtime["target"] = cty.StringVal(e.state.cloud.run.target)
+	}
+
+	var tdir string
+	if st != nil {
+		tdir = st.HostDir(e.Config())
+		runtime.Merge(st.RuntimeValues(e.Config()))
+	} else {
+		tdir = e.wd()
+	}
+
+	ctx := eval.NewContext(stdlib.NoFS(tdir, e.RootNode().Experiments()))
+	ctx.SetNamespace("terramate", runtime)
+
+	wdPath := prj.PrjAbsPath(e.rootdir(), tdir)
+	tree, ok := e.Config().Lookup(wdPath)
+	if !ok {
+		return nil, errors.E("Configuration at %s not found", wdPath)
+	}
+	exprs, err := globals.LoadExprs(tree)
+	if err != nil {
+		return nil, errors.E(err, "loading globals expressions")
+	}
+
+	for name, exprStr := range overrideGlobals {
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			return nil, errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr)
+		}
+		parts := strings.Split(name, ".")
+		length := len(parts)
+		globalPath := globals.NewGlobalAttrPath(parts[0:length-1], parts[length-1])
+		exprs.SetOverride(
+			wdPath,
+			globalPath,
+			expr,
+			info.NewRange(e.rootdir(), hhcl.Range{
+				Filename: filepath.Join(e.rootdir(), "<cmdline>"),
+				Start:    hhcl.InitialPos,
+				End:      hhcl.InitialPos,
+			}),
+		)
+	}
+	_ = exprs.Eval(ctx)
+	return ctx, nil
 }
 
 func ParseFilterTags(tags, notags []string) (filter.TagClause, error) {

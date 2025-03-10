@@ -1,3 +1,6 @@
+// Copyright 2025 Terramate GmbH
+// SPDX-License-Identifier: MPL-2.0
+
 package stack
 
 import (
@@ -95,7 +98,6 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 			printer.Stdout.Println(dir)
 			continue
 		}
-
 		if s.Reason {
 			printer.Stdout.Println(fmt.Sprintf("%s - %s", friendlyDir, reasons[st.ID]))
 		} else {
