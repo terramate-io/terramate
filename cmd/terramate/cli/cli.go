@@ -147,6 +147,7 @@ type cliSpec struct {
 		cloudFilterFlags
 		Target   string `help:"Select the deployment target of the filtered stacks."`
 		RunOrder bool   `default:"false" help:"Sort listed stacks by order of execution"`
+		Format   string `default:"text" help:"Format the output of the list command" enum:"text,json"`
 
 		changeDetectionFlags
 	} `cmd:"" help:"List stacks."`
@@ -746,6 +747,7 @@ func (c *cli) run() {
 			tel.StringFlag("filter-deployment-status", c.parsedArgs.List.DeploymentStatus),
 			tel.StringFlag("filter-target", c.parsedArgs.List.Target),
 			tel.BoolFlag("run-order", c.parsedArgs.List.RunOrder),
+			tel.StringFlag("format", c.parsedArgs.List.Format),
 		)
 		c.setupGit()
 		c.setupChangeDetection(c.parsedArgs.List.EnableChangeDetection, c.parsedArgs.List.DisableChangeDetection)
@@ -2005,10 +2007,10 @@ func (c *cli) printStacks() {
 		fatal(err)
 	}
 
-	c.printStacksList(report.Stacks, c.parsedArgs.List.Why, c.parsedArgs.List.RunOrder)
+	c.printStacksList(report.Stacks, c.parsedArgs.List.Why, c.parsedArgs.List.RunOrder, c.parsedArgs.List.Format)
 }
 
-func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) {
+func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool, format string) {
 	filteredStacks := c.filterStacks(allStacks)
 
 	reasons := map[string]string{}
@@ -2026,10 +2028,58 @@ func (c *cli) printStacksList(allStacks []stack.Entry, why bool, runOrder bool) 
 		if err != nil {
 			fatalWithDetailf(errors.E(err, failReason), "Invalid stack configuration")
 		}
+
+		if format == "json" {
+			graph, reason, err := run.BuildDAGFromStacks(c.cfg(), stacks,
+				func(s *config.SortableStack) *config.Stack { return s.Stack })
+			if err != nil {
+				fatalWithDetailf(errors.E(err, reason), "Failed to build dependency graph")
+			}
+
+			// Calculate levels based on DAG
+			levelGroups := make(map[int][]string)
+			stackLevels := make(map[string]int)
+
+			// Process nodes in topological order
+			order := graph.Order()
+			for _, id := range order {
+				stack, err := graph.Node(id)
+				if err != nil {
+					fatalWithDetailf(err, "Failed to access node in graph")
+				}
+
+				level := 1 // Default level
+				// Check ancestors (dependencies)
+				for _, ancestorID := range graph.AncestorsOf(id) {
+					ancestorLevel := stackLevels[string(ancestorID)]
+					if ancestorLevel >= level {
+						level = ancestorLevel + 1
+					}
+				}
+
+				dir := stack.Stack.Dir.String()
+				stackLevels[dir] = level
+
+				friendlyDir, ok := c.friendlyFmtDir(dir)
+				if !ok {
+					printer.Stderr.Error(stdfmt.Sprintf("Unable to format stack dir %s", dir))
+					continue
+				}
+				levelGroups[level] = append(levelGroups[level], friendlyDir)
+			}
+
+			jsonOutput, err := stdjson.MarshalIndent(levelGroups, "", "  ")
+			if err != nil {
+				fatalWithDetailf(err, "Error formatting stack groups as JSON")
+			}
+			printer.Stdout.Println(string(jsonOutput))
+			return
+		}
 	}
 
+	// Original output format for non-runOrder case or when format is not json
 	for _, s := range stacks {
-		dir := s.Dir().String()
+		dir := s.Stack.Dir.String()
 		friendlyDir, ok := c.friendlyFmtDir(dir)
 		if !ok {
 			printer.Stderr.Error(stdfmt.Sprintf("Unable to format stack dir %s", dir))
