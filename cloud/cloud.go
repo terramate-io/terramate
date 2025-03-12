@@ -39,6 +39,9 @@ const (
 	// WellKnownCLIPath is the well-known base path.
 	WellKnownCLIPath = "/.well-known/cli.json"
 
+	// SingleSignOnDetailByNamePath is the path to the organization SSO details.
+	SingleSignOnDetailByNamePath = "/v1/organizations/name"
+
 	// UsersPath is the users endpoint base path.
 	UsersPath = "/v1/users"
 	// MembershipsPath is the memberships endpoint base path.
@@ -166,6 +169,20 @@ func (c *Client) CheckVersion(ctx context.Context) error {
 	version := hversion.MustParseVersion(terramate.Version())
 	version.Prerelease = ""
 	return versions.Check(version.String(), wk.RequiredVersion, false)
+}
+
+// GetOrgSingleSignOnID returns the organization SSO ID.
+func (c *Client) GetOrgSingleSignOnID(ctx context.Context, orgName string) (string, error) {
+	client := &Client{
+		BaseURL: c.BaseURL,
+		noauth:  true,
+	}
+	endpoint := path.Join(SingleSignOnDetailByNamePath, orgName)
+	ssoDetails, err := Get[SingleSignOnDetailResponse](ctx, client, client.URL(endpoint))
+	if err != nil {
+		return "", err
+	}
+	return ssoDetails.EnterpriseOrgID, nil
 }
 
 // Users retrieves the user details for the signed in user.

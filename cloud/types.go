@@ -28,6 +28,11 @@ type (
 		RequiredVersion string `json:"required_version"`
 	}
 
+	// SingleSignOnDetailResponse the response payload for the /v1/organizations/name/<name> endpoint.
+	SingleSignOnDetailResponse struct {
+		EnterpriseOrgID string `json:"enterprise_org_id"`
+	}
+
 	// MemberOrganizations is a list of organizations associated with the member.
 	MemberOrganizations []MemberOrganization
 
@@ -458,6 +463,7 @@ const (
 var (
 	// compile-time checks to ensure resource entities implement the Resource iface.
 	_ = Resource(WellKnown{})
+	_ = Resource(SingleSignOnDetailResponse{})
 	_ = Resource(User{})
 	_ = Resource(MemberOrganization{})
 	_ = Resource(MemberOrganizations{})
@@ -526,6 +532,14 @@ func (orgs MemberOrganizations) String() string {
 func (wk WellKnown) Validate() error {
 	if wk.RequiredVersion == "" {
 		return errors.E(`missing "required_version" field`)
+	}
+	return nil
+}
+
+// Validate the SSO details.
+func (sso SingleSignOnDetailResponse) Validate() error {
+	if sso.EnterpriseOrgID == "" {
+		return errors.E(`missing "enterprise_org_id" field`)
 	}
 	return nil
 }

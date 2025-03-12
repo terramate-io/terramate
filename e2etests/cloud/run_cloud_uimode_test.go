@@ -901,6 +901,12 @@ func TestCloudSyncUIMode(t *testing.T) {
 										"org_display_name": "Mineiros",
 										"org_uuid": "b2f153e8-ceb1-4f26-898e-eb7789869bee",
 										"status": "invited"
+									},
+									{
+										"org_name": "terramate-sso",
+										"org_display_name": "Terramate SSO",
+										"org_uuid": "b1f153e8-ceb1-4f26-898e-eb7789869bee",
+										"status": "sso_invited"
 									}
 								]`)
 							},
@@ -921,7 +927,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
+							`You have pending invitation for the organization terramate-io`,
+							`You have pending invitation for the organization mineiros-io`,
 							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
@@ -937,8 +944,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
-							clitest.CloudDisablingMessage,
+							`You have pending invitation for the organization terramate-io`,
+							`You have pending invitation for the organization mineiros-io`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -954,7 +962,8 @@ func TestCloudSyncUIMode(t *testing.T) {
 						Status: 1,
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
+							`You have pending invitation for the organization terramate-io`,
+							`You have pending invitation for the organization mineiros-io`,
 							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
@@ -970,8 +979,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						StderrRegexes: []string{
 							`Error: ` + clitest.CloudNoMembershipMessage,
-							`You have pending invitation for the following organizations: Terramate \(terramate-io\), Mineiros \(mineiros-io\)`,
-							clitest.CloudDisablingMessage,
+							`You have pending invitation for the organization terramate-io`,
+							`You have pending invitation for the organization mineiros-io`,
+							string(clitest.ErrCloudOnboardingIncomplete),
 						},
 					},
 				},
@@ -983,7 +993,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io), Terramate SSO (terramate-sso)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
@@ -995,7 +1005,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
-						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io)\n",
+						Stdout: "status: signed in\nprovider: Google\nuser: Batman\nemail: batman@terramate.io\norganizations: Terramate (terramate-io), Mineiros (mineiros-io), Terramate SSO (terramate-sso)\n",
 						StderrRegexes: []string{
 							"User is member of multiple organizations but none was selected",
 						},
