@@ -9,6 +9,7 @@ import (
 	stdfmt "fmt"
 	"net/url"
 	"os"
+	"slices"
 
 	"strings"
 	"time"
@@ -242,6 +243,19 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	// at this point we know user is onboarded, ie has at least 1 organization.
 	orgs := c.cred().Organizations()
 
+	var activeOrgs cloud.MemberOrganizations
+	var invitedOrgs cloud.MemberOrganizations
+	var ssoInvitedOrgs cloud.MemberOrganizations
+	for _, org := range orgs {
+		if org.Status == "active" || org.Status == "trusted" {
+			activeOrgs = append(activeOrgs, org)
+		} else if org.Status == "invited" {
+			invitedOrgs = append(invitedOrgs, org)
+		} else if org.Status == "sso_invited" {
+			ssoInvitedOrgs = append(ssoInvitedOrgs, org)
+		}
+	}
+
 	useOrgName := c.cloudOrgName()
 	c.cloud.run.orgName = useOrgName
 	if useOrgName != "" {
@@ -280,24 +294,33 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 
 		c.cloud.run.orgUUID = useOrgUUID
 	} else {
-		var activeOrgs cloud.MemberOrganizations
-		var invitedOrgs cloud.MemberOrganizations
-		for _, org := range orgs {
-			if org.Status == "active" || org.Status == "trusted" {
-				activeOrgs = append(activeOrgs, org)
-			} else if org.Status == "invited" {
-				invitedOrgs = append(invitedOrgs, org)
-			}
-		}
 		if len(activeOrgs) == 0 {
 			printer.Stderr.Error(clitest.CloudNoMembershipMessage)
 
-			if len(invitedOrgs) > 0 {
+			for _, org := range invitedOrgs {
+				domainStr := ""
+				if org.Domain != "" {
+					domainStr = " (" + org.Domain + ") "
+				}
 				printer.Stderr.WarnWithDetails(
 					"Pending invitation",
 					errors.E(
-						"You have pending invitation for the following organizations: %s",
-						invitedOrgs,
+						"You have pending invitation for the organization %s%s",
+						org.Name, domainStr,
+					),
+				)
+			}
+
+			for _, org := range ssoInvitedOrgs {
+				domainStr := ""
+				if org.Domain != "" {
+					domainStr = " (" + org.Domain + ") "
+				}
+				printer.Stderr.WarnWithDetails(
+					"Pending SSO invitation",
+					errors.E(
+						"If you trust the %s%s organization, go to %s to join it",
+						org.Name, domainStr, cloud.HTMLURL(c.cloud.client.Region),
 					),
 				)
 			}
@@ -439,6 +462,61 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 	if previewChangeset != nil {
 		logger.Debug().Msg("Sending changelog")
 	}
+}
+
+func (c *cli) ssoLogin() {
+	if !c.parsedArgs.Cloud.Login.SSO {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
+
+	orgName := c.cloudOrgName()
+	if orgName == "" {
+		fatalWithDetailf(
+			errors.E("No Terramate Cloud organization configured."),
+			"Set `terramate.config.cloud.organization` or export `TM_CLOUD_ORGANIZATION` to the organization shortname that you intend to login.",
+		)
+	}
+
+	region := c.cloudRegion()
+	cloudURL, envFound := tmcloud.EnvBaseURL()
+	if !envFound {
+		cloudURL = cloud.BaseURL(region)
+	}
+
+	client := &cloud.Client{
+		Region:     region,
+		HTTPClient: &c.httpClient,
+	}
+	if envFound {
+		client.BaseURL = cloudURL
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	ssoOrgID, err := client.GetOrgSingleSignOnID(ctx, orgName)
+	if err != nil {
+		fatal(errors.E("Organization %s doesn't have SSO enabled", orgName))
+	}
+
+	err = auth.SSOLogin(c.output, ssoOrgID, c.clicfg)
+	if err != nil {
+		fatalWithDetailf(err, "Failed to authenticate")
+	}
+
+	err = c.loadCredential("oidc.workos")
+	if err != nil {
+		fatalWithDetailf(err, "failed to load credentials")
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), defaultCloudTimeout)
+	defer cancel()
+	user, err := c.cloud.client.Users(ctx)
+	if err != nil {
+		fatalWithDetailf(err, "failed to test token")
+	}
+
+	c.output.MsgStdOut("Logged in as %s", user.DisplayName)
+	c.output.MsgStdOutV("Expire at: %s", c.cred().ExpireAt().Format(time.RFC822Z))
 }
 
 func (c *cli) cloudInfo() {
@@ -1505,7 +1583,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	return rr
 }
 
-func (c *cli) loadCredential() error {
+func (c *cli) loadCredential(preferences ...string) error {
 	region := c.cloudRegion()
 	cloudURL, envFound := tmcloud.EnvBaseURL()
 	if !envFound {
@@ -1540,6 +1618,9 @@ func (c *cli) loadCredential() error {
 		found, err = probe.Load()
 		if err != nil {
 			return err
+		}
+		if len(preferences) > 0 && !slices.Contains(preferences, probe.Name()) {
+			continue
 		}
 		if found {
 			break

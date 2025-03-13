@@ -47,7 +47,7 @@ func GithubLogin(output out.O, tmcBaseURL string, clicfg cliconfig.Config) error
 	output.MsgStdOutV("Token: %s", cred.IDToken)
 	expire, _ := strconv.Atoi(cred.ExpiresIn)
 	output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-	return saveCredential(output, cred, clicfg)
+	return saveCredential(output, "Github", cred, clicfg)
 }
 
 func githubAuth() (string, error) {

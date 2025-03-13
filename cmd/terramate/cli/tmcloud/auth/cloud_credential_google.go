@@ -43,6 +43,9 @@ const (
 	maxPort = 52023
 
 	defaultGoogleTimeout = 60 * time.Second
+
+	googleProviderID = "google.com"
+	googleOauthScope = `{"google.com": "profile"}`
 )
 
 type (
@@ -115,9 +118,9 @@ func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 	redirectURLChan := make(chan string)
 	consentDataChan := make(chan createAuthURIResponse)
 
-	go startServer(s, h, redirectURLChan, consentDataChan)
+	go startServer(s, h, []int{}, redirectURLChan, consentDataChan)
 
-	consentData, err := createAuthURI(<-redirectURLChan, h.idpKey)
+	consentData, err := createAuthURI(googleProviderID, googleOauthScope, <-redirectURLChan, h.idpKey, map[string]any{})
 	if err != nil {
 		return err
 	}
@@ -140,7 +143,7 @@ func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 		output.MsgStdOutV("Token: %s", cred.IDToken)
 		expire, _ := strconv.Atoi(cred.ExpiresIn)
 		output.MsgStdOutV("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z))
-		return saveCredential(output, cred, clicfg)
+		return saveCredential(output, "Google", cred, clicfg)
 	case err := <-h.errChan:
 		return err.err
 	}
@@ -149,6 +152,7 @@ func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 func startServer(
 	s *http.Server,
 	h *tokenHandler,
+	ports []int,
 	redirectURLChan chan<- string,
 	consentDataChan <-chan createAuthURIResponse,
 ) {
@@ -161,13 +165,18 @@ func startServer(
 		}
 	}()
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	const maxretry = 5
+	if len(ports) == 0 {
+		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+		for i := 0; i < maxretry; i++ {
+			ports = append(ports, minPort+rng.Intn(maxPort-minPort))
+		}
+	}
 
 	var ln net.Listener
-	const maxretry = 5
-	var retry int
-	for retry = 0; retry < maxretry; retry++ {
-		addr := "127.0.0.1:" + strconv.Itoa(minPort+rng.Intn(maxPort-minPort))
+	for _, port := range ports {
+		addr := "127.0.0.1:" + strconv.Itoa(port)
 		s.Addr = addr
 
 		ln, err = net.Listen("tcp", addr)
@@ -176,7 +185,7 @@ func startServer(
 		}
 	}
 
-	if retry == maxretry {
+	if ln == nil {
 		err = errors.E(err, "failed to find an available port, please try again")
 		return
 	}
@@ -192,9 +201,8 @@ func startServer(
 	}
 }
 
-func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, error) {
+func createAuthURI(providerID, oauthScope, continueURI, idpKey string, customParameter map[string]any) (createAuthURIResponse, error) {
 	const endpoint = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/createAuthUri"
-	const authScope = `{"google.com": "profile"}`
 
 	type payload struct {
 		ProviderID      string                 `json:"providerId"`
@@ -204,10 +212,10 @@ func createAuthURI(continueURI string, idpKey string) (createAuthURIResponse, er
 	}
 
 	payloadData := payload{
-		ProviderID:      "google.com",
+		ProviderID:      providerID,
 		ContinueURI:     continueURI,
-		CustomParameter: map[string]interface{}{},
-		OauthScope:      authScope,
+		CustomParameter: customParameter,
+		OauthScope:      oauthScope,
 	}
 
 	postBody, err := stdjson.Marshal(&payloadData)
@@ -359,6 +367,16 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	gotURL, _ := url.Parse(h.continueURL)
 	gotURL.RawQuery = r.URL.Query().Encode()
 
+	if errStr := r.URL.Query().Get("error_description"); errStr != "" {
+		h.handleErr(w)
+
+		errDecoded, _ := url.QueryUnescape(errStr)
+		h.errChan <- tokenError{
+			err: errors.E(errDecoded),
+		}
+		return
+	}
+
 	reqPayload := googleSignInPayload{
 		RequestURI:          gotURL.String(),
 		SessionID:           h.consentData.SessionID,
@@ -401,9 +419,9 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(errMessage))
 }
 
-func saveCredential(output out.O, cred credentialInfo, clicfg cliconfig.Config) error {
+func saveCredential(output out.O, providerID string, cred credentialInfo, clicfg cliconfig.Config) error {
 	cachePayload := cachedCredential{
-		Provider:     cred.ProviderID.String(),
+		Provider:     providerID,
 		IDToken:      cred.IDToken,
 		RefreshToken: cred.RefreshToken,
 	}
@@ -575,7 +593,8 @@ func (g *googleCredential) Refresh() (err error) {
 		return err
 	}
 
-	return saveCredential(g.output, credentialInfo{
+	return saveCredential(g.output, g.provider, credentialInfo{
+		ProviderID:   providerID(g.provider),
 		IDToken:      g.token,
 		RefreshToken: g.refreshToken,
 	}, g.clicfg)

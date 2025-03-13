@@ -187,8 +187,9 @@ type cliSpec struct {
 
 	Cloud struct {
 		Login struct {
-			Google bool `optional:"true" help:"authenticate with google credentials"`
-			Github bool `optional:"true" help:"authenticate with github credentials"`
+			Google bool `optional:"true" xor:"login_provider" help:"authenticate with google credentials"`
+			Github bool `optional:"true" xor:"login_provider" help:"authenticate with github credentials"`
+			SSO    bool `optional:"true" xor:"login_provider" help:"authenticate with SSO credentials"`
 		} `cmd:"" help:"Sign in to Terramate Cloud."`
 		Info  struct{} `cmd:"" help:"Show your current Terramate Cloud login status."`
 		Drift struct {
@@ -605,6 +606,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 				tmcURL = cloud.BaseURL(cloud.EU)
 			}
 			err = auth.GithubLogin(output, tmcURL, clicfg)
+		} else if parsedArgs.Cloud.Login.SSO {
+			// handled later because it requires a loaded project.
+			break
 		} else {
 			err = auth.GoogleLogin(output, clicfg)
 		}
@@ -842,6 +846,9 @@ func (c *cli) run() {
 		fatal("no variable specified")
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
+	case "cloud login":
+		// NOTE(i4k): only --sso needs to be handled here because it requires the project config.
+		c.ssoLogin()
 	case "experimental cloud info": // Deprecated
 		fallthrough
 	case "cloud info":
