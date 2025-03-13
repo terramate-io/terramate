@@ -1,8 +1,6 @@
 module github.com/terramate-io/terramate
 
-go 1.21.0
-
-toolchain go1.22.3
+go 1.24
 
 require (
 	github.com/alecthomas/kong v0.7.1
@@ -40,7 +38,7 @@ require (
 	go.lsp.dev/uri v0.3.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/oauth2 v0.16.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.11.0
 )
 
 require (
