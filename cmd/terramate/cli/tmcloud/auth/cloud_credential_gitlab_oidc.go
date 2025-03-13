@@ -137,28 +137,30 @@ func (g *gitlabOIDC) fetchDetails() error {
 
 // Info display the credential details.
 func (g *gitlabOIDC) Info(selectedOrgName string) {
-	if len(g.orgs) > 0 && g.orgs[0].Status == "trusted" {
-		printer.Stdout.Println("status: signed in")
-	} else {
+	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
+	if selectedOrgName == "" {
 		printer.Stdout.Println("status: untrusted")
+		printer.Stderr.ErrorWithDetails(
+			"Missing cloud configuration",
+			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
+				"terramate.config.cloud.organization configuration attribute to a specific organization",
+			),
+		)
+		return
+	}
+	trustedOrgs := g.orgs.TrustedOrgs()
+	org, found := trustedOrgs.LookupByName(selectedOrgName)
+	if !found {
+		printer.Stdout.Println("status: untrusted")
+		printer.Stderr.Error(errors.E("selected organization %s not found among trusted organizations", selectedOrgName))
+		return
 	}
 
-	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
+	printer.Stdout.Println("status: trusted")
+	printer.Stdout.Println(fmt.Sprintf("selected organization: %s", org))
 
 	for _, kv := range g.DisplayClaims() {
 		printer.Stdout.Println(fmt.Sprintf("%s: %s", kv.key, kv.value))
-	}
-
-	if len(g.orgs) > 0 {
-		printer.Stdout.Println(fmt.Sprintf("organizations: %s", g.orgs))
-	}
-
-	if selectedOrgName == "" && len(g.orgs) > 1 {
-		printer.Stderr.Warn("User is member of multiple organizations but none was selected")
-	}
-
-	if len(g.orgs) == 0 {
-		printer.Stderr.Warnf("You are not part of an organization. Please visit %s to create an organization.", cloud.HTMLURL(g.client.Region))
 	}
 }
 

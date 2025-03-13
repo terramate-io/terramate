@@ -518,14 +518,73 @@ func (rrs ReviewRequestResponses) Validate() error {
 	return validateResourceList(rrs...)
 }
 
+// String is a human representation of the organization.
+func (org MemberOrganization) String() string {
+	return fmt.Sprintf("%s (%s)", org.DisplayName, org.Name)
+}
+
 // String is a human readable list of organizations associated with a user.
 func (orgs MemberOrganizations) String() string {
 	str := make([]string, len(orgs))
 	for i, org := range orgs {
-		str[i] = fmt.Sprintf("%s (%s)", org.DisplayName, org.Name)
+		str[i] = org.String()
 	}
 
 	return strings.Join(str, ", ")
+}
+
+// ActiveOrgs filter the organization list by status=active organizations.
+func (orgs MemberOrganizations) ActiveOrgs() MemberOrganizations {
+	var res MemberOrganizations
+	for _, org := range orgs {
+		if org.Status == "active" {
+			res = append(res, org)
+		}
+	}
+	return res
+}
+
+// TrustedOrgs filter the organization list by status=trusted organizations.
+func (orgs MemberOrganizations) TrustedOrgs() MemberOrganizations {
+	var res MemberOrganizations
+	for _, org := range orgs {
+		if org.Status == "trusted" {
+			res = append(res, org)
+		}
+	}
+	return res
+}
+
+// InvitedOrgs filter the organization list by status=invited organizations.
+func (orgs MemberOrganizations) InvitedOrgs() MemberOrganizations {
+	var res MemberOrganizations
+	for _, org := range orgs {
+		if org.Status == "invited" {
+			res = append(res, org)
+		}
+	}
+	return res
+}
+
+// SSOInvitedOrgs filter the organization list by status=sso_invited organizations.
+func (orgs MemberOrganizations) SSOInvitedOrgs() MemberOrganizations {
+	var res MemberOrganizations
+	for _, org := range orgs {
+		if org.Status == "sso_invited" {
+			res = append(res, org)
+		}
+	}
+	return res
+}
+
+// LookupByName lookup an organization by name in the org list.
+func (orgs MemberOrganizations) LookupByName(name string) (org MemberOrganization, found bool) {
+	for _, org := range orgs {
+		if org.Name == name {
+			return org, true
+		}
+	}
+	return MemberOrganization{}, false
 }
 
 // Validate the well-known payload.

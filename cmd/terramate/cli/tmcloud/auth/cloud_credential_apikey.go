@@ -89,12 +89,30 @@ func (a *APIKey) Info(selectedOrgName string) {
 	printer.Stdout.Println("status: signed in")
 	printer.Stdout.Println(fmt.Sprintf("provider: %s", a.Name()))
 
-	if len(a.orgs) > 0 {
-		printer.Stdout.Println(fmt.Sprintf("organizations: %s", a.orgs))
+	activeOrgs := a.orgs.ActiveOrgs()
+	if len(activeOrgs) > 0 {
+		printer.Stdout.Println(fmt.Sprintf("active organizations: %s", activeOrgs))
 	}
 
-	if selectedOrgName == "" && len(a.orgs) > 1 {
-		printer.Stderr.Warn("User is member of multiple organizations but none was selected")
+	if len(activeOrgs) == 0 {
+		printer.Stderr.Warnf("You are not part of an organization. Please join an organization or visit %s to create a new one.", cloud.HTMLURL(a.client.Region))
+	}
+
+	if selectedOrgName == "" {
+		printer.Stderr.ErrorWithDetails(
+			"Missing cloud configuration",
+			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
+				"terramate.config.cloud.organization configuration attribute to a specific organization",
+			),
+		)
+		return
+	}
+
+	org, found := a.orgs.LookupByName(selectedOrgName)
+	if found {
+		printer.Stdout.Println(fmt.Sprintf("selected organization: %s", org))
+	} else {
+		printer.Stderr.Error(errors.E("selected organization %s not found", selectedOrgName))
 	}
 }
 
