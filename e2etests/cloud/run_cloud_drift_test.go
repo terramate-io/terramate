@@ -672,7 +672,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				cloudData, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 				assert.NoError(t, err)
 				addr := startFakeTMCServer(t, cloudData)
 
@@ -695,6 +695,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				env := RemoveEnv(s.Env, "CI", "GITHUB_ACTIONS")
 				env = append(env, tc.env...)
 				env = append(env, "TMC_API_URL=http://"+addr)
+				env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 				runflags := []string{
@@ -770,7 +771,7 @@ func TestSyncPlanSerial(t *testing.T) {
 
 	t.Parallel()
 
-	cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+	cloudData, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 	assert.NoError(t, err)
 	addr := startFakeTMCServer(t, cloudData)
 
@@ -783,6 +784,7 @@ func TestSyncPlanSerial(t *testing.T) {
 	env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 	env = append(env, `TF_VAR_content=my secret`)
 	env = append(env, "TMC_API_URL=http://"+addr)
+	env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 
 	s.Env, _ = test.PrependToPath(env, filepath.Dir(TerraformTestPath))
 

@@ -714,7 +714,7 @@ func TestCloudStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			store, err := cloudstore.LoadDatastore(testserverJSONFile)
+			store, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 			assert.NoError(t, err)
 			addr := startFakeTMCServer(t, store)
 
@@ -761,13 +761,14 @@ func TestCloudStatus(t *testing.T) {
 				s.Git().CommitAll("all stacks committed")
 			}
 
-			org := store.MustOrgByName("terramate")
+			org := store.MustOrgByName(defaultOrg)
 			for _, st := range tc.stacks {
 				_, err := store.UpsertStack(org.UUID, st)
 				assert.NoError(t, err)
 			}
 			env := RemoveEnv(os.Environ(), "CI")
 			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+			env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 			if tc.perPage != 0 {
 				env = append(env, "TMC_API_PAGESIZE="+strconv.Itoa(tc.perPage))
 			}
@@ -807,7 +808,7 @@ func TestCloudStatusRegresionCrash(t *testing.T) {
 	// Terramate crashed due to an oversight in error handling.
 	// This test ensures that the crash does not happen again.
 
-	store, err := cloudstore.LoadDatastore(testserverJSONFile)
+	store, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 	assert.NoError(t, err)
 	addr := startFakeTMCServer(t, store)
 
@@ -828,6 +829,7 @@ func TestCloudStatusRegresionCrash(t *testing.T) {
 
 	env := RemoveEnv(os.Environ(), "CI")
 	env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+	env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 
 	cli := NewCLI(t, filepath.Join(s.RootDir()), env...)
 	args := []string{"list", "--status=ok", "--changed"}
