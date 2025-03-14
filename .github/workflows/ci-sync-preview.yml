@@ -102,6 +102,9 @@ jobs:
       - name: Temporary PR Preview Link generation
         run: echo >preview_url.txt "https://cloud.terramate.io/o/terramate-tests/review-requests"
 
+      - name: cloud info
+        run: terramate cloud info
+
       - name: Run Preview on changed Go packages
         if: ${{ steps.list_go_packages.outputs.stdout }}
         timeout-minutes: 30
