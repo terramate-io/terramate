@@ -1261,7 +1261,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 							"status: signed in",
 							"user: Batman",
 							"email: batman@terramate.io",
-							"active organizations: Mineiros (mineiros), Terramate (terramate)",
+							"active organizations: Terramate (terramate)",
 							"pending invitations: 1",
 						),
 						StderrRegexes: []string{
@@ -1280,7 +1280,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 							"status: signed in",
 							"user: Batman",
 							"email: batman@terramate.io",
-							"active organizations: Mineiros (mineiros), Terramate (terramate)",
+							"active organizations: Terramate (terramate)",
 							"pending invitations: 1",
 						),
 						StderrRegexes: []string{
