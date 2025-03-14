@@ -690,7 +690,7 @@ func (g *googleCredential) Info(selectedOrgName string) {
 
 	activeOrgs := g.orgs.ActiveOrgs()
 	if len(activeOrgs) > 0 {
-		printer.Stdout.Println(fmt.Sprintf("active organizations: %s", g.orgs))
+		printer.Stdout.Println(fmt.Sprintf("active organizations: %s", activeOrgs))
 	}
 	if invitedOrgs := g.orgs.InvitedOrgs(); len(invitedOrgs) > 0 {
 		printer.Stdout.Println(fmt.Sprintf("pending invitations: %d", len(invitedOrgs)))
