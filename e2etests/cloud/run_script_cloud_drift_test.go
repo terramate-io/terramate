@@ -534,7 +534,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 
-				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				cloudData, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 				assert.NoError(t, err)
 				addr := startFakeTMCServer(t, cloudData)
 
@@ -561,6 +561,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				env := RemoveEnv(s.Env, "CI", "GITHUB_ACTIONS")
 				env = append(env, tc.env...)
 				env = append(env, "TMC_API_URL=http://"+addr)
+				env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				s.Git().SetRemoteURL("origin", testRemoteRepoURL)
 				runflags := []string{

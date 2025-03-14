@@ -152,17 +152,21 @@ const (
 )
 
 // LoadDatastore loads the data store from a JSON file.
-func LoadDatastore(fpath string) (*Data, error) {
+func LoadDatastore(fpath string) (store *Data, defaultOrg string, err error) {
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		return nil, errors.E(err, "failed to read testserver data")
+		return nil, "", errors.E(err, "failed to read testserver data")
 	}
-	var dstore Data
+	type serverData struct {
+		DefaultTestOrg string `json:"default_test_org"`
+		Data
+	}
+	var dstore serverData
 	err = json.Unmarshal(data, &dstore)
 	if err != nil {
-		return nil, errors.E(err, "unmarshaling data store from file %s", fpath)
+		return nil, "", errors.E(err, "unmarshaling data store from file %s", fpath)
 	}
-	return &dstore, nil
+	return &dstore.Data, dstore.DefaultTestOrg, nil
 }
 
 // MarshalJSON implements the [json.Marshaler] interface to the data store.
