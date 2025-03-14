@@ -285,7 +285,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 
-				cloudData, err := cloudstore.LoadDatastore(testserverJSONFile)
+				cloudData, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
 				assert.NoError(t, err)
 				addr := startFakeTMCServer(t, cloudData)
 
@@ -308,6 +308,7 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 
 				env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
 				env = append(env, "TMC_API_URL=http://"+addr)
+				env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
 				cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(tc.workingDir)), env...)
 				cli.PrependToPath(filepath.Dir(HelperPath))
 

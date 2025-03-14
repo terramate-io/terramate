@@ -678,9 +678,8 @@ func (g *googleCredential) fetchDetails() error {
 
 // Info display the credential details.
 func (g *googleCredential) Info(selectedOrgName string) {
-	printer.Stdout.Println("status: signed in")
 	printer.Stdout.Println(fmt.Sprintf("provider: %s", g.Name()))
-
+	printer.Stdout.Println("status: signed in")
 	if g.user.DisplayName != "" {
 		printer.Stdout.Println(fmt.Sprintf("user: %s", g.user.DisplayName))
 	}
@@ -689,20 +688,44 @@ func (g *googleCredential) Info(selectedOrgName string) {
 		printer.Stdout.Println(fmt.Sprintf("%s: %s", kv.key, kv.value))
 	}
 
-	if len(g.orgs) > 0 {
-		printer.Stdout.Println(fmt.Sprintf("organizations: %s", g.orgs))
+	activeOrgs := g.orgs.ActiveOrgs()
+	if len(activeOrgs) > 0 {
+		printer.Stdout.Println(fmt.Sprintf("active organizations: %s", activeOrgs))
+	}
+	if invitedOrgs := g.orgs.InvitedOrgs(); len(invitedOrgs) > 0 {
+		printer.Stdout.Println(fmt.Sprintf("pending invitations: %d", len(invitedOrgs)))
+	}
+	if ssoInvitedOrgs := g.orgs.SSOInvitedOrgs(); len(ssoInvitedOrgs) > 0 {
+		printer.Stdout.Println(fmt.Sprintf("pending SSO invitations: %d", len(ssoInvitedOrgs)))
 	}
 
-	if selectedOrgName == "" && len(g.orgs) > 1 {
-		printer.Stderr.Warn("User is member of multiple organizations but none was selected")
+	if len(activeOrgs) == 0 {
+		printer.Stderr.Warnf("You are not part of an organization. Please join an organization or visit %s to create a new one.", cloud.HTMLURL(g.client.Region))
+	}
+
+	if selectedOrgName == "" {
+		printer.Stderr.ErrorWithDetails(
+			"Missing cloud configuration",
+			errors.E("Please set TM_CLOUD_ORGANIZATION environment variable or "+
+				"terramate.config.cloud.organization configuration attribute to a specific organization",
+			),
+		)
+		return
+	}
+
+	org, found := g.orgs.LookupByName(selectedOrgName)
+	if found {
+		if org.Status != "active" {
+			printer.Stderr.Warn("selected organization (%s) is not active")
+		} else {
+			printer.Stdout.Println(fmt.Sprintf("selected organization: %s", org))
+		}
+	} else {
+		printer.Stderr.Error(errors.E("selected organization %q not found in the list of active organizations", selectedOrgName))
 	}
 
 	if g.user.DisplayName == "" {
 		printer.Stderr.Warnf("On-boarding is incomplete. Please visit %s to complete on-boarding.", cloud.HTMLURL(g.client.Region))
-	}
-
-	if len(g.orgs) == 0 {
-		printer.Stderr.Warnf("You are not part of an organization. Please visit %s to create an organization.", cloud.HTMLURL(g.client.Region))
 	}
 }
 
