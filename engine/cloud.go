@@ -5,15 +5,12 @@ package engine
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/preview"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud"
@@ -31,60 +28,23 @@ const (
 	defaultBitbucketTimeout = defaultCloudTimeout
 )
 
-type cloudState struct {
-	disabled      bool
-	client        *cloud.Client
-	stdoutPrinter *printer.Printer
+type CloudState struct {
+	disabled bool
+	client   *cloud.Client
 
-	run cloudRunState
+	Org CloudOrgState
 }
 
-type cloudRunState struct {
-	runUUID cloud.UUID
-	orgName string
-	orgUUID cloud.UUID
-	target  string
-
-	stackMeta2ID map[string]int64
-	// stackPreviews is a map of stack.ID to stackPreview.ID
-	stackMeta2PreviewIDs map[string]string
-	reviewRequest        *cloud.ReviewRequest
-	rrEvent              struct {
-		pushedAt  *int64
-		commitSHA string
-	}
-	metadata *cloud.DeploymentMetadata
+type CloudOrgState struct {
+	Name string
+	UUID cloud.UUID
 }
 
 type cloudConfig struct {
 	disabled bool
 	client   *cloud.Client
 
-	run cloudRunState
-}
-
-func (rs *cloudRunState) setMeta2CloudID(metaID string, id int64) {
-	if rs.stackMeta2ID == nil {
-		rs.stackMeta2ID = make(map[string]int64)
-	}
-	rs.stackMeta2ID[strings.ToLower(metaID)] = id
-}
-
-func (rs cloudRunState) stackCloudID(metaID string) (int64, bool) {
-	id, ok := rs.stackMeta2ID[strings.ToLower(metaID)]
-	return id, ok
-}
-
-func (rs *cloudRunState) setMeta2PreviewID(metaID string, previewID string) {
-	if rs.stackMeta2PreviewIDs == nil {
-		rs.stackMeta2PreviewIDs = make(map[string]string)
-	}
-	rs.stackMeta2PreviewIDs[strings.ToLower(metaID)] = previewID
-}
-
-func (rs cloudRunState) cloudPreviewID(metaID string) (string, bool) {
-	id, ok := rs.stackMeta2PreviewIDs[strings.ToLower(metaID)]
-	return id, ok
+	org CloudOrgState
 }
 
 // newCloudLoginRequiredError creates an error indicating that a cloud login is required to use requested features.
@@ -107,7 +67,13 @@ func newCloudOnboardingIncompleteError(region cloud.Region) *errors.DetailedErro
 	return err.WithCode(clitest.ErrCloudOnboardingIncomplete)
 }
 
-func (e *Engine) loadCredential() error {
+func (e *Engine) CloudClient() *cloud.Client {
+	return e.state.cloud.client
+}
+
+func (e *Engine) Credential() auth.Credential { return e.CloudClient().Credential.(auth.Credential) }
+
+func (e *Engine) LoadCredential() error {
 	region := e.cloudRegion()
 	cloudURL, envFound := tmcloud.EnvBaseURL()
 	if !envFound {
@@ -119,7 +85,7 @@ func (e *Engine) loadCredential() error {
 
 	e.state.cloud.client = &cloud.Client{
 		Region:     region, // always set so we can use it in error messages
-		HTTPClient: &e.httpClient,
+		HTTPClient: &e.HTTPClient,
 		Logger:     &clientLogger,
 	}
 	if envFound {
@@ -152,14 +118,19 @@ func (e *Engine) loadCredential() error {
 	return nil
 }
 
+func (e *Engine) CloudState() CloudState {
+	return e.state.cloud
+}
+
 func (e *Engine) SetupCloudConfig(requestedFeatures []string) error {
-	if e.state.cloud.run.orgUUID != "" {
+	if e.state.cloud.Org.UUID != "" {
 		// already setup
 		return nil
 	}
-	err := e.loadCredential()
+	err := e.LoadCredential()
 	if err != nil {
 		if errors.IsKind(err, auth.ErrLoginRequired) {
+			e.printers.Stderr.Warn(err)
 			return newCloudLoginRequiredError(requestedFeatures).WithCause(err)
 		}
 		if errors.IsKind(err, clitest.ErrCloudOnboardingIncomplete) {
@@ -173,7 +144,7 @@ func (e *Engine) SetupCloudConfig(requestedFeatures []string) error {
 	orgs := e.cred().Organizations()
 
 	useOrgName := e.cloudOrgName()
-	e.state.cloud.run.orgName = useOrgName
+	e.state.cloud.Org.Name = useOrgName
 	if useOrgName != "" {
 		var useOrgUUID cloud.UUID
 		for _, org := range orgs {
@@ -208,7 +179,7 @@ func (e *Engine) SetupCloudConfig(requestedFeatures []string) error {
 			return cloudError()
 		}
 
-		e.state.cloud.run.orgUUID = useOrgUUID
+		e.state.cloud.Org.UUID = useOrgUUID
 	} else {
 		var activeOrgs cloud.MemberOrganizations
 		var invitedOrgs cloud.MemberOrganizations
@@ -243,7 +214,7 @@ func (e *Engine) SetupCloudConfig(requestedFeatures []string) error {
 		return cloudError()
 	}
 
-	tel.DefaultRecord.Set(tel.OrgUUID(e.state.cloud.run.orgUUID))
+	tel.DefaultRecord.Set(tel.OrgUUID(e.state.cloud.Org.UUID))
 	return nil
 }
 
@@ -265,126 +236,32 @@ func (c *Engine) IsCloudEnabled() bool {
 	return !c.state.cloud.disabled
 }
 
-func (c *Engine) disableCloudFeatures(err error) {
+func (c *Engine) DisableCloudFeatures(err error) {
 	printer.Stderr.WarnWithDetails(clitest.CloudDisablingMessage, errors.E(err.Error()))
 
 	c.state.cloud.disabled = true
 }
 
-func (e *Engine) cloudSyncBefore(run stackCloudRun) {
-	if !e.IsCloudEnabled() {
-		return
-	}
-
-	if run.Task.CloudSyncDeployment {
-		e.doCloudSyncDeployment(run, deployment.Running)
-	}
-
-	if run.Task.CloudSyncPreview {
-		e.doPreviewBefore(run)
-	}
-}
-
-func (e *Engine) cloudSyncAfter(run stackCloudRun, res runResult, err error) {
-	if !e.IsCloudEnabled() {
-		return
-	}
-
-	if run.Task.CloudSyncDeployment {
-		e.cloudSyncDeployment(run, err)
-	}
-
-	if run.Task.CloudSyncDriftStatus {
-		e.cloudSyncDriftStatus(run, res, err)
-	}
-
-	if run.Task.CloudSyncPreview {
-		e.doPreviewAfter(run, res)
-	}
-}
-
-func (e *Engine) doPreviewBefore(run stackCloudRun) {
-	stackPreviewID, ok := e.state.cloud.run.cloudPreviewID(run.Stack.ID)
-	if !ok {
-		e.disableCloudFeatures(errors.E(errors.ErrInternal, "failed to get previewID"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
-	defer cancel()
-	if err := e.state.cloud.client.UpdateStackPreview(ctx,
-		cloud.UpdateStackPreviewOpts{
-			OrgUUID:          e.state.cloud.run.orgUUID,
-			StackPreviewID:   stackPreviewID,
-			Status:           preview.StackStatusRunning,
-			ChangesetDetails: nil,
-		}); err != nil {
-		printer.Stderr.ErrorWithDetails("failed to update stack preview", err)
-		return
-	}
-	log.Debug().
-		Str("stack_name", run.Stack.Dir.String()).
-		Str("stack_preview_status", preview.StackStatusRunning.String()).
-		Msg("Setting stack preview status")
-}
-
-func (e *Engine) doPreviewAfter(run stackCloudRun, res runResult) {
-	planfile := run.Task.CloudPlanFile
-
-	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
-	var previewChangeset *cloud.ChangesetDetails
-	if planfile != "" && previewStatus != preview.StackStatusCanceled {
-		changeset, err := e.getTerraformChangeset(run)
-		if err != nil || changeset == nil {
-			printer.Stderr.WarnWithDetails(
-				fmt.Sprintf("skipping terraform plan sync for %s", run.Stack.Dir.String()), err,
-			)
-
-			if previewStatus != preview.StackStatusFailed {
-				printer.Stderr.Warn(
-					fmt.Sprintf("preview status set to \"failed\" (previously %q) due to failure when generating the "+
-						"changeset details", previewStatus),
-				)
-
-				previewStatus = preview.StackStatusFailed
-			}
-		}
-		if changeset != nil {
-			previewChangeset = &cloud.ChangesetDetails{
-				Provisioner:    changeset.Provisioner,
-				ChangesetASCII: changeset.ChangesetASCII,
-				ChangesetJSON:  changeset.ChangesetJSON,
+func SelectCloudStackTasks(runs []StackRun, pred func(StackRunTask) bool) []StackCloudRun {
+	var cloudRuns []StackCloudRun
+	for _, run := range runs {
+		for _, t := range run.Tasks {
+			if pred(t) {
+				cloudRuns = append(cloudRuns, StackCloudRun{
+					Stack: run.Stack,
+					Task:  t,
+				})
+				// Currently, only a single task per stackRun group may be selected.
+				break
 			}
 		}
 	}
-
-	stackPreviewID, ok := e.state.cloud.run.cloudPreviewID(run.Stack.ID)
-	if !ok {
-		e.disableCloudFeatures(errors.E(errors.ErrInternal, "failed to get previewID"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
-	defer cancel()
-	if err := e.state.cloud.client.UpdateStackPreview(ctx,
-		cloud.UpdateStackPreviewOpts{
-			OrgUUID:          e.state.cloud.run.orgUUID,
-			StackPreviewID:   stackPreviewID,
-			Status:           previewStatus,
-			ChangesetDetails: previewChangeset,
-		}); err != nil {
-		printer.Stderr.ErrorWithDetails("failed to create stack preview", err)
-		return
-	}
-
-	logger := log.With().
-		Str("stack_name", run.Stack.Dir.String()).
-		Str("stack_preview_status", previewStatus.String()).
-		Logger()
-
-	logger.Debug().Msg("Setting stack preview status")
-	if previewChangeset != nil {
-		logger.Debug().Msg("Sending changelog")
-	}
+	return cloudRuns
 }
+
+func IsDeploymentTask(t StackRunTask) bool { return t.CloudSyncDeployment }
+func IsDriftTask(t StackRunTask) bool      { return t.CloudSyncDriftStatus }
+func IsPreviewTask(t StackRunTask) bool    { return t.CloudSyncPreview }
 
 func cloudError() error {
 	return errors.E(clitest.ErrCloud)
@@ -396,7 +273,7 @@ func (e *Engine) HandleCloudCriticalError(err error) error {
 			return err
 		}
 
-		e.disableCloudFeatures(err)
+		e.DisableCloudFeatures(err)
 	}
 	return nil
 }

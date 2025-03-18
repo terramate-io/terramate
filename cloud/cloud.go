@@ -18,6 +18,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	hversion "github.com/apparentlymart/go-versions/versions"
 	"github.com/rs/zerolog"
@@ -54,6 +55,9 @@ const (
 	// StorePath is the store endpoint base path.
 	StorePath = "/v1/store"
 )
+
+// DefaultTimeout is a (optional) good default timeout to be used by TMC clients.
+const DefaultTimeout = 60 * time.Second
 
 // ErrUnexpectedStatus indicates the server responded with an unexpected status code.
 const ErrUnexpectedStatus errors.Kind = "unexpected status code"

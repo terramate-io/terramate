@@ -1,7 +1,4 @@
-// Copyright 2023 Terramate GmbH
-// SPDX-License-Identifier: MPL-2.0
-
-package engine
+package run
 
 import (
 	"context"
@@ -14,21 +11,24 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/deployment"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
-	prj "github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/project"
 )
 
-func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
+func CreateCloudDeployment(e *engine.Engine, wd string, deployRuns []engine.StackCloudRun, state *CloudRunState) error {
 	// Assume each task in deployRuns has the CloudSyncDeployment set.
 	logger := log.With().
 		Logger()
 
 	if !e.IsCloudEnabled() {
-		return
+		return nil
 	}
 
+	orgUUID := e.CloudState().Org.UUID
+
 	logger = logger.With().
-		Str("organization", string(e.state.cloud.run.orgUUID)).
+		Str("organization", string(orgUUID)).
 		Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -41,8 +41,14 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 		ghRepo              string
 	)
 
-	if e.project.isRepo {
-		r, err := repository.Parse(e.project.prettyRepo())
+	prj := e.Project()
+	prettyRepo, err := prj.PrettyRepo()
+	if err != nil {
+		return e.HandleCloudCriticalError(err)
+	}
+
+	if prj.IsRepo() {
+		r, err := repository.Parse(prettyRepo)
 		if err != nil {
 			logger.Debug().
 				Msg("repository cannot be normalized: skipping pull request retrievals for commit")
@@ -50,7 +56,7 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 			ghRepo = r.Owner + "/" + r.Name
 		}
 
-		deploymentCommitSHA = e.project.Git.HeadCommit
+		deploymentCommitSHA = prj.Git.HeadCommit
 	}
 
 	ghRunID := os.Getenv("GITHUB_RUN_ID")
@@ -68,10 +74,11 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 			Msg("detected deployment url")
 	}
 
+	root := e.Config()
 	payload := cloud.DeploymentStacksPayloadRequest{
-		ReviewRequest: e.state.cloud.run.reviewRequest,
-		Workdir:       prj.PrjAbsPath(e.rootdir(), e.wd()),
-		Metadata:      e.state.cloud.run.metadata,
+		ReviewRequest: state.ReviewRequest,
+		Workdir:       project.PrjAbsPath(root.HostDir(), wd),
+		Metadata:      state.Metadata,
 	}
 
 	for _, run := range deployRuns {
@@ -85,10 +92,10 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 				MetaName:        run.Stack.Name,
 				MetaDescription: run.Stack.Description,
 				MetaTags:        tags,
-				Repository:      e.project.prettyRepo(),
+				Repository:      prettyRepo,
 				Target:          run.Task.CloudTarget,
 				FromTarget:      run.Task.CloudFromTarget,
-				DefaultBranch:   e.project.GitConfig().DefaultBranch,
+				DefaultBranch:   prj.GitConfig().DefaultBranch,
 				Path:            run.Stack.Dir.String(),
 			},
 			CommitSHA:         deploymentCommitSHA,
@@ -96,14 +103,13 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 			DeploymentURL:     deploymentURL,
 		})
 	}
-	res, err := e.state.cloud.client.CreateDeploymentStacks(ctx, e.state.cloud.run.orgUUID, e.state.cloud.run.runUUID, payload)
+	res, err := e.CloudClient().CreateDeploymentStacks(ctx, orgUUID, state.RunUUID, payload)
 	if err != nil {
 		logger.Error().
 			Err(err).
 			Msg("failed to create cloud deployment")
 
-		e.disableCloudFeatures(cloudError())
-		return
+		return e.HandleCloudCriticalError(err)
 	}
 
 	if len(res) != len(deployRuns) {
@@ -111,8 +117,7 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 			Msgf("the backend respond with an invalid number of stacks in the deployment: %d instead of %d",
 				len(res), len(deployRuns))
 
-		e.disableCloudFeatures(cloudError())
-		return
+		return e.HandleCloudCriticalError(err)
 	}
 
 	for _, r := range res {
@@ -121,37 +126,38 @@ func (e *Engine) createCloudDeployment(deployRuns []stackCloudRun) {
 			logger.Error().
 				Msg("backend returned empty meta_id")
 
-			e.disableCloudFeatures(cloudError())
-			return
+			return e.HandleCloudCriticalError(err)
 		}
-		e.state.cloud.run.setMeta2CloudID(r.StackMetaID, r.StackID)
+		state.SetMeta2CloudID(r.StackMetaID, r.StackID)
 	}
+	return nil
 }
 
-func (e *Engine) cloudSyncDeployment(run stackCloudRun, err error) {
+func cloudSyncDeployment(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState, err error) {
 	var status deployment.Status
 	switch {
 	case err == nil:
 		status = deployment.OK
-	case errors.IsKind(err, ErrRunCanceled):
+	case errors.IsKind(err, engine.ErrRunCanceled):
 		status = deployment.Canceled
-	case errors.IsAnyKind(err, ErrRunFailed, ErrRunCommandNotExecuted):
+	case errors.IsAnyKind(err, engine.ErrRunFailed, engine.ErrRunCommandNotExecuted):
 		status = deployment.Failed
 	default:
 		panic(errors.E(errors.ErrInternal, "unexpected run status"))
 	}
 
-	e.doCloudSyncDeployment(run, status)
+	doCloudSyncDeployment(e, run, state, status)
 }
 
-func (e *Engine) doCloudSyncDeployment(run stackCloudRun, status deployment.Status) {
+func doCloudSyncDeployment(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState, status deployment.Status) {
+	orgUUID := e.CloudState().Org.UUID
 	logger := log.With().
-		Str("organization", string(e.state.cloud.run.orgUUID)).
+		Str("organization", string(orgUUID)).
 		Str("stack", run.Stack.RelPath()).
 		Stringer("status", status).
 		Logger()
 
-	stackID, ok := e.state.cloud.run.stackCloudID(run.Stack.ID)
+	stackID, ok := state.StackCloudID(run.Stack.ID)
 	if !ok {
 		logger.Error().Msg("unable to update deployment status due to invalid API response")
 		return
@@ -161,7 +167,7 @@ func (e *Engine) doCloudSyncDeployment(run stackCloudRun, status deployment.Stat
 
 	if run.Task.CloudPlanFile != "" {
 		var err error
-		details, err = e.getTerraformChangeset(run)
+		details, err = getTerraformChangeset(e, run)
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
@@ -181,7 +187,7 @@ func (e *Engine) doCloudSyncDeployment(run stackCloudRun, status deployment.Stat
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
-	err := e.state.cloud.client.UpdateDeploymentStacks(ctx, e.state.cloud.run.orgUUID, e.state.cloud.run.runUUID, payload)
+	err := e.CloudClient().UpdateDeploymentStacks(ctx, orgUUID, state.RunUUID, payload)
 	if err != nil {
 		logger.Err(err).Str("stack_id", run.Stack.ID).Msg("failed to update deployment status for each")
 	} else {

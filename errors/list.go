@@ -5,7 +5,6 @@ package errors
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/terramate-io/hcl/v2"
@@ -48,7 +47,7 @@ func (l *List) Error() string {
 	if len(l.errs) == 1 {
 		return errmsg
 	}
-	return fmt.Sprintf("%s (and %d elided errors)", errmsg, len(l.errs)-1)
+	return l.Detailed()
 }
 
 // Errors returns all errors contained on the list.

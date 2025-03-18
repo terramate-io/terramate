@@ -12,14 +12,15 @@ import (
 )
 
 type GoogleSpec struct {
-	Printers printer.Printers
-	CliCfg   cliconfig.Config
+	Printers  printer.Printers
+	CliCfg    cliconfig.Config
+	Verbosity int
 }
 
 func (s *GoogleSpec) Name() string { return "google login" }
 
 func (s *GoogleSpec) Exec(ctx context.Context) error {
-	err := auth.GoogleLogin(s.Printers, s.CliCfg)
+	err := auth.GoogleLogin(s.Printers, s.Verbosity, s.CliCfg)
 	if err == nil {
 		s.Printers.Stdout.Println("authenticated successfully")
 	}

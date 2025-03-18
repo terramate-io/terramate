@@ -12,7 +12,7 @@ import (
 	"github.com/terramate-io/terramate/safeguard"
 )
 
-func gitSafeguardDefaultBranchIsReachable(engine *engine.Engine, safeguards Safeguards) error {
+func GitSafeguardDefaultBranchIsReachable(engine *engine.Engine, safeguards Safeguards) error {
 	safeguardsEnabled := gitSafeguardRemoteEnabled(engine, safeguards)
 	logger := log.With().
 		Bool("is_repository", engine.Project().IsRepo()).
@@ -35,7 +35,7 @@ func gitSafeguardRemoteEnabled(engine *engine.Engine, safeguards Safeguards) boo
 		return false
 	}
 
-	if safeguards.reEnabled {
+	if safeguards.ReEnabled {
 		return !safeguards.DisableCheckGitRemote
 	}
 

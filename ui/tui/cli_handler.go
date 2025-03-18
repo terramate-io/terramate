@@ -12,21 +12,32 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/commands"
 	clonecmd "github.com/terramate-io/terramate/commands/clone"
+	clouddriftshowcmd "github.com/terramate-io/terramate/commands/cloud/drift/show"
+	cloudinfocmd "github.com/terramate-io/terramate/commands/cloud/info"
 	"github.com/terramate-io/terramate/commands/cloud/login"
 	"github.com/terramate-io/terramate/commands/completions"
+	"github.com/terramate-io/terramate/commands/experimental/eval"
 	fmtcmd "github.com/terramate-io/terramate/commands/fmt"
 	gencmd "github.com/terramate-io/terramate/commands/generate"
 	"github.com/terramate-io/terramate/commands/requiredversion"
+	"github.com/terramate-io/terramate/commands/run"
+	scriptinfocmd "github.com/terramate-io/terramate/commands/script/info"
+	scriptlistcmd "github.com/terramate-io/terramate/commands/script/list"
+	scriptruncmd "github.com/terramate-io/terramate/commands/script/run"
+	scripttreecmd "github.com/terramate-io/terramate/commands/script/tree"
 	createcmd "github.com/terramate-io/terramate/commands/stack/create"
 	listcmd "github.com/terramate-io/terramate/commands/stack/list"
 	"github.com/terramate-io/terramate/commands/version"
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
+	"github.com/terramate-io/terramate/safeguard"
 
 	"github.com/alecthomas/kong"
 
@@ -122,13 +133,15 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 	case "cloud login":
 		if parsedArgs.Cloud.Login.Github {
 			return &login.GithubSpec{
-				Printers: c.printers,
-				CliCfg:   c.clicfg,
+				Printers:  c.printers,
+				CliCfg:    c.clicfg,
+				Verbosity: parsedArgs.Verbose,
 			}, true, false, nil
 		}
 		return &login.GoogleSpec{
-			Printers: c.printers,
-			CliCfg:   c.clicfg,
+			Printers:  c.printers,
+			CliCfg:    c.clicfg,
+			Verbosity: parsedArgs.Verbose,
 		}, true, false, nil
 	}
 
@@ -191,6 +204,11 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 	}
 
 	parsedArgs := c.input.(*Spec)
+
+	if parsedArgs.Changed && !c.Engine().Project().HasCommits() {
+		return nil, false, false, errors.E("flag --changed requires a repository with at least two commits")
+	}
+
 	var state handlerState
 	filters, err := filter.ParseTags(parsedArgs.Tags, parsedArgs.NoTags)
 	if err != nil {
@@ -351,8 +369,162 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			tel.BoolFlag("output-sharing", parsedArgs.Run.EnableSharing),
 			tel.BoolFlag("output-mocks", parsedArgs.Run.MockOnFail),
 		)
+		sf, err := setupSafeguards(parsedArgs, parsedArgs.Run.runSafeguardsCliSpec)
+		if err != nil {
+			return nil, false, false, err
+		}
+		return &run.Spec{
+			Engine:     c.Engine(),
+			WorkingDir: c.state.wd,
+			Safeguards: sf,
+			Printers:   c.printers,
+			Stdout:     c.state.stdout,
+			Stderr:     c.state.stderr,
+			Stdin:      c.state.stdin,
 
-		c.runOnStacks()
+			Command:           parsedArgs.Run.Command,
+			Quiet:             parsedArgs.Quiet,
+			DryRun:            parsedArgs.Run.DryRun,
+			Reverse:           parsedArgs.Run.Reverse,
+			ScriptRun:         false,
+			ContinueOnError:   parsedArgs.Run.ContinueOnError,
+			Parallel:          parsedArgs.Run.Parallel,
+			NoRecursive:       parsedArgs.Run.NoRecursive,
+			SyncDeployment:    parsedArgs.Run.SyncDeployment,
+			SyncPreview:       parsedArgs.Run.SyncPreview,
+			SyncDriftStatus:   parsedArgs.Run.SyncDriftStatus,
+			DebugPreviewURL:   parsedArgs.Run.DebugPreviewURL,
+			TechnologyLayer:   parsedArgs.Run.Layer,
+			TerraformPlanFile: parsedArgs.Run.TerraformPlanFile,
+			TofuPlanFile:      parsedArgs.Run.TofuPlanFile,
+			Terragrunt:        parsedArgs.Run.Terragrunt,
+			EnableSharing:     parsedArgs.Run.EnableSharing,
+			MockOnFail:        parsedArgs.Run.MockOnFail,
+			EvalCmd:           parsedArgs.Run.Eval,
+			Target:            parsedArgs.Run.Target,
+			FromTarget:        parsedArgs.Run.FromTarget,
+			Tags:              parsedArgs.Tags,
+			NoTags:            parsedArgs.NoTags,
+			OutputsSharingOptions: engine.OutputsSharingOptions{
+				IncludeOutputDependencies: parsedArgs.Run.IncludeOutputDependencies,
+				OnlyOutputDependencies:    parsedArgs.Run.OnlyOutputDependencies,
+			},
+		}, true, false, nil
+
+	case "cloud info":
+		c.InitAnalytics("cloud-info")
+		return &cloudinfocmd.Spec{
+			Engine:    c.Engine(),
+			Printers:  c.printers,
+			Verbosity: parsedArgs.Verbose,
+		}, true, false, nil
+	case "cloud drift show":
+		c.InitAnalytics("cloud-drift-show")
+		return &clouddriftshowcmd.Spec{
+			WorkingDir:  c.state.wd,
+			Engine:      c.Engine(),
+			Printers:    c.printers,
+			Verbosiness: parsedArgs.Verbose,
+			Target:      parsedArgs.Cloud.Drift.Show.Target,
+		}, true, false, nil
+
+	case "experimental eval":
+		return nil, false, false, errors.E("no expression specified")
+	case "experimental eval <expr>":
+		return &eval.Spec{
+			WorkingDir: c.state.wd,
+			Engine:     c.Engine(),
+			Printers:   c.printers,
+			Exprs:      parsedArgs.Experimental.Eval.Exprs,
+			Globals:    parsedArgs.Experimental.Eval.Global,
+			AsJSON:     parsedArgs.Experimental.Eval.AsJSON,
+		}, true, false, nil
+	case "experimental partial-eval":
+		return nil, false, false, errors.E("no expression specified")
+	case "experimental partial-eval <expr>":
+		return &eval.PartialSpec{
+			WorkingDir: c.state.wd,
+			Engine:     c.Engine(),
+			Printers:   c.printers,
+			Exprs:      parsedArgs.Experimental.PartialEval.Exprs,
+			Globals:    parsedArgs.Experimental.PartialEval.Global,
+		}, true, false, nil
+	case "experimental get-config-value":
+		return nil, false, false, errors.E("no variable specified")
+	case "experimental get-config-value <var>":
+		//c.getConfigValue()
+	case "script list":
+		checkScriptEnabled(c.Config())
+		c.InitAnalytics("script-list")
+		return &scriptlistcmd.Spec{
+			Engine:     c.Engine(),
+			Printers:   c.printers,
+			WorkingDir: c.state.wd,
+		}, true, false, nil
+	case "script tree":
+		checkScriptEnabled(c.Config())
+		c.InitAnalytics("script-tree")
+		return &scripttreecmd.Spec{
+			Engine:     c.Engine(),
+			WorkingDir: c.state.wd,
+			Printers:   c.printers,
+		}, true, false, nil
+	case "script info":
+		checkScriptEnabled(c.Config())
+		return nil, false, false, errors.E("no script specified")
+	case "script info <cmds>":
+		checkScriptEnabled(c.Config())
+		c.InitAnalytics("script-info")
+		return &scriptinfocmd.Spec{
+			Engine:     c.Engine(),
+			WorkingDir: c.state.wd,
+			Printers:   c.printers,
+			Labels:     parsedArgs.Script.Info.Cmds,
+		}, true, false, nil
+	case "script run":
+		checkScriptEnabled(c.Config())
+		return nil, false, false, errors.E("no script specified")
+	case "script run <cmds>":
+		checkScriptEnabled(c.Config())
+		c.InitAnalytics("script-run",
+			tel.BoolFlag("filter-changed", parsedArgs.Changed),
+			tel.BoolFlag("filter-tags", len(parsedArgs.Tags) != 0),
+			tel.StringFlag("filter-status", parsedArgs.Script.Run.Status),
+			tel.StringFlag("filter-drift-status", parsedArgs.Script.Run.DriftStatus),
+			tel.StringFlag("filter-deployment-status", parsedArgs.Script.Run.DeploymentStatus),
+			tel.StringFlag("target", parsedArgs.Script.Run.Target),
+			tel.BoolFlag("reverse", parsedArgs.Script.Run.Reverse),
+			tel.BoolFlag("parallel", parsedArgs.Script.Run.Parallel > 0),
+		)
+		sf, err := setupSafeguards(parsedArgs, parsedArgs.Script.Run.runSafeguardsCliSpec)
+		if err != nil {
+			return nil, false, false, err
+		}
+		return &scriptruncmd.Spec{
+			Engine:          c.Engine(),
+			WorkingDir:      c.state.wd,
+			Safeguards:      sf,
+			Printers:        c.printers,
+			Stdout:          c.state.stdout,
+			Stderr:          c.state.stderr,
+			Stdin:           c.state.stdin,
+			Quiet:           parsedArgs.Quiet,
+			DryRun:          parsedArgs.Run.DryRun,
+			Reverse:         parsedArgs.Run.Reverse,
+			ContinueOnError: parsedArgs.Run.ContinueOnError,
+			Parallel:        parsedArgs.Run.Parallel,
+			NoRecursive:     parsedArgs.Run.NoRecursive,
+			Target:          parsedArgs.Run.Target,
+			FromTarget:      parsedArgs.Run.FromTarget,
+			Tags:            parsedArgs.Tags,
+			NoTags:          parsedArgs.NoTags,
+			OutputsSharingOptions: engine.OutputsSharingOptions{
+				IncludeOutputDependencies: parsedArgs.Run.IncludeOutputDependencies,
+				OnlyOutputDependencies:    parsedArgs.Run.OnlyOutputDependencies,
+			},
+		}, true, false, nil
+	default:
+		return nil, false, false, errors.E("unexpected command sequence")
 	}
 
 	panic("not yet")
@@ -360,6 +532,62 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 	return nil, false, false, nil
 }
 
+func checkScriptEnabled(cfg *config.Root) {
+	if cfg.HasExperiment("scripts") {
+		return
+	}
+
+	printer.Stderr.Error(`The "scripts" feature is not enabled`)
+	printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute.`)
+	printer.Stderr.Println(`Example:
+
+terramate {
+  config {
+    experiments = ["scripts"]
+  }
+}`)
+	os.Exit(1)
+}
+
 func envVarIsSet(val string) bool {
 	return val != "" && val != "0" && val != "false"
+}
+
+func setupSafeguards(parsedArgs *Spec, runflags runSafeguardsCliSpec) (sf run.Safeguards, err error) {
+	global := parsedArgs.deprecatedGlobalSafeguardsCliSpec
+
+	// handle deprecated flags as --disable-safeguards
+	if global.DeprecatedDisableCheckGitUncommitted {
+		runflags.DisableSafeguards = append(runflags.DisableSafeguards, "git-uncommitted")
+	}
+	if global.DeprecatedDisableCheckGitUntracked {
+		runflags.DisableSafeguards = append(runflags.DisableSafeguards, "git-untracked")
+	}
+	if runflags.DeprecatedDisableCheckGitRemote {
+		runflags.DisableSafeguards = append(runflags.DisableSafeguards, "git-out-of-sync")
+	}
+	if runflags.DeprecatedDisableCheckGenCode {
+		runflags.DisableSafeguards = append(runflags.DisableSafeguards, "outdated-code")
+	}
+	if runflags.DisableSafeguardsAll {
+		runflags.DisableSafeguards = append(runflags.DisableSafeguards, "all")
+	}
+
+	if runflags.DisableSafeguards.Has(safeguard.All) && runflags.DisableSafeguards.Has(safeguard.None) {
+		return run.Safeguards{}, errors.E(
+			errors.E(clitest.ErrSafeguardKeywordValidation,
+				`the safeguards keywords "all" and "none" are incompatible`),
+			"Disabling safeguards",
+		)
+	}
+
+	sf.DisableCheckGitUncommitted = runflags.DisableSafeguards.Has(safeguard.GitUncommitted, safeguard.All, safeguard.Git)
+	sf.DisableCheckGitUntracked = runflags.DisableSafeguards.Has(safeguard.GitUntracked, safeguard.All, safeguard.Git)
+	sf.DisableCheckGitRemote = runflags.DisableSafeguards.Has(safeguard.GitOutOfSync, safeguard.All, safeguard.Git)
+	sf.DisableCheckGenerateOutdatedCheck = runflags.DisableSafeguards.Has(safeguard.Outdated, safeguard.All)
+	if runflags.DisableSafeguards.Has("none") {
+		sf = run.Safeguards{}
+		sf.ReEnabled = true
+	}
+	return sf, nil
 }

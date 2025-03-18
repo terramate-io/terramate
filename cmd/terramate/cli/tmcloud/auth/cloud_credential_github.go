@@ -19,7 +19,7 @@ import (
 const defaultGitHubClientID = "08e1f8d6f599c7ec48c5"
 
 // GithubLogin logs in the user using GitHub.
-func GithubLogin(printers printer.Printers, tmcBaseURL string, clicfg cliconfig.Config) error {
+func GithubLogin(printers printer.Printers, verbosity int, tmcBaseURL string, clicfg cliconfig.Config) error {
 	token, err := githubAuth()
 	if err != nil {
 		return err
@@ -43,10 +43,12 @@ func GithubLogin(printers printer.Printers, tmcBaseURL string, clicfg cliconfig.
 	}
 
 	printers.Stdout.Println(fmt.Sprintf("Logged in as %s", cred.UserDisplayName()))
-	printers.Stdout.Println(fmt.Sprintf("Token: %s", cred.IDToken))
-	expire, _ := strconv.Atoi(cred.ExpiresIn)
-	printers.Stdout.Println(fmt.Sprintf("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z)))
-	return saveCredential(printers, cred, clicfg)
+	if verbosity > 0 {
+		printers.Stdout.Println(fmt.Sprintf("Token: %s", cred.IDToken))
+		expire, _ := strconv.Atoi(cred.ExpiresIn)
+		printers.Stdout.Println(fmt.Sprintf("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z)))
+	}
+	return saveCredential(printers, verbosity, cred, clicfg)
 }
 
 func githubAuth() (string, error) {

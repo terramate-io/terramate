@@ -604,9 +604,9 @@ func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 			if !foundEnv {
 				tmcURL = cloud.BaseURL(cloud.EU)
 			}
-			err = auth.GithubLogin(printer.DefaultPrinters, tmcURL, clicfg)
+			err = auth.GithubLogin(printer.DefaultPrinters, parsedArgs.Verbose, tmcURL, clicfg)
 		} else {
-			err = auth.GoogleLogin(printer.DefaultPrinters, clicfg)
+			err = auth.GoogleLogin(printer.DefaultPrinters, parsedArgs.Verbose, clicfg)
 		}
 		if err != nil {
 			printer.Stderr.Error(err)

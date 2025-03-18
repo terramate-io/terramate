@@ -1,7 +1,4 @@
-// Copyright 2023 Terramate GmbH
-// SPDX-License-Identifier: MPL-2.0
-
-package engine
+package run
 
 import (
 	"context"
@@ -11,10 +8,11 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 )
 
-func (e *Engine) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
+func cloudSyncDriftStatus(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState, res engine.RunResult, err error) {
 	st := run.Stack
 
 	logger := log.With().
@@ -31,7 +29,7 @@ func (e *Engine) cloudSyncDriftStatus(run stackCloudRun, res runResult, err erro
 		status = drift.OK
 	case res.ExitCode == 2:
 		status = drift.Drifted
-	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, ErrRunCommandNotExecuted, ErrRunFailed):
+	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, engine.ErrRunCommandNotExecuted, engine.ErrRunFailed):
 		status = drift.Failed
 	default:
 		// ignore exit codes < 0
@@ -43,7 +41,7 @@ func (e *Engine) cloudSyncDriftStatus(run stackCloudRun, res runResult, err erro
 
 	if run.Task.CloudPlanFile != "" {
 		var err error
-		driftDetails, err = e.getTerraformChangeset(run)
+		driftDetails, err = getTerraformChangeset(e, run)
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
@@ -56,12 +54,18 @@ func (e *Engine) cloudSyncDriftStatus(run stackCloudRun, res runResult, err erro
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	_, err = e.state.cloud.client.CreateStackDrift(ctx, e.state.cloud.run.orgUUID, cloud.DriftStackPayloadRequest{
+	prettyRepo, err := e.Project().PrettyRepo()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get pretty repo")
+		return
+	}
+
+	_, err = e.CloudClient().CreateStackDrift(ctx, e.CloudState().Org.UUID, cloud.DriftStackPayloadRequest{
 		Stack: cloud.Stack{
-			Repository:      e.project.prettyRepo(),
+			Repository:      prettyRepo,
 			Target:          run.Task.CloudTarget,
 			FromTarget:      run.Task.CloudFromTarget,
-			DefaultBranch:   e.project.GitConfig().DefaultBranch,
+			DefaultBranch:   e.Project().GitConfig().DefaultBranch,
 			Path:            st.Dir.String(),
 			MetaID:          strings.ToLower(st.ID),
 			MetaName:        st.Name,
@@ -70,7 +74,7 @@ func (e *Engine) cloudSyncDriftStatus(run stackCloudRun, res runResult, err erro
 		},
 		Status:     status,
 		Details:    driftDetails,
-		Metadata:   e.state.cloud.run.metadata,
+		Metadata:   state.Metadata,
 		StartedAt:  res.StartedAt,
 		FinishedAt: res.FinishedAt,
 		Command:    run.Task.Cmd,

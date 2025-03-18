@@ -187,13 +187,14 @@ func (c *CLI) Exec(args []string) {
 			printer.Stderr.ErrorWithDetails(fmt.Sprintf("executing %q", cmd.Name()), err)
 			os.Exit(int(errors.ExitStatus(err)))
 		}
+		os.Exit(0)
 	} else {
 		if !cont {
 			os.Exit(0)
 		}
 	}
 
-	engine, foundRoot, err := engine.Load(c.state.wd, c.printers)
+	engine, foundRoot, err := engine.Load(c.state.wd, c.clicfg, c.state.uimode, c.printers)
 	if err != nil {
 		printer.Stderr.ErrorWithDetails("unable to parse configuration", err)
 		os.Exit(1)

@@ -1,7 +1,4 @@
-// Copyright 2024 Terramate GmbH
-// SPDX-License-Identifier: MPL-2.0
-
-package engine
+package run
 
 import (
 	"archive/zip"
@@ -11,11 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 
 	"github.com/terramate-io/tfjson"
@@ -24,17 +21,7 @@ import (
 	runpkg "github.com/terramate-io/terramate/run"
 )
 
-const terraformShowTimeout = 300 * time.Second
-
-const (
-	// ProvisionerTerraform indicates that a plan was created by Terraform.
-	ProvisionerTerraform = "terraform"
-
-	// ProvisionerOpenTofu indicates that a plan was created by OpenTofu.
-	ProvisionerOpenTofu = "opentofu"
-)
-
-func (e *Engine) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails, error) {
+func getTerraformChangeset(e *engine.Engine, run engine.StackCloudRun) (*cloud.ChangesetDetails, error) {
 	planfile := run.Task.CloudPlanFile
 	provisioner := run.Task.CloudPlanProvisioner
 
@@ -58,13 +45,13 @@ func (e *Engine) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetai
 		}
 	}
 
-	renderedPlan, err := e.runTerraformShow(run, "-no-color")
+	renderedPlan, err := runTerraformShow(e, run, "-no-color")
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to synchronize the ASCII plan output")
 	}
 
 	var newJSONPlanData []byte
-	jsonPlanData, err := e.runTerraformShow(run, "-no-color", "-json")
+	jsonPlanData, err := runTerraformShow(e, run, "-no-color", "-json")
 	if err == nil {
 		newJSONPlanData, err = sanitizeJSONPlan([]byte(jsonPlanData))
 		if err != nil {
@@ -114,7 +101,7 @@ func sanitizeJSONPlan(jsonPlanBytes []byte) ([]byte, error) {
 	return newJSONPlanData, nil
 }
 
-func (e *Engine) runTerraformShow(run stackCloudRun, flags ...string) (string, error) {
+func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
 	planfile := run.Task.CloudPlanFile
@@ -153,7 +140,7 @@ func (e *Engine) runTerraformShow(run stackCloudRun, flags ...string) (string, e
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, cmdPath, args...)
-	cmd.Dir = run.Stack.Dir.HostPath(e.rootdir())
+	cmd.Dir = run.Stack.Dir.HostPath(e.Config().HostDir())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = env

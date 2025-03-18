@@ -151,8 +151,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 					Status: 1,
 					Stdout: "test",
 					StderrRegexes: []string{
-						"Error: one or more commands failed",
-						"execution failed",
+						"Error: execution failed: one or more commands failed",
 					},
 				},
 				events: eventsResponse{

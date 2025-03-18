@@ -14,8 +14,9 @@ import (
 )
 
 type GithubSpec struct {
-	Printers printer.Printers
-	CliCfg   cliconfig.Config
+	Printers  printer.Printers
+	CliCfg    cliconfig.Config
+	Verbosity int
 }
 
 func (s *GithubSpec) Name() string { return "github login" }
@@ -25,7 +26,7 @@ func (s *GithubSpec) Exec(ctx context.Context) error {
 	if !foundEnv {
 		tmcURL = cloud.BaseURL(cloud.EU)
 	}
-	err := auth.GithubLogin(s.Printers, tmcURL, s.CliCfg)
+	err := auth.GithubLogin(s.Printers, s.Verbosity, tmcURL, s.CliCfg)
 	if err == nil {
 		s.Printers.Stdout.Println("authenticated successfully")
 	}

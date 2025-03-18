@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	stdjson "encoding/json"
-
 	"github.com/fatih/color"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -47,14 +45,14 @@ const (
 	ErrRunCommandNotExecuted errors.Kind = "command not found"
 )
 
-// stackRun contains a list of tasks to be run per stack.
-type stackRun struct {
+// StackRun contains a list of tasks to be run per stack.
+type StackRun struct {
 	Stack         *config.Stack
-	Tasks         []stackRunTask
+	Tasks         []StackRunTask
 	SyncTaskIndex int // index of the task with sync options
 }
 
-type stackRunTask struct {
+type StackRunTask struct {
 	Cmd []string
 
 	ScriptIdx    int
@@ -77,7 +75,7 @@ type stackRunTask struct {
 	MockOnFail    bool
 }
 
-type runAllOptions struct {
+type RunAllOptions struct {
 	Quiet           bool
 	DryRun          bool
 	Reverse         bool
@@ -88,19 +86,33 @@ type runAllOptions struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	Stdin  io.Reader
+
+	Hooks *Hooks
 }
 
-// stackCloudRun is a stackRun, but with a single task, because the cloud API only supports
+type Hooks struct {
+	Before           RunBeforeHook
+	After            RunAfterHook
+	LogSyncer        LogSyncer
+	LogSyncCondition LogSyncCondition
+}
+
+type RunBeforeHook func(engine *Engine, run StackCloudRun) error
+type RunAfterHook func(engine *Engine, run StackCloudRun, res RunResult, err error) error
+type LogSyncer func(logger *zerolog.Logger, e *Engine, run StackRun, logs cloud.CommandLogs)
+type LogSyncCondition func(task StackRunTask, run StackRun) bool
+
+// StackCloudRun is a stackRun, but with a single task, because the cloud API only supports
 // a single command per stack for any operation (deploy, drift, preview).
-type stackCloudRun struct {
+type StackCloudRun struct {
 	Target string
 	Stack  *config.Stack
-	Task   stackRunTask
+	Task   StackRunTask
 	Env    []string
 }
 
-// runResult contains exit code and duration of a completed run.
-type runResult struct {
+// RunResult contains exit code and duration of a completed run.
+type RunResult struct {
 	ExitCode   int
 	StartedAt  *time.Time
 	FinishedAt *time.Time
@@ -118,13 +130,24 @@ type runResult struct {
 // If SIGINT is sent 3x then Terramate will send a SIGKILL to the currently
 // running process and abort the execution of all subsequent stacks.
 func (e *Engine) RunAll(
-	runs []stackRun,
-	opts runAllOptions,
+	runs []StackRun,
+	opts RunAllOptions,
 ) error {
+	if opts.Hooks == nil {
+		opts.Hooks = &Hooks{
+			Before: func(engine *Engine, run StackCloudRun) error {
+				return nil
+			},
+			After: func(engine *Engine, run StackCloudRun, res RunResult, err error) error {
+				return nil
+			},
+			LogSyncCondition: func(task StackRunTask, run StackRun) bool { return false },
+		}
+	}
 	// Construct a DAG from the list of stackRuns, based on the implicit and
 	// explicit dependencies between stacks.
 	d, reason, err := runutil.BuildDAGFromStacks(e.Config(), runs,
-		func(run stackRun) *config.Stack { return run.Stack })
+		func(run StackRun) *config.Stack { return run.Stack })
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			return errors.E(err, "cycle detected: %s", reason)
@@ -143,7 +166,7 @@ func (e *Engine) RunAll(
 	defer kill()
 
 	// Select a scheduling strategy for the DAG nodes.
-	var sched scheduler.S[stackRun]
+	var sched scheduler.S[StackRun]
 	acquireResource := func() {}
 	releaseResource := func() {}
 
@@ -210,7 +233,7 @@ func (e *Engine) RunAll(
 	// map of stackName -> map of backendName -> outputs
 	allOutputs := runutil.NewOnceMap[string, *run.OnceMap[string, cty.Value]]()
 
-	err = sched.Run(func(run stackRun) error {
+	err = sched.Run(func(run StackRun) error {
 		errs := errors.L()
 
 		failedTaskIndex := -1
@@ -220,11 +243,11 @@ func (e *Engine) RunAll(
 			acquireResource()
 
 			// For cloud sync, we always assume that there's a single task per stack.
-			cloudRun := stackCloudRun{Stack: run.Stack, Task: task}
+			cloudRun := StackCloudRun{Stack: run.Stack, Task: task}
 
 			select {
 			case <-cancelCtx.Done():
-				e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCanceled))
+				opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCanceled))
 				releaseResource()
 				continue tasksLoop
 			default:
@@ -249,10 +272,10 @@ func (e *Engine) RunAll(
 
 			if task.EnableSharing {
 				for _, in := range cfg.Node.Inputs {
-					evalctx, err := e.setupEvalContext(run.Stack, map[string]string{})
+					evalctx, err := e.SetupEvalContext(run.Stack.HostDir(e.Config()), run.Stack, "", map[string]string{})
 					if err != nil {
 						errs.Append(errors.E(err, "failed to setup evaluation context"))
-						e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+						opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						failedTaskIndex = taskIndex
 						if !continueOnError {
@@ -263,7 +286,7 @@ func (e *Engine) RunAll(
 					input, err := config.EvalInput(evalctx, in)
 					if err != nil {
 						errs.Append(errors.E(err, "failed to evaluate input block"))
-						e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+						opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						failedTaskIndex = taskIndex
 						if !continueOnError {
@@ -274,7 +297,7 @@ func (e *Engine) RunAll(
 					otherStack, found, err := e.stackManager().StackByID(input.FromStackID)
 					if err != nil {
 						errs.Append(errors.E(err, "populating stack inputs from stack.id %s", input.FromStackID))
-						e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+						opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						failedTaskIndex = taskIndex
 						if !continueOnError {
@@ -290,7 +313,7 @@ func (e *Engine) RunAll(
 
 						errs.Append(err)
 
-						e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+						opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						failedTaskIndex = taskIndex
 						if !continueOnError {
@@ -305,7 +328,7 @@ func (e *Engine) RunAll(
 					if !ok {
 						err := errors.E("backend %s not found", input.Backend)
 						errs.Append(err)
-						e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+						opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 						releaseResource()
 						failedTaskIndex = taskIndex
 						if !continueOnError {
@@ -331,7 +354,7 @@ func (e *Engine) RunAll(
 							if !task.MockOnFail {
 								err := errors.E(err, "failed to execute: (cmd: %s) (stdout: %s) (stderr: %s)", cmd.String(), stdout.String(), stderr.String())
 								errs.Append(err)
-								e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+								opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								failedTaskIndex = taskIndex
 								if !continueOnError {
@@ -350,7 +373,7 @@ func (e *Engine) RunAll(
 							if err != nil {
 								err := errors.E(err, "unmashaling sharing_backend output")
 								errs.Append(err)
-								e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+								opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								failedTaskIndex = taskIndex
 								if !continueOnError {
@@ -363,7 +386,7 @@ func (e *Engine) RunAll(
 							if err != nil {
 								err := errors.E(err, "unmashaling sharing_backend output")
 								errs.Append(err)
-								e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+								opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 								releaseResource()
 								failedTaskIndex = taskIndex
 								if !continueOnError {
@@ -389,7 +412,7 @@ func (e *Engine) RunAll(
 							if mockErr != nil {
 								errs.Append(errors.E(mockErr, "failed to evaluate input mock"))
 							}
-							e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+							opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 							releaseResource()
 							failedTaskIndex = taskIndex
 							if !continueOnError {
@@ -413,7 +436,7 @@ func (e *Engine) RunAll(
 
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
 			if err != nil {
-				e.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
+				opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
 				releaseResource()
 				failedTaskIndex = taskIndex
@@ -432,9 +455,9 @@ func (e *Engine) RunAll(
 			stderr := opts.Stderr
 
 			logSyncWait := func() {}
-			if e.IsCloudEnabled() && (task.CloudSyncDeployment || task.CloudSyncPreview) {
+			if e.IsCloudEnabled() && opts.Hooks.LogSyncCondition(task, run) {
 				logSyncer := cloud.NewLogSyncer(func(logs cloud.CommandLogs) {
-					e.syncLogs(&logger, run, logs)
+					opts.Hooks.LogSyncer(&logger, e, run, logs)
 				})
 				stdout = logSyncer.NewBuffer(cloud.StdoutLogChannel, stdout)
 				stderr = logSyncer.NewBuffer(cloud.StderrLogChannel, stderr)
@@ -446,7 +469,7 @@ func (e *Engine) RunAll(
 			cmd.Stdout = stdout
 			cmd.Stderr = stderr
 
-			e.cloudSyncBefore(cloudRun)
+			opts.Hooks.Before(e, cloudRun)
 
 			if !opts.Quiet && !opts.ScriptRun {
 				printer.Stderr.Println(printPrefix + " Executing command " + strconv.Quote(cmdStr))
@@ -464,12 +487,12 @@ func (e *Engine) RunAll(
 
 				logSyncWait()
 
-				res := runResult{
+				res := RunResult{
 					ExitCode:   -1,
 					StartedAt:  &startTime,
 					FinishedAt: &endTime,
 				}
-				e.cloudSyncAfter(cloudRun, res, errors.E(err, ErrRunFailed))
+				opts.Hooks.After(e, cloudRun, res, errors.E(err, ErrRunFailed))
 				errs.Append(errors.E(err, "running %s (at stack %s)", cmd, run.Stack.Dir))
 
 				releaseResource()
@@ -492,12 +515,12 @@ func (e *Engine) RunAll(
 
 				logSyncWait()
 
-				res := runResult{
+				res := RunResult{
 					ExitCode:   -1,
 					StartedAt:  &startTime,
 					FinishedAt: &endTime,
 				}
-				e.cloudSyncAfter(cloudRun, res, errors.E(ErrRunCanceled))
+				opts.Hooks.After(e, cloudRun, res, errors.E(ErrRunCanceled))
 				errs.Append(errors.E(ErrRunCanceled, "execution aborted by CTRL-C (3x)"))
 				releaseResource()
 				failedTaskIndex = taskIndex
@@ -515,7 +538,7 @@ func (e *Engine) RunAll(
 					errs.Append(err)
 				}
 
-				res := runResult{
+				res := RunResult{
 					ExitCode:   result.cmd.ProcessState.ExitCode(),
 					StartedAt:  &startTime,
 					FinishedAt: result.finishedAt,
@@ -530,7 +553,7 @@ func (e *Engine) RunAll(
 				}
 				logMsg.Msg("command execution finished")
 
-				e.cloudSyncAfter(cloudRun, res, err)
+				opts.Hooks.After(e, cloudRun, res, err)
 				releaseResource()
 				if err != nil {
 					failedTaskIndex = taskIndex
@@ -543,11 +566,11 @@ func (e *Engine) RunAll(
 		}
 
 		if failedTaskIndex != -1 && run.SyncTaskIndex != -1 && failedTaskIndex < run.SyncTaskIndex {
-			cloudRun := stackCloudRun{
+			cloudRun := StackCloudRun{
 				Stack: run.Stack,
 				Task:  run.Tasks[run.SyncTaskIndex],
 			}
-			e.cloudSyncAfter(cloudRun, runResult{ExitCode: 1}, errors.E(ErrRunFailed))
+			opts.Hooks.After(e, cloudRun, RunResult{ExitCode: 1}, errors.E(ErrRunFailed))
 		}
 
 		return errs.AsError()
@@ -556,22 +579,7 @@ func (e *Engine) RunAll(
 	return err
 }
 
-func (e *Engine) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandLogs) {
-	data, _ := stdjson.Marshal(logs)
-	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
-	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
-	defer cancel()
-	stackID, _ := e.state.cloud.run.stackCloudID(run.Stack.ID)
-	stackPreviewID, _ := e.state.cloud.run.cloudPreviewID(run.Stack.ID)
-	err := e.state.cloud.client.SyncCommandLogs(
-		ctx, e.state.cloud.run.orgUUID, stackID, e.state.cloud.run.runUUID, logs, stackPreviewID,
-	)
-	if err != nil {
-		logger.Warn().Err(err).Msg("failed to sync logs")
-	}
-}
-
-func (t stackRunTask) isSuccessExit(exitCode int) bool {
+func (t StackRunTask) isSuccessExit(exitCode int) bool {
 	if exitCode == 0 {
 		return true
 	}
@@ -584,7 +592,7 @@ func (t stackRunTask) isSuccessExit(exitCode int) bool {
 // printScriptCommand pretty prints the cmd and attaches a "prompt" style prefix to it
 // for example:
 // /somestack (script:0 job:0.0)> echo hello
-func printScriptCommand(p *printer.Printer, stack *config.Stack, run stackRunTask) {
+func printScriptCommand(p *printer.Printer, stack *config.Stack, run StackRunTask) {
 	p.Println(
 		color.GreenString(fmt.Sprintf("%s (script:%d job:%d.%d)>",
 			stack.Dir.String(),
@@ -622,7 +630,7 @@ func newEnvironFrom(stackEnviron []string) []string {
 	return environ
 }
 
-func loadAllStackEnvs(root *config.Root, runs []stackRun) (map[project.Path]runutil.EnvVars, error) {
+func loadAllStackEnvs(root *config.Root, runs []StackRun) (map[project.Path]runutil.EnvVars, error) {
 	errs := errors.L()
 	stackEnvs := map[project.Path]runutil.EnvVars{}
 	for _, run := range runs {

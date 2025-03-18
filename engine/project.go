@@ -14,7 +14,6 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
-	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/stack"
 )
 
@@ -149,13 +148,12 @@ func (p *Project) CIPlatform() ci.PlatformType {
 	return platform
 }
 
-func (p *Project) prettyRepo() string {
+func (p *Project) PrettyRepo() (string, error) {
 	r, err := p.Repo()
 	if err != nil {
-		printer.Stderr.WarnWithDetails("failed to retrieve repository URL", err)
-		return "<invalid>"
+		return "", err
 	}
-	return r.Repo
+	return r.Repo, nil
 }
 
 func (p *Project) setupGitValues() error {
@@ -219,15 +217,15 @@ func (p *Project) computeRemoteDefaultCommit() error {
 }
 
 func (p *Project) IsGitFeaturesEnabled() bool {
-	return p.isRepo && p.hasCommit()
+	return p.isRepo && p.HasCommit()
 }
 
-func (p *Project) hasCommit() bool {
+func (p *Project) HasCommit() bool {
 	_, err := p.Git.Wrapper.RevParse("HEAD")
 	return err == nil
 }
 
-func (p *Project) hasCommits() bool {
+func (p *Project) HasCommits() bool {
 	_, err := p.Git.Wrapper.RevParse("HEAD^")
 	return err == nil
 }

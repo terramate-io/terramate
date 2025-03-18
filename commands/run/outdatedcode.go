@@ -12,23 +12,24 @@ import (
 	"github.com/terramate-io/terramate/safeguard"
 )
 
-func (s *Spec) checkOutdatedGeneratedCode() error {
+// CheckOutdatedGeneratedCode checks if the generated code is outdated.
+func CheckOutdatedGeneratedCode(e *engine.Engine, sf Safeguards, wd string) error {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
 
-	if !checkGenCode(s.Engine, s.Safeguards) {
+	if !checkGenCode(e, sf) {
 		return nil
 	}
 
-	cfg := s.Engine.Config()
-	wdpath := project.PrjAbsPath(cfg.HostDir(), s.WorkingDir)
+	cfg := e.Config()
+	wdpath := project.PrjAbsPath(cfg.HostDir(), wd)
 	targetTree, ok := cfg.Lookup(wdpath)
 	if !ok {
 		return errors.E("config not found at %s", wdpath)
 	}
 
-	vendorDir, err := s.Engine.VendorDir()
+	vendorDir, err := e.VendorDir()
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func checkGenCode(engine *engine.Engine, safeguards Safeguards) bool {
 		return false
 	}
 
-	if safeguards.reEnabled {
+	if safeguards.ReEnabled {
 		return !safeguards.DisableCheckGenerateOutdatedCheck
 	}
 

@@ -18,6 +18,7 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud/auth"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/config/filter"
@@ -62,7 +63,7 @@ type (
 		project *Project
 		usercfg cliconfig.Config
 
-		httpClient http.Client
+		HTTPClient http.Client
 		state      state
 
 		printers printer.Printers
@@ -84,13 +85,13 @@ type (
 		stdin          io.Reader
 		affectedStacks config.List[stack.Entry]
 
-		cloud cloudState
+		cloud CloudState
 	}
 )
 
 func NoGitFilter() GitFilter { return GitFilter{} }
 
-func Load(wd string, uimode UIMode, printers printer.Printers) (e *Engine, found bool, err error) {
+func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers) (e *Engine, found bool, err error) {
 	prj, found, err := NewProject(wd)
 	if err != nil {
 		return nil, false, err
@@ -110,6 +111,7 @@ func Load(wd string, uimode UIMode, printers printer.Printers) (e *Engine, found
 		project:  prj,
 		printers: printers,
 		uimode:   uimode,
+		usercfg:  clicfg,
 	}, true, nil
 }
 
@@ -185,7 +187,7 @@ func (e *Engine) ListStacks(gitfilter GitFilter, target string, stackFilters clo
 
 		ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 		defer cancel()
-		cloudStacks, err := e.state.cloud.client.StacksByStatus(ctx, e.state.cloud.run.orgUUID, repository.Repo, target, stackFilters)
+		cloudStacks, err := e.state.cloud.client.StacksByStatus(ctx, e.state.cloud.Org.UUID, repository.Repo, target, stackFilters)
 		if err != nil {
 			return nil, err
 		}
@@ -226,10 +228,10 @@ func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClaus
 	if err != nil {
 		return nil, errors.E(err, "adding wanted stacks")
 	}
-	return e.addOutputDependencies(outputFlags, stacks)
+	return e.addOutputDependencies(outputFlags, stacks, target)
 }
 
-func (e *Engine) addOutputDependencies(outputFlags OutputsSharingOptions, stacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
+func (e *Engine) addOutputDependencies(outputFlags OutputsSharingOptions, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
 	logger := log.With().
 		Str("action", "engine.addOutputDependencies()").
 		Logger()
@@ -255,7 +257,7 @@ func (e *Engine) addOutputDependencies(outputFlags OutputsSharingOptions, stacks
 	depIDs := map[string]struct{}{}
 	depOrigins := map[string][]string{} // id -> stack paths
 	for _, st := range stacks {
-		evalctx, err := e.setupEvalContext(st.Stack, map[string]string{})
+		evalctx, err := e.SetupEvalContext(e.wd(), st.Stack, target, map[string]string{})
 		if err != nil {
 			return nil, err
 		}
@@ -391,11 +393,11 @@ func (e *Engine) setupGit(gitfilter GitFilter) error {
 	return nil
 }
 
-func (e *Engine) setupEvalContext(st *config.Stack, overrideGlobals map[string]string) (*eval.Context, error) {
+func (e *Engine) SetupEvalContext(wd string, st *config.Stack, target string, overrideGlobals map[string]string) (*eval.Context, error) {
 	runtime := e.Config().Runtime()
 
-	if e.state.cloud.run.target != "" {
-		runtime["target"] = cty.StringVal(e.state.cloud.run.target)
+	if target != "" {
+		runtime["target"] = cty.StringVal(target)
 	}
 
 	var tdir string
@@ -403,7 +405,7 @@ func (e *Engine) setupEvalContext(st *config.Stack, overrideGlobals map[string]s
 		tdir = st.HostDir(e.Config())
 		runtime.Merge(st.RuntimeValues(e.Config()))
 	} else {
-		tdir = e.wd()
+		tdir = wd
 	}
 
 	ctx := eval.NewContext(stdlib.NoFS(tdir, e.RootNode().Experiments()))
@@ -440,6 +442,19 @@ func (e *Engine) setupEvalContext(st *config.Stack, overrideGlobals map[string]s
 	}
 	_ = exprs.Eval(ctx)
 	return ctx, nil
+}
+
+func (e *Engine) DetectEvalContext(wd string, overrideGlobals map[string]string) (*eval.Context, error) {
+	var st *config.Stack
+	cfg := e.Config()
+	if config.IsStack(cfg, wd) {
+		var err error
+		st, err = config.LoadStack(cfg, project.PrjAbsPath(cfg.HostDir(), wd))
+		if err != nil {
+			return nil, errors.E(err, "setup eval context: loading stack config")
+		}
+	}
+	return e.SetupEvalContext(wd, st, "", overrideGlobals)
 }
 
 func ParseFilterTags(tags, notags []string) (filter.TagClause, error) {
@@ -552,7 +567,38 @@ terramate {
 		return errors.E("--from-target value has invalid format, it must match %q", targetIDRegexPattern)
 	}
 
-	e.state.cloud.run.target = targetArg
+	return nil
+}
+
+func (e *Engine) EnsureAllStackHaveIDs(stacks config.List[*config.SortableStack]) error {
+	logger := log.With().
+		Str("action", "engine.ensureAllStackHaveIDs").
+		Logger()
+
+	var stacksMissingIDs []string
+	for _, st := range stacks {
+		if st.ID == "" {
+			stacksMissingIDs = append(stacksMissingIDs, st.Dir().String())
+		}
+	}
+	if len(stacksMissingIDs) > 0 {
+		for _, stackPath := range stacksMissingIDs {
+			logger.Error().Str("stack", stackPath).Msg("stack is missing the ID field")
+		}
+		logger.Warn().Msg("Stacks are missing IDs. You can use 'terramate create --ensure-stack-ids' to add missing IDs to all stacks.")
+		return e.handleCriticalError(errors.E(clitest.ErrCloudStacksWithoutID))
+	}
+	return nil
+}
+
+func (e *Engine) handleCriticalError(err error) error {
+	if err != nil {
+		if e.uimode == HumanMode {
+			return err
+		}
+
+		e.DisableCloudFeatures(err)
+	}
 	return nil
 }
 
@@ -592,4 +638,20 @@ func NewGitFilter(isChanged bool, gitChangeBase string, enable []string, disable
 		filter.EnableUncommitted = &off
 	}
 	return filter, nil
+}
+
+// getAffectedStacks returns the list of stacks affected by the current command.
+// c.affectedStacks is expected to be already set, if not it will be computed
+// and cached.
+func (e *Engine) GetAffectedStacks(gitfilter GitFilter) ([]stack.Entry, error) {
+	if e.state.affectedStacks != nil {
+		return e.state.affectedStacks, nil
+	}
+	report, err := e.ListStacks(gitfilter, "", cloud.NoStatusFilters(), false)
+	if err != nil {
+		return nil, err
+	}
+
+	e.state.affectedStacks = report.Stacks
+	return e.state.affectedStacks, nil
 }

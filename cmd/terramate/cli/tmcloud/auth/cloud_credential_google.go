@@ -58,9 +58,10 @@ type (
 
 		provider string
 
-		clicfg   cliconfig.Config
-		client   *cloud.Client
-		printers printer.Printers
+		clicfg    cliconfig.Config
+		client    *cloud.Client
+		printers  printer.Printers
+		verbosity int
 	}
 
 	createAuthURIResponse struct {
@@ -97,7 +98,7 @@ type (
 )
 
 // GoogleLogin logs in the user using Google OAuth.
-func GoogleLogin(printers printer.Printers, clicfg cliconfig.Config) error {
+func GoogleLogin(printers printer.Printers, verbosity int, clicfg cliconfig.Config) error {
 	h := &tokenHandler{
 		credentialChan: make(chan credentialInfo),
 		errChan:        make(chan tokenError),
@@ -123,8 +124,6 @@ func GoogleLogin(printers printer.Printers, clicfg cliconfig.Config) error {
 
 	consentDataChan <- consentData
 
-	printers.Stdout.Println(fmt.Sprintf("trying to open URL in the browser: %s", consentData.AuthURI))
-
 	err = browser.OpenURL(consentData.AuthURI)
 	if err != nil {
 		printers.Stdout.Println("failed to open URL in the browser")
@@ -136,10 +135,12 @@ func GoogleLogin(printers printer.Printers, clicfg cliconfig.Config) error {
 	select {
 	case cred := <-h.credentialChan:
 		printers.Stdout.Println(fmt.Sprintf("Logged in as %s", cred.UserDisplayName()))
-		printers.Stdout.Println(fmt.Sprintf("Token: %s", cred.IDToken))
-		expire, _ := strconv.Atoi(cred.ExpiresIn)
-		printers.Stdout.Println(fmt.Sprintf("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z)))
-		return saveCredential(printers, cred, clicfg)
+		if verbosity > 0 {
+			printers.Stdout.Println(fmt.Sprintf("Token: %s", cred.IDToken))
+			expire, _ := strconv.Atoi(cred.ExpiresIn)
+			printers.Stdout.Println(fmt.Sprintf("Expire at: %s", time.Now().Add(time.Second*time.Duration(expire)).Format(time.RFC822Z)))
+		}
+		return saveCredential(printers, verbosity, cred, clicfg)
 	case err := <-h.errChan:
 		return err.err
 	}
@@ -400,7 +401,7 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(errMessage))
 }
 
-func saveCredential(printers printer.Printers, cred credentialInfo, clicfg cliconfig.Config) error {
+func saveCredential(printers printer.Printers, verbosity int, cred credentialInfo, clicfg cliconfig.Config) error {
 	cachePayload := cachedCredential{
 		Provider:     cred.ProviderID.String(),
 		IDToken:      cred.IDToken,
@@ -418,7 +419,9 @@ func saveCredential(printers printer.Printers, cred credentialInfo, clicfg clico
 		return errors.E(err, "failed to cache credentials")
 	}
 
-	printers.Stdout.Println(fmt.Sprintf("credentials cached at %s", credfile))
+	if verbosity > 0 {
+		printers.Stdout.Println(fmt.Sprintf("credentials cached at %s", credfile))
+	}
 	return nil
 }
 
@@ -437,7 +440,7 @@ func loadCredential(printers printer.Printers, clicfg cliconfig.Config) (cachedC
 	if err != nil {
 		return cachedCredential{}, true, err
 	}
-	printers.Stdout.Println(fmt.Sprintf("credentials loaded from %s", credFile))
+	//printers.Stdout.Println(fmt.Sprintf("credentials loaded from %s", credFile))
 	return cred, true, nil
 }
 
@@ -572,7 +575,7 @@ func (g *googleCredential) Refresh() (err error) {
 	if err != nil {
 		return err
 	}
-	return saveCredential(g.printers, credentialInfo{
+	return saveCredential(g.printers, 0, credentialInfo{
 		IDToken:      g.token,
 		RefreshToken: g.refreshToken,
 	}, g.clicfg)

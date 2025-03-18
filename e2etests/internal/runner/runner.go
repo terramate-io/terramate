@@ -25,6 +25,7 @@ import (
 
 const testCliConfigFormat = `
 user_terramate_dir = "%s"
+disable_telemetry = true
 `
 
 type (
