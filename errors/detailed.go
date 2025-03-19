@@ -5,6 +5,8 @@ package errors
 
 import (
 	"fmt"
+
+	"github.com/terramate-io/terramate/errors/verbosity"
 )
 
 // ErrorDetails contains a detailed message related to an error with a verbosity level.
@@ -94,6 +96,14 @@ func (e *DetailedError) WithCode(code Kind) *DetailedError {
 	return e
 }
 
+// WithError adds the error message and details from the given error to the current error.
+func (e *DetailedError) WithError(err error) *DetailedError {
+	for _, item := range toStrings(err) {
+		e = e.WithDetail(verbosity.V1, item)
+	}
+	return e
+}
+
 // D is a constructor function to create a new DetailedError with a formatted message.
 func D(format string, a ...any) *DetailedError {
 	return &DetailedError{Msg: fmt.Sprintf(format, a...)}
@@ -121,4 +131,16 @@ func (e DetailedError) doInspect(i int, f func(i int, msg string, cause error, d
 // HasCode tells if the error tree rooted at err contains the given code.
 func HasCode(err error, code Kind) bool {
 	return Is(err, &DetailedError{Code: code})
+}
+
+// toStrings converts an error into a list of strings where each string
+// represents an individual error.
+func toStrings(err error) []string {
+	errs := L(err).Errors()
+	list := make([]string, 0, len(errs))
+	for _, errItem := range errs {
+		list = append(list, errItem.Error())
+	}
+
+	return list
 }

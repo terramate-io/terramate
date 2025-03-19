@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/cloud/integrations/bitbucket"
 	"github.com/terramate-io/terramate/cloud/metadata"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/bitbucket"
 )
 
 func TestNewBitbucketPullRequest(t *testing.T) {

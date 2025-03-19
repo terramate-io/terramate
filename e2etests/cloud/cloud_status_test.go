@@ -19,10 +19,10 @@ import (
 	"github.com/terramate-io/terramate/cloud/drift"
 	cloudstack "github.com/terramate-io/terramate/cloud/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
 	"github.com/terramate-io/terramate/test/hclwrite"
+	"github.com/terramate-io/terramate/ui/tui/clitest"
 
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"

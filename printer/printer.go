@@ -10,7 +10,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/errors/verbosity"
 )
 
 var (
@@ -25,22 +24,39 @@ var (
 	Stderr = NewPrinter(os.Stderr)
 	// Stdout is the default stdout printer
 	Stdout = NewPrinter(os.Stdout)
+
+	// DefaultPrinters groups the default stdout and stderr printers.
+	DefaultPrinters = Printers{
+		Stdout: Stdout,
+		Stderr: Stderr,
+	}
 )
 
-// Printer encapuslates an io.Writer
+// Printer encapsulates an io.Writer
 type Printer struct {
-	w io.Writer
+	io.Writer
+}
+
+// Printers groups stdout and stderr printers.
+type Printers struct {
+	Stdout *Printer
+	Stderr *Printer
 }
 
 // NewPrinter creates a new Printer with the provider io.Writer e.g.: stdio,
 // stderr, file etc.
 func NewPrinter(w io.Writer) *Printer {
-	return &Printer{w}
+	return &Printer{Writer: w}
 }
 
 // Println prints a message to the io.Writer
 func (p *Printer) Println(msg string) {
-	fprintln(p.w, msg)
+	fprintln(p, msg)
+}
+
+// Printf prints a formatted message to the io.Writer
+func (p *Printer) Printf(format string, a ...any) {
+	fprintf(p, format, a...)
 }
 
 // Warn prints a message with a "Warning:" prefix. The prefix is printed in
@@ -50,7 +66,7 @@ func (p *Printer) Warn(arg any) {
 	case *errors.DetailedError:
 		p.printDetailedWarning(arg)
 	default:
-		fprintln(p.w, boldYellow("Warning:"), bold(arg))
+		fprintln(p, boldYellow("Warning:"), bold(arg))
 	}
 }
 
@@ -67,10 +83,7 @@ func (p *Printer) Warnf(format string, a ...any) {
 // -> somefile.tm:8,3-7: terramate schema error: unrecognized attribute
 // -> somefile.tm:9,4-7: terramate schema error: unrecognized block
 func (p *Printer) ErrorWithDetails(title string, err error) {
-	derr := errors.D("%s", title)
-	for _, item := range toStrings(err) {
-		derr = derr.WithDetail(verbosity.V1, item)
-	}
+	derr := errors.D("%s", title).WithError(err)
 	p.Error(derr)
 }
 
@@ -78,14 +91,18 @@ func (p *Printer) ErrorWithDetails(title string, err error) {
 // os.Exit(1).
 func (p *Printer) FatalWithDetails(title string, err error) {
 	p.ErrorWithDetails(title, err)
-	os.Exit(1)
+	os.Exit(int(errors.ExitStatus(err)))
 }
 
-// Fatal prints an error with a title and the underlying error and calls
+// Fatal prints an error and calls
 // os.Exit(1).
 func (p *Printer) Fatal(err any) {
 	p.Error(err)
-	os.Exit(1)
+	var exit = 1
+	if e, ok := err.(error); ok {
+		exit = int(errors.ExitStatus(e))
+	}
+	os.Exit(exit)
 }
 
 // Fatalf is short for Fatal(fmt.Sprintf(...)).
@@ -96,10 +113,7 @@ func (p *Printer) Fatalf(format string, a ...any) {
 // WarnWithDetails is similar to ErrorWithDetailsln but prints a warning
 // instead
 func (p *Printer) WarnWithDetails(title string, err error) {
-	derr := errors.D("%s", title)
-	for _, item := range toStrings(err) {
-		derr = derr.WithDetail(verbosity.V1, item)
-	}
+	derr := errors.D("%s", title).WithError(err)
 	p.Warn(derr)
 }
 
@@ -109,8 +123,12 @@ func (p *Printer) Error(arg any) {
 	switch arg := arg.(type) {
 	case *errors.DetailedError:
 		p.printDetailedError(arg)
+	case error:
+		if errstr := arg.Error(); errstr != "" {
+			fprintln(p, boldRed("Error:"), bold(arg.Error()))
+		}
 	default:
-		fprintln(p.w, boldRed("Error:"), bold(arg))
+		fprintln(p, boldRed("Error:"), bold(arg))
 	}
 }
 
@@ -121,7 +139,7 @@ func (p *Printer) Errorf(format string, a ...any) {
 
 // Success prints a message in the boldGreen style
 func (p *Printer) Success(msg string) {
-	fprintln(p.w, boldGreen(msg))
+	fprintln(p, boldGreen(msg))
 }
 
 // Successf is short for Success(fmt.Sprintf(...)).
@@ -129,24 +147,12 @@ func (p *Printer) Successf(format string, a ...any) {
 	p.Success(fmt.Sprintf(format, a...))
 }
 
-// toStrings converts an error into a list of strings where each string
-// represents an individual error.
-func toStrings(err error) []string {
-	errs := errors.L(err).Errors()
-	list := make([]string, 0, len(errs))
-	for _, errItem := range errs {
-		list = append(list, errItem.Error())
-	}
-
-	return list
-}
-
 func (p *Printer) printDetailedError(err *errors.DetailedError) {
 	title, items := inspectDetailedError(err)
 
 	p.Error(title)
 	for _, item := range items {
-		fprintln(p.w, boldRed(">"), item)
+		fprintln(p, boldRed(">"), item)
 	}
 }
 
@@ -155,7 +161,7 @@ func (p *Printer) printDetailedWarning(err *errors.DetailedError) {
 
 	p.Warn(title)
 	for _, item := range items {
-		fprintln(p.w, boldYellow(">"), item)
+		fprintln(p, boldYellow(">"), item)
 	}
 }
 
@@ -176,4 +182,8 @@ func inspectDetailedError(err *errors.DetailedError) (title string, items []stri
 
 func fprintln(w io.Writer, a ...any) {
 	_, _ = fmt.Fprintln(w, a...)
+}
+
+func fprintf(w io.Writer, format string, a ...any) {
+	_, _ = fmt.Fprintf(w, format, a...)
 }

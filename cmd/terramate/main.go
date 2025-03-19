@@ -12,10 +12,15 @@ package main
 import (
 	"os"
 
-	"github.com/terramate-io/terramate"
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/ui/tui"
 )
 
 func main() {
-	cli.Exec(terramate.Version(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	cli, err := tui.NewCLI()
+	if err != nil {
+		panic(errors.E(errors.ErrInternal, "unexpected error"))
+	}
+
+	cli.Exec(os.Args[1:])
 }
