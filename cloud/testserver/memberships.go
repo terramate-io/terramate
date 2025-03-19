@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -39,9 +39,9 @@ func GetMemberships(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 
 		memberships = store.GetMembershipsForKey(key)
 	}
-	var retMemberships cloud.MemberOrganizations
+	var retMemberships resources.MemberOrganizations
 	for _, member := range memberships {
-		retMemberships = append(retMemberships, cloud.MemberOrganization{
+		retMemberships = append(retMemberships, resources.MemberOrganization{
 			MemberID:    member.MemberID,
 			Name:        member.Org.Name,
 			DisplayName: member.Org.DisplayName,

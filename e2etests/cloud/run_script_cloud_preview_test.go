@@ -15,7 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
@@ -106,12 +106,12 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},
@@ -175,7 +175,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 							Cmd:    []string{"terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 						},
 					},
-					ReviewRequest: &cloud.ReviewRequest{
+					ReviewRequest: &resources.ReviewRequest{
 						Platform:    "github",
 						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
@@ -183,12 +183,12 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
-						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Labels:      []resources.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
-						Author: cloud.Author{
+						Author: resources.Author{
 							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -215,12 +215,12 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},
@@ -236,7 +236,6 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 				  }
 				`,
 				`f:stack/preview.tm:
-
 				  script "preview" {
 					description = "sync a preview"
 					job {
@@ -282,7 +281,7 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 							Cmd:    []string{"terraform", "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 						},
 					},
-					ReviewRequest: &cloud.ReviewRequest{
+					ReviewRequest: &resources.ReviewRequest{
 						Platform:    "github",
 						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
@@ -290,12 +289,12 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
-						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Labels:      []resources.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
-						Author: cloud.Author{
+						Author: resources.Author{
 							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -312,12 +311,12 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},

@@ -55,7 +55,7 @@ func TestVersionCheck(t *testing.T) {
 	)
 
 	for name, checkedCmd := range checkedCmds {
-		name := fmt.Sprintf("name %s is checked", name)
+		name := fmt.Sprintf("%s is checked", name)
 		checkedCmd := checkedCmd
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -66,7 +66,7 @@ func TestVersionCheck(t *testing.T) {
 		})
 	}
 	for name, uncheckedCmd := range uncheckedCmds {
-		name := fmt.Sprintf("name %s isnt checked", name)
+		name := fmt.Sprintf("%s isnt checked", name)
 		uncheckedCmd := uncheckedCmd
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

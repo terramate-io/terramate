@@ -276,7 +276,6 @@ func (git *Git) Remotes() ([]Remote, error) {
 	const refprefix = "refs/remotes/"
 
 	res, err := git.exec("for-each-ref", "--format", "%(refname)", refprefix)
-
 	if err != nil {
 		return nil, err
 	}
