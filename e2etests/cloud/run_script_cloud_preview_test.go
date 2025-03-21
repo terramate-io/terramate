@@ -236,7 +236,6 @@ func TestScriptRunWithCloudSyncPreview(t *testing.T) {
 				  }
 				`,
 				`f:stack/preview.tm:
-
 				  script "preview" {
 					description = "sync a preview"
 					job {

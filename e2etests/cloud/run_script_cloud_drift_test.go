@@ -14,11 +14,11 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/ui/tui/clitest"
 )
 
 func TestScriptRunDriftStatus(t *testing.T) {

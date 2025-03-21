@@ -22,11 +22,11 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/engine"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/ui/tui/clitest"
 )
 
 func TestCloudSyncUIMode(t *testing.T) {
@@ -36,8 +36,9 @@ func TestCloudSyncUIMode(t *testing.T) {
 		name   string
 		cmd    []string
 		want   RunExpected
-		uimode cli.UIMode
-		env    []string
+		uimode engine.UIMode
+
+		env []string
 	}
 
 	type testcase struct {
@@ -76,7 +77,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -87,7 +88,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -98,7 +99,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -109,7 +110,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -122,7 +123,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					want: RunExpected{
@@ -139,7 +140,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					want: RunExpected{
@@ -165,7 +166,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -182,7 +183,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -199,7 +200,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -216,7 +217,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -235,7 +236,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -246,7 +247,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -266,7 +267,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -277,7 +278,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -288,7 +289,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -299,7 +300,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -312,7 +313,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					want: RunExpected{
@@ -329,7 +330,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					want: RunExpected{
@@ -357,7 +358,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -373,7 +374,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -389,7 +390,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -405,7 +406,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -423,7 +424,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -434,7 +435,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -463,7 +464,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -479,7 +480,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -494,7 +495,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -510,7 +511,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -527,7 +528,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -539,7 +540,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -557,7 +558,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -570,7 +571,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -582,7 +583,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -595,7 +596,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -612,7 +613,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -624,7 +625,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 1,
@@ -654,7 +655,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -670,7 +671,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -686,7 +687,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -702,7 +703,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -720,7 +721,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -737,7 +738,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -782,7 +783,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -799,7 +800,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -860,7 +861,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -876,7 +877,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -891,7 +892,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -907,7 +908,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -924,7 +925,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -942,7 +943,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -997,7 +998,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -1015,7 +1016,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -1032,7 +1033,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -1050,7 +1051,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--sync-drift-status",
@@ -1069,7 +1070,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -1088,7 +1089,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -1151,7 +1152,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment without setting the org",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--sync-deployment",
@@ -1164,7 +1165,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment without setting the org",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1178,7 +1179,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment with org set",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1189,7 +1190,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment with org set",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1200,7 +1201,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift without org set",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1214,7 +1215,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift without org set",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1228,7 +1229,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift with org set",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1239,7 +1240,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift with org set",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1252,7 +1253,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				// cloud info cases
 				{
 					name:   "cloud info without an org set",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -1271,7 +1272,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "cloud info without an org set",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd:    []string{"cloud", "info"},
 					want: RunExpected{
 						Status: 0,
@@ -1296,7 +1297,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "org unset",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1310,7 +1311,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "org set",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					cmd: []string{
 						"run",
 						"--quiet",
@@ -1326,7 +1327,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "org set",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1337,7 +1338,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "org unset",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1354,7 +1355,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1362,12 +1363,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
-						StderrRegex: clitest.CloudDisablingMessage,
+						Status:      1,
+						StderrRegex: regexp.QuoteMeta("failed to create cloud deployment"),
 					},
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1403,7 +1405,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1411,12 +1413,13 @@ func TestCloudSyncUIMode(t *testing.T) {
 						"--", HelperPath, "true",
 					},
 					want: RunExpected{
-						StderrRegex: clitest.CloudDisablingMessage,
+						Status:      1,
+						StderrRegex: regexp.QuoteMeta(`unexpected API response body: invalid deployment status: unrecognized (0)`),
 					},
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1439,7 +1442,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a deployment",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1455,7 +1458,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a deployment",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1471,7 +1474,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1487,7 +1490,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1514,7 +1517,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			subcases: []subtestcase{
 				{
 					name:   "syncing a drift",
-					uimode: cli.HumanMode,
+					uimode: engine.HumanMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1528,7 +1531,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 				},
 				{
 					name:   "syncing a drift",
-					uimode: cli.AutomationMode,
+					uimode: engine.AutomationMode,
 					env:    []string{"TM_CLOUD_ORGANIZATION=" + defaultTestOrg},
 					cmd: []string{
 						"run",
@@ -1549,7 +1552,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			for _, subcase := range tc.subcases {
 				subcase := subcase
 				uimode := "human"
-				if subcase.uimode == cli.AutomationMode {
+				if subcase.uimode == engine.AutomationMode {
 					uimode = "automation"
 				}
 				t.Run(fmt.Sprintf("%s - %s", uimode, subcase.name), func(t *testing.T) {
@@ -1558,7 +1561,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						t.Fatal("invalid testcase: cmd not set")
 					}
 					env := RemoveEnv(os.Environ(), "CI", "GITHUB_ACTIONS")
-					if subcase.uimode == cli.AutomationMode {
+					if subcase.uimode == engine.AutomationMode {
 						env = append(env, "CI=true")
 					}
 					listener, err := net.Listen("tcp", ":0")

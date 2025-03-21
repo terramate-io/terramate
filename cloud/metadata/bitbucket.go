@@ -3,7 +3,7 @@
 
 package metadata
 
-import "github.com/terramate-io/terramate/cmd/terramate/cli/bitbucket"
+import "github.com/terramate-io/terramate/cloud/integrations/bitbucket"
 
 // BitbucketPullRequest is a Bitbuckt pull request.
 type BitbucketPullRequest struct {
