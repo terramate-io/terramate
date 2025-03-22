@@ -7,17 +7,20 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
+	stdhttp "net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
 	"testing"
 	"time"
 
+	"github.com/terramate-io/terramate/http"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/errors"
 	errtest "github.com/terramate-io/terramate/test/errors"
 )
@@ -25,20 +28,20 @@ import (
 func TestCloudCustomHTTPClient(t *testing.T) {
 	t.Parallel()
 	isCalled := false
-	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	s := httptest.NewTLSServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		isCalled = true
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = io.WriteString(w, "[]")
 	}))
 	defer s.Close()
 
-	checkReq := func(client *http.Client, reused bool, assert func(t *testing.T, gotErr error)) {
+	checkReq := func(client *stdhttp.Client, reused bool, assert func(t *testing.T, gotErr error)) {
 		isCalled = false
-		tmClient := cloud.Client{
-			BaseURL:    s.URL,
-			HTTPClient: client,
-			Credential: credential(),
-		}
+		sdk := cloud.NewClient(
+			cloud.WithBaseURL(s.URL),
+			cloud.WithHTTPClient(client),
+			cloud.WithCredential(credential()),
+		)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -50,7 +53,7 @@ func TestCloudCustomHTTPClient(t *testing.T) {
 			},
 		}
 
-		_, gotErr := tmClient.MemberOrganizations(httptrace.WithClientTrace(ctx, trace))
+		_, gotErr := sdk.MemberOrganizations(httptrace.WithClientTrace(ctx, trace))
 		assert(t, gotErr)
 
 		if gotErr == nil && !isCalled {
@@ -58,7 +61,7 @@ func TestCloudCustomHTTPClient(t *testing.T) {
 		}
 	}
 
-	checkReq(http.DefaultClient, false, func(t *testing.T, gotErr error) {
+	checkReq(stdhttp.DefaultClient, false, func(t *testing.T, gotErr error) {
 		if gotErr == nil {
 			t.Fatal("should fail because DefaultClient has no valid certificate for the test server")
 		}
@@ -84,38 +87,38 @@ func TestCommonAPIFailCases(t *testing.T) {
 		name       string
 		statusCode int
 		body       string
-		headers    http.Header
+		headers    stdhttp.Header
 		err        error
 	}
 
 	for _, tc := range []testcase{
 		{
 			name:       "unauthorized request",
-			statusCode: http.StatusUnauthorized,
-			err:        errors.E(cloud.ErrUnexpectedStatus),
+			statusCode: stdhttp.StatusUnauthorized,
+			err:        errors.E(http.ErrUnexpectedStatus),
 		},
 		{
 			name:       "unexpected status code",
-			statusCode: http.StatusInternalServerError,
-			err:        errors.E(cloud.ErrUnexpectedStatus),
+			statusCode: stdhttp.StatusInternalServerError,
+			err:        errors.E(http.ErrUnexpectedStatus),
 		},
 		{
 			name:       "unsupported content-type",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body:       `[]`,
-			headers: http.Header{
+			headers: stdhttp.Header{
 				"Content-Type": []string{"application/xml"},
 			},
 
-			err: errors.E(cloud.ErrUnexpectedResponseBody),
+			err: errors.E(http.ErrUnexpectedResponseBody),
 		},
 		{
 			name:       "invalid response payload",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 					"stacks": 2
 			}`,
-			err: errors.E(cloud.ErrUnexpectedResponseBody),
+			err: errors.E(http.ErrUnexpectedResponseBody),
 		},
 	} {
 		tc := tc
@@ -124,11 +127,11 @@ func TestCommonAPIFailCases(t *testing.T) {
 			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 
-			sdk := cloud.Client{
-				BaseURL:    s.URL,
-				HTTPClient: s.Client(),
-				Credential: credential(),
-			}
+			sdk := cloud.NewClient(
+				cloud.WithBaseURL(s.URL),
+				cloud.WithHTTPClient(s.Client()),
+				cloud.WithCredential(credential()),
+			)
 
 			// /v1/users
 			func() {
@@ -161,7 +164,7 @@ func TestCommonAPIFailCases(t *testing.T) {
 					"e4c81294-dcf8-45e2-ba95-25f96514a61b",
 					"dummy/repo",
 					"",
-					cloud.NoStatusFilters(),
+					resources.NoStatusFilters(),
 				)
 				errtest.Assert(t, err, tc.err)
 			}()
@@ -205,26 +208,26 @@ func TestRequestContentType(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s := httptest.NewTLSServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 				// Request() response must always be application/json
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(stdhttp.StatusOK)
 				_, _ = io.WriteString(w, fmt.Sprintf(`{"ctype": %q}`, r.Header.Get("Content-Type")))
 			}))
 			defer s.Close()
 
-			sdk := cloud.Client{
-				BaseURL:    s.URL,
-				HTTPClient: s.Client(),
-				Credential: credential(),
-			}
+			sdk := cloud.NewClient(
+				cloud.WithBaseURL(s.URL),
+				cloud.WithHTTPClient(s.Client()),
+				cloud.WithCredential(credential()),
+			)
 
 			const timeout = 3 * time.Second
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			resp, err := cloud.Request[testCtypeResponse](ctx, &sdk, http.MethodPost, sdk.URL("/"), tc.payload)
+			resp, err := http.Post[testCtypeResponse](ctx, sdk, tc.payload, sdk.URL("/"))
 			assert.NoError(t, err)
 
 			assert.EqualStrings(t, tc.want, string(resp.Ctype))
@@ -241,43 +244,43 @@ func (t testCtypeResponse) Validate() error { return nil }
 func TestCloudMemberOrganizations(t *testing.T) {
 	t.Parallel()
 	type want struct {
-		orgs cloud.MemberOrganizations
+		orgs resources.MemberOrganizations
 		err  error
 	}
 	type testcase struct {
 		name       string
 		statusCode int
 		body       string
-		headers    http.Header
+		headers    stdhttp.Header
 		want       want
 	}
 
 	for _, tc := range []testcase{
 		{
 			name:       "invalid organization object",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `[
 				{}
 			]`,
 			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
+				err: errors.E(http.ErrUnexpectedResponseBody),
 			},
 		},
 		{
 			name:       "invalid organization object -- missing uuid field",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `[
 				{
 					"org_name": "terramate-io"
 				}
 			]`,
 			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
+				err: errors.E(http.ErrUnexpectedResponseBody),
 			},
 		},
 		{
 			name:       "valid simple request",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `[
 				{
 					"org_name": "terramate-io",
@@ -285,8 +288,8 @@ func TestCloudMemberOrganizations(t *testing.T) {
 				}
 			]`,
 			want: want{
-				orgs: cloud.MemberOrganizations{
-					cloud.MemberOrganization{
+				orgs: resources.MemberOrganizations{
+					resources.MemberOrganization{
 						Name: "terramate-io",
 						UUID: "0000-0000-0000-0000",
 					},
@@ -300,11 +303,11 @@ func TestCloudMemberOrganizations(t *testing.T) {
 			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 
-			sdk := cloud.Client{
-				BaseURL:    s.URL,
-				HTTPClient: s.Client(),
-				Credential: credential(),
-			}
+			sdk := cloud.NewClient(
+				cloud.WithBaseURL(s.URL),
+				cloud.WithHTTPClient(s.Client()),
+				cloud.WithCredential(credential()),
+			)
 
 			const timeout = 3 * time.Second
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -325,7 +328,7 @@ func TestCloudMemberOrganizations(t *testing.T) {
 func TestCloudStacks(t *testing.T) {
 	t.Parallel()
 	type want struct {
-		stacks []cloud.StackObject
+		stacks []resources.StackObject
 		err    error
 	}
 	type testcase struct {
@@ -334,7 +337,7 @@ func TestCloudStacks(t *testing.T) {
 		filter     stack.FilterStatus
 		statusCode int
 		body       string
-		headers    http.Header
+		headers    stdhttp.Header
 		want       want
 	}
 
@@ -342,7 +345,7 @@ func TestCloudStacks(t *testing.T) {
 		{
 			name:       "non-existent organization returns empty stacks list",
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 				"paginated_result": {
 					"total": 0,
@@ -355,7 +358,7 @@ func TestCloudStacks(t *testing.T) {
 		{
 			name:       "stack missing MetaID",
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 				"stacks": [
 					{
@@ -375,13 +378,13 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
+				err: errors.E(http.ErrUnexpectedResponseBody),
 			},
 		},
 		{
 			name:       "stack missing status",
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 				"stacks": [
 					{
@@ -401,13 +404,13 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
+				err: errors.E(http.ErrUnexpectedResponseBody),
 			},
 		},
 		{
 			name:       "stack with unrecognized status",
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 				"paginated_result": {
 					"total": 1,
@@ -433,10 +436,10 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				stacks: []cloud.StackObject{
+				stacks: []resources.StackObject{
 					{
 						ID: 666,
-						Stack: cloud.Stack{
+						Stack: resources.Stack{
 							Repository:      "github.com/terramate-io/terramate",
 							Path:            "/docs",
 							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
@@ -452,7 +455,7 @@ func TestCloudStacks(t *testing.T) {
 		{
 			name:       "stack with no repository",
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 				"stacks": [
 					{
@@ -472,13 +475,13 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				err: errors.E(cloud.ErrUnexpectedResponseBody),
+				err: errors.E(http.ErrUnexpectedResponseBody),
 			},
 		},
 		{
 			name:       "valid object",
 			org:        "df580ab4-b20d-4b1d-afc3-3bdccc56491b",
-			statusCode: http.StatusOK,
+			statusCode: stdhttp.StatusOK,
 			body: `{
 				"paginated_result": {
 					"total": 3,
@@ -534,10 +537,10 @@ func TestCloudStacks(t *testing.T) {
 				]
 			}`,
 			want: want{
-				stacks: []cloud.StackObject{
+				stacks: []resources.StackObject{
 					{
 						ID: 666,
-						Stack: cloud.Stack{
+						Stack: resources.Stack{
 							Repository:      "github.com/terramate-io/terramate",
 							Path:            "/docs",
 							MetaID:          "0aef0c2b-3314-4097-a7e5-3d6d03cb4604",
@@ -549,7 +552,7 @@ func TestCloudStacks(t *testing.T) {
 					},
 					{
 						ID: 667,
-						Stack: cloud.Stack{
+						Stack: resources.Stack{
 							Repository:      "github.com/terramate-io/terramate",
 							Path:            "/",
 							MetaID:          "4ff324cd-f338-4526-8bcb-28ec33bbaeea",
@@ -561,7 +564,7 @@ func TestCloudStacks(t *testing.T) {
 					},
 					{
 						ID: 668,
-						Stack: cloud.Stack{
+						Stack: resources.Stack{
 							Repository:      "github.com/terramate-io/terramate",
 							Path:            "/_testdata/example-stack",
 							MetaID:          "terramate-example-stack",
@@ -580,17 +583,17 @@ func TestCloudStacks(t *testing.T) {
 			s := newTestServer(tc.statusCode, tc.body, tc.headers)
 			defer s.Close()
 
-			sdk := cloud.Client{
-				BaseURL:    s.URL,
-				HTTPClient: s.Client(),
-				Credential: credential(),
-			}
+			sdk := cloud.NewClient(
+				cloud.WithBaseURL(s.URL),
+				cloud.WithHTTPClient(s.Client()),
+				cloud.WithCredential(credential()),
+			)
 
 			const timeout = 3 * time.Second
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			stacksResp, err := sdk.StacksByStatus(ctx, cloud.UUID(tc.org), "dummy/repo", "", cloud.StatusFilters{
+			stacksResp, err := sdk.StacksByStatus(ctx, resources.UUID(tc.org), "dummy/repo", "", resources.StatusFilters{
 				StackStatus: tc.filter,
 			})
 			errtest.Assert(t, err, tc.want.err)
@@ -605,8 +608,8 @@ func TestCloudStacks(t *testing.T) {
 	}
 }
 
-func newTestServer(statusCode int, body string, headers http.Header) *httptest.Server {
-	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+func newTestServer(statusCode int, body string, headers stdhttp.Header) *httptest.Server {
+	return httptest.NewTLSServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		if len(headers) > 0 {
 			for k, v := range headers {
 				w.Header().Set(k, v[0])
@@ -619,18 +622,18 @@ func newTestServer(statusCode int, body string, headers http.Header) *httptest.S
 	}))
 }
 
-func credential() cloud.Credential {
+func credential() http.Credential {
 	c := &mockCred{}
 	return c
 }
 
 type mockCred struct{}
 
-func (*mockCred) ApplyCredentials(req *http.Request) error {
+func (*mockCred) ApplyCredentials(req *stdhttp.Request) error {
 	req.Header.Set("Authorization", "Bearer I am a token")
 	return nil
 }
 
-func (*mockCred) RedactCredentials(req *http.Request) {
+func (*mockCred) RedactCredentials(req *stdhttp.Request) {
 	req.Header.Set("Authorization", "REDACTED")
 }

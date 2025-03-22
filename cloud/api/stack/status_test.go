@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/errors"
 	errtest "github.com/terramate-io/terramate/test/errors"
 )

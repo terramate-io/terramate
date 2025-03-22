@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -21,7 +22,7 @@ const apiKeyEnvName = "TMC_TOKEN"
 type APIKey struct {
 	token string
 
-	orgs   cloud.MemberOrganizations
+	orgs   resources.MemberOrganizations
 	client *cloud.Client
 }
 
@@ -43,7 +44,7 @@ func (a *APIKey) Load() (bool, error) {
 		return false, nil
 	}
 
-	a.client.Credential = a
+	a.client.SetCredential(a)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
@@ -95,7 +96,7 @@ func (a *APIKey) Info(selectedOrgName string) {
 	}
 
 	if len(activeOrgs) == 0 {
-		printer.Stderr.Warnf("You are not part of an organization. Please join an organization or visit %s to create a new one.", cloud.HTMLURL(a.client.Region))
+		printer.Stderr.Warnf("You are not part of an organization. Please join an organization or visit %s to create a new one.", cloud.HTMLURL(a.client.Region()))
 	}
 
 	if selectedOrgName == "" {
@@ -117,6 +118,6 @@ func (a *APIKey) Info(selectedOrgName string) {
 }
 
 // Organizations that the API key belong to.
-func (a *APIKey) Organizations() cloud.MemberOrganizations {
+func (a *APIKey) Organizations() resources.MemberOrganizations {
 	return a.orgs
 }

@@ -4,11 +4,11 @@
 package testserver
 
 import (
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/errors"
 )
 
-func validateMetadata(metadata *cloud.DeploymentMetadata) error {
+func validateMetadata(metadata *resources.DeploymentMetadata) error {
 	if metadata == nil {
 		return errors.E("metadata is required")
 	}
@@ -19,7 +19,7 @@ func validateMetadata(metadata *cloud.DeploymentMetadata) error {
 	return nil
 }
 
-func validateGitMetadata(metadata cloud.GitMetadata) error {
+func validateGitMetadata(metadata resources.GitMetadata) error {
 	if metadata.GitCommitSHA == "" {
 		return errors.E(`field "git_commit_sha" is required`)
 	}

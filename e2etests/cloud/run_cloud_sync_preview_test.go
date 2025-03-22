@@ -14,7 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/git"
@@ -95,12 +95,12 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},
@@ -144,19 +144,19 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 						},
 					},
-					ReviewRequest: &cloud.ReviewRequest{
+					ReviewRequest: &resources.ReviewRequest{
 						Platform:    "github",
 						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
-						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Labels:      []resources.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
-						Author: cloud.Author{
+						Author: resources.Author{
 							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -173,12 +173,12 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},
@@ -231,7 +231,7 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 							Status: "changed",
 							Cmd:    []string{TerraformTestPath, "plan", "-out=out.tfplan", "-no-color", "-detailed-exitcode"},
 							Stack: cloudstore.Stack{
-								Stack: cloud.Stack{
+								Stack: resources.Stack{
 									Repository:    normalizedPreviewTestRemoteRepo,
 									Target:        "custom_target",
 									DefaultBranch: "main",
@@ -242,19 +242,19 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 							},
 						},
 					},
-					ReviewRequest: &cloud.ReviewRequest{
+					ReviewRequest: &resources.ReviewRequest{
 						Platform:    "github",
 						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
-						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Labels:      []resources.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
 						Status:      "open",
 						CreatedAt:   createdAt,
 						UpdatedAt:   updatedAt,
 						PushedAt:    &pushedAt,
-						Author: cloud.Author{
+						Author: resources.Author{
 							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -271,12 +271,12 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},
@@ -310,15 +310,15 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 					TechnologyLayer: "default",
 					PushedAt:        1707482310,                                 // pushed_at from the pull request event (not from API)
 					CommitSHA:       "ea61b5bd72dec0878ae388b04d76a988439d1e28", // commit_sha from the pull request event (not from API)
-					ReviewRequest: &cloud.ReviewRequest{
+					ReviewRequest: &resources.ReviewRequest{
 						Platform:    "github",
 						Repository:  normalizedPreviewTestRemoteRepo,
 						Number:      1347,
 						Title:       "Amazing new feature",
 						Description: "Please pull these awesome changes in!",
 						URL:         "https://github.com/octocat/Hello-World/pull/1347",
-						Labels:      []cloud.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
-						Author: cloud.Author{
+						Labels:      []resources.Label{{Name: "bug", Color: "f29513", Description: "Something isn't working"}},
+						Author: resources.Author{
 							ID:        "1",
 							Login:     "octocat",
 							AvatarURL: "https://github.com/images/error/octocat_happy.gif",
@@ -340,12 +340,12 @@ func TestCLIRunWithCloudSyncPreview(t *testing.T) {
 				},
 				ignoreTypes: []cmp.Option{
 					cmpopts.IgnoreTypes(
-						cloud.CommandLogs{},
-						&cloud.ChangesetDetails{},
+						resources.CommandLogs{},
+						&resources.ChangesetDetails{},
 						cloudstore.Stack{},
-						&cloud.DeploymentMetadata{},
+						&resources.DeploymentMetadata{},
 					),
-					cmpopts.IgnoreFields(cloud.ReviewRequest{}, "CommitSHA"),
+					cmpopts.IgnoreFields(resources.ReviewRequest{}, "CommitSHA"),
 				},
 			},
 		},

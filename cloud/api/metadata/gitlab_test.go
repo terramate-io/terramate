@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud/metadata"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
+	"github.com/terramate-io/terramate/cloud/api/metadata"
+	"github.com/terramate-io/terramate/cloud/integrations/gitlab"
 )
 
 func TestNewGitlabMergeRequest(t *testing.T) {

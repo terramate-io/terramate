@@ -21,10 +21,11 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/preview"
-	cloudstack "github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/preview"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
@@ -1186,7 +1187,7 @@ func (c *cli) triggerStackByFilter() {
 	if statusFilter != cloudstack.NoFilter && c.parsedArgs.Trigger.Recursive {
 		fatal("cloud filters such as --status are incompatible with --recursive flag")
 	}
-	stackFilter := cloud.StatusFilters{
+	stackFilter := resources.StatusFilters{
 		StackStatus: statusFilter,
 	}
 	stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, stackFilter, false)
@@ -1262,7 +1263,7 @@ func (c *cli) triggerStack(basePath string) {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
+		stacksReport, err := c.listStacks(false, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 		if err != nil {
 			fatalWithDetailf(err, "computing selected stacks")
 		}
@@ -1479,7 +1480,7 @@ func (c *cli) setupChangeDetection(enable []string, disable []string) {
 	}
 }
 
-func (c *cli) listStacks(isChanged bool, target string, stackFilters cloud.StatusFilters, checkRepo bool) (*stack.Report, error) {
+func (c *cli) listStacks(isChanged bool, target string, stackFilters resources.StatusFilters, checkRepo bool) (*stack.Report, error) {
 	var (
 		err    error
 		report *stack.Report
@@ -2001,7 +2002,7 @@ func (c *cli) printStacks() {
 		}
 	})
 
-	cloudFilters := cloud.StatusFilters{
+	cloudFilters := resources.StatusFilters{
 		StackStatus:      parseStatusFilter(statusStr),
 		DeploymentStatus: parseDeploymentStatusFilter(deploymentStatusStr),
 		DriftStatus:      parseDriftStatusFilter(driftStatusStr),
@@ -2086,7 +2087,7 @@ func parseDriftStatusFilter(filterStr string) drift.FilterStatus {
 }
 
 func (c *cli) printRuntimeEnv() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "listing stacks")
 	}
@@ -2231,7 +2232,7 @@ func generateDot(
 }
 
 func (c *cli) generateDebug() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "generate debug: selecting stacks")
 	}
@@ -2278,7 +2279,7 @@ func (c *cli) generateDebug() {
 }
 
 func (c *cli) printStacksGlobals() {
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "listing stacks globals: listing stacks")
 	}
@@ -2307,7 +2308,7 @@ func (c *cli) printMetadata() {
 		Str("action", "cli.printMetadata()").
 		Logger()
 
-	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
+	report, err := c.listStacks(c.parsedArgs.Changed, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "loading metadata: listing stacks")
 	}
@@ -2366,7 +2367,7 @@ func (c *cli) checkGenCode() bool {
 }
 
 func (c *cli) ensureStackID() {
-	report, err := c.listStacks(false, cloudstack.AnyTarget, cloud.NoStatusFilters(), false)
+	report, err := c.listStacks(false, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		fatalWithDetailf(err, "listing stacks")
 	}
@@ -2620,7 +2621,7 @@ func (c *cli) cfg() *config.Root            { return c.prj.root }
 func (c *cli) baseRef() string              { return c.prj.baseRef }
 func (c *cli) stackManager() *stack.Manager { return c.prj.stackManager }
 func (c *cli) rootNode() hcl.Config         { return c.prj.root.Tree().Node }
-func (c *cli) cred() auth.Credential        { return c.cloud.client.Credential.(auth.Credential) }
+func (c *cli) cred() auth.Credential        { return c.cloud.client.Credential().(auth.Credential) }
 func (c *cli) cloudRegion() cloud.Region {
 	rootcfg := c.rootNode()
 	if rootcfg.Terramate != nil && rootcfg.Terramate.Config != nil && rootcfg.Terramate.Config.Cloud != nil {
@@ -2633,7 +2634,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool, outputFlags outputsSharingFlags, target string, stackFilters cloud.StatusFilters) (config.List[*config.SortableStack], error) {
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, outputFlags outputsSharingFlags, target string, stackFilters resources.StatusFilters) (config.List[*config.SortableStack], error) {
 	report, err := c.listStacks(c.parsedArgs.Changed, target, stackFilters, true)
 	if err != nil {
 		return nil, err

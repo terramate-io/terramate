@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
+	stdhttp "net/http"
 	"os"
 	"regexp"
 	"testing"
@@ -20,11 +20,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/http"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -46,11 +48,11 @@ func TestCloudSyncUIMode(t *testing.T) {
 		endpoints       map[string]bool
 		customEndpoints testserver.Custom
 		cloudData       *cloudstore.Data
-		wellknown       *cloud.WellKnown
+		wellknown       *resources.WellKnown
 		subcases        []subtestcase
 	}
 
-	writeJSON := func(w http.ResponseWriter, str string) {
+	writeJSON := func(w stdhttp.ResponseWriter, str string) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write([]byte(str))
 	}
@@ -159,7 +161,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 		{
 			name:      "/.well-known/cli.json returns unsupported version constraint",
 			endpoints: testserver.EnableAllConfig(),
-			wellknown: &cloud.WellKnown{
+			wellknown: &resources.WellKnown{
 				RequiredVersion: "> " + versionNoPrerelease.String(),
 			},
 			subcases: []subtestcase{
@@ -260,7 +262,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 		{
 			name:      "/.well-known/cli.json with valid constraint",
 			endpoints: testserver.EnableAllConfig(),
-			wellknown: &cloud.WellKnown{
+			wellknown: &resources.WellKnown{
 				RequiredVersion: "= " + versionNoPrerelease.String(),
 			},
 			subcases: []subtestcase{
@@ -453,7 +455,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.UsersPath,
 						Handler: testserver.Handler(
-							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w stdhttp.ResponseWriter, _ *stdhttp.Request, _ httprouter.Params) {
 								writeJSON(w, invalidUserData)
 							},
 						),
@@ -472,7 +474,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(cloud.ErrUnexpectedResponseBody),
+							string(http.ErrUnexpectedResponseBody),
 							fatalErr,
 						},
 					},
@@ -487,7 +489,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							string(cloud.ErrUnexpectedResponseBody),
+							string(http.ErrUnexpectedResponseBody),
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -503,7 +505,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(cloud.ErrUnexpectedResponseBody),
+							string(http.ErrUnexpectedResponseBody),
 							fatalErr,
 						},
 					},
@@ -518,7 +520,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					},
 					want: RunExpected{
 						StderrRegexes: []string{
-							string(cloud.ErrUnexpectedResponseBody),
+							string(http.ErrUnexpectedResponseBody),
 							clitest.CloudDisablingMessage,
 						},
 					},
@@ -532,7 +534,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(cloud.ErrUnexpectedResponseBody),
+							string(http.ErrUnexpectedResponseBody),
 							`failed to load the cloud credentials`,
 						},
 					},
@@ -544,7 +546,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							string(cloud.ErrUnexpectedResponseBody),
+							string(http.ErrUnexpectedResponseBody),
 							`failed to load the cloud credentials`,
 						},
 					},
@@ -617,7 +619,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							regexp.QuoteMeta(string(http.ErrNotFound)),
 							`failed to load the cloud credentials`,
 						},
 					},
@@ -629,7 +631,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					want: RunExpected{
 						Status: 1,
 						StderrRegexes: []string{
-							regexp.QuoteMeta(string(cloud.ErrNotFound)),
+							regexp.QuoteMeta(string(http.ErrNotFound)),
 							`failed to load the cloud credentials`,
 						},
 					},
@@ -644,7 +646,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.MembershipsPath,
 						Handler: testserver.Handler(
-							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w stdhttp.ResponseWriter, _ *stdhttp.Request, _ httprouter.Params) {
 								writeJSON(w, `[]`)
 							},
 						),
@@ -762,7 +764,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.MembershipsPath,
 						Handler: testserver.Handler(
-							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w stdhttp.ResponseWriter, _ *stdhttp.Request, _ httprouter.Params) {
 								writeJSON(w, `[]`)
 							},
 						),
@@ -848,7 +850,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						},
 					},
 				},
-				Users: map[string]cloud.User{
+				Users: map[string]resources.User{
 					"batman": {
 						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
 						Email:       "batman@terramate.io",
@@ -968,7 +970,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"GET": {
 						Path: cloud.MembershipsPath,
 						Handler: testserver.Handler(
-							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w stdhttp.ResponseWriter, _ *stdhttp.Request, _ httprouter.Params) {
 								writeJSON(w, `[
 									{
 										"org_name": "terramate-io",
@@ -1139,7 +1141,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						},
 					},
 				},
-				Users: map[string]cloud.User{
+				Users: map[string]resources.User{
 					"batman": {
 						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
 						Email:       "batman@terramate.io",
@@ -1388,7 +1390,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					"POST": {
 						Path: fmt.Sprintf("%s/:orguuid/:deployuuid/stacks", cloud.DeploymentsPath),
 						Handler: testserver.Handler(
-							func(_ *cloudstore.Data, w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+							func(_ *cloudstore.Data, w stdhttp.ResponseWriter, _ *stdhttp.Request, _ httprouter.Params) {
 								writeJSON(w, `[
 									{
 										"stack_id": 1,
@@ -1586,7 +1588,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 					}
 
 					router := testserver.RouterWith(store, tc.endpoints)
-					fakeserver := &http.Server{
+					fakeserver := &stdhttp.Server{
 						Handler: router,
 						Addr:    listener.Addr().String(),
 					}
@@ -1605,7 +1607,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 						}
 						select {
 						case err := <-errChan:
-							if err != nil && !errors.Is(err, http.ErrServerClosed) {
+							if err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
 								t.Error(err)
 							}
 						case <-time.After(fakeserverShutdownTimeout):

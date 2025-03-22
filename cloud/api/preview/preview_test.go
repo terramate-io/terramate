@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud/preview"
+	"github.com/terramate-io/terramate/cloud/api/preview"
 )
 
 func TestStackStatus(t *testing.T) {

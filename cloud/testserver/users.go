@@ -9,7 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/julienschmidt/httprouter"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -27,17 +27,17 @@ func GetUsers(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, _ 
 	marshalWrite(w, user)
 }
 
-func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, bool, error) {
+func userFromRequest(store *cloudstore.Data, r *http.Request) (resources.User, bool, error) {
 	authorization := r.Header.Get("Authorization")
 	if authorization == "" {
-		return cloud.User{}, false, nil
+		return resources.User{}, false, nil
 	}
 	if !strings.HasPrefix(authorization, "Bearer ") {
-		return cloud.User{}, false, nil
+		return resources.User{}, false, nil
 	}
 	tokenStr := strings.TrimPrefix(authorization, "Bearer ")
 	if tokenStr == "" {
-		return cloud.User{}, true, errors.E("no bearer token")
+		return resources.User{}, true, errors.E("no bearer token")
 	}
 
 	var jwtParser jwt.Parser
@@ -45,13 +45,13 @@ func userFromRequest(store *cloudstore.Data, r *http.Request) (cloud.User, bool,
 	claims := jwt.MapClaims{}
 	_, _, err := jwtParser.ParseUnverified(tokenStr, claims)
 	if err != nil {
-		return cloud.User{}, true, errors.E(err, "parsing jwt token")
+		return resources.User{}, true, errors.E(err, "parsing jwt token")
 	}
 
 	email := claims["email"].(string)
 	user, found := store.GetUser(email)
 	if !found {
-		return cloud.User{}, true, errors.E("email %s not found", email)
+		return resources.User{}, true, errors.E("email %s not found", email)
 	}
 	return user, true, nil
 }

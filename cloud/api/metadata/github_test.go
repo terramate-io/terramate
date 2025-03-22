@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v58/github"
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud/metadata"
+	"github.com/terramate-io/terramate/cloud/api/metadata"
 )
 
 func TestNewGithubPullRequest(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
 	prj "github.com/terramate-io/terramate/project"
@@ -68,7 +68,7 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 			Msg("detected deployment url")
 	}
 
-	payload := cloud.DeploymentStacksPayloadRequest{
+	payload := resources.DeploymentStacksPayloadRequest{
 		ReviewRequest: c.cloud.run.reviewRequest,
 		Workdir:       prj.PrjAbsPath(c.rootdir(), c.wd()),
 		Metadata:      c.cloud.run.metadata,
@@ -79,8 +79,8 @@ func (c *cli) createCloudDeployment(deployRuns []stackCloudRun) {
 		if tags == nil {
 			tags = []string{}
 		}
-		payload.Stacks = append(payload.Stacks, cloud.DeploymentStackRequest{
-			Stack: cloud.Stack{
+		payload.Stacks = append(payload.Stacks, resources.DeploymentStackRequest{
+			Stack: resources.Stack{
 				MetaID:          strings.ToLower(run.Stack.ID),
 				MetaName:        run.Stack.Name,
 				MetaDescription: run.Stack.Description,
@@ -157,7 +157,7 @@ func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status)
 		return
 	}
 
-	var details *cloud.ChangesetDetails
+	var details *resources.ChangesetDetails
 
 	if run.Task.CloudPlanFile != "" {
 		var err error
@@ -167,8 +167,8 @@ func (c *cli) doCloudSyncDeployment(run stackCloudRun, status deployment.Status)
 		}
 	}
 
-	payload := cloud.UpdateDeploymentStacks{
-		Stacks: []cloud.UpdateDeploymentStack{
+	payload := resources.UpdateDeploymentStacks{
+		Stacks: []resources.UpdateDeploymentStack{
 			{
 				StackID: stackID,
 				Status:  status,

@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
+	"github.com/terramate-io/terramate/cloud/integrations/gitlab"
 )
 
 func TestGitlabLatestMRForCommit(t *testing.T) {

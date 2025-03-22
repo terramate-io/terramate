@@ -15,7 +15,8 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/integrations/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -37,7 +38,7 @@ type githubOIDC struct {
 
 	reqURL   string
 	reqToken string
-	orgs     cloud.MemberOrganizations
+	orgs     resources.MemberOrganizations
 
 	output out.O
 	client *cloud.Client
@@ -61,7 +62,7 @@ func (g *githubOIDC) Load() (bool, error) {
 
 	g.reqToken = os.Getenv(envReqTok)
 
-	audience := oidcAudience(g.client.Region)
+	audience := oidcAudience(g.client.Region())
 	if audience != "" {
 		u, err := url.Parse(g.reqURL)
 		if err != nil {
@@ -78,7 +79,7 @@ func (g *githubOIDC) Load() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	g.client.Credential = g
+	g.client.SetCredential(g)
 	return true, g.fetchDetails()
 }
 
@@ -233,6 +234,6 @@ func (g *githubOIDC) Info(selectedOrgName string) {
 }
 
 // Organizations that the GitHub OIDC token belong to.
-func (g *githubOIDC) Organizations() cloud.MemberOrganizations {
+func (g *githubOIDC) Organizations() resources.MemberOrganizations {
 	return g.orgs
 }

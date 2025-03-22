@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -17,7 +17,7 @@ import (
 // GetPreview returns details about a preview. This is a convenience endpoint
 // for asserting the required state in tests (it does not actually exist in the TMC API).
 func GetPreview(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p httprouter.Params) {
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	org, found := store.GetOrg(orguuid)
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
@@ -42,7 +42,7 @@ func GetPreview(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, 
 
 // PostStackPreviewsLogs is the POST /v1/stack_previews/:stack_preview_id/logs handler.
 func PostStackPreviewsLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	org, found := store.GetOrg(orguuid)
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
@@ -58,7 +58,7 @@ func PostStackPreviewsLogs(store *cloudstore.Data, w http.ResponseWriter, r *htt
 
 	justClose(r.Body)
 
-	var logs cloud.CommandLogs
+	var logs resources.CommandLogs
 	err = json.Unmarshal(bodyData, &logs)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -91,7 +91,7 @@ func PatchStackPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var rPayload cloud.UpdateStackPreviewPayloadRequest
+	var rPayload resources.UpdateStackPreviewPayloadRequest
 	if err := json.Unmarshal(data, &rPayload); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, errors.E(err, "failed to unmarshal data: %s", data))
@@ -104,7 +104,7 @@ func PatchStackPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	stackPreviewID := p.ByName("stack_preview_id")
 
 	org, found := store.GetOrg(orguuid)
@@ -132,7 +132,7 @@ func PostPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var rPayload cloud.CreatePreviewPayloadRequest
+	var rPayload resources.CreatePreviewPayloadRequest
 	if err := json.Unmarshal(data, &rPayload); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, errors.E(err, "failed to unmarshal data: %s", data))
@@ -145,7 +145,7 @@ func PostPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 
 	_, found := store.GetOrg(orguuid)
 	if !found {
@@ -168,7 +168,7 @@ func PostPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	res := cloud.CreatePreviewResponse{
+	res := resources.CreatePreviewResponse{
 		PreviewID: previewID,
 	}
 
@@ -204,7 +204,7 @@ func PostPreviews(store *cloudstore.Data, w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		res.Stacks = append(res.Stacks, cloud.ResponsePreviewStack{
+		res.Stacks = append(res.Stacks, resources.ResponsePreviewStack{
 			MetaID:         s.MetaID,
 			StackPreviewID: stackPreviewID,
 		})

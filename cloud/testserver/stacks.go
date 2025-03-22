@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/strconv"
@@ -49,7 +49,7 @@ func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
 
 // GetStacks is the GET /stacks handler.
 func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	orguuid := cloud.UUID(params.ByName("orguuid"))
+	orguuid := resources.UUID(params.ByName("orguuid"))
 	repoStr := r.FormValue("repository")
 	targetStr := r.FormValue("target")
 	metaID := r.FormValue("meta_id")
@@ -187,8 +187,8 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	stacks := org.Stacks
 	if start >= int64(len(stacks)) {
 		w.Header().Add("Content-Type", "application/json")
-		marshalWrite(w, cloud.StacksResponse{
-			Pagination: cloud.PaginatedResult{
+		marshalWrite(w, resources.StacksResponse{
+			Pagination: resources.PaginatedResult{
 				Total:   int64(len(stacks)),
 				Page:    page,
 				PerPage: 0,
@@ -202,7 +202,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		end = int64(len(stacks))
 	}
 
-	var resp cloud.StacksResponse
+	var resp resources.StacksResponse
 	for id, st := range stacks[start:end] {
 		if !validateStackStatus(st) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -211,7 +211,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		}
 
 		if filter(st) {
-			resp.Stacks = append(resp.Stacks, cloud.StackObject{
+			resp.Stacks = append(resp.Stacks, resources.StackObject{
 				ID:               int64(id),
 				Stack:            st.Stack,
 				Status:           st.State.Status,
@@ -243,7 +243,7 @@ func PutStack(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p 
 
 	justClose(r.Body)
 
-	var st cloud.StackObject
+	var st resources.StackObject
 	err = json.Unmarshal(bodyData, &st)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -251,7 +251,7 @@ func PutStack(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p 
 		return
 	}
 
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	_, err = store.UpsertStack(orguuid, cloudstore.Stack{
 		Stack: st.Stack,
 		State: cloudstore.StackState{
@@ -281,7 +281,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 		w.WriteHeader(http.StatusBadRequest)
 		writeErr(w, err)
 	}
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	org, found := store.GetOrg(orguuid)
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
@@ -295,7 +295,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 		return
 	}
 	stack := stacks[stackid]
-	deploymentUUID := cloud.UUID(p.ByName("deployment_uuid"))
+	deploymentUUID := resources.UUID(p.ByName("deployment_uuid"))
 
 	logs, err := store.GetDeploymentLogs(orguuid, stack.Stack.MetaID, stack.Stack.Target, deploymentUUID, 0)
 	if err != nil {
@@ -319,7 +319,7 @@ func GetDeploymentLogsEvents(store *cloudstore.Data, w http.ResponseWriter, _ *h
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Content-Type", "text/event-stream")
 
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	org, found := store.GetOrg(orguuid)
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
@@ -344,7 +344,7 @@ func GetDeploymentLogsEvents(store *cloudstore.Data, w http.ResponseWriter, _ *h
 		return
 	}
 	stack := stacks[stackid]
-	deploymentUUID := cloud.UUID(p.ByName("deployment_uuid"))
+	deploymentUUID := resources.UUID(p.ByName("deployment_uuid"))
 
 	line := 0
 
@@ -382,7 +382,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		writeErr(w, err)
 		return
 	}
-	orguuid := cloud.UUID(p.ByName("orguuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
 	org, found := store.GetOrg(orguuid)
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
@@ -397,7 +397,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		return
 	}
 	stack := stacks[stackid]
-	deploymentUUID := cloud.UUID(p.ByName("deployment_uuid"))
+	deploymentUUID := resources.UUID(p.ByName("deployment_uuid"))
 
 	bodyData, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -407,7 +407,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 
 	justClose(r.Body)
 
-	var logs cloud.CommandLogs
+	var logs resources.CommandLogs
 	err = json.Unmarshal(bodyData, &logs)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -425,7 +425,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 
 // GetStackDrifts implements the /v1/stacks/:orguuid/:stackid/drifts endpoint.
 func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	orguuid := cloud.UUID(params.ByName("orguuid"))
+	orguuid := resources.UUID(params.ByName("orguuid"))
 	perPageStr := r.FormValue("per_page")
 	pageStr := r.FormValue("page")
 	stackid, err := strconv.Atoi64(params.ByName("stackid"))
@@ -469,8 +469,8 @@ func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 
 	if start >= int64(len(drifts)) {
 		w.Header().Add("Content-Type", "application/json")
-		marshalWrite(w, cloud.DriftsStackPayloadResponse{
-			Pagination: cloud.PaginatedResult{
+		marshalWrite(w, resources.DriftsStackPayloadResponse{
+			Pagination: resources.PaginatedResult{
 				Total:   int64(len(drifts)),
 				Page:    page,
 				PerPage: 0,
@@ -484,16 +484,16 @@ func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		end = int64(len(drifts))
 	}
 
-	var res cloud.DriftsStackPayloadResponse
+	var res resources.DriftsStackPayloadResponse
 	for _, drift := range drifts[start:end] {
-		res.Drifts = append(res.Drifts, cloud.Drift{
+		res.Drifts = append(res.Drifts, resources.Drift{
 			ID:       drift.ID,
 			Status:   drift.Status,
 			Details:  drift.Details,
 			Metadata: drift.Metadata,
 		})
 	}
-	res.Pagination = cloud.PaginatedResult{
+	res.Pagination = resources.PaginatedResult{
 		Total:   int64(len(drifts)),
 		Page:    page,
 		PerPage: int64(len(res.Drifts)),

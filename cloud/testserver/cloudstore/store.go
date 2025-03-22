@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/preview"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/preview"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -28,9 +28,9 @@ type (
 	// unless for the case of initialiting the data.
 	Data struct {
 		mu                    sync.RWMutex
-		Orgs                  map[string]Org        `json:"orgs"`
-		Users                 map[string]cloud.User `json:"users"`
-		WellKnown             *cloud.WellKnown      `json:"well_known"`
+		Orgs                  map[string]Org            `json:"orgs"`
+		Users                 map[string]resources.User `json:"users"`
+		WellKnown             *resources.WellKnown      `json:"well_known"`
 		previewIDAutoInc      int
 		stackPreviewIDAutoInc int
 		Github                struct {
@@ -40,66 +40,66 @@ type (
 	}
 	// Org is the organization model.
 	Org struct {
-		UUID        cloud.UUID `json:"uuid"`
-		Name        string     `json:"name"`
-		DisplayName string     `json:"display_name"`
-		Domain      string     `json:"domain"`
-		Status      string     `json:"status"`
+		UUID        resources.UUID `json:"uuid"`
+		Name        string         `json:"name"`
+		DisplayName string         `json:"display_name"`
+		Domain      string         `json:"domain"`
+		Status      string         `json:"status"`
 
-		Members        []Member                     `json:"members"`
-		Stacks         []Stack                      `json:"stacks"`
-		Deployments    map[cloud.UUID]*Deployment   `json:"deployments"`
-		Drifts         []Drift                      `json:"drifts"`
-		Previews       []Preview                    `json:"previews"`
-		ReviewRequests []cloud.ReviewRequest        `json:"review_requests"`
-		Outputs        map[string]cloud.StoreOutput `json:"outputs"` // map of (encoded key) -> output'
+		Members        []Member                         `json:"members"`
+		Stacks         []Stack                          `json:"stacks"`
+		Deployments    map[resources.UUID]*Deployment   `json:"deployments"`
+		Drifts         []Drift                          `json:"drifts"`
+		Previews       []Preview                        `json:"previews"`
+		ReviewRequests []resources.ReviewRequest        `json:"review_requests"`
+		Outputs        map[string]resources.StoreOutput `json:"outputs"` // map of (encoded key) -> output'
 	}
 
 	// OutputKey is the primary key of an output.
 	OutputKey struct {
-		OrgUUID     cloud.UUID `json:"org_uuid"`
-		Repository  string     `json:"repository"`
-		StackMetaID string     `json:"stack_meta_id"`
-		Target      string     `json:"target"`
-		Name        string     `json:"name"`
+		OrgUUID     resources.UUID `json:"org_uuid"`
+		Repository  string         `json:"repository"`
+		StackMetaID string         `json:"stack_meta_id"`
+		Target      string         `json:"target"`
+		Name        string         `json:"name"`
 	}
 
 	//Preview is the preview model.
 	Preview struct {
 		PreviewID string `json:"preview_id"`
 
-		PushedAt        int64                     `json:"pushed_at"`
-		CommitSHA       string                    `json:"commit_sha"`
-		Technology      string                    `json:"technology"`
-		TechnologyLayer string                    `json:"technology_layer"`
-		ReviewRequest   *cloud.ReviewRequest      `json:"review_request,omitempty"`
-		Metadata        *cloud.DeploymentMetadata `json:"metadata,omitempty"`
-		StackPreviews   []*StackPreview           `json:"stack_previews"`
+		PushedAt        int64                         `json:"pushed_at"`
+		CommitSHA       string                        `json:"commit_sha"`
+		Technology      string                        `json:"technology"`
+		TechnologyLayer string                        `json:"technology_layer"`
+		ReviewRequest   *resources.ReviewRequest      `json:"review_request,omitempty"`
+		Metadata        *resources.DeploymentMetadata `json:"metadata,omitempty"`
+		StackPreviews   []*StackPreview               `json:"stack_previews"`
 	}
 
 	// StackPreview is the stack preview model.
 	StackPreview struct {
 		Stack
 
-		ID               string                  `json:"stack_preview_id"`
-		Status           preview.StackStatus     `json:"status"`
-		Cmd              []string                `json:"cmd,omitempty"`
-		ChangesetDetails *cloud.ChangesetDetails `json:"changeset_details,omitempty"`
-		Logs             cloud.CommandLogs       `json:"logs,omitempty"`
+		ID               string                      `json:"stack_preview_id"`
+		Status           preview.StackStatus         `json:"status"`
+		Cmd              []string                    `json:"cmd,omitempty"`
+		ChangesetDetails *resources.ChangesetDetails `json:"changeset_details,omitempty"`
+		Logs             resources.CommandLogs       `json:"logs,omitempty"`
 	}
 
 	// Member represents the organization member.
 	Member struct {
-		UserUUID cloud.UUID `json:"user_uuid"`
-		APIKey   string     `json:"apikey"`
-		Role     string     `json:"role"`
-		Status   string     `json:"status"`
-		MemberID int64      // implicit from the members list position index.
-		Org      *Org       // back-pointer set while retrieving memberships.
+		UserUUID resources.UUID `json:"user_uuid"`
+		APIKey   string         `json:"apikey"`
+		Role     string         `json:"role"`
+		Status   string         `json:"status"`
+		MemberID int64          // implicit from the members list position index.
+		Org      *Org           // back-pointer set while retrieving memberships.
 	}
 	// Stack is the stack representation.
 	Stack struct {
-		cloud.Stack
+		resources.Stack
 
 		State StackState `json:"state"`
 	}
@@ -114,33 +114,33 @@ type (
 	}
 	// Deployment model.
 	Deployment struct {
-		UUID          cloud.UUID                `json:"uuid"`
-		Stacks        []int64                   `json:"stacks"`
-		Workdir       string                    `json:"workdir"`
-		StackCommands map[string]string         `json:"stack_commands"`
-		DeploymentURL string                    `json:"deployment_url,omitempty"`
-		Status        deployment.Status         `json:"status"`
-		Metadata      *cloud.DeploymentMetadata `json:"metadata"`
-		ReviewRequest *cloud.ReviewRequest      `json:"review_request"`
-		State         DeploymentState           `json:"state"`
+		UUID          resources.UUID                `json:"uuid"`
+		Stacks        []int64                       `json:"stacks"`
+		Workdir       string                        `json:"workdir"`
+		StackCommands map[string]string             `json:"stack_commands"`
+		DeploymentURL string                        `json:"deployment_url,omitempty"`
+		Status        deployment.Status             `json:"status"`
+		Metadata      *resources.DeploymentMetadata `json:"metadata"`
+		ReviewRequest *resources.ReviewRequest      `json:"review_request"`
+		State         DeploymentState               `json:"state"`
 	}
 	// DeploymentState is the state of a deployment.
 	DeploymentState struct {
-		StackStatus       map[int64]deployment.Status   `json:"stacks_status"`
-		StackStatusEvents map[int64][]deployment.Status `json:"stacks_events"`
-		StackLogs         map[int64]cloud.CommandLogs   `json:"stacks_logs"`
+		StackStatus       map[int64]deployment.Status     `json:"stacks_status"`
+		StackStatusEvents map[int64][]deployment.Status   `json:"stacks_events"`
+		StackLogs         map[int64]resources.CommandLogs `json:"stacks_logs"`
 	}
 	// Drift model.
 	Drift struct {
-		ID          int64                     `json:"id"`
-		StackMetaID string                    `json:"stack_meta_id"`
-		StackTarget string                    `json:"stack_target"`
-		Status      drift.Status              `json:"status"`
-		Details     *cloud.ChangesetDetails   `json:"details"`
-		Metadata    *cloud.DeploymentMetadata `json:"metadata"`
-		Command     []string                  `json:"command"`
-		StartedAt   *time.Time                `json:"started_at,omitempty"`
-		FinishedAt  *time.Time                `json:"finished_at,omitempty"`
+		ID          int64                         `json:"id"`
+		StackMetaID string                        `json:"stack_meta_id"`
+		StackTarget string                        `json:"stack_target"`
+		Status      drift.Status                  `json:"status"`
+		Details     *resources.ChangesetDetails   `json:"details"`
+		Metadata    *resources.DeploymentMetadata `json:"metadata"`
+		Command     []string                      `json:"command"`
+		StartedAt   *time.Time                    `json:"started_at,omitempty"`
+		FinishedAt  *time.Time                    `json:"finished_at,omitempty"`
 	}
 )
 
@@ -175,8 +175,8 @@ func (d *Data) MarshalJSON() ([]byte, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var ret struct {
-		Orgs  map[string]Org        `json:"orgs"`
-		Users map[string]cloud.User `json:"users"`
+		Orgs  map[string]Org            `json:"orgs"`
+		Users map[string]resources.User `json:"users"`
 	}
 	ret.Orgs = d.Orgs
 	ret.Users = d.Users
@@ -184,14 +184,14 @@ func (d *Data) MarshalJSON() ([]byte, error) {
 }
 
 // GetWellKnown gets the defined well-known.
-func (d *Data) GetWellKnown() *cloud.WellKnown {
+func (d *Data) GetWellKnown() *resources.WellKnown {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.WellKnown
 }
 
 // GetUser retrieves the user by email from the store.
-func (d *Data) GetUser(email string) (cloud.User, bool) {
+func (d *Data) GetUser(email string) (resources.User, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for _, user := range d.Users {
@@ -199,11 +199,11 @@ func (d *Data) GetUser(email string) (cloud.User, bool) {
 			return user, true
 		}
 	}
-	return cloud.User{}, false
+	return resources.User{}, false
 }
 
 // MustGetUser retrieves the user by email or panics.
-func (d *Data) MustGetUser(email string) cloud.User {
+func (d *Data) MustGetUser(email string) resources.User {
 	u, ok := d.GetUser(email)
 	if !ok {
 		panic(errors.E("user with email %s not found", email))
@@ -229,7 +229,7 @@ func (d *Data) MustOrgByName(name string) Org {
 }
 
 // GetOrg retrieves the organization with the provided uuid.
-func (d *Data) GetOrg(uuid cloud.UUID) (Org, bool) {
+func (d *Data) GetOrg(uuid resources.UUID) (Org, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for _, org := range d.Orgs {
@@ -251,7 +251,7 @@ func (d *Data) UpsertOrg(org Org) {
 }
 
 // GetMemberships returns the organizations that user is member of.
-func (d *Data) GetMemberships(user cloud.User) []Member {
+func (d *Data) GetMemberships(user resources.User) []Member {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var memberships []Member
@@ -317,7 +317,7 @@ func (d *Data) GetStack(org Org, id int64) (Stack, bool) {
 }
 
 // UpsertStack inserts or updates the given stack.
-func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int64, error) {
+func (d *Data) UpsertStack(orguuid resources.UUID, st Stack) (int64, error) {
 	org, found := d.GetOrg(orguuid)
 	if !found {
 		return 0, errors.E(ErrNotExists, "org uuid %s", orguuid)
@@ -354,7 +354,7 @@ func (d *Data) UpsertStack(orguuid cloud.UUID, st Stack) (int64, error) {
 }
 
 // AppendPreviewLogs appends logs to the given stack preview.
-func (d *Data) AppendPreviewLogs(org Org, stackPreviewID string, logs cloud.CommandLogs) error {
+func (d *Data) AppendPreviewLogs(org Org, stackPreviewID string, logs resources.CommandLogs) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for _, p := range org.Previews {
@@ -369,7 +369,7 @@ func (d *Data) AppendPreviewLogs(org Org, stackPreviewID string, logs cloud.Comm
 }
 
 // UpsertPreview inserts or updates the given preview.
-func (d *Data) UpsertPreview(orguuid cloud.UUID, p Preview) (string, error) {
+func (d *Data) UpsertPreview(orguuid resources.UUID, p Preview) (string, error) {
 	org, found := d.GetOrg(orguuid)
 	if !found {
 		return "", errors.E(ErrNotExists, "org uuid %s", orguuid)
@@ -446,7 +446,7 @@ func (d *Data) UpsertStackPreview(org Org, previewID string, sp *StackPreview) (
 }
 
 // UpdateStackPreview updates the given stack preview.
-func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string, changeset *cloud.ChangesetDetails) (*StackPreview, bool) {
+func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string, changeset *resources.ChangesetDetails) (*StackPreview, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for _, p := range org.Previews {
@@ -464,7 +464,7 @@ func (d *Data) UpdateStackPreview(org Org, stackPreviewID string, status string,
 }
 
 // GetDeployment returns the given deployment.
-func (d *Data) GetDeployment(org *Org, id cloud.UUID) (*Deployment, bool) {
+func (d *Data) GetDeployment(org *Org, id resources.UUID) (*Deployment, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for _, deployment := range org.Deployments {
@@ -476,7 +476,7 @@ func (d *Data) GetDeployment(org *Org, id cloud.UUID) (*Deployment, bool) {
 }
 
 // GetStackDrifts returns the drifts of the provided stack.
-func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int64) ([]Drift, error) {
+func (d *Data) GetStackDrifts(orguuid resources.UUID, stackID int64) ([]Drift, error) {
 	org, found := d.GetOrg(orguuid)
 	if !found {
 		return nil, errors.E(ErrNotExists, "org uuid %s", orguuid)
@@ -498,7 +498,7 @@ func (d *Data) GetStackDrifts(orguuid cloud.UUID, stackID int64) ([]Drift, error
 }
 
 // InsertDeployment inserts the given deployment in the data store.
-func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
+func (d *Data) InsertDeployment(orgID resources.UUID, deploy Deployment) error {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return errors.E(ErrNotExists, "org uuid %s", orgID)
@@ -510,13 +510,13 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 	}
 
 	deploy.State.StackStatus = make(map[int64]deployment.Status)
-	deploy.State.StackLogs = make(map[int64]cloud.CommandLogs)
+	deploy.State.StackLogs = make(map[int64]resources.CommandLogs)
 	deploy.State.StackStatusEvents = make(map[int64][]deployment.Status)
 	for _, stackID := range deploy.Stacks {
 		deploy.State.StackStatusEvents[stackID] = append(deploy.State.StackStatusEvents[stackID], deployment.Pending)
 	}
 	if org.Deployments == nil {
-		org.Deployments = make(map[cloud.UUID]*Deployment)
+		org.Deployments = make(map[resources.UUID]*Deployment)
 	}
 	org.Deployments[deploy.UUID] = &deploy
 	d.Orgs[org.Name] = org
@@ -524,7 +524,7 @@ func (d *Data) InsertDeployment(orgID cloud.UUID, deploy Deployment) error {
 }
 
 // FindDeploymentForCommit returns the deployment for the given commit.
-func (d *Data) FindDeploymentForCommit(orgID cloud.UUID, commitSHA string) (*Deployment, bool) {
+func (d *Data) FindDeploymentForCommit(orgID resources.UUID, commitSHA string) (*Deployment, bool) {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return nil, false
@@ -540,7 +540,7 @@ func (d *Data) FindDeploymentForCommit(orgID cloud.UUID, commitSHA string) (*Dep
 }
 
 // InsertDrift inserts a new drift into the store for the provided org.
-func (d *Data) InsertDrift(orgID cloud.UUID, drift Drift) (int, error) {
+func (d *Data) InsertDrift(orgID resources.UUID, drift Drift) (int, error) {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return 0, errors.E(ErrNotExists, "org uuid %s", orgID)
@@ -553,7 +553,7 @@ func (d *Data) InsertDrift(orgID cloud.UUID, drift Drift) (int, error) {
 }
 
 // SetDeploymentStatus sets the given deployment stack to the given status.
-func (d *Data) SetDeploymentStatus(org Org, deploymentID cloud.UUID, stackID int64, status deployment.Status) error {
+func (d *Data) SetDeploymentStatus(org Org, deploymentID resources.UUID, stackID int64, status deployment.Status) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	deployment, exists := org.Deployments[deploymentID]
@@ -566,7 +566,7 @@ func (d *Data) SetDeploymentStatus(org Org, deploymentID cloud.UUID, stackID int
 }
 
 // GetDeploymentEvents returns the events of the given deployment.
-func (d *Data) GetDeploymentEvents(orgID, deploymentID cloud.UUID) (map[string][]deployment.Status, error) {
+func (d *Data) GetDeploymentEvents(orgID, deploymentID resources.UUID) (map[string][]deployment.Status, error) {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return nil, errors.E(ErrNotExists, "org uuid %s", orgID)
@@ -588,11 +588,11 @@ func (d *Data) GetDeploymentEvents(orgID, deploymentID cloud.UUID) (map[string][
 
 // InsertDeploymentLogs inserts logs for the given deployment.
 func (d *Data) InsertDeploymentLogs(
-	orgID cloud.UUID,
+	orgID resources.UUID,
 	stackMetaID string,
 	stackTarget string,
-	deploymentID cloud.UUID,
-	logs cloud.CommandLogs,
+	deploymentID resources.UUID,
+	logs resources.CommandLogs,
 ) error {
 	org, found := d.GetOrg(orgID)
 	if !found {
@@ -613,7 +613,7 @@ func (d *Data) InsertDeploymentLogs(
 }
 
 // GetDeploymentLogs returns the logs of the given deployment.
-func (d *Data) GetDeploymentLogs(orgID cloud.UUID, stackMetaID string, stackTarget string, deploymentID cloud.UUID, fromLine int) (cloud.CommandLogs, error) {
+func (d *Data) GetDeploymentLogs(orgID resources.UUID, stackMetaID string, stackTarget string, deploymentID resources.UUID, fromLine int) (resources.CommandLogs, error) {
 	org, found := d.GetOrg(orgID)
 	if !found {
 		return nil, errors.E(ErrNotExists, "org uuid %s", orgID)
@@ -655,7 +655,7 @@ func (d *Data) GetGithubPullRequestResponse() json.RawMessage {
 }
 
 // InsertOutput inserts the given output into the store.
-func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error {
+func (d *Data) InsertOutput(orgUUID resources.UUID, output *resources.StoreOutput) error {
 	org, found := d.GetOrg(orgUUID)
 	if !found {
 		return errors.E(ErrNotExists, "org uuid %s", orgUUID)
@@ -663,7 +663,7 @@ func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if org.Outputs == nil {
-		org.Outputs = make(map[string]cloud.StoreOutput)
+		org.Outputs = make(map[string]resources.StoreOutput)
 	}
 	key, err := encodeOutputPK(output.Key)
 	if err != nil {
@@ -672,7 +672,7 @@ func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error
 	if _, exists := org.Outputs[key]; exists {
 		return errors.E(ErrAlreadyExists, "output key %s", key)
 	}
-	output.ID = cloud.UUID(uuid.New().String())
+	output.ID = resources.UUID(uuid.New().String())
 	output.CreatedAt = time.Now().UTC()
 	output.UpdatedAt = output.CreatedAt
 	org.Outputs[key] = *output
@@ -681,7 +681,7 @@ func (d *Data) InsertOutput(orgUUID cloud.UUID, output *cloud.StoreOutput) error
 }
 
 // UpdateOutputValue updates the value of the output.
-func (d *Data) UpdateOutputValue(orgUUID cloud.UUID, id cloud.UUID, newval string) error {
+func (d *Data) UpdateOutputValue(orgUUID resources.UUID, id resources.UUID, newval string) error {
 	org, found := d.GetOrg(orgUUID)
 	if !found {
 		return errors.E(ErrNotExists, "org uuid %s", orgUUID)
@@ -701,7 +701,7 @@ func (d *Data) UpdateOutputValue(orgUUID cloud.UUID, id cloud.UUID, newval strin
 }
 
 // DeleteOutput deletes the output with the given id.
-func (d *Data) DeleteOutput(orgUUID cloud.UUID, id cloud.UUID) error {
+func (d *Data) DeleteOutput(orgUUID resources.UUID, id resources.UUID) error {
 	org, found := d.GetOrg(orgUUID)
 	if !found {
 		return errors.E(ErrNotExists, "org uuid %s", orgUUID)
@@ -719,10 +719,10 @@ func (d *Data) DeleteOutput(orgUUID cloud.UUID, id cloud.UUID) error {
 }
 
 // GetOutput retrieves the output for the given id.
-func (d *Data) GetOutput(orgUUID cloud.UUID, id cloud.UUID) (cloud.StoreOutput, error) {
+func (d *Data) GetOutput(orgUUID resources.UUID, id resources.UUID) (resources.StoreOutput, error) {
 	org, found := d.GetOrg(orgUUID)
 	if !found {
-		return cloud.StoreOutput{}, errors.E(ErrNotExists, "org uuid %s", orgUUID)
+		return resources.StoreOutput{}, errors.E(ErrNotExists, "org uuid %s", orgUUID)
 	}
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -731,24 +731,24 @@ func (d *Data) GetOutput(orgUUID cloud.UUID, id cloud.UUID) (cloud.StoreOutput, 
 			return output, nil
 		}
 	}
-	return cloud.StoreOutput{}, errors.E(ErrNotExists, "output id %s", id)
+	return resources.StoreOutput{}, errors.E(ErrNotExists, "output id %s", id)
 }
 
 // GetOutputByKey retrieves the output for the given key.
-func (d *Data) GetOutputByKey(orgUUID cloud.UUID, key cloud.StoreOutputKey) (cloud.StoreOutput, error) {
+func (d *Data) GetOutputByKey(orgUUID resources.UUID, key resources.StoreOutputKey) (resources.StoreOutput, error) {
 	org, found := d.GetOrg(orgUUID)
 	if !found {
-		return cloud.StoreOutput{}, errors.E(ErrNotExists, "org uuid %s", orgUUID)
+		return resources.StoreOutput{}, errors.E(ErrNotExists, "org uuid %s", orgUUID)
 	}
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	keystr, err := encodeOutputPK(key)
 	if err != nil {
-		return cloud.StoreOutput{}, errors.E(err, "failed primary key constraint")
+		return resources.StoreOutput{}, errors.E(err, "failed primary key constraint")
 	}
 	output, exists := org.Outputs[keystr]
 	if !exists {
-		return cloud.StoreOutput{}, errors.E(ErrNotExists, "output key %s", keystr)
+		return resources.StoreOutput{}, errors.E(ErrNotExists, "output key %s", keystr)
 	}
 	return output, nil
 }
@@ -783,7 +783,7 @@ func (d *Data) newStackPreviewID() string {
 	return strconv.Itoa(d.stackPreviewIDAutoInc)
 }
 
-func (d *Data) upsertReviewRequest(org Org, newRR *cloud.ReviewRequest) {
+func (d *Data) upsertReviewRequest(org Org, newRR *resources.ReviewRequest) {
 	rrIndex, rrFound := d.getReviewRequest(org, newRR.Number)
 	if !rrFound {
 		org = d.Orgs[org.Name]
@@ -835,7 +835,7 @@ func (org Org) Clone() Org {
 }
 
 // encodeOutputPK encodes the output primary key.
-func encodeOutputPK(k cloud.StoreOutputKey) (string, error) {
+func encodeOutputPK(k resources.StoreOutputKey) (string, error) {
 	if k.OrgUUID == "" {
 		return "", errors.E("org uuid is required")
 	}

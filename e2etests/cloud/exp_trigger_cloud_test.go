@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
@@ -48,7 +48,7 @@ func TestTriggerUnhealthyStacks(t *testing.T) {
 	org := store.MustOrgByName(defaultOrg)
 
 	_, err = store.UpsertStack(org.UUID, cloudstore.Stack{
-		Stack: cloud.Stack{
+		Stack: resources.Stack{
 			Repository: repository,
 			MetaID:     stackID,
 		},
@@ -136,7 +136,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -157,7 +157,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "gitlab.com/unknown-io/other",
 					},
@@ -178,7 +178,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -207,7 +207,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -236,7 +236,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -247,7 +247,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -276,7 +276,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -287,7 +287,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -316,7 +316,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -327,7 +327,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -356,7 +356,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -367,7 +367,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -396,7 +396,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -407,7 +407,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -433,7 +433,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			layout: []string{},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -444,7 +444,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -465,7 +465,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -476,7 +476,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -506,7 +506,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -517,7 +517,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -548,7 +548,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -559,7 +559,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1a",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -570,7 +570,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -601,7 +601,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -612,7 +612,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1a",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -623,7 +623,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},

@@ -12,12 +12,12 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/stack"
 
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/drift"
-	cloudstack "github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
@@ -92,7 +92,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -103,7 +103,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -135,7 +135,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -156,7 +156,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -177,7 +177,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -201,7 +201,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -225,7 +225,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -249,7 +249,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -273,7 +273,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -297,7 +297,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "gitlab.com/unknown-io/other",
 					},
@@ -318,7 +318,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -342,7 +342,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 						MetaTags:   []string{"something.with.dots"},
@@ -367,7 +367,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -388,7 +388,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -412,7 +412,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -423,7 +423,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -444,7 +444,7 @@ func TestCloudStatus(t *testing.T) {
 			layout: []string{},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -455,7 +455,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -476,7 +476,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -487,7 +487,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -511,7 +511,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -522,7 +522,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -546,7 +546,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -557,7 +557,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -582,7 +582,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -593,7 +593,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 					},
@@ -618,7 +618,7 @@ func TestCloudStatus(t *testing.T) {
 			enableTargets: true,
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 						Target:     "default",
@@ -630,7 +630,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 						Target:     "stage",
@@ -642,7 +642,7 @@ func TestCloudStatus(t *testing.T) {
 					},
 				},
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s2",
 						Repository: "github.com/terramate-io/terramate",
 						Target:     "stage",
@@ -667,7 +667,7 @@ func TestCloudStatus(t *testing.T) {
 			enableTargets: true,
 			stacks: []cloudstore.Stack{
 				{
-					Stack: cloud.Stack{
+					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
 						Target:     "default",
@@ -851,7 +851,7 @@ func paginationTestcase(perPage int) cloudStatusTestcase {
 		names = append(names, stackname)
 		layout = append(layout, "stack:"+stackname+":id="+stackname)
 		stacks = append(stacks, cloudstore.Stack{
-			Stack: cloud.Stack{
+			Stack: resources.Stack{
 				MetaID:     stackname,
 				Repository: "github.com/terramate-io/terramate",
 			},

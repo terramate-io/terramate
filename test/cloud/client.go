@@ -5,7 +5,7 @@ package cloud
 
 import (
 	"context"
-	"net/http"
+	stdhttp "net/http"
 	"path"
 
 	"testing"
@@ -13,6 +13,8 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/http"
 	"github.com/terramate-io/terramate/strconv"
 )
 
@@ -20,24 +22,25 @@ const defaultTestTimeout = 1 * time.Second
 
 // PutStack sets a new stack in the /v1/stacks/<org>/<stack id>.
 // Note: this is not a real endpoint.
-func PutStack(t *testing.T, addr string, orgUUID cloud.UUID, st cloud.StackObject) {
+func PutStack(t *testing.T, addr string, orgUUID resources.UUID, st resources.StackObject) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
 	defer cancel()
 
-	client := &cloud.Client{
-		BaseURL:    "http://" + addr,
-		Credential: &credential{},
-	}
-	_, err := cloud.Put[cloud.EmptyResponse](ctx, client, st, client.URL(path.Join(cloud.StacksPath, string(orgUUID), strconv.Itoa64(st.ID))))
+	client := cloud.NewClient(
+		cloud.WithBaseURL("http://"+addr),
+		cloud.WithCredential(&credential{}),
+	)
+
+	_, err := http.Put[resources.EmptyResponse](ctx, client, st, client.URL(path.Join(cloud.StacksPath, string(orgUUID), strconv.Itoa64(st.ID))))
 	assert.NoError(t, err)
 }
 
 type credential struct{}
 
-func (c *credential) ApplyCredentials(req *http.Request) error {
+func (c *credential) ApplyCredentials(req *stdhttp.Request) error {
 	req.Header.Set("Authorization", "Bearer abcd")
 	return nil
 }
 
-func (c *credential) RedactCredentials(_ *http.Request) {}
+func (c *credential) RedactCredentials(_ *stdhttp.Request) {}

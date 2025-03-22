@@ -22,15 +22,16 @@ import (
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/drift"
-	"github.com/terramate-io/terramate/cloud/metadata"
-	"github.com/terramate-io/terramate/cloud/preview"
-	"github.com/terramate-io/terramate/cloud/stack"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/bitbucket"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/metadata"
+	"github.com/terramate-io/terramate/cloud/api/preview"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/cloud/integrations/bitbucket"
+	tmgithub "github.com/terramate-io/terramate/cloud/integrations/github"
+	"github.com/terramate-io/terramate/cloud/integrations/gitlab"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
-	tmgithub "github.com/terramate-io/terramate/cmd/terramate/cli/github"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/gitlab"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/tmcloud/auth"
@@ -92,20 +93,20 @@ func newCloudOnboardingIncompleteError(region cloud.Region) *errors.DetailedErro
 }
 
 type cloudRunState struct {
-	runUUID cloud.UUID
+	runUUID resources.UUID
 	orgName string
-	orgUUID cloud.UUID
+	orgUUID resources.UUID
 	target  string
 
 	stackMeta2ID map[string]int64
 	// stackPreviews is a map of stack.ID to stackPreview.ID
 	stackMeta2PreviewIDs map[string]string
-	reviewRequest        *cloud.ReviewRequest
+	reviewRequest        *resources.ReviewRequest
 	rrEvent              struct {
 		pushedAt  *int64
 		commitSHA string
 	}
-	metadata *cloud.DeploymentMetadata
+	metadata *resources.DeploymentMetadata
 }
 
 type cloudConfig struct {
@@ -207,7 +208,7 @@ func (c *cli) checkCloudSync() {
 	if c.parsedArgs.Run.SyncDeployment {
 		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
-		c.cloud.run.runUUID = cloud.UUID(uuid)
+		c.cloud.run.runUUID = resources.UUID(uuid)
 	}
 }
 
@@ -234,7 +235,7 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 			return newCloudLoginRequiredError(requestedFeatures).WithCause(err)
 		}
 		if errors.IsKind(err, clitest.ErrCloudOnboardingIncomplete) {
-			return newCloudOnboardingIncompleteError(c.cloud.client.Region).WithCause(err)
+			return newCloudOnboardingIncompleteError(c.cloud.client.Region()).WithCause(err)
 		}
 		printer.Stderr.ErrorWithDetails("failed to load the cloud credentials", err)
 		return cloudError()
@@ -243,9 +244,9 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	// at this point we know user is onboarded, ie has at least 1 organization.
 	orgs := c.cred().Organizations()
 
-	var activeOrgs cloud.MemberOrganizations
-	var invitedOrgs cloud.MemberOrganizations
-	var ssoInvitedOrgs cloud.MemberOrganizations
+	var activeOrgs resources.MemberOrganizations
+	var invitedOrgs resources.MemberOrganizations
+	var ssoInvitedOrgs resources.MemberOrganizations
 	for _, org := range orgs {
 		if org.Status == "active" || org.Status == "trusted" {
 			activeOrgs = append(activeOrgs, org)
@@ -259,7 +260,7 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 	useOrgName := c.cloudOrgName()
 	c.cloud.run.orgName = useOrgName
 	if useOrgName != "" {
-		var useOrgUUID cloud.UUID
+		var useOrgUUID resources.UUID
 		for _, org := range orgs {
 			if strings.EqualFold(org.Name, useOrgName) {
 				if org.Status != "active" && org.Status != "trusted" {
@@ -320,7 +321,7 @@ func (c *cli) setupCloudConfig(requestedFeatures []string) error {
 					"Pending SSO invitation",
 					errors.E(
 						"If you trust the %s%s organization, go to %s to join it",
-						org.Name, domainStr, cloud.HTMLURL(c.cloud.client.Region),
+						org.Name, domainStr, cloud.HTMLURL(c.cloud.client.Region()),
 					),
 				)
 			}
@@ -403,7 +404,7 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 	planfile := run.Task.CloudPlanFile
 
 	previewStatus := preview.DerivePreviewStatus(res.ExitCode)
-	var previewChangeset *cloud.ChangesetDetails
+	var previewChangeset *resources.ChangesetDetails
 	if planfile != "" && previewStatus != preview.StackStatusCanceled {
 		changeset, err := c.getTerraformChangeset(run)
 		if err != nil || changeset == nil {
@@ -421,7 +422,7 @@ func (c *cli) doPreviewAfter(run stackCloudRun, res runResult) {
 			}
 		}
 		if changeset != nil {
-			previewChangeset = &cloud.ChangesetDetails{
+			previewChangeset = &resources.ChangesetDetails{
 				Provisioner:    changeset.Provisioner,
 				ChangesetASCII: changeset.ChangesetASCII,
 				ChangesetJSON:  changeset.ChangesetJSON,
@@ -477,13 +478,15 @@ func (c *cli) ssoLogin() {
 		cloudURL = cloud.BaseURL(region)
 	}
 
-	client := &cloud.Client{
-		Region:     region,
-		HTTPClient: &c.httpClient,
+	opts := cloud.Options{
+		cloud.WithRegion(region),
+		cloud.WithHTTPClient(&c.httpClient),
 	}
 	if envFound {
-		client.BaseURL = cloudURL
+		opts = append(opts, cloud.WithBaseURL(cloudURL))
 	}
+
+	client := cloud.NewClient(opts...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
@@ -523,7 +526,7 @@ func (c *cli) cloudInfo() {
 			)
 		}
 		if errors.IsKind(err, clitest.ErrCloudOnboardingIncomplete) {
-			fatal(newCloudOnboardingIncompleteError(c.cloud.client.Region))
+			fatal(newCloudOnboardingIncompleteError(c.cloud.client.Region()))
 		}
 		fatalWithDetailf(err, "failed to load the cloud credentials")
 	}
@@ -624,7 +627,7 @@ func (c *cli) detectCloudMetadata() {
 		return
 	}
 
-	c.cloud.run.metadata = &cloud.DeploymentMetadata{}
+	c.cloud.run.metadata = &resources.DeploymentMetadata{}
 	c.cloud.run.metadata.GitCommitSHA = c.prj.headCommit()
 
 	md := c.cloud.run.metadata
@@ -1013,7 +1016,7 @@ func (c *cli) detectBitbucketMetadata(owner, reponame string) {
 	logger.Debug().Msg("Bitbucket metadata detected")
 }
 
-func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
+func (c *cli) setGitlabCIMetadata(md *resources.DeploymentMetadata) {
 	envBool := func(name string) bool {
 		val := os.Getenv(name)
 		return val == "true"
@@ -1052,7 +1055,7 @@ func (c *cli) setGitlabCIMetadata(md *cloud.DeploymentMetadata) {
 	md.GitlabCICDMergeRequestApproved = mrApproved
 }
 
-func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
+func (c *cli) setBitbucketPipelinesMetadata(md *resources.DeploymentMetadata) {
 	md.BitbucketPipelinesBuildNumber = os.Getenv("BITBUCKET_BUILD_NUMBER")
 	md.BitbucketPipelinesPipelineUUID = os.Getenv("BITBUCKET_PIPELINE_UUID")
 	md.BitbucketPipelinesCommit = os.Getenv("BITBUCKET_COMMIT")
@@ -1090,7 +1093,7 @@ func (c *cli) setBitbucketPipelinesMetadata(md *cloud.DeploymentMetadata) {
 	}
 }
 
-func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
+func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *resources.ReviewRequest {
 	createdAt, err := time.Parse(time.RFC3339, pr.CreatedOn)
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to parse PR created_on time", err)
@@ -1100,13 +1103,13 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		printer.Stderr.WarnWithDetails("failed to parse PR updated_on time", err)
 	}
 
-	uniqueReviewers := make(map[string]cloud.Reviewer)
+	uniqueReviewers := make(map[string]resources.Reviewer)
 
 	var reviewerApprovalCount int
 	var reviewerChangesRequestedCount int
 	var changesRequestedCount int
 	var approvalCount int
-	var reviewers []cloud.Reviewer
+	var reviewers []resources.Reviewer
 	for _, participant := range pr.Participants {
 		state, ok := participant.State.(string)
 		if !ok {
@@ -1114,7 +1117,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		}
 
 		if participant.Role == "REVIEWER" {
-			uniqueReviewers[participant.User.DisplayName] = cloud.Reviewer{
+			uniqueReviewers[participant.User.DisplayName] = resources.Reviewer{
 				Login:     participant.User.DisplayName,
 				AvatarURL: participant.User.Links.Avatar.Href,
 				ID:        participant.User.UUID,
@@ -1152,7 +1155,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		}
 	}
 
-	rr := &cloud.ReviewRequest{
+	rr := &resources.ReviewRequest{
 		Platform:    "bitbucket",
 		Repository:  c.prj.prettyRepo(),
 		URL:         pr.Links.HTML.Href,
@@ -1164,7 +1167,7 @@ func (c *cli) newBitbucketReviewRequest(pr *bitbucket.PR) *cloud.ReviewRequest {
 		CreatedAt:   &createdAt,
 		UpdatedAt:   &updatedAt,
 		Status:      pr.State,
-		Author: cloud.Author{
+		Author: resources.Author{
 			ID:        pr.Author.UUID,
 			Login:     pr.Author.DisplayName,
 			AvatarURL: pr.Author.Links.Avatar.Href,
@@ -1351,7 +1354,7 @@ func listGithubChecks(ghClient *github.Client, owner, repo string, commit string
 	return allChecks, nil
 }
 
-func setDefaultGitMetadata(md *cloud.DeploymentMetadata, commit *git.CommitMetadata) {
+func setDefaultGitMetadata(md *resources.DeploymentMetadata, commit *git.CommitMetadata) {
 	md.GitCommitAuthorName = commit.Author
 	md.GitCommitAuthorEmail = commit.Email
 	md.GitCommitAuthorTime = commit.Time
@@ -1359,7 +1362,7 @@ func setDefaultGitMetadata(md *cloud.DeploymentMetadata, commit *git.CommitMetad
 	md.GitCommitDescription = commit.Body
 }
 
-func setGithubActionsMetadata(md *cloud.DeploymentMetadata) {
+func setGithubActionsMetadata(md *resources.DeploymentMetadata) {
 	md.GithubActionsDeploymentActorID = os.Getenv("GITHUB_ACTOR_ID")
 	md.GithubActionsDeploymentActor = os.Getenv("GITHUB_ACTOR")
 	md.GithubActionsDeploymentTriggeredBy = os.Getenv("GITHUB_TRIGGERING_ACTOR")
@@ -1370,7 +1373,7 @@ func setGithubActionsMetadata(md *cloud.DeploymentMetadata) {
 	md.GithubActionsWorkflowRef = os.Getenv("GITHUB_WORKFLOW_REF")
 }
 
-func setGithubCommitMetadata(md *cloud.DeploymentMetadata, commit *github.RepositoryCommit) {
+func setGithubCommitMetadata(md *resources.DeploymentMetadata, commit *github.RepositoryCommit) {
 	isVerified := commit.Commit.GetVerification().GetVerified()
 
 	md.GithubCommitVerified = &isVerified
@@ -1405,7 +1408,7 @@ func setGithubCommitMetadata(md *cloud.DeploymentMetadata, commit *github.Reposi
 	md.GithubCommit = metadata.NewGithubCommit(commit)
 }
 
-func setGithubPRMetadata(md *cloud.DeploymentMetadata, pull *github.PullRequest) {
+func setGithubPRMetadata(md *resources.DeploymentMetadata, pull *github.PullRequest) {
 	md.GithubPullRequestURL = pull.GetHTMLURL()
 	md.GithubPullRequestNumber = pull.GetNumber()
 	md.GithubPullRequestTitle = pull.GetTitle()
@@ -1445,8 +1448,8 @@ func (c *cli) newGithubReviewRequest(
 	checks []*github.CheckRun,
 	merged bool,
 	reviewDecision string,
-) *cloud.ReviewRequest {
-	author := cloud.Author{}
+) *resources.ReviewRequest {
+	author := resources.Author{}
 	if user := pull.GetUser(); user != nil {
 		author.ID = strconv.Itoa64(int64(user.GetID()))
 		author.Login = user.GetLogin()
@@ -1454,7 +1457,7 @@ func (c *cli) newGithubReviewRequest(
 	}
 	pullCreatedAt := pull.GetCreatedAt()
 	pullUpdatedAt := pull.GetUpdatedAt()
-	rr := &cloud.ReviewRequest{
+	rr := &resources.ReviewRequest{
 		Platform:       "github",
 		Repository:     c.prj.prettyRepo(),
 		URL:            pull.GetHTMLURL(),
@@ -1483,7 +1486,7 @@ func (c *cli) newGithubReviewRequest(
 	}
 
 	for _, l := range pull.Labels {
-		rr.Labels = append(rr.Labels, cloud.Label{
+		rr.Labels = append(rr.Labels, resources.Label{
 			Name:        l.GetName(),
 			Color:       l.GetColor(),
 			Description: l.GetDescription(),
@@ -1510,7 +1513,7 @@ func (c *cli) newGithubReviewRequest(
 		}
 		uniqueReviewers[login] = struct{}{}
 
-		rr.Reviewers = append(rr.Reviewers, cloud.Reviewer{
+		rr.Reviewers = append(rr.Reviewers, resources.Reviewer{
 			ID:        strconv.Itoa64(user.GetID()),
 			Login:     login,
 			AvatarURL: review.GetUser().GetAvatarURL(),
@@ -1530,7 +1533,7 @@ func (c *cli) newGithubReviewRequest(
 	return rr
 }
 
-func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
+func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *resources.ReviewRequest {
 	if c.cloud.run.rrEvent.pushedAt == nil {
 		panic(errors.E(errors.ErrInternal, "CI pushed_at is nil"))
 	}
@@ -1544,7 +1547,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	} else {
 		mrCreatedAt = &mrCreatedAtVal
 	}
-	rr := &cloud.ReviewRequest{
+	rr := &resources.ReviewRequest{
 		Platform:    "gitlab",
 		Repository:  c.prj.prettyRepo(),
 		URL:         mr.WebURL,
@@ -1556,7 +1559,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 		CreatedAt:   mrCreatedAt,
 		UpdatedAt:   &mrUpdatedAt,
 		Status:      mr.State,
-		Author: cloud.Author{
+		Author: resources.Author{
 			ID:        strconv.Itoa64(int64(mr.Author.ID)),
 			Login:     mr.Author.Username,
 			AvatarURL: mr.Author.AvatarURL,
@@ -1567,7 +1570,7 @@ func (c *cli) newGitlabReviewRequest(mr gitlab.MR) *cloud.ReviewRequest {
 	}
 
 	for _, l := range mr.Labels {
-		rr.Labels = append(rr.Labels, cloud.Label{
+		rr.Labels = append(rr.Labels, resources.Label{
 			Name: l,
 		})
 	}
@@ -1587,14 +1590,16 @@ func (c *cli) loadCredential(preferences ...string) error {
 		Str("tmc_url", cloudURL).
 		Logger()
 
-	c.cloud.client = &cloud.Client{
-		Region:     region, // always set so we can use it in error messages
-		HTTPClient: &c.httpClient,
-		Logger:     &clientLogger,
+	opts := cloud.Options{
+		cloud.WithRegion(region),
+		cloud.WithHTTPClient(&c.httpClient),
+		cloud.WithLogger(&clientLogger),
 	}
+
 	if envFound {
-		c.cloud.client.BaseURL = cloudURL
+		opts = append(opts, cloud.WithBaseURL(cloudURL))
 	}
+	c.cloud.client = cloud.NewClient(opts...)
 	c.cloud.output = c.output
 
 	// checks if this client version can communicate with Terramate Cloud.
