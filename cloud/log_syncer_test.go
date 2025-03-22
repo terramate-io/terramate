@@ -13,17 +13,18 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 )
 
 type (
 	write struct {
-		channel cloud.LogChannel
+		channel resources.LogChannel
 		data    []byte
 		idle    time.Duration
 	}
 	want struct {
-		output  map[cloud.LogChannel][]byte
-		batches []cloud.CommandLogs
+		output  map[resources.LogChannel][]byte
+		batches []resources.CommandLogs
 	}
 	testcase struct {
 		name         string
@@ -46,19 +47,19 @@ func TestCloudLogSyncer(t *testing.T) {
 			name: "unlimited line length",
 			writes: []write{
 				{
-					channel: cloud.StdoutLogChannel,
+					channel: resources.StdoutLogChannel,
 					data:    hugeLine,
 				},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: hugeLine,
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: hugeLine,
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: string(hugeLine),
 						},
 					},
@@ -68,20 +69,20 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name: "multiple writes with no newline",
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("terramate ")},
-				{channel: cloud.StdoutLogChannel, data: []byte("cloud ")},
-				{channel: cloud.StdoutLogChannel, data: []byte("is ")},
-				{channel: cloud.StdoutLogChannel, data: []byte("amazing")},
+				{channel: resources.StdoutLogChannel, data: []byte("terramate ")},
+				{channel: resources.StdoutLogChannel, data: []byte("cloud ")},
+				{channel: resources.StdoutLogChannel, data: []byte("is ")},
+				{channel: resources.StdoutLogChannel, data: []byte("amazing")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("terramate cloud is amazing"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("terramate cloud is amazing"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "terramate cloud is amazing",
 						},
 					},
@@ -91,33 +92,33 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name: "multiple writes with newlines",
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("terramate\ncloud\n")},
-				{channel: cloud.StdoutLogChannel, data: []byte("is\namazing")},
+				{channel: resources.StdoutLogChannel, data: []byte("terramate\ncloud\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("is\namazing")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("terramate\ncloud\nis\namazing"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("terramate\ncloud\nis\namazing"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "terramate",
 						},
 						{
 							Line:    2,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "cloud",
 						},
 						{
 							Line:    3,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "is",
 						},
 						{
 							Line:    4,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "amazing",
 						},
 					},
@@ -127,17 +128,17 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name: "empty line -- regression check",
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("\n")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("\n"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("\n"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "",
 						},
 					},
@@ -147,33 +148,33 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name: "multiple writes with CRLN",
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("terramate\r\ncloud\r\n")},
-				{channel: cloud.StdoutLogChannel, data: []byte("is\r\namazing")},
+				{channel: resources.StdoutLogChannel, data: []byte("terramate\r\ncloud\r\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("is\r\namazing")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("terramate\r\ncloud\r\nis\r\namazing"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("terramate\r\ncloud\r\nis\r\namazing"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "terramate",
 						},
 						{
 							Line:    2,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "cloud",
 						},
 						{
 							Line:    3,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "is",
 						},
 						{
 							Line:    4,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "amazing",
 						},
 					},
@@ -183,56 +184,56 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name: "mix of stdout and stderr writes",
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("A\nB\n")},
-				{channel: cloud.StderrLogChannel, data: []byte("C\nD\n")},
-				{channel: cloud.StdoutLogChannel, data: []byte("E\nF")},
-				{channel: cloud.StderrLogChannel, data: []byte("G\nH")},
+				{channel: resources.StdoutLogChannel, data: []byte("A\nB\n")},
+				{channel: resources.StderrLogChannel, data: []byte("C\nD\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("E\nF")},
+				{channel: resources.StderrLogChannel, data: []byte("G\nH")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("A\nB\nE\nF"),
-					cloud.StderrLogChannel: []byte("C\nD\nG\nH"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("A\nB\nE\nF"),
+					resources.StderrLogChannel: []byte("C\nD\nG\nH"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "A",
 						},
 						{
 							Line:    2,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "B",
 						},
 						{
 							Line:    1,
-							Channel: cloud.StderrLogChannel,
+							Channel: resources.StderrLogChannel,
 							Message: "C",
 						},
 						{
 							Line:    2,
-							Channel: cloud.StderrLogChannel,
+							Channel: resources.StderrLogChannel,
 							Message: "D",
 						},
 						{
 							Line:    3,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "E",
 						},
 						{
 							Line:    4,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "F",
 						},
 						{
 							Line:    3,
-							Channel: cloud.StderrLogChannel,
+							Channel: resources.StderrLogChannel,
 							Message: "G",
 						},
 						{
 							Line:    4,
-							Channel: cloud.StderrLogChannel,
+							Channel: resources.StderrLogChannel,
 							Message: "H",
 						},
 					},
@@ -244,61 +245,61 @@ func TestCloudLogSyncer(t *testing.T) {
 			batchSize:    1,
 			syncInterval: 10 * time.Second, // just to ensure it's not used in slow envs
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("A\n")},
-				{channel: cloud.StdoutLogChannel, data: []byte("B\nC\n")},
-				{channel: cloud.StdoutLogChannel, data: []byte("D\nE\nF\nG\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("A\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("B\nC\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("D\nE\nF\nG\n")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("A\nB\nC\nD\nE\nF\nG\n"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("A\nB\nC\nD\nE\nF\nG\n"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "A",
 						},
 					},
 					{
 						{
 							Line:    2,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "B",
 						},
 					},
 					{
 						{
 							Line:    3,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "C",
 						},
 					},
 					{
 						{
 							Line:    4,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "D",
 						},
 					},
 					{
 						{
 							Line:    5,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "E",
 						},
 					},
 					{
 						{
 							Line:    6,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "F",
 						},
 					},
 					{
 						{
 							Line:    7,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "G",
 						},
 					},
@@ -310,52 +311,52 @@ func TestCloudLogSyncer(t *testing.T) {
 			batchSize:    6,
 			syncInterval: 100 * time.Millisecond,
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("first write\n")},
+				{channel: resources.StdoutLogChannel, data: []byte("first write\n")},
 				{
 					// make this lower than tc.idleDuration to fail the test.
 					idle:    300 * time.Millisecond,
-					channel: cloud.StdoutLogChannel,
+					channel: resources.StdoutLogChannel,
 					data:    []byte("write after idle time\n"),
 				},
-				{channel: cloud.StdoutLogChannel, data: []byte("another\nmultiline\nwrite\nhere")},
+				{channel: resources.StdoutLogChannel, data: []byte("another\nmultiline\nwrite\nhere")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: []byte("first write\nwrite after idle time\nanother\nmultiline\nwrite\nhere"),
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: []byte("first write\nwrite after idle time\nanother\nmultiline\nwrite\nhere"),
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					// first batch is due to sync interval trigger.
 					{
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "first write",
 						},
 					},
 					{
 						{
 							Line:    2,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "write after idle time",
 						},
 						{
 							Line:    3,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "another",
 						},
 						{
 							Line:    4,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "multiline",
 						},
 						{
 							Line:    5,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "write",
 						},
 						{
 							Line:    6,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "here",
 						},
 					},
@@ -365,24 +366,24 @@ func TestCloudLogSyncer(t *testing.T) {
 		{
 			name: "disable sync in case non-utf8 output is detected",
 			writes: []write{
-				{channel: cloud.StdoutLogChannel, data: []byte("valid\n")},
-				{channel: cloud.StdoutLogChannel, data: []byte{0x80, 1, 2, 3, 4, '\n'}},
-				{channel: cloud.StdoutLogChannel, data: []byte("another valid")},
+				{channel: resources.StdoutLogChannel, data: []byte("valid\n")},
+				{channel: resources.StdoutLogChannel, data: []byte{0x80, 1, 2, 3, 4, '\n'}},
+				{channel: resources.StdoutLogChannel, data: []byte("another valid")},
 			},
 			want: want{
-				output: map[cloud.LogChannel][]byte{
-					cloud.StdoutLogChannel: {
+				output: map[resources.LogChannel][]byte{
+					resources.StdoutLogChannel: {
 						'v', 'a', 'l', 'i', 'd', '\n',
 						0x80, 1, 2, 3, 4, '\n',
 						'a', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'v', 'a', 'l', 'i', 'd',
 					},
 				},
-				batches: []cloud.CommandLogs{
+				batches: []resources.CommandLogs{
 					{
 						// sync is disabled at first non-utf8 sequence.
 						{
 							Line:    1,
-							Channel: cloud.StdoutLogChannel,
+							Channel: resources.StdoutLogChannel,
 							Message: "valid",
 						},
 					},
@@ -394,19 +395,19 @@ func TestCloudLogSyncer(t *testing.T) {
 		tc.validate(t)
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var gotBatches []cloud.CommandLogs
-			s := cloud.NewLogSyncerWith(func(logs cloud.CommandLogs) {
+			var gotBatches []resources.CommandLogs
+			s := cloud.NewLogSyncerWith(func(logs resources.CommandLogs) {
 				gotBatches = append(gotBatches, logs)
 			}, tc.batchSize, tc.syncInterval)
 			var stdoutBuf, stderrBuf bytes.Buffer
-			stdoutProxy := s.NewBuffer(cloud.StdoutLogChannel, &stdoutBuf)
-			stderrProxy := s.NewBuffer(cloud.StderrLogChannel, &stderrBuf)
+			stdoutProxy := s.NewBuffer(resources.StdoutLogChannel, &stdoutBuf)
+			stderrProxy := s.NewBuffer(resources.StderrLogChannel, &stderrBuf)
 
 			writeFinished := make(chan struct{})
 			go func() {
-				fdmap := map[cloud.LogChannel]io.Writer{
-					cloud.StdoutLogChannel: stdoutProxy,
-					cloud.StderrLogChannel: stderrProxy,
+				fdmap := map[resources.LogChannel]io.Writer{
+					resources.StdoutLogChannel: stdoutProxy,
+					resources.StderrLogChannel: stderrProxy,
 				}
 				for _, write := range tc.writes {
 					time.Sleep(write.idle)
@@ -420,23 +421,23 @@ func TestCloudLogSyncer(t *testing.T) {
 			<-writeFinished
 			s.Wait()
 
-			var gotOutputs map[cloud.LogChannel][]byte
+			var gotOutputs map[resources.LogChannel][]byte
 			stdoutBytes := stdoutBuf.Bytes()
 			stderrBytes := stderrBuf.Bytes()
 			if len(stdoutBytes) > 0 || len(stderrBytes) > 0 {
-				gotOutputs = map[cloud.LogChannel][]byte{}
+				gotOutputs = map[resources.LogChannel][]byte{}
 			}
 			if len(stdoutBytes) > 0 {
-				gotOutputs[cloud.StdoutLogChannel] = stdoutBytes
+				gotOutputs[resources.StdoutLogChannel] = stdoutBytes
 			}
 			if len(stderrBytes) > 0 {
-				gotOutputs[cloud.StderrLogChannel] = stderrBytes
+				gotOutputs[resources.StderrLogChannel] = stderrBytes
 			}
 			if diff := cmp.Diff(gotOutputs, tc.want.output); diff != "" {
-				t.Logf("want stdout:%s", tc.want.output[cloud.StdoutLogChannel])
-				t.Logf("got stdout:%s", gotOutputs[cloud.StdoutLogChannel])
-				t.Logf("want stderr:%s", tc.want.output[cloud.StderrLogChannel])
-				t.Logf("got stderr:%s", gotOutputs[cloud.StderrLogChannel])
+				t.Logf("want stdout:%s", tc.want.output[resources.StdoutLogChannel])
+				t.Logf("got stdout:%s", gotOutputs[resources.StdoutLogChannel])
+				t.Logf("want stderr:%s", tc.want.output[resources.StderrLogChannel])
+				t.Logf("got stderr:%s", gotOutputs[resources.StderrLogChannel])
 
 				t.Fatal(diff)
 			}
@@ -458,23 +459,23 @@ func (tc *testcase) validate(t *testing.T) {
 	}
 }
 
-func compareBatches(t *testing.T, got, want []cloud.CommandLogs) {
+func compareBatches(t *testing.T, got, want []resources.CommandLogs) {
 	assert.EqualInts(t, len(want), len(got), "number of batches mismatch")
 
 	wantStdoutLogs, wantStderrLogs := divideBatches(want)
 	gotStdoutLogs, gotStderrLogs := divideBatches(got)
-	if diff := cmp.Diff(wantStdoutLogs, gotStdoutLogs, cmpopts.IgnoreFields(cloud.CommandLog{}, "Timestamp")); diff != "" {
+	if diff := cmp.Diff(wantStdoutLogs, gotStdoutLogs, cmpopts.IgnoreFields(resources.CommandLog{}, "Timestamp")); diff != "" {
 		t.Fatalf("log stdout mismatch: %s", diff)
 	}
-	if diff := cmp.Diff(wantStderrLogs, gotStderrLogs, cmpopts.IgnoreFields(cloud.CommandLog{}, "Timestamp")); diff != "" {
+	if diff := cmp.Diff(wantStderrLogs, gotStderrLogs, cmpopts.IgnoreFields(resources.CommandLog{}, "Timestamp")); diff != "" {
 		t.Fatalf("log stderr mismatch: %s", diff)
 	}
 }
 
-func divideBatches(batches []cloud.CommandLogs) (stdoutLogs, stderrLogs cloud.CommandLogs) {
+func divideBatches(batches []resources.CommandLogs) (stdoutLogs, stderrLogs resources.CommandLogs) {
 	for _, batch := range batches {
 		for _, log := range batch {
-			if log.Channel == cloud.StdoutLogChannel {
+			if log.Channel == resources.StdoutLogChannel {
 				stdoutLogs = append(stdoutLogs, log)
 			} else {
 				stderrLogs = append(stderrLogs, log)

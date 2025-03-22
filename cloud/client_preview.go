@@ -7,8 +7,10 @@ import (
 	"context"
 	"path"
 
-	"github.com/terramate-io/terramate/cloud/preview"
+	"github.com/terramate-io/terramate/cloud/api/preview"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/http"
 )
 
 const (
@@ -27,14 +29,14 @@ type RunContext struct {
 // CreatePreviewOpts is the options for the CreatePreview function
 type CreatePreviewOpts struct {
 	Runs            []RunContext
-	AffectedStacks  map[string]Stack
-	OrgUUID         UUID
+	AffectedStacks  map[string]resources.Stack
+	OrgUUID         resources.UUID
 	PushedAt        int64
 	CommitSHA       string
 	Technology      string
 	TechnologyLayer string
-	ReviewRequest   *ReviewRequest
-	Metadata        *DeploymentMetadata
+	ReviewRequest   *resources.ReviewRequest
+	Metadata        *resources.DeploymentMetadata
 }
 
 // CreatedPreview is the result of CreatePreview
@@ -45,10 +47,10 @@ type CreatedPreview struct {
 
 // UpdateStackPreviewOpts is the options for UpdateStackPreview
 type UpdateStackPreviewOpts struct {
-	OrgUUID          UUID
+	OrgUUID          resources.UUID
 	StackPreviewID   string
 	Status           preview.StackStatus
-	ChangesetDetails *ChangesetDetails
+	ChangesetDetails *resources.ChangesetDetails
 }
 
 // UpdateStackPreview updates a stack preview in the cloud.
@@ -56,11 +58,11 @@ func (c *Client) UpdateStackPreview(ctx context.Context, opts UpdateStackPreview
 	if err := opts.validate(); err != nil {
 		return err
 	}
-	payload := UpdateStackPreviewPayloadRequest{
+	payload := resources.UpdateStackPreviewPayloadRequest{
 		Status: opts.Status.String(),
 	}
 	if opts.ChangesetDetails != nil {
-		payload.ChangesetDetails = &ChangesetDetails{
+		payload.ChangesetDetails = &resources.ChangesetDetails{
 			Provisioner:    opts.ChangesetDetails.Provisioner,
 			ChangesetASCII: opts.ChangesetDetails.ChangesetASCII,
 			ChangesetJSON:  opts.ChangesetDetails.ChangesetJSON,
@@ -76,14 +78,14 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 		return nil, err
 	}
 
-	payload := CreatePreviewPayloadRequest{
+	payload := resources.CreatePreviewPayloadRequest{
 		PushedAt:        opts.PushedAt,
 		CommitSHA:       opts.CommitSHA,
 		Technology:      opts.Technology,
 		TechnologyLayer: opts.TechnologyLayer,
 		ReviewRequest:   opts.ReviewRequest,
 		Metadata:        opts.Metadata,
-		Stacks:          []PreviewStack{},
+		Stacks:          []resources.PreviewStack{},
 	}
 
 	previewStacksMap := map[string]RunContext{}
@@ -94,7 +96,7 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 	// loop over all affected stacks, if an item is present in the
 	// previewStacksMap, use the preview status and cmd from there
 	for _, affectedStack := range opts.AffectedStacks {
-		stack := PreviewStack{
+		stack := resources.PreviewStack{
 			PreviewStatus: preview.StackStatusAffected,
 			Cmd:           []string{},
 			Stack:         affectedStack,
@@ -136,14 +138,14 @@ func (c *Client) CreatePreview(ctx context.Context, opts CreatePreviewOpts) (*Cr
 // createPreview creates a new preview for an organization
 func (c *Client) createPreview(
 	ctx context.Context,
-	orgUUID UUID,
-	payload CreatePreviewPayloadRequest,
-) (CreatePreviewResponse, error) {
+	orgUUID resources.UUID,
+	payload resources.CreatePreviewPayloadRequest,
+) (resources.CreatePreviewResponse, error) {
 	if err := payload.Validate(); err != nil {
-		return CreatePreviewResponse{}, errors.E(err, "invalid payload")
+		return resources.CreatePreviewResponse{}, errors.E(err, "invalid payload")
 	}
 
-	return Post[CreatePreviewResponse](
+	return http.Post[resources.CreatePreviewResponse](
 		ctx, c, payload,
 		c.URL(path.Join(PreviewsPath, string(orgUUID))),
 	)
@@ -152,16 +154,16 @@ func (c *Client) createPreview(
 // updateStackPreview updates a stack preview for an organization
 func (c *Client) updateStackPreview(
 	ctx context.Context,
-	orgUUID UUID,
+	orgUUID resources.UUID,
 	stackPreviewID string,
-	payload UpdateStackPreviewPayloadRequest,
+	payload resources.UpdateStackPreviewPayloadRequest,
 ) error {
 	if err := payload.Validate(); err != nil {
 		return errors.E(err, "invalid payload")
 	}
 
 	// Endpoint: /v1/stack_previews/{org_uuid}/{stack_preview_id}
-	_, err := Patch[EmptyResponse](
+	_, err := http.Patch[resources.EmptyResponse](
 		ctx, c, payload,
 		c.URL(path.Join(StackPreviewsPath, string(orgUUID), stackPreviewID)),
 	)

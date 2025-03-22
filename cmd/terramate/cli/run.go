@@ -20,7 +20,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/preview"
+	"github.com/terramate-io/terramate/cloud/api/preview"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -145,7 +146,7 @@ func (c *cli) runOnStacks() {
 		stackFilter := parseStatusFilter(c.parsedArgs.Run.Status)
 		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Run.DeploymentStatus)
 		driftFilter := parseDriftStatusFilter(c.parsedArgs.Run.DriftStatus)
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.outputsSharingFlags, c.parsedArgs.Run.Target, cloud.StatusFilters{
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.outputsSharingFlags, c.parsedArgs.Run.Target, resources.StatusFilters{
 			StackStatus:      stackFilter,
 			DeploymentStatus: deploymentFilter,
 			DriftStatus:      driftFilter,
@@ -596,11 +597,11 @@ func (c *cli) runAll(
 
 			logSyncWait := func() {}
 			if c.cloudEnabled() && (task.CloudSyncDeployment || task.CloudSyncPreview) {
-				logSyncer := cloud.NewLogSyncer(func(logs cloud.CommandLogs) {
+				logSyncer := cloud.NewLogSyncer(func(logs resources.CommandLogs) {
 					c.syncLogs(&logger, run, logs)
 				})
-				stdout = logSyncer.NewBuffer(cloud.StdoutLogChannel, c.stdout)
-				stderr = logSyncer.NewBuffer(cloud.StderrLogChannel, c.stderr)
+				stdout = logSyncer.NewBuffer(resources.StdoutLogChannel, c.stdout)
+				stderr = logSyncer.NewBuffer(resources.StderrLogChannel, c.stderr)
 
 				logSyncWait = logSyncer.Wait
 			}
@@ -719,7 +720,7 @@ func (c *cli) runAll(
 	return err
 }
 
-func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs cloud.CommandLogs) {
+func (c *cli) syncLogs(logger *zerolog.Logger, run stackRun, logs resources.CommandLogs) {
 	data, _ := stdjson.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
@@ -787,9 +788,9 @@ func (c *cli) createCloudPreview(runs []stackCloudRun, target, fromTarget string
 		}
 	}
 
-	affectedStacksMap := map[string]cloud.Stack{}
+	affectedStacksMap := map[string]resources.Stack{}
 	for _, st := range c.getAffectedStacks() {
-		affectedStacksMap[st.Stack.ID] = cloud.Stack{
+		affectedStacksMap[st.Stack.ID] = resources.Stack{
 			Path:            st.Stack.Dir.String(),
 			MetaID:          strings.ToLower(st.Stack.ID),
 			MetaName:        st.Stack.Name,
@@ -878,8 +879,8 @@ func (c *cli) writePreviewURL() {
 		}
 	}
 
-	cloudURL := cloud.HTMLURL(c.cloud.client.Region)
-	if c.cloud.client.BaseURL == "https://api.stg.terramate.io" {
+	cloudURL := cloud.HTMLURL(c.cloud.client.Region())
+	if c.cloud.client.BaseURL() == "https://api.stg.terramate.io" {
 		cloudURL = "https://cloud.stg.terramate.io"
 	}
 

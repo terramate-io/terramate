@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/terramate-io/terramate/cloud/integrations/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/github"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"

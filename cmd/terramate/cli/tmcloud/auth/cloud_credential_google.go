@@ -12,7 +12,8 @@ import (
 	"math"
 	"math/rand"
 	"net"
-	"net/http"
+	stdhttp "net/http"
+
 	"net/url"
 	"os"
 	"path/filepath"
@@ -24,12 +25,14 @@ import (
 	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/errors/verbosity"
+	"github.com/terramate-io/terramate/http"
 	"github.com/terramate-io/terramate/printer"
 )
 
@@ -57,8 +60,8 @@ type (
 		refreshToken string
 		jwtClaims    jwt.MapClaims
 		expireAt     time.Time
-		orgs         cloud.MemberOrganizations
-		user         cloud.User
+		orgs         resources.MemberOrganizations
+		user         resources.User
 
 		provider string
 
@@ -108,10 +111,10 @@ func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 		idpKey:         idpkey(),
 	}
 
-	mux := http.NewServeMux()
+	mux := stdhttp.NewServeMux()
 	mux.Handle("/auth", h)
 
-	s := &http.Server{
+	s := &stdhttp.Server{
 		Handler: mux,
 	}
 
@@ -150,7 +153,7 @@ func GoogleLogin(output out.O, clicfg cliconfig.Config) error {
 }
 
 func startServer(
-	s *http.Server,
+	s *stdhttp.Server,
 	h *tokenHandler,
 	ports []int,
 	redirectURLChan chan<- string,
@@ -196,7 +199,7 @@ func startServer(
 	h.consentData = <-consentDataChan
 	h.continueURL = redirectURL
 	err = s.Serve(ln)
-	if errors.Is(err, http.ErrServerClosed) {
+	if errors.Is(err, stdhttp.ErrServerClosed) {
 		err = nil
 	}
 }
@@ -224,7 +227,7 @@ func createAuthURI(providerID, oauthScope, continueURI, idpKey string, customPar
 	}
 
 	url := endpointURL(endpoint, idpKey)
-	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(postBody))
+	req, err := stdhttp.NewRequest("POST", url.String(), bytes.NewBuffer(postBody))
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to create authentication url")
 	}
@@ -239,7 +242,7 @@ func createAuthURI(providerID, oauthScope, continueURI, idpKey string, customPar
 		Str("url", req.URL.String()).
 		Msg("sending request")
 
-	client := &http.Client{}
+	client := &stdhttp.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to start authentication process")
@@ -276,7 +279,7 @@ func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credenti
 	ctx, cancel := context.WithTimeout(context.Background(), defaultGoogleTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url.String(), bytes.NewBuffer(reqData))
+	req, err := stdhttp.NewRequestWithContext(ctx, "POST", url.String(), bytes.NewBuffer(reqData))
 	if err != nil {
 		return credentialInfo{}, err
 	}
@@ -284,7 +287,7 @@ func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credenti
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("Accept", "application/json")
 
-	client := &http.Client{}
+	client := &stdhttp.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return credentialInfo{}, errors.E(err, "failed to start authentication process")
@@ -351,7 +354,7 @@ type googleSignInPayload struct {
 	ReturnIdpCredential bool   `json:"returnIdpCredential"`
 }
 
-func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *tokenHandler) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	h.Lock()
 	defer func() {
 		h.complete = true
@@ -396,14 +399,14 @@ func (h *tokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handleOK(w, creds)
 }
 
-func (h *tokenHandler) handleOK(w http.ResponseWriter, cred credentialInfo) {
+func (h *tokenHandler) handleOK(w stdhttp.ResponseWriter, cred credentialInfo) {
 	h.credentialChan <- cred
 
 	w.Header().Add("Location", "https://cloud.terramate.io/cli/signed-in")
-	w.WriteHeader(http.StatusSeeOther)
+	w.WriteHeader(stdhttp.StatusSeeOther)
 }
 
-func (h *tokenHandler) handleErr(w http.ResponseWriter) {
+func (h *tokenHandler) handleErr(w stdhttp.ResponseWriter) {
 	const errMessage = `
 	<html>
 		<head>
@@ -415,7 +418,7 @@ func (h *tokenHandler) handleErr(w http.ResponseWriter) {
 		</body>
 	</html>
 	`
-	w.WriteHeader(http.StatusInternalServerError)
+	w.WriteHeader(stdhttp.StatusInternalServerError)
 	_, _ = w.Write([]byte(errMessage))
 }
 
@@ -495,7 +498,7 @@ func (g *googleCredential) Load() (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	g.client.Credential = g
+	g.client.SetCredential(g)
 	g.provider = credinfo.Provider
 	return true, g.fetchDetails()
 }
@@ -550,12 +553,12 @@ func (g *googleCredential) Refresh() (err error) {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", endpoint.String(), bytes.NewBuffer(payloadData))
+	req, err := stdhttp.NewRequestWithContext(ctx, "POST", endpoint.String(), bytes.NewBuffer(payloadData))
 	if err != nil {
 		return err
 	}
 
-	client := &http.Client{}
+	client := &stdhttp.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -631,19 +634,19 @@ func (g *googleCredential) Token() (string, error) {
 	return g.token, nil
 }
 
-func (g *googleCredential) ApplyCredentials(req *http.Request) error {
+func (g *googleCredential) ApplyCredentials(req *stdhttp.Request) error {
 	return applyJWTBasedCredentials(req, g)
 }
 
-func (g *googleCredential) RedactCredentials(req *http.Request) {
+func (g *googleCredential) RedactCredentials(req *stdhttp.Request) {
 	redactJWTBasedCredentials(req)
 }
 
 func (g *googleCredential) fetchDetails() error {
 	var (
 		err  error
-		user cloud.User
-		orgs cloud.MemberOrganizations
+		user resources.User
+		orgs resources.MemberOrganizations
 	)
 
 	func() {
@@ -663,7 +666,7 @@ func (g *googleCredential) fetchDetails() error {
 	}()
 
 	if err != nil {
-		if errors.IsKind(err, cloud.ErrNotFound) {
+		if errors.IsKind(err, http.ErrNotFound) {
 			return errors.E(clitest.ErrCloudOnboardingIncomplete)
 		}
 		return err
@@ -700,7 +703,7 @@ func (g *googleCredential) Info(selectedOrgName string) {
 	}
 
 	if len(activeOrgs) == 0 {
-		printer.Stderr.Warnf("You are not part of an organization. Please join an organization or visit %s to create a new one.", cloud.HTMLURL(g.client.Region))
+		printer.Stderr.Warnf("You are not part of an organization. Please join an organization or visit %s to create a new one.", cloud.HTMLURL(g.client.Region()))
 	}
 
 	if selectedOrgName == "" {
@@ -725,12 +728,12 @@ func (g *googleCredential) Info(selectedOrgName string) {
 	}
 
 	if g.user.DisplayName == "" {
-		printer.Stderr.Warnf("On-boarding is incomplete. Please visit %s to complete on-boarding.", cloud.HTMLURL(g.client.Region))
+		printer.Stderr.Warnf("On-boarding is incomplete. Please visit %s to complete on-boarding.", cloud.HTMLURL(g.client.Region()))
 	}
 }
 
 // Organizations returns the list of organizations associated with the credential.
-func (g *googleCredential) Organizations() cloud.MemberOrganizations {
+func (g *googleCredential) Organizations() resources.MemberOrganizations {
 	return g.orgs
 }
 

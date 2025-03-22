@@ -17,7 +17,7 @@ import (
 	"github.com/cli/safeexec"
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
@@ -599,7 +599,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 						},
 					},
 				},
-				Users: map[string]cloud.User{
+				Users: map[string]resources.User{
 					"batman": {
 						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
 						Email:       "batman@terramate.io",
@@ -652,7 +652,7 @@ func TestCLIRunWithCloudSyncDeployment(t *testing.T) {
 						},
 					},
 				},
-				Users: map[string]cloud.User{
+				Users: map[string]resources.User{
 					"batman": {
 						UUID:        "deadbeef-dead-dead-dead-deaddeafbeef",
 						Email:       "batman@terramate.io",

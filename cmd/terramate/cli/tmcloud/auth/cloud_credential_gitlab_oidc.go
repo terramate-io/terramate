@@ -14,6 +14,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
@@ -28,7 +29,7 @@ type gitlabOIDC struct {
 	expireAt time.Time
 	repoName string
 
-	orgs cloud.MemberOrganizations
+	orgs resources.MemberOrganizations
 
 	client *cloud.Client
 }
@@ -65,7 +66,7 @@ func (g *gitlabOIDC) Load() (bool, error) {
 	}
 	g.repoName = repoName
 
-	g.client.Credential = g
+	g.client.SetCredential(g)
 	return true, g.fetchDetails()
 }
 
@@ -164,6 +165,6 @@ func (g *gitlabOIDC) Info(selectedOrgName string) {
 }
 
 // Organizations that the GitLab OIDC belong to.
-func (g *gitlabOIDC) Organizations() cloud.MemberOrganizations {
+func (g *gitlabOIDC) Organizations() resources.MemberOrganizations {
 	return g.orgs
 }

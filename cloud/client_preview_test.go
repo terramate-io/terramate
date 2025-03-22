@@ -9,7 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
+
+	stdhttp "net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,7 +21,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/preview"
+	"github.com/terramate-io/terramate/cloud/api/preview"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
 )
@@ -79,21 +81,21 @@ func TestCreatePreview(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			testTransport := &previewTransport{}
-			client := &cloud.Client{
-				Credential: credential(),
-				HTTPClient: &http.Client{Transport: testTransport},
-			}
+			client := cloud.NewClient(
+				cloud.WithHTTPClient(&stdhttp.Client{Transport: testTransport}),
+				cloud.WithCredential(credential()),
+			)
 
 			now := time.Now().UTC()
 			opts := cloud.CreatePreviewOpts{
 				Runs:            makeRunContexts(tc.numRunContexts, []string{"terraform", "plan", "-out", "plan.tfout"}),
 				AffectedStacks:  makeAffectedStacks(tc.numRunContexts),
-				OrgUUID:         cloud.UUID(tc.orgUUID),
+				OrgUUID:         resources.UUID(tc.orgUUID),
 				PushedAt:        now.Unix(),
 				CommitSHA:       "2fef3ab48c543322e911bc53baec6196231e95bc",
 				Technology:      "terraform",
 				TechnologyLayer: "default",
-				ReviewRequest: &cloud.ReviewRequest{
+				ReviewRequest: &resources.ReviewRequest{
 					Platform:    "github",
 					Repository:  "https://github.com/owner/repo",
 					CommitSHA:   "2fef3ab48c543322e911bc53baec6196231e95bc",
@@ -101,11 +103,11 @@ func TestCreatePreview(t *testing.T) {
 					Title:       "feat: add stacks",
 					Description: "Added some stacks",
 					URL:         "https://github.com/owner/repo/pull/23",
-					Labels:      []cloud.Label{},
-					Reviewers:   []cloud.Reviewer{},
+					Labels:      []resources.Label{},
+					Reviewers:   []resources.Reviewer{},
 					UpdatedAt:   &now,
 				},
-				Metadata: &cloud.DeploymentMetadata{},
+				Metadata: &resources.DeploymentMetadata{},
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
@@ -160,13 +162,13 @@ func TestUpdateStackPreview(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			testTransport := &previewTransport{}
-			client := &cloud.Client{
-				Credential: credential(),
-				HTTPClient: &http.Client{Transport: testTransport},
-			}
+			client := cloud.NewClient(
+				cloud.WithHTTPClient(&stdhttp.Client{Transport: testTransport}),
+				cloud.WithCredential(credential()),
+			)
 
 			opts := cloud.UpdateStackPreviewOpts{
-				OrgUUID:        cloud.UUID(tc.orgUUID),
+				OrgUUID:        resources.UUID(tc.orgUUID),
 				StackPreviewID: tc.stackPreviewID,
 				Status:         tc.status,
 			}
@@ -185,10 +187,10 @@ func TestUpdateStackPreview(t *testing.T) {
 	}
 }
 
-func makeAffectedStacks(num int) map[string]cloud.Stack {
-	affectedStacks := map[string]cloud.Stack{}
+func makeAffectedStacks(num int) map[string]resources.Stack {
+	affectedStacks := map[string]resources.Stack{}
 	for i := 0; i < num; i++ {
-		affectedStacks[strconv.Itoa(i)] = cloud.Stack{
+		affectedStacks[strconv.Itoa(i)] = resources.Stack{
 			Path:            project.NewPath("/somepath" + strconv.Itoa(i)).String(),
 			MetaID:          uuid.NewString(),
 			MetaName:        "stack" + strconv.Itoa(i),
@@ -216,10 +218,10 @@ func makeRunContexts(num int, cmd []string) []cloud.RunContext {
 
 type previewTransport struct {
 	// receivedReqs is a list of all requests that were processed by the transport.
-	receivedReqs []*http.Request
+	receivedReqs []*stdhttp.Request
 }
 
-func (f *previewTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (f *previewTransport) RoundTrip(req *stdhttp.Request) (*stdhttp.Response, error) {
 	f.receivedReqs = append(f.receivedReqs, req)
 
 	endpoint := req.Method + " " + req.URL.Path
@@ -229,42 +231,42 @@ func (f *previewTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	case strings.HasPrefix(endpoint, "PATCH /v1/stack_previews"):
 		return updateStackPreviewsHandler(req)
 	default:
-		return &http.Response{
-			StatusCode: http.StatusNotFound,
+		return &stdhttp.Response{
+			StatusCode: stdhttp.StatusNotFound,
 		}, nil
 	}
 
 }
 
 // updateStackPreviewsHandler is a handler for the PATCH /v1/stack_previews endpoint.
-func updateStackPreviewsHandler(req *http.Request) (*http.Response, error) {
-	var reqParsed cloud.UpdateStackPreviewPayloadRequest
+func updateStackPreviewsHandler(req *stdhttp.Request) (*stdhttp.Response, error) {
+	var reqParsed resources.UpdateStackPreviewPayloadRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqParsed); err != nil {
-		return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+		return &stdhttp.Response{StatusCode: stdhttp.StatusInternalServerError}, nil
 	}
 
 	validStatuses := []string{"running", "changed", "unchanged", "failed", "canceled"}
 	if !slices.Contains(validStatuses, reqParsed.Status) {
-		return &http.Response{
-			StatusCode: http.StatusBadRequest,
+		return &stdhttp.Response{
+			StatusCode: stdhttp.StatusBadRequest,
 		}, nil
 	}
 
-	return &http.Response{
-		StatusCode: http.StatusNoContent,
+	return &stdhttp.Response{
+		StatusCode: stdhttp.StatusNoContent,
 	}, nil
 }
 
 // createPreviewsHandler is a handler for the POST /v1/previews endpoint.
-func createPreviewsHandler(req *http.Request) (*http.Response, error) {
-	var reqParsed cloud.CreatePreviewPayloadRequest
+func createPreviewsHandler(req *stdhttp.Request) (*stdhttp.Response, error) {
+	var reqParsed resources.CreatePreviewPayloadRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqParsed); err != nil {
-		return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+		return &stdhttp.Response{StatusCode: stdhttp.StatusInternalServerError}, nil
 	}
 
-	resp := cloud.CreatePreviewResponse{PreviewID: "1", Stacks: []cloud.ResponsePreviewStack{}}
+	resp := resources.CreatePreviewResponse{PreviewID: "1", Stacks: []resources.ResponsePreviewStack{}}
 	for i, s := range reqParsed.Stacks {
-		resp.Stacks = append(resp.Stacks, cloud.ResponsePreviewStack{
+		resp.Stacks = append(resp.Stacks, resources.ResponsePreviewStack{
 			MetaID:         s.MetaID,
 			StackPreviewID: strconv.Itoa(i),
 		})
@@ -272,13 +274,13 @@ func createPreviewsHandler(req *http.Request) (*http.Response, error) {
 
 	respBytes, err := json.Marshal(resp)
 	if err != nil {
-		return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+		return &stdhttp.Response{StatusCode: stdhttp.StatusInternalServerError}, nil
 	}
 
-	return &http.Response{
-		StatusCode: http.StatusOK,
+	return &stdhttp.Response{
+		StatusCode: stdhttp.StatusOK,
 		Body:       io.NopCloser(bytes.NewReader(respBytes)),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Header:     stdhttp.Header{"Content-Type": []string{"application/json"}},
 	}, nil
 }
 

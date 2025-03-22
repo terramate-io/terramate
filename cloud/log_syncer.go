@@ -11,15 +11,16 @@ import (
 	"unicode/utf8"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/errors"
 )
 
 type (
 	// LogSyncer is the log syncer controller type.
 	LogSyncer struct {
-		pending  CommandLogs
+		pending  resources.CommandLogs
 		fds      []io.Closer
-		in       chan *CommandLog
+		in       chan *resources.CommandLog
 		syncfn   Syncer
 		wg       sync.WaitGroup
 		shutdown chan struct{}
@@ -29,7 +30,7 @@ type (
 	}
 
 	// Syncer is the actual synchronizer callback.
-	Syncer func(l CommandLogs)
+	Syncer func(l resources.CommandLogs)
 )
 
 // DefaultLogBatchSize is the default batch size.
@@ -50,7 +51,7 @@ func NewLogSyncerWith(
 	syncInterval time.Duration,
 ) *LogSyncer {
 	l := &LogSyncer{
-		in:       make(chan *CommandLog, batchSize),
+		in:       make(chan *resources.CommandLog, batchSize),
 		syncfn:   syncfn,
 		shutdown: make(chan struct{}),
 
@@ -62,7 +63,7 @@ func NewLogSyncerWith(
 }
 
 // NewBuffer creates a new synchronized buffer.
-func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
+func (s *LogSyncer) NewBuffer(channel resources.LogChannel, out io.Writer) io.Writer {
 	r, w := io.Pipe()
 	s.fds = append(s.fds, w)
 	s.wg.Add(1)
@@ -99,7 +100,7 @@ func (s *LogSyncer) NewBuffer(channel LogChannel, out io.Writer) io.Writer {
 				}
 
 				t := time.Now().UTC()
-				s.in <- &CommandLog{
+				s.in <- &resources.CommandLog{
 					Channel:   channel,
 					Line:      linenum,
 					Message:   string(dropCRLN([]byte(line))),
@@ -166,7 +167,7 @@ func (s *LogSyncer) syncAll() {
 	}
 }
 
-func (s *LogSyncer) enqueue(l *CommandLog) {
+func (s *LogSyncer) enqueue(l *resources.CommandLog) {
 	s.pending = append(s.pending, l)
 	if len(s.pending) >= s.batchSize {
 		s.syncAll()

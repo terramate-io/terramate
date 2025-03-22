@@ -11,14 +11,14 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog/log"
 
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 )
 
 // PostStoreOutput implements the /v1/store/:orguuid/outputs endpoint.
 func PostStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	orgUUID := cloud.UUID(params.ByName("orguuid"))
+	orgUUID := resources.UUID(params.ByName("orguuid"))
 	if orgUUID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "orguuid is required")
@@ -32,7 +32,7 @@ func PostStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var outputRequest cloud.StoreOutputRequest
+	var outputRequest resources.StoreOutputRequest
 	err = json.Unmarshal(body, &outputRequest)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -51,8 +51,8 @@ func PostStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Requ
 		target = "default"
 	}
 
-	output := cloud.StoreOutput{
-		Key: cloud.StoreOutputKey{
+	output := resources.StoreOutput{
+		Key: resources.StoreOutputKey{
 			OrgUUID:     orgUUID,
 			Repository:  outputRequest.Key.Repository,
 			StackMetaID: outputRequest.Key.StackMetaID,
@@ -86,14 +86,14 @@ func PostStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Requ
 
 // GetStoreOutput implements the GET /v1/store/:orguuid/outputs/:id endpoint.
 func GetStoreOutput(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
-	orgUUID := cloud.UUID(params.ByName("orguuid"))
+	orgUUID := resources.UUID(params.ByName("orguuid"))
 	if orgUUID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "orguuid is required")
 		return
 	}
 
-	outputID := cloud.UUID(params.ByName("id"))
+	outputID := resources.UUID(params.ByName("id"))
 	if outputID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "id is required")
@@ -121,7 +121,7 @@ func GetStoreOutput(store *cloudstore.Data, w http.ResponseWriter, _ *http.Reque
 
 // LookupStoreOutput implements the GET /v1/store/:orguuid/outputs endpoint.
 func LookupStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	orgUUID := cloud.UUID(params.ByName("orguuid"))
+	orgUUID := resources.UUID(params.ByName("orguuid"))
 	if orgUUID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "orguuid is required")
@@ -131,7 +131,7 @@ func LookupStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Re
 	if target == "" {
 		target = "default"
 	}
-	output, err := store.GetOutputByKey(orgUUID, cloud.StoreOutputKey{
+	output, err := store.GetOutputByKey(orgUUID, resources.StoreOutputKey{
 		OrgUUID:     orgUUID,
 		Repository:  r.URL.Query().Get("repository"),
 		StackMetaID: r.URL.Query().Get("stack_meta_id"),
@@ -158,14 +158,14 @@ func LookupStoreOutput(store *cloudstore.Data, w http.ResponseWriter, r *http.Re
 
 // PutStoreOutputValue implements the PUT /v1/store/:orguuid/outputs/:id/value endpoint.
 func PutStoreOutputValue(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	orgUUID := cloud.UUID(params.ByName("orguuid"))
+	orgUUID := resources.UUID(params.ByName("orguuid"))
 	if orgUUID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "orguuid is required")
 		return
 	}
 
-	outputID := cloud.UUID(params.ByName("id"))
+	outputID := resources.UUID(params.ByName("id"))
 	if outputID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "id is required")
@@ -196,14 +196,14 @@ func PutStoreOutputValue(store *cloudstore.Data, w http.ResponseWriter, r *http.
 
 // DeleteStoreOutput implements the DELETE /v1/store/:orguuid/outputs/:id endpoint.
 func DeleteStoreOutput(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, params httprouter.Params) {
-	orgUUID := cloud.UUID(params.ByName("orguuid"))
+	orgUUID := resources.UUID(params.ByName("orguuid"))
 	if orgUUID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "orguuid is required")
 		return
 	}
 
-	outputID := cloud.UUID(params.ByName("id"))
+	outputID := resources.UUID(params.ByName("id"))
 	if outputID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeString(w, "id is required")
