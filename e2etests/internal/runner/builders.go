@@ -5,7 +5,6 @@ package runner
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -72,10 +71,6 @@ func BuildTestHelper(projectRoot, binDir string) (string, error) {
 
 func lookupGoBin() (string, error) {
 	exeSuffix := platExeSuffix()
-	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
-	}
 	goBin, err := exec.LookPath("go" + exeSuffix)
 	if err != nil {
 		return "", fmt.Errorf("cannot find go tool: %v", err.Error())
