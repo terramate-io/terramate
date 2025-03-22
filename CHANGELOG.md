@@ -22,10 +22,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+## v0.13.0
+
 ### Added
 
 - Add support for Single-Sign-On login.
   - Use `terramate cloud login --sso` for SSO enabled organizations.
+
+### Changed
+
+- (**BREAKING CHANGE**) Make `terramate.cloud.organization` or `TM_CLOUD_ORGANIZATION` environment variable required when using the cloud features.
 
 ## v0.12.1
 
