@@ -9,9 +9,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/terramate-io/terramate/errors"
 )
+
+// DefaultTimeout is the default timeout for Bitbucket API requests.
+const DefaultTimeout = 60 * time.Second
 
 type (
 	// Client is a Bitbucket Cloud client.

@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/ui/tui/cliconfig"
 )
 
 func userTerramateDir() (string, error) {

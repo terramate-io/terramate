@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/ui/tui/clitest"
 	"go.lsp.dev/uri"
 )
 

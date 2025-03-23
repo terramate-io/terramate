@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/cmd/terramate/cli"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
+	"github.com/terramate-io/terramate/ui/tui/cliconfig"
 
 	"github.com/terramate-io/terramate/config/tag"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
