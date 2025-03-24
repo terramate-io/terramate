@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	runcmd "github.com/terramate-io/terramate/commands/run"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test/sandbox"
 	"github.com/terramate-io/terramate/ui/tui/clitest"
@@ -172,7 +172,7 @@ func TestSafeguardCheckRemoteFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	testrun := func() {
 		wantRes := RunExpected{
 			Status:      1,
-			StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+			StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 		}
 
 		AssertRunResult(t, ts.Run(
@@ -240,7 +240,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			file.HostPath(),
 		), RunExpected{
 			Status:      1,
-			StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+			StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 		})
 	})
 
@@ -359,7 +359,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			),
 				RunExpected{
 					Status:      1,
-					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+					StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 				})
 		})
 
@@ -439,7 +439,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			),
 				RunExpected{
 					Status:      1,
-					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+					StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 				})
 		})
 
@@ -468,7 +468,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 				file.HostPath(),
 			), RunExpected{
 				Status:      1,
-				StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+				StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 			})
 		})
 
@@ -500,7 +500,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			),
 				RunExpected{
 					Status:      1,
-					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+					StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 				})
 		})
 
@@ -634,6 +634,6 @@ func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 		stackFile.HostPath(),
 	), RunExpected{
 		Status:      1,
-		StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+		StderrRegex: string(runcmd.ErrCurrentHeadIsOutOfDate),
 	})
 }

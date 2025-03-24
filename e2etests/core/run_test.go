@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/terramate-io/terramate/cmd/terramate/cli"
+	runcmd "github.com/terramate-io/terramate/commands/run"
 	"github.com/terramate-io/terramate/ui/tui/cliconfig"
 
 	"github.com/terramate-io/terramate/config/tag"
@@ -2379,7 +2379,7 @@ func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
 		"env",
 	), RunExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 	})
 }
 
@@ -2419,7 +2419,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		generateFile,
 	), RunExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 	})
 
 	// check without --changed
@@ -2430,7 +2430,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		generateFile,
 	), RunExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 	})
 
 	// disabling the check must work for both with and without --changed
@@ -2604,7 +2604,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			generateFile,
 		), RunExpected{
 			Status:      defaultErrExitStatus,
-			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+			StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 		})
 
 		AssertRunResult(t, tmcli.Run(
@@ -2615,7 +2615,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			generateFile,
 		), RunExpected{
 			Status:      defaultErrExitStatus,
-			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+			StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 		})
 	})
 
@@ -2646,7 +2646,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			generateFile,
 		), RunExpected{
 			Status:      defaultErrExitStatus,
-			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+			StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 		})
 
 		AssertRunResult(t, tmcli.Run(
@@ -2656,7 +2656,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			generateFile,
 		), RunExpected{
 			Status:      defaultErrExitStatus,
-			StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+			StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 		})
 	})
 }
@@ -3103,13 +3103,13 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	AssertRunResult(t, tmcli.Run("run", HelperPath,
 		"cat", testFilename), RunExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 	})
 
 	AssertRunResult(t, tmcli.Run("run", "--changed", HelperPath,
 		"cat", testFilename), RunExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+		StderrRegex: string(runcmd.ErrOutdatedGenCodeDetected),
 	})
 
 	// stack2 has no file generation, then it must work.
