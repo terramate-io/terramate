@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
 
@@ -34,7 +34,7 @@ const (
 	ProvisionerOpenTofu = "opentofu"
 )
 
-func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails, error) {
+func (c *cli) getTerraformChangeset(run stackCloudRun) (*resources.ChangesetDetails, error) {
 	planfile := run.Task.CloudPlanFile
 	provisioner := run.Task.CloudPlanProvisioner
 
@@ -83,7 +83,7 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 		optSerial = &serial
 	}
 
-	return &cloud.ChangesetDetails{
+	return &resources.ChangesetDetails{
 		Provisioner:    provisioner,
 		ChangesetASCII: renderedPlan,
 		ChangesetJSON:  string(newJSONPlanData),

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	hhcl "github.com/terramate-io/hcl/v2"
-	"github.com/terramate-io/terramate/cloud/preview"
+	"github.com/terramate-io/terramate/cloud/api/preview"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"

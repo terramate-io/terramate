@@ -11,7 +11,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/hashicorp/go-uuid"
-	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -58,7 +58,7 @@ func (c *cli) runScript() {
 		statusFilter := parseStatusFilter(c.parsedArgs.Script.Run.Status)
 		deploymentFilter := parseDeploymentStatusFilter(c.parsedArgs.Script.Run.DeploymentStatus)
 		driftFilter := parseDriftStatusFilter(c.parsedArgs.Script.Run.DriftStatus)
-		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Script.Run.outputsSharingFlags, c.parsedArgs.Script.Run.Target, cloud.StatusFilters{
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Script.Run.outputsSharingFlags, c.parsedArgs.Script.Run.Target, resources.StatusFilters{
 			StackStatus:      statusFilter,
 			DeploymentStatus: deploymentFilter,
 			DriftStatus:      driftFilter,
@@ -221,7 +221,7 @@ func (c *cli) prepareScriptForCloudSync(runs []stackRun) {
 	if len(deployRuns) > 0 {
 		uuid, err := uuid.GenerateUUID()
 		c.handleCriticalError(err)
-		c.cloud.run.runUUID = cloud.UUID(uuid)
+		c.cloud.run.runUUID = resources.UUID(uuid)
 
 		sortableDeployStacks := make([]*config.SortableStack, len(deployRuns))
 		for i, e := range deployRuns {

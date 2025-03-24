@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -39,7 +39,7 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 		return
 	}
 
-	var driftDetails *cloud.ChangesetDetails
+	var driftDetails *resources.ChangesetDetails
 
 	if run.Task.CloudPlanFile != "" {
 		var err error
@@ -56,8 +56,8 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCloudTimeout)
 	defer cancel()
 
-	_, err = c.cloud.client.CreateStackDrift(ctx, c.cloud.run.orgUUID, cloud.DriftStackPayloadRequest{
-		Stack: cloud.Stack{
+	_, err = c.cloud.client.CreateStackDrift(ctx, c.cloud.run.orgUUID, resources.DriftStackPayloadRequest{
+		Stack: resources.Stack{
 			Repository:      c.prj.prettyRepo(),
 			Target:          run.Task.CloudTarget,
 			FromTarget:      run.Task.CloudFromTarget,

@@ -12,8 +12,8 @@ import (
 	"github.com/fatih/color"
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
-	"github.com/terramate-io/terramate/cloud"
-	cloudstack "github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -25,7 +25,7 @@ import (
 func (c *cli) printScriptInfo() {
 	labels := c.parsedArgs.Script.Info.Cmds
 
-	stacks, err := c.computeSelectedStacks(false, outputsSharingFlags{}, cloudstack.AnyTarget, cloud.NoStatusFilters())
+	stacks, err := c.computeSelectedStacks(false, outputsSharingFlags{}, cloudstack.AnyTarget, resources.NoStatusFilters())
 	if err != nil {
 		fatalWithDetailf(err, "computing selected stacks")
 	}

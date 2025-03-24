@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/cliconfig"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/out"
 	"github.com/terramate-io/terramate/errors"
@@ -39,7 +40,7 @@ type Credential interface {
 
 	// private interface
 
-	Organizations() cloud.MemberOrganizations
+	Organizations() resources.MemberOrganizations
 	Info(selectedOrgName string)
 }
 

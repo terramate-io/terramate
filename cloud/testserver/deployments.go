@@ -9,17 +9,17 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/deployment"
-	"github.com/terramate-io/terramate/cloud/stack"
+	"github.com/terramate-io/terramate/cloud/api/deployment"
+	"github.com/terramate-io/terramate/cloud/api/resources"
+	"github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
 )
 
 // GetDeployments is the GET /deployments handler.
 func GetDeployments(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p httprouter.Params) {
-	orguuid := cloud.UUID(p.ByName("orguuid"))
-	deployuuid := cloud.UUID(p.ByName("deployuuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
+	deployuuid := resources.UUID(p.ByName("deployuuid"))
 
 	org, found := store.GetOrg(orguuid)
 	if !found {
@@ -44,7 +44,7 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		writeErr(w, err)
 		return
 	}
-	var rPayload cloud.DeploymentStacksPayloadRequest
+	var rPayload resources.DeploymentStacksPayloadRequest
 	if err := json.Unmarshal(data, &rPayload); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, errors.E(err, "failed to unmarshal data: %s", data))
@@ -78,8 +78,8 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		stackCommands[st.MetaID] = st.DeploymentCommand
 	}
 
-	orguuid := cloud.UUID(p.ByName("orguuid"))
-	deployuuid := cloud.UUID(p.ByName("deployuuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
+	deployuuid := resources.UUID(p.ByName("deployuuid"))
 
 	org, found := store.GetOrg(orguuid)
 	if !found {
@@ -89,7 +89,7 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 	}
 
 	var stackIDs []int64
-	res := cloud.DeploymentStacksResponse{}
+	res := resources.DeploymentStacksResponse{}
 	for _, s := range rPayload.Stacks {
 		if s.Stack.Target == "" {
 			s.Stack.Target = "default"
@@ -110,7 +110,7 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		res = append(res, cloud.DeploymentStackResponse{
+		res = append(res, resources.DeploymentStackResponse{
 			StackID:     stackid,
 			StackMetaID: s.MetaID,
 			Status:      deployment.Pending,
@@ -138,15 +138,15 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 // PatchDeployment is the PATCH /deployments handler.
 func PatchDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	data, _ := io.ReadAll(r.Body)
-	var updateStacks cloud.UpdateDeploymentStacks
+	var updateStacks resources.UpdateDeploymentStacks
 	if err := json.Unmarshal(data, &updateStacks); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, errors.E(err, "failed to unmarshal data: %s", data))
 		return
 	}
 
-	orguuid := cloud.UUID(p.ByName("orguuid"))
-	deployuuid := cloud.UUID(p.ByName("deployuuid"))
+	orguuid := resources.UUID(p.ByName("orguuid"))
+	deployuuid := resources.UUID(p.ByName("deployuuid"))
 
 	org, found := store.GetOrg(orguuid)
 	if !found {
