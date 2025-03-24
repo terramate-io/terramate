@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/stack/trigger"
@@ -218,13 +218,13 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 	// fake credentials
 	type MyCustomClaims struct {
 		Email string `json:"email"`
-		jwt.StandardClaims
+		jwt.RegisteredClaims
 	}
 
 	claims := MyCustomClaims{
 		"batman@terramate.io",
-		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 			Issuer:    "terramate-tests",
 		},
 	}
