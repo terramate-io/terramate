@@ -275,7 +275,7 @@ func TestScriptRun(t *testing.T) {
 			},
 			runScript: []string{"someunknownscript"},
 			want: RunExpected{
-				Stderr: "script not found: someunknownscript\n",
+				Stderr: "Error: script not found: someunknownscript\n",
 				Status: 1,
 			},
 		},
