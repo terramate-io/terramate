@@ -22,6 +22,9 @@ const (
 	ErrNotFound errors.Kind = "resource not found (HTTP Status: 404)"
 )
 
+// DefaultTimeout is the default timeout for Gitlab API requests.
+const DefaultTimeout = 60 * time.Second
+
 type (
 	// Client is a Gitlab API HTTP client wrapper.
 	Client struct {

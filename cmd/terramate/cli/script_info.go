@@ -15,6 +15,8 @@ import (
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/config/filter"
+	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/printer"
@@ -25,7 +27,7 @@ import (
 func (c *cli) printScriptInfo() {
 	labels := c.parsedArgs.Script.Info.Cmds
 
-	stacks, err := c.computeSelectedStacks(false, outputsSharingFlags{}, cloudstack.AnyTarget, resources.NoStatusFilters())
+	stacks, err := c.engine.ComputeSelectedStacks(engine.NoGitFilter(), filter.TagClause{}, engine.OutputsSharingOptions{}, cloudstack.AnyTarget, resources.NoStatusFilters())
 	if err != nil {
 		fatalWithDetailf(err, "computing selected stacks")
 	}

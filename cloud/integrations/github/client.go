@@ -39,7 +39,8 @@ const (
 	// APIBaseURL is the default base url for the GitHub API.
 	APIBaseURL = "https://" + APIDomain
 
-	defaultTimeout = 60 * time.Second
+	// DefaultTimeout is the default timeout for GitHub API requests.
+	DefaultTimeout = 60 * time.Second
 )
 
 type (
@@ -118,7 +119,7 @@ func OAuthDeviceFlowAuthStart(clientID string) (oauthCtx OAuthDeviceFlowContext,
 		"scope":     []string{"user:email"},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, "POST", deviceCodeURL, strings.NewReader(params.Encode()))
@@ -165,7 +166,7 @@ func (oauthCtx *OAuthDeviceFlowContext) ProbeAuthState() (string, error) {
 		"device_code": []string{oauthCtx.DeviceCode},
 		"grant_type":  []string{"urn:ietf:params:oauth:grant-type:device_code"},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "POST", uri, strings.NewReader(params.Encode()))
 	if err != nil {
