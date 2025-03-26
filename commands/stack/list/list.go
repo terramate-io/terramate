@@ -6,6 +6,7 @@ package list
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/terramate-io/terramate/cloud/api/status"
@@ -28,6 +29,7 @@ type Spec struct {
 	Tags          []string
 	NoTags        []string
 	Printers      printer.Printers
+	Format        string
 }
 
 // StatusFilters contains the status filters for the list command.
@@ -96,8 +98,56 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 		if err != nil {
 			return errors.E(err, "Invalid stack configuration: "+failReason)
 		}
+
+		if s.Format == "json" {
+			graph, reason, err := run.BuildDAGFromStacks(s.Engine.Config(), stacks,
+				func(s *config.SortableStack) *config.Stack { return s.Stack })
+			if err != nil {
+				return errors.E("Failed to build dependency graph: "+reason)
+			}
+
+			// Calculate levels based on DAG
+			levelGroups := make(map[int][]string)
+			stackLevels := make(map[string]int)
+
+			// Process nodes in topological order
+			order := graph.Order()
+			for _, id := range order {
+				stack, err := graph.Node(id)
+				if err != nil {
+					return errors.E("Failed to access node in graph: "+err.Error())
+				}
+
+				level := 1 // Default level
+				// Check ancestors (dependencies)
+				for _, ancestorID := range graph.AncestorsOf(id) {
+					ancestorLevel := stackLevels[string(ancestorID)]
+					if ancestorLevel >= level {
+						level = ancestorLevel + 1
+					}
+				}
+
+				dir := stack.Stack.Dir.String()
+				stackLevels[dir] = level
+
+				friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
+				if !ok {
+					printer.Stderr.Error(fmt.Sprintf("Unable to format stack dir %s", dir))
+					continue
+				}
+				levelGroups[level] = append(levelGroups[level], friendlyDir)
+			}
+
+			jsonOutput, err := json.MarshalIndent(levelGroups, "", "  ")
+			if err != nil {
+				return errors.E("Error formatting stack groups as JSON: "+err.Error())
+			}
+			printer.Stdout.Println(string(jsonOutput))
+			return nil
+		}
 	}
 
+	// Original output format for non-runOrder case or when format is not json
 	for _, st := range stacks {
 		dir := st.Dir().String()
 		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
