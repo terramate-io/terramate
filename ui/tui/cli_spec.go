@@ -316,15 +316,19 @@ func migrateBoolFlag(flag *bool, alias bool) {
 	}
 }
 
-func handleRootVersionFlagAlone(p *FlagSpec, c *CLI) bool {
+func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool) {
+	p := parsedSpec.(*FlagSpec)
 	if p.VersionFlag {
-		fmt.Println(c.version)
+		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
+			fmt.Println(c.version)
+			return nil
+		}, true
 	}
-	return p.VersionFlag
+	return "", nil, nil, false
 }
 
-func defaultRootFlagCheckers() []rootFlagCheckers[*FlagSpec] {
-	return []rootFlagCheckers[*FlagSpec]{
+func defaultRootFlagHandlers() []rootFlagHandlers {
+	return []rootFlagHandlers{
 		handleRootVersionFlagAlone, // handles: terramate --version
 	}
 }

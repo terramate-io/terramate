@@ -64,31 +64,7 @@ type handlerState struct {
 func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Executor, found bool, cont bool, err error) {
 	kctx := ctx.Value(KongContext).(*kong.Context)
 
-	var kerr error
-	if v := ctx.Value(KongError); v != nil {
-		kerr = v.(error)
-	}
-
-	if c.kongExit && c.kongExitStatus == 0 {
-		return nil, false, false, nil
-	}
-
 	parsedArgs := c.input.(*FlagSpec)
-
-	// When we run terramate --version the kong parser just fails
-	// since no subcommand was provided (which is odd..but happens).
-	// So we check if the flag for version is present before checking the error.
-	if parsedArgs.VersionFlag {
-		return &version.Spec{
-			Version:  c.version,
-			InfoChan: c.checkpointResponse,
-		}, true, false, nil
-	}
-
-	if kerr != nil {
-		return nil, false, false, err
-	}
-
 	// profiler is only started if Terramate is built with -tags profiler
 	startProfiler(parsedArgs.CPUProfiling)
 

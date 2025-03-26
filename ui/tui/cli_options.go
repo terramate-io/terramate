@@ -8,7 +8,6 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/posener/complete"
-	"github.com/terramate-io/terramate/errors"
 	"github.com/willabides/kongplete"
 )
 
@@ -86,10 +85,10 @@ func WithHelpPrinter(p kong.HelpPrinter) Option {
 	}
 }
 
-type rootFlagCheckers[T any] func(parsed T, cli *CLI) bool
+type rootFlagHandlers func(parsed any, cli *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool)
 
 // WithSpecHandler is an option to set the flag spec and handler for the CLI.
-func WithSpecHandler[T any](a *T, beforeHandler, afterHandler Handler, checkers ...rootFlagCheckers[*T]) Option {
+func WithSpecHandler(a any, beforeHandler, afterHandler Handler, checkers ...rootFlagHandlers) Option {
 	return func(c *CLI) error {
 		kongOptions := []kong.Option{
 			kong.Name(c.kongOpts.name),
@@ -108,26 +107,20 @@ func WithSpecHandler[T any](a *T, beforeHandler, afterHandler Handler, checkers 
 		}
 		parser, err := kong.New(a, kongOptions...)
 
-		var ignoreErr bool
-		if err != nil && c.kongExit {
-			for _, chk := range checkers {
-				if chk(a, c) {
-					ignoreErr = true
-					break
-				}
-			}
-		}
-
-		if err != nil && !ignoreErr {
-			return errors.E(err, "parsing CLI spec")
-		}
-		kongplete.Complete(parser,
-			kongplete.WithPredictor("file", complete.PredictFiles("*")),
-		)
 		c.parser = parser
 		c.input = a
+		c.rootFlagCheckers = checkers
 		c.beforeConfigHandler = beforeHandler
 		c.afterConfigHandler = afterHandler
+
+		if err != nil {
+			return err
+		}
+
+		kongplete.Complete(c.parser,
+			kongplete.WithPredictor("file", complete.PredictFiles("*")),
+		)
+
 		return nil
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 
@@ -50,8 +51,9 @@ type CLI struct {
 	kongExitStatus int
 
 	// The CLI engine works with any spec.
-	input  any
-	parser *kong.Kong
+	input            any
+	parser           *kong.Kong
+	rootFlagCheckers []rootFlagHandlers
 
 	checkpointResponse chan *checkpoint.CheckResponse
 
@@ -87,7 +89,7 @@ type state struct {
 type Option func(*CLI) error
 
 const (
-	name = "Terramate"
+	name = "terramate"
 )
 
 //go:embed cli_help.txt
@@ -129,7 +131,7 @@ func NewCLI(opts ...Option) (*CLI, error) {
 			&FlagSpec{},
 			DefaultBeforeConfigHandler,
 			DefaultAfterConfigHandler,
-			defaultRootFlagCheckers()...)(c)
+			defaultRootFlagHandlers()...)(c)
 
 		if err != nil {
 			return nil, err
@@ -190,7 +192,50 @@ func (c *CLI) Exec(args []string) {
 		os.Exit(1)
 	}
 
-	kctx, err := c.parser.Parse(args)
+	kctx, kerr := c.parser.Parse(args)
+
+	if c.kongExit && c.kongExitStatus == 0 {
+		// NOTE(i4k): AFAIK this only happens for `terramate --help`.
+		return
+	}
+
+	var hasRootFlagSet bool
+	var rootFlagSet string
+	var rootFlagVal any
+	var rootFlagRun func(c *CLI, v any) error
+
+	for _, chk := range c.rootFlagCheckers {
+		if name, val, run, isSet := chk(c.input, c); isSet {
+			hasRootFlagSet = true
+			rootFlagSet = name
+			rootFlagVal = val
+			rootFlagRun = run
+			break
+		}
+	}
+
+	if kerr != nil {
+		if strings.HasPrefix(kerr.Error(), "expected one of ") {
+			// It falls here when did not provide any command.
+			// But we support `terramate --version` (potentially other cases in the future)
+			// then we check the root flags here and return successfully if any of them
+			// are set.
+			if hasRootFlagSet {
+				err := rootFlagRun(c, rootFlagVal)
+				if err != nil {
+					printer.Stderr.Fatal(err)
+				}
+				return
+			}
+		}
+		printer.Stderr.Fatal(kerr)
+	}
+
+	if hasRootFlagSet {
+		// NOTE(i4k): this can only if a command is provided together with a root flag.
+		// This is a conflict.
+		printer.Stderr.Fatal(errors.E("command %s cannot be used with flag %s", kctx.Command(), rootFlagSet))
+	}
 
 	ctx := context.WithValue(context.Background(), KongContext, kctx)
 	ctx = context.WithValue(ctx, KongError, err)
