@@ -18,7 +18,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
-	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -32,6 +31,7 @@ import (
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/stdlib"
+	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
 )
 
 const (

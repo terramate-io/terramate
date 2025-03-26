@@ -14,7 +14,6 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/hcl/v2/hclwrite"
-	tel "github.com/terramate-io/terramate/cmd/terramate/cli/telemetry"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -23,6 +22,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/stdlib"
+	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
 
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/lets"

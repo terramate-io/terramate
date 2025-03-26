@@ -15,9 +15,9 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/cloud/testserver"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test/sandbox"
+	"github.com/terramate-io/terramate/ui/tui/clitest"
 )
 
 func TestCloudConfig(t *testing.T) {

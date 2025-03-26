@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/cloud"
-	"github.com/terramate-io/terramate/cloud/drift"
+	"github.com/terramate-io/terramate/cloud/api/drift"
+	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
-	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
+	"github.com/terramate-io/terramate/ui/tui/clitest"
+
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
 	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -92,8 +93,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/stack",
@@ -131,8 +132,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
@@ -173,8 +174,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
@@ -208,8 +209,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			want: want{
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/stack",
@@ -248,8 +249,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/parent/child",
@@ -284,8 +285,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			want: want{
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
@@ -298,8 +299,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1/s2",
@@ -339,8 +340,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
@@ -381,8 +382,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
@@ -431,8 +432,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				},
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1",
@@ -441,7 +442,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								Target:        "default",
 							},
 							Status: drift.Drifted,
-							Details: &cloud.ChangesetDetails{
+							Details: &resources.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 								Serial:        makeSerial(0),
@@ -454,8 +455,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
 								Path:          "/s1/s2",
@@ -464,7 +465,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								Target:        "default",
 							},
 							Status: drift.Drifted,
-							Details: &cloud.ChangesetDetails{
+							Details: &resources.ChangesetDetails{
 								Provisioner:   "terraform",
 								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
 								Serial:        makeSerial(0),
@@ -506,8 +507,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			want: want{
 				drifts: expectedDriftStackPayloadRequests{
 					{
-						DriftStackPayloadRequest: cloud.DriftStackPayloadRequest{
-							Stack: cloud.Stack{
+						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "trunk",
 								Path:          "/stack",
