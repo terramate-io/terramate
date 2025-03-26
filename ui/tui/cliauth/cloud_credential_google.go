@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
