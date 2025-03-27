@@ -63,6 +63,9 @@ jobs:
       - name: make generate
         run: make generate
 
+      - name: install linter
+        run: make lint/install
+
       - name: fetch base ref (${{ github.base_ref }})
         run: git fetch origin ${{ github.base_ref }}
 
@@ -76,12 +79,6 @@ jobs:
         id: list_e2e_packages
         run: terramate list --tags e2etests --changed --git-change-base 'origin/${{ github.base_ref }}'
 
-      ### Linting
-
-      - name: linting code
-        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
-        run: make lint
-
       - name: checking go mod tidyness
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make mod/check
@@ -89,9 +86,6 @@ jobs:
       - name: checking license on source code
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
         run: make license/check
-
-      - name: Check Terramate formatting
-        run: terramate fmt --check
 
       - name: Check Terraform formatting
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
