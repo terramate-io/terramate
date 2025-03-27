@@ -1,7 +1,10 @@
-GO_RELEASER_VERSION=v1.14.0
-GOLANGCI_LINT_VERSION ?= v1.64.8
+# Copyright 2024 Terramate GmbH
+# SPDX-License-Identifier: MPL-2.0
+
+include makefiles/_mkconfig.mk
+
 COVERAGE_REPORT ?= coverage.txt
-RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -l mpl -s=only -ignore 'docs/**' -ignore '.tmtriggers/**' -ignore '**/*.tf'
+RUN_ADD_LICENSE=go run github.com/google/addlicense@$(ADDLICENSE_VERSION) -l mpl -s=only -ignore 'docs/**' -ignore '.tmtriggers/**' -ignore '**/*.tf'
 BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
 
 ## Build terramate tools into bin directory
@@ -73,9 +76,14 @@ generate:
 fmt:
 	go run golang.org/x/tools/cmd/goimports@v0.1.7 -w .
 
-## lint code
-.PHONY: lint
-lint:
+## install the linter
+.PHONY: lint/install
+lint/install:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+## lint all code
+.PHONY: lint/all
+lint/all:
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
 
 ## tidy up go modules
