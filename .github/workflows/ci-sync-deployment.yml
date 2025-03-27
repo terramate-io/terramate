@@ -72,11 +72,9 @@ jobs:
         id: list_e2e_packages
         run: terramate list --tags e2etests --changed --git-change-base HEAD^
 
-      ### Linting
-
-      - name: linting code
+      - name: install linter
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
-        run: make lint
+        run: make lint/install
 
       - name: checking go mod tidyness
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
