@@ -15,7 +15,6 @@ jobs:
     strategy:
       matrix:
         os: [ "windows-2022" ]
-        go: [ "1.21" ]
 
     steps:
       - name: configure git
@@ -24,7 +23,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - uses: opentofu/setup-opentofu@592200bd4b9bbf4772ace78f887668b1aee8f716 # pin@v1.0.5
         with:
