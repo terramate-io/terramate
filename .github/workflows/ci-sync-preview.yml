@@ -63,9 +63,6 @@ jobs:
       - name: make generate
         run: make generate
 
-      - name: install linter
-        run: make lint/install
-
       - name: fetch base ref (${{ github.base_ref }})
         run: git fetch origin ${{ github.base_ref }}
 
@@ -78,6 +75,10 @@ jobs:
       - name: List changed e2e tests packages
         id: list_e2e_packages
         run: terramate list --tags e2etests --changed --git-change-base 'origin/${{ github.base_ref }}'
+
+      - name: install linter
+        if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
+        run: make lint/install
 
       - name: checking go mod tidyness
         if: ${{ steps.list_go_packages.outputs.stdout || steps.list_e2e_packages }}
