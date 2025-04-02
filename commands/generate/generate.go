@@ -139,7 +139,7 @@ func (s *Spec) vendorDir() (project.Path, error) {
 	dotTerramateInfo, err := os.Stat(dotTerramate)
 
 	if err == nil && dotTerramateInfo.IsDir() {
-		cfg, err := hcl.ParseDir(rootdir, filepath.Join(rootdir, ".terramate"))
+		cfg, err := hcl.ParseDir(rootdir, dotTerramate, s.Engine.HCLOptions()...)
 		if err != nil {
 			return project.Path{}, errors.E(err, "parsing vendor dir configuration on .terramate")
 		}
@@ -148,12 +148,12 @@ func (s *Spec) vendorDir() (project.Path, error) {
 		}
 	}
 	hclcfg := s.Engine.Config().Tree().Node
-	if hasVendorDirConfig(hclcfg) {
+	if hasVendorDirConfig(&hclcfg) {
 		return checkVendorDir(hclcfg.Vendor.Dir)
 	}
 	return project.NewPath(defaultVendorDir), nil
 }
 
-func hasVendorDirConfig(cfg hcl.Config) bool {
+func hasVendorDirConfig(cfg *hcl.Config) bool {
 	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
 }

@@ -92,20 +92,20 @@ type List[T DirElem] []T
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpath string, found bool, err error) {
 	for {
-		ok, err := hcl.IsRootConfig(fromdir)
+		ok, err := hcl.IsRootConfig(fromdir, hclOpts...)
 		if err != nil {
 			return nil, "", false, err
 		}
 
 		if ok {
-			cfg, err := hcl.ParseDir(fromdir, fromdir)
+			cfg, err := hcl.ParseDir(fromdir, fromdir, hclOpts...)
 			if err != nil {
 				return nil, fromdir, true, err
 			}
 			rootTree := NewTree(fromdir)
-			rootTree.Node = cfg
+			rootTree.Node = *cfg
 			_, err = loadTree(rootTree, fromdir, nil)
 			if err != nil {
 				return nil, fromdir, true, err
@@ -133,13 +133,13 @@ func NewRoot(tree *Tree) *Root {
 }
 
 // LoadRoot loads the root configuration tree.
-func LoadRoot(rootdir string) (*Root, error) {
-	rootcfg, err := hcl.ParseDir(rootdir, rootdir)
+func LoadRoot(rootdir string, parserOpts ...hcl.Option) (*Root, error) {
+	rootcfg, err := hcl.ParseDir(rootdir, rootdir, parserOpts...)
 	if err != nil {
 		return nil, err
 	}
 	root := NewTree(rootdir)
-	root.Node = rootcfg
+	root.Node = *rootcfg
 	cfgtree, err := loadTree(root, rootdir, nil)
 	if err != nil {
 		return nil, err
@@ -481,7 +481,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	if cfgdir != rootdir {
 		tree := NewTree(cfgdir)
 
-		p, err := hcl.NewTerramateParser(rootdir, cfgdir, rootcfg.Experiments()...)
+		p, err := hcl.NewTerramateParser(rootdir, cfgdir, hcl.WithExperiments(rootcfg.Experiments()...))
 		if err != nil {
 			return nil, err
 		}
@@ -506,7 +506,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 			printer.Stderr.Warnf("root config found outside root dir: %s", cfgdir)
 		}
 
-		tree.Node = cfg
+		tree.Node = *cfg
 		tree.TerramateFiles = filesResult.TmFiles
 		tree.OtherFiles = filesResult.OtherFiles
 		tree.TmGenFiles = filesResult.TmGenFiles

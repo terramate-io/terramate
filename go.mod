@@ -1,8 +1,6 @@
 module github.com/terramate-io/terramate
 
-go 1.21.0
-
-toolchain go1.22.3
+go 1.24
 
 require (
 	github.com/alecthomas/kong v0.7.1

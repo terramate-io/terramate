@@ -40,13 +40,13 @@ func (e *Engine) VendorDir() (project.Path, error) {
 	}
 
 	hclcfg := e.RootNode()
-	if hasVendorDirConfig(hclcfg) {
+	if hasVendorDirConfig(&hclcfg) {
 		return checkVendorDir(hclcfg.Vendor.Dir)
 	}
 
 	return project.NewPath(defaultVendorDir), nil
 }
 
-func hasVendorDirConfig(cfg hcl.Config) bool {
+func hasVendorDirConfig(cfg *hcl.Config) bool {
 	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
 }

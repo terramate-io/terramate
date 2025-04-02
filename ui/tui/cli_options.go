@@ -8,6 +8,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/posener/complete"
+	"github.com/terramate-io/terramate/hcl"
 	"github.com/willabides/kongplete"
 )
 
@@ -121,6 +122,14 @@ func WithSpecHandler(a any, beforeHandler, afterHandler Handler, checkers ...roo
 			kongplete.WithPredictor("file", complete.PredictFiles("*")),
 		)
 
+		return nil
+	}
+}
+
+// WithHCLOptions is an option to set the HCL options for the CLI.
+func WithHCLOptions(hclOpts ...hcl.Option) Option {
+	return func(c *CLI) error {
+		c.hclOptions = hclOpts
 		return nil
 	}
 }

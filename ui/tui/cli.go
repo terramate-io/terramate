@@ -26,6 +26,7 @@ import (
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/git"
+	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/ui/tui/cliauth"
 	"github.com/terramate-io/terramate/ui/tui/cliconfig"
@@ -54,6 +55,7 @@ type CLI struct {
 	input            any
 	parser           *kong.Kong
 	rootFlagCheckers []rootFlagHandlers
+	hclOptions       []hcl.Option
 
 	checkpointResponse chan *checkpoint.CheckResponse
 
@@ -256,7 +258,7 @@ func (c *CLI) Exec(args []string) {
 		return
 	}
 
-	engine, foundRoot, err := engine.Load(c.state.wd, c.clicfg, c.state.uimode, c.printers)
+	engine, foundRoot, err := engine.Load(c.state.wd, c.clicfg, c.state.uimode, c.printers, c.hclOptions...)
 	if err != nil {
 		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
 	}
