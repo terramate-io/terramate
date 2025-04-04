@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/project"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -92,8 +92,8 @@ func TestGenerateSharing(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.tf"},
@@ -146,8 +146,8 @@ func TestGenerateSharing(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.tf"},
@@ -215,8 +215,8 @@ func TestGenerateSharing(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.tf"},
@@ -267,8 +267,8 @@ func TestGenerateSharing(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.tf"},
@@ -334,8 +334,8 @@ func TestGenerateSharing(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.tf"},
@@ -467,8 +467,8 @@ func TestGenerateSharing(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.tf"},

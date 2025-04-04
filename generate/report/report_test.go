@@ -1,17 +1,15 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package generate_test
+package report_test
 
 import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
-	errtest "github.com/terramate-io/terramate/test/errors"
 )
 
 func TestReportFull(t *testing.T) {
@@ -19,7 +17,7 @@ func TestReportFull(t *testing.T) {
 
 	type testcase struct {
 		name        string
-		report      generate.Report
+		report      report.Report
 		wantFull    string
 		wantMinimal string
 	}
@@ -27,13 +25,13 @@ func TestReportFull(t *testing.T) {
 	tcases := []testcase{
 		{
 			name:        "empty report",
-			report:      generate.Report{},
+			report:      report.Report{},
 			wantFull:    "Nothing to do, generated code is up to date",
 			wantMinimal: "",
 		},
 		{
 			name: "with bootstrap err",
-			report: generate.Report{
+			report: report.Report{
 				BootstrapErr: errors.E("such fail, much terrible"),
 			},
 			wantFull: `Fatal failure preparing for code generation.
@@ -43,15 +41,15 @@ Error details: such fail, much terrible`,
 		},
 		{
 			name: "with bootstrap err results are ignored (should have none)",
-			report: generate.Report{
+			report: report.Report{
 				BootstrapErr: errors.E("ignore"),
-				Successes: []generate.Result{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/test"),
 						Created: []string{"test"},
 					},
 				},
-				Failures: []generate.FailureResult{
+				Failures: []report.FailureResult{
 					{
 						Error: errors.E("ignored"),
 					},
@@ -64,8 +62,8 @@ Error details: ignore`,
 		},
 		{
 			name: "success results",
-			report: generate.Report{
-				Successes: []generate.Result{
+			report: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/test"),
 						Created: []string{"test"},
@@ -120,16 +118,16 @@ Deleted file /test4/removed2.tf`,
 		},
 		{
 			name: "failure results",
-			report: generate.Report{
-				Failures: []generate.FailureResult{
+			report: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/test"),
 						},
 						Error: errors.E("full error"),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir:     project.NewPath("/test2"),
 							Created: []string{"created1.tf", "created2.tf"},
 							Changed: []string{"changed.tf", "changed2.tf"},
@@ -167,8 +165,8 @@ Deleted file /test2/removed2.tf`,
 		},
 		{
 			name: "partial result",
-			report: generate.Report{
-				Successes: []generate.Result{
+			report: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/success"),
 						Created: []string{"created.tf"},
@@ -182,15 +180,15 @@ Deleted file /test2/removed2.tf`,
 						Deleted: []string{"removed.tf"},
 					},
 				},
-				Failures: []generate.FailureResult{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/failed"),
 						},
 						Error: errors.E("error"),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/failed2"),
 						},
 						Error: errors.E("error"),
@@ -231,22 +229,22 @@ Error on /failed2: error`,
 		},
 		{
 			name: "error result is a list",
-			report: generate.Report{
-				Failures: []generate.FailureResult{
+			report: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/empty"),
 						},
 						Error: errors.L(),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/failed"),
 						},
 						Error: errors.L(errors.E("error")),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/failed2"),
 						},
 						Error: errors.L(
@@ -276,8 +274,8 @@ Error on /failed2: error2`,
 		},
 		{
 			name: "cleanup error result",
-			report: generate.Report{
-				Successes: []generate.Result{
+			report: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/success"),
 						Created: []string{"created.tf"},
@@ -331,67 +329,5 @@ Fatal failure while cleaning up generated code outside stacks:
 				t.Fatal(diff)
 			}
 		})
-	}
-}
-
-func assertReportHasError(t *testing.T, report *generate.Report, err error) {
-	t.Helper()
-	// Most of this assertion behavior is due to making it easier to
-	// refactor the tests to the new report design on code generation.
-	// It is non ideal but it made the change radius smaller.
-	// Can be improved further in the future.
-
-	if err == nil {
-		if len(report.Failures) > 0 {
-			t.Fatalf("wanted no error but got failures: %v", report.Failures)
-		}
-		return
-	}
-
-	// Just checking if at least one of the errors match is exactly
-	// what we were doing since before we had a chain of errors
-	// and only checked for a match inside. This is non-ideal so in
-	// the future lets match expectations with precision.
-	if errors.Is(report.BootstrapErr, err) {
-		return
-	}
-	for _, failure := range report.Failures {
-		if errors.Is(failure.Error, err) {
-			return
-		}
-	}
-	t.Fatalf("unable to find match for %v on report:\n%s", err, report)
-}
-
-func assertEqualReports(t *testing.T, got *generate.Report, wantVal generate.Report) {
-	t.Helper()
-
-	want := &wantVal
-
-	// WHY: we can't just use cmp.Diff since the errors included on the Report
-	// are not comparable and may contain unexported fields (depending on how errors are built)
-
-	errtest.Assert(t, got.BootstrapErr, want.BootstrapErr)
-
-	if diff := cmp.Diff(got.Successes, want.Successes, cmp.AllowUnexported(project.Path{})); diff != "" {
-		t.Errorf("success results differs: got(-) want(+)")
-		t.Error(diff)
-	}
-
-	assert.EqualInts(t,
-		len(want.Failures),
-		len(got.Failures),
-		"unmatching failures: want:\n%s\ngot:\n%s\n", want, got)
-
-	for i, gotFailure := range got.Failures {
-		wantFailure := want.Failures[i]
-
-		if diff := cmp.Diff(gotFailure.Result, wantFailure.Result,
-			cmp.AllowUnexported(project.Path{})); diff != "" {
-			t.Errorf("failure result differs: got(-) want(+)")
-			t.Fatal(diff)
-		}
-
-		errtest.Assert(t, gotFailure.Error, wantFailure.Error)
 	}
 }

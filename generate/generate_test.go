@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
 	stackpkg "github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
@@ -40,7 +41,7 @@ type (
 		configs    []hclconfig
 		vendorDir  string
 		want       []generatedFile
-		wantReport generate.Report
+		wantReport genreport.Report
 	}
 
 	hclconfig struct {
@@ -113,8 +114,8 @@ func TestGenerateIgnore(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
@@ -175,8 +176,8 @@ func TestGenerateIgnore(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{".root-file"},
@@ -252,8 +253,8 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
@@ -300,8 +301,8 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stacks/stack/child-stack"),
 						Created: []string{
@@ -310,9 +311,9 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 						},
 					},
 				},
-				Failures: []generate.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
@@ -358,8 +359,8 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stacks/stack/child-stack"),
 						Created: []string{
@@ -368,9 +369,9 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 						},
 					},
 				},
-				Failures: []generate.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
@@ -406,10 +407,10 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
@@ -444,10 +445,10 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
@@ -482,10 +483,10 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
@@ -520,10 +521,10 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
@@ -605,10 +606,10 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.L(
@@ -617,7 +618,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 						),
 					},
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.L(
@@ -626,7 +627,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 						),
 					},
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack-3"),
 						},
 						Error: errors.L(
@@ -635,7 +636,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 						),
 					},
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack-4"),
 						},
 						Error: errors.L(
@@ -689,10 +690,10 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(generate.ErrInvalidGenBlockLabel),
@@ -716,8 +717,8 @@ func TestGenerateCleanup(t *testing.T) {
 				genfile("another/d.hcl"),
 				genfile("root.hcl"),
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/"),
 						Deleted: []string{
@@ -760,8 +761,8 @@ func TestGenerateCleanup(t *testing.T) {
 				genfile("stacks/stack-1/stack-1-b/h.hcl"),
 				genfile("stacks/stack-2/d.hcl"),
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/dir"),
 						Deleted: []string{
@@ -821,8 +822,8 @@ func TestGenerateCleanup(t *testing.T) {
 				genfile("stacks/stack-3/subdir/dir/z.hcl"),
 			},
 			fromdir: "/stacks/stack-3",
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stacks/stack-3"),
 						Deleted: []string{
@@ -971,10 +972,10 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: generate.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -1016,8 +1017,8 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack"),
 						Created: []string{"repeated"},
@@ -1060,8 +1061,8 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"repeated"},
@@ -1103,7 +1104,7 @@ func TestTmGenDeletesFileWhenHidden(t *testing.T) {
 	}
 
 	report := s.Generate()
-	assertEqualReports(t, report, generate.Report{})
+	test.AssertEqualReports(t, report, genreport.Report{})
 	assertFileDontExist(filename)
 
 	stackEntry.CreateFile(
@@ -1112,8 +1113,8 @@ func TestTmGenDeletesFileWhenHidden(t *testing.T) {
 	)
 
 	report = s.Generate()
-	assertEqualReports(t, report, generate.Report{
-		Successes: []generate.Result{
+	test.AssertEqualReports(t, report, genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir:     project.NewPath("/stack"),
 				Created: []string{filename},
@@ -1129,8 +1130,8 @@ func TestTmGenDeletesFileWhenHidden(t *testing.T) {
 	)
 
 	report = s.Generate()
-	assertEqualReports(t, report, generate.Report{
-		Successes: []generate.Result{
+	test.AssertEqualReports(t, report, genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir:     project.NewPath("/stack"),
 				Deleted: []string{filename},
@@ -1193,7 +1194,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				fromdir = "/"
 			}
 			report := generate.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
-			assertEqualReports(t, report, tcase.wantReport)
+			test.AssertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
 
@@ -1203,7 +1204,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				report := generate.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
-				assertEqualReports(t, report, generate.Report{
+				test.AssertEqualReports(t, report, genreport.Report{
 					Failures: tcase.wantReport.Failures,
 				})
 				assertGeneratedFiles(t)

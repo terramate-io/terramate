@@ -4,6 +4,7 @@
 package test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,10 +15,12 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclwrite"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
+	errtest "github.com/terramate-io/terramate/test/errors"
 	"golang.org/x/exp/slices"
 )
 
@@ -185,6 +188,71 @@ func AssertEqualPaths(t *testing.T, got, want project.Path, fmtargs ...any) {
 			fmt.Sprintf(fmtargs[0].(string), fmtargs[1:]...))
 	} else {
 		assert.EqualStrings(t, want.String(), got.String())
+	}
+}
+
+// AssertReportHasError checks if the report has an error that matches
+// the expected error.
+func AssertReportHasError(t *testing.T, report *report.Report, err error) {
+	t.Helper()
+	// Most of this assertion behavior is due to making it easier to
+	// refactor the tests to the new report design on code generation.
+	// It is non ideal but it made the change radius smaller.
+	// Can be improved further in the future.
+
+	if err == nil {
+		if len(report.Failures) > 0 {
+			t.Fatalf("wanted no error but got failures: %v", report.Failures)
+		}
+		return
+	}
+
+	// Just checking if at least one of the errors match is exactly
+	// what we were doing since before we had a chain of errors
+	// and only checked for a match inside. This is non-ideal so in
+	// the future lets match expectations with precision.
+	if errors.Is(report.BootstrapErr, err) {
+		return
+	}
+	for _, failure := range report.Failures {
+		if errors.Is(failure.Error, err) {
+			return
+		}
+	}
+	t.Fatalf("unable to find match for %v on report:\n%s", err, report)
+}
+
+// AssertEqualReports checks if the got report is equal to the want report.
+func AssertEqualReports(t *testing.T, got *report.Report, wantVal report.Report) {
+	t.Helper()
+
+	want := &wantVal
+
+	// WHY: we can't just use cmp.Diff since the errors included on the Report
+	// are not comparable and may contain unexported fields (depending on how errors are built)
+
+	errtest.Assert(t, got.BootstrapErr, want.BootstrapErr)
+
+	if diff := cmp.Diff(got.Successes, want.Successes, cmp.AllowUnexported(project.Path{})); diff != "" {
+		t.Errorf("success results differs: got(-) want(+)")
+		t.Error(diff)
+	}
+
+	assert.EqualInts(t,
+		len(want.Failures),
+		len(got.Failures),
+		"unmatching failures: want:\n%s\ngot:\n%s\n", want, got)
+
+	for i, gotFailure := range got.Failures {
+		wantFailure := want.Failures[i]
+
+		if diff := cmp.Diff(gotFailure.Result, wantFailure.Result,
+			cmp.AllowUnexported(project.Path{})); diff != "" {
+			t.Errorf("failure result differs: got(-) want(+)")
+			t.Fatal(diff)
+		}
+
+		errtest.Assert(t, gotFailure.Error, wantFailure.Error)
 	}
 }
 
