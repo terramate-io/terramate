@@ -191,7 +191,7 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 	blocks := parsed.Body().Blocks()
 
 	for _, block := range blocks {
-		if block.Type() != hcl.StackBlockType {
+		if block.Type() != "stack" {
 			continue
 		}
 
@@ -218,7 +218,7 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 func getStackFilepath(parser *hcl.TerramateParser) string {
 	for filepath, body := range parser.ParsedBodies() {
 		for _, block := range body.Blocks {
-			if block.Type == hcl.StackBlockType {
+			if block.Type == "stack" {
 				return filepath
 			}
 		}

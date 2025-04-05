@@ -1,4 +1,4 @@
-// Copyright 2023 Terramate GmbH
+// Copyright 2025 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
 package hcl
@@ -23,6 +23,9 @@ const (
 	ErrScriptMissingOrInvalidJob errors.Kind = "terramate schema error: (script): missing or invalid job"
 	ErrScriptCmdConflict         errors.Kind = "terramate schema error: (script): conflicting attribute already set"
 )
+
+// ScriptBlockParser is a parser for the "script" block
+type ScriptBlockParser struct{}
 
 // Command represents an executable command
 type Command ast.Attribute
@@ -78,7 +81,32 @@ func (sc *Script) AccessorName() string {
 	return b.String()
 }
 
-func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
+// NewScriptBlockParser returns a new parser specification for the "script" block.
+func NewScriptBlockParser() *ScriptBlockParser {
+	return &ScriptBlockParser{}
+}
+
+// Name returns the type of the block.
+func (*ScriptBlockParser) Name() string {
+	return "script"
+}
+
+// Parse parses the "script" block.
+func (*ScriptBlockParser) Parse(p *TerramateParser, block *ast.Block) error {
+	if !p.hasExperimentalFeature("scripts") {
+		return errors.E(
+			ErrTerramateSchema, block.DefRange(),
+			"unrecognized block %q (script is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [\"scripts\"]`)", block.Type,
+		)
+	}
+
+	if other, found := findScript(p.ParsedConfig.Scripts, block.Labels); found {
+		return errors.E(
+			ErrScriptRedeclared, block.DefRange(),
+			"script with labels %v defined at %q", block.Labels, other.Range.String(),
+		)
+	}
+
 	errs := errors.L()
 
 	parsedScript := &Script{
@@ -98,7 +126,7 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 		}
 	}
 
-	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
+	letsConfig := NewCustomRawConfig(map[string]dupeHandler{
 		"lets": (*RawConfig).mergeLabeledBlock,
 	})
 
@@ -136,7 +164,7 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 	}
 
 	if err := errs.AsError(); err != nil {
-		return nil, err
+		return err
 	}
 
 	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
@@ -144,7 +172,8 @@ func (p *TerramateParser) parseScriptBlock(block *ast.Block) (*Script, error) {
 		lets = ast.NewMergedBlock("lets", []string{})
 	}
 	parsedScript.Lets = lets
-	return parsedScript, nil
+	p.ParsedConfig.Scripts = append(p.ParsedConfig.Scripts, parsedScript)
+	return nil
 }
 
 func findScript(scripts []*Script, target []string) (*Script, bool) {

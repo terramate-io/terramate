@@ -370,7 +370,7 @@ func (s *Server) checkFiles(files []string, currentFile string, currentContent s
 		experiments = root.Tree().Node.Experiments()
 	}
 
-	parser, err := hcl.NewTerramateParser(rootdir, dir, experiments...)
+	parser, err := hcl.NewTerramateParser(rootdir, dir, hcl.WithExperiments(experiments...))
 	if err != nil {
 		return errors.E(err, "failed to create terramate parser")
 	}

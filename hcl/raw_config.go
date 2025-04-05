@@ -4,7 +4,9 @@
 package hcl
 
 import (
+	"maps"
 	"path/filepath"
+	"slices"
 
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
@@ -29,43 +31,40 @@ type RawConfig struct {
 	// This will be available after calling Parse or ParseConfig
 	UnmergedBlocks ast.Blocks
 
-	mergeHandlers map[string]mergeHandler
+	// UniqueBlocks are blocks that can only appear once in the config.
+	UniqueBlocks map[string]*ast.Block
+
+	dupeHandlers map[string]dupeHandler
 }
 
-type mergeHandler func(r *RawConfig, block *ast.Block) error
+type dupeHandler func(r *RawConfig, block *ast.Block) error
 
 // NewTopLevelRawConfig returns a new RawConfig object tailored for the
 // Terramate top-level attributes and blocks.
 func NewTopLevelRawConfig() RawConfig {
-	return NewCustomRawConfig(map[string]mergeHandler{
-		"terramate":       (*RawConfig).mergeBlock,
-		"globals":         (*RawConfig).mergeLabeledBlock,
-		"script":          (*RawConfig).addBlock,
-		"stack":           (*RawConfig).addBlock,
-		"vendor":          (*RawConfig).addBlock,
-		"generate_file":   (*RawConfig).addBlock,
-		"generate_hcl":    (*RawConfig).addBlock,
-		"assert":          (*RawConfig).addBlock,
-		"import":          func(_ *RawConfig, _ *ast.Block) error { return nil },
-		"sharing_backend": (*RawConfig).addBlock,
-		"input":           (*RawConfig).addBlock,
-		"output":          (*RawConfig).addBlock,
+	return NewCustomRawConfig(map[string]dupeHandler{
+		"import": func(_ *RawConfig, _ *ast.Block) error { return nil },
 	})
 }
 
 // NewCustomRawConfig returns a new customized RawConfig.
-func NewCustomRawConfig(handlers map[string]mergeHandler) RawConfig {
+func NewCustomRawConfig(handlers map[string]dupeHandler) RawConfig {
 	return RawConfig{
 		MergedAttributes:  make(ast.Attributes),
 		MergedBlocks:      make(ast.MergedBlocks),
 		MergedLabelBlocks: make(ast.MergedLabelBlocks),
-		mergeHandlers:     handlers,
+		UniqueBlocks:      make(map[string]*ast.Block),
+		dupeHandlers:      handlers,
 	}
 }
 
 // Copy cfg into a new RawConfig
 func (cfg RawConfig) Copy() RawConfig {
 	n := NewTopLevelRawConfig()
+	n.dupeHandlers = map[string]dupeHandler{}
+	for k, v := range cfg.dupeHandlers {
+		n.dupeHandlers[k] = v
+	}
 	_ = n.Merge(cfg)
 	return n
 }
@@ -77,11 +76,12 @@ func (cfg *RawConfig) Merge(other RawConfig) error {
 	errs.Append(cfg.mergeBlocks(other.MergedBlocks.AsBlocks()))
 	errs.Append(cfg.mergeBlocks(other.MergedLabelBlocks.AsBlocks()))
 	errs.Append(cfg.mergeBlocks(other.UnmergedBlocks))
+	errs.Append(cfg.mergeBlocks(ast.Blocks(slices.Collect(maps.Values(other.UniqueBlocks)))))
 	return errs.AsError()
 }
 
 func (cfg *RawConfig) mergeBlocks(blocks ast.Blocks) error {
-	handlers := cfg.mergeHandlers
+	handlers := cfg.dupeHandlers
 
 	errs := errors.L()
 	for _, block := range blocks {
@@ -102,6 +102,15 @@ func (cfg *RawConfig) mergeBlocks(blocks ast.Blocks) error {
 
 func (cfg *RawConfig) addBlock(block *ast.Block) error {
 	cfg.UnmergedBlocks = append(cfg.UnmergedBlocks, block)
+	return nil
+}
+
+func (cfg *RawConfig) addUniqueBlock(block *ast.Block) error {
+	if _, ok := cfg.UniqueBlocks[block.Type]; ok {
+		return errors.E(ErrTerramateSchema, block.DefRange(),
+			"block %q can only appear once", block.Type)
+	}
+	cfg.UniqueBlocks[block.Type] = block
 	return nil
 }
 

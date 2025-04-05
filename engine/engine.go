@@ -30,7 +30,6 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
-	prj "github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/ui/tui/cliconfig"
@@ -68,6 +67,7 @@ type (
 	// the cli package into per-package commands.
 	Engine struct {
 		project *Project
+		hclOpts []hcl.Option
 		usercfg cliconfig.Config
 
 		HTTPClient http.Client
@@ -106,8 +106,8 @@ func NoGitFilter() GitFilter { return GitFilter{} }
 
 // Load loads the engine with the given working directory and CLI configuration.
 // If the project is not found, it returns false.
-func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers) (e *Engine, found bool, err error) {
-	prj, found, err := NewProject(wd)
+func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
+	prj, found, err := NewProject(wd, hclOpts...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -123,6 +123,7 @@ func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Pr
 		printers: printers,
 		uimode:   uimode,
 		usercfg:  clicfg,
+		hclOpts:  hclOpts,
 	}, true, nil
 }
 
@@ -152,15 +153,24 @@ func (e *Engine) Config() *config.Root {
 	return e.project.root
 }
 
+// HCLOptions returns the HCL options used to load the configuration.
+func (e *Engine) HCLOptions() []hcl.Option {
+	return e.hclOpts
+}
+
+// ReloadConfig reloads the root configuration of the project.
+func (e *Engine) ReloadConfig() error {
+	rootcfg, err := config.LoadRoot(e.rootdir(), e.hclOpts...)
+	if err != nil {
+		return err
+	}
+	e.project.root = rootcfg
+	return nil
+}
+
 // CLIConfig returns the CLI configuration.
 func (e *Engine) CLIConfig() cliconfig.Config {
 	return e.usercfg
-}
-
-// SetConfig sets the root configuration of the project.
-// Used when stacks are created or cloned.
-func (e *Engine) SetConfig(r *config.Root) {
-	e.project.root = r
 }
 
 // Project returns the project.
@@ -448,7 +458,7 @@ func (e *Engine) SetupEvalContext(wd string, st *config.Stack, target string, ov
 	ctx := eval.NewContext(stdlib.NoFS(tdir, e.RootNode().Experiments()))
 	ctx.SetNamespace("terramate", runtime)
 
-	wdPath := prj.PrjAbsPath(e.rootdir(), tdir)
+	wdPath := project.PrjAbsPath(e.rootdir(), tdir)
 	tree, ok := e.Config().Lookup(wdPath)
 	if !ok {
 		return nil, errors.E("Configuration at %s not found", wdPath)

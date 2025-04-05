@@ -40,7 +40,7 @@ func LoadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 	return defaultMatcher(), nil
 }
 
-func newMatcher(cfg hcl.Config) gitignore.Matcher {
+func newMatcher(cfg *hcl.Config) gitignore.Matcher {
 	files := cfg.Vendor.Manifest.Default.Files
 	patterns := make([]gitignore.Pattern, len(files))
 	for i, rawPattern := range files {
@@ -56,7 +56,7 @@ func defaultMatcher() gitignore.Matcher {
 	})
 }
 
-func hasVendorManifest(cfg hcl.Config) bool {
+func hasVendorManifest(cfg *hcl.Config) bool {
 	return cfg.Vendor != nil &&
 		cfg.Vendor.Manifest != nil &&
 		cfg.Vendor.Manifest.Default != nil &&
