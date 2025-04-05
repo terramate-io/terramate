@@ -58,6 +58,26 @@ type handlerState struct {
 	tags filter.TagClause
 }
 
+func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool) {
+	p := parsedSpec.(*FlagSpec)
+	if p.VersionFlag {
+		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
+			fmt.Println(c.version)
+			return nil
+		}, true
+	}
+	return "", nil, nil, false
+}
+
+// DefaultRootFlagHandlers returns the CLI default flag handlers for global flags
+// that can be used alone (without a command).
+// For example: terramate --version
+func DefaultRootFlagHandlers() []RootFlagHandlers {
+	return []RootFlagHandlers{
+		handleRootVersionFlagAlone, // handles: terramate --version
+	}
+}
+
 // DefaultBeforeConfigHandler implements the default flags handling for when
 // the config is not yet parsed.
 // Use [WithSpecHandler] if you need a different behavior.

@@ -4,8 +4,6 @@
 package tui
 
 import (
-	"fmt"
-
 	"github.com/terramate-io/terramate/cloud/api/preview"
 	"github.com/terramate-io/terramate/safeguard"
 	"github.com/willabides/kongplete"
@@ -313,22 +311,5 @@ func migrateStringFlag(flag *string, alias string) {
 func migrateBoolFlag(flag *bool, alias bool) {
 	if alias && !*flag {
 		*flag = alias
-	}
-}
-
-func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool) {
-	p := parsedSpec.(*FlagSpec)
-	if p.VersionFlag {
-		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
-			fmt.Println(c.version)
-			return nil
-		}, true
-	}
-	return "", nil, nil, false
-}
-
-func defaultRootFlagHandlers() []rootFlagHandlers {
-	return []rootFlagHandlers{
-		handleRootVersionFlagAlone, // handles: terramate --version
 	}
 }

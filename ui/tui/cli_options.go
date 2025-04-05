@@ -86,10 +86,11 @@ func WithHelpPrinter(p kong.HelpPrinter) Option {
 	}
 }
 
-type rootFlagHandlers func(parsed any, cli *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool)
+// RootFlagHandlers is a function signature for root flag handlers.
+type RootFlagHandlers func(parsed any, cli *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool)
 
 // WithSpecHandler is an option to set the flag spec and handler for the CLI.
-func WithSpecHandler(a any, beforeHandler, afterHandler Handler, checkers ...rootFlagHandlers) Option {
+func WithSpecHandler(a any, beforeHandler, afterHandler Handler, checkers ...RootFlagHandlers) Option {
 	return func(c *CLI) error {
 		kongOptions := []kong.Option{
 			kong.Name(c.kongOpts.name),
