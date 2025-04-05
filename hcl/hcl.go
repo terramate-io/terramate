@@ -37,11 +37,6 @@ const (
 	ErrImport            errors.Kind = "import error"
 )
 
-const (
-	// StackBlockType name of the stack block type
-	StackBlockType = "stack"
-)
-
 // OptionalCheck is a bool that can also have no configured value.
 type OptionalCheck int
 
@@ -84,6 +79,9 @@ type Config struct {
 	Outputs         Outputs
 
 	Imported RawConfig
+
+	// External are parsed configuration from library clients.
+	External any
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
@@ -418,12 +416,20 @@ type Evaluator interface {
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	Config      RawConfig
-	Experiments []string
-	Imported    RawConfig
+	Config   RawConfig
+	Imported RawConfig
 
-	rootdir   string
-	dir       string
+	rootdir string
+	dir     string
+
+	// options
+	experiments               []string
+	strict                    bool
+	unmergedBlockHandlers     map[string]UnmergedBlockHandler
+	mergedBlockHandlers       map[string]MergedBlockHandler
+	mergedLabelsBlockHandlers map[string]MergedLabelsBlockHandler
+	uniqueBlockHandlers       map[string]UniqueBlockHandler
+
 	files     map[string][]byte // path=content
 	hclparser *hclparse.Parser
 	evalctx   *eval.Context
@@ -431,9 +437,49 @@ type TerramateParser struct {
 	// parsedFiles stores a map of all parsed files
 	parsedFiles map[string]parsedFile
 
-	strict bool
+	ParsedConfig Config
+
 	// if true, calling Parse() or MinimalParse() will fail.
 	parsed bool
+}
+
+// Option is a function that can be used to configure a TerramateParser.
+type Option func(*TerramateParser)
+
+// UnmergedBlockHandler specifies how the block should be parsed.
+type UnmergedBlockHandler interface {
+	// Name is the block name (e.g. "stack").
+	Name() string
+
+	// Parse parses the block.
+	Parse(*TerramateParser, *ast.Block) error
+}
+
+// MergedBlockHandler specifies how a merged block should be parsed.
+type MergedBlockHandler interface {
+	// Name is the block name (e.g. "terramate").
+	Name() string
+
+	// Parse parses the block.
+	Parse(*TerramateParser, *ast.MergedBlock) error
+}
+
+// MergedLabelsBlockHandler specifies how a merged block with labels should be parsed.
+type MergedLabelsBlockHandler interface {
+	// Name is the block name (e.g. "globals").
+	Name() string
+
+	// Parse parses the block.
+	Parse(*TerramateParser, ast.LabelBlockType, *ast.MergedBlock) error
+}
+
+// UniqueBlockHandler specifies how a unique block should be parsed.
+type UniqueBlockHandler interface {
+	// Name is the block name (e.g. "vendor").
+	Name() string
+
+	// Parse parses the block.
+	Parse(*TerramateParser, *ast.Block) error
 }
 
 // NewGitConfig creates a git configuration with proper default values.
@@ -471,8 +517,9 @@ const (
 // the root directory.
 // The parser creates sub-parsers for parsing imports but keeps a list of all
 // parsed files of all sub-parsers for detecting cycles and import duplications.
+// The subparsers inherits this parser options.
 // Calling Parse() or MinimalParse() multiple times is an error.
-func NewTerramateParser(rootdir string, dir string, experiments ...string) (*TerramateParser, error) {
+func NewTerramateParser(rootdir string, dir string, opts ...Option) (*TerramateParser, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "failed to stat directory %q", dir)
@@ -485,28 +532,73 @@ func NewTerramateParser(rootdir string, dir string, experiments ...string) (*Ter
 		return nil, errors.E("%s is not a directory", dir)
 	}
 
-	return &TerramateParser{
-		Config:      NewTopLevelRawConfig(),
-		Imported:    NewTopLevelRawConfig(),
-		Experiments: experiments,
-		rootdir:     rootdir,
-		dir:         dir,
-		files:       map[string][]byte{},
-		hclparser:   hclparse.NewParser(),
-		parsedFiles: make(map[string]parsedFile),
-		evalctx:     eval.NewContext(stdlib.Functions(dir, experiments)),
-	}, nil
+	p := &TerramateParser{
+		Config:   NewTopLevelRawConfig(),
+		Imported: NewTopLevelRawConfig(),
+		rootdir:  rootdir,
+		dir:      dir,
+
+		// state
+		files:                     map[string][]byte{},
+		hclparser:                 hclparse.NewParser(),
+		parsedFiles:               make(map[string]parsedFile),
+		unmergedBlockHandlers:     map[string]UnmergedBlockHandler{},
+		mergedBlockHandlers:       map[string]MergedBlockHandler{},
+		mergedLabelsBlockHandlers: map[string]MergedLabelsBlockHandler{},
+		uniqueBlockHandlers:       map[string]UniqueBlockHandler{},
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	p.evalctx = eval.NewContext(stdlib.Functions(dir, p.experiments))
+
+	if len(p.unmergedBlockHandlers) == 0 {
+		for _, spec := range DefaultUnmergedBlockParsers() {
+			p.addUnmergedBlockHandler(spec)
+		}
+	}
+	if len(p.mergedBlockHandlers) == 0 {
+		for _, spec := range DefaultMergedBlockHandlers() {
+			p.addMergedBlockHandler(spec)
+		}
+	}
+	if len(p.mergedLabelsBlockHandlers) == 0 {
+		for _, spec := range DefaultMergedLabelsBlockHandlers() {
+			p.addMergedLabelsBlockHandler(spec)
+		}
+	}
+	if len(p.uniqueBlockHandlers) == 0 {
+		for _, spec := range DefaultUniqueBlockHandlers() {
+			p.addUniqueBlockHandler(spec)
+		}
+	}
+	return p, nil
 }
 
-// NewStrictTerramateParser is like NewTerramateParser but will fail instead of
-// warn for harmless configuration mistakes.
-func NewStrictTerramateParser(rootdir string, dir string, experiments ...string) (*TerramateParser, error) {
-	parser, err := NewTerramateParser(rootdir, dir, experiments...)
-	if err != nil {
-		return nil, err
-	}
-	parser.strict = true
-	return parser, nil
+func (p *TerramateParser) addUnmergedBlockHandler(spec UnmergedBlockHandler) {
+	p.unmergedBlockHandlers[spec.Name()] = spec
+	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).addBlock
+	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).addBlock
+}
+
+func (p *TerramateParser) addMergedBlockHandler(spec MergedBlockHandler) {
+	p.mergedBlockHandlers[spec.Name()] = spec
+	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).mergeBlock
+	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).mergeBlock
+}
+
+func (p *TerramateParser) addMergedLabelsBlockHandler(spec MergedLabelsBlockHandler) {
+	p.mergedLabelsBlockHandlers[spec.Name()] = spec
+	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).mergeLabeledBlock
+	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).mergeLabeledBlock
+}
+
+func (p *TerramateParser) addUniqueBlockHandler(spec UniqueBlockHandler) {
+	p.uniqueBlockHandlers[spec.Name()] = spec
+	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).addUniqueBlock
+	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).addUniqueBlock
 }
 
 func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {
@@ -569,7 +661,7 @@ func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 
 // ParseConfig parses and checks the schema of previously added files and
 // return either a Config or an error.
-func (p *TerramateParser) ParseConfig() (Config, error) {
+func (p *TerramateParser) ParseConfig() (*Config, error) {
 	errs := errors.L()
 	errs.Append(p.Parse())
 
@@ -583,7 +675,7 @@ func (p *TerramateParser) ParseConfig() (Config, error) {
 	}
 
 	if err := errs.AsError(); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 	return cfg, nil
 }
@@ -811,98 +903,6 @@ func (p *TerramateParser) internalParsedFiles() []string {
 	return filenames
 }
 
-func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
-	errs := errors.L()
-	for _, block := range stackblock.Body.Blocks {
-		errs.Append(
-			errors.E(block.TypeRange, "unrecognized block %q", block.Type),
-		)
-	}
-
-	stack := &Stack{}
-
-	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
-	for _, attr := range ast.SortRawAttributes(attrs) {
-		attrVal, err := p.evalctx.Eval(attr.Expr)
-		if err != nil {
-			errs.Append(
-				errors.E(err, "failed to evaluate %q attribute", attr.Name),
-			)
-			continue
-		}
-
-		switch attr.Name {
-		case "id":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.id must be a string but is %q",
-					attrVal.Type().FriendlyName()),
-				)
-				continue
-			}
-			stack.ID = attrVal.AsString()
-		case "name":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.name must be a string but given %q",
-					attrVal.Type().FriendlyName()),
-				)
-				continue
-			}
-			stack.Name = attrVal.AsString()
-
-		case "description":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.\"description\" must be a \"string\" but given %q",
-					attrVal.Type().FriendlyName(),
-				))
-
-				continue
-			}
-			stack.Description = attrVal.AsString()
-
-			// The `tags`, `after`, `before`, `wants`, `wanted_by` and `watch`
-			// have all the same parsing rules.
-			// By the spec, they must be a `set(string)`.
-
-			// In order to speed up the tests, only the `after` attribute is
-			// extensively tested for all error cases.
-			// **So have this in mind if the specification of any of the attributes
-			// below change in the future**.
-
-		case "tags":
-			errs.Append(assignSet(attr, &stack.Tags, attrVal))
-
-		case "after":
-			errs.Append(assignSet(attr, &stack.After, attrVal))
-
-		case "before":
-			errs.Append(assignSet(attr, &stack.Before, attrVal))
-
-		case "wants":
-			errs.Append(assignSet(attr, &stack.Wants, attrVal))
-
-		case "wanted_by":
-			errs.Append(assignSet(attr, &stack.WantedBy, attrVal))
-
-		case "watch":
-			errs.Append(assignSet(attr, &stack.Watch, attrVal))
-
-		default:
-			errs.Append(errors.E(
-				attr.NameRange, "unrecognized attribute stack.%q", attr.Name,
-			))
-		}
-	}
-
-	if err := errs.AsError(); err != nil {
-		return nil, err
-	}
-
-	return stack, nil
-}
-
 // NewConfig creates a new HCL config with dir as config directory path.
 func NewConfig(dir string) (Config, error) {
 	st, err := os.Stat(dir)
@@ -983,21 +983,21 @@ func (c Config) Save(filename string) (err error) {
 // using root as project workspace, parsing all files with the suffixes .tm and
 // .tm.hcl. It parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
-func ParseDir(root string, dir string, experiments ...string) (Config, error) {
-	p, err := NewTerramateParser(root, dir, experiments...)
+func ParseDir(root string, dir string, opts ...Option) (*Config, error) {
+	p, err := NewTerramateParser(root, dir, opts...)
 	if err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 	err = p.AddDir(dir)
 	if err != nil {
-		return Config{}, errors.E("adding files to parser", err)
+		return &Config{}, errors.E("adding files to parser", err)
 	}
 	return p.ParseConfig()
 }
 
 // IsRootConfig parses rootdir and tells if it contains a root config or not.
-func IsRootConfig(rootdir string) (bool, error) {
-	p, err := NewTerramateParser(rootdir, rootdir)
+func IsRootConfig(rootdir string, opts ...Option) (bool, error) {
+	p, err := NewTerramateParser(rootdir, rootdir, opts...)
 	if err != nil {
 		return false, err
 	}
@@ -1019,189 +1019,6 @@ func IsRootConfig(rootdir string) (bool, error) {
 		return ok, nil
 	}
 	return false, nil
-}
-
-// parseGenerateHCLBlock the generate_hcl block.
-// generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func parseGenerateHCLBlock(cfgdir project.Path, block *ast.Block) (GenHCLBlock, error) {
-	var (
-		content      *hclsyntax.Block
-		asserts      []AssertConfig
-		stackFilters []StackFilterConfig
-	)
-
-	err := validateGenerateHCLBlock(block)
-	if err != nil {
-		return GenHCLBlock{}, err
-	}
-
-	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
-		"lets": (*RawConfig).mergeLabeledBlock,
-	})
-
-	errs := errors.L()
-	for _, subBlock := range block.Blocks {
-		switch subBlock.Type {
-		case "lets":
-			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
-		case "assert":
-			assertCfg, err := parseAssertConfig(subBlock)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			asserts = append(asserts, assertCfg)
-		case "stack_filter":
-			stackFilterCfg, err := parseStackFilterConfig(subBlock)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			stackFilters = append(stackFilters, stackFilterCfg)
-		case "content":
-			if content != nil {
-				errs.Append(errors.E(subBlock.Range,
-					"multiple generate_hcl.content blocks defined",
-				))
-				continue
-			}
-			content = subBlock.Block
-		default:
-			// already validated but sanity checks...
-			panic(errors.E(errors.ErrInternal, "unexpected block type %s", subBlock.Type))
-		}
-	}
-
-	if content == nil {
-		errs.Append(
-			errors.E(ErrTerramateSchema, `"generate_hcl" block requires a content block`, block.Range))
-	}
-
-	mergedLets := ast.MergedLabelBlocks{}
-	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
-		if labelType.Type == "lets" {
-			mergedLets[labelType] = mergedBlock
-
-			errs.AppendWrap(ErrTerramateSchema, validateLets(mergedBlock))
-		}
-	}
-
-	if err := errs.AsError(); err != nil {
-		return GenHCLBlock{}, err
-	}
-
-	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
-	if !ok {
-		lets = ast.NewMergedBlock("lets", []string{})
-	}
-
-	return GenHCLBlock{
-		Dir:          cfgdir,
-		Range:        block.Range,
-		Label:        block.Labels[0],
-		Lets:         lets,
-		Asserts:      asserts,
-		Content:      content.AsHCLBlock(),
-		Condition:    block.Body.Attributes["condition"],
-		Inherit:      block.Body.Attributes["inherit"],
-		StackFilters: stackFilters,
-	}, nil
-}
-
-// parseGenerateFileBlock parses all Terramate files on the given dir, returning
-// parsed generate_file blocks.
-func parseGenerateFileBlock(cfgdir project.Path, block *ast.Block) (GenFileBlock, error) {
-	err := validateGenerateFileBlock(block)
-	if err != nil {
-		return GenFileBlock{}, err
-	}
-
-	var asserts []AssertConfig
-	var stackFilters []StackFilterConfig
-
-	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
-		"lets": (*RawConfig).mergeLabeledBlock,
-	})
-
-	errs := errors.L()
-
-	context := "stack"
-	if contextAttr, ok := block.Body.Attributes["context"]; ok {
-		context = hcl.ExprAsKeyword(contextAttr.Expr)
-		if context != "stack" && context != "root" {
-			errs.Append(errors.E(contextAttr.Expr.Range(),
-				"generate_file.context supported values are \"stack\" and \"root\""+
-					" but given %q", context))
-		}
-	}
-
-	for _, subBlock := range block.Blocks {
-		switch subBlock.Type {
-		case "lets":
-			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
-		case "assert":
-			assertCfg, err := parseAssertConfig(subBlock)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			asserts = append(asserts, assertCfg)
-		case "stack_filter":
-			if context != "stack" {
-				errs.Append(errors.E(ErrTerramateSchema, subBlock.Range,
-					"stack_filter is only supported with context = \"stack\""))
-				continue
-			}
-			stackFilterCfg, err := parseStackFilterConfig(subBlock)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			stackFilters = append(stackFilters, stackFilterCfg)
-		default:
-			// already validated but sanity checks...
-			panic(errors.E(errors.ErrInternal, "unexpected block type %s", subBlock.Type))
-		}
-	}
-
-	mergedLets := ast.MergedLabelBlocks{}
-	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
-		if labelType.Type == "lets" {
-			mergedLets[labelType] = mergedBlock
-
-			errs.AppendWrap(ErrTerramateSchema, validateLets(mergedBlock))
-		}
-	}
-
-	inherit := block.Body.Attributes["inherit"]
-	if inherit != nil && context == "root" {
-		errs.Append(errors.E(ErrTerramateSchema,
-			inherit.Range(),
-			`inherit attribute cannot be used with context=root`,
-		))
-	}
-
-	if err := errs.AsError(); err != nil {
-		return GenFileBlock{}, err
-	}
-
-	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
-	if !ok {
-		lets = ast.NewMergedBlock("lets", []string{})
-	}
-
-	return GenFileBlock{
-		Dir:          cfgdir,
-		Range:        block.Range,
-		Label:        block.Labels[0],
-		Lets:         lets,
-		Asserts:      asserts,
-		StackFilters: stackFilters,
-		Content:      block.Body.Attributes["content"],
-		Condition:    block.Body.Attributes["condition"],
-		Inherit:      inherit,
-		Context:      context,
-	}, nil
 }
 
 func validateImportBlock(block *ast.Block) error {
@@ -1520,47 +1337,6 @@ checkBlocks:
 	return errs.AsError()
 }
 
-func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
-	cfg := AssertConfig{}
-	errs := errors.L()
-
-	cfg.Range = assert.Range
-
-	errs.Append(checkNoLabels(assert))
-	errs.Append(checkHasSubBlocks(assert))
-
-	for _, attr := range assert.Attributes {
-		switch attr.Name {
-		case "assertion":
-			cfg.Assertion = attr.Expr
-		case "message":
-			cfg.Message = attr.Expr
-		case "warning":
-			cfg.Warning = attr.Expr
-		default:
-			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
-				"unrecognized attribute %s.%s", assert.Type, attr.Name,
-			))
-		}
-	}
-
-	if cfg.Assertion == nil {
-		errs.Append(errors.E(ErrTerramateSchema, assert.Range,
-			"assert.assertion is required"))
-	}
-
-	if cfg.Message == nil {
-		errs.Append(errors.E(ErrTerramateSchema, assert.Range,
-			"assert.message is required"))
-	}
-
-	if err := errs.AsError(); err != nil {
-		return AssertConfig{}, err
-	}
-
-	return cfg, nil
-}
-
 func parseStackFilterConfig(block *ast.Block) (StackFilterConfig, error) {
 	cfg := StackFilterConfig{}
 	errs := errors.L()
@@ -1634,88 +1410,9 @@ func parseStackFilterAttr(attr ast.Attribute) ([]glob.Glob, error) {
 
 }
 
-func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
-	errs := errors.L()
-
-	for _, attr := range vendor.Attributes {
-		switch attr.Name {
-		case "dir":
-			attrVal, err := attr.Expr.Value(nil)
-			if err != nil {
-				errs.Append(errors.E(ErrTerramateSchema, err, attr.NameRange,
-					"evaluating %s.%s", vendor.Type, attr.Name))
-				continue
-			}
-			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
-					"%s.%s must be string, got %s", vendor.Type, attr.Name, attrVal.Type,
-				))
-				continue
-			}
-			cfg.Dir = attrVal.AsString()
-		default:
-			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
-				"unrecognized attribute %s.%s", vendor.Type, attr.Name,
-			))
-		}
-	}
-	errs.Append(checkNoLabels(vendor))
-	errs.Append(checkHasSubBlocks(vendor, "manifest"))
-
-	if err := errs.AsError(); err != nil {
-		return err
-	}
-
-	if len(vendor.Blocks) == 0 {
-		return nil
-	}
-
-	manifestBlock := vendor.Blocks[0]
-
-	errs.Append(checkNoAttributes(manifestBlock))
-	errs.Append(checkNoLabels(manifestBlock))
-	errs.Append(checkHasSubBlocks(manifestBlock, "default"))
-
-	if err := errs.AsError(); err != nil {
-		return err
-	}
-
-	cfg.Manifest = &ManifestConfig{}
-
-	if len(manifestBlock.Blocks) == 0 {
-		return nil
-	}
-
-	defaultBlock := manifestBlock.Blocks[0]
-
-	errs.Append(checkNoBlocks(defaultBlock))
-
-	cfg.Manifest.Default = &ManifestDesc{}
-
-	for _, attr := range defaultBlock.Attributes {
-		switch attr.Name {
-		case "files":
-			attrVal, err := attr.Expr.Value(nil)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			if err := assignSet(attr.Attribute, &cfg.Manifest.Default.Files, attrVal); err != nil {
-				errs.Append(errors.E(err, attr.NameRange))
-			}
-		default:
-			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
-				"unrecognized attribute %s.%s", defaultBlock.Type, attr.Name,
-			))
-		}
-	}
-
-	return errs.AsError()
-}
-
 // hasExperimentalFeature returns true if the config has the provided experimental feature enabled.
 func (p *TerramateParser) hasExperimentalFeature(feature string) bool {
-	return slices.Contains(p.Experiments, feature)
+	return slices.Contains(p.experiments, feature)
 }
 
 func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
@@ -1740,7 +1437,7 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 				errs.Append(err)
 				continue
 			}
-			p.Experiments = cfg.Experiments
+			p.experiments = cfg.Experiments
 		case "disable_safeguards":
 			val, diags := attr.Expr.Value(nil)
 			if diags.HasErrors() {
@@ -2289,15 +1986,17 @@ func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) e
 	return errs.AsError()
 }
 
-func (p *TerramateParser) parseTerramateSchema() (Config, error) {
-	config := Config{
+func (p *TerramateParser) parseTerramateSchema() (*Config, error) {
+	p.ParsedConfig = Config{
 		absdir: p.dir,
 	}
 
+	config := &p.ParsedConfig
 	errKind := ErrTerramateSchema
 	errs := errors.L()
 
 	rawconfig := p.Imported.Copy()
+
 	err := rawconfig.Merge(p.Config)
 	if err != nil {
 		err = errors.E(err, ErrImport)
@@ -2309,158 +2008,46 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			"unrecognized attribute %q", attr.Name))
 	}
 
-	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
-	if ok {
-		var tmconfig Terramate
-		tmconfig, err := p.parseTerramateBlock(tmBlock)
-		errs.Append(err)
-		if err == nil {
-			config.Terramate = &tmconfig
+	for _, mergedBlock := range rawconfig.MergedBlocks {
+		if spec, ok := p.mergedBlockHandlers[string(mergedBlock.Type)]; ok {
+			err := spec.Parse(p, mergedBlock)
+			errs.Append(err)
 		}
 	}
-
-	var foundstack, foundVendor bool
-	var stackblock, vendorBlock *ast.Block
-
-	cfgdir := project.PrjAbsPath(p.rootdir, p.dir)
 
 	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
-		switch block.Type {
-		case StackBlockType:
-			if foundstack {
-				errs.Append(errors.E(errKind, block.DefRange(),
-					"duplicated stack block"))
-				continue
-			}
-
-			foundstack = true
-			stackblock = block
-		case "assert":
-			assertCfg, err := parseAssertConfig(block)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			config.Asserts = append(config.Asserts, assertCfg)
-
-		case "vendor":
-			if foundVendor {
-				errs.Append(errors.E(errKind, block.DefRange(),
-					"duplicated vendor block"))
-				continue
-			}
-
-			foundVendor = true
-			vendorBlock = block
-
-		case "generate_hcl":
-			genhcl, err := parseGenerateHCLBlock(cfgdir, block)
+		if spec := p.unmergedBlockHandlers[block.Type]; spec != nil {
+			err = spec.Parse(p, block)
 			errs.Append(err)
-			if err == nil {
-				config.Generate.HCLs = append(config.Generate.HCLs, genhcl)
-			}
-
-		case "generate_file":
-			genfile, err := parseGenerateFileBlock(cfgdir, block)
-			errs.Append(err)
-			if err == nil {
-				config.Generate.Files = append(config.Generate.Files, genfile)
-			}
-
-		case "script":
-			if !p.hasExperimentalFeature("scripts") {
-				errs.Append(
-					errors.E(ErrTerramateSchema, block.DefRange(),
-						"unrecognized block %q (script is an experimental feature, it must be enabled before usage with `terramate.config.experiments = [\"scripts\"]`)", block.Type),
-				)
-				continue
-			}
-
-			if other, found := findScript(config.Scripts, block.Labels); found {
-				errs.Append(
-					errors.E(ErrScriptRedeclared, block.DefRange(),
-						"script with labels %v defined at %q", block.Labels, other.Range.String()),
-				)
-				continue
-			}
-
-			scriptCfg, err := p.parseScriptBlock(block)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			config.Scripts = append(config.Scripts, scriptCfg)
-		case "sharing_backend":
-			shr, err := p.parseSharingBackendBlock(block)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			config.SharingBackends = append(config.SharingBackends, shr)
-		case "input":
-			input, err := p.parseInput(block)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			config.Inputs = append(config.Inputs, input)
-		case "output":
-			output, err := p.parseOutput(block)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-			config.Outputs = append(config.Outputs, output)
+			continue
 		}
-	}
-
-	if foundVendor {
-		if config.Vendor != nil {
-			errs.Append(errors.E(errKind, vendorBlock.DefRange(),
-				"duplicated vendor blocks across configs"))
-		}
-		config.Vendor = &VendorConfig{}
-		err := parseVendorConfig(config.Vendor, vendorBlock)
-		if err != nil {
-			errs.Append(errors.E(errKind, err))
-		}
-	}
-
-	globals := ast.MergedLabelBlocks{}
-	for labelType, mergedBlock := range rawconfig.MergedLabelBlocks {
-		if labelType.Type == "globals" {
-			globals[labelType] = mergedBlock
-
-			errs.AppendWrap(ErrTerramateSchema, validateGlobals(mergedBlock))
-		}
-	}
-
-	config.Globals = globals
-
-	if foundstack {
-		if config.Stack != nil {
-			errs.Append(errors.E(errKind, stackblock.DefRange(),
-				"duplicated stack blocks across configs"))
-		}
-
-		config.Stack, err = p.parseStack(stackblock)
-		if err != nil {
-			errs.AppendWrap(errKind, err)
-		}
-	}
-
-	if err := errs.AsError(); err != nil {
-		return Config{}, err
 	}
 
 	config.Imported = p.Imported
 
+	for _, uniqueBlock := range rawconfig.UniqueBlocks {
+		if spec, ok := p.uniqueBlockHandlers[string(uniqueBlock.Type)]; ok {
+			err := spec.Parse(p, uniqueBlock)
+			errs.Append(err)
+		}
+	}
+
+	for label, mergedBlock := range rawconfig.MergedLabelBlocks {
+		if spec, ok := p.mergedLabelsBlockHandlers[string(label.Type)]; ok {
+			err := spec.Parse(p, label, mergedBlock)
+			errs.Append(err)
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return &Config{}, err
+	}
 	return config, nil
 }
 
-func (p *TerramateParser) checkConfigSanity(_ Config) error {
+func (p *TerramateParser) checkConfigSanity(_ *Config) error {
 	logger := log.With().
 		Str("action", "TerramateParser.checkConfigSanity()").
 		Logger()
@@ -2544,21 +2131,6 @@ func attributeSanityCheckErr(parsingDir string, baseBlockName string, attr ast.A
 	return err
 }
 
-func validateGlobals(block *ast.MergedBlock) error {
-	errs := errors.L()
-	if block.Type != "globals" {
-		return errors.E(ErrTerramateSchema,
-			block.RawOrigins[0].TypeRange, "unexpected block type %q", block.Type)
-	}
-	errs.Append(block.ValidateSubBlocks("map"))
-	for _, raw := range block.RawOrigins {
-		for _, subBlock := range raw.Blocks {
-			errs.Append(validateMap(subBlock))
-		}
-	}
-	return errs.AsError()
-}
-
 func validateMap(block *ast.Block) (err error) {
 	if len(block.Labels) == 0 {
 		return errors.E(block.LabelRanges(),
@@ -2607,72 +2179,6 @@ func validateMap(block *ast.Block) (err error) {
 			"either a value attribute or a value block is required")
 	}
 	return nil
-}
-
-func (p *TerramateParser) parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
-	tm := Terramate{}
-
-	errKind := ErrTerramateSchema
-	errs := errors.L()
-	var foundReqVersion, foundAllowPrereleases bool
-	for _, attr := range block.Attributes.SortedList() {
-		value, diags := attr.Expr.Value(nil)
-		if diags.HasErrors() {
-			errs.Append(errors.E(errKind, diags))
-		}
-		switch attr.Name {
-		case "required_version":
-			if value.Type() != cty.String {
-				errs.Append(errors.E(errKind, attr.Expr.Range(),
-					"attribute is not a string"))
-
-				continue
-			}
-			if foundReqVersion {
-				errs.Append(errors.E(errKind, attr.NameRange,
-					"duplicated attribute"))
-			}
-			foundReqVersion = true
-			tm.RequiredVersion = value.AsString()
-
-		case "required_version_allow_prereleases":
-			if value.Type() != cty.Bool {
-				errs.Append(errors.E(errKind, attr.Expr.Range(),
-					"attribute is not a bool"))
-
-				continue
-			}
-
-			if foundAllowPrereleases {
-				errs.Append(errors.E(errKind, attr.NameRange,
-					"duplicated attribute"))
-			}
-
-			foundAllowPrereleases = true
-			tm.RequiredVersionAllowPreReleases = value.True()
-
-		default:
-			errs.Append(errors.E(errKind, attr.NameRange,
-				"unsupported attribute %q", attr.Name))
-		}
-	}
-
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("config"))
-
-	configBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("config")]
-	if ok {
-		tm.Config = &RootConfig{}
-
-		err := p.parseRootConfig(tm.Config, configBlock)
-		if err != nil {
-			errs.Append(errors.E(errKind, err))
-		}
-	}
-
-	if err := errs.AsError(); err != nil {
-		return Terramate{}, err
-	}
-	return tm, nil
 }
 
 func (p *TerramateParser) evalStringList(expr hcl.Expression, name string) ([]string, error) {

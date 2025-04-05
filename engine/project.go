@@ -54,7 +54,7 @@ type Project struct {
 }
 
 // NewProject creates a new project from the working directory.
-func NewProject(wd string) (prj *Project, found bool, err error) {
+func NewProject(wd string, parserOpts ...hcl.Option) (prj *Project, found bool, err error) {
 	prj = &Project{
 		wd: wd,
 	}
@@ -75,7 +75,7 @@ func NewProject(wd string) (prj *Project, found bool, err error) {
 			return nil, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 		}
 
-		cfg, err := config.LoadRoot(rootdir)
+		cfg, err := config.LoadRoot(rootdir, parserOpts...)
 		if err != nil {
 			return nil, false, err
 		}

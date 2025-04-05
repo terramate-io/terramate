@@ -1863,7 +1863,7 @@ func testParser(t *testing.T, tc testcase) {
 		}
 
 		if tc.want.errs == nil {
-			test.AssertTerramateConfig(t, got, tc.want.config)
+			test.AssertTerramateConfig(t, got, &tc.want.config)
 		}
 	})
 
@@ -1897,33 +1897,35 @@ func testParser(t *testing.T, tc testcase) {
 	}
 }
 
-func parse(tc testcase) (hcl.Config, error) {
+func parse(tc testcase) (*hcl.Config, error) {
 	var (
 		parser *hcl.TerramateParser
 		err    error
 	)
 
-	if tc.nonStrict {
-		parser, err = hcl.NewTerramateParser(tc.rootdir, tc.parsedir)
-	} else {
-		parser, err = hcl.NewStrictTerramateParser(tc.rootdir, tc.parsedir)
-	}
-
-	if err != nil {
-		return hcl.Config{}, err
-	}
-
-	err = parser.AddDir(tc.parsedir)
-	if err != nil {
-		return hcl.Config{}, errors.E("adding files to parser", err)
+	var experiments []string
+	options := []hcl.Option{}
+	if !tc.nonStrict {
+		options = append(options, hcl.WithStrictMode())
 	}
 
 	if tc.loadExperimentsConfig {
 		rootcfg, err := hcl.ParseDir(tc.rootdir, tc.rootdir)
 		if err != nil {
-			return hcl.Config{}, errors.E("failed to load root config", err)
+			return &hcl.Config{}, errors.E("failed to load root config", err)
 		}
-		parser.Experiments = rootcfg.Experiments()
+		experiments = rootcfg.Experiments()
+	}
+	if len(experiments) > 0 {
+		options = append(options, hcl.WithExperiments(experiments...))
+	}
+	parser, err = hcl.NewTerramateParser(tc.rootdir, tc.parsedir, options...)
+	if err != nil {
+		return &hcl.Config{}, err
+	}
+	err = parser.AddDir(tc.parsedir)
+	if err != nil {
+		return &hcl.Config{}, errors.E("adding files to parser", err)
 	}
 	return parser.ParseConfig()
 }

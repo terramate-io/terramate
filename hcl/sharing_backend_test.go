@@ -27,7 +27,7 @@ func TestParserSharingBackend(t *testing.T) {
 				),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 0 given"))
 	})
 
@@ -41,7 +41,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Str("filename", "test.tf"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 2 given"))
 	})
 
@@ -54,7 +54,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Expr("command", `["whatever"]`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "sharing_backend.filename" is required`))
 	})
 
@@ -67,7 +67,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Str("filename", "something.tf"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "sharing_backend.command" is required`))
 	})
 
@@ -81,7 +81,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Expr("command", `[]`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `"sharing_backend.command" must be a non-empty list of strings`))
 	})
 
@@ -95,7 +95,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Expr("command", `1`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(`"sharing_backend.command" must be a list(string) but "number" given`))
 	})
 
@@ -108,7 +108,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Str("filename", "something.tf"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "sharing_backend.type" is required`))
 	})
 
@@ -122,7 +122,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Expr("type", `tofu`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `unrecognized sharing backend type: tofu`))
 	})
 
@@ -136,7 +136,7 @@ func TestParserSharingBackend(t *testing.T) {
 				Expr("type", `terraform`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `element 1 of attribute sharing_backend.command is not a string but bool`))
 	})
 
@@ -150,9 +150,9 @@ func TestParserSharingBackend(t *testing.T) {
 				Expr("type", "terraform"),
 			).String(),
 		})
-		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		assert.NoError(t, err)
-		test.AssertTerramateConfig(t, cfg, hcl.Config{
+		test.AssertTerramateConfig(t, cfg, &hcl.Config{
 			Terramate: expectedRootTerramate(),
 			SharingBackends: hcl.SharingBackends{
 				{
@@ -178,7 +178,7 @@ func TestParserSharingInput(t *testing.T) {
 				),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 0 given"))
 	})
 
@@ -192,7 +192,7 @@ func TestParserSharingInput(t *testing.T) {
 				Str("from_stack_id", "other-stack"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 2 given"))
 	})
 
@@ -205,7 +205,7 @@ func TestParserSharingInput(t *testing.T) {
 				Str("from_stack_id", "somestack"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.backend" is required`))
 	})
 
@@ -218,7 +218,7 @@ func TestParserSharingInput(t *testing.T) {
 				Str("from_stack_id", "somestack"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.value" is required`))
 	})
 
@@ -231,7 +231,7 @@ func TestParserSharingInput(t *testing.T) {
 				Expr("value", `outputs.someval`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.from_stack_id" is required`))
 	})
 
@@ -254,7 +254,7 @@ func TestParserSharingInput(t *testing.T) {
 				),
 			).String(),
 		})
-		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		assert.NoError(t, err)
 		assert.EqualInts(t, 2, len(cfg.Inputs))
 		// cfg.Inputs will be validated later when evaluated in the config/input.go
@@ -272,7 +272,7 @@ func TestParserSharingOutput(t *testing.T) {
 				),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 0 given"))
 	})
 
@@ -285,7 +285,7 @@ func TestParserSharingOutput(t *testing.T) {
 				Expr("value", `outputs.something`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, "expected a single label but 2 given"))
 	})
 
@@ -297,7 +297,7 @@ func TestParserSharingOutput(t *testing.T) {
 				Expr("value", `outputs.someval`),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.backend" is required`))
 	})
 
@@ -309,7 +309,7 @@ func TestParserSharingOutput(t *testing.T) {
 				Str("backend", "some-backend"),
 			).String(),
 		})
-		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		_, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		errtest.Assert(t, err, errors.E(hcl.ErrTerramateSchema, `attribute "input.value" is required`))
 	})
 
@@ -330,7 +330,7 @@ func TestParserSharingOutput(t *testing.T) {
 				),
 			).String(),
 		})
-		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.SharingIsCaringExperimentName)
+		cfg, err := hcl.ParseDir(s.RootDir(), s.RootDir(), hcl.WithExperiments(hcl.SharingIsCaringExperimentName))
 		assert.NoError(t, err)
 		assert.EqualInts(t, 2, len(cfg.Outputs))
 		// cfg.Outputs will be validated later when evaluated in the config/input.go

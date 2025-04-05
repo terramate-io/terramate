@@ -308,12 +308,11 @@ func (s *Spec) initTerraform() error {
 		return nil
 	}
 
-	root, err := config.LoadRoot(s.Engine.Config().HostDir())
+	err = s.Engine.ReloadConfig()
 	if err != nil {
 		return errors.E(err, "reloading the configuration")
 	}
 
-	s.Engine.SetConfig(root)
 	generate := gencmd.Spec{
 		Engine:        s.Engine,
 		WorkingDir:    s.WorkingDir,

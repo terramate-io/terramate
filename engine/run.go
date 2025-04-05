@@ -599,7 +599,7 @@ func (t StackRunTask) isSuccessExit(exitCode int) bool {
 // for example:
 // /somestack (script:0 job:0.0)> echo hello
 func printScriptCommand(p *printer.Printer, stack *config.Stack, run StackRunTask) {
-	p.Printf(
+	p.Printf("%s",
 		color.GreenString(fmt.Sprintf("%s (script:%d job:%d.%d)> ",
 			stack.Dir.String(),
 			run.ScriptIdx, run.ScriptJobIdx, run.ScriptCmdIdx)),

@@ -26,7 +26,7 @@ import (
 
 // ParseTerramateConfig parses the Terramate configuration found
 // on the given dir, returning the parsed configuration.
-func ParseTerramateConfig(t *testing.T, dir string) hcl.Config {
+func ParseTerramateConfig(t *testing.T, dir string) *hcl.Config {
 	t.Helper()
 
 	parser, err := hcl.NewTerramateParser(dir, dir)
@@ -63,7 +63,7 @@ func AssertGenCodeEquals(t *testing.T, got string, want string) {
 }
 
 // AssertTerramateConfig checks if two given Terramate configs are equal.
-func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
+func AssertTerramateConfig(t *testing.T, got, want *hcl.Config) {
 	t.Helper()
 
 	// Reasoning:
