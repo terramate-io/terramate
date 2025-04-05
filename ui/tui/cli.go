@@ -54,7 +54,7 @@ type CLI struct {
 	// The CLI engine works with any spec.
 	input            any
 	parser           *kong.Kong
-	rootFlagCheckers []rootFlagHandlers
+	rootFlagCheckers []RootFlagHandlers
 	hclOptions       []hcl.Option
 
 	checkpointResponse chan *checkpoint.CheckResponse
@@ -133,7 +133,7 @@ func NewCLI(opts ...Option) (*CLI, error) {
 			&FlagSpec{},
 			DefaultBeforeConfigHandler,
 			DefaultAfterConfigHandler,
-			defaultRootFlagHandlers()...)(c)
+			DefaultRootFlagHandlers()...)(c)
 
 		if err != nil {
 			return nil, err
