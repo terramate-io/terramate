@@ -11,8 +11,9 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/generate"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -50,8 +51,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"empty"},
@@ -111,8 +112,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"stacks.txt"},
@@ -148,8 +149,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -182,8 +183,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -230,8 +231,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -274,8 +275,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -310,8 +311,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/s1"),
 						Created: []string{"root.txt"},
@@ -346,8 +347,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/s1/s2"),
 						Created: []string{"root.txt"},
@@ -385,8 +386,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -444,8 +445,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -513,8 +514,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -564,8 +565,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
@@ -618,8 +619,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"file1.txt", "file2.txt"},
@@ -661,8 +662,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"file1.txt", "file2.txt"},
@@ -702,8 +703,8 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"file1.txt", "file2.txt"},
@@ -755,13 +756,13 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	createConfig(filename, false)
 	report := s.Generate()
-	assertEqualReports(t, report, generate.Report{})
+	test.AssertEqualReports(t, report, genreport.Report{})
 	assertFileDontExist(filename)
 
 	createConfig(filename, true)
 	report = s.Generate()
-	assertEqualReports(t, report, generate.Report{
-		Successes: []generate.Result{
+	test.AssertEqualReports(t, report, genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir:     project.NewPath("/stack"),
 				Created: []string{filename},
@@ -772,8 +773,8 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	createConfig(filename, false)
 	report = s.Generate()
-	assertEqualReports(t, report, generate.Report{
-		Successes: []generate.Result{
+	test.AssertEqualReports(t, report, genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir:     project.NewPath("/stack"),
 				Deleted: []string{filename},
@@ -801,8 +802,8 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	)
 
 	report := s.Generate()
-	assertEqualReports(t, report, generate.Report{
-		Successes: []generate.Result{
+	test.AssertEqualReports(t, report, genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir:     project.NewPath("/stack"),
 				Created: []string{generatedFile},
@@ -867,8 +868,8 @@ func TestGenerateFileStackFilters(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test"},
@@ -916,8 +917,8 @@ func TestGenerateFileStackFilters(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test"},
@@ -988,8 +989,8 @@ func TestGenerateFileStackFilters(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack-1"),
 						Created: []string{"generated"},
@@ -1191,8 +1192,8 @@ func TestGenerateFileStackFilters(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/aws/stacks/dev"),
 						Created: []string{

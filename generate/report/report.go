@@ -1,7 +1,8 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-package generate
+// Package report provides a report of the code generation process.
+package report
 
 import (
 	"fmt"
@@ -187,7 +188,8 @@ func (r Report) empty() bool {
 		len(r.Successes) == 0
 }
 
-func (r *Report) sort() {
+// Sort sorts the report by directory and then by filename.
+func (r *Report) Sort() {
 	r.sortDirs()
 	r.sortFilenames()
 }
@@ -210,7 +212,8 @@ func (r *Report) sortFilenames() {
 	}
 }
 
-func (r *Report) addFailure(dir project.Path, err error) {
+// AddFailure adds a failure to the report.
+func (r *Report) AddFailure(dir project.Path, err error) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
 			Dir: dir,
@@ -219,7 +222,8 @@ func (r *Report) addFailure(dir project.Path, err error) {
 	})
 }
 
-func (r *Report) addDirReport(path project.Path, sr dirReport) {
+// AddDirReport adds a directory report to the report.
+func (r *Report) AddDirReport(path project.Path, sr Dir) {
 	if sr.empty() {
 		return
 	}
@@ -229,27 +233,27 @@ func (r *Report) addDirReport(path project.Path, sr dirReport) {
 	if sr.isSuccess() {
 		for i, other := range r.Successes {
 			if other.Dir == path {
-				other.Created = append(other.Created, sr.created...)
-				other.Changed = append(other.Changed, sr.changed...)
-				other.Deleted = append(other.Deleted, sr.deleted...)
+				other.Created = append(other.Created, sr.Created...)
+				other.Changed = append(other.Changed, sr.Changed...)
+				other.Deleted = append(other.Deleted, sr.Deleted...)
 				r.Successes[i] = other
 				return
 			}
 		}
 		r.Successes = append(r.Successes, Result{
 			Dir:     path,
-			Created: sr.created,
-			Changed: sr.changed,
-			Deleted: sr.deleted,
+			Created: sr.Created,
+			Changed: sr.Changed,
+			Deleted: sr.Deleted,
 		})
 		return
 	}
 
 	for i, other := range r.Failures {
 		if other.Dir == path {
-			other.Created = append(other.Created, sr.created...)
-			other.Changed = append(other.Changed, sr.changed...)
-			other.Deleted = append(other.Deleted, sr.deleted...)
+			other.Created = append(other.Created, sr.Created...)
+			other.Changed = append(other.Changed, sr.Changed...)
+			other.Deleted = append(other.Deleted, sr.Deleted...)
 			r.Failures[i] = other
 			return
 		}
@@ -257,11 +261,11 @@ func (r *Report) addDirReport(path project.Path, sr dirReport) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
 			Dir:     path,
-			Created: sr.created,
-			Changed: sr.changed,
-			Deleted: sr.deleted,
+			Created: sr.Created,
+			Changed: sr.Changed,
+			Deleted: sr.Deleted,
 		},
-		Error: sr.err,
+		Error: sr.Err,
 	})
 }
 
@@ -271,34 +275,38 @@ func (r *Result) sortFilenames() {
 	sort.Strings(r.Deleted)
 }
 
-type dirReport struct {
-	created []string
-	changed []string
-	deleted []string
-	err     error
+// Dir represents a directory report.
+type Dir struct {
+	Created []string
+	Changed []string
+	Deleted []string
+	Err     error
 }
 
-func (s *dirReport) addCreatedFile(filename string) {
-	s.created = append(s.created, filename)
+// AddCreatedFile adds a created file to the report.
+func (s *Dir) AddCreatedFile(filename string) {
+	s.Created = append(s.Created, filename)
 }
 
-func (s *dirReport) addDeletedFile(filename string) {
-	s.deleted = append(s.deleted, filename)
+// AddDeletedFile adds a deleted file to the report.
+func (s *Dir) AddDeletedFile(filename string) {
+	s.Deleted = append(s.Deleted, filename)
 }
 
-func (s *dirReport) addChangedFile(filename string) {
-	s.changed = append(s.changed, filename)
+// AddChangedFile adds a changed file to the report.
+func (s *Dir) AddChangedFile(filename string) {
+	s.Changed = append(s.Changed, filename)
 }
 
-func (s dirReport) isSuccess() bool {
-	return s.err == nil
+func (s Dir) isSuccess() bool {
+	return s.Err == nil
 }
 
-func (s dirReport) empty() bool {
-	return len(s.created) == 0 &&
-		len(s.changed) == 0 &&
-		len(s.deleted) == 0 &&
-		s.err == nil
+func (s Dir) empty() bool {
+	return len(s.Created) == 0 &&
+		len(s.Changed) == 0 &&
+		len(s.Deleted) == 0 &&
+		s.Err == nil
 }
 
 func joinResults[T any](results ...[]T) []T {
@@ -309,7 +317,8 @@ func joinResults[T any](results ...[]T) []T {
 	return all
 }
 
-func mergeReports(reportChan chan *Report) *Report {
+// Merge combines multiple reports into a single report.
+func Merge(reportChan chan *Report) *Report {
 	merged := &Report{}
 
 	for r := range reportChan {

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
 
@@ -40,10 +40,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -68,10 +68,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -99,10 +99,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -127,10 +127,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -158,10 +158,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -188,10 +188,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -214,10 +214,10 @@ func TestHCLExpressionFunc(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),

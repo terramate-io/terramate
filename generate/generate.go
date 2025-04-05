@@ -23,6 +23,7 @@ import (
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/generate/genfile"
 	"github.com/terramate-io/terramate/generate/genhcl"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/generate/sharing"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
@@ -190,7 +191,7 @@ func Do(
 	parallel int,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-) *Report {
+) *genreport.Report {
 	logger := log.With().
 		Stringer("target_dir", targetDir).
 		Logger()
@@ -207,7 +208,7 @@ func Do(
 
 	tree, ok := root.Lookup(targetDir)
 	if !ok {
-		return &Report{
+		return &genreport.Report{
 			BootstrapErr: errors.E("directory %s not found", targetDir),
 		}
 	}
@@ -218,7 +219,7 @@ func Do(
 	logger = logger.With().Int("parallel", parallel).Logger()
 
 	workchan := make(chan *config.Tree)
-	reportchan := make(chan *Report)
+	reportchan := make(chan *genreport.Report)
 	var wg sync.WaitGroup
 	for i := 0; i < parallel; i++ {
 		wg.Add(1)
@@ -236,10 +237,10 @@ func Do(
 		reportchan <- rootGenerate(root, targetDir)
 	}()
 
-	var report *Report
+	var report *genreport.Report
 	mergedReports := make(chan struct{})
 	go func() {
-		report = mergeReports(reportchan)
+		report = genreport.Merge(reportchan)
 		mergedReports <- struct{}{}
 	}()
 
@@ -262,7 +263,7 @@ func stackGenerate(
 	cfg *config.Tree,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-) *Report {
+) *genreport.Report {
 	logger := log.With().
 		Str("action", "stackGenerate()").
 		Stringer("stack", cfg.Dir()).
@@ -277,7 +278,7 @@ func stackGenerate(
 			Dur("elapsed_time_ms", endTime.Sub(startTime)).
 			Msg("stack generation finished")
 	}()
-	report := &Report{}
+	report := &genreport.Report{}
 
 	_, err := cfg.Stack()
 	if err != nil {
@@ -287,7 +288,7 @@ func stackGenerate(
 
 	generated, err := loadStackCodeCfgs(root, cfg, vendorDir, vendorRequests)
 	if err != nil {
-		report.addFailure(cfg.Dir(), err)
+		report.AddFailure(cfg.Dir(), err)
 		return report
 	}
 
@@ -297,25 +298,25 @@ func stackGenerate(
 		for _, err := range errsmap {
 			errs.Append(err)
 		}
-		report.addFailure(cfg.Dir(), errs.AsError())
+		report.AddFailure(cfg.Dir(), errs.AsError())
 		return report
 	}
 
 	err = validateStackGeneratedFiles(root, cfg.HostDir(), generated)
 	if err != nil {
-		report.addFailure(cfg.Dir(), err)
+		report.AddFailure(cfg.Dir(), err)
 		return report
 	}
 
 	allFiles, err := allStackGeneratedFiles(root, cfg.HostDir(), generated)
 	if err != nil {
-		report.addFailure(cfg.Dir(), errors.E(err, "listing all generated files"))
+		report.AddFailure(cfg.Dir(), errors.E(err, "listing all generated files"))
 		return report
 	}
 
 	logger.Trace().Msg("saving generated files")
 
-	stackReport := dirReport{}
+	stackReport := genreport.Dir{}
 
 	for _, file := range generated {
 		filename := file.Label()
@@ -337,7 +338,7 @@ func stackGenerate(
 		if !oldExists || oldFileBody != body {
 			err := writeGeneratedCode(root, path, file)
 			if err != nil {
-				report.addFailure(cfg.Dir(), errors.E(err, "saving file %q", filename))
+				report.AddFailure(cfg.Dir(), errors.E(err, "saving file %q", filename))
 				continue
 			}
 		}
@@ -348,7 +349,7 @@ func stackGenerate(
 				Str("file", filename).
 				Msg("created file")
 
-			stackReport.addCreatedFile(filename)
+			stackReport.AddCreatedFile(filename)
 		} else {
 			delete(allFiles, filename)
 			if body != oldFileBody {
@@ -357,7 +358,7 @@ func stackGenerate(
 					Str("file", filename).
 					Msg("changed file")
 
-				stackReport.addChangedFile(filename)
+				stackReport.AddChangedFile(filename)
 			}
 		}
 	}
@@ -368,23 +369,23 @@ func stackGenerate(
 			Str("file", filename).
 			Msg("deleted file")
 
-		stackReport.addDeletedFile(filename)
+		stackReport.AddDeletedFile(filename)
 
 		path := filepath.Join(cfg.HostDir(), filename)
 		err = os.Remove(path)
 		if err != nil {
-			report.addFailure(cfg.Dir(), errors.E("removing file %s", filename))
+			report.AddFailure(cfg.Dir(), errors.E("removing file %s", filename))
 			continue
 		}
 
 		delete(allFiles, filename)
 	}
 
-	report.addDirReport(cfg.Dir(), stackReport)
+	report.AddDirReport(cfg.Dir(), stackReport)
 	return report
 }
 
-func rootGenerate(root *config.Root, target project.Path) *Report {
+func rootGenerate(root *config.Root, target project.Path) *genreport.Report {
 	logger := log.With().
 		Str("action", "rootGenerate()").
 		Stringer("target_dir", target).
@@ -400,7 +401,7 @@ func rootGenerate(root *config.Root, target project.Path) *Report {
 			Msg("root generation finished")
 	}()
 
-	report := &Report{}
+	report := &genreport.Report{}
 	evalctx := eval.NewContext(stdlib.Functions(root.HostDir(), root.Tree().Node.Experiments()))
 	evalctx.SetNamespace("terramate", root.Runtime())
 
@@ -432,7 +433,7 @@ func rootGenerate(root *config.Root, target project.Path) *Report {
 			targetDir := project.NewPath(path.Clean("/" + path.Dir(block.Label)))
 			err := validateRootGenerateBlock(root, block)
 			if err != nil {
-				report.addFailure(targetDir, err)
+				report.AddFailure(targetDir, err)
 				return report
 			}
 
@@ -445,7 +446,7 @@ func rootGenerate(root *config.Root, target project.Path) *Report {
 
 			file, skip, err := genfile.Eval(block, cfg, evalctx)
 			if err != nil {
-				report.addFailure(targetDir, err)
+				report.AddFailure(targetDir, err)
 				return report
 			}
 
@@ -466,7 +467,7 @@ func rootGenerate(root *config.Root, target project.Path) *Report {
 		if len(errsmap) > 0 {
 			for file, err := range errsmap {
 				targetDir := path.Dir(file)
-				report.addFailure(project.NewPath(targetDir), err)
+				report.AddFailure(project.NewPath(targetDir), err)
 			}
 			return report
 		}
@@ -906,7 +907,7 @@ func allStackGeneratedFiles(
 	return allFiles, nil
 }
 
-func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
+func generateRootFiles(root *config.Root, genfiles []GenFile, report *genreport.Report) {
 	logger := log.With().
 		Str("action", "generate.generateRootFiles()").
 		Logger()
@@ -952,9 +953,9 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 
 				continue
 			}
-			dirReport := dirReport{}
-			dirReport.err = errors.E(err, "reading generated file")
-			report.addDirReport(project.NewPath(dir), dirReport)
+			dirReport := genreport.Dir{}
+			dirReport.Err = errors.E(err, "reading generated file")
+			report.AddDirReport(project.NewPath(dir), dirReport)
 			return
 		}
 
@@ -972,16 +973,16 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 		if err == nil {
 			logger.Debug().Msg("deleting file")
 
-			dirReport := dirReport{}
+			dirReport := genreport.Dir{}
 			dir := path.Dir(label)
 
 			err := os.Remove(abspath)
 			if err != nil {
-				dirReport.err = errors.E(err, "deleting file")
+				dirReport.Err = errors.E(err, "deleting file")
 			} else {
-				dirReport.addDeletedFile(path.Base(label))
+				dirReport.AddDeletedFile(path.Base(label))
 			}
-			report.addDirReport(project.NewPath(dir), dirReport)
+			report.AddDirReport(project.NewPath(dir), dirReport)
 
 			logger.Debug().Msg("deleted successfully")
 		}
@@ -998,7 +999,7 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 		dir := project.NewPath(path.Dir(label))
 		body := genfile.Header() + genfile.Body()
 
-		dirReport := dirReport{}
+		dirReport := genreport.Dir{}
 		diskContent, existOnDisk := diskFiles[label]
 		if !existOnDisk || body != diskContent {
 			logger.Debug().
@@ -1008,8 +1009,8 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 
 			err := writeGeneratedCode(root, abspath, genfile)
 			if err != nil {
-				dirReport.err = errors.E(err, "saving file %s", label)
-				report.addDirReport(dir, dirReport)
+				dirReport.Err = errors.E(err, "saving file %s", label)
+				report.AddDirReport(dir, dirReport)
 				continue
 			}
 
@@ -1017,14 +1018,14 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 		}
 
 		if !existOnDisk {
-			dirReport.addCreatedFile(filename)
+			dirReport.AddCreatedFile(filename)
 		} else if body != diskContent {
-			dirReport.addChangedFile(label)
+			dirReport.AddChangedFile(label)
 		} else {
 			logger.Debug().Msg("nothing to do, file on disk is up to date.")
 		}
 
-		report.addDirReport(dir, dirReport)
+		report.AddDirReport(dir, dirReport)
 	}
 }
 
@@ -1413,13 +1414,13 @@ func loadStackCodeCfgs(
 	return genfilesConfigs, nil
 }
 
-func cleanupOrphaned(root *config.Root, target *config.Tree, report *Report) *Report {
+func cleanupOrphaned(root *config.Root, target *config.Tree, report *genreport.Report) *genreport.Report {
 	logger := log.With().
 		Str("action", "generate.cleanupOrphaned()").
 		Stringer("dir", target.Dir()).
 		Logger()
 
-	defer report.sort()
+	defer report.Sort()
 
 	// If the target tree is a stack then there is nothing to do
 	// as it was already generated at this point.
@@ -1463,8 +1464,8 @@ func cleanupOrphaned(root *config.Root, target *config.Tree, report *Report) *Re
 		delFiles := deletedFiles[failedDir]
 		delete(deletedFiles, failedDir)
 
-		report.Failures = append(report.Failures, FailureResult{
-			Result: Result{
+		report.Failures = append(report.Failures, genreport.FailureResult{
+			Result: genreport.Result{
 				Dir:     failedDir,
 				Deleted: delFiles,
 			},
@@ -1473,7 +1474,7 @@ func cleanupOrphaned(root *config.Root, target *config.Tree, report *Report) *Re
 	}
 
 	for dir, deletedFiles := range deletedFiles {
-		report.Successes = append(report.Successes, Result{
+		report.Successes = append(report.Successes, genreport.Result{
 			Dir:     dir,
 			Deleted: deletedFiles,
 		})

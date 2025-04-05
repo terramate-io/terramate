@@ -9,6 +9,7 @@ import (
 
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -82,8 +83,8 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
@@ -167,8 +168,8 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir: project.NewPath("/"),
 						Created: []string{
@@ -230,8 +231,8 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir: project.NewPath("/stack"),
 						Created: []string{

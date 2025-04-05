@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate"
-	"github.com/terramate-io/terramate/generate"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/modvendor"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
@@ -558,7 +558,7 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 		),
 	).String()
 
-	runFromDir := func(t *testing.T, generateWd string, runWd string, wantGenerate generate.Report, wantRun RunExpected) {
+	runFromDir := func(t *testing.T, generateWd string, runWd string, wantGenerate genreport.Report, wantRun RunExpected) {
 		t.Run(fmt.Sprintf("terramate -C %s generate", generateWd), func(t *testing.T) {
 			t.Parallel()
 			s := sandbox.NoGit(t, true)
@@ -585,8 +585,8 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 		})
 	}
 
-	runFromDir(t, "/", "/", generate.Report{
-		Successes: []generate.Result{
+	runFromDir(t, "/", "/", genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir: project.NewPath("/"),
 				Created: []string{
@@ -610,8 +610,8 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 		Stdout:       nljoin("/stacks/stack-1", "/stacks/stack-2"),
 		IgnoreStderr: true,
 	})
-	runFromDir(t, "/stacks", "/stacks", generate.Report{
-		Successes: []generate.Result{
+	runFromDir(t, "/stacks", "/stacks", genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir: project.NewPath("/stacks/stack-1"),
 				Created: []string{
@@ -629,8 +629,8 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 		Stdout:       nljoin("/stacks/stack-1", "/stacks/stack-2"),
 		IgnoreStderr: true,
 	})
-	runFromDir(t, "/stacks/stack-1", "/stacks/stack-1", generate.Report{
-		Successes: []generate.Result{
+	runFromDir(t, "/stacks/stack-1", "/stacks/stack-1", genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir: project.NewPath("/stacks/stack-1"),
 				Created: []string{
@@ -645,8 +645,8 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 
 	// if generateWd and runWd are different then outdated detection must
 	// still kick-in.
-	runFromDir(t, "/stacks/stack-1", "/", generate.Report{
-		Successes: []generate.Result{
+	runFromDir(t, "/stacks/stack-1", "/", genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir: project.NewPath("/stacks/stack-1"),
 				Created: []string{
@@ -659,8 +659,8 @@ func TestE2EGenerateRespectsWorkingDirectory(t *testing.T) {
 		StderrRegex: "outdated generated code detected",
 	})
 
-	runFromDir(t, "/stacks/stack-1", "/stacks", generate.Report{
-		Successes: []generate.Result{
+	runFromDir(t, "/stacks/stack-1", "/stacks", genreport.Report{
+		Successes: []genreport.Result{
 			{
 				Dir: project.NewPath("/stacks/stack-1"),
 				Created: []string{

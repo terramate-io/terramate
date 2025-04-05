@@ -9,6 +9,7 @@ import (
 
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/project"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
@@ -33,7 +34,7 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{},
+			wantReport: report.Report{},
 		},
 		{
 			name: "assert blocks with eval failures",
@@ -50,16 +51,16 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(eval.ErrEval),
@@ -82,16 +83,16 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion),
@@ -114,16 +115,16 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion),
@@ -161,16 +162,16 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion),
@@ -193,16 +194,16 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion, "/stacks/terramate.tm.hcl:3,15-20: msg"),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion, "/stacks/terramate.tm.hcl:3,15-20: msg"),
@@ -261,8 +262,8 @@ func TestGenerateAssert(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.hcl", "test.txt"},
@@ -303,10 +304,10 @@ func TestGenerateAssert(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.L(
@@ -316,7 +317,7 @@ func TestGenerateAssert(t *testing.T) {
 						),
 					},
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.L(
@@ -375,8 +376,8 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test.hcl", "test.txt"},
@@ -416,8 +417,8 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test.hcl"},
@@ -465,10 +466,10 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.L(
@@ -522,8 +523,8 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 					},
 				},
 			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test.hcl", "test.txt"},
@@ -561,10 +562,10 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 					),
 				},
 			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: generate.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.L(
