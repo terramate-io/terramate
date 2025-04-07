@@ -25,7 +25,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	res := Assert{}
 	errs := errors.L()
 
-	assertion, err := evalBool(evalctx, cfg.Assertion, "assert.assertion")
+	assertion, err := EvalBool(evalctx, cfg.Assertion, "assert.assertion")
 	if err != nil {
 		errs.Append(err)
 	} else {
@@ -33,7 +33,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 		res.Range = cfg.Assertion.Range()
 	}
 
-	message, err := evalString(evalctx, cfg.Message, "assert.message")
+	message, err := EvalString(evalctx, cfg.Message, "assert.message")
 	if err != nil {
 		errs.Append(err)
 	} else {
@@ -41,7 +41,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	}
 
 	if cfg.Warning != nil {
-		warning, err := evalBool(evalctx, cfg.Warning, "assert.warning")
+		warning, err := EvalBool(evalctx, cfg.Warning, "assert.warning")
 		if err != nil {
 			errs.Append(err)
 		} else {

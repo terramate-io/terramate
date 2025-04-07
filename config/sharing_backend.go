@@ -43,7 +43,7 @@ type (
 
 // EvalInputFromStackID the `from_stack_id` field of an input block using the provided evaluation context.
 func EvalInputFromStackID(evalctx *eval.Context, input hcl.Input) (string, error) {
-	return evalString(evalctx, input.FromStackID, "input.from_stack_id")
+	return EvalString(evalctx, input.FromStackID, "input.from_stack_id")
 }
 
 // EvalInput evaluates an input block using the provided evaluation context.
@@ -56,14 +56,14 @@ func EvalInput(evalctx *eval.Context, input hcl.Input) (Input, error) {
 	}
 	var err error
 	errs := errors.L()
-	evaluatedInput.Backend, err = evalString(evalctx, input.Backend, "input.backend")
+	evaluatedInput.Backend, err = EvalString(evalctx, input.Backend, "input.backend")
 	errs.Append(err)
-	evaluatedInput.FromStackID, err = evalString(evalctx, input.FromStackID, "input.from_stack_id")
+	evaluatedInput.FromStackID, err = EvalString(evalctx, input.FromStackID, "input.from_stack_id")
 	errs.Append(err)
 	errs.Append(validateID(evaluatedInput.FromStackID, "input.from_stack_id"))
 
 	if input.Sensitive != nil {
-		val, err := evalBool(evalctx, input.Sensitive, "input.sensitive")
+		val, err := EvalBool(evalctx, input.Sensitive, "input.sensitive")
 		if err == nil {
 			evaluatedInput.Sensitive = &val
 		}
@@ -106,17 +106,17 @@ func EvalOutput(evalctx *eval.Context, output hcl.Output) (Output, error) {
 	var err error
 	errs := errors.L()
 	if output.Description != nil {
-		evaluatedOutput.Description, err = evalString(evalctx, output.Description, "output.description")
+		evaluatedOutput.Description, err = EvalString(evalctx, output.Description, "output.description")
 		errs.Append(err)
 	}
 	if output.Sensitive != nil {
-		val, err := evalBool(evalctx, output.Sensitive, "output.sensitive")
+		val, err := EvalBool(evalctx, output.Sensitive, "output.sensitive")
 		if err == nil {
 			evaluatedOutput.Sensitive = &val
 		}
 		errs.Append(err)
 	}
-	evaluatedOutput.Backend, err = evalString(evalctx, output.Backend, "output.backend")
+	evaluatedOutput.Backend, err = EvalString(evalctx, output.Backend, "output.backend")
 	errs.Append(err)
 	if err := errs.AsError(); err != nil {
 		return Output{}, err
