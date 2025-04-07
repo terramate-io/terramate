@@ -10,7 +10,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, error) {
+// EvalBool evaluates a boolean expression.
+func EvalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, error) {
 	if expr == nil {
 		return false, errors.E(ErrSchema, "%s must be defined", name)
 	}
@@ -24,7 +25,8 @@ func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, e
 	return val.True(), nil
 }
 
-func evalString(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
+// EvalString evaluates a string expression.
+func EvalString(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
 	if expr == nil {
 		return "", errors.E(ErrSchema, "%s must be defined", name)
 	}

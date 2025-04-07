@@ -228,7 +228,7 @@ func EvalScript(evalctx *eval.Context, script hcl.Script) (Script, error) {
 }
 
 func evalScriptStringField(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
-	f, err := evalString(evalctx, expr, name)
+	f, err := EvalString(evalctx, expr, name)
 	if err != nil {
 		return "", errors.E(ErrScriptInvalidType, expr.Range(), err)
 	}
