@@ -7,7 +7,7 @@ package tmls
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	stdfmt "fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/hcl/fmt"
 	"go.lsp.dev/jsonrpc2"
 	lsp "go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
@@ -68,6 +69,7 @@ func (s *Server) buildHandlers() {
 		lsp.MethodTextDocumentDidChange:  s.handleDocumentChange,
 		lsp.MethodTextDocumentDidSave:    s.handleDocumentSaved,
 		lsp.MethodTextDocumentCompletion: s.handleCompletion,
+		lsp.MethodTextDocumentFormatting: s.handleFormatting,
 
 		// commands
 		MethodExecuteCommand: s.handleExecuteCommand,
@@ -116,7 +118,8 @@ func (s *Server) handleInitialize(
 	s.workspace = string(uri.New(params.RootURI).Filename())
 	err := reply(ctx, lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{
-			CompletionProvider: &lsp.CompletionOptions{},
+			DocumentFormattingProvider: true,
+			CompletionProvider:         &lsp.CompletionOptions{},
 
 			// if we support `goto` definition.
 			DefinitionProvider: false,
@@ -197,7 +200,7 @@ func (s *Server) handleDocumentChange(
 	}
 
 	if len(params.ContentChanges) != 1 {
-		err := fmt.Errorf("expected content changes = 1, got = %d", len(params.ContentChanges))
+		err := stdfmt.Errorf("expected content changes = 1, got = %d", len(params.ContentChanges))
 		log.Error().Err(err).Send()
 		return err
 	}
@@ -298,6 +301,69 @@ func (s *Server) handleCompletion(
 	}
 	log.Debug().Str("params", string(r.Params()))
 	return reply(ctx, nil, nil)
+}
+
+func (s *Server) handleFormatting(
+	ctx context.Context,
+	reply jsonrpc2.Replier,
+	r jsonrpc2.Request,
+	log zerolog.Logger,
+) error {
+	var params lsp.DocumentFormattingParams
+	if err := json.Unmarshal(r.Params(), &params); err != nil {
+		log.Error().Err(err).Msg("failed to unmarshal params")
+		return jsonrpc2.ErrParse
+	}
+	log.Debug().Str("params", string(r.Params()))
+	fname := params.TextDocument.URI.Filename()
+	content, err := os.ReadFile(fname)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to read file for formatting")
+		return reply(ctx, nil, err)
+	}
+	formatted, err := fmt.Format(string(content), fname)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to format file")
+		return reply(ctx, nil, err)
+	}
+	log.Info().Msgf("formatted:'%s'", formatted)
+	oldlines := strings.Split(string(content), "\n")
+
+	var textedits []lsp.TextEdit
+	textedits = append(textedits,
+		// remove old content
+		lsp.TextEdit{
+			NewText: "",
+			Range: lsp.Range{
+				Start: lsp.Position{
+					Line:      0,
+					Character: 0,
+				},
+				End: lsp.Position{
+					Line:      uint32(len(oldlines) - 1),
+					Character: uint32(len(oldlines[len(oldlines)-1])),
+				},
+			},
+		})
+
+	newlines := strings.Split(string(formatted), "\n")
+	for i, line := range newlines {
+		textedits = append(textedits, lsp.TextEdit{
+			NewText: line,
+			Range: lsp.Range{
+				Start: lsp.Position{
+					Line:      uint32(i),
+					Character: 0,
+				},
+				End: lsp.Position{
+					Line:      uint32(i),
+					Character: uint32(len(line) - 1),
+				},
+			},
+		})
+	}
+
+	return reply(ctx, textedits, nil)
 }
 
 func (s *Server) sendDiagnostics(ctx context.Context, uri lsp.URI, diags []lsp.Diagnostic) {
