@@ -7,6 +7,7 @@ terramate {
     run {
       env {
         PATH = "${terramate.root.path.fs.absolute}/bin${global.PS}${env.PATH}"
+        NO_COLOR = "1" # needed for our printer tests
       }
     }
 
