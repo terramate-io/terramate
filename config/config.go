@@ -47,6 +47,8 @@ type Root struct {
 	hasTerragruntStacks *bool
 
 	runtime project.Runtime
+
+	hclOpts []hcl.Option
 }
 
 // Tree is the configuration tree.
@@ -106,11 +108,11 @@ func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpat
 			}
 			rootTree := NewTree(fromdir)
 			rootTree.Node = *cfg
-			_, err = loadTree(rootTree, fromdir, nil)
+			_, err = loadTree(rootTree, fromdir, nil, hclOpts...)
 			if err != nil {
 				return nil, fromdir, true, err
 			}
-			return NewRoot(rootTree), fromdir, true, err
+			return NewRoot(rootTree, hclOpts...), fromdir, true, err
 		}
 
 		parent, ok := parentDir(fromdir)
@@ -123,8 +125,10 @@ func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpat
 }
 
 // NewRoot creates a new [Root] tree for the cfg tree.
-func NewRoot(tree *Tree) *Root {
-	r := &Root{}
+func NewRoot(tree *Tree, hclOpts ...hcl.Option) *Root {
+	r := &Root{
+		hclOpts: hclOpts,
+	}
 	tree.root = r
 	r.tree = tree
 
@@ -133,18 +137,18 @@ func NewRoot(tree *Tree) *Root {
 }
 
 // LoadRoot loads the root configuration tree.
-func LoadRoot(rootdir string, parserOpts ...hcl.Option) (*Root, error) {
-	rootcfg, err := hcl.ParseDir(rootdir, rootdir, parserOpts...)
+func LoadRoot(rootdir string, hclOpts ...hcl.Option) (*Root, error) {
+	rootcfg, err := hcl.ParseDir(rootdir, rootdir, hclOpts...)
 	if err != nil {
 		return nil, err
 	}
 	root := NewTree(rootdir)
 	root.Node = *rootcfg
-	cfgtree, err := loadTree(root, rootdir, nil)
+	cfgtree, err := loadTree(root, rootdir, nil, hclOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return NewRoot(cfgtree), nil
+	return NewRoot(cfgtree, hclOpts...), nil
 }
 
 // Tree returns the root configuration tree.
@@ -152,6 +156,11 @@ func (root *Root) Tree() *Tree { return root.tree }
 
 // HostDir returns the root directory.
 func (root *Root) HostDir() string { return root.tree.RootDir() }
+
+// HCLOptions returns the HCL options used to load the configuration.
+func (root *Root) HCLOptions() []hcl.Option {
+	return root.hclOpts
+}
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (node *Tree, found bool) {
@@ -265,14 +274,14 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	nextComponent := components[0]
 	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
 
-	node, err := loadTree(root.Tree(), subtreeDir, nil)
+	node, err := loadTree(root.Tree(), subtreeDir, nil, root.hclOpts...)
 	if err != nil {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
 
 	if node.HostDir() == rootdir {
 		// root configuration reloaded
-		*root = *NewRoot(node)
+		*root = *NewRoot(node, root.hclOpts...)
 	} else {
 		node.Parent = parentNode
 		parentNode.Children[nextComponent] = node
@@ -455,7 +464,7 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, err error) {
+func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...hcl.Option) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
 		Str("dir", cfgdir).
@@ -478,10 +487,16 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 	}
 
 	rootdir := parentTree.RootDir()
+	rootOpts := append([]hcl.Option{hcl.WithExperiments(rootcfg.Experiments()...)}, hclOpts...)
+
 	if cfgdir != rootdir {
 		tree := NewTree(cfgdir)
 
-		p, err := hcl.NewTerramateParser(rootdir, cfgdir, hcl.WithExperiments(rootcfg.Experiments()...))
+		p, err := hcl.NewTerramateParser(
+			rootdir,
+			cfgdir,
+			rootOpts...,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -527,7 +542,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config) (_ *Tree, er
 		}
 
 		dir := filepath.Join(cfgdir, fname)
-		node, err := loadTree(parentTree, dir, rootcfg)
+		node, err := loadTree(parentTree, dir, rootcfg, rootOpts...)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
 		}
