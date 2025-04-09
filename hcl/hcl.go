@@ -577,28 +577,28 @@ func NewTerramateParser(rootdir string, dir string, opts ...Option) (*TerramateP
 	return p, nil
 }
 
-func (p *TerramateParser) addUnmergedBlockHandler(spec UnmergedBlockHandler) {
-	p.unmergedBlockHandlers[spec.Name()] = spec
-	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).addBlock
-	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).addBlock
+func (p *TerramateParser) addUnmergedBlockHandler(spec UnmergedBlockHandlerConstructor) {
+	p.unmergedBlockHandlers[spec().Name()] = spec()
+	p.Config.dupeHandlers[spec().Name()] = (*RawConfig).addBlock
+	p.Imported.dupeHandlers[spec().Name()] = (*RawConfig).addBlock
 }
 
-func (p *TerramateParser) addMergedBlockHandler(spec MergedBlockHandler) {
-	p.mergedBlockHandlers[spec.Name()] = spec
-	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).mergeBlock
-	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).mergeBlock
+func (p *TerramateParser) addMergedBlockHandler(spec MergedBlockHandlerConstructor) {
+	p.mergedBlockHandlers[spec().Name()] = spec()
+	p.Config.dupeHandlers[spec().Name()] = (*RawConfig).mergeBlock
+	p.Imported.dupeHandlers[spec().Name()] = (*RawConfig).mergeBlock
 }
 
-func (p *TerramateParser) addMergedLabelsBlockHandler(spec MergedLabelsBlockHandler) {
-	p.mergedLabelsBlockHandlers[spec.Name()] = spec
-	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).mergeLabeledBlock
-	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).mergeLabeledBlock
+func (p *TerramateParser) addMergedLabelsBlockHandler(spec MergedLabelsBlockHandlerConstructor) {
+	p.mergedLabelsBlockHandlers[spec().Name()] = spec()
+	p.Config.dupeHandlers[spec().Name()] = (*RawConfig).mergeLabeledBlock
+	p.Imported.dupeHandlers[spec().Name()] = (*RawConfig).mergeLabeledBlock
 }
 
-func (p *TerramateParser) addUniqueBlockHandler(spec UniqueBlockHandler) {
-	p.uniqueBlockHandlers[spec.Name()] = spec
-	p.Config.dupeHandlers[spec.Name()] = (*RawConfig).addUniqueBlock
-	p.Imported.dupeHandlers[spec.Name()] = (*RawConfig).addUniqueBlock
+func (p *TerramateParser) addUniqueBlockHandler(spec UniqueBlockHandlerConstructor) {
+	p.uniqueBlockHandlers[spec().Name()] = spec()
+	p.Config.dupeHandlers[spec().Name()] = (*RawConfig).addUniqueBlock
+	p.Imported.dupeHandlers[spec().Name()] = (*RawConfig).addUniqueBlock
 }
 
 func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {

@@ -54,7 +54,7 @@ func (*GenerateFileBlockParser) Parse(p *TerramateParser, block *ast.Block) erro
 		case "lets":
 			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
 		case "assert":
-			assertParser := NewAssertBlockParser(&asserts)
+			assertParser := NewCustomAssertBlockParser(&asserts)
 			errs.Append(assertParser.Parse(nil, subBlock))
 
 		case "stack_filter":

@@ -18,7 +18,7 @@ func WithStrictMode() Option {
 }
 
 // WithUnmergedBlockHandlers is an option to set the unmerged block specifications for the parser.
-func WithUnmergedBlockHandlers(specs ...UnmergedBlockHandler) Option {
+func WithUnmergedBlockHandlers(specs ...UnmergedBlockHandlerConstructor) Option {
 	return func(p *TerramateParser) {
 		for _, spec := range specs {
 			p.addUnmergedBlockHandler(spec)
@@ -27,7 +27,7 @@ func WithUnmergedBlockHandlers(specs ...UnmergedBlockHandler) Option {
 }
 
 // WithMergedBlockHandlers is an option to set the merged block specifications for the parser.
-func WithMergedBlockHandlers(specs ...MergedBlockHandler) Option {
+func WithMergedBlockHandlers(specs ...MergedBlockHandlerConstructor) Option {
 	return func(p *TerramateParser) {
 		for _, spec := range specs {
 			p.addMergedBlockHandler(spec)
@@ -36,7 +36,7 @@ func WithMergedBlockHandlers(specs ...MergedBlockHandler) Option {
 }
 
 // WithUniqueBlockHandlers is an option to set the unique block specifications for the parser.
-func WithUniqueBlockHandlers(specs ...UniqueBlockHandler) Option {
+func WithUniqueBlockHandlers(specs ...UniqueBlockHandlerConstructor) Option {
 	return func(p *TerramateParser) {
 		for _, spec := range specs {
 			p.addUniqueBlockHandler(spec)
@@ -45,7 +45,7 @@ func WithUniqueBlockHandlers(specs ...UniqueBlockHandler) Option {
 }
 
 // WithMergedLabelsBlockHandlers is an option to set the merged labels block specifications for the parser.
-func WithMergedLabelsBlockHandlers(specs ...MergedLabelsBlockHandler) Option {
+func WithMergedLabelsBlockHandlers(specs ...MergedLabelsBlockHandlerConstructor) Option {
 	return func(p *TerramateParser) {
 		for _, spec := range specs {
 			p.addMergedLabelsBlockHandler(spec)
