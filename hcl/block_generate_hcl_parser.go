@@ -14,7 +14,7 @@ import (
 type GenerateHCLBlockParser struct{}
 
 // NewGenerateHCLBlockParser returns a new parser specification for the "generate_hcl" block.
-func NewGenerateHCLBlockParser() *GenerateHCLBlockParser {
+func NewGenerateHCLBlockParser() UnmergedBlockHandler {
 	return &GenerateHCLBlockParser{}
 }
 
@@ -46,7 +46,7 @@ func (*GenerateHCLBlockParser) Parse(p *TerramateParser, block *ast.Block) error
 		case "lets":
 			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
 		case "assert":
-			assertParser := NewAssertBlockParser(&asserts)
+			assertParser := NewCustomAssertBlockParser(&asserts)
 			errs.Append(assertParser.Parse(p, subBlock))
 
 		case "stack_filter":

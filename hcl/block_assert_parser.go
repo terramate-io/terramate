@@ -13,11 +13,16 @@ type AssertBlockParser struct {
 	asserts *[]AssertConfig
 }
 
-// NewAssertBlockParser returns a new parser specification for the "assert" block.
-func NewAssertBlockParser(assertsStorage *[]AssertConfig) *AssertBlockParser {
+// NewCustomAssertBlockParser returns a new parser specification for the scoped "assert" blocks.
+func NewCustomAssertBlockParser(assertsStorage *[]AssertConfig) *AssertBlockParser {
 	return &AssertBlockParser{
 		asserts: assertsStorage,
 	}
+}
+
+// NewTopLevelAssertBlockParser returns a new parser specification for the top-level "assert" block.
+func NewTopLevelAssertBlockParser() *AssertBlockParser {
+	return NewCustomAssertBlockParser(nil)
 }
 
 // Name returns the type of the block.
