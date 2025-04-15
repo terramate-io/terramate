@@ -22,8 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - name: ubuntu-focal
-            value: "ubuntu-20.04"
+          - name: ubuntu
+            value: "ubuntu-24.04"
           - name: macos-ventura
             value: "macos-13"
 
@@ -174,7 +174,7 @@ jobs:
   release_dry_run:
     name: Release Dry Run
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
@@ -229,6 +229,6 @@ jobs:
   ci:
     needs:
       - build_test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - run: echo "All jobs ran successfully"
