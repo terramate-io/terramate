@@ -11,12 +11,38 @@ import (
 	"github.com/terramate-io/terramate/errors"
 )
 
+const tmgenExt = ".tmgen"
+
 // ListResult contains the result of listing a directory.
 type ListResult struct {
 	TmFiles    []string
 	TmGenFiles []string
 	OtherFiles []string
 	Dirs       []string
+	Skipped    []string
+}
+
+// AddFile adds a file to the ListResult. It classifies the file accordingly.
+func (r *ListResult) AddFile(name string) {
+	switch {
+	case name[0] == '.':
+		r.Skipped = append(r.Skipped, name)
+	case isTerramateFile(name):
+		r.TmFiles = append(r.TmFiles, name)
+	case strings.HasSuffix(name, tmgenExt) && len(name) > len(tmgenExt):
+		r.TmGenFiles = append(r.TmGenFiles, name)
+	default:
+		r.OtherFiles = append(r.OtherFiles, name)
+	}
+}
+
+// AddDir adds a directory to the ListResult. It classifies the directory accordingly.
+func (r *ListResult) AddDir(name string) {
+	if name[0] == '.' {
+		r.Skipped = append(r.Skipped, name)
+	} else {
+		r.Dirs = append(r.Dirs, name)
+	}
 }
 
 // ListTerramateFiles returns the entries of directory separated (terramate files, others  and
@@ -36,29 +62,20 @@ func ListTerramateFiles(dir string) (ListResult, error) {
 		return ListResult{}, errors.E(err, "reading dir to list Terramate files")
 	}
 
-	const tmgenExt = ".tmgen"
-
 	res := ListResult{}
 	for _, entry := range dirEntries {
 		fname := entry.Name()
-		if fname[0] == '.' {
-			res.OtherFiles = append(res.OtherFiles, fname)
-			continue
-		}
 		if entry.IsDir() {
-			res.Dirs = append(res.Dirs, fname)
-		} else if isTerramateFile(fname) {
-			res.TmFiles = append(res.TmFiles, fname)
-		} else if strings.HasSuffix(fname, tmgenExt) && len(fname) > len(tmgenExt) {
-			res.TmGenFiles = append(res.TmGenFiles, fname)
+			res.AddDir(fname)
 		} else {
-			res.OtherFiles = append(res.OtherFiles, fname)
+			res.AddFile(fname)
 		}
 	}
 	sort.Strings(res.Dirs)
 	sort.Strings(res.TmFiles)
 	sort.Strings(res.TmGenFiles)
 	sort.Strings(res.OtherFiles)
+	sort.Strings(res.Skipped)
 	return res, nil
 }
 
