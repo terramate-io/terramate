@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '**.tm'
+      - '**.tm.hcl'
 
 jobs:
   interop-tests:
