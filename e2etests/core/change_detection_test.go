@@ -143,6 +143,71 @@ func TestChangeDetection(t *testing.T) {
 		)
 	})
 
+	t.Run("no config/single stack changed due to file changed inside stack dotdir", func(t *testing.T) {
+		t.Parallel()
+		s := prepareBranch(t)
+		test.WriteFile(t, filepath.Join(s.RootDir(), "stacks/s1/.github"), "file.yml", "# changed")
+		s.Git().CommitAll("s1 changed")
+		mgr := stack.NewGitAwareManager(s.Config(), s.Git().Unwrap())
+		report, err := mgr.ListChanged(stack.ChangeConfig{
+			BaseRef: "origin/main",
+		})
+		assert.NoError(t, err)
+		assert.EqualInts(t, len(report.Stacks), 1)
+		assert.EqualInts(t, len(report.Checks.UntrackedFiles), 0)
+		assert.EqualInts(t, len(report.Checks.UncommittedFiles), 0)
+		assert.EqualStrings(t, report.Stacks[0].Stack.Dir.String(), "/stacks/s1")
+
+		tmcli := NewCLI(t, s.RootDir())
+		AssertRunResult(t,
+			tmcli.Run("list", "--changed"),
+			RunExpected{Stdout: nljoin("stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("list", "--changed", "--disable-change-detection=git-untracked"),
+			RunExpected{Stdout: nljoin("stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("list", "--changed", "--disable-change-detection=git-uncommitted"),
+			RunExpected{Stdout: nljoin("stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("list", "--changed", "--disable-change-detection=git-untracked,git-uncommitted"),
+			RunExpected{Stdout: nljoin("stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("run", "--quiet", "--changed", "--", HelperPath, "stack-abs-path", s.RootDir()),
+			RunExpected{Stdout: nljoin("/stacks/s1")},
+		)
+		AssertRunResult(t,
+			tmcli.Run("run", "--quiet", "--changed", "--enable-change-detection=git-untracked", "--", HelperPath, "stack-abs-path", s.RootDir()),
+			RunExpected{Stdout: nljoin("/stacks/s1")},
+		)
+		AssertRunResult(t,
+			tmcli.Run("run", "--quiet", "--changed", "--enable-change-detection=git-uncommitted", "--", HelperPath, "stack-abs-path", s.RootDir()),
+			RunExpected{Stdout: nljoin("/stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("script", "run", "--quiet", "--changed", "test"),
+			RunExpected{Stdout: nljoin("/stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("script", "run", "--quiet", "--changed", "--enable-change-detection=git-untracked", "test"),
+			RunExpected{Stdout: nljoin("/stacks/s1")},
+		)
+
+		AssertRunResult(t,
+			tmcli.Run("script", "run", "--quiet", "--changed", "--enable-change-detection=git-uncommitted", "test"),
+			RunExpected{Stdout: nljoin("/stacks/s1")},
+		)
+	})
+
 	t.Run("with config disabling all", func(t *testing.T) {
 		t.Parallel()
 		s := prepareBranch(t)
