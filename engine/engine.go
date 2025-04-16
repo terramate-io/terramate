@@ -73,7 +73,8 @@ type (
 		HTTPClient http.Client
 		state      state
 
-		printers printer.Printers
+		printers  printer.Printers
+		verbosity int
 
 		uimode UIMode
 	}
@@ -106,7 +107,7 @@ func NoGitFilter() GitFilter { return GitFilter{} }
 
 // Load loads the engine with the given working directory and CLI configuration.
 // If the project is not found, it returns false.
-func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
+func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
 	prj, found, err := NewProject(wd, hclOpts...)
 	if err != nil {
 		return nil, false, err
@@ -119,11 +120,12 @@ func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Pr
 		return nil, true, errors.E(err, "setting configuration")
 	}
 	return &Engine{
-		project:  prj,
-		printers: printers,
-		uimode:   uimode,
-		usercfg:  clicfg,
-		hclOpts:  hclOpts,
+		project:   prj,
+		printers:  printers,
+		verbosity: verbosity,
+		uimode:    uimode,
+		usercfg:   clicfg,
+		hclOpts:   hclOpts,
 	}, true, nil
 }
 

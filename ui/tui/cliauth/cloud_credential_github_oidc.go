@@ -39,14 +39,16 @@ type githubOIDC struct {
 	reqToken string
 	orgs     resources.MemberOrganizations
 
-	printers printer.Printers
-	client   *cloud.Client
+	printers  printer.Printers
+	verbosity int
+	client    *cloud.Client
 }
 
-func newGithubOIDC(printers printer.Printers, client *cloud.Client) *githubOIDC {
+func newGithubOIDC(printers printer.Printers, verbosity int, client *cloud.Client) *githubOIDC {
 	return &githubOIDC{
-		client:   client,
-		printers: printers,
+		client:    client,
+		printers:  printers,
+		verbosity: verbosity,
 	}
 }
 
@@ -104,12 +106,16 @@ func (g *githubOIDC) ExpireAt() time.Time {
 
 func (g *githubOIDC) Refresh() (err error) {
 	if g.token != "" {
-		g.printers.Stdout.Println("refreshing token...")
+		if g.verbosity > 0 {
+			g.printers.Stdout.Println("refreshing token...")
+		}
 
 		defer func() {
 			if err == nil {
-				g.printers.Stdout.Println("token successfully refreshed.")
-				g.printers.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(g.ExpireAt())))
+				if g.verbosity > 0 {
+					g.printers.Stdout.Println("token successfully refreshed.")
+					g.printers.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(g.ExpireAt())))
+				}
 			}
 		}()
 	}

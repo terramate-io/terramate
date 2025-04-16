@@ -63,9 +63,10 @@ type (
 
 		provider string
 
-		clicfg   cliconfig.Config
-		client   *cloud.Client
-		printers printer.Printers
+		clicfg    cliconfig.Config
+		client    *cloud.Client
+		printers  printer.Printers
+		verbosity int
 	}
 
 	createAuthURIResponse struct {
@@ -444,8 +445,8 @@ func saveCredential(printers printer.Printers, verbosity int, providerID string,
 	return nil
 }
 
-func loadCredential(clicfg cliconfig.Config) (cachedCredential, bool, error) {
-	credFile := filepath.Join(clicfg.UserTerramateDir, credfile)
+func (g *googleCredential) loadCredential() (cachedCredential, bool, error) {
+	credFile := filepath.Join(g.clicfg.UserTerramateDir, credfile)
 	_, err := os.Lstat(credFile)
 	if err != nil {
 		return cachedCredential{}, false, nil
@@ -459,7 +460,9 @@ func loadCredential(clicfg cliconfig.Config) (cachedCredential, bool, error) {
 	if err != nil {
 		return cachedCredential{}, true, err
 	}
-	//printers.Stdout.Println(fmt.Sprintf("credentials loaded from %s", credFile))
+	if g.verbosity > 0 {
+		g.printers.Stdout.Println(fmt.Sprintf("credentials loaded from %s", credFile))
+	}
 	return cred, true, nil
 }
 
@@ -475,17 +478,18 @@ func endpointURL(endpoint string, idpKey string) *url.URL {
 	return u
 }
 
-func newGoogleCredential(printers printer.Printers, clicfg cliconfig.Config, client *cloud.Client) *googleCredential {
+func newGoogleCredential(printers printer.Printers, verbosity int, clicfg cliconfig.Config, client *cloud.Client) *googleCredential {
 	return &googleCredential{
-		clicfg:   clicfg,
-		idpKey:   idpkey(),
-		client:   client,
-		printers: printers,
+		clicfg:    clicfg,
+		idpKey:    idpkey(),
+		client:    client,
+		printers:  printers,
+		verbosity: verbosity,
 	}
 }
 
 func (g *googleCredential) Load() (bool, error) {
-	credinfo, found, err := loadCredential(g.clicfg)
+	credinfo, found, err := g.loadCredential()
 	if err != nil {
 		return false, err
 	}
@@ -521,12 +525,16 @@ func (g *googleCredential) ExpireAt() time.Time {
 
 func (g *googleCredential) Refresh() (err error) {
 	if g.token != "" {
-		g.printers.Stdout.Println("refreshing token...")
+		if g.verbosity > 0 {
+			g.printers.Stdout.Println("refreshing token...")
+		}
 
 		defer func() {
 			if err == nil {
-				g.printers.Stdout.Println("token successfully refreshed.")
-				g.printers.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(g.ExpireAt())))
+				if g.verbosity > 0 {
+					g.printers.Stdout.Println("token successfully refreshed.")
+					g.printers.Stdout.Println(fmt.Sprintf("next token refresh in: %s", time.Until(g.ExpireAt())))
+				}
 			}
 		}()
 	}

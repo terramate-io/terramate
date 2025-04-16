@@ -24,11 +24,16 @@ type APIKey struct {
 
 	orgs   resources.MemberOrganizations
 	client *cloud.Client
+
+	printers  printer.Printers
+	verbosity int
 }
 
-func newAPIKey(client *cloud.Client) *APIKey {
+func newAPIKey(printers printer.Printers, verbosity int, client *cloud.Client) *APIKey {
 	return &APIKey{
-		client: client,
+		client:    client,
+		printers:  printers,
+		verbosity: verbosity,
 	}
 }
 
@@ -51,6 +56,9 @@ func (a *APIKey) Load() (bool, error) {
 	orgs, err := a.client.MemberOrganizations(ctx)
 	if err != nil {
 		return true, err
+	}
+	if a.verbosity > 0 {
+		a.printers.Stdout.Println(fmt.Sprintf("API key loaded from %s environment variable", apiKeyEnvName))
 	}
 	a.orgs = orgs
 	return true, nil
