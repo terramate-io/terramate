@@ -46,12 +46,9 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 			t.Logf("using GITHUB_EVENT_FILE=%s", eventFile)
 			env = append(env, "GITHUB_ACTIONS=1")
 			tmcli := NewInteropCLI(t, datapath(t, stackpath), env...)
+			tmcli.PrependToPath(filepath.Dir(TerraformTestPath))
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet",
-					"--",
-					TerraformTestPath,
-					"init",
-				),
+				tmcli.Run("run", "--quiet", "--", "terraform", "init"),
 				RunExpected{
 					IgnoreStdout: true,
 					IgnoreStderr: true,
@@ -63,7 +60,7 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 					"--terraform-plan-file=out.plan",
 					"--target", defaultTarget,
 					"--",
-					TerraformTestPath,
+					"terraform",
 					"plan",
 					"-out=out.plan",
 					"--detailed-exitcode",
@@ -137,12 +134,13 @@ func TestInteropDrift(t *testing.T) {
 	} {
 		t.Run("drift: "+filepath.Base(stackpath), func(t *testing.T) {
 			tmcli := NewInteropCLI(t, datapath(t, stackpath))
+			tmcli.PrependToPath(filepath.Dir(TerraformTestPath))
 			AssertRunResult(t, tmcli.Run("list"), RunExpected{
 				Stdout: nljoin("."),
 			})
 			// initialize the providers
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet", "--", TerraformTestPath, "init"),
+				tmcli.Run("run", "--quiet", "--", "terraform", "init"),
 				RunExpected{
 					Status:       0,
 					IgnoreStdout: true,
@@ -152,7 +150,7 @@ func TestInteropDrift(t *testing.T) {
 
 			// basic drift, without details
 			AssertRunResult(t,
-				tmcli.Run("run", "--quiet", "--sync-drift-status", "--target", defaultTarget, "--", TerraformTestPath, "plan", "-detailed-exitcode"),
+				tmcli.Run("run", "--quiet", "--sync-drift-status", "--target", defaultTarget, "--", "terraform", "plan", "-detailed-exitcode"),
 				RunExpected{
 					Status:       0,
 					IgnoreStdout: true,
@@ -181,7 +179,7 @@ func TestInteropDrift(t *testing.T) {
 			AssertRunResult(t,
 				tmcli.Run(
 					"run", "--sync-drift-status", "--target", defaultTarget, "--terraform-plan-file=out.plan", "--",
-					TerraformTestPath, "plan", "-out=out.plan", "-detailed-exitcode",
+					"terraform", "plan", "-out=out.plan", "-detailed-exitcode",
 				),
 				RunExpected{
 					Status:       0,
