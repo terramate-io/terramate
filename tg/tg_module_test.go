@@ -93,6 +93,32 @@ func TestTerragruntScanModules(t *testing.T) {
 			},
 		},
 		{
+			name: "module inside hidden dir is ignored",
+			layout: []string{
+				`f:some/.dir/terragrunt.hcl:` + Block("terraform",
+					Str("source", "https://some.etc/prj"),
+				).String(),
+			},
+		},
+		{
+			name: "module inside dir with parent .tmskip is ignored",
+			layout: []string{
+				`f:some/.tmskip:`,
+				`f:some/dir/terragrunt.hcl:` + Block("terraform",
+					Str("source", "https://some.etc/prj"),
+				).String(),
+			},
+		},
+		{
+			name: "module inside dir with .tmskip is same level is ignored",
+			layout: []string{
+				`f:some/.tmskip:`,
+				`f:some/terragrunt.hcl:` + Block("terraform",
+					Str("source", "https://some.etc/prj"),
+				).String(),
+			},
+		},
+		{
 			name: "multiple leaf modules",
 			layout: []string{
 				`f:some/dir/terragrunt.hcl:` + Block("terraform",

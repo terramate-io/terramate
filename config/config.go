@@ -475,7 +475,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...h
 		return nil, err
 	}
 
-	for _, fname := range filesResult.OtherFiles {
+	for _, fname := range filesResult.Skipped {
 		if fname == terramate.SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return newSkippedTree(cfgdir), nil
