@@ -182,7 +182,7 @@ func TestInteropDrift(t *testing.T) {
 			env = append(env, "TMC_API_DEBUG=1")
 			tmcli = NewInteropCLI(t, datapath(t, stackpath), env...)
 			res := tmcli.Run(
-				"run", "--quiet", "--sync-drift-status", "--target", defaultTarget, "--terraform-plan-file=out.plan", "--",
+				"run", "--log-level=info", "--sync-drift-status", "--target", defaultTarget, "--terraform-plan-file=out.plan", "--",
 				TerraformTestPath, "plan", "-out=out.plan", "-detailed-exitcode",
 			)
 			t.Logf("stdout: %s", res.Stdout)

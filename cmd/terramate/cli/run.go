@@ -26,7 +26,6 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/printer"
 	prj "github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/run"
 
 	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
@@ -382,7 +381,7 @@ func (c *cli) runAll(
 	}()
 
 	// map of stackName -> map of backendName -> outputs
-	allOutputs := runutil.NewOnceMap[string, *run.OnceMap[string, cty.Value]]()
+	allOutputs := runutil.NewOnceMap[string, *runutil.OnceMap[string, cty.Value]]()
 
 	err = sched.Run(func(run stackRun) error {
 		errs := errors.L()
@@ -575,7 +574,10 @@ func (c *cli) runAll(
 				Str("cmd", cmdStr).
 				Logger()
 
+			printer.Stdout.Println(stdfmt.Sprintf("AAA cmd: %s", task.Cmd[0]))
 			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
+			printer.Stdout.Println(stdfmt.Sprintf("AAA cmdPath: %s", cmdPath))
+			printer.Stdout.Println(stdfmt.Sprintf("AAA err: %v", err))
 			if err != nil {
 				c.cloudSyncAfter(cloudRun, runResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))

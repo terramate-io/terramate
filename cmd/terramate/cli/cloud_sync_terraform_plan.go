@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	stdfmt "fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +19,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 
 	"github.com/terramate-io/tfjson"
 	"github.com/terramate-io/tfjson/sanitize"
@@ -63,8 +66,13 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 		logger.Warn().Err(err).Msg("failed to synchronize the ASCII plan output")
 	}
 
+	printer.Stdout.Println(fmt.Sprintf("AAA renderedPlan: %s", renderedPlan))
+
 	var newJSONPlanData []byte
 	jsonPlanData, err := c.runTerraformShow(run, "-no-color", "-json")
+
+	printer.Stdout.Println(fmt.Sprintf("AAA jsonPlanData: %s", jsonPlanData))
+
 	if err == nil {
 		newJSONPlanData, err = sanitizeJSONPlan([]byte(jsonPlanData))
 		if err != nil {
@@ -130,7 +138,10 @@ func (c *cli) runTerraformShow(run stackCloudRun, flags ...string) (string, erro
 		cmdName = "terraform"
 	}
 
+	printer.Stdout.Println(stdfmt.Sprintf("AAA cmd: %s", cmdName))
 	cmdPath, err := runpkg.LookPath(cmdName, run.Env)
+	printer.Stdout.Println(fmt.Sprintf("AAA cmdPath: %s", cmdPath))
+	printer.Stdout.Println(fmt.Sprintf("AAA err: %v", err))
 	if err != nil {
 		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "looking up executable for %s: %w", cmdName, err)
 	}

@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -12,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/drift"
 	"github.com/terramate-io/terramate/cmd/terramate/cli/clitest"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/printer"
 )
 
 func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) {
@@ -41,9 +43,12 @@ func (c *cli) cloudSyncDriftStatus(run stackCloudRun, res runResult, err error) 
 
 	var driftDetails *cloud.ChangesetDetails
 
+	printer.Stdout.Println(fmt.Sprintf("AAA CloudPlanFile: %s", run.Task.CloudPlanFile))
+
 	if run.Task.CloudPlanFile != "" {
 		var err error
 		driftDetails, err = c.getTerraformChangeset(run)
+		printer.Stdout.Println(fmt.Sprintf("AAA Details: %+v", driftDetails))
 		if err != nil {
 			logger.Error().Err(err).Msg(clitest.CloudSkippingTerraformPlanSync)
 		}
