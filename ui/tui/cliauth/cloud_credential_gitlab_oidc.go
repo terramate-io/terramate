@@ -31,19 +31,23 @@ type gitlabOIDC struct {
 
 	orgs resources.MemberOrganizations
 
-	client *cloud.Client
+	printers  printer.Printers
+	verbosity int
+	client    *cloud.Client
 }
 
-func newGitlabOIDC(client *cloud.Client) *gitlabOIDC {
+func newGitlabOIDC(printers printer.Printers, verbosity int, client *cloud.Client) *gitlabOIDC {
 	return &gitlabOIDC{
-		client: client,
+		client:    client,
+		printers:  printers,
+		verbosity: verbosity,
 	}
 }
 
 func (g *gitlabOIDC) Load() (bool, error) {
-	const envToken = "TM_GITLAB_ID_TOKEN"
+	const envName = "TM_GITLAB_ID_TOKEN"
 
-	g.token = os.Getenv(envToken)
+	g.token = os.Getenv(envName)
 	if g.token == "" {
 		return false, nil
 	}
@@ -67,6 +71,10 @@ func (g *gitlabOIDC) Load() (bool, error) {
 	g.repoName = repoName
 
 	g.client.SetCredential(g)
+
+	if g.verbosity > 0 {
+		g.printers.Stdout.Println(fmt.Sprintf("GitLab OIDC token loaded from %s environment variable", envName))
+	}
 	return true, g.fetchDetails()
 }
 

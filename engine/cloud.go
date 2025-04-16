@@ -102,7 +102,7 @@ func (e *Engine) LoadCredential(preferences ...string) error {
 		return errors.E(err, clitest.ErrCloudCompat)
 	}
 
-	probes := cliauth.ProbingPrecedence(printer.DefaultPrinters, e.state.cloud.client, e.usercfg)
+	probes := cliauth.ProbingPrecedence(e.printers, e.verbosity, e.state.cloud.client, e.usercfg)
 	var found bool
 	for _, probe := range probes {
 		var err error

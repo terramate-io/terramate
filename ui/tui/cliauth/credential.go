@@ -45,12 +45,12 @@ type Credential interface {
 }
 
 // ProbingPrecedence returns the probing precedence for the loading of credentials.
-func ProbingPrecedence(printers printer.Printers, client *cloud.Client, clicfg cliconfig.Config) []Credential {
+func ProbingPrecedence(printers printer.Printers, verbosity int, client *cloud.Client, clicfg cliconfig.Config) []Credential {
 	return []Credential{
-		newAPIKey(client),
-		newGithubOIDC(printers, client),
-		newGitlabOIDC(client),
-		newGoogleCredential(printers, clicfg, client),
+		newAPIKey(printers, verbosity, client),
+		newGithubOIDC(printers, verbosity, client),
+		newGitlabOIDC(printers, verbosity, client),
+		newGoogleCredential(printers, verbosity, clicfg, client),
 	}
 }
 

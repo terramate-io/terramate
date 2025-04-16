@@ -258,7 +258,7 @@ func (c *CLI) Exec(args []string) {
 		return
 	}
 
-	engine, foundRoot, err := engine.Load(c.state.wd, c.clicfg, c.state.uimode, c.printers, c.hclOptions...)
+	engine, foundRoot, err := engine.Load(c.state.wd, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
 	if err != nil {
 		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
 	}
