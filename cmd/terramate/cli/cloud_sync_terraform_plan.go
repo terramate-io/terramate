@@ -75,6 +75,7 @@ func (c *cli) getTerraformChangeset(run stackCloudRun) (*cloud.ChangesetDetails,
 	}
 
 	if renderedPlan == "" && len(newJSONPlanData) == 0 {
+		logger.Warn().Msg("both rendering and JSON return no result")
 		return nil, nil
 	}
 
