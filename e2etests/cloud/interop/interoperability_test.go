@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -69,7 +70,7 @@ func TestInteropCloudSyncPreview(t *testing.T) {
 					StderrRegexes: []string{
 						"Preview created",
 					},
-					IgnoreStdout: true,
+					StdoutRegex: regexp.QuoteMeta(`Terraform will perform the following actions`),
 				},
 			)
 		})
@@ -152,9 +153,8 @@ func TestInteropDrift(t *testing.T) {
 			AssertRunResult(t,
 				tmcli.Run("run", "--quiet", "--sync-drift-status", "--target", defaultTarget, "--", "terraform", "plan", "-detailed-exitcode"),
 				RunExpected{
-					Status:       0,
-					IgnoreStdout: true,
-					IgnoreStderr: true,
+					Status:      0,
+					StdoutRegex: regexp.QuoteMeta(`Terraform will perform the following actions`),
 				},
 			)
 			AssertRunResult(t,
@@ -178,13 +178,12 @@ func TestInteropDrift(t *testing.T) {
 			// complete drift
 			AssertRunResult(t,
 				tmcli.Run(
-					"run", "--sync-drift-status", "--target", defaultTarget, "--terraform-plan-file=out.plan", "--",
+					"run", "--quiet", "--sync-drift-status", "--target", defaultTarget, "--terraform-plan-file=out.plan", "--",
 					"terraform", "plan", "-out=out.plan", "-detailed-exitcode",
 				),
 				RunExpected{
-					Status:       0,
-					IgnoreStdout: true,
-					IgnoreStderr: true,
+					Status:      0,
+					StdoutRegex: regexp.QuoteMeta(`Terraform will perform the following actions`),
 				},
 			)
 			AssertRunResult(t,
