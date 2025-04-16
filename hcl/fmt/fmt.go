@@ -76,7 +76,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
-	for _, fname := range res.OtherFiles {
+	for _, fname := range res.Skipped {
 		if fname == ".tmskip" {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return nil, nil

@@ -49,7 +49,7 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 	absDir := project.AbsPath(rootdir, dir.String())
 	opts := newTerragruntOptions(absDir)
 
-	tgConfigFiles, err := config.FindConfigFilesInPath(absDir, opts)
+	tgConfigFiles, err := findConfigFilesInPath(absDir, opts)
 	if err != nil {
 		return nil, errors.E(err, "scanning Terragrunt modules")
 	}
