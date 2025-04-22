@@ -682,6 +682,86 @@ func TestTerragruntScanModules(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "terragrunt-live-example",
+			layout: testInfraLayout(),
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/non-prod/us-east-1/qa/mysql"),
+						ConfigFile: project.NewPath("/non-prod/us-east-1/qa/mysql/terragrunt.hcl"),
+						Source:     "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/mysql?ref=v0.8.0",
+						DependsOn: project.Paths{
+							project.NewPath("/_envcommon/mysql.hcl"),
+							project.NewPath("/non-prod/account.hcl"),
+							project.NewPath("/non-prod/us-east-1/qa/env.hcl"),
+							project.NewPath("/non-prod/us-east-1/region.hcl"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/non-prod/us-east-1/qa/webserver-cluster"),
+						ConfigFile: project.NewPath("/non-prod/us-east-1/qa/webserver-cluster/terragrunt.hcl"),
+						Source:     "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/asg-alb-service?ref=v0.8.0",
+						DependsOn: project.Paths{
+							project.NewPath("/_envcommon/webserver-cluster.hcl"),
+							project.NewPath("/non-prod/account.hcl"),
+							project.NewPath("/non-prod/us-east-1/qa/env.hcl"),
+							project.NewPath("/non-prod/us-east-1/region.hcl"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/non-prod/us-east-1/stage/mysql"),
+						ConfigFile: project.NewPath("/non-prod/us-east-1/stage/mysql/terragrunt.hcl"),
+						Source:     "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/mysql?ref=v0.8.0",
+						DependsOn: project.Paths{
+							project.NewPath("/_envcommon/mysql.hcl"),
+							project.NewPath("/non-prod/account.hcl"),
+							project.NewPath("/non-prod/us-east-1/region.hcl"),
+							project.NewPath("/non-prod/us-east-1/stage/env.hcl"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/non-prod/us-east-1/stage/webserver-cluster"),
+						ConfigFile: project.NewPath("/non-prod/us-east-1/stage/webserver-cluster/terragrunt.hcl"),
+						Source:     "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/asg-alb-service?ref=v0.8.0",
+						DependsOn: project.Paths{
+							project.NewPath("/_envcommon/webserver-cluster.hcl"),
+							project.NewPath("/non-prod/account.hcl"),
+							project.NewPath("/non-prod/us-east-1/region.hcl"),
+							project.NewPath("/non-prod/us-east-1/stage/env.hcl"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/prod/us-east-1/prod/mysql"),
+						ConfigFile: project.NewPath("/prod/us-east-1/prod/mysql/terragrunt.hcl"),
+						Source:     "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/mysql?ref=v0.8.0",
+						DependsOn: project.Paths{
+							project.NewPath("/_envcommon/mysql.hcl"),
+							project.NewPath("/prod/account.hcl"),
+							project.NewPath("/prod/us-east-1/prod/env.hcl"),
+							project.NewPath("/prod/us-east-1/region.hcl"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/prod/us-east-1/prod/webserver-cluster"),
+						ConfigFile: project.NewPath("/prod/us-east-1/prod/webserver-cluster/terragrunt.hcl"),
+						Source:     "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/asg-alb-service?ref=v0.8.0",
+						DependsOn: project.Paths{
+							project.NewPath("/_envcommon/webserver-cluster.hcl"),
+							project.NewPath("/prod/account.hcl"),
+							project.NewPath("/prod/us-east-1/prod/env.hcl"),
+							project.NewPath("/prod/us-east-1/region.hcl"),
+							project.NewPath("/terragrunt.hcl"),
+						},
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -700,5 +780,200 @@ func TestTerragruntScanModules(t *testing.T) {
 				t.Errorf("Diff (want [+], got [-]): %s", diff)
 			}
 		})
+	}
+}
+
+func testInfraLayout() []string {
+	return []string{
+		// Root terragrunt.hcl
+		"f:terragrunt.hcl:" + Doc(
+			Block("locals",
+				Expr("account_vars", `read_terragrunt_config(find_in_parent_folders("account.hcl"))`),
+				Expr("region_vars", `read_terragrunt_config(find_in_parent_folders("region.hcl"))`),
+				Expr("environment_vars", `read_terragrunt_config(find_in_parent_folders("env.hcl"))`),
+				Expr("account_name", `local.account_vars.locals.account_name`),
+				Expr("account_id", `local.account_vars.locals.aws_account_id`),
+				Expr("aws_region", `local.region_vars.locals.aws_region`),
+			),
+			Block("remote_state",
+				Str("backend", "s3"),
+				Block("config",
+					Bool("encrypt", true),
+					Expr("bucket", `"${get_env("TG_BUCKET_PREFIX", "")}terragrunt-example-tf-state-${local.account_name}-${local.aws_region}"`),
+					Str("key", "${path_relative_to_include()}/tf.tfstate"),
+					Expr("region", "local.aws_region"),
+					Str("dynamodb_table", "tf-locks"),
+				),
+				Block("generate",
+					Str("path", "backend.tf"),
+					Str("if_exists", "overwrite_terragrunt"),
+				),
+			),
+			Block("catalog",
+				Expr("urls", `[
+  "https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example",
+  "https://github.com/gruntwork-io/terraform-aws-utilities",
+  "https://github.com/gruntwork-io/terraform-kubernetes-namespace"
+]`),
+			),
+			Expr("inputs", `merge(
+  local.account_vars.locals,
+  local.region_vars.locals,
+  local.environment_vars.locals,
+)`),
+		).String(),
+
+		"f:_envcommon/mysql.hcl:" + Doc(
+			Block("locals",
+				Expr("environment_vars", `read_terragrunt_config(find_in_parent_folders("env.hcl"))`),
+				Expr("env", `local.environment_vars.locals.environment`),
+				Str("base_source_url", "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/mysql"),
+			),
+			Expr("inputs", `{
+  name              = "mysql_${local.env}"
+  instance_class    = "db.t3.micro"
+  allocated_storage = 40
+  storage_type      = "standard"
+  master_username   = "admin"
+}`),
+		).String(),
+		"f:_envcommon/webserver-cluster.hcl:" + Doc(
+			Block("locals",
+				Expr("environment_vars", `read_terragrunt_config(find_in_parent_folders("env.hcl"))`),
+				Expr("env", `local.environment_vars.locals.environment`),
+				Str("base_source_url", "git::https://github.com/gruntwork-io/terragrunt-infrastructure-modules-example.git//modules/asg-alb-service"),
+			),
+			Expr("inputs", `{
+  name          = "webserver-example-${local.env}"
+  instance_type = "t2.micro"
+
+  min_size = 0
+  max_size = 1
+
+  server_port = 8080
+  alb_port    = 80
+}`),
+		).String(),
+
+		"f:non-prod/account.hcl:" + Block("locals",
+			Str("account_name", "non-prod"),
+			Str("aws_account_id", "123456789012"),
+		).String(),
+		"f:non-prod/us-east-1/region.hcl:" + Block("locals",
+			Str("aws_region", "us-east-1"),
+		).String(),
+		"f:non-prod/us-east-1/qa/env.hcl:" + Block("locals",
+			Str("environment", "qa"),
+		).String(),
+		"f:non-prod/us-east-1/qa/mysql/terragrunt.hcl:" + Doc(
+			Block("include",
+				Labels("root"),
+				Expr("path", `find_in_parent_folders()`),
+			),
+			Block("include",
+				Labels("envcommon"),
+				Expr("path", `"${dirname(find_in_parent_folders())}/_envcommon/mysql.hcl"`),
+				Bool("expose", true),
+			),
+			Block("terraform",
+				Expr("source", `"${include.envcommon.locals.base_source_url}?ref=v0.8.0"`),
+			),
+		).String(),
+		"f:non-prod/us-east-1/qa/webserver-cluster/terragrunt.hcl:" + Doc(
+			Block("include",
+				Labels("root"),
+				Expr("path", `find_in_parent_folders()`),
+			),
+			Block("include",
+				Labels("envcommon"),
+				Expr("path", `"${dirname(find_in_parent_folders())}/_envcommon/webserver-cluster.hcl"`),
+				Bool("expose", true),
+			),
+			Block("terraform",
+				Expr("source", `"${include.envcommon.locals.base_source_url}?ref=v0.8.0"`),
+			),
+		).String(),
+
+		"f:non-prod/us-east-1/stage/env.hcl:" + Block("locals",
+			Str("environment", "stage"),
+		).String(),
+		"f:non-prod/us-east-1/stage/mysql/terragrunt.hcl:" + Doc(
+			Block("include",
+				Labels("root"),
+				Expr("path", `find_in_parent_folders()`),
+			),
+			Block("include",
+				Labels("envcommon"),
+				Expr("path", `"${dirname(find_in_parent_folders())}/_envcommon/mysql.hcl"`),
+				Bool("expose", true),
+			),
+			Block("terraform",
+				Expr("source", `"${include.envcommon.locals.base_source_url}?ref=v0.8.0"`),
+			),
+		).String(),
+		"f:non-prod/us-east-1/stage/webserver-cluster/terragrunt.hcl:" + Doc(
+			Block("include",
+				Labels("root"),
+				Expr("path", `find_in_parent_folders()`),
+			),
+			Block("include",
+				Labels("envcommon"),
+				Expr("path", `"${dirname(find_in_parent_folders())}/_envcommon/webserver-cluster.hcl"`),
+				Bool("expose", true),
+			),
+			Block("terraform",
+				Expr("source", `"${include.envcommon.locals.base_source_url}?ref=v0.8.0"`),
+			),
+		).String(),
+
+		"f:prod/account.hcl:" + Block("locals",
+			Str("account_name", "prod"),
+			Str("aws_account_id", "987654321098"),
+		).String(),
+
+		"f:prod/us-east-1/region.hcl:" + Block("locals",
+			Str("aws_region", "us-east-1"),
+		).String(),
+
+		"f:prod/us-east-1/prod/env.hcl:" + Block("locals",
+			Str("environment", "prod"),
+		).String(),
+		"f:prod/us-east-1/prod/mysql/terragrunt.hcl:" + Doc(
+			Block("include",
+				Labels("root"),
+				Expr("path", `find_in_parent_folders()`),
+			),
+			Block("include",
+				Labels("envcommon"),
+				Expr("path", `"${dirname(find_in_parent_folders())}/_envcommon/mysql.hcl"`),
+				Bool("expose", true),
+			),
+			Block("terraform",
+				Expr("source", `"${include.envcommon.locals.base_source_url}?ref=v0.8.0"`),
+			),
+			Block("inputs",
+				Str("instance_type", "db.t3.large"),
+				Number("allocated_storage", 120),
+			),
+		).String(),
+		"f:prod/us-east-1/prod/webserver-cluster/terragrunt.hcl:" + Doc(
+			Block("include",
+				Labels("root"),
+				Expr("path", `find_in_parent_folders()`),
+			),
+			Block("include",
+				Labels("envcommon"),
+				Expr("path", `"${dirname(find_in_parent_folders())}/_envcommon/webserver-cluster.hcl"`),
+				Bool("expose", true),
+			),
+			Block("terraform",
+				Expr("source", `"${include.envcommon.locals.base_source_url}?ref=v0.8.0"`),
+			),
+			Block("inputs",
+				Str("instance_type", "t3.medium"),
+				Number("min_size", 0),
+				Number("max_size", 2),
+			),
+		).String(),
 	}
 }
