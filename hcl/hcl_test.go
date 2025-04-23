@@ -1930,7 +1930,7 @@ func parse(tc testcase) (*hcl.Config, error) {
 	return parser.ParseConfig()
 }
 
-func TestHCLParseReParsingFails(t *testing.T) {
+func TestHCLParseReParsingWorks(t *testing.T) {
 	temp := test.TempDir(t)
 	p, err := hcl.NewTerramateParser(temp, temp)
 	assert.NoError(t, err)
@@ -1941,9 +1941,9 @@ func TestHCLParseReParsingFails(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = p.ParseConfig()
-	assert.Error(t, err)
-	err = p.Parse()
-	assert.Error(t, err)
+	assert.NoError(t, err)
+	err = p.ParseHCL()
+	assert.NoError(t, err)
 }
 
 func TestHCLParseProvidesAllParsedBodies(t *testing.T) {

@@ -363,7 +363,7 @@ func listFiles(fromFile string) ([]string, error) {
 func (s *Server) checkFiles(files []string, currentFile string, currentContent string) error {
 	dir := filepath.Dir(currentFile)
 	var experiments []string
-	root, rootdir, found, err := config.TryLoadConfig(dir)
+	root, rootdir, found, err := config.TryLoadConfig(dir, false)
 	if !found {
 		rootdir = s.workspace
 	} else if err == nil {

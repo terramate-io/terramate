@@ -199,6 +199,8 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 	if val := os.Getenv("CI"); envVarIsSet(val) {
 		c.state.uimode = engine.AutomationMode
 	}
+
+	c.state.changeDetectionEnabled = parsedArgs.Changed
 	return nil, false, true, nil
 }
 

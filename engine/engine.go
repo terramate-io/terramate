@@ -77,6 +77,8 @@ type (
 		verbosity int
 
 		uimode UIMode
+
+		changeDetectionEnabled bool
 	}
 
 	// GitFilter holds the configuration for git change detection.
@@ -107,8 +109,8 @@ func NoGitFilter() GitFilter { return GitFilter{} }
 
 // Load loads the engine with the given working directory and CLI configuration.
 // If the project is not found, it returns false.
-func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
-	prj, found, err := NewProject(wd, hclOpts...)
+func Load(wd string, changeDetectionEnabled bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
+	prj, found, err := NewProject(wd, changeDetectionEnabled, hclOpts...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -120,12 +122,13 @@ func Load(wd string, clicfg cliconfig.Config, uimode UIMode, printers printer.Pr
 		return nil, true, errors.E(err, "setting configuration")
 	}
 	return &Engine{
-		project:   prj,
-		printers:  printers,
-		verbosity: verbosity,
-		uimode:    uimode,
-		usercfg:   clicfg,
-		hclOpts:   hclOpts,
+		project:                prj,
+		printers:               printers,
+		verbosity:              verbosity,
+		uimode:                 uimode,
+		usercfg:                clicfg,
+		hclOpts:                hclOpts,
+		changeDetectionEnabled: changeDetectionEnabled,
 	}, true, nil
 }
 
@@ -162,7 +165,7 @@ func (e *Engine) HCLOptions() []hcl.Option {
 
 // ReloadConfig reloads the root configuration of the project.
 func (e *Engine) ReloadConfig() error {
-	rootcfg, err := config.LoadRoot(e.rootdir(), e.hclOpts...)
+	rootcfg, err := config.LoadRoot(e.rootdir(), e.changeDetectionEnabled, e.hclOpts...)
 	if err != nil {
 		return err
 	}

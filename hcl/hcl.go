@@ -411,6 +411,17 @@ type Evaluator interface {
 	DeleteNamespace(name string)
 }
 
+type parserState int
+
+const (
+	initialState parserState = iota
+	syntaxParsedState
+	importsAppliedState
+	mergedConfigState
+	schemaParsedState
+	schemaValidatedState
+)
+
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
 // this API allows you to define the exact set of files (and contents) that are
@@ -439,8 +450,7 @@ type TerramateParser struct {
 
 	ParsedConfig Config
 
-	// if true, calling Parse() or MinimalParse() will fail.
-	parsed bool
+	state parserState
 }
 
 // Option is a function that can be used to configure a TerramateParser.
@@ -513,12 +523,10 @@ const (
 	external
 )
 
-// NewTerramateParser creates a Terramate parser for the directory dir inside
-// the root directory.
+// NewTerramateParser creates a Terramate parser for the directory dir inside the root directory.
 // The parser creates sub-parsers for parsing imports but keeps a list of all
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // The subparsers inherits this parser options.
-// Calling Parse() or MinimalParse() multiple times is an error.
 func NewTerramateParser(rootdir string, dir string, opts ...Option) (*TerramateParser, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
@@ -546,6 +554,7 @@ func NewTerramateParser(rootdir string, dir string, opts ...Option) (*TerramateP
 		mergedBlockHandlers:       map[string]MergedBlockHandler{},
 		mergedLabelsBlockHandlers: map[string]MergedLabelsBlockHandler{},
 		uniqueBlockHandlers:       map[string]UniqueBlockHandler{},
+		state:                     initialState,
 	}
 
 	for _, opt := range opts {
@@ -663,35 +672,47 @@ func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 // return either a Config or an error.
 func (p *TerramateParser) ParseConfig() (*Config, error) {
 	errs := errors.L()
-	errs.Append(p.Parse())
+	errs.Append(p.ParseHCL())
 
-	// TODO(i4k): don't validate schema here.
-	// Changing this requires changes to the editor extensions / linters / etc.
-	cfg, err := p.parseTerramateSchema()
-	errs.Append(err)
-
-	if err == nil {
-		errs.Append(p.checkConfigSanity(cfg))
+	switch p.state {
+	case mergedConfigState:
+		// TODO(i4k): don't validate schema here.
+		// Changing this requires changes to the editor extensions / linters / etc.
+		var err error
+		_, err = p.parseTerramateSchema()
+		errs.Append(err)
+		fallthrough
+	case schemaParsedState:
+		if err := errs.AsError(); err == nil {
+			errs.Append(p.checkConfigSanity())
+		}
+	case schemaValidatedState:
+		return &p.ParsedConfig, nil
+	default:
+		panic(errors.E(errors.ErrInternal, "invalid parser state: %d: report this bug", p.state))
 	}
 
 	if err := errs.AsError(); err != nil {
 		return &Config{}, err
 	}
-	return cfg, nil
+	return &p.ParsedConfig, nil
 }
 
-// Parse does the syntax parsing and merging of configurations but do not
+// ParseHCL does the syntax parsing, applying imports and merging of configurations but do not
 // validate if the HCL schema is a valid Terramate configuration.
-func (p *TerramateParser) Parse() error {
-	if p.parsed {
-		return errors.E("files already parsed")
-	}
-	defer func() { p.parsed = true }()
-
+func (p *TerramateParser) ParseHCL() error {
+	// This function is a NOOP if state > importsAppliedState
 	errs := errors.L()
-	errs.Append(p.parseSyntax())
-	errs.Append(p.applyImports())
-	errs.Append(p.mergeConfig())
+	switch p.state {
+	case initialState:
+		errs.Append(p.parseSyntax())
+		fallthrough
+	case syntaxParsedState:
+		errs.Append(p.applyImports())
+		fallthrough
+	case importsAppliedState:
+		errs.Append(p.mergeConfig())
+	}
 	return errs.AsError()
 }
 
@@ -734,22 +755,46 @@ func (p *TerramateParser) Imports() (ast.Blocks, error) {
 	return imports, nil
 }
 
-func (p *TerramateParser) mergeConfig() error {
+// mergeConfigInto merges all ASTs (from all files) into the given RawConfig.
+// This is useful if you want to merge the config but without doing the other steps
+// like applying imports or parsing the schema (and without moving the parser state).
+// One such example is for checking if the config is a root config because the imports
+// could be absolute to the root directory, which is not known at the time of the check.
+// For reference, see this issue: https://github.com/terramate-io/terramate/issues/515
+// and the test TestBug515
+func (p *TerramateParser) mergeConfigInto(cfg *RawConfig) error {
 	errs := errors.L()
-
 	bodies := p.ParsedBodies()
 	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
-
-		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(p.rootdir, ast.AsHCLAttributes(body.Attributes))))
-		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(p.rootdir, body.Blocks)))
+		errs.Append(cfg.mergeAttrs(ast.NewAttributes(p.rootdir, ast.AsHCLAttributes(body.Attributes))))
+		errs.Append(cfg.mergeBlocks(ast.NewBlocks(p.rootdir, body.Blocks)))
 	}
 	return errs.AsError()
 }
 
+func (p *TerramateParser) mergeConfig() error {
+	if p.state >= mergedConfigState {
+		return nil
+	}
+	defer func() {
+		p.state = mergedConfigState
+	}()
+	return p.mergeConfigInto(&p.Config)
+}
+
 func (p *TerramateParser) parseSyntax() error {
+	if p.state >= syntaxParsedState {
+		return nil
+	}
+	defer func() {
+		p.state = syntaxParsedState
+	}()
 	errs := errors.L()
 	for _, name := range p.sortedFilenames() {
+		if _, ok := p.parsedFiles[name]; ok {
+			continue
+		}
 		data := p.files[name]
 		_, diags := p.hclparser.ParseHCL(data, name)
 		if diags.HasErrors() {
@@ -762,6 +807,12 @@ func (p *TerramateParser) parseSyntax() error {
 }
 
 func (p *TerramateParser) applyImports() error {
+	if p.state >= importsAppliedState {
+		return nil
+	}
+	defer func() {
+		p.state = importsAppliedState
+	}()
 	importBlocks, err := p.Imports()
 	if err != nil {
 		return err
@@ -853,7 +904,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 				err)
 		}
 		importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
-		err = importParser.Parse()
+		err = importParser.ParseHCL()
 		if err != nil {
 			return err
 		}
@@ -996,22 +1047,20 @@ func ParseDir(root string, dir string, opts ...Option) (*Config, error) {
 }
 
 // IsRootConfig parses rootdir and tells if it contains a root config or not.
-func IsRootConfig(rootdir string, opts ...Option) (bool, error) {
-	p, err := NewTerramateParser(rootdir, rootdir, opts...)
-	if err != nil {
-		return false, err
-	}
-	err = p.AddDir(rootdir)
-	if err != nil {
-		return false, errors.E(err, "adding files to parser")
-	}
+// Note: after identifying this is the config you need, then call ParseConfig()
+// to retrieve the full config.
+func (p *TerramateParser) IsRootConfig() (bool, error) {
 	errs := errors.L()
+	cfg := p.Config.Copy() // copy all merge handlers
 	errs.Append(p.parseSyntax())
-	errs.Append(p.mergeConfig())
+	errs.Append(p.mergeConfigInto(&cfg))
 	if err := errs.AsError(); err != nil {
 		return false, err
 	}
-	terramate := p.Config.MergedBlocks["terramate"]
+	if p.state != syntaxParsedState {
+		panic(errors.E(errors.ErrInternal, "mergeConfigInto() advanced the parser state to %d", p.state))
+	}
+	terramate := cfg.MergedBlocks["terramate"]
 	if terramate == nil {
 		return false, nil
 	}
@@ -1987,6 +2036,7 @@ func parseTargetsConfig(targets *TargetsConfig, targetsBlock *ast.MergedBlock) e
 }
 
 func (p *TerramateParser) parseTerramateSchema() (*Config, error) {
+	defer func() { p.state = schemaParsedState }()
 	p.ParsedConfig = Config{
 		absdir: p.dir,
 	}
@@ -2047,7 +2097,8 @@ func (p *TerramateParser) parseTerramateSchema() (*Config, error) {
 	return config, nil
 }
 
-func (p *TerramateParser) checkConfigSanity(_ *Config) error {
+func (p *TerramateParser) checkConfigSanity() error {
+	defer func() { p.state = schemaValidatedState }()
 	logger := log.With().
 		Str("action", "TerramateParser.checkConfigSanity()").
 		Logger()

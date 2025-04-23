@@ -14,6 +14,7 @@ import (
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/project"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
 
@@ -30,6 +31,80 @@ func TestIsStack(t *testing.T) {
 	assert.IsTrue(t, !isStack(cfg, "/dir"))
 	assert.IsTrue(t, isStack(cfg, "/stack"))
 	assert.IsTrue(t, !isStack(cfg, "/stack/subdir"))
+}
+
+func TestTryLoadConfig(t *testing.T) {
+	t.Parallel()
+	type want struct {
+		cfgpath string
+		found   bool
+	}
+	type testcase struct {
+		name    string
+		layout  []string
+		fromdir string
+		want    want
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "no config",
+			layout:  []string{},
+			fromdir: "/",
+		},
+		{
+			name: "has config but no root config",
+			layout: []string{
+				"f:/config.tm:" + Block("generate_file",
+					Labels("test.txt"),
+					Str("content", "test"),
+				).String(),
+			},
+			fromdir: "/",
+		},
+		{
+			name: "has root config - find from root",
+			layout: []string{
+				"f:config.tm:" + Block("terramate",
+					Str("required_version", fmt.Sprintf("= %s", terramate.Version())),
+				).String(),
+			},
+			fromdir: "/",
+			want:    want{cfgpath: "/", found: true},
+		},
+		{
+			name: "has root config - find from nested subdir",
+			layout: []string{
+				"f:config.tm:" + Block("terramate",
+					Str("required_version", fmt.Sprintf("= %s", terramate.Version())),
+				).String(),
+				"d:/nested/subdir",
+			},
+			fromdir: "/nested/subdir",
+			want:    want{cfgpath: "/", found: true},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := sandbox.NoGit(t, false)
+			s.BuildTree(tc.layout)
+			if tc.fromdir == "" {
+				tc.fromdir = "/"
+			}
+			fromdir := filepath.Join(s.RootDir(), tc.fromdir)
+			root, path, found, err := config.TryLoadConfig(fromdir, false)
+			assert.NoError(t, err)
+			if tc.want.found != found {
+				t.Fatalf("want %v, got %v", tc.want, found)
+			}
+			if tc.want.found {
+				assert.IsTrue(t, root != nil)
+				pdir := project.PrjAbsPath(s.RootDir(), path)
+				assert.EqualStrings(t, tc.want.cfgpath, pdir.String())
+			}
+		})
+	}
 }
 
 func TestValidStackIDs(t *testing.T) {
@@ -59,7 +134,7 @@ func TestValidStackIDs(t *testing.T) {
 			s.BuildTree([]string{
 				"s:stack:id=" + validID,
 			})
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			assert.NoError(t, err)
 			stacknode, ok := root.Lookup(project.NewPath("/stack"))
 			assert.IsTrue(t, ok && stacknode.IsStack())
@@ -74,7 +149,7 @@ func TestValidStackIDs(t *testing.T) {
 			s.BuildTree([]string{
 				"s:stack:id=" + invalidID,
 			})
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			assert.NoError(t, err)
 			_, err = config.LoadStack(root, project.NewPath("/stack"))
 			assert.IsError(t, err, errors.E(config.ErrStackValidation))
@@ -312,7 +387,7 @@ func TestConfigSkipdir(t *testing.T) {
 		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
 	})
 
-	root, err := config.LoadRoot(s.RootDir())
+	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(t, err)
 
 	node, found := root.Lookup(project.NewPath("/stack-2"))

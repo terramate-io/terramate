@@ -1888,7 +1888,7 @@ EOT
 			t.Logf("input: %s", hclcfg.String())
 			test.AppendFile(t, path, terramate.DefaultFilename, hclcfg.String())
 
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			if errors.IsAnyKind(err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				errtest.Assert(t, err, tcase.wantErr)
 				return

@@ -321,7 +321,7 @@ func (s *S) Config() *config.Root {
 	if s.cfg != nil {
 		return s.cfg
 	}
-	cfg, err := config.LoadRoot(s.RootDir())
+	cfg, err := config.LoadRoot(s.RootDir(), true)
 	assert.NoError(s.t, err)
 	s.cfg = cfg
 	return cfg

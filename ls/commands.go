@@ -60,7 +60,7 @@ func (s *Server) createStack(params lsp.ExecuteCommandParams) error {
 	}
 
 	// TODO(i4k): load stack once when handling the initialize method.
-	root, err := config.LoadRoot(s.workspace)
+	root, err := config.LoadRoot(s.workspace, false)
 	if err != nil {
 		return errors.E(err, "loading project root from %s", s.workspace)
 	}

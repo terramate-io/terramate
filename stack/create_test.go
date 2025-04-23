@@ -175,7 +175,7 @@ func TestStackCreation(t *testing.T) {
 			s.BuildTree(tc.layout)
 			buildImportedFiles(t, s.RootDir(), tc.imports)
 
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			if errors.IsAnyKind(tc.want.err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				assert.IsError(t, err, tc.want.err)
 				return

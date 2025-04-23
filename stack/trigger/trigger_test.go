@@ -111,7 +111,7 @@ func TestTriggerStacks(t *testing.T) {
 func testTrigger(t *testing.T, tc testcase) {
 	s := sandbox.NoGit(t, true)
 	s.BuildTree(tc.layout)
-	root, err := config.LoadRoot(s.RootDir())
+	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(t, err)
 	err = trigger.Create(root, project.NewPath(tc.path), tc.kind, tc.reason)
 	errtest.Assert(t, err, tc.want.err)

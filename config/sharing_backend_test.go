@@ -165,7 +165,7 @@ func TestEvalSharingBackendInput(t *testing.T) {
 				),
 			).String())
 
-			cfg, err := config.LoadRoot(tempdir)
+			cfg, err := config.LoadRoot(tempdir, false)
 			if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				errtest.Assert(t, err, tcase.wantErr)
 				return
@@ -268,7 +268,7 @@ func TestEvalSharingBackendOutput(t *testing.T) {
 				),
 			).String())
 
-			cfg, err := config.LoadRoot(tempdir)
+			cfg, err := config.LoadRoot(tempdir, false)
 			if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				errtest.Assert(t, err, tcase.wantErr)
 				return

@@ -4067,7 +4067,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, terramate.DefaultFilename, c.body)
 			}
 
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.Assert(t, err, tcase.want)
@@ -4103,7 +4103,7 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 		wantGlobals := tcase.want
 
-		root, err := config.LoadRoot(s.RootDir())
+		root, err := config.LoadRoot(s.RootDir(), false)
 		if err != nil {
 			errtest.Assert(t, err, tcase.wantErr)
 			return

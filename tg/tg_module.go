@@ -37,17 +37,214 @@ type (
 
 		// DependsOn are paths that, when changed, must mark the module as changed.
 		DependsOn project.Paths `json:"depends_on,omitempty"`
+
+		filesProcessed map[string]struct{}
 	}
 
 	// Modules is a list of Module.
 	Modules []*Module
 )
 
+// LoadModule loads a Terragrunt module from dir and fname.
+//
+// If fname is not absolute, it is considered to be relative to dir.
+func LoadModule(rootdir string, dir project.Path, fname string, trackDependencies bool) (mod *Module, isRootModule bool, err error) {
+	logger := log.With().
+		Str("action", "tg.LoadModule").
+		Str("dir", dir.String()).
+		Str("cfgfile", fname).
+		Logger()
+
+	absDir := project.AbsPath(rootdir, dir.String())
+	cfgfile := filepath.Join(absDir, fname)
+	cfgOpts := newTerragruntOptions(absDir, cfgfile)
+
+	decodeOptions := []config.PartialDecodeSectionType{
+		// needed for tracking:
+		//   - terraform.extra_arguments
+		//   - terraform.required_vars_file
+		//   - terraform.optional_var_files
+		//   - etc
+		config.TerraformBlock,
+
+		// Needed for detecting modules.
+		config.TerraformSource,
+
+		// for ordering
+		config.DependenciesBlock,
+	}
+
+	if trackDependencies {
+		// Need for parsing out the dependencies
+		decodeOptions = append(decodeOptions, config.DependencyBlock)
+	}
+
+	pctx := config.NewParsingContext(context.Background(), cfgOpts).WithDecodeList(decodeOptions...)
+	mod = &Module{
+		Path:           project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
+		ConfigFile:     project.PrjAbsPath(rootdir, cfgfile),
+		filesProcessed: map[string]struct{}{},
+	}
+
+	// Override the predefined functions to intercept the function calls that process paths.
+	pctx.PredefinedFunctions = make(map[string]function.Function)
+	pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, rootdir, mod)
+	pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, rootdir, mod)
+	pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, tgReadTFVarsFileFuncImpl)
+
+	// override Terraform function
+	pctx.PredefinedFunctions["file"] = tgFileFuncImpl(pctx, rootdir, mod)
+
+	// Here we parse the Terragrunt file which calls into our overrided functions.
+	// After this returns, the module's DependsOn will be populated.
+	// Note(i4k): Never use `config.ParseConfigFile` because it invokes Terraform behind the scenes.
+	tgConfig, err := config.PartialParseConfigFile(
+		pctx,
+		cfgfile,
+		nil,
+	)
+
+	if err != nil {
+		return nil, false, errors.E(ErrParsing, err, "parsing module at %s", cfgOpts.WorkingDir)
+	}
+
+	if tgConfig.Terraform == nil || tgConfig.Terraform.Source == nil {
+		// not a runnable module
+		return nil, false, nil
+	}
+
+	logger.Trace().Msgf("found terraform.source = %q", *tgConfig.Terraform.Source)
+
+	stack, err := configstack.FindStackInSubfolders(cfgOpts, nil)
+	if err != nil {
+		return nil, false, errors.E(err, "parsing module at %s", cfgOpts.WorkingDir)
+	}
+
+	if len(stack.Modules) == 0 {
+		return nil, false, nil
+	}
+
+	var tgMod *configstack.TerraformModule
+	for _, m := range stack.Modules {
+		if m.Path == cfgOpts.WorkingDir {
+			tgMod = m
+			break
+		}
+	}
+
+	// sanity check
+	if tgMod == nil {
+		panic(errors.E(errors.ErrInternal, "%s found but module not found in subfolders. Please report this bug.", cfgfile))
+	}
+
+	mod.Source = *tgConfig.Terraform.Source
+
+	dependsOn := map[project.Path]struct{}{}
+
+	_, err = os.Lstat(mod.Source)
+	// if the source is a directory, we assume it is a local module.
+	if err == nil && filepath.IsAbs(mod.Source) {
+		src, err := filepath.EvalSymlinks(mod.Source)
+		if err != nil {
+			return nil, true, errors.E(err, "evaluating symlinks in %q", mod.Source)
+		}
+		// we normalize local paths as relative to the module.
+		// so this is compatible with Terraform module sources.
+		rel, err := filepath.Rel(cfgOpts.WorkingDir, src)
+		if err != nil {
+			return nil, true, errors.E(err, "normalizing local path %q", mod.Source)
+		}
+		mod.Source = rel
+	}
+
+	for _, path := range mod.DependsOn {
+		dependsOn[path] = struct{}{}
+	}
+
+	// TODO(i4k): improve this.
+	mod.DependsOn = nil
+	for _, include := range tgMod.Config.ProcessedIncludes {
+		logger.Trace().Str("include-file", include.Path).Msg("found included file")
+		includedFile := include.Path
+		if !filepath.IsAbs(includedFile) {
+			includedFile = filepath.Join(tgMod.Path, includedFile)
+		}
+		dependsOn[project.PrjAbsPath(rootdir, includedFile)] = struct{}{}
+	}
+
+	if trackDependencies {
+		// "dependency" block is TerragruntDependencies
+		// they get automatically added into tgConfig.Dependencies.Paths
+		for _, dep := range tgConfig.TerragruntDependencies {
+			if dep.Enabled != nil && !*dep.Enabled {
+				continue
+			}
+			depAbsPath := dep.ConfigPath
+			if !filepath.IsAbs(depAbsPath) {
+				depAbsPath = filepath.Join(tgMod.Path, depAbsPath)
+			}
+
+			logger.Trace().
+				Str("mod-path", tgMod.Path).
+				Str("dep-path", dep.ConfigPath).
+				Str("dep-abs-path", depAbsPath).
+				Msg("found dependency (in dependency.config_path)")
+
+			if depAbsPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
+				warnDependencyOutsideProject(mod, depAbsPath, "dependency.config_path")
+
+				continue
+			}
+
+			depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
+
+			dependsOn[depProjectPath] = struct{}{}
+		}
+	}
+
+	for p := range dependsOn {
+		dependsAbsPath := project.AbsPath(rootdir, p.String())
+		mod.filesProcessed[dependsAbsPath] = struct{}{}
+		mod.DependsOn = append(mod.DependsOn, p)
+	}
+
+	if tgConfig.Dependencies != nil {
+		for _, depPath := range tgConfig.Dependencies.Paths {
+			depAbsPath := depPath
+			if !filepath.IsAbs(depPath) {
+				depAbsPath = filepath.Join(tgMod.Path, filepath.FromSlash(depPath))
+			}
+
+			logger.Trace().
+				Str("mod-path", mod.Path.String()).
+				Str("dep-path", depPath).
+				Str("dep-abs-path", depAbsPath).
+				Msg("found dependency (in dependencies.paths)")
+
+			if depPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
+				warnDependencyOutsideProject(mod, depAbsPath, "dependencies.paths")
+
+				continue
+			}
+
+			depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
+
+			mod.After = append(mod.After, depProjectPath)
+		}
+		mod.After.Sort()
+	}
+	sort.Slice(mod.DependsOn, func(i, j int) bool {
+		return mod.DependsOn[i].String() < mod.DependsOn[j].String()
+	})
+
+	return mod, true, nil
+}
+
 // ScanModules scans dir looking for Terragrunt modules. It returns a list of
 // modules with its "DependsOn paths" computed.
 func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modules, error) {
 	absDir := project.AbsPath(rootdir, dir.String())
-	opts := newTerragruntOptions(absDir)
+	opts := newTerragruntOptions(absDir, "")
 
 	tgConfigFiles, err := findConfigFilesInPath(absDir, opts)
 	if err != nil {
@@ -64,191 +261,30 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 
 	fileErrs := map[string]*errors.List{}
 	fileProcessed := map[string]struct{}{}
-	for _, cfgfile := range tgConfigFiles {
-		fileErrs[cfgfile] = errors.L()
-		logger := logger.With().Str("cfg-file", cfgfile).Logger()
+	for _, absCfgFile := range tgConfigFiles {
+		fileErrs[absCfgFile] = errors.L()
+		logger := logger.With().Str("cfg-file", absCfgFile).Logger()
 
 		logger.Trace().Msg("found configuration")
 
-		cfgOpts := opts.Clone(cfgfile)
+		fileName := filepath.Base(absCfgFile)
+		fileDir := filepath.Dir(absCfgFile)
+		dir := project.PrjAbsPath(rootdir, fileDir)
 
-		decodeOptions := []config.PartialDecodeSectionType{
-			// needed for tracking:
-			//   - terraform.extra_arguments
-			//   - terraform.required_vars_file
-			//   - terraform.optional_var_files
-			//   - etc
-			config.TerraformBlock,
-
-			// Needed for detecting modules.
-			config.TerraformSource,
-
-			// for ordering
-			config.DependenciesBlock,
-		}
-
-		if trackDependencies {
-			// Need for parsing out the dependencies
-			decodeOptions = append(decodeOptions, config.DependencyBlock)
-		}
-
-		pctx := config.NewParsingContext(context.Background(), cfgOpts).WithDecodeList(decodeOptions...)
-		mod := &Module{
-			Path:       project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
-			ConfigFile: project.PrjAbsPath(rootdir, cfgfile),
-		}
-
-		// Override the predefined functions to intercept the function calls that process paths.
-		pctx.PredefinedFunctions = make(map[string]function.Function)
-		pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, rootdir, mod)
-		pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, rootdir, mod)
-		pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, tgReadTFVarsFileFuncImpl)
-
-		// override Terraform function
-		pctx.PredefinedFunctions["file"] = tgFileFuncImpl(pctx, rootdir, mod)
-
-		// Here we parse the Terragrunt file which calls into our overrided functions.
-		// After this returns, the module's DependsOn will be populated.
-		// Note(i4k): Never use `config.ParseConfigFile` because it invokes Terraform behind the scenes.
-		tgConfig, err := config.PartialParseConfigFile(
-			pctx,
-			cfgfile,
-			nil,
-		)
-
+		mod, isRootModule, err := LoadModule(rootdir, dir, fileName, trackDependencies)
 		if err != nil {
-			fileErrs[cfgfile].AppendWrap(ErrParsing, err)
+			fileErrs[absCfgFile].Append(err)
 			continue
 		}
 
-		if tgConfig.Terraform == nil || tgConfig.Terraform.Source == nil {
-			// not a runnable module
+		if !isRootModule {
 			continue
 		}
 
-		logger.Trace().Msgf("found terraform.source = %q", *tgConfig.Terraform.Source)
-
-		stack, err := configstack.FindStackInSubfolders(cfgOpts, nil)
-		if err != nil {
-			return nil, errors.E(err, "parsing module at %s", cfgOpts.WorkingDir)
+		for file := range mod.filesProcessed {
+			fileProcessed[file] = struct{}{}
 		}
 
-		if len(stack.Modules) == 0 {
-			continue
-		}
-
-		var tgMod *configstack.TerraformModule
-		for _, m := range stack.Modules {
-			if m.Path == cfgOpts.WorkingDir {
-				tgMod = m
-				break
-			}
-		}
-
-		// sanity check
-		if tgMod == nil {
-			panic(errors.E(errors.ErrInternal, "%s found but module not found in subfolders. Please report this bug.", cfgfile))
-		}
-
-		mod.Source = *tgConfig.Terraform.Source
-
-		dependsOn := map[project.Path]struct{}{}
-
-		_, err = os.Lstat(mod.Source)
-		// if the source is a directory, we assume it is a local module.
-		if err == nil && filepath.IsAbs(mod.Source) {
-			src, err := filepath.EvalSymlinks(mod.Source)
-			if err != nil {
-				return nil, errors.E(err, "evaluating symlinks in %q", mod.Source)
-			}
-			// we normalize local paths as relative to the module.
-			// so this is compatible with Terraform module sources.
-			rel, err := filepath.Rel(cfgOpts.WorkingDir, src)
-			if err != nil {
-				return nil, errors.E(err, "normalizing local path %q", mod.Source)
-			}
-			mod.Source = rel
-		}
-
-		for _, path := range mod.DependsOn {
-			dependsOn[path] = struct{}{}
-		}
-
-		// TODO(i4k): improve this.
-		mod.DependsOn = nil
-		for _, include := range tgMod.Config.ProcessedIncludes {
-			logger.Trace().Str("include-file", include.Path).Msg("found included file")
-			includedFile := include.Path
-			if !filepath.IsAbs(includedFile) {
-				includedFile = filepath.Join(tgMod.Path, includedFile)
-			}
-			dependsOn[project.PrjAbsPath(rootdir, includedFile)] = struct{}{}
-		}
-
-		if trackDependencies {
-			// "dependency" block is TerragruntDependencies
-			// they get automatically added into tgConfig.Dependencies.Paths
-			for _, dep := range tgConfig.TerragruntDependencies {
-				if dep.Enabled != nil && !*dep.Enabled {
-					continue
-				}
-				depAbsPath := dep.ConfigPath
-				if !filepath.IsAbs(depAbsPath) {
-					depAbsPath = filepath.Join(tgMod.Path, depAbsPath)
-				}
-
-				logger.Trace().
-					Str("mod-path", tgMod.Path).
-					Str("dep-path", dep.ConfigPath).
-					Str("dep-abs-path", depAbsPath).
-					Msg("found dependency (in dependency.config_path)")
-
-				if depAbsPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
-					warnDependencyOutsideProject(mod, depAbsPath, "dependency.config_path")
-
-					continue
-				}
-
-				depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
-
-				dependsOn[depProjectPath] = struct{}{}
-			}
-		}
-
-		for p := range dependsOn {
-			dependsAbsPath := project.AbsPath(rootdir, p.String())
-			fileProcessed[dependsAbsPath] = struct{}{}
-			mod.DependsOn = append(mod.DependsOn, p)
-		}
-
-		if tgConfig.Dependencies != nil {
-			for _, depPath := range tgConfig.Dependencies.Paths {
-				depAbsPath := depPath
-				if !filepath.IsAbs(depPath) {
-					depAbsPath = filepath.Join(tgMod.Path, filepath.FromSlash(depPath))
-				}
-
-				logger.Trace().
-					Str("mod-path", mod.Path.String()).
-					Str("dep-path", depPath).
-					Str("dep-abs-path", depAbsPath).
-					Msg("found dependency (in dependencies.paths)")
-
-				if depPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
-					warnDependencyOutsideProject(mod, depAbsPath, "dependencies.paths")
-
-					continue
-				}
-
-				depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
-
-				mod.After = append(mod.After, depProjectPath)
-			}
-			mod.After.Sort()
-		}
-		sort.Slice(mod.DependsOn, func(i, j int) bool {
-			return mod.DependsOn[i].String() < mod.DependsOn[j].String()
-		})
 		modules = append(modules, mod)
 	}
 
@@ -268,7 +304,7 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 	return modules, nil
 }
 
-func newTerragruntOptions(dir string) *options.TerragruntOptions {
+func newTerragruntOptions(dir string, cfgfile string) *options.TerragruntOptions {
 	opts := options.NewTerragruntOptions()
 	opts.WorkingDir = dir
 	opts.Writer = io.Discard
@@ -287,7 +323,7 @@ func newTerragruntOptions(dir string) *options.TerragruntOptions {
 	}
 
 	opts.DownloadDir = util.JoinPath(opts.WorkingDir, util.TerragruntCacheDir)
-	opts.TerragruntConfigPath = config.GetDefaultConfigPath(opts.WorkingDir)
+	opts.TerragruntConfigPath = cfgfile
 
 	opts.OriginalTerragruntConfigPath = opts.TerragruntConfigPath
 	opts.OriginalTerraformCommand = opts.TerraformCommand

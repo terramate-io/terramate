@@ -583,7 +583,7 @@ func TestLoadRunEnv(t *testing.T) {
 				t.Setenv(name, value)
 			}
 
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			if err != nil {
 				t.Fatal(err)
 			}
