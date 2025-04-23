@@ -93,7 +93,7 @@ func TestTryLoadConfig(t *testing.T) {
 				tc.fromdir = "/"
 			}
 			fromdir := filepath.Join(s.RootDir(), tc.fromdir)
-			root, path, found, err := config.TryLoadConfig(fromdir)
+			root, path, found, err := config.TryLoadConfig(fromdir, false)
 			assert.NoError(t, err)
 			if tc.want.found != found {
 				t.Fatalf("want %v, got %v", tc.want, found)
@@ -134,7 +134,7 @@ func TestValidStackIDs(t *testing.T) {
 			s.BuildTree([]string{
 				"s:stack:id=" + validID,
 			})
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			assert.NoError(t, err)
 			stacknode, ok := root.Lookup(project.NewPath("/stack"))
 			assert.IsTrue(t, ok && stacknode.IsStack())
@@ -149,7 +149,7 @@ func TestValidStackIDs(t *testing.T) {
 			s.BuildTree([]string{
 				"s:stack:id=" + invalidID,
 			})
-			root, err := config.LoadRoot(s.RootDir())
+			root, err := config.LoadRoot(s.RootDir(), false)
 			assert.NoError(t, err)
 			_, err = config.LoadStack(root, project.NewPath("/stack"))
 			assert.IsError(t, err, errors.E(config.ErrStackValidation))
@@ -387,7 +387,7 @@ func TestConfigSkipdir(t *testing.T) {
 		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
 	})
 
-	root, err := config.LoadRoot(s.RootDir())
+	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(t, err)
 
 	node, found := root.Lookup(project.NewPath("/stack-2"))

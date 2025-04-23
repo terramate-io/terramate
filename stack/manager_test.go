@@ -283,7 +283,7 @@ func TestListChangedStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			root, err := config.LoadRoot(repo.Dir)
+			root, err := config.LoadRoot(repo.Dir, true)
 			assert.NoError(t, err)
 			g := test.NewGitWrapper(t, repo.Dir, []string{})
 			m := stack.NewGitAwareManager(root, g)
@@ -415,7 +415,7 @@ func singleNotChangedStack(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo, []string{})
 
-	root, err := config.LoadRoot(repo)
+	root, err := config.LoadRoot(repo, false)
 	assert.NoError(t, err)
 
 	// make it a stack
@@ -534,7 +534,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
 
@@ -551,7 +551,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	root, err = config.LoadRoot(repo.Dir)
+	root, err = config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
 
@@ -566,7 +566,7 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
@@ -591,7 +591,7 @@ func singleStackSingleModuleChangedRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1, module2)
 
 	stack := test.Mkdir(t, repo.Dir, "stack")
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -619,7 +619,7 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "stack1")
 	test.MkdirAll(t, otherStack)
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, otherStack)
 	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
@@ -673,7 +673,7 @@ func singleStackDependentModuleChangedRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1, module2)
 
 	stack := test.Mkdir(t, repo.Dir, "stack")
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
@@ -726,7 +726,7 @@ func singleStackDependentModuleChangedWithSourceOutsideRepo(t *testing.T) reposi
 	repo.modules = append(repo.modules, module1, module2)
 
 	stack := test.Mkdir(t, repo.Dir, "stack")
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
@@ -774,7 +774,7 @@ func singleTerragruntStackWithNoChangesRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1)
 
 	stack := test.Mkdir(t, repo.Dir, "tg-stack")
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -819,7 +819,7 @@ func singleTerragruntStackWithSingleTerraformModuleChangedRepo(t *testing.T, ena
 	repo.modules = append(repo.modules, module1)
 
 	stack := test.Mkdir(t, repo.Dir, "tg-stack")
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -873,7 +873,7 @@ func singleTerragruntStackWithDependentOnFileChangedRepo(t *testing.T, enabledOp
 
 	repo.modules = append(repo.modules, module1)
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 
 	createStack(t, root, stack1)
@@ -932,7 +932,7 @@ func singleTerragruntStackWithDependentOnFileOutsideRepo(t *testing.T, enabledOp
 
 	repo.modules = append(repo.modules, module1)
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 
 	createStack(t, root, stack1)
@@ -987,7 +987,7 @@ func singleTerragruntStackWithSingleTerraformModuleChangedFromAbsPathSourceRepo(
 	repo.modules = append(repo.modules, module1)
 
 	stack := test.Mkdir(t, repo.Dir, "tg-stack")
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -1022,7 +1022,7 @@ func terragruntStackChangedDueToDependencyChangedRepo(t *testing.T) repository {
 	stack := test.Mkdir(t, repo.Dir, "tg-stack")
 	anotherStack := test.Mkdir(t, repo.Dir, "another-stack")
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 	createStack(t, root, anotherStack)
@@ -1078,7 +1078,7 @@ func terragruntStackChangedDueToDepOfDepStacksChangedRepo(t *testing.T) reposito
 	depStack := test.Mkdir(t, repo.Dir, "dep-tg-stack")
 	depDepStack := test.Mkdir(t, repo.Dir, "dep-dep-tg-stack")
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 	createStack(t, root, depStack)
@@ -1147,7 +1147,7 @@ func terragruntStackChangedDueToDepOfDepNonStacksChangedRepo(t *testing.T) repos
 	depModule := test.Mkdir(t, repo.Dir, "dep-tg-module")
 	depDepModule := test.Mkdir(t, repo.Dir, "dep-dep-tg-module")
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -1217,7 +1217,7 @@ func terragruntStackChangedDueToDepOfDepModuleSourceChangedRepo(t *testing.T) re
 	localModule := test.Mkdir(t, repo.Dir, "local-module")
 	test.WriteFile(t, localModule, "main.tf", "# empty file")
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -1276,7 +1276,7 @@ func terragruntStackChangedDueToReferencedFileChangedRepo(t *testing.T) reposito
 	repo := singleMergeCommitRepoNoStack(t)
 	stack := test.Mkdir(t, repo.Dir, "tg-stack")
 
-	root, err := config.LoadRoot(repo.Dir)
+	root, err := config.LoadRoot(repo.Dir, false)
 	assert.NoError(t, err)
 	createStack(t, root, stack)
 
@@ -1327,7 +1327,7 @@ func terragruntStackChangedDueToReferencedFileChangedRepo(t *testing.T) reposito
 }
 
 func newManager(t *testing.T, basedir string) *stack.Manager {
-	root, err := config.LoadRoot(basedir)
+	root, err := config.LoadRoot(basedir, true)
 	assert.NoError(t, err)
 	g := test.NewGitWrapper(t, basedir, []string{})
 	return stack.NewGitAwareManager(root, g)

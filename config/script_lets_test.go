@@ -360,7 +360,7 @@ func TestScriptLetsArelocalToTheirBlocks(t *testing.T) {
 		),
 	).String())
 
-	cfg, err := config.LoadRoot(tempdir)
+	cfg, err := config.LoadRoot(tempdir, false)
 	assert.NoError(t, err)
 
 	rootTree, ok := cfg.Lookup(project.NewPath("/"))

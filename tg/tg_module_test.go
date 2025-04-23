@@ -776,7 +776,7 @@ func TestTerragruntScanModules(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(modules, tc.want.modules, cmpopts.EquateComparable(project.Path{})); diff != "" {
+			if diff := cmp.Diff(modules, tc.want.modules, cmpopts.EquateComparable(project.Path{}), cmpopts.IgnoreUnexported(tg.Module{})); diff != "" {
 				t.Errorf("Diff (want [+], got [-]): %s", diff)
 			}
 		})

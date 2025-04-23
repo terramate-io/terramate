@@ -85,6 +85,8 @@ type state struct {
 	output  out.O
 	wd      string
 	uimode  engine.UIMode
+
+	changeDetectionEnabled bool
 }
 
 // Option is a function that modifies the CLI behavior.
@@ -258,7 +260,7 @@ func (c *CLI) Exec(args []string) {
 		return
 	}
 
-	engine, foundRoot, err := engine.Load(c.state.wd, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
+	engine, foundRoot, err := engine.Load(c.state.wd, c.state.changeDetectionEnabled, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
 	if err != nil {
 		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
 	}

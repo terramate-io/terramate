@@ -5,9 +5,12 @@ package fs
 
 import (
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
+	"github.com/gruntwork-io/terragrunt/config"
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/errors"
 )
 
@@ -18,6 +21,7 @@ type ListResult struct {
 	TmFiles    []string
 	TmGenFiles []string
 	OtherFiles []string
+	TgRootFile string
 	Dirs       []string
 	Skipped    []string
 }
@@ -31,6 +35,11 @@ func (r *ListResult) AddFile(name string) {
 		r.TmFiles = append(r.TmFiles, name)
 	case strings.HasSuffix(name, tmgenExt) && len(name) > len(tmgenExt):
 		r.TmGenFiles = append(r.TmGenFiles, name)
+	case isTerragruntRootConfig(name):
+		if r.TgRootFile != "" {
+			log.Warn().Msgf("multiple Terragrunt root files found: %s and %s (overriding)", r.TgRootFile, name)
+		}
+		r.TgRootFile = name
 	default:
 		r.OtherFiles = append(r.OtherFiles, name)
 	}
@@ -91,4 +100,8 @@ func isTerramateFile(filename string) bool {
 	case 'm':
 		return strings.HasSuffix(filename, ".tm")
 	}
+}
+
+func isTerragruntRootConfig(filename string) bool {
+	return slices.Contains(config.DefaultTerragruntConfigPaths, filename)
 }

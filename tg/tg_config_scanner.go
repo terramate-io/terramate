@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gruntwork-io/terragrunt/config"
 	"github.com/gruntwork-io/terragrunt/options"
 	"github.com/gruntwork-io/terragrunt/util"
 	"github.com/terramate-io/terramate"
@@ -35,15 +34,8 @@ func findConfigFilesInPath(rootPath string, terragruntOptions *options.Terragrun
 		return configFiles, nil
 	}
 
-	optBaseConfigPath := filepath.Base(terragruntOptions.TerragruntConfigPath)
-
-	for _, path := range fileList.OtherFiles {
-		abspath := util.JoinPath(rootPath, path)
-		if slices.Contains(config.DefaultTerragruntConfigPaths, path) {
-			configFiles = append(configFiles, abspath)
-		} else if path == optBaseConfigPath {
-			configFiles = append(configFiles, util.JoinPath(rootPath, abspath))
-		}
+	if fileList.TgRootFile != "" {
+		configFiles = append(configFiles, util.JoinPath(rootPath, fileList.TgRootFile))
 	}
 
 	for _, dir := range fileList.Dirs {

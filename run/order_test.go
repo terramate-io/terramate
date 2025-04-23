@@ -26,7 +26,7 @@ func TestStableSortOrder(t *testing.T) {
 		"s:s1/s2/s3/s4/s5",
 	})
 
-	root, err := config.LoadRoot(s.RootDir())
+	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(t, err)
 
 	type item struct {

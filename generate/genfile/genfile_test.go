@@ -967,7 +967,7 @@ func testGenfile(t *testing.T, tcase testcase) {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 		}
 
-		root, err := config.LoadRoot(s.RootDir())
+		root, err := config.LoadRoot(s.RootDir(), false)
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return

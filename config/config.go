@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -28,6 +29,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/tg"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -45,6 +47,11 @@ type Root struct {
 
 	// hasTerragruntStacks tells if the repository has any Terragrunt stack.
 	hasTerragruntStacks *bool
+	// changeDetectionEnabled tells if change detection is enabled.
+	changeDetectionEnabled bool
+
+	maxTgWorkers int
+	tgTaskChan   chan *Tree
 
 	runtime project.Runtime
 
@@ -63,9 +70,16 @@ type Tree struct {
 	TerramateFiles []string
 	OtherFiles     []string
 	TmGenFiles     []string
-
+	TgRootFile     string
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
+
+	// This is loaded async when needTerragruntModulesLoaded is true.
+	// Use tree.IsTerragruntModule() to check if this node is a Terragrunt module.
+	// Use tree.TerragruntModule() to access it.
+	terragruntModule             *tg.Module
+	terragruntModuleErr          error
+	terragruntModuleLoadFinished chan struct{}
 
 	// Parent is the parent node or nil if none.
 	Parent *Tree
@@ -77,7 +91,7 @@ type Tree struct {
 	dir string
 
 	// used for caching the loaded stack.
-	mu sync.Mutex
+	muStacks sync.Mutex
 }
 
 // DirElem represents a node which is represented by a directory.
@@ -94,7 +108,7 @@ type List[T DirElem] []T
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string, changeDetectionEnabled bool, hclOpts ...hcl.Option) (tree *Root, configpath string, found bool, err error) {
 	for {
 		parser, err := hcl.NewTerramateParser(fromdir, fromdir, hclOpts...)
 		if err != nil {
@@ -117,10 +131,13 @@ func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpat
 			rootTree := NewTree(fromdir)
 			rootTree.Node = *cfg
 			root := NewRoot(rootTree, hclOpts...)
-			_, err = root.loadTree(rootTree, fromdir, hclOpts...)
+			root.changeDetectionEnabled = changeDetectionEnabled
+			root.initTgWorkers()
+			err = root.loadTree(rootTree, fromdir, hclOpts...)
 			if err != nil {
 				return nil, fromdir, true, err
 			}
+			close(root.tgTaskChan)
 			root.initRuntime()
 			return root, fromdir, true, nil
 		}
@@ -137,15 +154,38 @@ func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpat
 // NewRoot creates a new [Root] tree for the cfg tree.
 func NewRoot(tree *Tree, hclOpts ...hcl.Option) *Root {
 	r := &Root{
-		hclOpts: hclOpts,
+		hclOpts:      hclOpts,
+		maxTgWorkers: runtime.NumCPU(),
+		tgTaskChan:   make(chan *Tree, runtime.NumCPU()*3),
 	}
 	tree.root = r
 	r.tree = tree
 	return r
 }
 
+func (root *Root) initTgWorkers() {
+	if !root.changeDetectionEnabled {
+		return
+	}
+	for i := 0; i < root.maxTgWorkers; i++ {
+		go root.tgWorker()
+	}
+}
+
+func (root *Root) tgWorker() {
+	const trackTerragruntDependencies = false
+	for tree := range root.tgTaskChan {
+		tgMod, isRootModule, err := tg.LoadModule(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies)
+		tree.terragruntModuleErr = err
+		if err == nil && isRootModule {
+			tree.terragruntModule = tgMod
+		}
+		close(tree.terragruntModuleLoadFinished)
+	}
+}
+
 // LoadRoot loads the root configuration tree.
-func LoadRoot(rootdir string, hclOpts ...hcl.Option) (*Root, error) {
+func LoadRoot(rootdir string, changeDetectionEnabled bool, hclOpts ...hcl.Option) (*Root, error) {
 	rootcfg, err := hcl.ParseDir(rootdir, rootdir, hclOpts...)
 	if err != nil {
 		return nil, err
@@ -153,10 +193,13 @@ func LoadRoot(rootdir string, hclOpts ...hcl.Option) (*Root, error) {
 	rootTree := NewTree(rootdir)
 	rootTree.Node = *rootcfg
 	root := NewRoot(rootTree, hclOpts...)
-	_, err = root.loadTree(rootTree, rootdir, hclOpts...)
+	root.changeDetectionEnabled = changeDetectionEnabled
+	root.initTgWorkers()
+	err = root.loadTree(rootTree, rootdir, hclOpts...)
 	if err != nil {
 		return nil, err
 	}
+	close(root.tgTaskChan)
 	root.initRuntime()
 	return root, nil
 }
@@ -284,18 +327,15 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	nextComponent := components[0]
 	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
 
-	node, err := root.loadTree(root.Tree(), subtreeDir, root.hclOpts...)
+	err := root.loadTree(parentNode, subtreeDir, root.hclOpts...)
 	if err != nil {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
 
-	if node.HostDir() == rootdir {
+	if subtreeDir == rootdir {
 		// root configuration reloaded
-		*root = *NewRoot(node, root.hclOpts...)
+		*root = *NewRoot(root.Tree(), root.hclOpts...)
 		root.initRuntime()
-	} else {
-		node.Parent = parentNode
-		parentNode.Children[nextComponent] = node
 	}
 	return nil
 }
@@ -401,8 +441,8 @@ func (tree *Tree) IsInsideStack() bool {
 
 // Stack returns the stack object.
 func (tree *Tree) Stack() (*Stack, error) {
-	tree.mu.Lock()
-	defer tree.mu.Unlock()
+	tree.muStacks.Lock()
+	defer tree.muStacks.Unlock()
 	if tree.stack == nil {
 		s, err := LoadStack(tree.Root(), tree.Dir())
 		if err != nil {
@@ -419,6 +459,20 @@ func (tree *Tree) Stacks() List[*Tree] {
 	stacks := tree.stacks((*Tree).IsStack)
 	sort.Sort(stacks)
 	return stacks
+}
+
+// IsTerragruntModule tells if the node is a Terragrunt module.
+func (tree *Tree) IsTerragruntModule() bool {
+	return tree.TgRootFile != ""
+}
+
+// TerragruntModule returns the Terragrunt module for this node.
+func (tree *Tree) TerragruntModule() (*tg.Module, error) {
+	if !tree.IsTerragruntModule() {
+		return nil, errors.E(errors.ErrInternal, "node is not a Terragrunt module")
+	}
+	<-tree.terragruntModuleLoadFinished
+	return tree.terragruntModule, tree.terragruntModuleErr
 }
 
 func (tree *Tree) stacks(cond func(*Tree) bool) List[*Tree] {
@@ -475,7 +529,7 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Option) (_ *Tree, err error) {
+func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Option) error {
 	logger := log.With().
 		Str("action", "config.loadTree()").
 		Str("rootdir", root.HostDir()).
@@ -484,19 +538,21 @@ func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Optio
 
 	filesResult, err := fs.ListTerramateFiles(cfgdir)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, fname := range filesResult.Skipped {
 		if fname == terramate.SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
-			return newSkippedTree(cfgdir), nil
+			tree := newSkippedTree(cfgdir)
+			tree.Parent = parentTree
+			parentTree.Children[filepath.Base(cfgdir)] = tree
+			return nil
 		}
 	}
 
 	rootdir := root.HostDir()
-	rootcfg := &root.Tree().Node
-	rootOpts := append([]hcl.Option{hcl.WithExperiments(rootcfg.Experiments()...)}, hclOpts...)
+	rootOpts := append([]hcl.Option{hcl.WithExperiments(root.tree.Node.Experiments()...)}, hclOpts...)
 
 	if cfgdir != rootdir {
 		tree := NewTree(cfgdir)
@@ -507,23 +563,23 @@ func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Optio
 			rootOpts...,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, filename := range filesResult.TmFiles {
 			path := filepath.Join(cfgdir, filename)
 
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil, errors.E(err, "reading config file %q", path)
+				return errors.E(err, "reading config file %q", path)
 			}
 
 			if err := p.AddFileContent(path, data); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		cfg, err := p.ParseConfig()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if cfg.IsRootConfig() {
@@ -534,15 +590,26 @@ func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Optio
 		tree.TerramateFiles = filesResult.TmFiles
 		tree.OtherFiles = filesResult.OtherFiles
 		tree.TmGenFiles = filesResult.TmGenFiles
+		tree.TgRootFile = filesResult.TgRootFile
 		tree.Parent = parentTree
 		parentTree.Children[filepath.Base(cfgdir)] = tree
 
 		parentTree = tree
+	} else {
+		parentTree.TerramateFiles = filesResult.TmFiles
+		parentTree.OtherFiles = filesResult.OtherFiles
+		parentTree.TmGenFiles = filesResult.TmGenFiles
+		parentTree.TgRootFile = filesResult.TgRootFile
+	}
+
+	if filesResult.TgRootFile != "" && root.changeDetectionEnabled {
+		parentTree.terragruntModuleLoadFinished = make(chan struct{})
+		root.tgTaskChan <- parentTree
 	}
 
 	err = processTmGenFiles(root, parentTree, cfgdir, filesResult.TmGenFiles)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, fname := range filesResult.Dirs {
@@ -551,15 +618,12 @@ func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Optio
 		}
 
 		dir := filepath.Join(cfgdir, fname)
-		node, err := root.loadTree(parentTree, dir, rootOpts...)
+		err = root.loadTree(parentTree, dir, rootOpts...)
 		if err != nil {
-			return nil, errors.E(err, "loading from %s", dir)
+			return errors.E(err, "loading from %s", dir)
 		}
-
-		node.Parent = parentTree
-		parentTree.Children[fname] = node
 	}
-	return parentTree, nil
+	return nil
 }
 
 func processTmGenFiles(root *Root, parentTree *Tree, cfgdir string, files []string) error {

@@ -279,21 +279,6 @@ func (m *Manager) ListChanged(cfg ChangeConfig) (*Report, error) {
 		return nil, err
 	}
 
-	tgModulesMap := make(map[project.Path]*tg.Module)
-	var tgModules tg.Modules
-
-	if m.root.IsTerragruntChangeDetectionEnabled() {
-		// discover Terragrunt modules
-		tgModules, err = tg.ScanModules(m.root.HostDir(), project.NewPath("/"), false)
-		if err != nil {
-			return nil, errors.E(ErrListChanged, err, "scanning terragrunt modules")
-		}
-
-		for _, mod := range tgModules {
-			tgModulesMap[mod.Path] = mod
-		}
-	}
-
 rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
@@ -361,13 +346,25 @@ rangeStacks:
 			return nil, errors.E(ErrListChanged, "checking if Terraform module changes", err)
 		}
 
-		// tgModulesMap is only populated if Terragrunt is enabled.
-		tgMod, ok := tgModulesMap[stack.Dir]
-		if !ok {
+		if !m.root.IsTerragruntChangeDetectionEnabled() {
 			continue
 		}
 
-		changed, why, err := m.tgModuleChanged(stack, tgMod, cfg.BaseRef, stackSet, tgModulesMap)
+		stackTree, _ := m.root.Lookup(stack.Dir)
+		if !stackTree.IsTerragruntModule() {
+			continue
+		}
+
+		tgMod, err := stackTree.TerragruntModule()
+		if err != nil {
+			return nil, errors.E(ErrListChanged, err, "loading Terragrunt module")
+		}
+
+		if tgMod == nil {
+			// terragrunt module is not a root module
+			continue
+		}
+		changed, why, err := m.tgModuleChanged(stack, tgMod, cfg.BaseRef, stackSet)
 		if err != nil {
 			return nil, errors.E(ErrListChanged, err, "checking if Terragrunt module changes")
 		}
@@ -663,7 +660,7 @@ func (m *Manager) changedFiles(gitBaseRef string, dirtyFiles ...project.Path) (p
 }
 
 func (m *Manager) tgModuleChanged(
-	stack *config.Stack, tgMod *tg.Module, gitBaseRef string, stackSet map[project.Path]Entry, tgModuleMap map[project.Path]*tg.Module,
+	stack *config.Stack, tgMod *tg.Module, gitBaseRef string, stackSet map[project.Path]Entry,
 ) (changed bool, why string, err error) {
 	tfMod := tf.Module{Source: tgMod.Source}
 	if tfMod.IsLocal() {
@@ -684,9 +681,9 @@ func (m *Manager) tgModuleChanged(
 	for _, dep := range tgMod.DependsOn {
 		// if the module is a stack already detected as changed, just mark this as changed and
 		// move on. Fast path.
-		depStack, found := m.root.Lookup(dep)
-		if found && depStack.IsStack() {
-			if _, ok := stackSet[depStack.Dir()]; ok {
+		depTree, depTreeFound := m.root.Lookup(dep)
+		if depTreeFound && depTree.IsStack() {
+			if _, ok := stackSet[dep]; ok {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
 			}
 		}
@@ -717,10 +714,18 @@ func (m *Manager) tgModuleChanged(
 			}
 		}
 
-		// if the dep is a Terragrunt module, check if it changed
-		depTgMod, ok := tgModuleMap[dep]
-		if ok {
-			changed, why, err := m.tgModuleChanged(stack, depTgMod, gitBaseRef, stackSet, tgModuleMap)
+		// if the dep is a another Terragrunt module, check if it changed
+		if depTreeFound && depTree.IsTerragruntModule() {
+			depTgMod, err := depTree.TerragruntModule()
+			if err != nil {
+				return false, "", errors.E(ErrListChanged, "loading Terragrunt module", err)
+			}
+			if depTgMod == nil {
+				// terragrunt module is not a root module
+				continue
+			}
+
+			changed, why, err := m.tgModuleChanged(stack, depTgMod, gitBaseRef, stackSet)
 			if err != nil {
 				return false, "", errors.E(ErrListChanged, "checking if Terragrunt module changes", err)
 			}

@@ -98,7 +98,7 @@ func (s *Spec) Exec(_ context.Context) error {
 
 	log.Trace().Msg("all handlers stopped, generating final report")
 
-	if s.PrintReport {
+	if s.PrintReport || report.HasFailures() {
 		if s.MinimalReport {
 			if minimalReport := report.Minimal(); minimalReport != "" {
 				s.Printers.Stdout.Println(minimalReport)
