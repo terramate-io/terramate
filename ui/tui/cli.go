@@ -264,7 +264,7 @@ func (c *CLI) Exec(args []string) {
 	}
 
 	if !foundRoot {
-		printer.Stderr.Fatal(`Error: Terramate was unable to detect a project root.
+		printer.Stderr.Fatal(`Terramate was unable to detect a project root.
 
 Please ensure you run Terramate inside a Git repository or create a new one here by calling 'git init'.
 

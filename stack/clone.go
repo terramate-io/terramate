@@ -158,7 +158,7 @@ func UpdateStackID(root *config.Root, stackdir string) (string, error) {
 		return "", err
 	}
 
-	if err := parser.Parse(); err != nil {
+	if err := parser.ParseHCL(); err != nil {
 		return "", err
 	}
 

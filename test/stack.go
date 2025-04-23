@@ -25,7 +25,7 @@ func AssertStackImports(t *testing.T, rootdir string, stackHostPath string, want
 	err = parser.AddDir(stackHostPath)
 	assert.NoError(t, err)
 
-	err = parser.Parse()
+	err = parser.ParseHCL()
 	assert.NoError(t, err)
 
 	imports, err := parser.Imports()

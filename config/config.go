@@ -96,23 +96,33 @@ type List[T DirElem] []T
 // configpath != "" and found as true.
 func TryLoadConfig(fromdir string, hclOpts ...hcl.Option) (tree *Root, configpath string, found bool, err error) {
 	for {
-		ok, err := hcl.IsRootConfig(fromdir, hclOpts...)
+		parser, err := hcl.NewTerramateParser(fromdir, fromdir, hclOpts...)
+		if err != nil {
+			return nil, "", false, err
+		}
+		err = parser.AddDir(fromdir)
+		if err != nil {
+			return nil, "", false, err
+		}
+		ok, err := parser.IsRootConfig()
 		if err != nil {
 			return nil, "", false, err
 		}
 
 		if ok {
-			cfg, err := hcl.ParseDir(fromdir, fromdir, hclOpts...)
+			cfg, err := parser.ParseConfig()
 			if err != nil {
 				return nil, fromdir, true, err
 			}
 			rootTree := NewTree(fromdir)
 			rootTree.Node = *cfg
-			_, err = loadTree(rootTree, fromdir, nil, hclOpts...)
+			root := NewRoot(rootTree, hclOpts...)
+			_, err = root.loadTree(rootTree, fromdir, hclOpts...)
 			if err != nil {
 				return nil, fromdir, true, err
 			}
-			return NewRoot(rootTree, hclOpts...), fromdir, true, err
+			root.initRuntime()
+			return root, fromdir, true, nil
 		}
 
 		parent, ok := parentDir(fromdir)
@@ -131,8 +141,6 @@ func NewRoot(tree *Tree, hclOpts ...hcl.Option) *Root {
 	}
 	tree.root = r
 	r.tree = tree
-
-	r.initRuntime()
 	return r
 }
 
@@ -142,13 +150,15 @@ func LoadRoot(rootdir string, hclOpts ...hcl.Option) (*Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	root := NewTree(rootdir)
-	root.Node = *rootcfg
-	cfgtree, err := loadTree(root, rootdir, nil, hclOpts...)
+	rootTree := NewTree(rootdir)
+	rootTree.Node = *rootcfg
+	root := NewRoot(rootTree, hclOpts...)
+	_, err = root.loadTree(rootTree, rootdir, hclOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return NewRoot(cfgtree, hclOpts...), nil
+	root.initRuntime()
+	return root, nil
 }
 
 // Tree returns the root configuration tree.
@@ -274,7 +284,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	nextComponent := components[0]
 	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
 
-	node, err := loadTree(root.Tree(), subtreeDir, nil, root.hclOpts...)
+	node, err := root.loadTree(root.Tree(), subtreeDir, root.hclOpts...)
 	if err != nil {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
@@ -282,6 +292,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	if node.HostDir() == rootdir {
 		// root configuration reloaded
 		*root = *NewRoot(node, root.hclOpts...)
+		root.initRuntime()
 	} else {
 		node.Parent = parentNode
 		parentNode.Children[nextComponent] = node
@@ -464,9 +475,10 @@ func (l List[T]) Len() int           { return len(l) }
 func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
-func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...hcl.Option) (_ *Tree, err error) {
+func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Option) (_ *Tree, err error) {
 	logger := log.With().
 		Str("action", "config.loadTree()").
+		Str("rootdir", root.HostDir()).
 		Str("dir", cfgdir).
 		Logger()
 
@@ -482,11 +494,8 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...h
 		}
 	}
 
-	if parentTree != nil && rootcfg == nil {
-		rootcfg = &parentTree.RootTree().Node
-	}
-
-	rootdir := parentTree.RootDir()
+	rootdir := root.HostDir()
+	rootcfg := &root.Tree().Node
 	rootOpts := append([]hcl.Option{hcl.WithExperiments(rootcfg.Experiments()...)}, hclOpts...)
 
 	if cfgdir != rootdir {
@@ -531,7 +540,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...h
 		parentTree = tree
 	}
 
-	err = processTmGenFiles(parentTree.RootTree(), &parentTree.Node, cfgdir, filesResult.TmGenFiles)
+	err = processTmGenFiles(root, parentTree, cfgdir, filesResult.TmGenFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +551,7 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...h
 		}
 
 		dir := filepath.Join(cfgdir, fname)
-		node, err := loadTree(parentTree, dir, rootcfg, rootOpts...)
+		node, err := root.loadTree(parentTree, dir, rootOpts...)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
 		}
@@ -553,10 +562,10 @@ func loadTree(parentTree *Tree, cfgdir string, rootcfg *hcl.Config, hclOpts ...h
 	return parentTree, nil
 }
 
-func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, files []string) error {
+func processTmGenFiles(root *Root, parentTree *Tree, cfgdir string, files []string) error {
 	const tmgenSuffix = ".tmgen"
 
-	tmgenEnabled := rootTree.hasExperiment("tmgen")
+	tmgenEnabled := root.HasExperiment("tmgen")
 
 	// process all .tmgen files.
 	for _, fname := range files {
@@ -610,9 +619,9 @@ func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, files []s
 
 		implicitGenBlock := hcl.GenHCLBlock{
 			IsImplicitBlock: true,
-			Dir:             project.PrjAbsPath(rootTree.HostDir(), cfgdir),
+			Dir:             project.PrjAbsPath(root.HostDir(), cfgdir),
 			Inherit:         inheritAttr,
-			Range: info.NewRange(rootTree.HostDir(), hhcl.Range{
+			Range: info.NewRange(root.HostDir(), hhcl.Range{
 				Filename: absFname,
 				Start:    hhcl.InitialPos,
 				End: hhcl.Pos{
@@ -627,7 +636,7 @@ func processTmGenFiles(rootTree *Tree, cfg *hcl.Config, cfgdir string, files []s
 			Content: block,
 		}
 
-		cfg.Generate.HCLs = append(cfg.Generate.HCLs, implicitGenBlock)
+		parentTree.Node.Generate.HCLs = append(parentTree.Node.Generate.HCLs, implicitGenBlock)
 	}
 	return nil
 }
