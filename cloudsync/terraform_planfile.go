@@ -122,7 +122,8 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 		cmdName = "terraform"
 	}
 
-	cmdPath, err := runpkg.LookPath(cmdName, run.Env)
+	stackdir := run.Stack.Dir.HostPath(e.Config().HostDir())
+	cmdPath, err := runpkg.LookPath(cmdName, stackdir, run.Env)
 	if err != nil {
 		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "looking up executable for %s: %w", cmdName, err)
 	}

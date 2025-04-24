@@ -86,3 +86,60 @@ func TestRunLookPathFromStackEnviron(t *testing.T) {
 			Stdout: "Hello from myscript\n",
 		})
 }
+
+func TestRunWithRelativePathFromStackDir(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.Env = os.Environ()
+	s.BuildTree([]string{
+		`f:bin/helper.sh:#!/bin/bash
+echo "okay"
+`,
+		`s:stack`,
+		`s:stack/nested`,
+		`run:/:chmod +x ./bin/helper.sh`,
+	})
+
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, cli.Run("run", "--quiet", "--eval", `${tm_join("/", [terramate.stack.path.to_root, "bin", "helper.sh"])}`),
+		RunExpected{
+			Stdout: nljoin("okay", "okay"),
+		},
+	)
+}
+
+func TestScriptRunWithRelativePathFromStackDir(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.Env = os.Environ()
+	s.BuildTree([]string{
+		`f:bin/helper.sh:#!/bin/bash
+echo "okay"
+`,
+		`run:/:chmod +x ./bin/helper.sh`,
+		`s:stack`,
+		`s:stack/nested`,
+		`f:script.tm:` + Doc(
+			Terramate(
+				Config(
+					Experiments("scripts"),
+				),
+			),
+			Block("script",
+				Labels("test"),
+				Block("job",
+					Expr("command", `["${tm_join("/", [terramate.stack.path.to_root, "bin", "helper.sh"])}"]`),
+				),
+			),
+		).String(),
+	})
+
+	cli := NewCLI(t, s.RootDir())
+	AssertRunResult(t, cli.Run("script", "run", "--quiet", "--", "test"),
+		RunExpected{
+			Stdout: nljoin("okay", "okay"),
+		},
+	)
+}
