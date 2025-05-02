@@ -9,6 +9,8 @@ import (
 	stdfmt "fmt"
 	"os"
 	"runtime/pprof"
+
+	"github.com/terramate-io/terramate/printer"
 )
 
 func startProfiler(enable bool) {
@@ -26,11 +28,11 @@ func startProfiler(enable bool) {
 
 	f, err := os.Create(fname)
 	if err != nil {
-		fatal(err)
+		printer.Stderr.Fatal(err)
 	}
 	err = pprof.StartCPUProfile(f)
 	if err != nil {
-		fatal(err)
+		printer.Stderr.Fatal(err)
 	}
 }
 
