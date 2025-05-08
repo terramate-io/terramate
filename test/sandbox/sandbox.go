@@ -739,7 +739,7 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 			))
 		case "run:":
 			cmdParts := strings.Split(param2, " ")
-			path, err := run.LookPath(cmdParts[0], environ)
+			path, err := run.LookPath(cmdParts[0], rootdir, environ)
 			assert.NoError(t, err)
 			cmd := exec.Command(path, cmdParts[1:]...)
 			cmd.Dir = filepath.Join(rootdir, param1)

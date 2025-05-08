@@ -25,6 +25,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix Terragrunt integration not skipping hidden directories and not honoring `.tmskip` file.
+- Fix `terramate [run, script run]` not computing the relative command path correctly relative
+  to the stack directory.
 
 ## v0.13.0
 
