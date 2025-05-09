@@ -22,6 +22,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Parallel loading of Terragrunt modules.
+
 ### Fixed
 
 - Fix Terragrunt integration not skipping hidden directories and not honoring `.tmskip` file.
