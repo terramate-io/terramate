@@ -53,6 +53,17 @@ type Root struct {
 	maxTgWorkers int
 	tgTaskChan   chan *Tree
 
+	// The mutex and files below are needed until we figure a better way
+	// of discovering Terragrunt modules.
+	// The problem is that incomplete "terragrunt.hcl" files can exist
+	// anywhere and only be used be referenced by includes (eg.: with find_in_parent_folders(), etc)
+	// and then we have to accumulate the errors and the processed files until everything
+	// is processed and then we ignore the error if the incomplete "terragrunt.hcl" was found
+	// to be imported by actual root modules.
+	tgmu             sync.RWMutex
+	tgTransientErrs  map[string]error
+	tgProcessedFiles map[string]struct{}
+
 	runtime project.Runtime
 
 	hclOpts []hcl.Option
@@ -78,7 +89,6 @@ type Tree struct {
 	// Use tree.IsTerragruntModule() to check if this node is a Terragrunt module.
 	// Use tree.TerragruntModule() to access it.
 	terragruntModule             *tg.Module
-	terragruntModuleErr          error
 	terragruntModuleLoadFinished chan struct{}
 
 	// Parent is the parent node or nil if none.
@@ -167,6 +177,8 @@ func (root *Root) initTgWorkers() {
 	if !root.changeDetectionEnabled {
 		return
 	}
+	root.tgTransientErrs = map[string]error{}
+	root.tgProcessedFiles = make(map[string]struct{})
 	for i := 0; i < root.maxTgWorkers; i++ {
 		go root.tgWorker()
 	}
@@ -175,11 +187,22 @@ func (root *Root) initTgWorkers() {
 func (root *Root) tgWorker() {
 	const trackTerragruntDependencies = false
 	for tree := range root.tgTaskChan {
+		tgFile := filepath.Join(tree.HostDir(), tree.TgRootFile)
+		root.tgmu.Lock()
+		root.tgTransientErrs[tgFile] = errors.L()
+		root.tgmu.Unlock()
+
 		tgMod, isRootModule, err := tg.LoadModule(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies)
-		tree.terragruntModuleErr = err
-		if err == nil && isRootModule {
+		root.tgmu.Lock()
+		if err != nil {
+			root.tgTransientErrs[tgFile] = err
+		} else if isRootModule {
 			tree.terragruntModule = tgMod
+			for file := range tgMod.FilesProcessed {
+				root.tgProcessedFiles[file] = struct{}{}
+			}
 		}
+		root.tgmu.Unlock()
 		close(tree.terragruntModuleLoadFinished)
 	}
 }
@@ -472,7 +495,28 @@ func (tree *Tree) TerragruntModule() (*tg.Module, error) {
 		return nil, errors.E(errors.ErrInternal, "node is not a Terragrunt module")
 	}
 	<-tree.terragruntModuleLoadFinished
-	return tree.terragruntModule, tree.terragruntModuleErr
+	if tree.terragruntModule != nil {
+		return tree.terragruntModule, nil
+	}
+
+	// if mod is nil, then we have an error (possibly transient) and
+	// if this "terragrunt.hcl" file was processed by another Terragrunt module
+	// then we return "mod" as nil to indicate it is not a root module.
+	tgFile := filepath.Join(tree.HostDir(), tree.TgRootFile)
+	root := tree.Root()
+	root.tgmu.Lock()
+	defer root.tgmu.Unlock()
+
+	if ferr, ok := root.tgTransientErrs[tgFile]; ok {
+		if _, ok := root.tgProcessedFiles[tgFile]; !ok {
+			return nil, ferr
+		}
+
+		delete(root.tgTransientErrs, tgFile)
+	}
+
+	// not a root module.
+	return nil, nil
 }
 
 func (tree *Tree) stacks(cond func(*Tree) bool) List[*Tree] {

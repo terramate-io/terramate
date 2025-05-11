@@ -38,12 +38,16 @@ type (
 		// DependsOn are paths that, when changed, must mark the module as changed.
 		DependsOn project.Paths `json:"depends_on,omitempty"`
 
-		filesProcessed map[string]struct{}
+		FilesProcessed map[string]struct{}
 	}
 
 	// Modules is a list of Module.
 	Modules []*Module
 )
+
+func init() {
+	util.DisableLogColors()
+}
 
 // LoadModule loads a Terragrunt module from dir and fname.
 //
@@ -83,7 +87,7 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 	mod = &Module{
 		Path:           project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
 		ConfigFile:     project.PrjAbsPath(rootdir, cfgfile),
-		filesProcessed: map[string]struct{}{},
+		FilesProcessed: map[string]struct{}{},
 	}
 
 	// Override the predefined functions to intercept the function calls that process paths.
@@ -204,7 +208,7 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 	for p := range dependsOn {
 		dependsAbsPath := project.AbsPath(rootdir, p.String())
-		mod.filesProcessed[dependsAbsPath] = struct{}{}
+		mod.FilesProcessed[dependsAbsPath] = struct{}{}
 		mod.DependsOn = append(mod.DependsOn, p)
 	}
 
@@ -281,7 +285,7 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 			continue
 		}
 
-		for file := range mod.filesProcessed {
+		for file := range mod.FilesProcessed {
 			fileProcessed[file] = struct{}{}
 		}
 
@@ -318,9 +322,7 @@ func newTerragruntOptions(dir string, cfgfile string) *options.TerragruntOptions
 
 	opts.Env = env.Parse(os.Environ())
 
-	if opts.DisableLogColors {
-		util.DisableLogColors()
-	}
+	opts.Logger = util.CreateLogEntryWithWriter(opts.ErrWriter, dir, opts.LogLevel, opts.Logger.Logger.Hooks)
 
 	opts.DownloadDir = util.JoinPath(opts.WorkingDir, util.TerragruntCacheDir)
 	opts.TerragruntConfigPath = cfgfile
