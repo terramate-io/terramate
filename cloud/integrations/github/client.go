@@ -7,7 +7,6 @@ package github
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -81,11 +80,6 @@ func OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err error) {
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.E(err, "reading response body")
-	}
-
 	if resp.StatusCode == http.StatusNotFound {
 		return "", errors.E(ErrNotFound, "retrieving %s", req.URL)
 	}
@@ -103,7 +97,7 @@ func OIDCToken(ctx context.Context, cfg OIDCVars) (token string, err error) {
 	}
 
 	var tokresp response
-	err = json.Unmarshal(data, &tokresp)
+	err = json.NewDecoder(resp.Body).Decode(&tokresp)
 	if err != nil {
 		return "", errors.E(err, "unmarshaling Github OIDC JSON response")
 	}
@@ -139,12 +133,7 @@ func OAuthDeviceFlowAuthStart(clientID string) (oauthCtx OAuthDeviceFlowContext,
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return OAuthDeviceFlowContext{}, errors.E(err, "failed to read data")
-	}
-
-	err = json.Unmarshal(data, &oauthCtx)
+	err = json.NewDecoder(resp.Body).Decode(&oauthCtx)
 	if err != nil {
 		return OAuthDeviceFlowContext{}, errors.E(err, "failed to unmarshal response from GitHub OAuth URL: %s", deviceCodeURL)
 	}
@@ -186,11 +175,6 @@ func (oauthCtx *OAuthDeviceFlowContext) ProbeAuthState() (string, error) {
 		_ = resp.Body.Close()
 	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
 	type authResponse struct {
 		AccessToken      string `json:"access_token"`
 		Error            string `json:"error"`
@@ -198,7 +182,7 @@ func (oauthCtx *OAuthDeviceFlowContext) ProbeAuthState() (string, error) {
 	}
 
 	var payloadResp authResponse
-	err = json.Unmarshal(data, &payloadResp)
+	err = json.NewDecoder(resp.Body).Decode(&payloadResp)
 	if err != nil {
 		return "", err
 	}

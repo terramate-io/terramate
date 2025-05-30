@@ -192,11 +192,6 @@ func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.E(err, "reading response body")
-	}
-
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, errors.E(ErrNotFound, "retrieving %s", url)
 	}
@@ -204,6 +199,12 @@ func (c *Client) doGet(ctx context.Context, url string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.E("unexpected status code: %s while getting %s", resp.Status, url)
 	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.E(err, "reading response body")
+	}
+
 	return data, nil
 }
 

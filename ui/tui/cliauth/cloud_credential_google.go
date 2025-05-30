@@ -6,9 +6,9 @@ package cliauth
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	stdjson "encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"math/rand"
 	"net"
@@ -248,17 +248,12 @@ func createAuthURI(providerID, oauthScope, continueURI, idpKey string, customPar
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return createAuthURIResponse{}, errors.E(err)
-	}
-
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != stdhttp.StatusOK {
 		return createAuthURIResponse{}, errors.E("%s request returned %d", req.URL, resp.StatusCode)
 	}
 
 	var respURL createAuthURIResponse
-	err = stdjson.Unmarshal(data, &respURL)
+	err = json.NewDecoder(resp.Body).Decode(&respURL)
 	if err != nil {
 		return createAuthURIResponse{}, errors.E(err, "failed to unmarshal response")
 	}
@@ -293,17 +288,12 @@ func signInWithIDP(reqPayload googleSignInPayload, idpKey string) (cred credenti
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return credentialInfo{}, errors.E(err)
-	}
-
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != stdhttp.StatusOK {
 		return credentialInfo{}, errors.E("%s request returned %d", req.URL, resp.StatusCode)
 	}
 
 	var creds credentialInfo
-	err = stdjson.Unmarshal(data, &creds)
+	err = stdjson.NewDecoder(resp.Body).Decode(&creds)
 	if err != nil {
 		return credentialInfo{}, err
 	}
@@ -579,11 +569,6 @@ func (g *googleCredential) Refresh() (err error) {
 		}
 	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
 	type response struct {
 		IDToken      string `json:"id_token"`
 		RefreshToken string `json:"refresh_token"`
@@ -594,7 +579,7 @@ func (g *googleCredential) Refresh() (err error) {
 	}
 
 	var tokresp response
-	err = stdjson.Unmarshal(data, &tokresp)
+	err = stdjson.NewDecoder(resp.Body).Decode(&tokresp)
 	if err != nil {
 		return err
 	}

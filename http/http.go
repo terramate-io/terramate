@@ -139,11 +139,6 @@ func Request[T resources.Resource](ctx context.Context, c Client, method string,
 		err = errors.L(err, resp.Body.Close()).AsError()
 	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-
 	if resp.StatusCode == stdhttp.StatusNotFound {
 		return res, errors.E(ErrNotFound, "%s %s", method, url.String())
 	}
@@ -152,12 +147,17 @@ func Request[T resources.Resource](ctx context.Context, c Client, method string,
 		return res, errors.E(ErrConflict, "%s %s", method, url.String())
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return res, errors.E(ErrUnexpectedStatus, "%s: status: %d, content: %s", url.String(), resp.StatusCode, data)
-	}
-
 	if resp.StatusCode == stdhttp.StatusNoContent {
 		return res, nil
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return res, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return res, errors.E(ErrUnexpectedStatus, "%s: status: %d, content: %s", url.String(), resp.StatusCode, data)
 	}
 
 	ctype, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
