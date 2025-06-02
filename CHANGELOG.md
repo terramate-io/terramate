@@ -20,7 +20,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.13.2
+
+### Fixed
+
+- Upgrade dependency `github.com/cli/go-gh/v2` from `v2.11.1` to `v2.12.1`.
+  - Previous version had vulnerabilities that did not affect `terramate`, but would show up in security reports.
+
+## v0.13.1
 
 ### Added
 
