@@ -313,7 +313,7 @@ func detectGitlabMetadata(e *engine.Engine, group string, projectName string, st
 		mrCommitSha = headCommit
 	}
 
- 	mr, found, err := client.MRForCommit(ctx, mrCommitSha)
+	mr, found, err := client.MRForCommit(ctx, mrCommitSha)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to retrieve Merge Requests associated with commit")
 		return
