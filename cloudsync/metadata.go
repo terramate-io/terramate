@@ -304,7 +304,16 @@ func detectGitlabMetadata(e *engine.Engine, group string, projectName string, st
 	ctx, cancel := context.WithTimeout(context.Background(), gitlab.DefaultTimeout)
 	defer cancel()
 
-	mr, found, err := client.MRForCommit(ctx, headCommit)
+	// In merged results pipelines, headCommit will point to the temporary local commit that
+	// Gitlab creates when executing the pipeline, and we won't be able to use that to locate
+	// the relevant merge request. Instead, we use the CI_MERGE_REQUEST_SOURCE_BRANCH_SHA variable
+	// to request MR details when it is available.
+	mrCommitSha := os.Getenv("CI_MERGE_REQUEST_SOURCE_BRANCH_SHA")
+	if mrCommitSha == "" {
+		mrCommitSha = headCommit
+	}
+
+ 	mr, found, err := client.MRForCommit(ctx, mrCommitSha)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to retrieve Merge Requests associated with commit")
 		return
