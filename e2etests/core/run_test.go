@@ -1265,14 +1265,22 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
-			name: "stack-a wants with tag:query - fails",
+			name: "stack-a wants with tag:query",
 			layout: []string{
 				`s:stack-a:wants=["tag:prod"]`,
+				`s:stack-a/sub`,
 				`s:stack-b:tags=["prod"]`,
+				`s:stack-c:tags=["prod"]`,
+				`s:stack-d:tags=["stage"]`,
 			},
+			wd: "/stack-a",
 			want: RunExpected{
-				Status:      1,
-				StderrRegex: "filter is not allowed",
+				Stdout: nljoin(
+					"/stack-a",
+					"/stack-a/sub",
+					"/stack-b",
+					"/stack-c",
+				),
 			},
 		},
 	} {
@@ -1510,14 +1518,19 @@ func TestRunWantedBy(t *testing.T) {
 			},
 		},
 		{
-			name: "stack-a wanted_by with tag:query - fails",
+			name: "wantedBy with tag:query",
 			layout: []string{
 				`s:stack-a:wanted_by=["tag:prod"]`,
-				`s:stack-b:tags=["prod"]`,
+				`s:stack-b:wanted_by=["tag:prod"]`,
+				`s:stack-c:tags=["prod"]`,
 			},
+			wd: "/stack-c",
 			want: RunExpected{
-				Status:      1,
-				StderrRegex: "filter is not allowed",
+				Stdout: nljoin(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+				),
 			},
 		},
 		{
