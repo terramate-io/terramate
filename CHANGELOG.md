@@ -20,11 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## v0.13.3
 
 ### Added
 
 - Support `tag:<query>` selectors in stack attributes `wants` and `wanted_by`.
+- Add support for creating previews and detecting merge request metadata in Gitlab merged results pipelines.
 
 ## v0.13.2
 
