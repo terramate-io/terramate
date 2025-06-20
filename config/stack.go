@@ -125,8 +125,6 @@ func (s Stack) Validate() error {
 func (s Stack) ValidateTags() error {
 	errs := errors.L()
 	errs.Append(s.validateTagsField())
-	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
-	errs.AppendWrap(ErrStackInvalidWantedBy, s.validateTagFilterNotAllowed(s.WantedBy))
 	return errs.AsError()
 }
 
@@ -178,16 +176,6 @@ func validateSet(field string, set []string) error {
 			return errors.E("field %s has duplicate %q element", field, s)
 		}
 		elems[s] = struct{}{}
-	}
-	return nil
-}
-func (s Stack) validateTagFilterNotAllowed(cfglst ...[]string) error {
-	for _, lst := range cfglst {
-		for _, elem := range lst {
-			if strings.HasPrefix(elem, "tag:") {
-				return errors.E("tag:<query> filter is not allowed")
-			}
-		}
 	}
 	return nil
 }
