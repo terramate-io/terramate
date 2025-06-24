@@ -222,6 +222,7 @@ func dagTests() []testcase {
 				"B": {
 					ancestors: []dag.ID{"C", "D"},
 				},
+				"C": {},
 				"D": {
 					ancestors: []dag.ID{"E"},
 				},
@@ -403,6 +404,9 @@ func TestTransformDAG(t *testing.T) {
 			dag.ID(id), v.value, nil, v.ancestors,
 		))
 	}
+
+	_, err := a.Validate()
+	assert.NoError(t, err)
 
 	b, err := dag.Transform(a, func(_ dag.ID, v string) (int, error) {
 		return strconv.Atoi(v)

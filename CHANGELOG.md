@@ -20,6 +20,58 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- (**BREAKING CHANGE**) Improve stack order evaluation performance.
+  This affects commands that use the stack order, i.e. `run`, `run script`, `list --run-order`.
+  As a consequence, the evaluation order of _unrelated_ stacks may change.
+
+  Example 1:
+    /stack1
+    /stack1/a
+    /stack2
+    /stack2/a
+
+    Sub-stacks `a` must be executed after their parent stacks, but `/stack1` and `/stack2` are unrelated.
+
+    Old run order:
+      /stack1
+      /stack1/a
+      /stack2
+      /stack2/a
+
+    New run order:
+      /stack1
+      /stack2
+      /stack1/a
+      /stack2/a
+
+  Example 2:
+    /stack1 
+    /stack2 (after=[stack1])
+    /stack3
+
+   `stack2` must be executed after `stack1`, but `stack3` is unrelated.
+
+    Old run order:
+      /stack1
+      /stack2
+      /stack3
+
+    New run order:
+      /stack1
+      /stack3
+      /stack2
+
+  The new rule first runs stacks that have no dependencies in `group 1`,
+  then those in `group 2` that depend on stacks in `group 1`,
+  then those in `group 3` that depend on stacks in `group 1` and `group 2`, and so on.
+  Stacks in each group are ordered lexicographically.
+
+  The run order when using the `--parallel` flag is not affected by this.
+
 ## v0.13.3
 
 ### Added

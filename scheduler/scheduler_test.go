@@ -18,7 +18,7 @@ func TestSimpleSequential(t *testing.T) {
 	t.Parallel()
 
 	r := resource.NewBounded(5)
-	g := scheduler.NewSequential(makeDAG(), false)
+	g := scheduler.NewSequential(makeDAG(t), false)
 	ctx := context.Background()
 
 	err := g.Run(func(s string) error {
@@ -34,7 +34,7 @@ func TestSimpleParallel(t *testing.T) {
 	t.Parallel()
 
 	r := resource.NewBounded(1)
-	g := scheduler.NewParallel(makeDAG(), false)
+	g := scheduler.NewParallel(makeDAG(t), false)
 	ctx := context.Background()
 
 	err := g.Run(func(s string) error {
@@ -46,7 +46,7 @@ func TestSimpleParallel(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func makeDAG() *dag.DAG[string] {
+func makeDAG(t *testing.T) *dag.DAG[string] {
 	d := dag.New[string]()
 
 	addNode := func(s string, preds []dag.ID) {
@@ -68,6 +68,8 @@ func makeDAG() *dag.DAG[string] {
 	addNode("b/2", []dag.ID{"b"})
 	addNode("b/3", []dag.ID{"b"})
 	addNode("c", nil)
+	_, err := d.Validate()
+	assert.NoError(t, err)
 	return d
 }
 
@@ -79,7 +81,7 @@ type gridNode struct {
 
 // makeGridDAG builds a DAG for an NxN matrix where A[i][j] has predecessors A[i-1][j] A[i][j-1],
 // unless the respective indices are out of bounds (i.e. for first row and column).
-func makeGridDAG() *dag.DAG[gridNode] {
+func makeGridDAG(t *testing.T) *dag.DAG[gridNode] {
 	d := dag.New[gridNode]()
 
 	addNode := func(s string, nd gridNode, preds []dag.ID) {
@@ -107,13 +109,16 @@ func makeGridDAG() *dag.DAG[gridNode] {
 
 	}
 
+	_, err := d.Validate()
+	assert.NoError(t, err)
+
 	return d
 }
 
 func TestSequentialGrid(t *testing.T) {
 	t.Parallel()
 
-	d := makeGridDAG()
+	d := makeGridDAG(t)
 	ndarr := make([]int, 10*10)
 
 	g := scheduler.NewSequential(d, false)
@@ -140,7 +145,7 @@ func TestSequentialGrid(t *testing.T) {
 func TestParallelGrid(t *testing.T) {
 	t.Parallel()
 
-	d := makeGridDAG()
+	d := makeGridDAG(t)
 	ndarr := make([]int, 10*10)
 
 	g := scheduler.NewParallel(d, false)

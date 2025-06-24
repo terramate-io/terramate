@@ -117,7 +117,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "independent stacks inside other stacks gives consistent ordering (lexicographic by path)",
+			name: "independent stacks inside other stacks gives consistent ordering (by depth group)",
 			layout: []string{
 				"s:stacks",
 				"s:stacks/A",
@@ -130,10 +130,10 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					"/stacks",
 					"/stacks/A",
-					"/stacks/A/AA",
-					"/stacks/A/AA/AAA",
 					"/stacks/B",
+					"/stacks/A/AA",
 					"/stacks/B/BA",
+					"/stacks/A/AA/AAA",
 				),
 			},
 		},
@@ -282,10 +282,10 @@ func TestCLIRunOrder(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/stack-a",
-					"/stack-b",
-					"/stack-c",
 					"/stack-z",
+					"/stack-b",
 					"/stack-d",
+					"/stack-c",
 				),
 			},
 		},
@@ -301,10 +301,10 @@ func TestCLIRunOrder(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/stack-a",
-					"/stack-b",
-					"/stack-c",
 					"/stack-z",
+					"/stack-b",
 					"/stack-d",
+					"/stack-c",
 				),
 			},
 		},
@@ -380,9 +380,9 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					"/stack-d",
 					"/stack-f",
-					"/stack-b",
 					"/stack-g",
 					"/stack-h",
+					"/stack-b",
 					"/stack-c",
 					"/stack-a",
 				),
@@ -401,8 +401,8 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					"/stack-b",
 					"/stack-c",
-					"/stack-a",
 					"/stack-d",
+					"/stack-a",
 					"/stack-z",
 				),
 			},
@@ -420,12 +420,12 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: RunExpected{
 				Stdout: nljoin(
-					"/stack-x",
-					"/stack-y",
-					"/stack-a",
 					"/stack-b",
 					"/stack-c",
 					"/stack-d",
+					"/stack-x",
+					"/stack-y",
+					"/stack-a",
 					"/stack-z",
 				),
 			},
@@ -506,8 +506,8 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					"/stack-b",
 					"/stack-c",
-					"/stack-a",
 					"/stack-d",
+					"/stack-a",
 					"/stack-z",
 				),
 			},
@@ -834,9 +834,9 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: RunExpected{
 				Stdout: nljoin(
+					"/stack2",
 					"/stack3",
 					"/stack1",
-					"/stack2",
 				),
 			},
 		},
@@ -870,10 +870,10 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: nljoin(
 					"/infra1",
 					"/infra2",
-					"/k8s-infra1",
-					"/app1",
 					"/infra3",
+					"/k8s-infra1",
 					"/k8s-infra2",
+					"/app1",
 					"/app2",
 				),
 			},
@@ -1195,11 +1195,11 @@ func TestRunWants(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/stack-b",
-					"/stack-d",
-					"/stack-a",
 					"/stack-c",
+					"/stack-d",
 					"/stack-e",
 					"/stack-z",
+					"/stack-a",
 				),
 				StderrRegexes: []string{
 					"Stack selection clauses \\(wants\\/wanted_by\\) have cycles",
@@ -1277,9 +1277,9 @@ func TestRunWants(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/stack-a",
-					"/stack-a/sub",
 					"/stack-b",
 					"/stack-c",
+					"/stack-a/sub",
 				),
 			},
 		},
