@@ -447,6 +447,10 @@ func TestScriptRun(t *testing.T) {
 				Stderr: "Script 0 at /script.tm:2,5-10,6 having 1 job(s)\n" +
 					"/stacks/management/stack-b (script:0 job:0.0)> echo cmd-1\n" +
 					"/stacks/management/stack-b (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/network/stack-b (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/network/stack-b (script:0 job:0.1)> echo cmd-2\n" +
+					"/stacks/operations/stack-b (script:0 job:0.0)> echo cmd-1\n" +
+					"/stacks/operations/stack-b (script:0 job:0.1)> echo cmd-2\n" +
 					"/stacks/management/stack-a (script:0 job:0.0)> echo cmd-1\n" +
 					"/stacks/management/stack-a (script:0 job:0.1)> echo cmd-2\n" +
 					"/stacks/management/stack-c (script:0 job:0.0)> echo cmd-1\n" +
@@ -454,11 +458,7 @@ func TestScriptRun(t *testing.T) {
 					"/stacks/operations/stack-a (script:0 job:0.0)> echo cmd-1\n" +
 					"/stacks/operations/stack-a (script:0 job:0.1)> echo cmd-2\n" +
 					"/stacks/network/stack-a (script:0 job:0.0)> echo cmd-1\n" +
-					"/stacks/network/stack-a (script:0 job:0.1)> echo cmd-2\n" +
-					"/stacks/network/stack-b (script:0 job:0.0)> echo cmd-1\n" +
-					"/stacks/network/stack-b (script:0 job:0.1)> echo cmd-2\n" +
-					"/stacks/operations/stack-b (script:0 job:0.0)> echo cmd-1\n" +
-					"/stacks/operations/stack-b (script:0 job:0.1)> echo cmd-2\n",
+					"/stacks/network/stack-a (script:0 job:0.1)> echo cmd-2\n",
 				FlattenStdout: true,
 			},
 		},

@@ -9,6 +9,8 @@ package dag
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 
 	"github.com/terramate-io/terramate/errors"
@@ -26,6 +28,7 @@ type (
 		cycles map[ID]bool
 
 		validated bool
+		order     []ID
 	}
 
 	// Visited in a map of visited dag nodes by id.
@@ -74,6 +77,7 @@ func (d *DAG[V]) AddNode(id ID, value V, descendants, ancestors []ID) error {
 	d.addAncestors(id, ancestors)
 	d.values[id] = value
 	d.validated = false
+	d.order = nil
 	return nil
 }
 
@@ -98,26 +102,26 @@ func (d *DAG[V]) addAncestor(node, ancestor ID) {
 
 // Validate the DAG looking for cycles.
 func (d *DAG[V]) Validate() (reason string, err error) {
-	d.cycles = make(map[ID]bool)
-	d.validated = true
-
-	for _, id := range d.IDs() {
+	d.calcTopologicalOrder()
+	for _, id := range slices.Sorted(maps.Keys(d.cycles)) {
 		reason, err := d.validateNode(id, d.dag[id])
 		if err != nil {
 			return reason, err
 		}
 	}
+
+	d.validated = true
+
 	return "", nil
 }
 
 // Reduce removes nodes that match the given predicate.
 // When a node is removed, all edges to it are replaced by edges to its children,
 // so the order within the graph is preserved.
+// May only be called after Validate().
 func (d *DAG[V]) Reduce(predicate func(id ID) bool) {
-	visited := Visited{}
-
 	shouldRemove := make(map[ID]bool, len(d.dag))
-	ids := d.IDs()
+	ids := d.Order()
 
 	// Cache predicates
 	for _, id := range ids {
@@ -126,24 +130,17 @@ func (d *DAG[V]) Reduce(predicate func(id ID) bool) {
 
 	// Remove nodes from as children and replace with grandchildren
 	for _, id := range ids {
-		d.walkFrom(id, func(id ID) {
-			if _, found := visited[id]; found {
-				return
+		newChildren := []ID{}
+		for _, cid := range d.dag[id] {
+			if shouldRemove[cid] {
+				grandchildren := d.dag[cid]
+				newChildren = append(newChildren, grandchildren...)
+			} else {
+				newChildren = append(newChildren, cid)
 			}
-			visited[id] = struct{}{}
+		}
 
-			newChildren := []ID{}
-			for _, cid := range d.dag[id] {
-				if shouldRemove[cid] {
-					grandchildren := d.dag[cid]
-					newChildren = append(newChildren, grandchildren...)
-				} else {
-					newChildren = append(newChildren, cid)
-				}
-			}
-
-			d.dag[id] = newChildren
-		})
+		d.dag[id] = newChildren
 	}
 
 	// Remove nodes themselves
@@ -153,6 +150,15 @@ func (d *DAG[V]) Reduce(predicate func(id ID) bool) {
 			delete(d.values, id)
 		}
 	}
+
+	// Remove nodes from cached order
+	newOrder := make([]ID, 0, len(d.order))
+	for _, id := range d.order {
+		if !shouldRemove[id] {
+			newOrder = append(newOrder, id)
+		}
+	}
+	d.order = newOrder
 }
 
 func (d *DAG[V]) validateNode(id ID, children []ID) (string, error) {
@@ -227,33 +233,82 @@ func (d *DAG[V]) HasCycle(id ID) bool {
 
 // Order returns the topological order of the DAG. The node ids are
 // lexicographic sorted whenever possible to give a consistent output.
+// May only be called after Validate().
 func (d *DAG[V]) Order() []ID {
-	order := []ID{}
-	visited := Visited{}
-	for _, id := range d.IDs() {
-		if _, ok := visited[id]; ok {
-			continue
-		}
-		d.walkFrom(id, func(id ID) {
-			if _, ok := visited[id]; !ok {
-				order = append(order, id)
-			}
-
-			visited[id] = struct{}{}
-		})
-
-		visited[id] = struct{}{}
+	if !d.validated {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
 	}
-	return order
+	return d.order
 }
 
-func (d *DAG[V]) walkFrom(id ID, do func(id ID)) {
-	children := d.dag[id]
-	for _, tid := range sortedIDs(children) {
-		d.walkFrom(tid, do)
+// calcTopologicalOrder does topological ordering based on Kahns algorithm
+func (d *DAG[V]) calcTopologicalOrder() {
+	// Helper maps to lookup predecessors and successors of a node.
+	// Roots of the graph are nodes with no predecessors.
+	predMap := map[ID]map[ID]struct{}{}
+	succMap := map[ID]map[ID]struct{}{}
+
+	// Populate maps with data from the dag.
+	for id := range d.dag {
+		predMap[id] = map[ID]struct{}{}
+		succMap[id] = map[ID]struct{}{}
+	}
+	for id, preds := range d.dag {
+		for _, predid := range preds {
+			predMap[id][predid] = struct{}{}
+			succMap[predid][id] = struct{}{}
+		}
 	}
 
-	do(id)
+	// Will contain the topological order.
+	order := []ID{}
+
+	// Queue that contains nodes without predecessors for the algorithm.
+	// Will be expanded as we remove edges.
+	queue := []ID{}
+
+	// Initialize s
+	for id, preds := range predMap {
+		if len(preds) == 0 {
+			queue = append(queue, id)
+		}
+	}
+	slices.Sort(queue)
+
+	for len(queue) > 0 {
+		// Remove first node from s and add to final order.
+		n := queue[0]
+		order = append(order, n)
+		queue = queue[1:]
+
+		next := []ID{}
+
+		// Remove edges (n, succ).
+		for succ := range succMap[n] {
+			delete(predMap[succ], n)
+			delete(succMap[n], succ)
+
+			// If succ is now without predecessors, it will be added to s next.
+			if len(predMap[succ]) == 0 {
+				next = append(next, succ)
+			}
+		}
+
+		// Add using lexicographical order to be deterministic.
+		slices.Sort(next)
+		queue = append(queue, next...)
+	}
+
+	d.order = order
+
+	// Any remaining edges means we have cycles. Just mark them, they will be explored later.
+	// TODO: To detect cycle paths, using predMap would be better than doing this later on the full DAG.
+	d.cycles = make(map[ID]bool)
+	for id, preds := range predMap {
+		if len(preds) > 0 {
+			d.cycles[id] = true
+		}
+	}
 }
 
 func sortedIDs(ids []ID) idList {
@@ -290,6 +345,7 @@ func Transform[D, S any](from *DAG[S], f func(id ID, v S) (D, error)) (*DAG[D], 
 		values:    make(map[ID]D, len(from.values)),
 		cycles:    from.cycles,
 		validated: from.validated,
+		order:     from.order,
 	}
 
 	for id, v := range from.values {
@@ -305,6 +361,7 @@ func Transform[D, S any](from *DAG[S], f func(id ID, v S) (D, error)) (*DAG[D], 
 	from.values = nil
 	from.cycles = nil
 	from.validated = false
+	from.order = nil
 
 	return to, nil
 }

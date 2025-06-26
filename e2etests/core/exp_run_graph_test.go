@@ -175,7 +175,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				digraph  {n1[label="stack-a"];
 					n2[label="stack-b"];
 					n1->n2[color="red"];
-					n2->n1;
+					n2->n1[color="red"];
 				}`,
 				FlattenStdout: true,
 			},
@@ -195,8 +195,8 @@ func TestOrderGraphAfter(t *testing.T) {
 					n3[label="stack-c"];
 					n1->n2[color="red"];
 					n1->n3[color="red"];
-					n2->n1;
-					n3->n1;
+					n2->n1[color="red"];
+					n3->n1[color="red"];
 				}`,
 				FlattenStdout: true,
 			},

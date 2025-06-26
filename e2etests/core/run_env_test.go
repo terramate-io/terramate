@@ -64,8 +64,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR",
-					"/s1/a: FOO", "/s1/a: BAR",
 					"/s2: FOO", "/s2: BAR",
+					"/s1/a: FOO", "/s1/a: BAR",
 					"/s2/a: FOO", "/s2/a: BAR",
 				),
 			},
@@ -101,8 +101,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
-					"/s1/a: FOO", "/s1/a: BAR S1",
 					"/s2: FOO", "/s2: BAR",
+					"/s1/a: FOO", "/s1/a: BAR S1",
 					"/s2/a: FOO", "/s2/a: BAR",
 				),
 			},
@@ -147,8 +147,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
-					"/s1/a: FOO", "/s1/a: BAR S1/A",
 					"/s2: FOO", "/s2: BAR",
+					"/s1/a: FOO", "/s1/a: BAR S1/A",
 					"/s2/a: FOO", "/s2/a: BAR",
 				),
 			},
@@ -193,8 +193,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
-					"/s1/a: FOO",
 					"/s2: FOO", "/s2: BAR",
+					"/s1/a: FOO",
 					"/s2/a: FOO", "/s2/a: BAR",
 				),
 			},
@@ -239,8 +239,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR S1",
-					"/s1/a: FOO",
 					"/s2: FOO", "/s2: BAR",
+					"/s1/a: FOO",
 					"/s2/a: FOO", "/s2/a: BAR",
 				),
 			},
@@ -294,8 +294,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR",
-					"/s1/a: FOO", "/s1/a: BAR",
 					"/s2: FOO", "/s2: BAR",
+					"/s1/a: FOO", "/s1/a: BAR",
 					"/s2/a: FOO", "/s2/a: BAR",
 				),
 			},
@@ -337,8 +337,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO", "/s1: BAR1",
-					"/s1/a: FOO", "/s1/a: BAR1", "/s1/a: BAR2",
 					"/s2: FOO", "/s2: BAR1",
+					"/s1/a: FOO", "/s1/a: BAR1", "/s1/a: BAR2",
 					"/s2/a: FOO", "/s2/a: BAR1",
 				),
 			},
@@ -379,8 +379,8 @@ func TestRunEnv(t *testing.T) {
 			want: RunExpected{
 				Stdout: nljoin(
 					"/s1: FOO",
-					"/s1/a: FOO", "/s1/a: BAR OVERRIDDEN", "/s1/a: CAR IMPORTED",
 					"/s2: FOO",
+					"/s1/a: FOO", "/s1/a: BAR OVERRIDDEN", "/s1/a: CAR IMPORTED",
 					"/s2/a: FOO",
 				),
 			},
