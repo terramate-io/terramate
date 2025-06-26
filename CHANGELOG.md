@@ -70,7 +70,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
       /stack2
       ```
 
-  The new rule recursivly aligns stacks that are independent into groups.
+  The new rule recursively aligns stacks that are independent into groups.
   - The first group contains all initially independent stacks.
   - The second group contains all stacks that just depended on stacks in the first group.
   - The third group contains all stacks that just depended on stacks in both previous groups.
