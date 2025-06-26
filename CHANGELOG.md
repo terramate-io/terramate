@@ -24,7 +24,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- **BREAKING CHANGE** Massivly improve stack order evaluation performance.
+- **BREAKING CHANGE** Massively improve stack order evaluation performance.
 
   This affects and improves commands that use the stack order, i.e. `run`, `run script`, `list --run-order`.
   As a consequence, the evaluation order of _unrelated_ stacks may change.
