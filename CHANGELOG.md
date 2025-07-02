@@ -24,53 +24,61 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- (**BREAKING CHANGE**) Improve stack order evaluation performance.
-  This affects commands that use the stack order, i.e. `run`, `run script`, `list --run-order`.
+- **BREAKING CHANGE** Massively improve stack order evaluation performance.
+
+  This affects and improves commands that use the stack order, i.e. `run`, `run script`, `list --run-order`.
   As a consequence, the evaluation order of _unrelated_ stacks may change.
 
-  Example 1:
-    /stack1
-    /stack1/a
-    /stack2
-    /stack2/a
-
-    Sub-stacks `a` must be executed after their parent stacks, but `/stack1` and `/stack2` are unrelated.
+  - Example 1:
+    Nested stacks `a` must be executed after their parent stacks, but `/stack1` and `/stack2` are independent.
 
     Old run order:
+      ```
       /stack1
       /stack1/a
       /stack2
       /stack2/a
+      ```
 
     New run order:
+      ```
       /stack1
       /stack2
       /stack1/a
       /stack2/a
+      ```
 
-  Example 2:
-    /stack1 
-    /stack2 (after=[stack1])
-    /stack3
-
-   `stack2` must be executed after `stack1`, but `stack3` is unrelated.
+  - Example 2:
+    `stack2` must be executed after `stack1`, but `stack1` and `stack3` are independent in the follwing configuration:
+      ```
+      /stack1 
+      /stack2 (after=[stack1])
+      /stack3
+      ```
 
     Old run order:
+      ```
       /stack1
       /stack2
       /stack3
+      ```
 
     New run order:
+      ```
       /stack1
       /stack3
       /stack2
+      ```
 
-  The new rule first runs stacks that have no dependencies in `group 1`,
-  then those in `group 2` that depend on stacks in `group 1`,
-  then those in `group 3` that depend on stacks in `group 1` and `group 2`, and so on.
-  Stacks in each group are ordered lexicographically.
+  The new rule recursively aligns stacks that are independent into groups.
+  - The first group contains all initially independent stacks.
+  - The second group contains all stacks that just depended on stacks in the first group.
+  - The third group contains all stacks that just depended on stacks in both previous groups.
+  - The fourth group and following groups continue in the same way.
+  
+  Stacks in each group are ordered lexicographically and returned as the order of execution when running sequentially.
 
-  The run order when using the `--parallel` flag is not affected by this.
+  The run order when using the `--parallel` flag is not affected by this change.
 
 ## v0.13.3
 
