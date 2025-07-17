@@ -58,7 +58,7 @@ If you want to learn more, take a look at our [how it works](https://terramate.i
 - **Best Security:** No access to your state or cloud accounts is required. Terramate is secure by design.
 - **Developer Experience:** Remove guesswork and config sprawl by imposing structure, workflows and best practices.
 - **Unlimited Integrations:** Terramate integrates seamlessly with all your tools, such as GitHub or Slack.
-- **Native IaC:** No need to learn a new syntax! With Teramate, everything is configured as code using HCL.
+- **Native IaC:** No need to learn a new syntax! With Terramate, everything is configured as code using HCL.
 - **Serverless:** Using Terramate doesn't require you to run and maintain any additional infrastructure.
 
 ## Installation
@@ -141,7 +141,7 @@ and resources.
 - Follow us on [X](https://twitter.com/terramateio)
 - Follow us on [LinkedIn](https://www.linkedin.com/company/terramate-io)
 - Contact us via email at [hello@terramate.io](mailto:hello@terramate.io)
-****
+
 ## Reporting Bugs, Requesting Features, or Contributing to Terramate
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/terramate-io/terramate/issues/new)
