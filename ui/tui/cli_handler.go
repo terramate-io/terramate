@@ -150,7 +150,10 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 			InfoChan: c.checkpointResponse,
 		}, true, false, nil
 	case "install-completions":
-		return &compcmd.Spec{}, true, false, nil
+		return &compcmd.Spec{
+			Installer: parsedArgs.InstallCompletions,
+			KongCtx:   kctx,
+		}, true, false, nil
 	case "experimental cloud login": // Deprecated: use cloud login
 		fallthrough
 	case "cloud login":
