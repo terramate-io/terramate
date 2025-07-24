@@ -27,6 +27,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Fix crash in the `terramate install-completions` command.
 - Fix error on duplicate Terragrunt dependencies in `create --all-terragrunt`.
   - Duplicates are now removed and the command will no longer fail.
+- Fix mistakenly detecting stacks as changed on changes in referenced Terraform modules.
+  - A change in a module that is referenced by `stack-a` would also mark `stack-aa` as changed (and other stacks with a common name prefix).
 
 ## v0.14.0
 

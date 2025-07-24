@@ -626,3 +626,69 @@ func TestTriggerChangeDetection(t *testing.T) {
 		})
 	}
 }
+
+func TestChangeDetectionCommonPrefix(t *testing.T) {
+	// Test regressions for previous bug in change detection.
+
+	t.Run("tf modules with common prefix", func(t *testing.T) {
+		s := sandbox.New(t)
+		layout := []string{
+			"s:stack-1",
+			"f:modules/mod-1/main.tf:# nothing here",
+			"f:stack-1/main.tf:" + Block("module",
+				Labels("something"),
+				Str("source", "../modules/mod-1"),
+			).String(),
+			"s:stack-11",
+			"f:modules/mod-11/main.tf:# nothing here",
+			"f:stack-11/main.tf:" + Block("module",
+				Labels("something"),
+				Str("source", "../modules/mod-11"),
+			).String(),
+		}
+
+		s.BuildTree(layout)
+		s.Git().CommitAll("create repo")
+		test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod-11"), "main.tf", "# modified")
+		s.Git().CommitAll("module modified")
+
+		mgr := stack.NewGitAwareManager(s.Config(), s.Git().Unwrap())
+
+		report, err := mgr.ListChanged(stack.ChangeConfig{
+			BaseRef: "HEAD^",
+		})
+		assert.NoError(t, err)
+		assert.EqualInts(t, 1, len(report.Stacks))
+		assert.EqualStrings(t, "/stack-11", report.Stacks[0].Stack.Dir.String())
+	})
+
+	t.Run("tg modules with common prefix", func(t *testing.T) {
+		s := sandbox.New(t)
+		layout := []string{
+			"s:stack-1",
+			"f:modules/mod-1/main.tf:# nothing here",
+			"f:stack-1/terragrunt.hcl:" + Block("terraform",
+				Str("source", "../modules/mod-1"),
+			).String(),
+			"s:stack-11",
+			"f:modules/mod-11/main.tf:# nothing here",
+			"f:stack-11/terragrunt.hcl:" + Block("terraform",
+				Str("source", "../modules/mod-11"),
+			).String(),
+		}
+
+		s.BuildTree(layout)
+		s.Git().CommitAll("create repo")
+		test.WriteFile(t, filepath.Join(s.RootDir(), "modules/mod-11"), "main.tf", "# modified")
+		s.Git().CommitAll("module modified")
+
+		mgr := stack.NewGitAwareManager(s.Config(), s.Git().Unwrap())
+
+		report, err := mgr.ListChanged(stack.ChangeConfig{
+			BaseRef: "HEAD^",
+		})
+		assert.NoError(t, err)
+		assert.EqualInts(t, 1, len(report.Stacks))
+		assert.EqualStrings(t, "/stack-11", report.Stacks[0].Stack.Dir.String())
+	})
+}

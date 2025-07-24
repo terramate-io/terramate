@@ -601,7 +601,7 @@ func (m *Manager) tfModuleChanged(
 		return false, "", err
 	}
 	for _, changedFile := range changedFiles {
-		if changedFile.HasPrefix(modPath.String()) {
+		if changedFile.HasDirPrefix(modPath.String()) {
 			return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
 		}
 	}
@@ -709,7 +709,7 @@ func (m *Manager) tgModuleChanged(
 		}
 
 		for _, file := range changedFiles {
-			if file.HasPrefix(dep.String()) {
+			if file.HasDirPrefix(dep.String()) {
 				return true, fmt.Sprintf("module %q changed because %q changed", tgMod.Path, dep), nil
 			}
 		}
