@@ -25,6 +25,8 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix crash in the `terramate install-completions` command.
+- Fix error on duplicate Terragrunt dependencies in `create --all-terragrunt`.
+  - Duplicates are now removed and the command will no longer fail.
 
 ## v0.14.0
 

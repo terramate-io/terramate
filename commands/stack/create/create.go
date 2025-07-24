@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -265,7 +266,10 @@ func (s *Spec) initTerragrunt() error {
 					"You may consider moving stack %s elsewhere not conflicting with filesystem ordering.", otherMod,
 				)
 			}
-			after = append(after, otherMod)
+			// Terragrunt will allow repeated dependencies, stack.Validate() doesnt.
+			if !slices.Contains(after, otherMod) {
+				after = append(after, otherMod)
+			}
 		}
 
 		var tags []string
