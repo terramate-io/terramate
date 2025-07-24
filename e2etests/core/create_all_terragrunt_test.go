@@ -463,6 +463,31 @@ func TestCreateAllTerragrunt(t *testing.T) {
 			},
 		},
 		{
+			name: "Terragrunt with repeated depenendencies",
+			layout: []string{
+				hclfile("1/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+					Block("dependencies",
+						Expr("paths", `["../2", "../2"]`),
+					),
+				)),
+				hclfile("2/terragrunt.hcl", Doc(
+					Block("terraform",
+						Str("source", "github.com/some/repo"),
+					),
+				)),
+			},
+			want: RunExpected{
+				Stdout: nljoin(
+					"Created stack /1",
+					"Created stack /2",
+				),
+			},
+			wantOrder: []string{"2", "1"},
+		},
+		{
 			name: "Terragrunt with dependency defined outside of the Terramate project",
 			layout: []string{
 				hclfile("terragrunt.hcl", Doc(
