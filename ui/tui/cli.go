@@ -38,6 +38,7 @@ import (
 // CLI is the Terramate command-line interface opaque type.
 // The default flag spec is [input.Spec] and handler is [DefaultAfterConfigHandler].
 type CLI struct {
+	product string
 	version string
 
 	clicfg cliconfig.Config
@@ -110,6 +111,7 @@ const terramateUserConfigDir = ".terramate.d"
 // NewCLI creates a new CLI instance. The opts options modify the default CLI behavior.
 func NewCLI(opts ...Option) (*CLI, error) {
 	c := &CLI{
+		product: name,
 		version: terramate.Version(),
 		kongOpts: kongOptions{
 			name:                      name,
@@ -330,6 +332,8 @@ func (c *CLI) sendAndWaitForAnalytics() {
 
 	tel.DefaultRecord.Send(tel.SendMessageParams{
 		Timeout: 100 * time.Millisecond,
+		Product: c.product,
+		Version: c.version,
 	})
 
 	if err := tel.DefaultRecord.WaitForSend(); err != nil {
