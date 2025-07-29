@@ -63,7 +63,7 @@ func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, r
 	p := parsedSpec.(*FlagSpec)
 	if p.VersionFlag {
 		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
-			fmt.Println(c.version)
+			fmt.Printf("%s %s\n", c.Product(), c.Version())
 			return nil
 		}, true
 	}
@@ -147,8 +147,10 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 	switch command {
 	case "version":
 		return &version.Spec{
-			Version:  c.version,
-			InfoChan: c.checkpointResponse,
+			Product:       c.product,
+			PrettyProduct: c.prettyProduct,
+			Version:       c.version,
+			InfoChan:      c.checkpointResponse,
 		}, true, false, nil
 	case "install-completions":
 		return &compcmd.Spec{
