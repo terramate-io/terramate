@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -163,6 +164,7 @@ func getAuthProviderFromCredentials(credfile string) AuthType {
 type SendMessageParams struct {
 	Endpoint *url.URL
 	Client   *http.Client
+	Product  string
 	Version  string
 	Timeout  time.Duration
 }
@@ -176,6 +178,9 @@ func SendMessage(msg *Message, p SendMessageParams) <-chan error {
 	}
 	if p.Client == nil {
 		p.Client = http.DefaultClient
+	}
+	if p.Product == "" {
+		p.Product = "terramate"
 	}
 	if p.Version == "" {
 		p.Version = terramate.Version()
@@ -206,7 +211,7 @@ func doSendMessage(msg *Message, p SendMessageParams) error {
 		return err
 	}
 
-	req.Header.Set("User-Agent", "terramate/v"+terramate.Version())
+	req.Header.Set("User-Agent", fmt.Sprintf("%s/v%s", p.Product, p.Version))
 	req.Header.Set("Content-Type", "application/json")
 	errs := errors.L()
 	resp, err := p.Client.Do(req)
