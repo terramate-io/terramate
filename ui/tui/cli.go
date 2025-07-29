@@ -274,7 +274,7 @@ Using Terramate together with Git is the recommended way.
 
 Alternatively you can create a Terramate config to make the current directory the project root.
 
-Please see https://terramate.io/docs/cli/configuration/project-setup for details.
+Please see https://terramate.io/docs/cli/projects/configuration for details.
 `)
 	}
 
