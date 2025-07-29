@@ -48,9 +48,10 @@ func WithStdin(r io.Reader) Option {
 
 // WithProduct is an option modify the product name.
 // Default is `terramate`.
-func WithProduct(product string) Option {
+func WithProduct(product, prettyProduct string) Option {
 	return func(c *CLI) error {
 		c.product = product
+		c.prettyProduct = prettyProduct
 		return nil
 	}
 }
