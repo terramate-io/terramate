@@ -146,8 +146,10 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 	switch command {
 	case "version":
 		return &version.Spec{
-			Version:  c.version,
-			InfoChan: c.checkpointResponse,
+			Product:       c.product,
+			PrettyProduct: c.prettyProduct,
+			Version:       c.version,
+			InfoChan:      c.checkpointResponse,
 		}, true, false, nil
 	case "install-completions":
 		return &compcmd.Spec{
