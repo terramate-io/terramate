@@ -75,7 +75,7 @@ func (e *Engine) Credential() cliauth.Credential {
 
 // LoadCredential loads the cloud credential from the environment or configuration.
 func (e *Engine) LoadCredential(preferences ...string) error {
-	region := e.cloudRegion()
+	region := e.CloudRegion()
 	cloudURL, envFound := cliauth.EnvBaseURL()
 	if !envFound {
 		cloudURL = cloud.BaseURL(region)
@@ -227,7 +227,7 @@ func (e *Engine) SetupCloudConfig(requestedFeatures []string) error {
 					"Pending SSO invitation",
 					errors.E(
 						"If you trust the %s%s organization, go to %s to join it",
-						org.Name, domainStr, cloud.HTMLURL(e.cloudRegion()),
+						org.Name, domainStr, cloud.HTMLURL(e.CloudRegion()),
 					),
 				)
 			}

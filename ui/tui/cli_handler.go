@@ -482,6 +482,8 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			)
 		}
 		return &logincmd.SSOSpec{
+			Engine:    c.Engine(),
+			Region:    c.Engine().CloudRegion(),
 			Printers:  c.printers,
 			Verbosity: parsedArgs.Verbose,
 			OrgName:   orgName,
