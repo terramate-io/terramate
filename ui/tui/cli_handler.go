@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/go-checkpoint"
@@ -456,6 +457,7 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			TechnologyLayer:   parsedArgs.Run.Layer,
 			TerraformPlanFile: parsedArgs.Run.TerraformPlanFile,
 			TofuPlanFile:      parsedArgs.Run.TofuPlanFile,
+			PlanRenderTimeout: time.Duration(parsedArgs.Run.PlanRenderTimeout) * time.Second,
 			Terragrunt:        parsedArgs.Run.Terragrunt,
 			EnableSharing:     parsedArgs.Run.EnableSharing,
 			MockOnFail:        parsedArgs.Run.MockOnFail,

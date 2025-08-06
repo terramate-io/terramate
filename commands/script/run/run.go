@@ -201,6 +201,7 @@ func (s *Spec) Exec(_ context.Context) error {
 						task.CloudSyncLayer = cmd.Options.CloudSyncLayer
 						task.CloudPlanFile = planFile
 						task.CloudPlanProvisioner = planProvisioner
+						task.CloudPlanRenderTimeout = cmd.Options.CloudPlanRenderTimeout
 						task.UseTerragrunt = cmd.Options.UseTerragrunt
 						task.EnableSharing = cmd.Options.EnableSharing
 						task.MockOnFail = cmd.Options.MockOnFail
