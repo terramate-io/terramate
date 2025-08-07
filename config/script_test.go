@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -603,7 +604,7 @@ func TestScriptEval(t *testing.T) {
 			},
 		},
 		{
-			name: "command options with planfile + terragrunt",
+			name: "command options with planfile + terragrunt + custom timeout",
 			config: Script(
 				Labels(labels...),
 				Str("description", "some description"),
@@ -613,6 +614,7 @@ func TestScriptEval(t *testing.T) {
 									sync_deployment = true
 									terraform_plan_file = "plan_a"
 									terragrunt = true
+									plan_render_timeout = 10
 								}],
 							  ]
 							`),
@@ -630,6 +632,7 @@ func TestScriptEval(t *testing.T) {
 									CloudSyncDeployment:    true,
 									UseTerragrunt:          true,
 									CloudTerraformPlanFile: "plan_a",
+									CloudPlanRenderTimeout: 10 * time.Second,
 								},
 							},
 						},

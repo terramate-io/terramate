@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate/cloud"
@@ -61,6 +62,7 @@ type Spec struct {
 	DebugPreviewURL   string
 	TechnologyLayer   preview.Layer
 	TerraformPlanFile string
+	PlanRenderTimeout time.Duration
 	TofuPlanFile      string
 	Terragrunt        bool
 	EnableSharing     bool
@@ -232,18 +234,19 @@ func (s *Spec) Exec(_ context.Context) error {
 			Stack:         st.Stack,
 			Tasks: []engine.StackRunTask{
 				{
-					Cmd:                  s.Command,
-					CloudTarget:          s.Target,
-					CloudFromTarget:      s.FromTarget,
-					CloudSyncDeployment:  s.SyncDeployment,
-					CloudSyncDriftStatus: s.SyncDriftStatus,
-					CloudSyncPreview:     s.SyncPreview,
-					CloudPlanFile:        planFile,
-					CloudPlanProvisioner: planProvisioner,
-					CloudSyncLayer:       s.TechnologyLayer,
-					UseTerragrunt:        s.Terragrunt,
-					EnableSharing:        s.EnableSharing,
-					MockOnFail:           s.MockOnFail,
+					Cmd:                    s.Command,
+					CloudTarget:            s.Target,
+					CloudFromTarget:        s.FromTarget,
+					CloudSyncDeployment:    s.SyncDeployment,
+					CloudSyncDriftStatus:   s.SyncDriftStatus,
+					CloudSyncPreview:       s.SyncPreview,
+					CloudPlanFile:          planFile,
+					CloudPlanProvisioner:   planProvisioner,
+					CloudPlanRenderTimeout: s.PlanRenderTimeout,
+					CloudSyncLayer:         s.TechnologyLayer,
+					UseTerragrunt:          s.Terragrunt,
+					EnableSharing:          s.EnableSharing,
+					MockOnFail:             s.MockOnFail,
 				},
 			},
 		}

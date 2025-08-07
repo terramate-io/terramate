@@ -25,7 +25,7 @@ import (
 	runpkg "github.com/terramate-io/terramate/run"
 )
 
-const terraformShowTimeout = 300 * time.Second
+const defaultPlanRenderTimeout = 300 * time.Second
 
 func getTerraformChangeset(e *engine.Engine, run engine.StackCloudRun) (*resources.ChangesetDetails, error) {
 	planfile := run.Task.CloudPlanFile
@@ -112,6 +112,11 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 
 	planfile := run.Task.CloudPlanFile
 	provisioner := run.Task.CloudPlanProvisioner
+	timeout := run.Task.CloudPlanRenderTimeout
+	if timeout.Seconds() < 1 {
+		log.Logger.Warn().Msg("discarding invalid value for plan render timeout, using default")
+		timeout = defaultPlanRenderTimeout
+	}
 
 	var cmdName string
 	if run.Task.UseTerragrunt {
@@ -142,7 +147,7 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 	}
 	args = append(args, planfile)
 
-	ctx, cancel := context.WithTimeout(context.Background(), terraformShowTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, cmdPath, args...)
@@ -161,7 +166,7 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return "", errors.E(clitest.ErrCloudTerraformPlanFile, "command timed out: %s", cmd.String())
+			return "", errors.E(clitest.ErrCloudTerraformPlanFile, "command timed out: %s. consider using --plan-render-timeout to increase the timeout.", cmd.String())
 		}
 
 		logger.Error().Str("stderr", stderr.String()).Msg("command stderr")

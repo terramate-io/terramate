@@ -6,6 +6,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/cloud/api/preview"
@@ -42,6 +43,7 @@ type ScriptCmdOptions struct {
 	CloudSyncLayer         preview.Layer
 	CloudTerraformPlanFile string
 	CloudTofuPlanFile      string
+	CloudPlanRenderTimeout time.Duration
 	UseTerragrunt          bool
 	EnableSharing          bool
 	MockOnFail             bool
@@ -449,6 +451,16 @@ func unmarshalScriptCommandOptions(obj cty.Value, expr hhcl.Expression) (*Script
 				break
 			}
 			r.MockOnFail = v.True()
+
+		case "plan_render_timeout":
+			if v.Type() != cty.Number {
+				errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(),
+					"command option '%s' must be a number, but has type %s",
+					ks, v.Type().FriendlyName()))
+				break
+			}
+			timeoutSec, _ := v.AsBigFloat().Int64()
+			r.CloudPlanRenderTimeout = time.Duration(timeoutSec) * time.Second
 
 		default:
 			errs.Append(errors.E(ErrScriptInvalidCmdOptions, expr.Range(), "unknown command option: %s", ks))

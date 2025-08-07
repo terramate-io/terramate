@@ -234,6 +234,7 @@ type cloudSyncFlags struct {
 	CloudSyncLayer             preview.Layer `hidden:""`
 	Layer                      preview.Layer `env:"LAYER" default:"" help:"Set a customer layer for synchronizing a preview to Terramate Cloud."`
 	CloudSyncTerraformPlanFile string        `hidden:""`
+	PlanRenderTimeout          int           `env:"PLAN_RENDER_TIMEOUT" default:"300" help:"Timeout (in seconds) for internal commands that render changes from plan files."`
 }
 
 type commonRunFlags struct {

@@ -20,6 +20,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add option `--plan-render-timeout` to `run`, and the corresponding script command option `plan_render_timeout`.
+  - This configures the maximum time to wait (in seconds) for rendering change summaries from plan files, which will be sent to Terramate Cloud.
+  - The previous default value was hardcoded at 300 seconds. In most scenarios this is more than enough,
+    but there have been reported cases where rendering the changes took longer.
+  - Exceeding the timeout will skip sending the change summaries, but the command status and logs are still sent.
+
 ## v0.14.2
 
 ### Fixed

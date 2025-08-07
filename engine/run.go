@@ -69,8 +69,9 @@ type StackRunTask struct {
 	CloudSyncPreview     bool
 	CloudSyncLayer       preview.Layer
 
-	CloudPlanFile        string
-	CloudPlanProvisioner string
+	CloudPlanFile          string
+	CloudPlanProvisioner   string
+	CloudPlanRenderTimeout time.Duration
 
 	UseTerragrunt bool
 	EnableSharing bool
