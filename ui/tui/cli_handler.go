@@ -85,7 +85,11 @@ func DefaultRootFlagHandlers() []RootFlagHandlers {
 func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Executor, found bool, cont bool, err error) {
 	kctx := ctx.Value(KongContext).(*kong.Context)
 
-	parsedArgs := c.input.(*FlagSpec)
+	parsedArgs := AsFlagSpec[FlagSpec](c.input)
+	if parsedArgs == nil {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
+
 	// profiler is only started if Terramate is built with -tags profiler
 	startProfiler(parsedArgs.CPUProfiling)
 
@@ -233,7 +237,10 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		return nil, false, false, err
 	}
 
-	parsedArgs := c.input.(*FlagSpec)
+	parsedArgs := AsFlagSpec[FlagSpec](c.input)
+	if parsedArgs == nil {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
 
 	if parsedArgs.Changed && !c.Engine().Project().HasCommits() {
 		return nil, false, false, errors.E("flag --changed requires a repository with at least two commits")
