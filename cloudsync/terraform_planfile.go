@@ -114,7 +114,7 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 	provisioner := run.Task.CloudPlanProvisioner
 	timeout := run.Task.CloudPlanRenderTimeout
 	if timeout.Seconds() < 1 {
-		log.Logger.Warn().Msg("discarding invalid value for plan render timeout, using default")
+		// This catches if the value was not set, but also if it was set unreasonably small.
 		timeout = defaultPlanRenderTimeout
 	}
 
