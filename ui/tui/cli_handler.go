@@ -151,6 +151,7 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 
 	c.checkpointResponse = make(chan *checkpoint.CheckResponse, 1)
 	go runCheckpoint(
+		c.product,
 		c.version,
 		c.clicfg,
 		c.checkpointResponse,

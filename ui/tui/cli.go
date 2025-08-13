@@ -466,7 +466,7 @@ func ConfigureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer
 	return nil
 }
 
-func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
+func runCheckpoint(product, version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
 	if clicfg.DisableCheckpoint {
 		result <- nil
 		return
@@ -485,9 +485,7 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 
 	resp, err := checkpoint.CheckAt(defaultTelemetryEndpoint(),
 		&checkpoint.CheckParams{
-			// TODO: Always using terramate here.
-			// We may want to change this per product.
-			Product:       "terramate",
+			Product:       product,
 			Version:       version,
 			SignatureFile: signatureFile,
 			CacheFile:     cacheFile,
