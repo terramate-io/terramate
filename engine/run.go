@@ -457,24 +457,21 @@ func (e *Engine) RunAll(
 			cmd.Dir = run.Stack.HostDir(e.Config())
 			cmd.Env = environ
 
-			stdin := opts.Stdin
-			stdout := opts.Stdout
-			stderr := opts.Stderr
-
-			logSyncWait := func() {}
+			var logSyncer *cloud.LogSyncer
 			if e.IsCloudEnabled() && opts.Hooks.LogSyncCondition(task, run) {
-				logSyncer := cloud.NewLogSyncer(func(logs resources.CommandLogs) {
+				logSyncer = cloud.NewLogSyncer(func(logs resources.CommandLogs) {
 					opts.Hooks.LogSyncer(&logger, e, run, logs)
 				})
-				stdout = logSyncer.NewBuffer(resources.StdoutLogChannel, stdout)
-				stderr = logSyncer.NewBuffer(resources.StderrLogChannel, stderr)
-
-				logSyncWait = logSyncer.Wait
 			}
 
+			stdin := opts.Stdin
+			outputBuffers := cloud.NewBufferGroup(logSyncer)
+			stdoutBuf := outputBuffers.NewBuffer(resources.StdoutLogChannel, opts.Stdout)
+			stderrBuf := outputBuffers.NewBuffer(resources.StderrLogChannel, opts.Stderr)
+
 			cmd.Stdin = stdin
-			cmd.Stdout = stdout
-			cmd.Stderr = stderr
+			cmd.Stdout = stdoutBuf
+			cmd.Stderr = stderrBuf
 
 			opts.Hooks.Before(e, cloudRun)
 
@@ -492,7 +489,7 @@ func (e *Engine) RunAll(
 			if err := cmd.Start(); err != nil {
 				endTime := time.Now().UTC()
 
-				logSyncWait()
+				outputBuffers.Wait()
 
 				res := RunResult{
 					ExitCode:   -1,
@@ -520,7 +517,7 @@ func (e *Engine) RunAll(
 
 				endTime := time.Now().UTC()
 
-				logSyncWait()
+				outputBuffers.Wait()
 
 				res := RunResult{
 					ExitCode:   -1,
@@ -537,7 +534,7 @@ func (e *Engine) RunAll(
 				break tasksLoop
 
 			case result := <-resultc:
-				logSyncWait()
+				outputBuffers.Wait()
 
 				var err error
 				if !task.isSuccessExit(result.cmd.ProcessState.ExitCode()) {

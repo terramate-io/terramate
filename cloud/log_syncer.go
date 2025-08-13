@@ -16,61 +16,59 @@ import (
 )
 
 type (
-	// LogSyncer is the log syncer controller type.
+	// BufferGroup manages a group of synchronized buffers.
+	BufferGroup struct {
+		fds       []io.Closer
+		wg        sync.WaitGroup
+		logSyncer *LogSyncer
+	}
+
+	// LogSyncer synchronizes log lines, typically from a single buffer group.
 	LogSyncer struct {
 		pending  resources.CommandLogs
-		fds      []io.Closer
 		in       chan *resources.CommandLog
-		syncfn   Syncer
-		wg       sync.WaitGroup
+		syncfn   SyncFunc
 		shutdown chan struct{}
 
 		batchSize    int
 		syncInterval time.Duration
 	}
 
-	// Syncer is the actual synchronizer callback.
-	Syncer func(l resources.CommandLogs)
+	// SyncFunc is the actual synchronizer callback.
+	SyncFunc func(l resources.CommandLogs)
 )
 
-// DefaultLogBatchSize is the default batch size.
-const DefaultLogBatchSize = 256
-
-// DefaultLogSyncInterval is the maximum idle duration before a sync could happen.
-const DefaultLogSyncInterval = 1 * time.Second
-
-// NewLogSyncer creates a new log syncer.
-func NewLogSyncer(syncfn Syncer) *LogSyncer {
-	return NewLogSyncerWith(syncfn, DefaultLogBatchSize, DefaultLogSyncInterval)
+// NewBufferGroup creates a new buffer group with an optional LogSyncer.
+func NewBufferGroup(logSyncer *LogSyncer) *BufferGroup {
+	return &BufferGroup{logSyncer: logSyncer}
 }
 
-// NewLogSyncerWith creates a new customizable syncer.
-func NewLogSyncerWith(
-	syncfn Syncer,
-	batchSize int,
-	syncInterval time.Duration,
-) *LogSyncer {
-	l := &LogSyncer{
-		in:       make(chan *resources.CommandLog, batchSize),
-		syncfn:   syncfn,
-		shutdown: make(chan struct{}),
-
-		batchSize:    batchSize,
-		syncInterval: syncInterval,
+// Wait waits for the processing all output for the buffers within this group.
+// If a LogSyncher is attached, it will also wait for it to finish.
+// After calling this method, it's not safe to call any other method, as it
+// closes the internal channels and shutdown all goroutines.
+func (s *BufferGroup) Wait() {
+	for _, writerFD := range s.fds {
+		// only return an error when readerFD.CloseWithError(err) is called but
+		// but this is not the case.
+		_ = writerFD.Close()
 	}
-	l.start()
-	return l
+	s.wg.Wait()
+
+	if s.logSyncer != nil {
+		s.logSyncer.Wait()
+	}
 }
 
 // NewBuffer creates a new synchronized buffer.
-func (s *LogSyncer) NewBuffer(channel resources.LogChannel, out io.Writer) io.Writer {
+func (s *BufferGroup) NewBuffer(channel resources.LogChannel, out io.Writer) io.Writer {
 	r, w := io.Pipe()
 	s.fds = append(s.fds, w)
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		linenum := int64(1)
-		syncDisabled := false
+		linenum := int64(0)
+		syncDisabled := s.logSyncer == nil
 
 		var pending []byte
 		errs := errors.L()
@@ -84,6 +82,8 @@ func (s *LogSyncer) NewBuffer(channel resources.LogChannel, out io.Writer) io.Wr
 				lines = [][]byte{rest}
 			}
 			for _, line := range lines {
+				linenum++
+
 				_, err := out.Write(line)
 				if err != nil {
 					errs.Append(errors.E(err, "writing to terminal"))
@@ -99,14 +99,8 @@ func (s *LogSyncer) NewBuffer(channel resources.LogChannel, out io.Writer) io.Wr
 					continue
 				}
 
-				t := time.Now().UTC()
-				s.in <- &resources.CommandLog{
-					Channel:   channel,
-					Line:      linenum,
-					Message:   string(dropCRLN([]byte(line))),
-					Timestamp: &t,
-				}
-				linenum++
+				s.logSyncer.ProcessLine(channel, linenum, line)
+
 			}
 			if readErr == io.EOF {
 				break
@@ -123,16 +117,51 @@ func (s *LogSyncer) NewBuffer(channel resources.LogChannel, out io.Writer) io.Wr
 	return w
 }
 
+// DefaultLogBatchSize is the default batch size.
+const DefaultLogBatchSize = 256
+
+// DefaultLogSyncInterval is the maximum idle duration before a sync could happen.
+const DefaultLogSyncInterval = 1 * time.Second
+
+// NewLogSyncer creates a new log syncer with default parameters.
+func NewLogSyncer(syncfn SyncFunc) *LogSyncer {
+	return NewLogSyncerWith(syncfn, DefaultLogBatchSize, DefaultLogSyncInterval)
+}
+
+// NewLogSyncerWith creates a new customizable syncer.
+func NewLogSyncerWith(
+	syncfn SyncFunc,
+	batchSize int,
+	syncInterval time.Duration,
+) *LogSyncer {
+	l := &LogSyncer{
+		in:       make(chan *resources.CommandLog, batchSize),
+		syncfn:   syncfn,
+		shutdown: make(chan struct{}),
+
+		batchSize:    batchSize,
+		syncInterval: syncInterval,
+	}
+	l.start()
+
+	return l
+}
+
+// ProcessLine creates a new synchronized buffer.
+func (s *LogSyncer) ProcessLine(channel resources.LogChannel, linenum int64, line []byte) {
+	t := time.Now().UTC()
+	s.in <- &resources.CommandLog{
+		Channel:   channel,
+		Line:      linenum,
+		Message:   string(dropCRLN([]byte(line))),
+		Timestamp: &t,
+	}
+}
+
 // Wait waits for the processing of all log messages.
 // After calling this method, it's not safe to call any other method, as it
 // closes the internal channels and shutdown all goroutines.
 func (s *LogSyncer) Wait() {
-	for _, writerFD := range s.fds {
-		// only return an error when readerFD.CloseWithError(err) is called but
-		// but this is not the case.
-		_ = writerFD.Close()
-	}
-	s.wg.Wait()
 	close(s.in)
 	<-s.shutdown
 }
