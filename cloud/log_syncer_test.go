@@ -396,12 +396,14 @@ func TestCloudLogSyncer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var gotBatches []resources.CommandLogs
+
 			s := cloud.NewLogSyncerWith(func(logs resources.CommandLogs) {
 				gotBatches = append(gotBatches, logs)
 			}, tc.batchSize, tc.syncInterval)
+			g := cloud.NewBufferGroup(s)
 			var stdoutBuf, stderrBuf bytes.Buffer
-			stdoutProxy := s.NewBuffer(resources.StdoutLogChannel, &stdoutBuf)
-			stderrProxy := s.NewBuffer(resources.StderrLogChannel, &stderrBuf)
+			stdoutProxy := g.NewBuffer(resources.StdoutLogChannel, &stdoutBuf)
+			stderrProxy := g.NewBuffer(resources.StderrLogChannel, &stderrBuf)
 
 			writeFinished := make(chan struct{})
 			go func() {
@@ -419,7 +421,7 @@ func TestCloudLogSyncer(t *testing.T) {
 			}()
 
 			<-writeFinished
-			s.Wait()
+			g.Wait()
 
 			var gotOutputs map[resources.LogChannel][]byte
 			stdoutBytes := stdoutBuf.Bytes()
