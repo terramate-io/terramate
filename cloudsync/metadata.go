@@ -839,6 +839,7 @@ func setGithubActionsMetadata(md *resources.DeploymentMetadata) {
 	md.GithubActionsRunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
 	md.GithubActionsWorkflowName = os.Getenv("GITHUB_WORKFLOW")
 	md.GithubActionsWorkflowRef = os.Getenv("GITHUB_WORKFLOW_REF")
+	md.GithubActionsServerURL = os.Getenv("GITHUB_SERVER_URL")
 }
 
 func setGithubCommitMetadata(md *resources.DeploymentMetadata, commit *gh.RepositoryCommit) {
