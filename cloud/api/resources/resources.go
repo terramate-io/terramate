@@ -329,6 +329,8 @@ type (
 		GitlabCICDUserName          string `json:"gitlab_cicd_user_name,omitempty"`           // GITLAB_USER_NAME
 		GitlabCICDUserLogin         string `json:"gitlab_cicd_user_login,omitempty"`          // GITLAB_USER_LOGIN
 		GitlabCICDCommitBranch      string `json:"gitlab_cicd_commit_branch,omitempty"`       // CI_COMMIT_BRANCH
+		GitlabCIServerHost          string `json:"gitlab_cicd_server_host,omitempty"`         // CI_SERVER_HOST
+		GitlabCIServerURL           string `json:"gitlab_cicd_server_url,omitempty"`          // CI_SERVER_URL
 
 		// either CI_COMMIT_BRANCH or CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
 		GitlabCICDBranch string `json:"gitlab_cicd_branch,omitempty"`
