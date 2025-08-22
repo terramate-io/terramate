@@ -289,6 +289,7 @@ type (
 		GithubActionsRunAttempt            string `json:"github_actions_run_attempt,omitempty"`
 		GithubActionsWorkflowName          string `json:"github_actions_workflow_name,omitempty"`
 		GithubActionsWorkflowRef           string `json:"github_actions_workflow_ref,omitempty"`
+		GithubActionsServerURL             string `json:"github_actions_server_url,omitempty"` // GITHUB_SERVER_URL
 
 		GithubCommit      *metadata.GithubCommit      `json:"github_commit,omitempty"`
 		GithubPullRequest *metadata.GithubPullRequest `json:"github_pull_request,omitempty"`
