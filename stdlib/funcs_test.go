@@ -383,6 +383,43 @@ func TestStdlibTofuSanityCheck(t *testing.T) {
 	}
 }
 
+func TestTmSlug(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		expr string
+		want string
+	}
+
+	for _, tc := range []testcase{
+		{
+			expr: `tm_slug("I am the slug")`,
+			want: "i-am-the-slug",
+		},
+		{
+			expr: `tm_slug("i-am-already-slug-1")`,
+			want: "i-am-already-slug-1",
+		},
+		{
+			expr: `tm_slug("Dollar$%special")`,
+			want: "dollar--special",
+		},
+		{
+			expr: `tm_slug("")`,
+			want: "",
+		},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			rootdir := test.TempDir(t)
+			ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
+			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
+			assert.NoError(t, err)
+			got := val.AsString()
+			assert.EqualStrings(t, tc.want, got)
+		})
+	}
+}
+
 func nljoin(strs ...string) string { return strings.Join(strs, "\n") + "\n" }
 
 func init() {
