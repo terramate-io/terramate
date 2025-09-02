@@ -335,7 +335,7 @@ func TestCloudStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "double check stack with dotted tags are not validated in the CLI",
+			name: "stacks with dots and slashes are valid",
 			layout: []string{
 				"s:s1:id=s1", // s1 has no tags locally
 				"s:s2:id=s2",
@@ -345,7 +345,7 @@ func TestCloudStatus(t *testing.T) {
 					Stack: resources.Stack{
 						MetaID:     "s1",
 						Repository: "github.com/terramate-io/terramate",
-						MetaTags:   []string{"something.with.dots"},
+						MetaTags:   []string{"something.with.dots/and-slash"},
 					},
 					State: cloudstore.StackState{
 						Status:           cloudstack.Drifted,
