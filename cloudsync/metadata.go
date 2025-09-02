@@ -499,6 +499,8 @@ func setGitlabCIMetadata(_ *engine.Engine, md *resources.DeploymentMetadata, sta
 	md.GitlabCICDUserLogin = os.Getenv("GITLAB_USER_LOGIN")
 	md.GitlabCICDCommitBranch = os.Getenv("CI_COMMIT_BRANCH")
 	md.GitlabCICDBranch = md.GitlabCICDCommitBranch
+	md.GitlabCIServerHost = os.Getenv("CI_SERVER_HOST")
+	md.GitlabCIServerURL = os.Getenv("CI_SERVER_URL")
 
 	createdAt, err := time.Parse(time.RFC3339, md.GitlabCICDPipelineCreatedAt)
 	if err != nil {
@@ -837,6 +839,7 @@ func setGithubActionsMetadata(md *resources.DeploymentMetadata) {
 	md.GithubActionsRunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
 	md.GithubActionsWorkflowName = os.Getenv("GITHUB_WORKFLOW")
 	md.GithubActionsWorkflowRef = os.Getenv("GITHUB_WORKFLOW_REF")
+	md.GithubActionsServerURL = os.Getenv("GITHUB_SERVER_URL")
 }
 
 func setGithubCommitMetadata(md *resources.DeploymentMetadata, commit *gh.RepositoryCommit) {
