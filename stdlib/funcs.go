@@ -431,21 +431,3 @@ func hclExpr(arg cty.Value) (cty.Value, error) {
 	}
 	return customdecode.ExpressionVal(exprParsed), nil
 }
-
-var slugRegexp = regexp.MustCompile("[^a-z0-9_]")
-
-// SlugFunc returns the `tm_slug` function spec.
-func SlugFunc() function.Function {
-	return function.New(&function.Spec{
-		Params: []function.Parameter{
-			{
-				Name: "path",
-				Type: cty.String,
-			},
-		},
-		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
-			return cty.StringVal(slugRegexp.ReplaceAllString(strings.ToLower(args[0].AsString()), "-")), nil
-		},
-	})
-}
