@@ -4,6 +4,7 @@
 package generate
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -86,6 +87,15 @@ type LoadResult struct {
 	Files []GenFile
 	// Err will be non-nil if loading generated files for a specific dir failed
 	Err error
+}
+
+type apiImpl struct{}
+
+var _ API = (*apiImpl)(nil)
+
+// NewAPI creates a new generate.API instance.
+func NewAPI(context.Context) (*apiImpl, error) {
+	return &apiImpl{}, nil
 }
 
 // Load will load all the generated files inside the given tree.
@@ -592,7 +602,7 @@ processSubdirs:
 
 // DetectOutdated will verify if the given config has outdated code in the target tree
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
+func (*apiImpl) DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
 		Stringer("dir", target.Dir()).

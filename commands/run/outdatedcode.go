@@ -4,7 +4,10 @@
 package run
 
 import (
+	"context"
+
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
@@ -13,7 +16,7 @@ import (
 )
 
 // CheckOutdatedGeneratedCode checks if the generated code is outdated.
-func CheckOutdatedGeneratedCode(e *engine.Engine, sf Safeguards, wd string) error {
+func CheckOutdatedGeneratedCode(ctx context.Context, e *engine.Engine, sf Safeguards, wd string) error {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
@@ -33,7 +36,13 @@ func CheckOutdatedGeneratedCode(e *engine.Engine, sf Safeguards, wd string) erro
 	if err != nil {
 		return err
 	}
-	outdatedFiles, err := generate.DetectOutdated(cfg, targetTree, vendorDir)
+
+	generateAPI, err := di.Get[generate.API](ctx)
+	if err != nil {
+		return err
+	}
+
+	outdatedFiles, err := generateAPI.DetectOutdated(cfg, targetTree, vendorDir)
 	if err != nil {
 		return errors.E(err, "failed to check outdated code on project")
 	}

@@ -23,8 +23,10 @@ import (
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/printer"
@@ -63,6 +65,8 @@ type CLI struct {
 
 	beforeConfigHandler Handler
 	afterConfigHandler  Handler
+
+	bindings *di.Bindings
 }
 
 // Handler is a function that handles the CLI configuration.
@@ -146,6 +150,15 @@ func NewCLI(opts ...Option) (*CLI, error) {
 			return nil, err
 		}
 	}
+	if c.bindings == nil {
+		b := di.NewBindings(context.Background())
+		SetDefaultAPIBindings(b)
+
+		err := WithBindings(b)(c)
+		if err != nil {
+			return nil, err
+		}
+	}
 	c.printers.Stdout = printer.NewPrinter(c.state.stdout)
 	c.printers.Stderr = printer.NewPrinter(c.state.stderr)
 	c.state.uimode = engine.HumanMode
@@ -207,6 +220,13 @@ func (c *CLI) Exec(args []string) {
 		os.Exit(1)
 	}
 
+	if err := di.Validate(c.bindings); err != nil {
+		printer.Stderr.Fatal(err)
+	}
+	if err := di.InitAll(c.bindings); err != nil {
+		printer.Stderr.Fatal(err)
+	}
+
 	kctx, kerr := c.parser.Parse(args)
 
 	if c.kongExit && c.kongExitStatus == 0 {
@@ -254,6 +274,7 @@ func (c *CLI) Exec(args []string) {
 
 	ctx := context.WithValue(context.Background(), KongContext, kctx)
 	ctx = context.WithValue(ctx, KongError, err)
+	ctx = di.WithBindings(ctx, c.bindings)
 
 	cmd, ok, cont, err := c.beforeConfigHandler(ctx, c)
 	if err != nil {
@@ -305,7 +326,7 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		panic("command not found -- should be handled by kong")
 	}
 
-	err = cmd.Exec(context.TODO())
+	err = cmd.Exec(di.WithBindings(context.TODO(), c.bindings))
 	if err != nil {
 		printer.Stderr.Fatal(err)
 	}
@@ -447,4 +468,13 @@ func runCheckpoint(product, version string, clicfg cliconfig.Config, result chan
 	}
 
 	result <- resp
+}
+
+// SetDefaultAPIBindings binds all default APIs.
+func SetDefaultAPIBindings(b *di.Bindings) error {
+	errs := errors.L()
+
+	errs.Append(di.Bind[generate.API](b, generate.NewAPI))
+
+	return errs.AsError()
 }

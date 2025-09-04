@@ -4,6 +4,7 @@
 package generate_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -1560,7 +1561,10 @@ func TestOutdatedDetection(t *testing.T) {
 					}
 				}
 
-				got, err := generate.DetectOutdated(s.Config(), target, vendorDir)
+				generateAPI, err := generate.NewAPI(context.Background())
+				assert.NoError(t, err)
+
+				got, err := generateAPI.DetectOutdated(s.Config(), target, vendorDir)
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
 					continue
@@ -1571,7 +1575,7 @@ func TestOutdatedDetection(t *testing.T) {
 				t.Log("checking that after generate outdated detection should always return empty")
 
 				s.GenerateWith(s.Config(), vendorDir)
-				got, err = generate.DetectOutdated(s.Config(), s.Config().Tree(), vendorDir)
+				got, err = generateAPI.DetectOutdated(s.Config(), s.Config().Tree(), vendorDir)
 				assert.NoError(t, err)
 
 				assertEqualStringList(t, got, []string{})

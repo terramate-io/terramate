@@ -8,6 +8,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/posener/complete"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/willabides/kongplete"
 )
@@ -142,6 +143,14 @@ func WithSpecHandler(a any, beforeHandler, afterHandler Handler, checkers ...Roo
 func WithHCLOptions(hclOpts ...hcl.Option) Option {
 	return func(c *CLI) error {
 		c.hclOptions = hclOpts
+		return nil
+	}
+}
+
+// WithBindings is an option to set bindings.
+func WithBindings(bindings *di.Bindings) Option {
+	return func(c *CLI) error {
+		c.bindings = bindings
 		return nil
 	}
 }
