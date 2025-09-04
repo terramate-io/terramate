@@ -75,8 +75,8 @@ type Spec struct {
 func (s *Spec) Name() string { return "script run" }
 
 // Exec executes the script run command.
-func (s *Spec) Exec(_ context.Context) error {
-	err := runcmd.CheckOutdatedGeneratedCode(s.Engine, s.Safeguards, s.WorkingDir)
+func (s *Spec) Exec(ctx context.Context) error {
+	err := runcmd.CheckOutdatedGeneratedCode(ctx, s.Engine, s.Safeguards, s.WorkingDir)
 	if err != nil {
 		return err
 	}

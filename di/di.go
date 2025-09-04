@@ -1,6 +1,7 @@
 // Copyright 2025 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
+// Package di provides a lightweight dependency injection framework.
 package di
 
 import (
@@ -11,8 +12,6 @@ import (
 	"strings"
 )
 
-type bindingsKey struct{}
-
 // Bindings map interfaces to implementations and allow to retrieve them from a context.
 type Bindings struct {
 	ctx          context.Context
@@ -21,14 +20,23 @@ type Bindings struct {
 	cycleChecker []string
 }
 
-// NewBindings creates a new bindings object and adds it to the given context.
+// Factory is the factory function type.
+// The given context supports di.Get to lookup other interfaces.
+type Factory[Ifc any] func(context.Context) (Ifc, error)
+
+// OverrideFactory is the override factory function type.
+// It is passed the overridden instance as additional argument.
+type OverrideFactory[Ifc any] func(context.Context, Ifc) (Ifc, error)
+
+// NewBindings creates a new bindings object.
+// The given context will be used for calls to factory functions.
 func NewBindings(ctx context.Context) *Bindings {
 	b := &Bindings{
 		initializers: map[string]func(context.Context) (any, error){},
 		instances:    map[string]any{},
 		cycleChecker: []string{},
 	}
-	b.ctx = context.WithValue(ctx, bindingsKey{}, b)
+	b.ctx = WithBindings(ctx, b)
 	return b
 }
 
@@ -43,19 +51,16 @@ func Require[Ifc any](b *Bindings) {
 }
 
 // WithBindings returns a copy of the given context with bindings.
+// The context can then be used with di.Get.
 func WithBindings(ctx context.Context, b *Bindings) context.Context {
 	return context.WithValue(ctx, bindingsKey{}, b)
 }
 
 // Bind binds an interface to the given factory function, which will be used to instantiate the implementation.
-// This instance exists once within the scope of the bindings.
-func Bind[Ifc, Impl any](b *Bindings, factory func(context.Context) (Impl, error)) error {
+// The created instance exists once within the scope of the bindings.
+// Calling Bind twice on the same interface will result in an error - see Override instead.
+func Bind[Ifc any](b *Bindings, factory Factory[Ifc]) error {
 	ifcTyp := reflect.TypeFor[Ifc]()
-	implTyp := reflect.TypeFor[Impl]()
-	if !implTyp.Implements(ifcTyp) {
-		return fmt.Errorf("%s does not implement %s", implTyp, ifcTyp)
-	}
-
 	ifcKey := ifcTyp.String()
 	if initFn := b.initializers[ifcKey]; initFn != nil {
 		return fmt.Errorf("interface %s is already bound", ifcKey)
@@ -74,12 +79,9 @@ func Bind[Ifc, Impl any](b *Bindings, factory func(context.Context) (Impl, error
 }
 
 // Override overrides an already bound interface.
-func Override[Ifc, Impl any](b *Bindings, factory func(context.Context, Ifc) (Impl, error)) error {
+// Calling Override on an unbound interface will result in an error.
+func Override[Ifc any](b *Bindings, factory OverrideFactory[Ifc]) error {
 	ifcTyp := reflect.TypeFor[Ifc]()
-	implTyp := reflect.TypeFor[Impl]()
-	if !implTyp.Implements(ifcTyp) {
-		return fmt.Errorf("%s does not implement %s", implTyp, ifcTyp)
-	}
 
 	ifcKey := ifcTyp.String()
 	parentInitFn := b.initializers[ifcKey]
@@ -134,11 +136,12 @@ func Get[Ifc any](ctx context.Context) (Ifc, error) {
 		return zero, err
 	}
 
-	if v, ok := inst.(Ifc); ok {
-		return v, nil
-	} else {
+	v, ok := inst.(Ifc)
+	if !ok {
 		return zero, fmt.Errorf("mismatched instance type for %s: %T", ifcKey, v)
 	}
+
+	return v, nil
 }
 
 // InitAll initializes all currently bound interfaces.
@@ -156,12 +159,10 @@ func bindingsFromContext(ctx context.Context) (*Bindings, error) {
 	if v := ctx.Value(bindingsKey{}); v != nil {
 		if u, ok := v.(*Bindings); ok {
 			return u, nil
-		} else {
-			return nil, fmt.Errorf("invalid bindings type")
 		}
-	} else {
-		return nil, fmt.Errorf("context contains no instance bindings")
+		return nil, fmt.Errorf("invalid bindings type")
 	}
+	return nil, fmt.Errorf("context contains no instance bindings")
 }
 
 func getOrInit(b *Bindings, ifcKey string) (any, error) {
@@ -192,3 +193,5 @@ func getOrInit(b *Bindings, ifcKey string) (any, error) {
 
 	return inst, nil
 }
+
+type bindingsKey struct{}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/posener/complete"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/willabides/kongplete"
 )
@@ -131,6 +132,27 @@ func WithSpecHandler(a any, beforeHandler, afterHandler Handler, checkers ...Roo
 func WithHCLOptions(hclOpts ...hcl.Option) Option {
 	return func(c *CLI) error {
 		c.hclOptions = hclOpts
+		return nil
+	}
+}
+
+// BindingsSetupHandler is the function signature for setup handlers.
+type BindingsSetupHandler func(c *CLI, bindings *di.Bindings) error
+
+// WithBeforeConfigSetup is an option to setup handlers that run before the config is loaded.
+// Bindings set here will available in beforeConfigHandlers, but c.Engine() is not available there yet.
+func WithBeforeConfigSetup(handlers ...BindingsSetupHandler) Option {
+	return func(c *CLI) error {
+		c.beforeConfigSetupHandlers = handlers
+		return nil
+	}
+}
+
+// WithAfterConfigSetup is an option to setup handlers that run after the config is loaded.
+// Bindings set here will available in afterConfigHandlers and during command execution.
+func WithAfterConfigSetup(handlers ...BindingsSetupHandler) Option {
+	return func(c *CLI) error {
+		c.afterConfigSetupHandlers = handlers
 		return nil
 	}
 }

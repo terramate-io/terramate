@@ -29,11 +29,11 @@ type MyService1Impl struct {
 type MyService2Impl struct {
 }
 
-func newService1Impl(ctx context.Context) (*MyService1Impl, error) {
+func newService1Impl(context.Context) (MyService1, error) {
 	return &MyService1Impl{}, nil
 }
 
-func newService2Impl(ctx context.Context) (*MyService2Impl, error) {
+func newService2Impl(context.Context) (MyService2, error) {
 	return &MyService2Impl{}, nil
 }
 
@@ -52,14 +52,10 @@ func TestDI(t *testing.T) {
 	di.Require[MyService1](b)
 
 	var err error
-	err = di.Bind[MyService1](b, newService1Impl)
+	err = di.Bind(b, newService1Impl)
 	assert.NoError(t, err)
 
-	err = di.Bind[MyService1](b, newService2Impl)
-	assert.IsTrue(t, err != nil)
-	assert.StringMatch(t, ".*not implement.*", err.Error())
-
-	err = di.Bind[MyService2](b, newService2Impl)
+	err = di.Bind(b, newService2Impl)
 	assert.NoError(t, err)
 
 	assert.IsTrue(t, di.Validate(b) == nil)
@@ -82,7 +78,7 @@ func TestDI(t *testing.T) {
 }
 
 func TestDep(t *testing.T) {
-	newService1Impl := func(ctx context.Context) (*MyService1Impl, error) {
+	newService1Impl := func(ctx context.Context) (MyService1, error) {
 		_, err := di.Get[MyService2](ctx)
 		if err != nil {
 			return nil, err
@@ -90,15 +86,15 @@ func TestDep(t *testing.T) {
 		return &MyService1Impl{}, nil
 	}
 
-	newService2Impl := func(ctx context.Context) (*MyService2Impl, error) {
+	newService2Impl := func(context.Context) (MyService2, error) {
 		return &MyService2Impl{}, nil
 	}
 
 	b := di.NewBindings(t.Context())
 
-	err := di.Bind[MyService1](b, newService1Impl)
+	err := di.Bind(b, newService1Impl)
 	assert.NoError(t, err)
-	err = di.Bind[MyService2](b, newService2Impl)
+	err = di.Bind(b, newService2Impl)
 	assert.NoError(t, err)
 
 	err = di.InitAll(b)
@@ -106,7 +102,7 @@ func TestDep(t *testing.T) {
 }
 
 func TestCircularDep(t *testing.T) {
-	newService1CircularImpl := func(ctx context.Context) (*MyService1Impl, error) {
+	newService1CircularImpl := func(ctx context.Context) (MyService1, error) {
 		_, err := di.Get[MyService2](ctx)
 		if err != nil {
 			return nil, err
@@ -114,7 +110,7 @@ func TestCircularDep(t *testing.T) {
 		return &MyService1Impl{}, nil
 	}
 
-	newService2CircularImpl := func(ctx context.Context) (*MyService2Impl, error) {
+	newService2CircularImpl := func(ctx context.Context) (MyService2, error) {
 		_, err := di.Get[MyService1](ctx)
 		if err != nil {
 			return nil, err
@@ -124,9 +120,9 @@ func TestCircularDep(t *testing.T) {
 
 	b := di.NewBindings(t.Context())
 
-	err := di.Bind[MyService1](b, newService1CircularImpl)
+	err := di.Bind(b, newService1CircularImpl)
 	assert.NoError(t, err)
-	err = di.Bind[MyService2](b, newService2CircularImpl)
+	err = di.Bind(b, newService2CircularImpl)
 	assert.NoError(t, err)
 
 	err = di.InitAll(b)
@@ -138,7 +134,7 @@ type MyService2ImplOverride struct {
 	parent MyService2
 }
 
-func newService2ImplOverride(ctx context.Context, parent MyService2) (*MyService2ImplOverride, error) {
+func newService2ImplOverride(_ context.Context, parent MyService2) (MyService2, error) {
 	return &MyService2ImplOverride{parent: parent}, nil
 }
 
@@ -154,14 +150,14 @@ func TestOverride(t *testing.T) {
 
 	var err error
 
-	err = di.Override[MyService2](b, newService2ImplOverride)
+	err = di.Override(b, newService2ImplOverride)
 	assert.IsTrue(t, err != nil)
 	assert.StringMatch(t, "is not yet bound", err.Error())
 
-	err = di.Bind[MyService2](b, newService2Impl)
+	err = di.Bind(b, newService2Impl)
 	assert.NoError(t, err)
 
-	err = di.Override[MyService2](b, newService2ImplOverride)
+	err = di.Override(b, newService2ImplOverride)
 	assert.NoError(t, err)
 
 	err = di.Validate(b)
