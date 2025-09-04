@@ -24,6 +24,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `tm_tree()` function for constructing hierarchical paths from parent-child relationships.
+
+```hcl
+  tm_tree([[null, "root"], ["root", "child1"], ["root", "child2"], ["child1", "leaf"]])
+  # Returns: [["root"], ["root", "child1"], ["root", "child1", "leaf"], ["root", "child2"]]
+```
+
 - Add support for slashes (`/`) in tags.
 
 ## v0.14.4
@@ -66,54 +73,58 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
   This affects and improves commands that use the stack order, i.e. `run`, `run script`, `list --run-order`.
   As a consequence, the evaluation order of _unrelated_ stacks may change.
-
   - Example 1:
     Nested stacks `a` must be executed after their parent stacks, but `/stack1` and `/stack2` are independent.
 
     Old run order:
-      ```
-      /stack1
-      /stack1/a
-      /stack2
-      /stack2/a
-      ```
+
+    ```
+    /stack1
+    /stack1/a
+    /stack2
+    /stack2/a
+    ```
 
     New run order:
-      ```
-      /stack1
-      /stack2
-      /stack1/a
-      /stack2/a
-      ```
+
+    ```
+    /stack1
+    /stack2
+    /stack1/a
+    /stack2/a
+    ```
 
   - Example 2:
     `stack2` must be executed after `stack1`, but `stack1` and `stack3` are independent in the follwing configuration:
-      ```
-      /stack1 
-      /stack2 (after=[stack1])
-      /stack3
-      ```
+
+    ```
+    /stack1
+    /stack2 (after=[stack1])
+    /stack3
+    ```
 
     Old run order:
-      ```
-      /stack1
-      /stack2
-      /stack3
-      ```
+
+    ```
+    /stack1
+    /stack2
+    /stack3
+    ```
 
     New run order:
-      ```
-      /stack1
-      /stack3
-      /stack2
-      ```
+
+    ```
+    /stack1
+    /stack3
+    /stack2
+    ```
 
   The new rule recursively aligns stacks that are independent into groups.
   - The first group contains all initially independent stacks.
   - The second group contains all stacks that just depended on stacks in the first group.
   - The third group contains all stacks that just depended on stacks in both previous groups.
   - The fourth group and following groups continue in the same way.
-  
+
   Stacks in each group are ordered lexicographically and returned as the order of execution when running sequentially.
 
   The run order when using the `--parallel` flag is not affected by this change.
@@ -236,7 +247,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add support for tracking `file()` usages in Terragrunt files for enhancing the change detection.
   - Now if you have Terragrunt modules that directly read files from elsewhere in the project, Terramate will
-  mark the stack changed whenever the aforementioned file changes.
+    mark the stack changed whenever the aforementioned file changes.
 - Add telemetry to collect anonymous usage metrics.
   - This helps us to improve user experience by measuring which Terramate features are used most actively.
     For further details, see [documentation](https://terramate.io/docs/cli/telemetry).
@@ -279,11 +290,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Faster code generation through parallelization.
   - Enabled by default, use `terramate generate --parallel <n>` to control the amount of concurrent units (default = number of logical CPU cores).
 
-## v0.11.0 
+## v0.11.0
 
 ### Added
 
-- Add `--enable-change-detection=<options>` and `--disable-change-detection=<options>` to the commands: `terramate list`, `terramate run` and `terramate script run`. 
+- Add `--enable-change-detection=<options>` and `--disable-change-detection=<options>` to the commands: `terramate list`, `terramate run` and `terramate script run`.
   - These flags overrides both the default change detection strategy and the configuration in `terramate.config.change_detection.git` block.
 - Add support for using `TM_ARG_*` environment variables to configure cli commands.
   Note: This is an incremental change. Only global flags and `terramate run` flags were added for now.
@@ -291,7 +302,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Changed
 
-- **(Breaking change)** The `terramate list --changed` now considers *untracked* and * uncommitted*  files for detecting changed stacks.
+- **(Breaking change)** The `terramate list --changed` now considers _untracked_ and _ uncommitted_ files for detecting changed stacks.
   - This behavior can be turned off by `terramate.config.change_detection.git.untracked = "off"` and `terramate.config.change_detection.git.uncommitted = "off"`.
 - **(Breaking change)** Remove the deprecated `terramate experimental run-order`.
   - The `terramate list --run-order` was introduced in version `v0.4.5` and provides the same functionality as the removed command.
@@ -330,13 +341,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Several performance improvements in the change detection.
 
-
 ## v0.10.6
 
 ### Fixed
 
 - Fix "outdated-code" safeguard giving false positive results for files generated
- in subdirectory of stacks.
+  in subdirectory of stacks.
 
 ## v0.10.5
 
@@ -468,7 +478,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix `terramate experimental trigger --status` to respect the `-C <dir>` flag.
-	- Now using `-C <dir>` (or `--chdir <dir>`) only triggers stacks inside the provided dir.
+  - Now using `-C <dir>` (or `--chdir <dir>`) only triggers stacks inside the provided dir.
 - Fix the update of stack status to respect the configured parallelism option and only set stack status to be `running` before the command starts.
 - Fix `terramate experimental trigger` gives a misleading error message when a stack is not found.
 
@@ -738,9 +748,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add support for `stack_filter` blocks in `generate_file` blocks
 - Add `list --run-order` flag to list stacks in the order of execution
 - Add support for `terramate` in linting, pre-commit and test environments
-
   - Add `--detailed-exit-code` to `terramate fmt` and `terramate generate` commands:
-
     - An exit code of `0` represents successful execution and no changes made
     - An exit code of `1` represents the error state, something went wrong
     - An exit code of `2` represents successful execution but changes were made
@@ -748,7 +756,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Changed
 
 - Refactor Safeguards
-
   - Add `disable_safeguards` configuration and `--disable-safeguards` CLI option with possible values
     - `all` Disable ALL safeguards (use with care)
     - `none` Enable ALL safeguards
@@ -759,19 +766,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `outdated-code` Disable Safeguard that checks for outdated code
 
 - Promote cloud commands from `experimental`
-
   - `terramate cloud login`
   - `terramate cloud info`
   - `terramate cloud drift show`
 
 - Improve support for synchronization of deployments to Terramate Cloud
-
   - Add `cloud_sync_deployment` flag to Terramate Scripts Commands
   - Add `cloud_sync_terraform_plan_file` flag to Terramate Scripts Commands when synchronizing deployments.
   - Add `--cloud-sync-terraform-plan-file` support to `terramate run` when synchronizing deployments.
 
 - Promote `--experimental-status` flag to `--cloud-status` flag in
-
   - `terramate experimental trigger`
   - `terramate list`
 
@@ -792,7 +796,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `terramate.config.experiments` configuration to enable experimental features
 - Add support for statuses `ok`, `failed`, `drifted`, and `healthy` to the `--experimental-status` flag
 - Add experimental `script` configuration block
-
   - Add `terramate script list` to list scripts visible in current directory
   - Add `terramate script tree` to show a tree view of scripts visible in current directory
   - Add `terramate script info <scriptname>` to show details about a script
@@ -801,7 +804,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `stack_filter` block to `generate_hcl` for path-based conditional generation.
 
 - Promote experimental commands
-
   - `terramate debug show metadata`
   - `terramate debug show globals`
   - `terramate debug show generate-origins`
