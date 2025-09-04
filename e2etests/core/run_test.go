@@ -1560,12 +1560,12 @@ func TestRunWantedBy(t *testing.T) {
 			},
 		},
 		{
-			name: "stack-b ordered and filtered with tag containing dots, dashes and underscores",
+			name: "stack-b ordered and filtered with tag containing dots, dashes, slashes and underscores",
 			layout: []string{
-				`s:stack-a:tags=["v1.0.0-rc1_experiment"]`,
-				`s:stack-b:tags=["v1.0.1-rc1_experiment"];after=[":tag:v1.0.0-rc1_experiment"]`,
+				`s:stack-a:tags=["dev/v1.0.0-rc1_experiment"]`,
+				`s:stack-b:tags=["dev/v1.0.1-rc1_experiment"];after=[":tag:dev/v1.0.0-rc1_experiment"]`,
 			},
-			filterTags: []string{"v1.0.0-rc1_experiment"},
+			filterTags: []string{"dev/v1.0.0-rc1_experiment"},
 			want: RunExpected{
 				Stdout: nljoin(
 					"/stack-a",

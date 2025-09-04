@@ -30,6 +30,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   tm_joinlist("/", [["root"], ["root", "child"], ["root", "child", "leaf"]])
   # Returns: ["root", "root/child", "root/child/leaf"]
   ```
+- Add `tm_tree()` function for constructing hierarchical paths from parent-child relationships.
+
+```hcl
+  tm_tree([[null, "root"], ["root", "child1"], ["root", "child2"], ["child1", "leaf"]])
+  # Returns: [["root"], ["root", "child1"], ["root", "child1", "leaf"], ["root", "child2"]]
+```
+
+- Add support for slashes (`/`) in tags.
 
 ## v0.14.4
 

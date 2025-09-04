@@ -103,6 +103,8 @@ func Functions(basedir string, experiments []string) map[string]function.Functio
 	tmfuncs["tm_slug"] = SlugFunc()
 	tmfuncs["tm_joinlist"] = JoinListFunc()
 
+	tmfuncs["tm_tree"] = TreeFunc()
+
 	return tmfuncs
 }
 
