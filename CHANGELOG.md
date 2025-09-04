@@ -24,6 +24,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `tm_joinlist()` function for joining nested lists of strings with a separator.
+
+  ```hcl
+  tm_joinlist("/", [["root"], ["root", "child"], ["root", "child", "leaf"]])
+  # Returns: ["root", "root/child", "root/child/leaf"]
+  ```
 - Add `tm_tree()` function for constructing hierarchical paths from parent-child relationships.
 
 ```hcl
