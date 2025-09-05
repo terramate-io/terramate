@@ -38,7 +38,9 @@ import (
 // CLI is the Terramate command-line interface opaque type.
 // The default flag spec is [input.Spec] and handler is [DefaultAfterConfigHandler].
 type CLI struct {
-	version string
+	product       string
+	prettyProduct string
+	version       string
 
 	clicfg cliconfig.Config
 	state  state
@@ -93,7 +95,8 @@ type state struct {
 type Option func(*CLI) error
 
 const (
-	name = "terramate"
+	name       = "terramate"
+	prettyName = "Terramate"
 )
 
 //go:embed cli_help.txt
@@ -110,7 +113,9 @@ const terramateUserConfigDir = ".terramate.d"
 // NewCLI creates a new CLI instance. The opts options modify the default CLI behavior.
 func NewCLI(opts ...Option) (*CLI, error) {
 	c := &CLI{
-		version: terramate.Version(),
+		product:       name,
+		prettyProduct: prettyName,
+		version:       terramate.Version(),
 		kongOpts: kongOptions{
 			name:                      name,
 			description:               helpSummaryText,
@@ -163,7 +168,13 @@ func (c *CLI) DidKongExit() bool {
 // InputSpec returns the CLI flags spec.
 func (c *CLI) InputSpec() any { return c.input }
 
-// Version returns the CLI Terramate version.
+// Product returns the canonical CLI product name.
+func (c *CLI) Product() string { return c.product }
+
+// PrettyProduct returns the CLI product name with prettier formatting.
+func (c *CLI) PrettyProduct() string { return c.prettyProduct }
+
+// Version returns the CLI version.
 func (c *CLI) Version() string { return c.version }
 
 // WorkingDir returns the CLI working directory.
@@ -330,6 +341,8 @@ func (c *CLI) sendAndWaitForAnalytics() {
 
 	tel.DefaultRecord.Send(tel.SendMessageParams{
 		Timeout: 100 * time.Millisecond,
+		Product: c.product,
+		Version: c.version,
 	})
 
 	if err := tel.DefaultRecord.WaitForSend(); err != nil {
@@ -403,7 +416,7 @@ func ConfigureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer
 	return nil
 }
 
-func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
+func runCheckpoint(product, version string, clicfg cliconfig.Config, result chan *checkpoint.CheckResponse) {
 	if clicfg.DisableCheckpoint {
 		result <- nil
 		return
@@ -422,7 +435,7 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 
 	resp, err := checkpoint.CheckAt(defaultTelemetryEndpoint(),
 		&checkpoint.CheckParams{
-			Product:       "terramate",
+			Product:       product,
 			Version:       version,
 			SignatureFile: signatureFile,
 			CacheFile:     cacheFile,
