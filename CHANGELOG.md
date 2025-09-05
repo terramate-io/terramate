@@ -24,12 +24,23 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `tm_slug()` function: New stdlib function that converts strings to URL-safe slugs. Accepts both `string` and `list(string)` inputs, returning the appropriately typed slugified result. Properly handles null values in list or tuple elements without panics.
+
+  ```hcl
+  tm_slug("Hello World!")
+  # Returns: "hello-world"
+
+  tm_slug(["Feature/Branch", "Bug Fix", "Release 2.0"])
+  # Returns: ["feature-branch", "bug-fix", "release-2-0"]
+  ```
+
 - Add `tm_joinlist()` function for joining nested lists of strings with a separator.
 
   ```hcl
   tm_joinlist("/", [["root"], ["root", "child"], ["root", "child", "leaf"]])
   # Returns: ["root", "root/child", "root/child/leaf"]
   ```
+
 - Add `tm_tree()` function for constructing hierarchical paths from parent-child relationships.
 
 ```hcl
