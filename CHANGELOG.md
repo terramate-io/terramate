@@ -24,6 +24,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add `tm_unslug()` function: New stdlib function that maps slugs back to their original human-readable strings using a provided dictionary. Supports both `string` and `list(string)` inputs, with the output shape mirroring the input. Features include:
+  - Dictionary-based reverse mapping for reliable unslugging
+  - Normalization of input slugs (lowercase, collapsed separators, trailing separator removal)
+  - Collision detection with typed error (`UnslugErrorIndeterministic`)
+  - Round-trip guarantee: `tm_unslug(tm_slug(word), dictionary) == word` for all words in dictionary
+  - Extensive special character support (Unicode, emoji, punctuation, etc.)
+
 - Add `tm_slug()` function: New stdlib function that converts strings to URL-safe slugs. Accepts both `string` and `list(string)` inputs, returning the appropriately typed slugified result. Properly handles null values in list or tuple elements without panics.
 
   ```hcl

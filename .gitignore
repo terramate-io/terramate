@@ -24,3 +24,7 @@ dist/
 # MacOS
 .DS_Store
 cosign.pub
+
+# Claude
+.claude/
+CLAUDE.md
