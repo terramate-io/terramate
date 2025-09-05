@@ -128,6 +128,21 @@ func (e *Editor) Change(path, content string) {
 	assert.NoError(t, err, "call %q", lsp.MethodTextDocumentDidChange)
 }
 
+// Format send a MethodTextDocumentFormatting event to the language server.
+func (e *Editor) Format(path string) ([]lsp.TextEdit, error) {
+	t := e.t
+	t.Helper()
+	abspath := filepath.Join(e.sandbox.RootDir(), path)
+	var edits []lsp.TextEdit
+	_, err := e.call(lsp.MethodTextDocumentFormatting, lsp.DocumentFormattingParams{
+		TextDocument: lsp.TextDocumentIdentifier{
+			URI: uri.File(abspath),
+		},
+	}, &edits)
+
+	return edits, err
+}
+
 // Command invokes the provided command in the LSP server.
 func (e *Editor) Command(cmd lsp.ExecuteCommandParams) (interface{}, error) {
 	t := e.t
@@ -150,6 +165,7 @@ func DefaultInitializeResult() lsp.InitializeResult {
 				"openClose": true,
 				"save":      map[string]interface{}{},
 			},
+			DocumentFormattingProvider: true,
 		},
 	}
 }
