@@ -441,7 +441,8 @@ func (e *Engine) RunAll(
 				Str("cmd", cmdStr).
 				Logger()
 
-			cmdPath, err := runutil.LookPath(task.Cmd[0], environ)
+			stackdir := run.Stack.HostDir(e.Config())
+			cmdPath, err := runutil.LookPath(task.Cmd[0], stackdir, environ)
 			if err != nil {
 				opts.Hooks.After(e, cloudRun, RunResult{ExitCode: -1}, errors.E(ErrRunCommandNotExecuted, err))
 				errs.Append(errors.E(err, "running `%s` in stack %s", cmdStr, run.Stack.Dir))
@@ -454,7 +455,7 @@ func (e *Engine) RunAll(
 			}
 
 			cmd := exec.Command(cmdPath, task.Cmd[1:]...)
-			cmd.Dir = run.Stack.HostDir(e.Config())
+			cmd.Dir = stackdir
 			cmd.Env = environ
 
 			var logSyncer *cloud.LogSyncer
