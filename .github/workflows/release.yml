@@ -32,7 +32,13 @@ jobs:
           sudo mv /tmp/goreleaser /usr/local/bin/
 
       - name: install cosign
-        run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
+        run: |
+          if ! command -v cosign >/dev/null 2>&1 || ! cosign version | grep -q "v2.2.4"; then
+            echo "Installing cosign v2.2.4..."
+            go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
+          else
+            echo "cosign v2.2.4 already installed"
+          fi
 
       - name: Create cosign.pub file
         run: echo "${{ secrets.COSIGN_PUBLIC_KEY }}" > cosign.pub

@@ -79,7 +79,12 @@ fmt:
 ## install the linter
 .PHONY: lint/install
 lint/install:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@if ! command -v golangci-lint >/dev/null 2>&1 || ! golangci-lint version | grep -q "$(GOLANGCI_LINT_VERSION)"; then \
+		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+	else \
+		echo "golangci-lint $(GOLANGCI_LINT_VERSION) already installed"; \
+	fi
 
 ## lint all code
 .PHONY: lint/all
