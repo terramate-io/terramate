@@ -76,6 +76,35 @@ func TestTerragruntScanModules(t *testing.T) {
 			},
 		},
 		{
+			name: "module with hooks using if condition",
+			layout: []string{
+				`f:terragrunt.hcl:` + Doc(
+					Block("terraform",
+						Str("source", "https://some.etc/prj"),
+						Block("before_hook", Labels("validate"),
+							Expr("commands", `["plan", "apply"]`),
+							Expr("execute", `["terraform", "validate"]`),
+							Expr("run_on_error", "false"),
+						),
+						Block("before_hook", Labels("conditional"),
+							Expr("commands", `["apply"]`),
+							Expr("execute", `["echo", "Running apply"]`),
+							Expr("if", `get_env("ENABLE_HOOK", "false") == "true"`),
+						),
+					),
+				).String(),
+			},
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/"),
+						Source:     "https://some.etc/prj",
+						ConfigFile: project.NewPath("/terragrunt.hcl"),
+					},
+				},
+			},
+		},
+		{
 			name: "leaf single module",
 			layout: []string{
 				`f:some/dir/terragrunt.hcl:` + Block("terraform",
