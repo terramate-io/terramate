@@ -23,8 +23,10 @@ import (
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/printer"
@@ -61,6 +63,10 @@ type CLI struct {
 
 	beforeConfigHandler Handler
 	afterConfigHandler  Handler
+
+	bindings                  *di.Bindings
+	beforeConfigSetupHandlers []BindingsSetupHandler
+	afterConfigSetupHandlers  []BindingsSetupHandler
 }
 
 // Handler is a function that handles the CLI configuration.
@@ -141,6 +147,20 @@ func NewCLI(opts ...Option) (*CLI, error) {
 			return nil, err
 		}
 	}
+
+	c.bindings = di.NewBindings(context.Background())
+
+	if len(c.beforeConfigSetupHandlers) == 0 {
+		c.beforeConfigSetupHandlers = []BindingsSetupHandler{
+			DefaultBeforeConfigSetup,
+		}
+	}
+	if len(c.afterConfigSetupHandlers) == 0 {
+		c.afterConfigSetupHandlers = []BindingsSetupHandler{
+			DefaultAfterConfigSetup,
+		}
+	}
+
 	c.printers.Stdout = printer.NewPrinter(c.state.stdout)
 	c.printers.Stderr = printer.NewPrinter(c.state.stderr)
 	c.state.uimode = engine.HumanMode
@@ -243,6 +263,21 @@ func (c *CLI) Exec(args []string) {
 
 	ctx := context.WithValue(context.Background(), KongContext, kctx)
 	ctx = context.WithValue(ctx, KongError, err)
+	ctx = di.WithBindings(ctx, c.bindings)
+
+	// Setup bindings before config loading.
+	for _, setup := range c.beforeConfigSetupHandlers {
+		err := setup(c, c.bindings)
+		if err != nil {
+			printer.Stderr.Fatal(err)
+		}
+	}
+	if err := di.Validate(c.bindings); err != nil {
+		printer.Stderr.Fatal(err)
+	}
+	if err := di.InitAll(c.bindings); err != nil {
+		printer.Stderr.Fatal(err)
+	}
 
 	cmd, ok, cont, err := c.beforeConfigHandler(ctx, c)
 	if err != nil {
@@ -278,9 +313,24 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 `)
 	}
 
+	c.state.engine = engine
+
+	// Setup bindings after config loading.
+	for _, setup := range c.afterConfigSetupHandlers {
+		err := setup(c, c.bindings)
+		if err != nil {
+			printer.Stderr.Fatal(err)
+		}
+	}
+	if err := di.Validate(c.bindings); err != nil {
+		printer.Stderr.Fatal(err)
+	}
+	if err := di.InitAll(c.bindings); err != nil {
+		printer.Stderr.Fatal(err)
+	}
+
 	defer c.sendAndWaitForAnalytics()
 
-	c.state.engine = engine
 	cmd, found, cont, err := c.afterConfigHandler(ctx, c)
 	if err != nil {
 		printer.Stderr.Fatal(err)
@@ -294,7 +344,7 @@ Please see https://terramate.io/docs/cli/configuration/project-setup for details
 		panic("command not found -- should be handled by kong")
 	}
 
-	err = cmd.Exec(context.TODO())
+	err = cmd.Exec(di.WithBindings(context.TODO(), c.bindings))
 	if err != nil {
 		printer.Stderr.Fatal(err)
 	}
@@ -434,4 +484,23 @@ func runCheckpoint(version string, clicfg cliconfig.Config, result chan *checkpo
 	}
 
 	result <- resp
+}
+
+// DefaultBeforeConfigSetup sets up the default bindings.
+func DefaultBeforeConfigSetup(*CLI, *di.Bindings) error {
+	errs := errors.L()
+	// Nothing yet.
+	return errs.AsError()
+}
+
+// DefaultAfterConfigSetup sets up the default bindings.
+func DefaultAfterConfigSetup(c *CLI, b *di.Bindings) error {
+	errs := errors.L()
+	errs.Append(SetupGenerateAPI(c, b))
+	return errs.AsError()
+}
+
+// SetupGenerateAPI binds generate.API.
+func SetupGenerateAPI(_ *CLI, b *di.Bindings) error {
+	return di.Bind(b, generate.NewAPI())
 }
