@@ -64,7 +64,6 @@ func (r *Runner) command(ctx context.Context, args ...string) (*exec.Cmd, error)
 // ShowCommand builds a command to execute `terragrunt show` for the given planfile.
 func (r *Runner) ShowCommand(ctx context.Context, planfile string, flags ...string) (*exec.Cmd, error) {
 	useModern := r.useModernFlags(ctx)
-	useTG := r.useTGEnv(ctx)
 
 	args := []string{"show"}
 	if useModern {
@@ -84,12 +83,17 @@ func (r *Runner) ShowCommand(ctx context.Context, planfile string, flags ...stri
 	// Set terragrunt-specific environment variables
 	env := make([]string, len(r.Env))
 	copy(env, r.Env)
-	if useTG {
-		env = append(env, "TG_FORWARD_TF_STDOUT=true")
-		env = append(env, "TG_LOG_FORMAT=bare")
+	// Use TG_* envs for newer terragrunt versions; fall back to legacy TERRAGRUNT_* otherwise
+	if r.useTGEnv(ctx) {
+		env = append(env,
+			"TG_FORWARD_TF_STDOUT=true",
+			"TG_LOG_FORMAT=bare",
+		)
 	} else {
-		env = append(env, "TERRAGRUNT_FORWARD_TF_STDOUT=true")
-		env = append(env, "TERRAGRUNT_LOG_FORMAT=bare")
+		env = append(env,
+			"TERRAGRUNT_FORWARD_TF_STDOUT=true",
+			"TERRAGRUNT_LOG_FORMAT=bare",
+		)
 	}
 	cmd.Env = env
 

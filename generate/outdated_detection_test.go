@@ -4,11 +4,13 @@
 package generate_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/project"
@@ -1560,7 +1562,14 @@ func TestOutdatedDetection(t *testing.T) {
 					}
 				}
 
-				got, err := generate.DetectOutdated(s.Config(), target, vendorDir)
+				b := di.NewBindings(t.Context())
+				assert.NoError(t, di.Bind(b, generate.NewAPI()))
+
+				ctx := di.WithBindings(context.Background(), b)
+				generateAPI, err := di.Get[generate.API](ctx)
+				assert.NoError(t, err)
+
+				got, err := generateAPI.DetectOutdated(s.Config(), target, vendorDir)
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
 					continue
@@ -1571,7 +1580,7 @@ func TestOutdatedDetection(t *testing.T) {
 				t.Log("checking that after generate outdated detection should always return empty")
 
 				s.GenerateWith(s.Config(), vendorDir)
-				got, err = generate.DetectOutdated(s.Config(), s.Config().Tree(), vendorDir)
+				got, err = generateAPI.DetectOutdated(s.Config(), s.Config().Tree(), vendorDir)
 				assert.NoError(t, err)
 
 				assertEqualStringList(t, got, []string{})

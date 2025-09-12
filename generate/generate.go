@@ -4,6 +4,7 @@
 package generate
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/generate/genfile"
@@ -86,6 +88,15 @@ type LoadResult struct {
 	Files []GenFile
 	// Err will be non-nil if loading generated files for a specific dir failed
 	Err error
+}
+
+type apiImpl struct{}
+
+// NewAPI returns a factory for generate.API.
+func NewAPI() di.Factory[API] {
+	return func(context.Context) (API, error) {
+		return &apiImpl{}, nil
+	}
 }
 
 // Load will load all the generated files inside the given tree.
@@ -592,7 +603,7 @@ processSubdirs:
 
 // DetectOutdated will verify if the given config has outdated code in the target tree
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
+func (*apiImpl) DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
 		Stringer("dir", target.Dir()).

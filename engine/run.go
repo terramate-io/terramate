@@ -27,6 +27,7 @@ import (
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/run"
+
 	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/scheduler"

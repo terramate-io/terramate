@@ -110,9 +110,11 @@ func NewProject(wd string, changeDetectionEnabled bool, parserOpts ...hcl.Option
 func (p *Project) IsRepo() bool { return p.isRepo }
 
 func newGit(basedir string) (*git.Git, error) {
+	_, hasGlobal := os.LookupEnv("GIT_CONFIG_GLOBAL")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
 		Env:        os.Environ(),
+		Isolated:   !hasGlobal,
 	})
 	if err != nil {
 		return nil, err

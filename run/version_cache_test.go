@@ -14,6 +14,7 @@ import (
 )
 
 func TestResolveVersionCachesPerResolvedPath(t *testing.T) {
+	ResetLookPathCache()
 	ResetVersionCache()
 
 	tdir := t.TempDir()
@@ -51,6 +52,7 @@ func TestResolveVersionCachesPerResolvedPath(t *testing.T) {
 }
 
 func TestResolveVersionCacheKeyIsResolvedPath(t *testing.T) {
+	ResetLookPathCache()
 	ResetVersionCache()
 
 	d1 := t.TempDir()
@@ -74,8 +76,8 @@ func TestResolveVersionCacheKeyIsResolvedPath(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	_ = ResolveVersion(ctx, []string{"PATH=" + d1}, "foo")
-	_ = ResolveVersion(ctx, []string{"PATH=" + d2}, "foo")
+	_ = ResolveVersionForResolvedPath(ctx, filepath.Join(d1, "foo"))
+	_ = ResolveVersionForResolvedPath(ctx, filepath.Join(d2, "foo"))
 
 	b1, err := os.ReadFile(c1)
 	if err != nil {
@@ -91,6 +93,7 @@ func TestResolveVersionCacheKeyIsResolvedPath(t *testing.T) {
 }
 
 func TestSetTestVersionOverrideSkipsShellOut(t *testing.T) {
+	ResetLookPathCache()
 	ResetVersionCache()
 	SetTestVersionOverride("foo", "9.9.9")
 	t.Cleanup(func() { SetTestVersionOverride("foo", "") })
@@ -103,6 +106,7 @@ func TestSetTestVersionOverrideSkipsShellOut(t *testing.T) {
 }
 
 func TestSeedVersionForResolvedPathSkipsShellOut(t *testing.T) {
+	ResetLookPathCache()
 	ResetVersionCache()
 
 	d := t.TempDir()
