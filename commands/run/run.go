@@ -104,12 +104,12 @@ type Safeguards struct {
 func (s *Spec) Name() string { return "run" }
 
 // Exec executes the run command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(ctx context.Context) error {
 	if len(s.Command) == 0 {
 		return errors.E("run expects a command")
 	}
 
-	err := CheckOutdatedGeneratedCode(s.Engine, s.Safeguards, s.WorkingDir)
+	err := CheckOutdatedGeneratedCode(ctx, s.Engine, s.Safeguards, s.WorkingDir)
 	if err != nil {
 		return err
 	}

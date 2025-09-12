@@ -99,6 +99,13 @@ func Functions(basedir string, experiments []string) map[string]function.Functio
 
 	tmfuncs["tm_hclencode"] = HCLEncode()
 	tmfuncs["tm_hcldecode"] = HCLDecode()
+
+	tmfuncs["tm_slug"] = SlugFunc()
+	tmfuncs["tm_unslug"] = UnslugFunc()
+	tmfuncs["tm_joinlist"] = JoinListFunc()
+
+	tmfuncs["tm_tree"] = TreeFunc()
+
 	return tmfuncs
 }
 

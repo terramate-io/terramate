@@ -28,10 +28,10 @@ func Validate(tag string) error {
 					tag)
 			}
 		default:
-			if !isLowerAlnum(r) && r != '-' && r != '_' && r != '.' {
+			if !isLowerAlnum(r) && r != '-' && r != '_' && r != '.' && r != '/' {
 				return errors.E(
 					ErrInvalidTag,
-					"%q: [a-z._-] are the only permitted characters in tags",
+					"%q: [a-z._-/] are the only permitted characters in tags",
 					tag)
 			}
 		}
