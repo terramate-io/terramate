@@ -90,3 +90,8 @@ func (*TerramateBlockParser) Parse(p *TerramateParser, block *ast.MergedBlock) e
 	return nil
 
 }
+
+// Validate postconditions after parsing.
+func (*TerramateBlockParser) Validate(*TerramateParser) error {
+	return nil
+}

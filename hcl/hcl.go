@@ -472,6 +472,9 @@ type MergedBlockHandler interface {
 
 	// Parse parses the block.
 	Parse(*TerramateParser, *ast.MergedBlock) error
+
+	// Validate postconditions after parsing.
+	Validate(*TerramateParser) error
 }
 
 // MergedLabelsBlockHandler specifies how a merged block with labels should be parsed.
@@ -481,6 +484,9 @@ type MergedLabelsBlockHandler interface {
 
 	// Parse parses the block.
 	Parse(*TerramateParser, ast.LabelBlockType, *ast.MergedBlock) error
+
+	// Validate postconditions after parsing.
+	Validate(*TerramateParser) error
 }
 
 // UniqueBlockHandler specifies how a unique block should be parsed.
@@ -2128,7 +2134,22 @@ func (p *TerramateParser) checkConfigSanity() error {
 	for _, err := range errs.Errors() {
 		logger.Warn().Err(err).Send()
 	}
-	return nil
+
+	return p.validateAfterParsing()
+}
+
+func (p *TerramateParser) validateAfterParsing() error {
+	// some definitions are incremental, so we don't know if a required attribute is missing until the end
+	errs := errors.L()
+
+	for _, handler := range p.mergedBlockHandlers {
+		errs.Append(handler.Validate(p))
+	}
+	for _, handler := range p.mergedLabelsBlockHandlers {
+		errs.Append(handler.Validate(p))
+	}
+
+	return errs.AsError()
 }
 
 func terramateConfigRunSanityCheck(parsingDir string, runblock *ast.Block) error {
