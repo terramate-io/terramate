@@ -49,3 +49,8 @@ func validateGlobals(block *ast.MergedBlock) error {
 	}
 	return errs.AsError()
 }
+
+// Validate postconditions after parsing.
+func (*GlobalsBlockParser) Validate(*TerramateParser) error {
+	return nil
+}
