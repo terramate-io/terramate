@@ -61,7 +61,7 @@ type Spec struct {
 func (s *Spec) Name() string { return "create" }
 
 // Exec executes the create stack command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(ctx context.Context) error {
 	scanFlags := 0
 	if s.AllTerraform {
 		scanFlags++
@@ -85,7 +85,7 @@ func (s *Spec) Exec(_ context.Context) error {
 		if s.Path != "" {
 			return errors.E("Invalid args: path argument cannot be provided with --all-terraform, --all-terragrunt, --ensure-stack-ids")
 		}
-		return s.execScanCreate()
+		return s.execScanCreate(ctx)
 	}
 
 	if s.Path == "" {
@@ -179,10 +179,10 @@ func (s *Spec) Exec(_ context.Context) error {
 		Printers:      s.Printers,
 	}
 
-	return generate.Exec(context.TODO())
+	return generate.Exec(ctx)
 }
 
-func (s *Spec) execScanCreate() error {
+func (s *Spec) execScanCreate(ctx context.Context) error {
 	var flagname string
 	switch {
 	case s.EnsureStackIDs:
@@ -223,7 +223,7 @@ func (s *Spec) execScanCreate() error {
 
 	switch flagname {
 	case "--all-terraform":
-		return s.initTerraform()
+		return s.initTerraform(ctx)
 	case "--all-terragrunt":
 		return s.initTerragrunt()
 	case "--ensure-stack-ids":
@@ -301,7 +301,7 @@ func (s *Spec) initTerragrunt() error {
 	return nil
 }
 
-func (s *Spec) initTerraform() error {
+func (s *Spec) initTerraform(ctx context.Context) error {
 	err := s.initTerraformDir(s.WorkingDir)
 	if err != nil {
 		return errors.E(err, "failed to initialize some directories")
@@ -324,7 +324,7 @@ func (s *Spec) initTerraform() error {
 		MinimalReport: true,
 	}
 
-	return generate.Exec(context.Background())
+	return generate.Exec(ctx)
 }
 
 func (s *Spec) initTerraformDir(baseDir string) error {

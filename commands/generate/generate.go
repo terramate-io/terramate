@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
@@ -40,7 +41,7 @@ type Spec struct {
 func (s *Spec) Name() string { return "generate" }
 
 // Exec executes the generate command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(ctx context.Context) error {
 	logger := log.With().
 		Str("action", "commands/generate").
 		Logger()
@@ -81,7 +82,13 @@ func (s *Spec) Exec(_ context.Context) error {
 	if err != nil {
 		return err
 	}
-	report := generate.Do(cfg, cwd, s.Parallel, vdir, vendorRequestEvents)
+
+	generateAPI, err := di.Get[generate.API](ctx)
+	if err != nil {
+		return err
+	}
+
+	report := generateAPI.Do(cfg, cwd, s.Parallel, vdir, vendorRequestEvents)
 
 	logger.Trace().Msg("code generation finished, waiting for vendor requests to be handled")
 

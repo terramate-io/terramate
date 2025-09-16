@@ -196,7 +196,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 // failed on code generation, any failure found is added to the report but does
 // not abort the overall code generation process, so partial results can be
 // obtained and the report needs to be inspected to check.
-func Do(
+func (*apiImpl) Do(
 	root *config.Root,
 	targetDir project.Path,
 	parallel int,
