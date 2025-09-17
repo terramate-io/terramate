@@ -9,6 +9,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
@@ -382,4 +383,54 @@ func TestTmSlugEdgeCases(t *testing.T) {
 		assert.IsTrue(t, result.IsNull(), "result should be null")
 		assert.IsTrue(t, result.Type().Equals(listType), "null list result should preserve list type")
 	})
+}
+
+// TestTmSlugDynamicNull ensures tm_slug(null) produces a typed null string and is printable
+func TestTmSlugDynamicNull(t *testing.T) {
+	// Evaluate through context to get a proper dynamic null literal
+	rootdir := test.TempDir(t)
+	ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
+	val, err := ctx.Eval(test.NewExpr(t, `tm_slug(null)`))
+	assert.NoError(t, err)
+	assert.IsTrue(t, val.IsNull())
+	assert.IsTrue(t, val.Type().Equals(cty.String))
+
+	// Ensure tokenization does not panic for the result
+	_ = ast.TokensForValue(val)
+}
+
+// TestTmSlugDynamicUnknown ensures unknown dynamics become unknown string
+func TestTmSlugDynamicUnknown(t *testing.T) {
+	fn := stdlib.SlugFunc()
+
+	// Use cty.DynamicVal to represent an unknown dynamic argument
+	result, err := fn.Call([]cty.Value{cty.DynamicVal})
+	assert.NoError(t, err)
+	assert.IsTrue(t, !result.IsWhollyKnown())
+	assert.IsTrue(t, result.Type().Equals(cty.String))
+}
+
+// TestTmSlugNullStringDirect ensures a direct null string arg returns typed null string and is printable
+func TestTmSlugNullStringDirect(t *testing.T) {
+	fn := stdlib.SlugFunc()
+
+	result, err := fn.Call([]cty.Value{cty.NullVal(cty.String)})
+	assert.NoError(t, err)
+	assert.IsTrue(t, result.IsNull())
+	assert.IsTrue(t, result.Type().Equals(cty.String))
+
+	_ = ast.TokensForValue(result)
+}
+
+// TestTmSlugNullListDirect ensures a direct null list(string) arg returns typed null list(string) and is printable
+func TestTmSlugNullListDirect(t *testing.T) {
+	fn := stdlib.SlugFunc()
+	listType := cty.List(cty.String)
+
+	result, err := fn.Call([]cty.Value{cty.NullVal(listType)})
+	assert.NoError(t, err)
+	assert.IsTrue(t, result.IsNull())
+	assert.IsTrue(t, result.Type().Equals(listType))
+
+	_ = ast.TokensForValue(result)
 }
