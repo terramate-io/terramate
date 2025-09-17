@@ -1958,6 +1958,45 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 	}
 }
 
+func TestGenerateHCLPanic(t *testing.T) {
+	t.Parallel()
+
+	tcases := []testcase{
+		{
+			name:  "panic",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("scope_traversal"),
+						Content(
+							Block("traversals",
+								Expr("local", "tm_slug(null)"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "scope_traversal",
+					hcl: genHCL{
+						condition: true,
+						body: Block("traversals",
+							Expr("local", "null"),
+						),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		tcase.run(t)
+	}
+}
+
 func init() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
