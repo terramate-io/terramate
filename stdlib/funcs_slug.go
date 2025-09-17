@@ -28,6 +28,10 @@ func SlugFunc() function.Function {
 		Type: func(args []cty.Value) (cty.Type, error) {
 			argType := args[0].Type()
 			switch {
+			case argType == cty.DynamicPseudoType:
+				// Bare nulls and unconstrained dynamics default to string output
+				// so that tm_slug(null) is a typed null string and printable.
+				return cty.String, nil
 			case argType.Equals(cty.String):
 				return cty.String, nil
 			case argType.IsListType() && argType.ElementType().Equals(cty.String):
@@ -54,6 +58,10 @@ func tmSlug(arg cty.Value) (cty.Value, error) {
 		if argType.IsTupleType() {
 			return cty.NullVal(cty.List(cty.String)), nil
 		}
+		if argType == cty.DynamicPseudoType {
+			// Align with Type() defaulting to string for dynamics
+			return cty.NullVal(cty.String), nil
+		}
 		return cty.NullVal(argType), nil
 	}
 
@@ -66,6 +74,9 @@ func tmSlug(arg cty.Value) (cty.Value, error) {
 			return cty.UnknownVal(argType), nil
 		case argType.IsTupleType():
 			return cty.UnknownVal(cty.List(cty.String)), nil
+		case argType == cty.DynamicPseudoType:
+			// Keep type stable with Type() default
+			return cty.UnknownVal(cty.String), nil
 		default:
 			return cty.DynamicVal, errUnknownValue("tm_slug")
 		}
