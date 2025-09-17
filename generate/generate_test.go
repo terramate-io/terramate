@@ -4,6 +4,7 @@
 package generate_test
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
@@ -1193,7 +1195,8 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			if fromdir == "" {
 				fromdir = "/"
 			}
-			report := generate.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
+			generateAPI := newGenerateAPIForTest(t)
+			report := generateAPI.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
 			test.AssertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
@@ -1201,7 +1204,8 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				report := generate.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
+				generateAPI := newGenerateAPIForTest(t)
+				report := generateAPI.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
 				test.AssertEqualReports(t, report, genreport.Report{
@@ -1295,6 +1299,17 @@ func assertEqualStringList(t *testing.T, got []string, want []string) {
 	if failed {
 		t.Fatalf("got %v != want %v", got, want)
 	}
+}
+
+func newGenerateAPIForTest(t testing.TB) generate.API {
+	t.Helper()
+
+	b := di.NewBindings(t.Context())
+	assert.NoError(t, di.Bind(b, generate.NewAPI()))
+	ctx := di.WithBindings(context.Background(), b)
+	generateAPI, err := di.Get[generate.API](ctx)
+	assert.NoError(t, err)
+	return generateAPI
 }
 
 func init() {

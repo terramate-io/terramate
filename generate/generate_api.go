@@ -5,11 +5,26 @@ package generate
 
 import (
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/event"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
 )
 
 // API for code generation.
-// Currently, it only contains DetectOutdated, but it will be extended in the future.
 type API interface {
-	DetectOutdated(root *config.Root, target *config.Tree, vendorDir project.Path) ([]string, error)
+	// Do runs the code generation.
+	Do(
+		root *config.Root,
+		targetDir project.Path,
+		parallel int,
+		vendorDir project.Path,
+		vendorRequests chan<- event.VendorRequest,
+	) *genreport.Report
+
+	// DetectOutdated checks for outdated files that would be changed by Do, but without making any changes.
+	DetectOutdated(
+		root *config.Root,
+		target *config.Tree,
+		vendorDir project.Path,
+	) ([]string, error)
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/event"
-	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
@@ -294,7 +293,9 @@ func TestGenerateVendorRequestEvents(t *testing.T) {
 
 	t.Log("generating code")
 
-	report := generate.Do(s.Config(), project.NewPath("/"), 0, vendorDir, events)
+	generateAPI := newGenerateAPIForTest(t)
+
+	report := generateAPI.Do(s.Config(), project.NewPath("/"), 0, vendorDir, events)
 
 	t.Logf("generation report: %s", report.Full())
 

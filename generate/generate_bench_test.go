@@ -10,7 +10,6 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
-	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -59,9 +58,11 @@ func BenchmarkGenerate(b *testing.B) {
 	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(b, err)
 
+	generateAPI := newGenerateAPIForTest(b)
+
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report := generate.Do(root, project.NewPath("/"), 0, project.NewPath("/vendor"), nil)
+		report := generateAPI.Do(root, project.NewPath("/"), 0, project.NewPath("/vendor"), nil)
 		if report.HasFailures() {
 			b.Fatal(report.Full())
 		}
@@ -114,9 +115,11 @@ func BenchmarkGenerateRegex(b *testing.B) {
 	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(b, err)
 
+	generateAPI := newGenerateAPIForTest((b))
+
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		report := generate.Do(root, project.NewPath("/"), 0, project.NewPath("/vendor"), nil)
+		report := generateAPI.Do(root, project.NewPath("/"), 0, project.NewPath("/vendor"), nil)
 		if report.HasFailures() {
 			b.Fatal(report.Full())
 		}

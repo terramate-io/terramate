@@ -13,6 +13,7 @@ package sandbox
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	stdfs "io/fs"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/report"
@@ -259,7 +261,13 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) *report.Repor
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root, project.NewPath("/"), 0, vendorDir, nil)
+	b := di.NewBindings(t.Context())
+	assert.NoError(t, di.Bind(b, generate.NewAPI()))
+	ctx := di.WithBindings(context.Background(), b)
+	generateAPI, err := di.Get[generate.API](ctx)
+	assert.NoError(t, err)
+
+	report := generateAPI.Do(root, project.NewPath("/"), 0, vendorDir, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
