@@ -14,9 +14,6 @@ const SlugWrongType errors.Kind = "tm_slug: wrong type"
 // SlugListElementNotString is returned when a list element is not a string.
 const SlugListElementNotString errors.Kind = "tm_slug: list element not string"
 
-// SlugUnknownValue is returned when the value is not wholly known.
-const SlugUnknownValue errors.Kind = "tm_slug: unknown value"
-
 // errWrongRootType returns an error for invalid root types
 func errWrongRootType(_ string, t cty.Type) error {
 	return errors.E(SlugWrongType,
@@ -27,9 +24,4 @@ func errWrongRootType(_ string, t cty.Type) error {
 func errListElemNotString(_ string, idx int, t cty.Type) error {
 	return errors.E(SlugListElementNotString,
 		"tm_slug: list contains non-string element at index %d: %s", idx, t.FriendlyName())
-}
-
-// errUnknownValue returns an error for unknown/not wholly known values
-func errUnknownValue(_ string) error {
-	return errors.E(SlugUnknownValue, "tm_slug: value is not known")
 }

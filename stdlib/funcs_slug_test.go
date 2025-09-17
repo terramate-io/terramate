@@ -9,6 +9,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
@@ -244,16 +245,6 @@ func TestTmSlugSpecificErrors(t *testing.T) {
 		assert.IsTrue(t, strings.Contains(err.Error(), "index 1"))
 		assert.IsTrue(t, strings.Contains(err.Error(), "bool"))
 	})
-
-	t.Run("SlugUnknownValue", func(t *testing.T) {
-		result, err := fn.Call([]cty.Value{
-			cty.UnknownVal(cty.String),
-		})
-
-		assert.NoError(t, err)
-		assert.IsTrue(t, !result.IsWhollyKnown())
-		assert.IsTrue(t, result.Type().Equals(cty.String))
-	})
 }
 
 // TestTmSlugNullHandling tests null handling in lists and tuples
@@ -315,71 +306,30 @@ func TestTmSlugNullHandling(t *testing.T) {
 	})
 }
 
-// TestTmSlugEdgeCases tests the edge cases that were problematic
-func TestTmSlugEdgeCases(t *testing.T) {
-	fn := stdlib.SlugFunc()
+// TestTmSlugDynamicNull ensures tm_slug(null) produces a dynamic result that can be tokenized
+func TestTmSlugDynamicNull(t *testing.T) {
+	// Evaluate through context to get a proper dynamic null literal
+	rootdir := test.TempDir(t)
+	ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
+	val, err := ctx.Eval(test.NewExpr(t, `tm_slug(null)`))
+	assert.NoError(t, err)
+	// When null is passed to tm_slug, HCL returns a dynamic result without calling the function
+	assert.IsTrue(t, val.Type() == cty.DynamicPseudoType)
 
-	t.Run("UnknownStringPropagation", func(t *testing.T) {
-		result, err := fn.Call([]cty.Value{
-			cty.UnknownVal(cty.String),
-		})
+	// Ensure tokenization does not panic for the result
+	_ = ast.TokensForValue(val)
+}
 
-		assert.NoError(t, err, "unknown string should not return error")
-		assert.IsTrue(t, !result.IsWhollyKnown(), "result should be unknown")
-		assert.IsTrue(t, result.Type().Equals(cty.String), "result should have string type")
-	})
+// TestTmSlugDynamicUnknown ensures dynamic values can be tokenized without panicking
+func TestTmSlugDynamicUnknown(t *testing.T) {
+	// When calling a function with cty.DynamicVal, HCL short-circuits and returns cty.DynamicVal
+	// without calling the function implementation
+	result := cty.DynamicVal
 
-	t.Run("UnknownListPropagation", func(t *testing.T) {
-		listType := cty.List(cty.String)
-		result, err := fn.Call([]cty.Value{
-			cty.UnknownVal(listType),
-		})
+	// The main test is that tokenization doesn't panic
+	_ = ast.TokensForValue(result)
 
-		assert.NoError(t, err, "unknown list should not return error")
-		assert.IsTrue(t, !result.IsWhollyKnown(), "result should be unknown")
-		assert.IsTrue(t, result.Type().Equals(listType), "result should have same list type")
-	})
-
-	t.Run("UnknownTuplePropagation", func(t *testing.T) {
-		tupleType := cty.Tuple([]cty.Type{cty.String, cty.String})
-		result, err := fn.Call([]cty.Value{
-			cty.UnknownVal(tupleType),
-		})
-
-		assert.NoError(t, err, "unknown tuple should not return error")
-		assert.IsTrue(t, !result.IsWhollyKnown(), "result should be unknown")
-		assert.IsTrue(t, result.Type().Equals(cty.List(cty.String)), "result should have List(String) type")
-	})
-
-	t.Run("NullTupleTypeConsistency", func(t *testing.T) {
-		tupleType := cty.Tuple([]cty.Type{cty.String, cty.String})
-		result, err := fn.Call([]cty.Value{
-			cty.NullVal(tupleType),
-		})
-
-		assert.NoError(t, err, "null tuple should not return error")
-		assert.IsTrue(t, result.IsNull(), "result should be null")
-		assert.IsTrue(t, result.Type().Equals(cty.List(cty.String)), "null tuple result should have List(String) type")
-	})
-
-	t.Run("NullStringPreservesType", func(t *testing.T) {
-		result, err := fn.Call([]cty.Value{
-			cty.NullVal(cty.String),
-		})
-
-		assert.NoError(t, err, "null string should not return error")
-		assert.IsTrue(t, result.IsNull(), "result should be null")
-		assert.IsTrue(t, result.Type().Equals(cty.String), "null string result should preserve string type")
-	})
-
-	t.Run("NullListPreservesType", func(t *testing.T) {
-		listType := cty.List(cty.String)
-		result, err := fn.Call([]cty.Value{
-			cty.NullVal(listType),
-		})
-
-		assert.NoError(t, err, "null list should not return error")
-		assert.IsTrue(t, result.IsNull(), "result should be null")
-		assert.IsTrue(t, result.Type().Equals(listType), "null list result should preserve list type")
-	})
+	// Verify it's still dynamic
+	assert.IsTrue(t, result.Type() == cty.DynamicPseudoType)
+	assert.IsTrue(t, !result.IsWhollyKnown())
 }

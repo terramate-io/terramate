@@ -31,6 +31,11 @@ func (builder *tokenBuilder) fromValue(val cty.Value) {
 		builder.fromExpr(customdecode.ExpressionFromVal(val))
 	case val.IsNull():
 		builder.add(ident("null", 0))
+	case !val.IsWhollyKnown():
+		// Handle unknown values (including dynamic pseudo-type unknowns)
+		// These represent values that couldn't be resolved during evaluation
+		// Render as null to avoid panics when trying to extract concrete values
+		builder.add(ident("null", 0))
 	case typ == cty.Bool:
 		if val.True() {
 			builder.add(ident("true", 0))

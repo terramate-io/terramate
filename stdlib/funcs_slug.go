@@ -49,28 +49,6 @@ func SlugFunc() function.Function {
 func tmSlug(arg cty.Value) (cty.Value, error) {
 	argType := arg.Type()
 
-	if arg.IsNull() {
-		// For tuples, return null List(String) to match Type function declaration
-		if argType.IsTupleType() {
-			return cty.NullVal(cty.List(cty.String)), nil
-		}
-		return cty.NullVal(argType), nil
-	}
-
-	if !arg.IsWhollyKnown() {
-		// Propagate unknown values with correct output type
-		switch {
-		case argType.Equals(cty.String):
-			return cty.UnknownVal(cty.String), nil
-		case argType.IsListType() && argType.ElementType().Equals(cty.String):
-			return cty.UnknownVal(argType), nil
-		case argType.IsTupleType():
-			return cty.UnknownVal(cty.List(cty.String)), nil
-		default:
-			return cty.DynamicVal, errUnknownValue("tm_slug")
-		}
-	}
-
 	switch {
 	case argType.Equals(cty.String):
 		return cty.StringVal(slugify(arg.AsString())), nil
