@@ -64,7 +64,7 @@ func findExecutable(file string, exts []string) (string, error) {
 	return "", fs.ErrNotExist
 }
 
-// LookPath searches for an executable named file in the
+// lookPathImpl searches for an executable named file in the
 // directories named by the PATH environment variable.
 // LookPath also uses PATHEXT environment variable to match
 // a suitable candidate.
@@ -74,7 +74,7 @@ func findExecutable(file string, exts []string) (string, error) {
 // In older versions of Go, LookPath could return a path relative to the current directory.
 // As of Go 1.19, LookPath will instead return that path along with an error satisfying
 // errors.Is(err, ErrDot). See the package documentation for more details.
-func LookPath(file string, environ []string) (string, error) {
+func lookPathImpl(file string, environ []string) (string, error) {
 	var exts []string
 	x, _ := Getenv(`PATHEXT`, environ)
 	if x != "" {
