@@ -99,6 +99,31 @@ func TestTriggerRecursivelyFromParentStackPath(t *testing.T) {
 	AssertRunResult(t, cli.ListChangedStacks(), want)
 }
 
+func TestTriggerRecursivelyWithTags(t *testing.T) {
+	t.Parallel()
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		`s:dir/s1:tags=["tag1"]`,
+		`s:dir/s1/sub1:tags=["tag3"]`,
+		`s:dir/s1/sub1/subsub1:tags=["tag1", "tag2"]`,
+		`s:dir/other:tags=["tag1"]`,
+	})
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := NewCLI(t, filepath.Join(s.RootDir(), "dir"))
+
+	AssertRunResult(t, cli.Trigger("s1", "--recursive", "--tags=tag1,tag3", "--no-tags=tag2"), RunExpected{
+		IgnoreStdout: true,
+	})
+
+	git.CommitAll("commit the trigger file")
+	want := RunExpected{Stdout: nljoin("s1", "s1/sub1")}
+	AssertRunResult(t, cli.ListChangedStacks(), want)
+}
+
 func TestTriggerCorrectErrorWhenStackDoesNotExists(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)

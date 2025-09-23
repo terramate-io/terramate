@@ -20,6 +20,17 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- Fix filter flag inconsistencies for `trigger` command. Some flags were listed in the help, but ignored by the command.
+  The following flags work as intended now:
+  - `--drift-status`
+  - `--deployment-status`
+  - `--tags`
+  - `--no-tags`
+
 ## v0.14.5
 
 ### Added

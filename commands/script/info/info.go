@@ -20,7 +20,6 @@ import (
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/config"
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -48,10 +47,13 @@ func (s *Spec) Exec(_ context.Context) error {
 		return err
 	}
 
-	newEntries := s.Engine.FilterStacks(entries.Stacks, filter.TagClause{})
+	filtered, err := s.Engine.FilterStacks(entries.Stacks, engine.ByWorkingDir())
+	if err != nil {
+		return err
+	}
 
-	stacks := make(config.List[*config.SortableStack], len(newEntries))
-	for i, e := range newEntries {
+	stacks := make(config.List[*config.SortableStack], len(filtered))
+	for i, e := range filtered {
 		stacks[i] = e.Stack.Sortable()
 	}
 

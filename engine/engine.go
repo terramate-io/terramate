@@ -264,7 +264,10 @@ func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClaus
 		return nil, err
 	}
 
-	entries := e.FilterStacks(report.Stacks, tags)
+	entries, err := e.FilterStacks(report.Stacks, ByWorkingDir(), ByTagsClause(tags))
+	if err != nil {
+		return nil, err
+	}
 	stacks := make(config.List[*config.SortableStack], len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack.Sortable()
@@ -372,45 +375,78 @@ func (e *Engine) addOutputDependencies(outputFlags OutputsSharingOptions, stacks
 }
 
 // FilterStacks filters stacks based on tags and working directory.
-func (e *Engine) FilterStacks(stacks []stack.Entry, tags filter.TagClause) []stack.Entry {
-	return e.filterStacksByTags(e.filterStacksByWorkingDir(stacks), tags)
-}
-
-// FilterStacksByBasePath filters out stacks not inside the given base path.
-func (e *Engine) FilterStacksByBasePath(basePath project.Path, stacks []stack.Entry) []stack.Entry {
-	baseStr := basePath.String()
-	if baseStr != "/" {
-		baseStr += "/"
+func (e *Engine) FilterStacks(stacks []stack.Entry, opts ...FilterStacksOption) ([]stack.Entry, error) {
+	if len(opts) == 0 {
+		return nil, errors.E(errors.ErrInternal, "FilterStacks called without any filters")
 	}
-	filtered := []stack.Entry{}
-	for _, e := range stacks {
-		stackdir := e.Stack.Dir.String()
-		if stackdir != "/" {
-			stackdir += "/"
-		}
-		if strings.HasPrefix(stackdir, baseStr) {
-			filtered = append(filtered, e)
+
+	var err error
+	for _, opt := range opts {
+		stacks, err = opt(e, stacks)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return filtered
+	return stacks, nil
 }
 
-func (e *Engine) filterStacksByWorkingDir(stacks []stack.Entry) []stack.Entry {
-	rootdir := e.Config().HostDir()
-	return e.FilterStacksByBasePath(project.PrjAbsPath(rootdir, e.project.wd), stacks)
-}
+// FilterStacksOption is an option for FilterStacks.
+type FilterStacksOption func(e *Engine, stacks []stack.Entry) ([]stack.Entry, error)
 
-func (e *Engine) filterStacksByTags(entries []stack.Entry, tags filter.TagClause) []stack.Entry {
-	if tags.IsEmpty() {
-		return entries
+// ByWorkingDir filters out stacks based on the current working directory.
+func ByWorkingDir() FilterStacksOption {
+	return func(e *Engine, stacks []stack.Entry) ([]stack.Entry, error) {
+		rootdir := e.Config().HostDir()
+		return ByBasePath(project.PrjAbsPath(rootdir, e.project.wd))(e, stacks)
 	}
-	filtered := []stack.Entry{}
-	for _, entry := range entries {
-		if filter.MatchTags(tags, entry.Stack.Tags) {
-			filtered = append(filtered, entry)
+}
+
+// ByBasePath filters out stacks not inside the given base path.
+func ByBasePath(basePath project.Path) FilterStacksOption {
+	return func(_ *Engine, stacks []stack.Entry) ([]stack.Entry, error) {
+		baseStr := basePath.String()
+		if baseStr != "/" {
+			baseStr += "/"
 		}
+		filtered := []stack.Entry{}
+		for _, e := range stacks {
+			stackdir := e.Stack.Dir.String()
+			if stackdir != "/" {
+				stackdir += "/"
+			}
+			if strings.HasPrefix(stackdir, baseStr) {
+				filtered = append(filtered, e)
+			}
+		}
+		return filtered, nil
 	}
-	return filtered
+}
+
+// ByTagsClause filters stacks based on tags.
+func ByTagsClause(tags filter.TagClause) FilterStacksOption {
+	return func(_ *Engine, stacks []stack.Entry) ([]stack.Entry, error) {
+		if tags.IsEmpty() {
+			return stacks, nil
+		}
+		filtered := []stack.Entry{}
+		for _, entry := range stacks {
+			if filter.MatchTags(tags, entry.Stack.Tags) {
+				filtered = append(filtered, entry)
+			}
+		}
+		return filtered, nil
+	}
+}
+
+// ByTags is a convenience wrapper for ByTagsClause that handles the tag parsing.
+func ByTags(tags, notags []string) FilterStacksOption {
+	return func(e *Engine, stacks []stack.Entry) ([]stack.Entry, error) {
+		tagsClause, err := ParseFilterTags(tags, notags)
+		if err != nil {
+			return nil, err
+		}
+		return ByTagsClause(tagsClause)(e, stacks)
+	}
 }
 
 // FriendlyFmtDir formats the directory path in a friendly way.

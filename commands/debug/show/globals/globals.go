@@ -11,7 +11,6 @@ import (
 
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
@@ -36,7 +35,13 @@ func (s *Spec) Exec(_ context.Context) error {
 		return err
 	}
 	cfg := s.Engine.Config()
-	for _, stackEntry := range s.Engine.FilterStacks(report.Stacks, filter.TagClause{}) {
+
+	filteredStacks, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir())
+	if err != nil {
+		return err
+	}
+
+	for _, stackEntry := range filteredStacks {
 		stack := stackEntry.Stack
 		report := globals.ForStack(cfg, stack)
 		if err := report.AsError(); err != nil {

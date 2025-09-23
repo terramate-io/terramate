@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -41,7 +40,10 @@ func (s *Spec) Exec(_ context.Context) error {
 		return errors.E(err, "loading metadata: listing stacks")
 	}
 
-	stackEntries := s.Engine.FilterStacks(report.Stacks, filter.TagClause{})
+	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir())
+	if err != nil {
+		return err
+	}
 	if len(stackEntries) == 0 {
 		return nil
 	}

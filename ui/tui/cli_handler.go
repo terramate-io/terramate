@@ -566,10 +566,11 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		} else if expStatus != "" {
 			statusStr = expStatus
 		}
-		if statusStr == "" {
-			return nil, false, false, errors.E("trigger command expects either a stack path or the --status flag")
+
+		if statusStr == "" && parsedArgs.Trigger.DeploymentStatus == "" && parsedArgs.Trigger.DriftStatus == "" {
+			return nil, false, false, errors.E("trigger command expects either a stack path or a cloud filter such as --status")
 		}
-		if statusStr != "" && parsedArgs.Trigger.Recursive {
+		if parsedArgs.Trigger.Recursive {
 			return nil, false, false, errors.E("cloud filters such as --status are incompatible with --recursive flag")
 		}
 		return &triggercmd.FilterSpec{
@@ -578,16 +579,14 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			Printers:   c.printers,
 			GitFilter:  gitfilter,
 			StatusFilters: triggercmd.StatusFilters{
-				StackStatus: statusStr,
-
-				// TODO(i4k): This is a bug in CLI.
-				// Uncomment lines below to fix this in a separate PR.
-
-				// DeploymentStatus: parsedArgs.Trigger.DeploymentStatus,
-				// DriftStatus:      parsedArgs.Trigger.DriftStatus,
+				StackStatus:      statusStr,
+				DeploymentStatus: parsedArgs.Trigger.DeploymentStatus,
+				DriftStatus:      parsedArgs.Trigger.DriftStatus,
 			},
 			Change:       parsedArgs.Trigger.Change,
 			IgnoreChange: parsedArgs.Trigger.IgnoreChange,
+			Tags:         parsedArgs.Tags,
+			NoTags:       parsedArgs.NoTags,
 			Reason:       parsedArgs.Trigger.Reason,
 		}, true, false, nil
 
@@ -609,6 +608,8 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			Printers:     c.printers,
 			Change:       parsedArgs.Trigger.Change,
 			IgnoreChange: parsedArgs.Trigger.IgnoreChange,
+			Tags:         parsedArgs.Tags,
+			NoTags:       parsedArgs.NoTags,
 			Reason:       parsedArgs.Trigger.Reason,
 			Path:         parsedArgs.Trigger.Stack,
 			Recursive:    parsedArgs.Trigger.Recursive,

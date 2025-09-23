@@ -116,7 +116,7 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			want: want{
 				trigger: RunExpected{
 					Status:      1,
-					StderrRegex: "trigger command expects either a stack path or the --status flag",
+					StderrRegex: "trigger command expects either a stack path or a cloud filter such as --status",
 				},
 			},
 		},
@@ -498,6 +498,86 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 			},
 		},
 		{
+			name: "1 cloud stack drifted, other failed drift check: trigger failed drift check",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: resources.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Failed,
+					},
+				},
+				{
+					Stack: resources.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--drift-status=failed`},
+			want: want{
+				trigger: RunExpected{
+					StdoutRegex: "Created change trigger for stack",
+				},
+				list: RunExpected{
+					Stdout: nljoin("s1"),
+				},
+			},
+		},
+		{
+			name: "1 cloud stack deployment cancelled: trigger canceled deployment",
+			layout: []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: resources.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+				{
+					Stack: resources.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Canceled,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+			},
+			flags: []string{`--deployment-status=canceled`},
+			want: want{
+				trigger: RunExpected{
+					StdoutRegex: "Created change trigger for stack",
+				},
+				list: RunExpected{
+					Stdout: nljoin("s2"),
+				},
+			},
+		},
+		{
 			name: "stacks without id are ignored",
 			layout: []string{
 				"s:s1:id=s1",
@@ -535,6 +615,47 @@ func TestCloudTriggerUnhealthy(t *testing.T) {
 				},
 				list: RunExpected{
 					Stdout: nljoin("s1", "s2"),
+				},
+			},
+		},
+		{
+			name: "filter unhealthy by tags and no-tags",
+			layout: []string{
+				`s:s1:id=s1;tags=["t1"]`,
+				`s:s2:id=s2`,
+				`s:s2:id=s3;tags=["t1","t2"]`,
+			},
+			stacks: []cloudstore.Stack{
+				{
+					Stack: resources.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Failed,
+						DeploymentStatus: deployment.Failed,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: resources.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           stack.Drifted,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Drifted,
+					},
+				},
+			},
+			flags: []string{`--status=unhealthy`, `--tags=t1`, `--no-tags=t2`},
+			want: want{
+				trigger: RunExpected{
+					StdoutRegex: "Created change trigger for stack",
+				},
+				list: RunExpected{
+					Stdout: nljoin("s1"),
 				},
 			},
 		},

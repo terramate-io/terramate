@@ -6,7 +6,6 @@ package trigger
 import (
 	"context"
 
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/printer"
 
@@ -28,6 +27,8 @@ type FilterSpec struct {
 	Printers      printer.Printers
 	GitFilter     engine.GitFilter
 	StatusFilters StatusFilters
+	Tags          []string
+	NoTags        []string
 	Change        bool
 	IgnoreChange  bool
 	Reason        string
@@ -37,7 +38,7 @@ type FilterSpec struct {
 func (s *FilterSpec) Name() string { return "trigger" }
 
 // Exec executes the trigger command.
-func (s *FilterSpec) Exec(_ context.Context) error {
+func (s *FilterSpec) Exec(ctx context.Context) error {
 	cloudFilters, err := status.ParseFilters(
 		s.StatusFilters.StackStatus,
 		s.StatusFilters.DeploymentStatus,
@@ -52,7 +53,15 @@ func (s *FilterSpec) Exec(_ context.Context) error {
 		return err
 	}
 
-	for _, st := range s.Engine.FilterStacks(report.Stacks, filter.TagClause{}) {
+	filteredStacks, err := s.Engine.FilterStacks(report.Stacks,
+		engine.ByWorkingDir(),
+		engine.ByTags(s.Tags, s.NoTags),
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, st := range filteredStacks {
 		stackTrigger := PathSpec{
 			WorkingDir:   s.WorkingDir,
 			Printers:     s.Printers,
@@ -63,7 +72,7 @@ func (s *FilterSpec) Exec(_ context.Context) error {
 			Path:         st.Stack.Dir.String(),
 		}
 
-		err := stackTrigger.Exec(context.Background())
+		err := stackTrigger.Exec(ctx)
 		if err != nil {
 			return err
 		}

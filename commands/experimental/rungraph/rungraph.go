@@ -12,7 +12,6 @@ import (
 	"github.com/emicklei/dot"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -68,7 +67,13 @@ func (s *Spec) Exec(_ context.Context) error {
 	graph := dag.New[*config.Stack]()
 
 	visited := dag.Visited{}
-	for _, e := range s.Engine.FilterStacks(entries, filter.TagClause{}) {
+
+	filteredStacks, err := s.Engine.FilterStacks(entries, engine.ByWorkingDir())
+	if err != nil {
+		return err
+	}
+
+	for _, e := range filteredStacks {
 		if _, ok := visited[dag.ID(e.Stack.Dir.String())]; ok {
 			continue
 		}
