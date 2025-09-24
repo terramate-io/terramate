@@ -387,12 +387,12 @@ func TestGitGlobalConfigIsUsed(t *testing.T) {
 	t.Parallel()
 
 	// code below configures a global config with a global ignore file which
-	// ignores *.test files.
+	// ignores *.testignore files.
 
 	s1 := sandbox.NoGit(t, false)
 	s1.BuildTree([]string{
 		"f:.gitconfig:",
-		"f:.gitignore:*.test",
+		"f:.gitignore:*.testignore",
 	})
 
 	tempGlobalConfig := filepath.Join(s1.RootDir(), ".gitconfig")
@@ -425,7 +425,7 @@ func TestGitGlobalConfigIsUsed(t *testing.T) {
 	subdir := stack.CreateDir("sub/dir")
 
 	// this file must be ignored when using the global config.
-	_ = subdir.CreateFile("something.test", "# nothing")
+	_ = subdir.CreateFile("something.testignore", "# nothing")
 
 	// double check the repository has untracked files
 	cli := NewCLI(t, repo.RootDir())
