@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -36,8 +35,13 @@ func (s *Spec) Exec(_ context.Context) error {
 		return errors.E(err, "listing stacks")
 	}
 
+	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir())
+	if err != nil {
+		return err
+	}
+
 	cfg := s.Engine.Config()
-	for _, stackEntry := range s.Engine.FilterStacks(report.Stacks, filter.TagClause{}) {
+	for _, stackEntry := range stackEntries {
 		envVars, err := run.LoadEnv(cfg, stackEntry.Stack)
 		if err != nil {
 			return errors.E(err, "loading stack run environment")

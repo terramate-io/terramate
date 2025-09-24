@@ -33,6 +33,8 @@ type PathSpec struct {
 	Path         string
 	Change       bool
 	IgnoreChange bool
+	Tags         []string
+	NoTags       []string
 	Reason       string
 	Recursive    bool
 }
@@ -103,12 +105,18 @@ func (s *PathSpec) Exec(_ context.Context) error {
 		}
 		stacks = append(stacks, st.Sortable())
 	} else {
-		var err error
 		stacksReport, err := s.Engine.ListStacks(engine.NoGitFilter(), cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 		if err != nil {
 			return errors.E(err, "listing stacks")
 		}
-		for _, entry := range s.Engine.FilterStacksByBasePath(prjBasePath, stacksReport.Stacks) {
+		filteredStacks, err := s.Engine.FilterStacks(stacksReport.Stacks,
+			engine.ByBasePath(prjBasePath),
+			engine.ByTags(s.Tags, s.NoTags),
+		)
+		if err != nil {
+			return errors.E(err, "filtering stacks")
+		}
+		for _, entry := range filteredStacks {
 			stacks = append(stacks, entry.Stack.Sortable())
 		}
 	}

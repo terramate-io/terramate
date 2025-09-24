@@ -75,11 +75,13 @@ func (s *Spec) Exec(_ context.Context) error {
 }
 
 func (s *Spec) printStacksList(allStacks []stack.Entry) error {
-	tags, err := engine.ParseFilterTags(s.Tags, s.NoTags)
+	filteredStacks, err := s.Engine.FilterStacks(allStacks,
+		engine.ByWorkingDir(),
+		engine.ByTags(s.Tags, s.NoTags),
+	)
 	if err != nil {
 		return err
 	}
-	filteredStacks := s.Engine.FilterStacks(allStacks, tags)
 
 	reasons := map[string]string{}
 	stacks := make(config.List[*config.SortableStack], len(filteredStacks))
