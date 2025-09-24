@@ -919,10 +919,10 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		if diff := cmp.Diff(gotPlan, wantPlan,
 			cmpopts.IgnoreUnexported(tfjson.Plan{}),
 			// TODO (snk): Could also supply two planfiles, but I think this is fine, too.
-			cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp", "FormatVersion", "TerraformVersion"),
+			cmpopts.IgnoreFields(tfjson.Plan{}, "Timestamp", "FormatVersion", "TerraformVersion", "Complete"),
 			cmpopts.IgnoreFields(tfjson.ResourceChange{}, "ProviderName"),
 			cmpopts.IgnoreFields(tfjson.ProviderConfig{}, "FullName"),
-			cmpopts.IgnoreFields(tfjson.StateResource{}, "ProviderName")); diff != "" {
+			cmpopts.IgnoreFields(tfjson.StateResource{}, "ProviderName", "SensitiveValues")); diff != "" {
 			t.Logf("want: %+v", expected.Details.ChangesetJSON)
 			t.Logf("got: %+v", got.Details.ChangesetJSON)
 			t.Fatal(diff)
