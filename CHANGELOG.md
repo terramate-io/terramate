@@ -24,8 +24,9 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
-- Fix filter flag inconsistencies for `trigger` command. Some flags were listed in the help, but ignored by the command.
-  The following flags work as intended now:
+- Fix filter flag inconsistencies for `trigger` and `debug show {metadata,globals,generate-origins,runtime-env}` commands.
+  Some flags were listed in the help, but ignored by the command. The following flags work as intended now:
+  - `--status`
   - `--drift-status`
   - `--deployment-status`
   - `--tags`

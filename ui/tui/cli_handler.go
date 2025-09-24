@@ -12,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/go-checkpoint"
+	"github.com/terramate-io/terramate/cloud/api/status"
 	"github.com/terramate-io/terramate/commands"
 	clonecmd "github.com/terramate-io/terramate/commands/clone"
 	clouddriftshowcmd "github.com/terramate-io/terramate/commands/cloud/drift/show"
@@ -722,11 +723,23 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			return nil, false, false, err
 		}
 
+		statusFilters, err := status.ParseFilters(
+			parsedArgs.Debug.Show.Globals.Status,
+			parsedArgs.Debug.Show.Globals.DriftStatus,
+			parsedArgs.Debug.Show.Globals.DeploymentStatus,
+		)
+		if err != nil {
+			return nil, false, false, err
+		}
+
 		return &debugglobalscmd.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			GitFilter:  gitfilter,
+			WorkingDir:    c.state.wd,
+			Engine:        c.Engine(),
+			Printers:      c.printers,
+			GitFilter:     gitfilter,
+			Tags:          parsedArgs.Tags,
+			NoTags:        parsedArgs.NoTags,
+			StatusFilters: statusFilters,
 		}, true, false, nil
 
 	case "debug show generate-origins":
@@ -740,11 +753,23 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			return nil, false, false, err
 		}
 
+		statusFilters, err := status.ParseFilters(
+			parsedArgs.Debug.Show.GenerateOrigins.Status,
+			parsedArgs.Debug.Show.GenerateOrigins.DriftStatus,
+			parsedArgs.Debug.Show.GenerateOrigins.DeploymentStatus,
+		)
+		if err != nil {
+			return nil, false, false, err
+		}
+
 		return &generateoriginscmd.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			GitFilter:  gitfilter,
+			WorkingDir:    c.state.wd,
+			Engine:        c.Engine(),
+			Printers:      c.printers,
+			GitFilter:     gitfilter,
+			Tags:          parsedArgs.Tags,
+			NoTags:        parsedArgs.NoTags,
+			StatusFilters: statusFilters,
 		}, true, false, nil
 
 	case "debug show metadata":
@@ -757,11 +782,24 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		if err != nil {
 			return nil, false, false, err
 		}
+
+		statusFilters, err := status.ParseFilters(
+			parsedArgs.Debug.Show.Metadata.Status,
+			parsedArgs.Debug.Show.Metadata.DriftStatus,
+			parsedArgs.Debug.Show.Metadata.DeploymentStatus,
+		)
+		if err != nil {
+			return nil, false, false, err
+		}
+
 		return &debugshowmetadatacmd.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			GitFilter:  gitfilter,
+			WorkingDir:    c.state.wd,
+			Engine:        c.Engine(),
+			Printers:      c.printers,
+			GitFilter:     gitfilter,
+			Tags:          parsedArgs.Tags,
+			NoTags:        parsedArgs.NoTags,
+			StatusFilters: statusFilters,
 		}, true, false, nil
 	case "debug show runtime-env":
 		c.InitAnalytics("debug-show-runtime-env")
@@ -773,11 +811,23 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		if err != nil {
 			return nil, false, false, err
 		}
+		statusFilters, err := status.ParseFilters(
+			parsedArgs.Debug.Show.RuntimeEnv.Status,
+			parsedArgs.Debug.Show.RuntimeEnv.DriftStatus,
+			parsedArgs.Debug.Show.RuntimeEnv.DeploymentStatus,
+		)
+		if err != nil {
+			return nil, false, false, err
+		}
+
 		return &debugshowruntimeenv.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			GitFilter:  gitfilter,
+			WorkingDir:    c.state.wd,
+			Engine:        c.Engine(),
+			Printers:      c.printers,
+			GitFilter:     gitfilter,
+			Tags:          parsedArgs.Tags,
+			NoTags:        parsedArgs.NoTags,
+			StatusFilters: statusFilters,
 		}, true, false, nil
 
 	case "experimental run-graph":

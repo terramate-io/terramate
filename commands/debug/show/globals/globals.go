@@ -19,10 +19,13 @@ import (
 
 // Spec is the command specification for the debug globals command.
 type Spec struct {
-	WorkingDir string
-	Engine     *engine.Engine
-	Printers   printer.Printers
-	GitFilter  engine.GitFilter
+	WorkingDir    string
+	Engine        *engine.Engine
+	Printers      printer.Printers
+	GitFilter     engine.GitFilter
+	StatusFilters resources.StatusFilters
+	Tags          []string
+	NoTags        []string
 }
 
 // Name returns the name of the command.
@@ -30,13 +33,13 @@ func (s *Spec) Name() string { return "debug globals" }
 
 // Exec executes the debug globals command.
 func (s *Spec) Exec(_ context.Context) error {
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
+	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
 	if err != nil {
 		return err
 	}
 	cfg := s.Engine.Config()
 
-	filteredStacks, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir())
+	filteredStacks, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
 	if err != nil {
 		return err
 	}

@@ -840,6 +840,117 @@ func TestCloudStatusRegresionCrash(t *testing.T) {
 	})
 }
 
+func TestDebugShowCloudStatus(t *testing.T) {
+	t.Parallel()
+
+	const globalsFile = `globals {
+  name = "name"
+  description = "desc"
+  test = true
+}`
+
+	const genhclFile = `generate_hcl "generated" {
+  content {
+    backend "local" {}
+  }
+}`
+
+	type testcase struct {
+		name string
+		args []string
+		want RunExpected
+	}
+
+	// Not covering every case here
+	for _, tc := range []testcase{{
+		name: "show metadata",
+		args: []string{"debug", "show", "metadata", "--status=unhealthy"},
+		want: RunExpected{
+			StdoutRegex:   `stack "/s1":`,
+			NoStdoutRegex: `stack "/s2":`,
+		},
+	}, {
+		name: "show globals",
+		args: []string{"debug", "show", "globals", "--status=unhealthy"},
+		want: RunExpected{
+			StdoutRegex:   `stack "/s1":`,
+			NoStdoutRegex: `stack "/s2":`,
+		},
+	}, {
+		name: "show generate-origins",
+		args: []string{"debug", "show", "generate-origins", "--status=unhealthy"},
+		want: RunExpected{
+			StdoutRegex:   `/s1/generated origin:`,
+			NoStdoutRegex: `/s2/generated origin:`,
+		},
+	}, {
+		name: "show runtime-env",
+		args: []string{"debug", "show", "runtime-env", "--status=unhealthy"},
+		want: RunExpected{
+			StdoutRegex:   `stack "/s1":`,
+			NoStdoutRegex: `stack "/s2":`,
+		},
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			layout := []string{
+				"s:s1:id=s1",
+				"s:s2:id=s2",
+				fmt.Sprintf("f:globals.tm:%s", globalsFile),
+				fmt.Sprintf("f:generate.tm:%s", genhclFile),
+			}
+			stacks := []cloudstore.Stack{
+				{
+					Stack: resources.Stack{
+						MetaID:     "s1",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           cloudstack.Failed,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+				{
+					Stack: resources.Stack{
+						MetaID:     "s2",
+						Repository: "github.com/terramate-io/terramate",
+					},
+					State: cloudstore.StackState{
+						Status:           cloudstack.OK,
+						DeploymentStatus: deployment.OK,
+						DriftStatus:      drift.Unknown,
+					},
+				},
+			}
+
+			store, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
+			assert.NoError(t, err)
+			addr := startFakeTMCServer(t, store)
+
+			s := sandbox.New(t)
+			s.BuildTree(layout)
+
+			s.Git().SetRemoteURL("origin", "git@github.com:terramate-io/terramate.git")
+			s.Git().CommitAll("all stacks committed")
+
+			org := store.MustOrgByName(defaultOrg)
+			for _, st := range stacks {
+				_, err := store.UpsertStack(org.UUID, st)
+				assert.NoError(t, err)
+			}
+			env := RemoveEnv(os.Environ(), "CI")
+			env = append(env, "TMC_API_URL=http://"+addr, "CI=")
+			env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
+
+			cli := NewCLI(t, s.RootDir(), env...)
+			result := cli.Run(tc.args...)
+			AssertRunResult(t, result, tc.want)
+		})
+	}
+}
+
 func paginationTestcase(perPage int) cloudStatusTestcase {
 	const nstacks = 100
 

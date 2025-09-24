@@ -19,10 +19,13 @@ import (
 
 // Spec is the command specification for the show-runtime-env command.
 type Spec struct {
-	WorkingDir string
-	Engine     *engine.Engine
-	Printers   printer.Printers
-	GitFilter  engine.GitFilter
+	WorkingDir    string
+	Engine        *engine.Engine
+	Printers      printer.Printers
+	GitFilter     engine.GitFilter
+	StatusFilters resources.StatusFilters
+	Tags          []string
+	NoTags        []string
 }
 
 // Name returns the name of the command.
@@ -30,12 +33,12 @@ func (s *Spec) Name() string { return "debug show runtime-env" }
 
 // Exec executes the show-runtime-env command.
 func (s *Spec) Exec(_ context.Context) error {
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
+	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
 	if err != nil {
 		return errors.E(err, "listing stacks")
 	}
 
-	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir())
+	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
 	if err != nil {
 		return err
 	}
