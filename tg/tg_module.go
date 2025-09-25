@@ -14,6 +14,7 @@ import (
 
 	"github.com/gruntwork-io/go-commons/env"
 	"github.com/gruntwork-io/terragrunt/config"
+	"github.com/gruntwork-io/terragrunt/config/hclparse"
 	"github.com/gruntwork-io/terragrunt/configstack"
 	"github.com/gruntwork-io/terragrunt/options"
 	"github.com/gruntwork-io/terragrunt/util"
@@ -90,22 +91,15 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 		FilesProcessed: map[string]struct{}{},
 	}
 
-	// Override the predefined functions to intercept the function calls that process paths.
-	pctx.PredefinedFunctions = make(map[string]function.Function)
-	pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, rootdir, mod)
-	pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, rootdir, mod)
-	pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, tgReadTFVarsFileFuncImpl)
-
-	// override Terraform function
-	pctx.PredefinedFunctions["file"] = tgFileFuncImpl(pctx, rootdir, mod)
-
 	// Here we parse the Terragrunt file which calls into our overrided functions.
 	// After this returns, the module's DependsOn will be populated.
 	// Note(i4k): Never use `config.ParseConfigFile` because it invokes Terraform behind the scenes.
-	tgConfig, err := config.PartialParseConfigFile(
+	tgConfig, err := cachedPartialParseConfigFile(
 		pctx,
 		cfgfile,
 		nil,
+		rootdir,
+		mod,
 	)
 
 	if err != nil {
@@ -341,3 +335,48 @@ func warnDependencyOutsideProject(mod *Module, dep string, field string) {
 			mod.Path, dep),
 	)
 }
+
+func cachedPartialParseConfigFile(ctx *config.ParsingContext, configPath string, include *config.IncludeConfig, rootdir string, mod *Module) (*config.TerragruntConfig, error) {
+	file, err := hclparse.NewParser().WithOptions(ctx.ParserOptions...).ParseFromFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var cacheKey = fmt.Sprintf("%#v-%#v-%#v-%#v", file.ConfigPath, file.Content(), include, ctx.PartialParseDecodeList)
+
+	if entry, found := terragruntConfigCache.Get(cacheKey); found {
+		ctx.TerragruntOptions.Logger.Debugf("Cache hit for '%s' (partial parsing), decodeList: '%v'.", file.ConfigPath, ctx.PartialParseDecodeList)
+		mod.DependsOn = entry.dependsOn
+		return &entry.config, nil
+	}
+
+	ctx.TerragruntOptions.Logger.Debugf("Cache miss for '%s' (partial parsing), decodeList: '%v'.", file.ConfigPath, ctx.PartialParseDecodeList)
+
+	// Override the predefined functions to intercept the function calls that process paths.
+	ctx.PredefinedFunctions = make(map[string]function.Function)
+	ctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(ctx, rootdir, mod)
+	ctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(ctx, rootdir, mod)
+	ctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(ctx, rootdir, mod, tgReadTFVarsFileFuncImpl)
+
+	// override Terraform function
+	ctx.PredefinedFunctions["file"] = tgFileFuncImpl(ctx, rootdir, mod)
+
+	config, err := config.PartialParseConfig(ctx, file, include)
+	if err != nil {
+		return nil, err
+	}
+
+	terragruntConfigCache.Put(cacheKey, terragruntConfigCacheEntry{
+		config:    *config,
+		dependsOn: mod.DependsOn,
+	})
+
+	return config, nil
+}
+
+type terragruntConfigCacheEntry struct {
+	config    config.TerragruntConfig
+	dependsOn project.Paths
+}
+
+var terragruntConfigCache = config.NewCache[terragruntConfigCacheEntry]()
