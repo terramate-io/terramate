@@ -1958,12 +1958,12 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 	}
 }
 
-func TestGenerateHCLPanic(t *testing.T) {
+func TestGenerateHCLTmSlugNull(t *testing.T) {
 	t.Parallel()
 
 	tcases := []testcase{
 		{
-			name:  "panic",
+			name:  "tm_slug_null_evaluates_to_null",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
