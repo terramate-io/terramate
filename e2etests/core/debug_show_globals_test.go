@@ -27,6 +27,7 @@ func TestStacksGlobals(t *testing.T) {
 			name    string
 			layout  []string
 			wd      string
+			flags   []string
 			globals []globalsBlock
 			want    RunExpected
 		}
@@ -177,6 +178,36 @@ stack "/stacks/stack-2":
 			},
 		},
 		{
+			name: "filter for tag",
+			layout: []string{
+				`s:stacks/stack-1:tags=["tag1"]`,
+				`s:stacks/stack-2:tags=["tag2"]`,
+				`s:stacks/stack-3:tags=["tag1","tag2"]`,
+			},
+			wd:    "/stacks",
+			flags: []string{"--tags=tag1", "--no-tags=tag2"},
+			globals: []globalsBlock{
+				{
+					path: "/stacks",
+					add: Globals(
+						Str("str", "stacks-string"),
+					),
+				},
+				{
+					path: "/stack3",
+					add: Globals(
+						Str("str", "stack3-string"),
+					),
+				},
+			},
+			want: RunExpected{
+				Stdout: `
+stack "/stacks/stack-1":
+	str = "stacks-string"
+`,
+			},
+		},
+		{
 			name: "abspath() do not use wd but stack dir as base, wd = stacks",
 			layout: []string{
 				"s:stacks/stack-name",
@@ -252,8 +283,13 @@ stack "/stacks/stack-name":
 						globalBlock.add.String())
 				}
 
+				args := []string{"debug", "show", "globals"}
+				if len(tc.flags) > 0 {
+					args = append(args, tc.flags...)
+				}
+
 				ts := NewCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
-				AssertRunResult(t, ts.Run("debug", "show", "globals"), tcase.want)
+				AssertRunResult(t, ts.Run(args...), tcase.want)
 			}
 		})
 	}

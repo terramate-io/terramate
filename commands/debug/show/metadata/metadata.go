@@ -20,10 +20,13 @@ import (
 
 // Spec is the command specification for the show-metadata command.
 type Spec struct {
-	WorkingDir string
-	Engine     *engine.Engine
-	Printers   printer.Printers
-	GitFilter  engine.GitFilter
+	WorkingDir    string
+	Engine        *engine.Engine
+	Printers      printer.Printers
+	GitFilter     engine.GitFilter
+	StatusFilters resources.StatusFilters
+	Tags          []string
+	NoTags        []string
 }
 
 // Name returns the name of the command.
@@ -35,12 +38,12 @@ func (s *Spec) Exec(_ context.Context) error {
 		Str("action", "cli.printMetadata()").
 		Logger()
 
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
+	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
 	if err != nil {
 		return errors.E(err, "loading metadata: listing stacks")
 	}
 
-	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir())
+	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
 	if err != nil {
 		return err
 	}
@@ -50,8 +53,6 @@ func (s *Spec) Exec(_ context.Context) error {
 
 	cfg := s.Engine.Config()
 	s.Printers.Stdout.Println("Available metadata:")
-	s.Printers.Stdout.Println("\nproject metadata:")
-	s.Printers.Stdout.Println(fmt.Sprintf("\tterramate.stacks.list=%v", cfg.Stacks()))
 
 	for _, stackEntry := range stackEntries {
 		stack := stackEntry.Stack

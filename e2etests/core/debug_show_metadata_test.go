@@ -18,6 +18,7 @@ func TestCliMetadata(t *testing.T) {
 		name   string
 		layout []string
 		wd     string
+		flags  []string
 		want   RunExpected
 	}
 
@@ -32,9 +33,6 @@ func TestCliMetadata(t *testing.T) {
 			},
 			want: RunExpected{
 				Stdout: `Available metadata:
-
-project metadata:
-	terramate.stacks.list=[/]
 
 stack "/":
 	terramate.stack.name="sandbox"
@@ -55,9 +53,6 @@ stack "/":
 			want: RunExpected{
 				Stdout: `Available metadata:
 
-project metadata:
-	terramate.stacks.list=[/stack]
-
 stack "/stack":
 	terramate.stack.name="stack"
 	terramate.stack.description=""
@@ -76,9 +71,6 @@ stack "/stack":
 			},
 			want: RunExpected{
 				Stdout: `Available metadata:
-
-project metadata:
-	terramate.stacks.list=[/stack]
 
 stack "/stack":
 	terramate.stack.id="unique-id"
@@ -102,9 +94,6 @@ stack "/stack":
 			},
 			want: RunExpected{
 				Stdout: `Available metadata:
-
-project metadata:
-	terramate.stacks.list=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
 
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
@@ -156,9 +145,6 @@ stack "/stack2":
 			want: RunExpected{
 				Stdout: `Available metadata:
 
-project metadata:
-	terramate.stacks.list=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
-
 stack "/stack1":
 	terramate.stack.name="stack1"
 	terramate.stack.description=""
@@ -181,9 +167,6 @@ stack "/stack1":
 			wd: "/somedir",
 			want: RunExpected{
 				Stdout: `Available metadata:
-
-project metadata:
-	terramate.stacks.list=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
 
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
@@ -213,9 +196,6 @@ stack "/somedir/stack4":
 			want: RunExpected{
 				Stdout: `Available metadata:
 
-project metadata:
-	terramate.stacks.list=[/stack]
-
 stack "/stack":
 	terramate.stack.name="stack"
 	terramate.stack.description=""
@@ -234,9 +214,6 @@ stack "/stack":
 			},
 			want: RunExpected{
 				Stdout: `Available metadata:
-
-project metadata:
-	terramate.stacks.list=[/stack]
 
 stack "/stack":
 	terramate.stack.name="stack"
@@ -257,9 +234,6 @@ stack "/stack":
 			},
 			want: RunExpected{
 				Stdout: `Available metadata:
-
-project metadata:
-	terramate.stacks.list=[/parent /parent/child]
 
 stack "/parent":
 	terramate.stack.id="parent-stack"
@@ -291,9 +265,6 @@ stack "/parent/child":
 			want: RunExpected{
 				Stdout: `Available metadata:
 
-project metadata:
-	terramate.stacks.list=[/parent /parent/some/child/stack]
-
 stack "/parent":
 	terramate.stack.id="parent-stack"
 	terramate.stack.name="parent"
@@ -315,6 +286,29 @@ stack "/parent/some/child/stack":
 `,
 			},
 		},
+		{
+			name: "tags",
+			layout: []string{
+				`s:stack1:tags=["tag1","tag2"]`,
+				`s:stack1/sub1:tags=["tag2"]`,
+				`s:stack2:tags=["tag2"]`,
+			},
+			wd:    "/stack1",
+			flags: []string{"--tags=tag2", "--no-tags=tag1"},
+			want: RunExpected{
+				Stdout: `Available metadata:
+
+stack "/stack1/sub1":
+	terramate.stack.name="sub1"
+	terramate.stack.description=""
+	terramate.stack.tags=["tag2"]
+	terramate.stack.path.absolute="/stack1/sub1"
+	terramate.stack.path.basename="sub1"
+	terramate.stack.path.relative="stack1/sub1"
+	terramate.stack.path.to_root="../.."
+`,
+			},
+		},
 	} {
 		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
@@ -323,8 +317,13 @@ stack "/parent/some/child/stack":
 			s := sandbox.NoGit(t, true)
 			s.BuildTree(tc.layout)
 
+			args := []string{"debug", "show", "metadata"}
+			if len(tc.flags) > 0 {
+				args = append(args, tc.flags...)
+			}
+
 			cli := NewCLI(t, project.AbsPath(s.RootDir(), tc.wd))
-			AssertRunResult(t, cli.Run("debug", "show", "metadata"), tc.want)
+			AssertRunResult(t, cli.Run(args...), tc.want)
 		})
 	}
 }

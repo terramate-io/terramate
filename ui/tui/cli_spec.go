@@ -80,11 +80,18 @@ type FlagSpec struct {
 
 	Debug struct {
 		Show struct {
-			Metadata        struct{} `cmd:"" help:"Show metadata available in stacks."`
-			Globals         struct{} `cmd:"" help:"Show globals available in stacks."`
+			Metadata struct {
+				cloudFilterFlags
+			} `cmd:"" help:"Show metadata available in stacks."`
+			Globals struct {
+				cloudFilterFlags
+			} `cmd:"" help:"Show globals available in stacks."`
 			GenerateOrigins struct {
+				cloudFilterFlags
 			} `cmd:"" help:"Show details about generated code in stacks."`
-			RuntimeEnv struct{} `cmd:"" help:"Show available run-time environment variables (ENV) in stacks."`
+			RuntimeEnv struct {
+				cloudFilterFlags
+			} `cmd:"" help:"Show available run-time environment variables (ENV) in stacks."`
 		} `cmd:"" help:"Show configuration details of stacks."`
 	} `cmd:"" help:"Debug Terramate configuration."`
 

@@ -24,6 +24,7 @@ func TestGenerateDebug(t *testing.T) {
 			layout  []string
 			wd      string
 			configs []file
+			flags   []string
 			want    RunExpected
 		}
 	)
@@ -140,6 +141,48 @@ func TestGenerateDebug(t *testing.T) {
 `,
 			},
 		},
+		{
+			name: "filter by tags",
+			layout: []string{
+				"s:stack-1",
+				`s:stack-1/dir/child:tags=["tag1"]`,
+				"s:stack-2",
+			},
+			wd: "stack-1",
+			configs: []file{
+				{
+					path: "config.tm",
+					body: Doc(
+						GenerateFile(
+							Labels("file.txt"),
+							Bool("condition", false),
+							Str("content", "data"),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Str("content", "data"),
+						),
+					),
+				},
+				{
+					path: "stack-1/config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Str("content", "data"),
+							),
+						),
+					),
+				},
+			},
+			flags: []string{"--tags=tag1"},
+			want: RunExpected{
+				Stdout: `/stack-1/dir/child/file.hcl origin: /stack-1/config.tm:1,1-5,2
+/stack-1/dir/child/file.txt origin: /config.tm:5,1-7,2
+`,
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
@@ -156,7 +199,11 @@ func TestGenerateDebug(t *testing.T) {
 			}
 
 			ts := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			AssertRunResult(t, ts.Run("debug", "show", "generate-origins"), tc.want)
+			args := []string{"debug", "show", "generate-origins"}
+			if len(tc.flags) > 0 {
+				args = append(args, tc.flags...)
+			}
+			AssertRunResult(t, ts.Run(args...), tc.want)
 		})
 	}
 }
