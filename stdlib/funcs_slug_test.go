@@ -9,6 +9,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/errors"
+	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/test"
@@ -382,4 +383,57 @@ func TestTmSlugEdgeCases(t *testing.T) {
 		assert.IsTrue(t, result.IsNull(), "result should be null")
 		assert.IsTrue(t, result.Type().Equals(listType), "null list result should preserve list type")
 	})
+}
+
+// TestTmSlugDynamicNull ensures tm_slug(null) produces a dynamic result that can be tokenized
+func TestTmSlugDynamicNull(t *testing.T) {
+	// Evaluate through context to get a proper dynamic null literal
+	rootdir := test.TempDir(t)
+	ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
+	val, err := ctx.Eval(test.NewExpr(t, `tm_slug(null)`))
+	assert.NoError(t, err)
+	// When null is passed to tm_slug, HCL returns a dynamic result without calling the function
+	assert.IsTrue(t, val.Type() == cty.DynamicPseudoType)
+
+	// Ensure tokenization does not panic for the result
+	_ = ast.TokensForValue(val)
+}
+
+// TestTmSlugDynamicUnknown ensures dynamic values can be tokenized without panicking
+func TestTmSlugDynamicUnknown(t *testing.T) {
+	// When calling a function with cty.DynamicVal, HCL short-circuits and returns cty.DynamicVal
+	// without calling the function implementation
+	result := cty.DynamicVal
+
+	// The main test is that tokenization doesn't panic
+	_ = ast.TokensForValue(result)
+
+	// Verify it's still dynamic
+	assert.IsTrue(t, result.Type() == cty.DynamicPseudoType)
+	assert.IsTrue(t, !result.IsWhollyKnown())
+}
+
+// TestTmSlugNullStringDirect ensures a direct null string arg returns typed null string and is printable
+func TestTmSlugNullStringDirect(t *testing.T) {
+	fn := stdlib.SlugFunc()
+
+	result, err := fn.Call([]cty.Value{cty.NullVal(cty.String)})
+	assert.NoError(t, err)
+	assert.IsTrue(t, result.IsNull())
+	assert.IsTrue(t, result.Type().Equals(cty.String))
+
+	_ = ast.TokensForValue(result)
+}
+
+// TestTmSlugNullListDirect ensures a direct null list(string) arg returns typed null list(string) and is printable
+func TestTmSlugNullListDirect(t *testing.T) {
+	fn := stdlib.SlugFunc()
+	listType := cty.List(cty.String)
+
+	result, err := fn.Call([]cty.Value{cty.NullVal(listType)})
+	assert.NoError(t, err)
+	assert.IsTrue(t, result.IsNull())
+	assert.IsTrue(t, result.Type().Equals(listType))
+
+	_ = ast.TokensForValue(result)
 }

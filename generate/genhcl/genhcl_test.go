@@ -1958,6 +1958,45 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 	}
 }
 
+func TestGenerateHCLTmSlugNull(t *testing.T) {
+	t.Parallel()
+
+	tcases := []testcase{
+		{
+			name:  "tm_slug_null_evaluates_to_null",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("scope_traversal"),
+						Content(
+							Block("traversals",
+								Expr("local", "tm_slug(null)"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "scope_traversal",
+					hcl: genHCL{
+						condition: true,
+						body: Block("traversals",
+							Expr("local", "null"),
+						),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		tcase.run(t)
+	}
+}
+
 func init() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
