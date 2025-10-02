@@ -16,7 +16,9 @@ import (
 
 // Spec represents the version command specification.
 type Spec struct {
-	Version string
+	Product       string
+	PrettyProduct string
+	Version       string
 
 	InfoChan chan *checkpoint.CheckResponse
 }
@@ -26,7 +28,7 @@ func (s *Spec) Name() string { return "version" }
 
 // Exec executes the version command.
 func (s *Spec) Exec(ctx context.Context) error {
-	fmt.Println(s.Version)
+	fmt.Printf("%s %s\n", s.Product, s.Version)
 
 	if s.InfoChan == nil {
 		return nil
@@ -42,8 +44,9 @@ func (s *Spec) Exec(ctx context.Context) error {
 
 		if info.Outdated {
 			releaseDate := time.Unix(int64(info.CurrentReleaseDate), 0).UTC()
-			printer.Stdout.Println(fmt.Sprintf("\nYour version of Terramate is out of date! The latest version\n"+
+			printer.Stdout.Println(fmt.Sprintf("\nYour version of %s is out of date! The latest version\n"+
 				"is %s (released on %s).\nYou can update by downloading from %s",
+				s.PrettyProduct,
 				info.CurrentVersion, releaseDate.Format(time.UnixDate),
 				info.CurrentDownloadURL))
 		}
@@ -54,7 +57,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 				plural = "s"
 			}
 
-			printer.Stdout.Println(fmt.Sprintf("\nYour version of Terramate has %d alert%s:\n", len(info.Alerts), plural))
+			printer.Stdout.Println(fmt.Sprintf("\nYour version of %s has %d alert%s:\n", s.PrettyProduct, len(info.Alerts), plural))
 
 			for _, alert := range info.Alerts {
 				urlDesc := ""
