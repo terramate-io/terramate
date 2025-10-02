@@ -15,6 +15,7 @@ import (
 )
 
 const terraformInstallVersion = "1.5.0"
+const terragruntInstallVersion = "0.88.0"
 
 // toolsetTestPath is the path to the directory containing the Terramate binary and
 // other tools.
@@ -26,7 +27,14 @@ var TerraformVersion string
 // TerraformTestPath is the path to the installed terraform binary.
 var TerraformTestPath string
 
+// TerragruntVersion is the detected or installed Terragrunt version.
+var TerragruntVersion string
+
+// TerragruntTestPath is the path to the installed terragrunt binary.
+var TerragruntTestPath string
+
 var terraformCleanup func()
+var terragruntCleanup func()
 
 // HelperPath is the path to the test binary we compiled for test purposes
 var HelperPath string
@@ -88,6 +96,12 @@ func Setup(projectRoot string) (err error) {
 			err = errors.E(err, "failed to setup Terraform binary")
 			return
 		}
+
+		TerragruntTestPath, TerragruntVersion, terragruntCleanup, err = InstallTerragrunt(terragruntInstallVersion)
+		if err != nil {
+			err = errors.E(err, "failed to setup Terragrunt binary")
+			return
+		}
 	})
 
 	if err == nil {
@@ -104,5 +118,8 @@ func Teardown() {
 	}
 	if terraformCleanup != nil {
 		terraformCleanup()
+	}
+	if terragruntCleanup != nil {
+		terragruntCleanup()
 	}
 }

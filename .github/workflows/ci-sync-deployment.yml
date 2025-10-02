@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - uses: opentofu/setup-opentofu@592200bd4b9bbf4772ace78f887668b1aee8f716 # pin@v1.0.5
         with:
@@ -49,6 +49,12 @@ jobs:
         with:
           terraform_version: "1.7.5"
           terraform_wrapper: false
+
+      - name: Install Terragrunt
+        uses: gruntwork-io/terragrunt-action@95fc057922e3c3d4cc021a81a213f088f333ddef # pin@v3.0.2
+        with:
+          tg_version: "0.88.0"
+          tf_path: "/usr/local/bin/terraform"
 
       - name: Install Terramate
         uses: terramate-io/terramate-action@b733b79e37eda5caba8703a75b522e9053d0846e # pin@i4k-fix-macos
@@ -129,7 +135,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
       - name: install cosign
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
       - name: install goreleaser
@@ -170,7 +176,7 @@ jobs:
 
       - name: Verify checksums with cosign
         run: |
-          cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}       
+          cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}
   ci:
     needs:
       - build_test

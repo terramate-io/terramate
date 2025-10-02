@@ -23,6 +23,9 @@ import (
 	"github.com/terramate-io/tfjson/sanitize"
 
 	runpkg "github.com/terramate-io/terramate/run"
+	"github.com/terramate-io/terramate/run/terraform"
+	"github.com/terramate-io/terramate/run/terragrunt"
+	"github.com/terramate-io/terramate/run/tofu"
 )
 
 const defaultPlanRenderTimeout = 300 * time.Second
@@ -118,43 +121,30 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 		timeout = defaultPlanRenderTimeout
 	}
 
-	var cmdName string
-	if run.Task.UseTerragrunt {
-		cmdName = "terragrunt"
-	} else if provisioner == ProvisionerOpenTofu {
-		cmdName = "tofu"
-	} else {
-		cmdName = "terraform"
-	}
-
-	cmdPath, err := runpkg.LookPath(cmdName, run.Env)
-	if err != nil {
-		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "looking up executable for %s: %w", cmdName, err)
-	}
-
-	env := run.Env
-
-	args := []string{"show"}
-	args = append(args, flags...)
-	if run.Task.UseTerragrunt {
-		args = append(args, "--terragrunt-non-interactive")
-
-		env = make([]string, len(run.Env))
-		copy(env, run.Env)
-
-		env = append(env, "TERRAGRUNT_FORWARD_TF_STDOUT=true")
-		env = append(env, "TERRAGRUNT_LOG_FORMAT=bare")
-	}
-	args = append(args, planfile)
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, cmdPath, args...)
-	cmd.Dir = run.Stack.Dir.HostPath(e.Config().HostDir())
+	var cmd *exec.Cmd
+	var err error
+
+	workingDir := run.Stack.Dir.HostPath(e.Config().HostDir())
+
+	var runner runpkg.CLIRunner
+	if run.Task.UseTerragrunt {
+		runner = terragrunt.NewRunner(run.Env, workingDir)
+	} else if provisioner == ProvisionerOpenTofu {
+		runner = tofu.NewRunner(run.Env, workingDir)
+	} else {
+		runner = terraform.NewRunner(run.Env, workingDir)
+	}
+
+	cmd, err = runner.ShowCommand(ctx, planfile, flags...)
+	if err != nil {
+		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "creating %s command: %w", runner.Name(), err)
+	}
+
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = env
 
 	logger := log.With().
 		Str("action", "runTerraformShow").
