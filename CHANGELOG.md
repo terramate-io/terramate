@@ -20,6 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- Fix `--include-output-dependencies` and `--only-output-dependencies` flags not being applied when used together with `--no-recursive`.
+
 ## v0.14.6
 
 ### Fixed

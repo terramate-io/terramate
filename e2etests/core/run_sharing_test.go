@@ -884,5 +884,25 @@ func TestRunOutputDependencies(t *testing.T) {
 			AssertRunResult(t, cli.Run("script", "run", "--tags=dependent", "--quiet", "-X", "--only-output-dependencies", "test"), onlyExpected)
 
 		}
+
+		{
+			// --*-output-dependencies must be considered for --no-recursive
+			cwd := filepath.Join(f.sandbox.RootDir(), f.dependentPath)
+			cli := NewCLI(t, cwd)
+			cli.AppendEnv = []string{"TM_TEST_BASEDIR=" + f.sandbox.RootDir()}
+
+			normalExpected := RunExpected{Stdout: nljoin(f.dependentPath)}
+			f.sandbox.DirEntry(f.dependentPath).CreateFile("main.tf", "# changed file")
+			AssertRunResult(t, cli.Run("run", "--no-recursive", "--quiet", "-X", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), normalExpected) // sanity check
+
+			inclExpected := RunExpected{Stdout: nljoin(f.dependencyPath, f.dependentPath)}
+			AssertRunResult(t, cli.Run("run", "--no-recursive", "--quiet", "-X", "--include-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), inclExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--no-recursive", "--quiet", "-X", "--include-output-dependencies", "test"), inclExpected)
+
+			onlyExpected := RunExpected{Stdout: nljoin(f.dependencyPath)}
+			AssertRunResult(t, cli.Run("run", "--no-recursive", "--quiet", "-X", "--only-output-dependencies", "--", HelperPath, "stack-abs-path", f.sandbox.RootDir()), onlyExpected)
+			AssertRunResult(t, cli.Run("script", "run", "--no-recursive", "--quiet", "-X", "--only-output-dependencies", "test"), onlyExpected)
+
+		}
 	})
 }
