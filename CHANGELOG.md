@@ -20,11 +20,21 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## v0.14.6
+## Unreleased
 
 ### Fixed
 
-- Fix filter flag inconsistencies for `trigger` and `debug show {metadata,globals,generate-origins,runtime-env}` commands.
+- Change the output buffering behaviour of `run` and `script run` to allow the use of interactive prompts
+  (e.g. `terraform apply`) that wait for input in the same line.
+  - Fix a regression for this specific use-case, which was introduced in `0.14.4`, where all output was buffered by line.
+  - Only supported when running (1) not in parallel and (2) not syncing to Terramate Cloud.
+    Otherwise, the output will be buffered by line to avoid issues.
+
+## v0.14.6
+
+### Added
+
+- Add more filters flags for `trigger` and `debug show {metadata,globals,generate-origins,runtime-env}` commands.
   Some flags were listed in the help, but ignored by the command. The following flags work as intended now:
   - `--status`
   - `--drift-status`
