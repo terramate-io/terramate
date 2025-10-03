@@ -277,10 +277,11 @@ func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClaus
 	if err != nil {
 		return nil, errors.E(err, "adding wanted stacks")
 	}
-	return e.addOutputDependencies(outputFlags, stacks, target)
+	return e.AddOutputDependencies(outputFlags, stacks, target)
 }
 
-func (e *Engine) addOutputDependencies(outputFlags OutputsSharingOptions, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
+// AddOutputDependencies takes a list of stacks and adds potential output dependencies.
+func (e *Engine) AddOutputDependencies(outputFlags OutputsSharingOptions, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
 	logger := log.With().
 		Str("action", "engine.addOutputDependencies()").
 		Logger()
