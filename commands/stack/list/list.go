@@ -6,6 +6,7 @@ package list
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/terramate-io/terramate/cloud/api/status"
@@ -25,6 +26,7 @@ type Spec struct {
 	Target        string
 	StatusFilters StatusFilters
 	RunOrder      bool
+	Format        string
 	Tags          []string
 	NoTags        []string
 	Printers      printer.Printers
@@ -35,6 +37,18 @@ type StatusFilters struct {
 	StackStatus      string
 	DeploymentStatus string
 	DriftStatus      string
+}
+
+// StackInfo represents stack information for JSON output.
+type StackInfo struct {
+	Path         string   `json:"path"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Tags         []string `json:"tags"`
+	Dependencies []string `json:"dependencies"`
+	Reason       string   `json:"reason"`
+	IsChanged    bool     `json:"is_changed"`
 }
 
 // Name returns the name of the command.
@@ -90,6 +104,10 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 		reasons[entry.Stack.ID] = entry.Reason
 	}
 
+	if s.Format == "json" {
+		return s.printStacksListJSON(stacks, filteredStacks)
+	}
+
 	if s.RunOrder {
 		var failReason string
 		var err error
@@ -114,5 +132,80 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 			printer.Stdout.Println(friendlyDir)
 		}
 	}
+	return nil
+}
+
+func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) error {
+	// Create a map from stack ID to Entry for quick lookup
+	entryMap := make(map[string]stack.Entry)
+	for _, entry := range filteredStacks {
+		entryMap[entry.Stack.ID] = entry
+	}
+
+	d, reason, err := run.BuildDAGFromStacks(
+		s.Engine.Config(),
+		stacks,
+		func(s *config.SortableStack) *config.Stack { return s.Stack },
+	)
+	if err != nil {
+		return errors.E(err, "Invalid stack configuration: "+reason)
+	}
+
+	stackInfos := make(map[string]StackInfo)
+
+	for _, id := range d.IDs() {
+		st, err := d.Node(id)
+		if err != nil {
+			return errors.E(err, "getting node from DAG")
+		}
+
+		dir := st.Dir().String()
+		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
+		if !ok {
+			return errors.E("unable to format stack dir %s", dir)
+		}
+
+		ancestors := d.DirectAncestorsOf(id)
+		deps := make([]string, 0, len(ancestors))
+		for _, ancestorID := range ancestors {
+			ancestorStack, err := d.Node(ancestorID)
+			if err != nil {
+				return errors.E(err, "getting ancestor node from DAG")
+			}
+
+			ancestorDir := ancestorStack.Dir().String()
+			friendlyAncestorDir, ok := s.Engine.FriendlyFmtDir(ancestorDir)
+			if !ok {
+				return errors.E("unable to format stack dir %s", ancestorDir)
+			}
+			deps = append(deps, friendlyAncestorDir)
+		}
+
+		entry, hasEntry := entryMap[st.ID]
+		reasonStr := ""
+		if hasEntry {
+			reasonStr = entry.Reason
+		}
+
+		info := StackInfo{
+			Path:         friendlyDir,
+			ID:           st.ID,
+			Name:         st.Name,
+			Description:  st.Description,
+			Tags:         st.Tags,
+			Dependencies: deps,
+			Reason:       reasonStr,
+			IsChanged:    st.IsChanged,
+		}
+
+		stackInfos[friendlyDir] = info
+	}
+
+	jsonData, err := json.MarshalIndent(stackInfos, "", "  ")
+	if err != nil {
+		return errors.E(err, "marshaling JSON")
+	}
+
+	s.Printers.Stdout.Println(string(jsonData))
 	return nil
 }
