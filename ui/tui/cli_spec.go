@@ -46,7 +46,7 @@ type FlagSpec struct {
 
 	List struct {
 		Why    bool   `help:"Shows the reason why the stack has changed."`
-		Format string `default:"text" enum:"text,json" help:"Output format (text or json)"`
+		Format string `default:"text" enum:"text,json,dot" help:"Output format (text, json, or dot)"`
 
 		cloudFilterFlags
 		Target   string `help:"Select the deployment target of the filtered stacks."`

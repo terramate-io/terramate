@@ -9,12 +9,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/emicklei/dot"
 	"github.com/terramate-io/terramate/cloud/api/status"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/run"
+	"github.com/terramate-io/terramate/run/dag"
 	"github.com/terramate-io/terramate/stack"
 )
 
@@ -108,6 +110,10 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 		return s.printStacksListJSON(stacks, filteredStacks)
 	}
 
+	if s.Format == "dot" {
+		return s.printStacksListDot(stacks, filteredStacks)
+	}
+
 	if s.RunOrder {
 		var failReason string
 		var err error
@@ -135,7 +141,9 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 	return nil
 }
 
-func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) error {
+// buildStacksDAG builds a DAG from the given stacks and creates an entry map.
+// Reused across different output formatters.
+func (s *Spec) buildStacksDAG(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) (*dag.DAG[*config.SortableStack], map[string]stack.Entry, error) {
 	// Create a map from stack ID to Entry for quick lookup
 	entryMap := make(map[string]stack.Entry)
 	for _, entry := range filteredStacks {
@@ -148,7 +156,16 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 		func(s *config.SortableStack) *config.Stack { return s.Stack },
 	)
 	if err != nil {
-		return errors.E(err, "Invalid stack configuration: "+reason)
+		return nil, nil, errors.E(err, "Invalid stack configuration: "+reason)
+	}
+
+	return d, entryMap, nil
+}
+
+func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) error {
+	d, entryMap, err := s.buildStacksDAG(stacks, filteredStacks)
+	if err != nil {
+		return err
 	}
 
 	stackInfos := make(map[string]StackInfo)
@@ -159,7 +176,7 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 			return errors.E(err, "getting node from DAG")
 		}
 
-		dir := st.Dir().String()
+		dir := st.Stack.Dir.String()
 		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
 		if !ok {
 			return errors.E("unable to format stack dir %s", dir)
@@ -173,7 +190,7 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 				return errors.E(err, "getting ancestor node from DAG")
 			}
 
-			ancestorDir := ancestorStack.Dir().String()
+			ancestorDir := ancestorStack.Stack.Dir.String()
 			friendlyAncestorDir, ok := s.Engine.FriendlyFmtDir(ancestorDir)
 			if !ok {
 				return errors.E("unable to format stack dir %s", ancestorDir)
@@ -181,7 +198,7 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 			deps = append(deps, friendlyAncestorDir)
 		}
 
-		entry, hasEntry := entryMap[st.ID]
+		entry, hasEntry := entryMap[st.Stack.ID]
 		reasonStr := ""
 		if hasEntry {
 			reasonStr = entry.Reason
@@ -189,13 +206,13 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 
 		info := StackInfo{
 			Path:         friendlyDir,
-			ID:           st.ID,
-			Name:         st.Name,
-			Description:  st.Description,
-			Tags:         st.Tags,
+			ID:           st.Stack.ID,
+			Name:         st.Stack.Name,
+			Description:  st.Stack.Description,
+			Tags:         st.Stack.Tags,
 			Dependencies: deps,
 			Reason:       reasonStr,
-			IsChanged:    st.IsChanged,
+			IsChanged:    st.Stack.IsChanged,
 		}
 
 		stackInfos[friendlyDir] = info
@@ -207,5 +224,54 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 	}
 
 	s.Printers.Stdout.Println(string(jsonData))
+	return nil
+}
+
+func (s *Spec) printStacksListDot(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) error {
+	d, _, err := s.buildStacksDAG(stacks, filteredStacks)
+	if err != nil {
+		return err
+	}
+
+	dotGraph := dot.NewGraph(dot.Directed)
+
+	for _, id := range d.IDs() {
+		st, err := d.Node(id)
+		if err != nil {
+			return errors.E(err, "getting node from DAG")
+		}
+
+		dir := st.Stack.Dir.String()
+		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
+		if !ok {
+			return errors.E("unable to format stack dir %s", dir)
+		}
+
+		descendant := dotGraph.Node(friendlyDir)
+
+		ancestors := d.DirectAncestorsOf(id)
+		for _, ancestorID := range ancestors {
+			ancestorStack, err := d.Node(ancestorID)
+			if err != nil {
+				return errors.E(err, "getting ancestor node from DAG")
+			}
+
+			ancestorDir := ancestorStack.Stack.Dir.String()
+			friendlyAncestorDir, ok := s.Engine.FriendlyFmtDir(ancestorDir)
+			if !ok {
+				return errors.E("unable to format stack dir %s", ancestorDir)
+			}
+
+			ancestorNode := dotGraph.Node(friendlyAncestorDir)
+
+			// check if edge already exists to avoid duplicates
+			edges := dotGraph.FindEdges(ancestorNode, descendant)
+			if len(edges) == 0 {
+				dotGraph.Edge(ancestorNode, descendant)
+			}
+		}
+	}
+
+	s.Printers.Stdout.Println(dotGraph.String())
 	return nil
 }
