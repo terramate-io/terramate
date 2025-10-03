@@ -219,6 +219,64 @@ func (d *DAG[V]) AncestorsOf(id ID) []ID {
 	return d.dag[id]
 }
 
+// DirectAncestorsOf returns only the immediate ancestors of the given node
+// by performing transitive reduction - removing ancestors reachable through other ancestors.
+func (d *DAG[V]) DirectAncestorsOf(id ID) []ID {
+	ancestors := d.AncestorsOf(id)
+	if len(ancestors) <= 1 {
+		return ancestors // Already minimal
+	}
+
+	var directAncestors []ID
+
+	for _, ancestorID := range ancestors {
+		isTransitive := false
+
+		for _, otherID := range ancestors {
+			if ancestorID == otherID {
+				continue
+			}
+			if d.hasPath(otherID, ancestorID) {
+				isTransitive = true
+				break
+			}
+		}
+
+		if !isTransitive {
+			directAncestors = append(directAncestors, ancestorID)
+		}
+	}
+
+	return directAncestors
+}
+
+// hasPath checks if 'to' is reachable from 'from' via ancestors (BFS traversal).
+func (d *DAG[V]) hasPath(from, to ID) bool {
+	visited := make(map[ID]bool)
+	queue := []ID{from}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		if visited[current] {
+			continue
+		}
+		visited[current] = true
+
+		for _, ancestor := range d.AncestorsOf(current) {
+			if ancestor == to {
+				return true
+			}
+			if !visited[ancestor] {
+				queue = append(queue, ancestor)
+			}
+		}
+	}
+
+	return false
+}
+
 // HasCycle returns true if the DAG has a cycle.
 func (d *DAG[V]) HasCycle(id ID) bool {
 	if !d.validated {
