@@ -6,6 +6,7 @@ package runner
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -144,38 +145,43 @@ func (tm *CLI) PrependToPath(dir string) {
 	}
 }
 
-// buffer provides a concurrency safe implementation of a bytes.Buffer
+// Buffer provides a concurrency safe implementation of a bytes.Buffer
 // It is not safe to copy the buffer.
-type buffer struct {
+type Buffer struct {
 	b bytes.Buffer
 	m sync.Mutex
 }
 
-func (b *buffer) Read(p []byte) (n int, err error) {
+func (b *Buffer) Read(p []byte) (n int, err error) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	return b.b.Read(p)
 }
 
-func (b *buffer) Write(p []byte) (n int, err error) {
+func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	return b.b.Write(p)
 }
 
-func (b *buffer) String() string {
+func (b *Buffer) String() string {
 	b.m.Lock()
 	defer b.m.Unlock()
 	return b.b.String()
+}
+
+// Close is a no-op.
+func (b *Buffer) Close() error {
+	return nil
 }
 
 // Cmd is a generic runner that can be used to run any command.
 type Cmd struct {
 	t      *testing.T
 	cmd    *exec.Cmd
-	Stdin  *buffer
-	Stdout *buffer
-	Stderr *buffer
+	Stdin  io.WriteCloser
+	Stdout io.Reader
+	Stderr io.Reader
 }
 
 // Run the command.
@@ -183,19 +189,38 @@ func (tc *Cmd) Run() error {
 	return tc.cmd.Run()
 }
 
+// Start the command.
+func (tc *Cmd) Start() {
+	t := tc.t
+	t.Helper()
+
+	assert.NoError(t, tc.cmd.Start())
+}
+
+// Wait for the command completion.
+func (tc *Cmd) Wait() error {
+	return tc.cmd.Wait()
+}
+
 // ExitCode returns the exit code for a finished command.
 func (tc *Cmd) ExitCode() int {
 	return tc.cmd.ProcessState.ExitCode()
 }
 
+// CmdIOMode is the I/O mode used by Cmd.
+type CmdIOMode int
+
+const (
+	// CmdIOModePipe uses pipes for I/O.
+	CmdIOModePipe CmdIOMode = iota
+	// CmdIOModeBuffer uses buffers for I/O.
+	CmdIOModeBuffer
+)
+
 // NewCmd creates a new terramate command prepared to executed.
-func (tm CLI) NewCmd(args ...string) *Cmd {
+func (tm CLI) NewCmd(ioMode CmdIOMode, args ...string) *Cmd {
 	t := tm.t
 	t.Helper()
-
-	stdin := &buffer{}
-	stdout := &buffer{}
-	stderr := &buffer{}
 
 	allargs := []string{}
 	if tm.Chdir != "" {
@@ -235,11 +260,32 @@ func (tm CLI) NewCmd(args ...string) *Cmd {
 	test.WriteFile(t, tm.userDir, "credentials.tmrc.json", fmt.Sprintf(`{"id_token": "%s", "refresh_token": "abcd", "provider": "Google"}`, fakeJwt))
 
 	cmd := exec.Command(tm.terramatePath(), allargs...)
+	cmd.Env = env
+	cmd.Dir = tm.wd
+
+	if ioMode == CmdIOModePipe {
+		stdoutPipe, err := cmd.StdoutPipe()
+		assert.NoError(t, err)
+		stderrPipe, err := cmd.StderrPipe()
+		assert.NoError(t, err)
+		stdinPipe, err := cmd.StdinPipe()
+		assert.NoError(t, err)
+
+		return &Cmd{
+			t:      t,
+			cmd:    cmd,
+			Stdin:  stdinPipe,
+			Stdout: stdoutPipe,
+			Stderr: stderrPipe,
+		}
+	}
+
+	stdin := &Buffer{}
+	stdout := &Buffer{}
+	stderr := &Buffer{}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
-	cmd.Env = env
-	cmd.Dir = tm.wd
 
 	return &Cmd{
 		t:      t,
@@ -256,18 +302,7 @@ func (tm CLI) terramatePath() string {
 
 // Run the cli command.
 func (tm CLI) Run(args ...string) RunResult {
-	t := tm.t
-	t.Helper()
-
-	cmd := tm.NewCmd(args...)
-	_ = cmd.Run()
-
-	return RunResult{
-		Cmd:    strings.Join(args, " "),
-		Stdout: cmd.Stdout.String(),
-		Stderr: cmd.Stderr.String(),
-		Status: cmd.ExitCode(),
-	}
+	return tm.RunWithStdin("", args...)
 }
 
 // RunWithStdin runs the CLI but uses the provided string as stdin.
@@ -275,15 +310,98 @@ func (tm CLI) RunWithStdin(stdin string, args ...string) RunResult {
 	t := tm.t
 	t.Helper()
 
-	cmd := tm.NewCmd(args...)
-	cmd.Stdin.b.WriteString(stdin)
+	cmd := tm.NewCmd(CmdIOModeBuffer, args...)
+
+	if stdin != "" {
+		_, _ = cmd.Stdin.Write([]byte(stdin))
+	}
+
 	_ = cmd.Run()
+
+	stdoutBytes, err := io.ReadAll(cmd.Stdout)
+	assert.NoError(t, err)
+	stderrBytes, err := io.ReadAll(cmd.Stderr)
+	assert.NoError(t, err)
 
 	return RunResult{
 		Cmd:    strings.Join(args, " "),
-		Stdout: cmd.Stdout.String(),
-		Stderr: cmd.Stderr.String(),
+		Stdout: string(stdoutBytes),
+		Stderr: string(stderrBytes),
 		Status: cmd.ExitCode(),
+	}
+}
+
+// InteractiveWrite writes data during interactive IO.
+type InteractiveWrite func(input string)
+
+// ExpectedRead reads data during interactive IO and compares it with want.
+type ExpectedRead func(want string)
+
+// InteractiveIO implements a test sequence for RunInteractive.
+type InteractiveIO func(stdin InteractiveWrite, stdout, stderr ExpectedRead)
+
+// RunInteractive runs the CLI with step-by-step I/O for stdout, stderr and stdin.
+func (tm CLI) RunInteractive(ioFunc InteractiveIO, args ...string) RunResult {
+	t := tm.t
+	t.Helper()
+
+	cmd := tm.NewCmd(CmdIOModePipe, args...)
+	cmd.Start()
+
+	var stdoutBytes, stderrBytes []byte
+	var stdoutErr, stderrErr error
+
+	inFunc := func(s string) {
+		t.Helper()
+		_, _ = cmd.Stdin.Write([]byte(s))
+	}
+	outFunc := func(r io.Reader) ExpectedRead {
+		return func(want string) {
+			t.Helper()
+			// We try to read more than len(want), assuming its <1024.
+			// So if there is more than the expected output, we will fail.
+			buf := make([]byte, 1024)
+			n, err := r.Read(buf)
+			if err != nil {
+				t.Fatalf("error %s while expecting output %q", err.Error(), want)
+			}
+			got := string(buf[0:n])
+			if got != want {
+				t.Fatalf("expecting output %q, got %q", want, got)
+			}
+		}
+	}
+
+	// Do all testcase I/O
+	ioFunc(inFunc, outFunc(cmd.Stdout), outFunc(cmd.Stderr))
+
+	// Close stdin in case cmd reads from stdin until EOF. There will be no more new data.
+	_ = cmd.Stdin.Close()
+
+	// Read in remaining data from stdout and stdout so program can progress until end.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		stdoutBytes, stdoutErr = io.ReadAll(cmd.Stdout)
+		defer wg.Done()
+	}()
+	go func() {
+		stderrBytes, stderrErr = io.ReadAll(cmd.Stderr)
+		defer wg.Done()
+	}()
+
+	// Wait until end and all remaining data is read.
+	_ = cmd.Wait()
+	wg.Wait()
+	assert.NoError(t, stdoutErr)
+	assert.NoError(t, stderrErr)
+
+	return RunResult{
+		Cmd:    strings.Join(args, " "),
+		Status: cmd.ExitCode(),
+		// Anything that remains in the buffer
+		Stdout: string(stdoutBytes),
+		Stderr: string(stderrBytes),
 	}
 }
 

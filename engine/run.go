@@ -458,21 +458,28 @@ func (e *Engine) RunAll(
 			cmd.Dir = run.Stack.HostDir(e.Config())
 			cmd.Env = environ
 
+			isCloudSync := e.IsCloudEnabled() && opts.Hooks.LogSyncCondition(task, run)
+
 			var logSyncer *cloud.LogSyncer
-			if e.IsCloudEnabled() && opts.Hooks.LogSyncCondition(task, run) {
+			if isCloudSync {
 				logSyncer = cloud.NewLogSyncer(func(logs resources.CommandLogs) {
 					opts.Hooks.LogSyncer(&logger, e, run, logs)
 				})
 			}
 
-			stdin := opts.Stdin
-			outputBuffers := cloud.NewBufferGroup(logSyncer)
-			stdoutBuf := outputBuffers.NewBuffer(resources.StdoutLogChannel, opts.Stdout)
-			stderrBuf := outputBuffers.NewBuffer(resources.StderrLogChannel, opts.Stderr)
+			cmd.Stdin = opts.Stdin
+			cmd.Stdout = opts.Stdout
+			cmd.Stderr = opts.Stderr
+			waitForBuffersFunc := func() {}
 
-			cmd.Stdin = stdin
-			cmd.Stdout = stdoutBuf
-			cmd.Stderr = stderrBuf
+			// In case of cloud sync or parallel, use line buffering for output of child commands
+			// so they can interleave.
+			if isCloudSync || opts.Parallel > 1 {
+				outputBuffers := cloud.NewBufferGroup(logSyncer)
+				cmd.Stdout = outputBuffers.NewBuffer(resources.StdoutLogChannel, cmd.Stdout)
+				cmd.Stderr = outputBuffers.NewBuffer(resources.StderrLogChannel, cmd.Stderr)
+				waitForBuffersFunc = func() { outputBuffers.Wait() }
+			}
 
 			opts.Hooks.Before(e, cloudRun)
 
@@ -490,7 +497,7 @@ func (e *Engine) RunAll(
 			if err := cmd.Start(); err != nil {
 				endTime := time.Now().UTC()
 
-				outputBuffers.Wait()
+				waitForBuffersFunc()
 
 				res := RunResult{
 					ExitCode:   -1,
@@ -518,7 +525,7 @@ func (e *Engine) RunAll(
 
 				endTime := time.Now().UTC()
 
-				outputBuffers.Wait()
+				waitForBuffersFunc()
 
 				res := RunResult{
 					ExitCode:   -1,
@@ -535,7 +542,7 @@ func (e *Engine) RunAll(
 				break tasksLoop
 
 			case result := <-resultc:
-				outputBuffers.Wait()
+				waitForBuffersFunc()
 
 				var err error
 				if !task.isSuccessExit(result.cmd.ProcessState.ExitCode()) {

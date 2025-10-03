@@ -72,7 +72,7 @@ func testSIGINTx3(t *testing.T, continueOnError bool) {
 	// as path separator and this makes an invalid HCL string as \ is used for
 	// escaping symbols or unicode code sequences.
 	// The HEREDOC is used to create a raw string with no characters interpretation.
-	cmd := tm.NewCmd("run", continueOnErrorFlag, "--eval", HelperPathAsHCL,
+	cmd := tm.NewCmd(CmdIOModeBuffer, "run", continueOnErrorFlag, "--eval", HelperPathAsHCL,
 		// this would be simplified by supporting list in the evaluation output.
 		// NOTE: an extra parameter is provided for `hang` but it's ignore by the helper.
 		`${terramate.stack.path.absolute == "/stack2" ? "hang" : "echo"}`,
@@ -94,10 +94,15 @@ func testSIGINTx3(t *testing.T, continueOnError bool) {
 		close(errs)
 	}()
 
+	stdout, ok := cmd.Stdout.(*Buffer)
+	assert.IsTrue(t, ok)
+	stderr, ok := cmd.Stderr.(*Buffer)
+	assert.IsTrue(t, ok)
+
 	assert.NoError(
 		t,
-		PollBufferForMsgs(cmd.Stdout, errs, expectedStdout...),
-		"failed to start: %s", cmd.Stderr.String(),
+		PollBufferForMsgs(stdout, errs, expectedStdout...),
+		"failed to start: %s", stderr.String(),
 	)
 
 	expectedStdout = append(expectedStdout, "interrupt")
@@ -121,8 +126,8 @@ func testSIGINTx3(t *testing.T, continueOnError bool) {
 
 		select {
 		case err := <-errs:
-			stdoutStr := cmd.Stdout.String()
-			stderrStr := cmd.Stderr.String()
+			stdoutStr := stdout.String()
+			stderrStr := stderr.String()
 			t.Logf("terramate err: %v", err)
 			t.Logf("terramate stdout:\n%s\n", stdoutStr)
 			t.Logf("terramate stderr:\n%s\n", stderrStr)
@@ -137,8 +142,8 @@ func testSIGINTx3(t *testing.T, continueOnError bool) {
 	}
 
 	t.Error("waiting for terramate to exit for too long")
-	t.Logf("terramate stdout:\n%s\n", cmd.Stdout.String())
-	t.Logf("terramate stderr:\n%s\n", cmd.Stderr.String())
+	t.Logf("terramate stdout:\n%s\n", stdout.String())
+	t.Logf("terramate stderr:\n%s\n", stderr.String())
 }
 
 func testSIGINTx1(t *testing.T, continueOnError bool) {
@@ -164,7 +169,7 @@ func testSIGINTx1(t *testing.T, continueOnError bool) {
 	}
 
 	tm := NewCLI(t, s.RootDir())
-	cmd := tm.NewCmd("run", continueOnErrorFlag, "--eval", HelperPathAsHCL,
+	cmd := tm.NewCmd(CmdIOModeBuffer, "run", continueOnErrorFlag, "--eval", HelperPathAsHCL,
 		// this would be simplified by supporting list in the evaluation output.
 		`${terramate.stack.path.absolute == "/stack2" ? "sleep" : "echo"}`,
 		// A big sleep time because MacOS runner in GHA is very slow.
@@ -188,7 +193,12 @@ func testSIGINTx1(t *testing.T, continueOnError bool) {
 		"/stack1", "ready",
 	}
 
-	assert.NoError(t, PollBufferForMsgs(cmd.Stdout, errs, expectedStdout...), cmd.Stderr.String())
+	stdout, ok := cmd.Stdout.(*Buffer)
+	assert.IsTrue(t, ok)
+	stderr, ok := cmd.Stderr.(*Buffer)
+	assert.IsTrue(t, ok)
+
+	assert.NoError(t, PollBufferForMsgs(stdout, errs, expectedStdout...), stderr.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -202,8 +212,8 @@ func testSIGINTx1(t *testing.T, continueOnError bool) {
 
 		select {
 		case err := <-errs:
-			stdoutStr := cmd.Stdout.String()
-			stderrStr := cmd.Stderr.String()
+			stdoutStr := stdout.String()
+			stderrStr := stderr.String()
 			t.Logf("terramate err: %v", err)
 			t.Logf("terramate stdout:\n%s\n", stdoutStr)
 			t.Logf("terramate stderr:\n%s\n", stderrStr)
@@ -218,6 +228,6 @@ func testSIGINTx1(t *testing.T, continueOnError bool) {
 	}
 
 	t.Error("waiting for terramate to exit for too long")
-	t.Logf("terramate stdout:\n%s\n", cmd.Stdout.String())
-	t.Logf("terramate stderr:\n%s\n", cmd.Stderr.String())
+	t.Logf("terramate stdout:\n%s\n", stdout.String())
+	t.Logf("terramate stderr:\n%s\n", stderr.String())
 }
