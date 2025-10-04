@@ -690,6 +690,8 @@ func buildTree(t testing.TB, root *config.Root, environ []string, layout []strin
 			switch name {
 			case "id":
 				cfg.Stack.ID = value
+			case "name":
+				cfg.Stack.Name = value
 			case "after":
 				cfg.Stack.After = parseListSpec(t, name, value)
 			case "before":

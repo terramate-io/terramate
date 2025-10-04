@@ -29,6 +29,7 @@ type Spec struct {
 	StatusFilters StatusFilters
 	RunOrder      bool
 	Format        string
+	Label         string
 	Tags          []string
 	NoTags        []string
 	Printers      printer.Printers
@@ -56,10 +57,28 @@ type StackInfo struct {
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "list" }
 
+// getLabel extracts the appropriate label from a stack based on the Label field.
+func (s *Spec) getLabel(st *config.Stack, friendlyDir string) (string, error) {
+	switch s.Label {
+	case "stack.name":
+		return st.Name, nil
+	case "stack.id":
+		return st.ID, nil
+	case "stack.dir":
+		return friendlyDir, nil
+	default:
+		return "", errors.E(`--label expects the values "stack.name", "stack.id", or "stack.dir"`)
+	}
+}
+
 // Exec executes the list command.
 func (s *Spec) Exec(_ context.Context) error {
 	if s.Reason && !s.GitFilter.IsChanged {
 		return errors.E("the --why flag must be used together with --changed")
+	}
+
+	if s.Format == "json" && s.Label == "stack.name" {
+		return errors.E("--format json cannot be used with --label stack.name (stack names are not guaranteed to be unique)")
 	}
 
 	err := s.Engine.CheckTargetsConfiguration(s.Target, "", func(isTargetSet bool) error {
@@ -132,10 +151,16 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 			printer.Stdout.Println(dir)
 			continue
 		}
+
+		label, err := s.getLabel(st.Stack, friendlyDir)
+		if err != nil {
+			return err
+		}
+
 		if s.Reason {
-			printer.Stdout.Println(fmt.Sprintf("%s - %s", friendlyDir, reasons[st.ID]))
+			printer.Stdout.Println(fmt.Sprintf("%s - %s", label, reasons[st.ID]))
 		} else {
-			printer.Stdout.Println(friendlyDir)
+			printer.Stdout.Println(label)
 		}
 	}
 	return nil
@@ -182,6 +207,11 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 			return errors.E("unable to format stack dir %s", dir)
 		}
 
+		label, err := s.getLabel(st.Stack, friendlyDir)
+		if err != nil {
+			return err
+		}
+
 		ancestors := d.DirectAncestorsOf(id)
 		deps := make([]string, 0, len(ancestors))
 		for _, ancestorID := range ancestors {
@@ -195,7 +225,12 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 			if !ok {
 				return errors.E("unable to format stack dir %s", ancestorDir)
 			}
-			deps = append(deps, friendlyAncestorDir)
+
+			ancestorLabel, err := s.getLabel(ancestorStack.Stack, friendlyAncestorDir)
+			if err != nil {
+				return err
+			}
+			deps = append(deps, ancestorLabel)
 		}
 
 		entry, hasEntry := entryMap[st.Stack.ID]
@@ -215,7 +250,7 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 			IsChanged:    st.Stack.IsChanged,
 		}
 
-		stackInfos[friendlyDir] = info
+		stackInfos[label] = info
 	}
 
 	jsonData, err := json.MarshalIndent(stackInfos, "", "  ")
@@ -247,7 +282,15 @@ func (s *Spec) printStacksListDot(stacks config.List[*config.SortableStack], fil
 			return errors.E("unable to format stack dir %s", dir)
 		}
 
+		label, err := s.getLabel(st.Stack, friendlyDir)
+		if err != nil {
+			return err
+		}
+
 		descendant := dotGraph.Node(friendlyDir)
+		if label != friendlyDir {
+			descendant.Attr("label", label)
+		}
 
 		ancestors := d.DirectAncestorsOf(id)
 		for _, ancestorID := range ancestors {
@@ -262,7 +305,15 @@ func (s *Spec) printStacksListDot(stacks config.List[*config.SortableStack], fil
 				return errors.E("unable to format stack dir %s", ancestorDir)
 			}
 
+			ancestorLabel, err := s.getLabel(ancestorStack.Stack, friendlyAncestorDir)
+			if err != nil {
+				return err
+			}
+
 			ancestorNode := dotGraph.Node(friendlyAncestorDir)
+			if ancestorLabel != friendlyAncestorDir {
+				ancestorNode.Attr("label", ancestorLabel)
+			}
 
 			// check if edge already exists to avoid duplicates
 			edges := dotGraph.FindEdges(ancestorNode, descendant)
