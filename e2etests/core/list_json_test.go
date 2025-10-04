@@ -15,7 +15,7 @@ func TestListJSON(t *testing.T) {
 	t.Parallel()
 
 	type stackInfo struct {
-		Path         string   `json:"path"`
+		Dir          string   `json:"dir"`
 		ID           string   `json:"id"`
 		Name         string   `json:"name"`
 		Description  string   `json:"description"`
@@ -28,7 +28,7 @@ func TestListJSON(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
-		want   map[string][]string // map of stack path -> dependencies
+		want   map[string][]string // map of stack dir -> dependencies
 	}
 
 	for _, tcase := range []testcase{
@@ -174,14 +174,14 @@ func TestListJSON(t *testing.T) {
 				t.Fatalf("expected %d stacks, got %d", len(tc.want), len(got))
 			}
 
-			for stackPath, wantDeps := range tc.want {
-				info, ok := got[stackPath]
+			for stackDir, wantDeps := range tc.want {
+				info, ok := got[stackDir]
 				if !ok {
-					t.Fatalf("stack %q not found in output", stackPath)
+					t.Fatalf("stack %q not found in output", stackDir)
 				}
 
-				if info.Path != stackPath {
-					t.Fatalf("stack path mismatch: expected %q, got %q", stackPath, info.Path)
+				if info.Dir != stackDir {
+					t.Fatalf("stack dir mismatch: expected %q, got %q", stackDir, info.Dir)
 				}
 
 				// convert to maps, order doesn't matter for dependencies
@@ -196,12 +196,12 @@ func TestListJSON(t *testing.T) {
 				}
 
 				if len(wantDepsMap) != len(gotDepsMap) {
-					t.Fatalf("stack %q: expected %d dependencies, got %d", stackPath, len(wantDeps), len(info.Dependencies))
+					t.Fatalf("stack %q: expected %d dependencies, got %d", stackDir, len(wantDeps), len(info.Dependencies))
 				}
 
 				for dep := range wantDepsMap {
 					if !gotDepsMap[dep] {
-						t.Fatalf("stack %q: missing dependency %q", stackPath, dep)
+						t.Fatalf("stack %q: missing dependency %q", stackDir, dep)
 					}
 				}
 			}
