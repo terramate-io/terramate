@@ -54,6 +54,15 @@ type StackInfo struct {
 	IsChanged    bool     `json:"is_changed"`
 }
 
+// stackMetadata holds processed stack information for output formatting.
+type stackMetadata struct {
+	Stack       *config.SortableStack
+	FriendlyDir string
+	Label       string
+	Entry       stack.Entry
+	AncestorIDs []dag.ID
+}
+
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "list" }
 
@@ -166,9 +175,8 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 	return nil
 }
 
-// buildStacksDAG builds a DAG from the given stacks and creates an entry map.
-// Reused across different output formatters.
-func (s *Spec) buildStacksDAG(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) (*dag.DAG[*config.SortableStack], map[string]stack.Entry, error) {
+// buildStackMetadata processes stacks and collects metadata to be formatted.
+func (s *Spec) buildStackMetadata(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) (map[dag.ID]*stackMetadata, *dag.DAG[*config.SortableStack], error) {
 	// Create a map from stack ID to Entry for quick lookup
 	entryMap := make(map[string]stack.Entry)
 	for _, entry := range filteredStacks {
@@ -184,11 +192,46 @@ func (s *Spec) buildStacksDAG(stacks config.List[*config.SortableStack], filtere
 		return nil, nil, errors.E(err, "Invalid stack configuration: "+reason)
 	}
 
-	return d, entryMap, nil
+	metadata := make(map[dag.ID]*stackMetadata)
+
+	for _, id := range d.IDs() {
+		st, err := d.Node(id)
+		if err != nil {
+			return nil, nil, errors.E(err, "getting node from DAG")
+		}
+
+		dir := st.Stack.Dir.String()
+		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
+		if !ok {
+			return nil, nil, errors.E("unable to format stack dir %s", dir)
+		}
+
+		label, err := s.getLabel(st.Stack, friendlyDir)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		ancestors := d.DirectAncestorsOf(id)
+
+		entry, hasEntry := entryMap[st.Stack.ID]
+		if !hasEntry {
+			entry = stack.Entry{Stack: st.Stack}
+		}
+
+		metadata[id] = &stackMetadata{
+			Stack:       st,
+			FriendlyDir: friendlyDir,
+			Label:       label,
+			Entry:       entry,
+			AncestorIDs: ancestors,
+		}
+	}
+
+	return metadata, d, nil
 }
 
 func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) error {
-	d, entryMap, err := s.buildStacksDAG(stacks, filteredStacks)
+	metadata, d, err := s.buildStackMetadata(stacks, filteredStacks)
 	if err != nil {
 		return err
 	}
@@ -196,61 +239,27 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 	stackInfos := make(map[string]StackInfo)
 
 	for _, id := range d.IDs() {
-		st, err := d.Node(id)
-		if err != nil {
-			return errors.E(err, "getting node from DAG")
-		}
+		m := metadata[id]
 
-		dir := st.Stack.Dir.String()
-		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
-		if !ok {
-			return errors.E("unable to format stack dir %s", dir)
-		}
-
-		label, err := s.getLabel(st.Stack, friendlyDir)
-		if err != nil {
-			return err
-		}
-
-		ancestors := d.DirectAncestorsOf(id)
-		deps := make([]string, 0, len(ancestors))
-		for _, ancestorID := range ancestors {
-			ancestorStack, err := d.Node(ancestorID)
-			if err != nil {
-				return errors.E(err, "getting ancestor node from DAG")
-			}
-
-			ancestorDir := ancestorStack.Stack.Dir.String()
-			friendlyAncestorDir, ok := s.Engine.FriendlyFmtDir(ancestorDir)
-			if !ok {
-				return errors.E("unable to format stack dir %s", ancestorDir)
-			}
-
-			ancestorLabel, err := s.getLabel(ancestorStack.Stack, friendlyAncestorDir)
-			if err != nil {
-				return err
-			}
-			deps = append(deps, ancestorLabel)
-		}
-
-		entry, hasEntry := entryMap[st.Stack.ID]
-		reasonStr := ""
-		if hasEntry {
-			reasonStr = entry.Reason
+		// Build dependency labels from ancestor IDs
+		deps := make([]string, 0, len(m.AncestorIDs))
+		for _, ancestorID := range m.AncestorIDs {
+			ancestorMeta := metadata[ancestorID]
+			deps = append(deps, ancestorMeta.Label)
 		}
 
 		info := StackInfo{
-			Path:         friendlyDir,
-			ID:           st.Stack.ID,
-			Name:         st.Stack.Name,
-			Description:  st.Stack.Description,
-			Tags:         st.Stack.Tags,
+			Path:         m.FriendlyDir,
+			ID:           m.Stack.Stack.ID,
+			Name:         m.Stack.Stack.Name,
+			Description:  m.Stack.Stack.Description,
+			Tags:         m.Stack.Stack.Tags,
 			Dependencies: deps,
-			Reason:       reasonStr,
-			IsChanged:    st.Stack.IsChanged,
+			Reason:       m.Entry.Reason,
+			IsChanged:    m.Stack.Stack.IsChanged,
 		}
 
-		stackInfos[label] = info
+		stackInfos[m.Label] = info
 	}
 
 	jsonData, err := json.MarshalIndent(stackInfos, "", "  ")
@@ -263,7 +272,7 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 }
 
 func (s *Spec) printStacksListDot(stacks config.List[*config.SortableStack], filteredStacks []stack.Entry) error {
-	d, _, err := s.buildStacksDAG(stacks, filteredStacks)
+	metadata, d, err := s.buildStackMetadata(stacks, filteredStacks)
 	if err != nil {
 		return err
 	}
@@ -271,48 +280,19 @@ func (s *Spec) printStacksListDot(stacks config.List[*config.SortableStack], fil
 	dotGraph := dot.NewGraph(dot.Directed)
 
 	for _, id := range d.IDs() {
-		st, err := d.Node(id)
-		if err != nil {
-			return errors.E(err, "getting node from DAG")
+		m := metadata[id]
+
+		descendant := dotGraph.Node(m.FriendlyDir)
+		if m.Label != m.FriendlyDir {
+			descendant.Attr("label", m.Label)
 		}
 
-		dir := st.Stack.Dir.String()
-		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
-		if !ok {
-			return errors.E("unable to format stack dir %s", dir)
-		}
+		for _, ancestorID := range m.AncestorIDs {
+			ancestorMeta := metadata[ancestorID]
 
-		label, err := s.getLabel(st.Stack, friendlyDir)
-		if err != nil {
-			return err
-		}
-
-		descendant := dotGraph.Node(friendlyDir)
-		if label != friendlyDir {
-			descendant.Attr("label", label)
-		}
-
-		ancestors := d.DirectAncestorsOf(id)
-		for _, ancestorID := range ancestors {
-			ancestorStack, err := d.Node(ancestorID)
-			if err != nil {
-				return errors.E(err, "getting ancestor node from DAG")
-			}
-
-			ancestorDir := ancestorStack.Stack.Dir.String()
-			friendlyAncestorDir, ok := s.Engine.FriendlyFmtDir(ancestorDir)
-			if !ok {
-				return errors.E("unable to format stack dir %s", ancestorDir)
-			}
-
-			ancestorLabel, err := s.getLabel(ancestorStack.Stack, friendlyAncestorDir)
-			if err != nil {
-				return err
-			}
-
-			ancestorNode := dotGraph.Node(friendlyAncestorDir)
-			if ancestorLabel != friendlyAncestorDir {
-				ancestorNode.Attr("label", ancestorLabel)
+			ancestorNode := dotGraph.Node(ancestorMeta.FriendlyDir)
+			if ancestorMeta.Label != ancestorMeta.FriendlyDir {
+				ancestorNode.Attr("label", ancestorMeta.Label)
 			}
 
 			// check if edge already exists to avoid duplicates
