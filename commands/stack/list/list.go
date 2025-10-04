@@ -44,7 +44,7 @@ type StatusFilters struct {
 
 // StackInfo represents stack information for JSON output.
 type StackInfo struct {
-	Path         string   `json:"path"`
+	Dir          string   `json:"dir"`
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
@@ -249,7 +249,7 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 		}
 
 		info := StackInfo{
-			Path:         m.FriendlyDir,
+			Dir:          m.FriendlyDir,
 			ID:           m.Stack.Stack.ID,
 			Name:         m.Stack.Stack.Name,
 			Description:  m.Stack.Stack.Description,
