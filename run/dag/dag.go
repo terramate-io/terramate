@@ -227,22 +227,26 @@ func (d *DAG[V]) DirectAncestorsOf(id ID) []ID {
 		return ancestors // Already minimal
 	}
 
-	var directAncestors []ID
+	ancestorSet := make(map[ID]bool, len(ancestors))
+	for _, a := range ancestors {
+		ancestorSet[a] = true
+	}
 
+	reachableAncestors := make(map[ID]map[ID]bool, len(ancestors))
 	for _, ancestorID := range ancestors {
-		isTransitive := false
+		reachableAncestors[ancestorID] = d.findReachableAncestors(ancestorID, ancestorSet)
+	}
 
+	var directAncestors []ID
+	for _, ancestorID := range ancestors {
+		isDirect := true
 		for _, otherID := range ancestors {
-			if ancestorID == otherID {
-				continue
-			}
-			if d.hasPath(otherID, ancestorID) {
-				isTransitive = true
+			if ancestorID != otherID && reachableAncestors[otherID][ancestorID] {
+				isDirect = false
 				break
 			}
 		}
-
-		if !isTransitive {
+		if isDirect {
 			directAncestors = append(directAncestors, ancestorID)
 		}
 	}
@@ -250,10 +254,44 @@ func (d *DAG[V]) DirectAncestorsOf(id ID) []ID {
 	return directAncestors
 }
 
+// findReachableAncestors finds all ancestors reachable from 'from' that are in the targets set.
+func (d *DAG[V]) findReachableAncestors(from ID, targets map[ID]bool) map[ID]bool {
+	reachable := make(map[ID]bool)
+	visited := make(map[ID]bool)
+	queue := make([]ID, 0, 16) // Pre-allocate reasonable capacity
+	queue = append(queue, from)
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		if visited[current] {
+			continue
+		}
+		visited[current] = true
+
+		for _, ancestor := range d.AncestorsOf(current) {
+			if targets[ancestor] {
+				reachable[ancestor] = true
+			}
+			if !visited[ancestor] {
+				queue = append(queue, ancestor)
+			}
+		}
+	}
+
+	return reachable
+}
+
 // hasPath checks if 'to' is reachable from 'from' via ancestors (BFS traversal).
 func (d *DAG[V]) hasPath(from, to ID) bool {
+	if from == to {
+		return true
+	}
+
 	visited := make(map[ID]bool)
-	queue := []ID{from}
+	queue := make([]ID, 0, 16) // bfs queue preallocation
+	queue = append(queue, from)
 
 	for len(queue) > 0 {
 		current := queue[0]
