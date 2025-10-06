@@ -358,14 +358,14 @@ func (tm CLI) RunInteractive(ioFunc InteractiveIO, args ...string) RunResult {
 	outFunc := func(r io.Reader) ExpectedRead {
 		return func(want string) {
 			t.Helper()
-			// We try to read more than len(want), assuming its <1024.
-			// So if there is more than the expected output, we will fail.
-			buf := make([]byte, 1024)
-			n, err := r.Read(buf)
+
+			// Try to read in len(want) bytes. Will block while waiting for more output.
+			buf := make([]byte, len(want))
+			n, err := io.ReadFull(r, buf)
 			if err != nil {
-				t.Fatalf("error %s while expecting output %q", err.Error(), want)
+				t.Fatalf("error %s while expecting output %q, read only %q", err.Error(), want, buf[0:n])
 			}
-			got := string(buf[0:n])
+			got := string(buf)
 			if got != want {
 				t.Fatalf("expecting output %q, got %q", want, got)
 			}
