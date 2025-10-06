@@ -348,6 +348,7 @@ func TestScriptRunIOBuffering(t *testing.T) {
 
 	s.BuildTree([]string{
 		"s:s1:id=s1",
+		"s:s2:id=s2",
 		"f:terramate.tm:" + Block("terramate",
 			Block("config",
 				Expr("experiments", `["scripts"]`),
@@ -356,7 +357,10 @@ func TestScriptRunIOBuffering(t *testing.T) {
 		"f:script.tm:" + Block("script",
 			Labels("cmd"),
 			Str("description", "test"),
-
+			Block("job",
+				Expr("command", fmt.Sprintf(
+					`["%s", "prompt"]`, HelperPathAsHCL)),
+			),
 			Block("job",
 				Expr("command", fmt.Sprintf(
 					`["%s", "prompt", {
@@ -376,13 +380,17 @@ func TestScriptRunIOBuffering(t *testing.T) {
 
 	runArgs := []string{"script", "run", "--disable-safeguards=git-out-of-sync", "--quiet", "cmd"}
 
-	// TODO(snk): Testing with one job unbuffered, one buffered should work, but is non-deterministic.
-	// This is not a valid use case, but would be good to understand eventually where the non-deterministic aspect comes from.
-
 	ioFunc := func(stdin InteractiveWrite, expectStdout, _ ExpectedRead) {
-		expectStdout("are you sure?\n")
-		stdin("my input\n")
-		expectStdout("prompt: \nyou entered: my input\n")
+		for range 2 {
+			expectStdout("are you sure?\nprompt: ")
+			stdin("my input\n")
+			expectStdout("\nyou entered: my input\n")
+
+			expectStdout("are you sure?\n")
+			stdin("my input\n")
+			expectStdout("prompt: \n")
+			expectStdout("you entered: my input\n")
+		}
 	}
 
 	result := cli.RunInteractive(ioFunc, runArgs...)

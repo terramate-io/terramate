@@ -3372,10 +3372,7 @@ func TestRunIOBuffering(t *testing.T) {
 		AssertRunResult(t, result, RunExpected{})
 	})
 
-	// TODO(snk): This test is non-deterministic on CI. Investigate why.
-	// It is not a use-case we support (stdin during parallel), but still unexpected.
-
-	/*t.Run("parallel is buffered", func(t *testing.T) {
+	t.Run("parallel is buffered", func(t *testing.T) {
 		s := sandbox.New(t)
 
 		s.BuildTree([]string{
@@ -3391,13 +3388,14 @@ func TestRunIOBuffering(t *testing.T) {
 		ioFunc := func(stdin InteractiveWrite, expectStdout, _ ExpectedRead) {
 			expectStdout("are you sure?\n")
 			stdin("my input\n")
-			expectStdout("prompt: \nyou entered: my input\n")
+			expectStdout("prompt: \n")
+			expectStdout("you entered: my input\n")
 		}
 
 		result := cli.RunInteractive(ioFunc, runArgs...)
 
 		AssertRunResult(t, result, RunExpected{})
-	})*/
+	})
 }
 
 func nljoin(stacks ...string) string {
