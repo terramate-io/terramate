@@ -248,12 +248,17 @@ func (s *Spec) printStacksListJSON(stacks config.List[*config.SortableStack], fi
 			deps = append(deps, ancestorMeta.Label)
 		}
 
+		tags := m.Stack.Stack.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+
 		info := StackInfo{
 			Dir:          m.FriendlyDir,
 			ID:           m.Stack.Stack.ID,
 			Name:         m.Stack.Stack.Name,
 			Description:  m.Stack.Stack.Description,
-			Tags:         m.Stack.Stack.Tags,
+			Tags:         tags,
 			Dependencies: deps,
 			Reason:       m.Entry.Reason,
 			IsChanged:    m.Stack.Stack.IsChanged,
