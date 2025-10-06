@@ -108,6 +108,10 @@ func (s *Spec) Exec(ctx context.Context) error {
 		}
 
 		stacks = append(stacks, st.Sortable())
+		stacks, err = s.Engine.AddOutputDependencies(s.OutputsSharingOptions, stacks, s.Target)
+		if err != nil {
+			return err
+		}
 	} else {
 		cloudFilters, err := status.ParseFilters(
 			s.StatusFilters.StackStatus,

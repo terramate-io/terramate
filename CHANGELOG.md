@@ -24,6 +24,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
+- Apply `--include-output-dependencies` and `--only-output-dependencies` flags when used together with `--no-recursive`.
 - Change the output buffering behaviour of `run` and `script run` to allow the use of interactive prompts
   (e.g. `terraform apply`) that wait for input in the same line.
   - Fix a regression for this specific use-case, which was introduced in `0.14.4`, where all output was buffered by line.
