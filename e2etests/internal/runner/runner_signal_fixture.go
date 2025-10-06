@@ -102,7 +102,7 @@ func (run *RunFixture) Run() RunResult {
 		t.Fatalf("unexpected run mode: %d", run.mode)
 	}
 
-	exec := run.cli.NewCmd(args...)
+	exec := run.cli.NewCmd(CmdIOModeBuffer, args...)
 
 	switch run.mode {
 	case NormalRun:
@@ -114,10 +114,15 @@ func (run *RunFixture) Run() RunResult {
 		testSleepProcess(t, exec)
 	}
 
+	stdout, ok := exec.Stdout.(*Buffer)
+	assert.IsTrue(t, ok)
+	stderr, ok := exec.Stderr.(*Buffer)
+	assert.IsTrue(t, ok)
+
 	return RunResult{
 		Cmd:    strings.Join(args, " "),
-		Stdout: exec.Stdout.String(),
-		Stderr: exec.Stderr.String(),
+		Stdout: stdout.String(),
+		Stderr: stderr.String(),
 		Status: exec.ExitCode(),
 	}
 }
@@ -130,7 +135,12 @@ func testHangProcess(t *testing.T, exec *Cmd) {
 		errs <- exec.Wait()
 		close(errs)
 	}()
-	assert.NoError(t, PollBufferForMsgs(exec.Stdout, errs, "ready"))
+	stdout, ok := exec.Stdout.(*Buffer)
+	assert.IsTrue(t, ok)
+	stderr, ok := exec.Stderr.(*Buffer)
+	assert.IsTrue(t, ok)
+
+	assert.NoError(t, PollBufferForMsgs(stdout, errs, "ready"))
 	SendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt")
 	SendUntilMsgIsReceived(t, exec, os.Interrupt, "ready", "interrupt", "interrupt")
 
@@ -150,9 +160,10 @@ outer:
 
 		select {
 		case err := <-errs:
+
 			t.Logf("terramate err: %v", err)
-			t.Logf("terramate stdout:\n%s\n", exec.Stdout.String())
-			t.Logf("terramate stderr:\n%s\n", exec.Stderr.String())
+			t.Logf("terramate stdout:\n%s\n", stdout.String())
+			t.Logf("terramate stderr:\n%s\n", stderr.String())
 			assert.Error(t, err)
 			break outer
 		case <-sendctx.Done():
@@ -160,8 +171,8 @@ outer:
 		}
 	}
 
-	t.Logf("terramate stdout:\n%s\n", exec.Stdout.String())
-	t.Logf("terramate stderr:\n%s\n", exec.Stderr.String())
+	t.Logf("terramate stdout:\n%s\n", stdout.String())
+	t.Logf("terramate stderr:\n%s\n", stderr.String())
 }
 
 func testSleepProcess(t *testing.T, exec *Cmd) {
@@ -171,7 +182,9 @@ func testSleepProcess(t *testing.T, exec *Cmd) {
 	go func() {
 		done <- exec.Wait()
 	}()
-	assert.NoError(t, PollBufferForMsgs(exec.Stdout, done, "ready"))
+	stdout, ok := exec.Stdout.(*Buffer)
+	assert.IsTrue(t, ok)
+	assert.NoError(t, PollBufferForMsgs(stdout, done, "ready"))
 	exec.SignalGroup(os.Interrupt)
 	<-done
 }
@@ -181,7 +194,7 @@ func testSleepProcess(t *testing.T, exec *Cmd) {
 // like "urgent I/O condition". This function will ignore any unknown messages
 // in between but check that at least all msgs where received in the provided
 // order (but ignoring unknown messages in between).
-func PollBufferForMsgs(buf *buffer, done chan error, wantMsgs ...string) error {
+func PollBufferForMsgs(buf *Buffer, done chan error, wantMsgs ...string) error {
 	const (
 		timeout      = 10 * time.Second
 		pollInterval = 30 * time.Millisecond
@@ -224,9 +237,12 @@ func SendUntilMsgIsReceived(t *testing.T, cmd *Cmd, signal os.Signal, msgs ...st
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
+	stdout, ok := cmd.Stdout.(*Buffer)
+	assert.IsTrue(t, ok)
+
 	for {
 		cmd.SignalGroup(signal)
-		err := PollBufferForMsgs(cmd.Stdout, make(chan error), msgs...)
+		err := PollBufferForMsgs(stdout, make(chan error), msgs...)
 		if err == nil {
 			return
 		}

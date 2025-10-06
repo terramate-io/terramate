@@ -331,3 +331,61 @@ func TestCLIScriptRunWithCloudSyncDeployment(t *testing.T) {
 		}
 	}
 }
+
+func TestScriptRunIOBuffering(t *testing.T) {
+	t.Parallel()
+
+	cloudData, defaultOrg, err := cloudstore.LoadDatastore(testserverJSONFile)
+	assert.NoError(t, err)
+	addr := startFakeTMCServer(t, cloudData)
+
+	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
+		LocalBranchName:         "main",
+		DefaultRemoteName:       "origin",
+		DefaultRemoteBranchName: "main",
+	})
+	s.Env = os.Environ()
+
+	s.BuildTree([]string{
+		"s:s1:id=s1",
+		"f:terramate.tm:" + Block("terramate",
+			Block("config",
+				Expr("experiments", `["scripts"]`),
+			),
+		).String(),
+		"f:script.tm:" + Block("script",
+			Labels("cmd"),
+			Str("description", "test"),
+
+			Block("job",
+				Expr("command", fmt.Sprintf(
+					`["%s", "prompt", {
+						sync_deployment = true
+					}]`, HelperPathAsHCL)),
+			),
+		).String(),
+	})
+
+	s.Git().CommitAll("all stacks committed")
+
+	env := RemoveEnv(s.Env, "CI", "GITHUB_ACTIONS")
+	env = append(env, "TMC_API_URL=http://"+addr)
+	env = append(env, "TM_CLOUD_ORGANIZATION="+defaultOrg)
+	cli := NewCLI(t, s.RootDir(), env...)
+	s.Git().SetRemoteURL("origin", testRemoteRepoURL)
+
+	runArgs := []string{"script", "run", "--disable-safeguards=git-out-of-sync", "--quiet", "cmd"}
+
+	// TODO(snk): Testing with one job unbuffered, one buffered should work, but is non-deterministic.
+	// This is not a valid use case, but would be good to understand eventually where the non-deterministic aspect comes from.
+
+	ioFunc := func(stdin InteractiveWrite, expectStdout, _ ExpectedRead) {
+		expectStdout("are you sure?\n")
+		stdin("my input\n")
+		expectStdout("prompt: \nyou entered: my input\n")
+	}
+
+	result := cli.RunInteractive(ioFunc, runArgs...)
+
+	AssertRunResult(t, result, RunExpected{})
+}

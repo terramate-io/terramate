@@ -12,19 +12,6 @@ import (
 	"github.com/madlambda/spells/assert"
 )
 
-// Start the command.
-func (tc *Cmd) Start() {
-	t := tc.t
-	t.Helper()
-
-	assert.NoError(t, tc.cmd.Start())
-}
-
-// Wait for the command completion.
-func (tc *Cmd) Wait() error {
-	return tc.cmd.Wait()
-}
-
 // Setpgid sets the pgid process attribute.
 // When set, the command will execute in a new process group id.
 func (tc *Cmd) Setpgid() {

@@ -3340,6 +3340,66 @@ stack "/stack":
 	})
 }
 
+func TestRunIOBuffering(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-cloud, non-parallel is unbuffered", func(t *testing.T) {
+		s := sandbox.New(t)
+
+		s.BuildTree([]string{
+			`s:stack1`,
+			`s:stack2`,
+		})
+
+		git := s.Git()
+		git.CommitAll("first commit")
+
+		cli := NewCLI(t, s.RootDir())
+		runArgs := []string{"run", "--quiet", "--parallel=1", HelperPath, "prompt"}
+
+		ioFunc := func(stdin InteractiveWrite, expectStdout, _ ExpectedRead) {
+			expectStdout("are you sure?\nprompt: ")
+			stdin("my input\n")
+			expectStdout("\nyou entered: my input\n")
+
+			expectStdout("are you sure?\nprompt: ")
+			stdin("my input\n")
+			expectStdout("\nyou entered: my input\n")
+		}
+
+		result := cli.RunInteractive(ioFunc, runArgs...)
+
+		AssertRunResult(t, result, RunExpected{})
+	})
+
+	// TODO(snk): This test is non-deterministic on CI. Investigate why.
+	// It is not a use-case we support (stdin during parallel), but still unexpected.
+
+	/*t.Run("parallel is buffered", func(t *testing.T) {
+		s := sandbox.New(t)
+
+		s.BuildTree([]string{
+			`s:stack1`,
+		})
+
+		git := s.Git()
+		git.CommitAll("first commit")
+
+		cli := NewCLI(t, s.RootDir())
+		runArgs := []string{"run", "--quiet", "--parallel=2", HelperPath, "prompt"}
+
+		ioFunc := func(stdin InteractiveWrite, expectStdout, _ ExpectedRead) {
+			expectStdout("are you sure?\n")
+			stdin("my input\n")
+			expectStdout("prompt: \nyou entered: my input\n")
+		}
+
+		result := cli.RunInteractive(ioFunc, runArgs...)
+
+		AssertRunResult(t, result, RunExpected{})
+	})*/
+}
+
 func nljoin(stacks ...string) string {
 	return strings.Join(stacks, "\n") + "\n"
 }

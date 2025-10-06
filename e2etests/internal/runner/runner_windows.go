@@ -17,19 +17,6 @@ var (
 	procGenerateConsoleCtrlEvent = libkernel32.MustFindProc("GenerateConsoleCtrlEvent")
 )
 
-// Start will start the command.
-func (tc *Cmd) Start() {
-	t := tc.t
-	t.Helper()
-
-	assert.NoError(t, tc.cmd.Start())
-}
-
-// Wait for the command completion.
-func (tc *Cmd) Wait() error {
-	return tc.cmd.Wait()
-}
-
 // SignalGroup sends the signal to all processes part of the cmd group.
 func (tc *Cmd) Setpgid() {
 	tc.cmd.SysProcAttr = &syscall.SysProcAttr{

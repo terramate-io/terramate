@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -81,6 +82,8 @@ func main() {
 		gitnorm(os.Args[2])
 	case "terragrunt":
 		terragrunt(os.Args[2:]...)
+	case "prompt":
+		prompt()
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -244,6 +247,13 @@ func gitnorm(rawURL string) {
 	fmt.Printf("owner: %s\n", repo.Owner)
 	fmt.Printf("name:  %s\n", repo.Name)
 	fmt.Printf("normalized repository: %s\n", repo.Repo)
+}
+
+func prompt() {
+	_, _ = os.Stdout.WriteString("are you sure?\nprompt: ")
+	r := bufio.NewReader(os.Stdin)
+	text, _ := r.ReadString('\n')
+	_, _ = os.Stdout.WriteString("\nyou entered: " + text)
 }
 
 func checkerr(err error) {
