@@ -283,38 +283,6 @@ func (d *DAG[V]) findReachableAncestors(from ID, targets map[ID]bool) map[ID]boo
 	return reachable
 }
 
-// hasPath checks if 'to' is reachable from 'from' via ancestors (BFS traversal).
-func (d *DAG[V]) hasPath(from, to ID) bool {
-	if from == to {
-		return true
-	}
-
-	visited := make(map[ID]bool)
-	queue := make([]ID, 0, 16) // bfs queue preallocation
-	queue = append(queue, from)
-
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-
-		if visited[current] {
-			continue
-		}
-		visited[current] = true
-
-		for _, ancestor := range d.AncestorsOf(current) {
-			if ancestor == to {
-				return true
-			}
-			if !visited[ancestor] {
-				queue = append(queue, ancestor)
-			}
-		}
-	}
-
-	return false
-}
-
 // HasCycle returns true if the DAG has a cycle.
 func (d *DAG[V]) HasCycle(id ID) bool {
 	if !d.validated {
