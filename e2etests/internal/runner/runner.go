@@ -391,8 +391,10 @@ func (tm CLI) RunInteractive(ioFunc InteractiveIO, args ...string) RunResult {
 	}()
 
 	// Wait until end and all remaining data is read.
-	_ = cmd.Wait()
 	wg.Wait()
+
+	_ = cmd.Wait()
+
 	assert.NoError(t, stdoutErr)
 	assert.NoError(t, stderrErr)
 
