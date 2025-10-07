@@ -46,8 +46,8 @@ type GithubPullRequest struct {
 type GithubUser struct {
 	ID         string `json:"id,omitempty"`
 	NodeID     string `json:"node_id,omitempty"`
-	Login      string `json:"author_login,omitempty"`
-	Name       string `json:"author_gravatar_id,omitempty"`
+	Login      string `json:"login,omitempty"`
+	Name       string `json:"name,omitempty"`
 	AvatarURL  string `json:"avatar_url,omitempty"`
 	GravatarID string `json:"gravatar_id,omitempty"`
 	Email      string `json:"email,omitempty"`
