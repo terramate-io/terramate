@@ -20,7 +20,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## 0.14.7
+
+### Added
+
+- Add support for most recent Terragrunt versions. Terramate will now detect the installed Terragrunt version and set internal commandline flags accordingly.
 
 ### Fixed
 
@@ -30,6 +34,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - Fix a regression for this specific use-case, which was introduced in `0.14.4`, where all output was buffered by line.
   - Only supported when running (1) not in parallel and (2) not syncing to Terramate Cloud.
     Otherwise, the output will be buffered by line to avoid issues.
+- Fix handling of `null` values for `tm_slug()`. They will now be passed through, so `tm_slug(null)` -> `null`.
 
 ## v0.14.6
 
