@@ -27,7 +27,7 @@ func TestNewGithubPullRequest(t *testing.T) {
 	b, err = os.ReadFile("testdata/github_pr_reviews.json")
 	assert.NoError(t, err)
 	assert.NoError(t, json.Unmarshal(b, &reviews))
-	assert.EqualInts(t, 1, len(reviews))
+	assert.EqualInts(t, 2, len(reviews))
 
 	got := metadata.NewGithubPullRequest(prs[0], reviews)
 
@@ -36,6 +36,7 @@ func TestNewGithubPullRequest(t *testing.T) {
 		NodeID:    "MDQ6VXNlcjg0MjA3NzUx",
 		Login:     "bob",
 		AvatarURL: "https://avatars.githubusercontent.com/u/1234?v=4",
+		Type:      "User",
 	}
 
 	otherUser := metadata.GithubUser{
@@ -43,6 +44,7 @@ func TestNewGithubPullRequest(t *testing.T) {
 		NodeID:    "MDQ6VXNlcjE=",
 		Login:     "other_user",
 		AvatarURL: "https://github.com/images/error/other_user_happy.gif",
+		Type:      "User",
 	}
 
 	want := &metadata.GithubPullRequest{
@@ -63,9 +65,24 @@ func TestNewGithubPullRequest(t *testing.T) {
 					NodeID:    "MDQ6VXNlcjE=",
 					Login:     "octocat",
 					AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+					Type:      "User",
 				},
 				SubmittedAt:       githubTimestamp(t, "2019-11-17T17:43:43Z"),
 				State:             "APPROVED",
+				AuthorAssociation: "COLLABORATOR",
+			},
+			{
+				ID:     "81",
+				NodeID: "NDE3OlB1bGxSZXF1ZXN0UmV2aWV3ODA=",
+				User: &metadata.GithubUser{
+					ID:        "2",
+					NodeID:    "NDQ6VXNlcjE=",
+					Login:     "Copilot",
+					AvatarURL: "https://github.com/images/error/copilot_sad.gif",
+					Type:      "Bot",
+				},
+				SubmittedAt:       githubTimestamp(t, "2020-11-17T17:43:43Z"),
+				State:             "COMMENTED",
 				AuthorAssociation: "COLLABORATOR",
 			},
 		},
@@ -92,6 +109,7 @@ func TestNewGithubCommit(t *testing.T) {
 			NodeID:    "MDQ6VXNlcjE=",
 			Login:     "octocat",
 			AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+			Type:      "User",
 		},
 		GitAuthor: &metadata.CommitAuthor{Name: "Monalisa Octocat", Email: "support@github.com"},
 		GithubCommitter: &metadata.GithubUser{
@@ -99,6 +117,7 @@ func TestNewGithubCommit(t *testing.T) {
 			NodeID:    "MDQ6VXNlcjE=",
 			Login:     "octocat",
 			AvatarURL: "https://github.com/images/error/octocat_happy.gif",
+			Type:      "User",
 		},
 		GitCommitter: &metadata.CommitAuthor{Name: "Monalisa Octocat", Email: "support@github.com"},
 	}

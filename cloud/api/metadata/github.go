@@ -51,6 +51,7 @@ type GithubUser struct {
 	AvatarURL  string `json:"avatar_url,omitempty"`
 	GravatarID string `json:"gravatar_id,omitempty"`
 	Email      string `json:"email,omitempty"`
+	Type       string `json:"type,omitempty"`
 }
 
 // CommitAuthor is a Github commit author.
@@ -142,6 +143,7 @@ func NewGithubUser(in *github.User) *GithubUser {
 		AvatarURL:  in.GetAvatarURL(),
 		GravatarID: in.GetGravatarID(),
 		Email:      in.GetEmail(),
+		Type:       in.GetType(),
 	}
 }
 
