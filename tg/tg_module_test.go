@@ -762,6 +762,121 @@ func TestTerragruntScanModules(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "nested includes with transitive dependencies through base/eks",
+			layout: []string{
+				// base/eks/terragrunt.hcl is just a shared config file (not runnable)
+				`f:base/eks/terragrunt.hcl:` + Block("locals",
+					Str("environment", "base"),
+				).String(),
+
+				// dev1/eks/terragrunt.hcl includes base/eks/terragrunt.hcl
+				`f:dev1/eks/terragrunt.hcl:` + Doc(
+					Block("include",
+						Labels("base"),
+						Expr("path", `find_in_parent_folders("base/eks/terragrunt.hcl")`),
+					),
+					Block("terraform",
+						Str("source", "https://some.etc/eks"),
+					),
+				).String(),
+
+				// prod/eks/terragrunt.hcl includes base/eks/terragrunt.hcl
+				`f:prod/eks/terragrunt.hcl:` + Doc(
+					Block("include",
+						Labels("base"),
+						Expr("path", `find_in_parent_folders("base/eks/terragrunt.hcl")`),
+					),
+					Block("terraform",
+						Str("source", "https://some.etc/eks"),
+					),
+				).String(),
+
+				// preprod/eks/terragrunt.hcl includes base/eks/terragrunt.hcl
+				`f:preprod/eks/terragrunt.hcl:` + Doc(
+					Block("include",
+						Labels("base"),
+						Expr("path", `find_in_parent_folders("base/eks/terragrunt.hcl")`),
+					),
+					Block("terraform",
+						Str("source", "https://some.etc/eks"),
+					),
+				).String(),
+
+				// base/foo/instance.hcl is an include file (not runnable, no terraform block)
+				// It has dependencies on the three eks stacks
+				// Paths are relative to the including file's directory
+				`f:base/foo/instance.hcl:` + Doc(
+					Block("dependency",
+						Labels("dev1_eks"),
+						Str("config_path", "../dev1/eks"),
+					),
+					Block("dependency",
+						Labels("prod_eks"),
+						Str("config_path", "../prod/eks"),
+					),
+					Block("dependency",
+						Labels("preprod_eks"),
+						Str("config_path", "../preprod/eks"),
+					),
+				).String(),
+
+				// foo/terragrunt.hcl includes base/foo/instance.hcl and is runnable
+				`f:foo/terragrunt.hcl:` + Doc(
+					Block("include",
+						Labels("base"),
+						Expr("path", `find_in_parent_folders("base/foo/instance.hcl")`),
+					),
+					Block("terraform",
+						Str("source", "https://some.etc/instance"),
+					),
+				).String(),
+			},
+			want: want{
+				modules: tg.Modules{
+					{
+						Path:       project.NewPath("/dev1/eks"),
+						Source:     "https://some.etc/eks",
+						ConfigFile: project.NewPath("/dev1/eks/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/base/eks/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/foo"),
+						Source:     "https://some.etc/instance",
+						ConfigFile: project.NewPath("/foo/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/base/foo/instance.hcl"),
+							project.NewPath("/dev1/eks"),
+							project.NewPath("/preprod/eks"),
+							project.NewPath("/prod/eks"),
+						},
+						After: project.Paths{
+							project.NewPath("/dev1/eks"),
+							project.NewPath("/preprod/eks"),
+							project.NewPath("/prod/eks"),
+						},
+					},
+					{
+						Path:       project.NewPath("/preprod/eks"),
+						Source:     "https://some.etc/eks",
+						ConfigFile: project.NewPath("/preprod/eks/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/base/eks/terragrunt.hcl"),
+						},
+					},
+					{
+						Path:       project.NewPath("/prod/eks"),
+						Source:     "https://some.etc/eks",
+						ConfigFile: project.NewPath("/prod/eks/terragrunt.hcl"),
+						DependsOn: project.Paths{
+							project.NewPath("/base/eks/terragrunt.hcl"),
+						},
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
