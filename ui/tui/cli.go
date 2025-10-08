@@ -305,7 +305,7 @@ func (c *CLI) Exec(args []string) {
 
 Please ensure you run Terramate inside a Git repository or create a new one here by calling 'git init'.
 
-Using Terramate together with Git is the recommended way.
+Using Terramate together with Git is the recommended way. Git is required to be installed.
 
 Alternatively you can create a Terramate config to make the current directory the project root.
 
