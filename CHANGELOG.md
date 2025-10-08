@@ -20,6 +20,16 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## v0.15.0
+
+### Changed
+
+- (**BREAKING CHANGE**) Upgraded Terragrunt dependency from v0.55.21 to v0.82.0. This major version jump may introduce breaking changes in Terragrunt integration, particularly around configuration parsing and hook execution behavior.
+
+### Fixed
+
+- Fix invalid Terragrunt argument errors on Terraform hooks that use conditional "if" logic. The upgrade to Terragrunt v0.82.0 resolves issues with hook execution behavior.
+
 ## 0.14.7
 
 ### Added
@@ -53,6 +63,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Added
 
 - Add `tm_unslug()` function: New stdlib function that maps slugs back to their original human-readable strings using a provided dictionary. Supports both `string` and `list(string)` inputs, with the output shape mirroring the input. Features include:
+
   - Dictionary-based reverse mapping for reliable unslugging
   - Normalization of input slugs (lowercase, collapsed separators, trailing separator removal)
   - Collision detection with typed error (`UnslugErrorIndeterministic`)
@@ -125,6 +136,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
   This affects and improves commands that use the stack order, i.e. `run`, `run script`, `list --run-order`.
   As a consequence, the evaluation order of _unrelated_ stacks may change.
+
   - Example 1:
     Nested stacks `a` must be executed after their parent stacks, but `/stack1` and `/stack2` are independent.
 
@@ -172,6 +184,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     ```
 
   The new rule recursively aligns stacks that are independent into groups.
+
   - The first group contains all initially independent stacks.
   - The second group contains all stacks that just depended on stacks in the first group.
   - The third group contains all stacks that just depended on stacks in both previous groups.
@@ -808,6 +821,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Changed
 
 - Refactor Safeguards
+
   - Add `disable_safeguards` configuration and `--disable-safeguards` CLI option with possible values
     - `all` Disable ALL safeguards (use with care)
     - `none` Enable ALL safeguards
@@ -818,11 +832,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     - `outdated-code` Disable Safeguard that checks for outdated code
 
 - Promote cloud commands from `experimental`
+
   - `terramate cloud login`
   - `terramate cloud info`
   - `terramate cloud drift show`
 
 - Improve support for synchronization of deployments to Terramate Cloud
+
   - Add `cloud_sync_deployment` flag to Terramate Scripts Commands
   - Add `cloud_sync_terraform_plan_file` flag to Terramate Scripts Commands when synchronizing deployments.
   - Add `--cloud-sync-terraform-plan-file` support to `terramate run` when synchronizing deployments.
@@ -848,6 +864,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `terramate.config.experiments` configuration to enable experimental features
 - Add support for statuses `ok`, `failed`, `drifted`, and `healthy` to the `--experimental-status` flag
 - Add experimental `script` configuration block
+
   - Add `terramate script list` to list scripts visible in current directory
   - Add `terramate script tree` to show a tree view of scripts visible in current directory
   - Add `terramate script info <scriptname>` to show details about a script
@@ -856,6 +873,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add `stack_filter` block to `generate_hcl` for path-based conditional generation.
 
 - Promote experimental commands
+
   - `terramate debug show metadata`
   - `terramate debug show globals`
   - `terramate debug show generate-origins`

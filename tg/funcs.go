@@ -32,6 +32,7 @@ import (
 
 	"github.com/gruntwork-io/go-commons/errors"
 	tgconfig "github.com/gruntwork-io/terragrunt/config"
+	"github.com/gruntwork-io/terragrunt/pkg/log"
 	"github.com/gruntwork-io/terragrunt/util"
 	"github.com/mitchellh/go-homedir"
 	"github.com/terramate-io/terramate/printer"
@@ -40,11 +41,11 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-type tgFunction func(ctx *tgconfig.ParsingContext, rootdir string, mod *Module, args []string) (string, error)
+type tgFunction func(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, args []string) (string, error)
 
 // tgFindInParentFoldersFuncImpl implements the Terragrunt `find_in_parent_folders` function.
-func tgFindInParentFoldersFuncImpl(pctx *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
-	return wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, findInParentFoldersImpl)
+func tgFindInParentFoldersFuncImpl(pctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module) function.Function {
+	return wrapStringSliceToStringAsFuncImpl(pctx, tgLogger, rootdir, mod, findInParentFoldersImpl)
 }
 
 // findInParentFoldersImpl searches for a file in the parent directories of the caller's scope,
@@ -62,6 +63,7 @@ func tgFindInParentFoldersFuncImpl(pctx *tgconfig.ParsingContext, rootdir string
 //		- The code was simplified by using Terramate project.Path.
 func findInParentFoldersImpl(
 	ctx *tgconfig.ParsingContext,
+	_ log.Logger,
 	rootdir string,
 	mod *Module,
 	params []string,
@@ -119,7 +121,7 @@ func findInParentFoldersImpl(
 }
 
 // tgReadTerragruntConfigFuncImpl implements the Terragrunt `read_terragrunt_config` function.
-func tgReadTerragruntConfigFuncImpl(ctx *tgconfig.ParsingContext, rootdir string, mod *Module) function.Function {
+func tgReadTerragruntConfigFuncImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module) function.Function {
 	return function.New(&function.Spec{
 		// Takes one required string param
 		Params: []function.Parameter{
@@ -146,7 +148,7 @@ func tgReadTerragruntConfigFuncImpl(ctx *tgconfig.ParsingContext, rootdir string
 			if numParams == 2 {
 				defaultVal = &args[1]
 			}
-			return readTerragruntConfigImpl(ctx, targetConfigArg.AsString(), defaultVal, rootdir, mod)
+			return readTerragruntConfigImpl(ctx, tgLogger, targetConfigArg.AsString(), defaultVal, rootdir, mod)
 		},
 	})
 }
@@ -157,7 +159,7 @@ func tgReadTerragruntConfigFuncImpl(ctx *tgconfig.ParsingContext, rootdir string
 // Check the original version here: https://github.com/gruntwork-io/terragrunt/blob/b47b57ae0cd2c8644ca5625fceed0a2258b1a763/config/config_helpers.go#L578-L612
 // The important changes are:
 //   - The read file is added to the `mod.DependsOn` slice.
-func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, configPath string, defaultVal *cty.Value, rootdir string, mod *Module) (cty.Value, error) {
+func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger, configPath string, defaultVal *cty.Value, rootdir string, mod *Module) (cty.Value, error) {
 	targetConfig := getCleanedTargetConfigPath(configPath, ctx.TerragruntOptions.TerragruntConfigPath)
 	targetConfigFileExists := util.FileExists(targetConfig)
 	if !targetConfigFileExists && defaultVal == nil {
@@ -169,8 +171,11 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, configPath string, d
 	mod.DependsOn = append(mod.DependsOn, project.PrjAbsPath(rootdir, targetConfig))
 
 	// We update the ctx of terragruntOptions to the config being read in.
-	ctx = ctx.WithTerragruntOptions(ctx.TerragruntOptions.Clone(targetConfig))
-	cfg, err := tgconfig.ParseConfigFile(ctx.TerragruntOptions, ctx, targetConfig, nil)
+	clonedOpts := ctx.TerragruntOptions.Clone()
+	clonedOpts.TerragruntConfigPath = targetConfig
+	clonedOpts.OriginalTerragruntConfigPath = targetConfig
+	ctx = ctx.WithTerragruntOptions(clonedOpts)
+	cfg, err := tgconfig.ParseConfigFile(ctx, tgLogger, targetConfig, nil)
 	if err != nil {
 		return cty.NilVal, err
 	}
@@ -179,7 +184,7 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, configPath string, d
 }
 
 // tgReadTFVarsFileFuncImpl reads a *.tfvars or *.tfvars.json file and returns the contents as a JSON encoded string
-func tgReadTFVarsFileFuncImpl(ctx *tgconfig.ParsingContext, rootdir string, mod *Module, args []string) (string, error) {
+func tgReadTFVarsFileFuncImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, args []string) (string, error) {
 	if len(args) != 1 {
 		return "", errors.WithStackTrace(tgconfig.WrongNumberOfParamsError{Func: "read_tfvars_file", Expected: "1", Actual: len(args)})
 	}
@@ -211,7 +216,7 @@ func tgReadTFVarsFileFuncImpl(ctx *tgconfig.ParsingContext, rootdir string, mod 
 	}
 
 	var variables map[string]interface{}
-	if err := tgconfig.ParseAndDecodeVarFile(varFile, fileContents, &variables); err != nil {
+	if err := tgconfig.ParseAndDecodeVarFile(tgLogger, ctx.TerragruntOptions, varFile, fileContents, &variables); err != nil {
 		return "", err
 	}
 
@@ -306,6 +311,7 @@ func getCleanedTargetConfigPath(configPath string, workingPath string) string {
 // calls the wrapped tgFunction with the converted arguments, and returns the result as a string.
 func wrapStringSliceToStringAsFuncImpl(
 	ctx *tgconfig.ParsingContext,
+	tgLogger log.Logger,
 	rootdir string,
 	mod *Module,
 	toWrap tgFunction,
@@ -318,7 +324,7 @@ func wrapStringSliceToStringAsFuncImpl(
 			if err != nil {
 				return cty.StringVal(""), err
 			}
-			out, err := toWrap(ctx, rootdir, mod, params)
+			out, err := toWrap(ctx, tgLogger, rootdir, mod, params)
 			if err != nil {
 				return cty.StringVal(""), err
 			}

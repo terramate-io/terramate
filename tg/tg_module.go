@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
+	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
@@ -46,7 +47,7 @@ type (
 )
 
 func init() {
-	util.DisableLogColors()
+	// Logger colors are now handled by the logger implementation
 }
 
 // LoadModule loads a Terragrunt module from dir and fname.
@@ -62,6 +63,14 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 	absDir := project.AbsPath(rootdir, dir.String())
 	cfgfile := filepath.Join(absDir, fname)
 	cfgOpts := newTerragruntOptions(absDir, cfgfile)
+
+	// Create a Terragrunt-compatible logger with cleanup function
+	tgLogger, cleanup := NewTerragruntLogger(logger)
+	defer func() {
+		if closeErr := cleanup(); closeErr != nil {
+			logger.Warn().Err(closeErr).Msg("failed to close terragrunt logger")
+		}
+	}()
 
 	decodeOptions := []config.PartialDecodeSectionType{
 		// needed for tracking:
@@ -83,7 +92,7 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 		decodeOptions = append(decodeOptions, config.DependencyBlock)
 	}
 
-	pctx := config.NewParsingContext(context.Background(), cfgOpts).WithDecodeList(decodeOptions...)
+	pctx := config.NewParsingContext(context.Background(), tgLogger, cfgOpts).WithDecodeList(decodeOptions...)
 	mod = &Module{
 		Path:           project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
 		ConfigFile:     project.PrjAbsPath(rootdir, cfgfile),
@@ -92,9 +101,9 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 	// Override the predefined functions to intercept the function calls that process paths.
 	pctx.PredefinedFunctions = make(map[string]function.Function)
-	pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, rootdir, mod)
-	pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, rootdir, mod)
-	pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, rootdir, mod, tgReadTFVarsFileFuncImpl)
+	pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, tgLogger, rootdir, mod)
+	pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, tgLogger, rootdir, mod)
+	pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, tgLogger, rootdir, mod, tgReadTFVarsFileFuncImpl)
 
 	// override Terraform function
 	pctx.PredefinedFunctions["file"] = tgFileFuncImpl(pctx, rootdir, mod)
@@ -104,6 +113,7 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 	// Note(i4k): Never use `config.ParseConfigFile` because it invokes Terraform behind the scenes.
 	tgConfig, err := config.PartialParseConfigFile(
 		pctx,
+		tgLogger,
 		cfgfile,
 		nil,
 	)
@@ -119,17 +129,18 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 	logger.Trace().Msgf("found terraform.source = %q", *tgConfig.Terraform.Source)
 
-	stack, err := configstack.FindStackInSubfolders(cfgOpts, nil)
+	stack, err := configstack.FindStackInSubfolders(context.Background(), tgLogger, cfgOpts)
 	if err != nil {
 		return nil, false, errors.E(err, "parsing module at %s", cfgOpts.WorkingDir)
 	}
 
-	if len(stack.Modules) == 0 {
+	modules := stack.Modules()
+	if len(modules) == 0 {
 		return nil, false, nil
 	}
 
 	var tgMod *configstack.TerraformModule
-	for _, m := range stack.Modules {
+	for _, m := range modules {
 		if m.Path == cfgOpts.WorkingDir {
 			tgMod = m
 			break
@@ -183,14 +194,31 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 			if dep.Enabled != nil && !*dep.Enabled {
 				continue
 			}
-			depAbsPath := dep.ConfigPath
-			if !filepath.IsAbs(depAbsPath) {
-				depAbsPath = filepath.Join(tgMod.Path, depAbsPath)
+			// ConfigPath is now a cty.Value in v0.82.0+
+			if dep.ConfigPath.IsNull() {
+				logger.Warn().Msg("dependency ConfigPath is null, skipping")
+				continue
+			}
+			if !dep.ConfigPath.IsKnown() {
+				logger.Warn().Msg("dependency ConfigPath is unknown, skipping")
+				continue
+			}
+			if dep.ConfigPath.Type() != cty.String {
+				logger.Warn().
+					Str("type", dep.ConfigPath.Type().FriendlyName()).
+					Msg("dependency ConfigPath is not a string, skipping")
+				continue
+			}
+
+			depConfigPath := dep.ConfigPath.AsString()
+			depAbsPath := depConfigPath
+			if !filepath.IsAbs(depConfigPath) {
+				depAbsPath = filepath.Join(tgMod.Path, depConfigPath)
 			}
 
 			logger.Trace().
 				Str("mod-path", tgMod.Path).
-				Str("dep-path", dep.ConfigPath).
+				Str("dep-path", depConfigPath).
 				Str("dep-abs-path", depAbsPath).
 				Msg("found dependency (in dependency.config_path)")
 
@@ -322,7 +350,7 @@ func newTerragruntOptions(dir string, cfgfile string) *options.TerragruntOptions
 
 	opts.Env = env.Parse(os.Environ())
 
-	opts.Logger = util.CreateLogEntryWithWriter(opts.ErrWriter, dir, opts.LogLevel, opts.Logger.Logger.Hooks)
+	// Logger is set separately when creating ParsingContext in v0.82.0+
 
 	opts.DownloadDir = util.JoinPath(opts.WorkingDir, util.TerragruntCacheDir)
 	opts.TerragruntConfigPath = cfgfile

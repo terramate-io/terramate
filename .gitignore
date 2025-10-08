@@ -28,3 +28,7 @@ cosign.pub
 # Claude
 .claude/
 CLAUDE.md
+
+# Terramate binaries
+terramate
+terramate-ls
