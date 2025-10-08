@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/gruntwork-io/go-commons/env"
 	"github.com/gruntwork-io/terragrunt/config"
@@ -40,20 +41,91 @@ type (
 		DependsOn project.Paths `json:"depends_on,omitempty"`
 
 		FilesProcessed map[string]struct{}
+		parseCache     *ParseCache
 	}
 
 	// Modules is a list of Module.
 	Modules []*Module
+
+	// ParseCache caches parsed Terragrunt config files to avoid re-parsing the same file multiple times.
+	// This is exported so it can be shared across parallel workers in config loading.
+	//
+	// LIMITATION: The cache assumes deterministic evaluation within a single run. If Terragrunt
+	// configs use conditional logic based on per-module context to determine which files to include
+	// (e.g., ternary operators in read_terragrunt_config() paths), the cached dependencies may be
+	// incomplete for some modules. This is rare in practice but can cause false negatives in change
+	// detection (missing dependencies). To disable caching, use --disable-tg-cache flag or set
+	// TM_DISABLE_TG_CACHE=1 environment variable.
+	ParseCache struct {
+		mu     sync.RWMutex
+		parsed map[string]*tgCacheEntry
+	}
+
+	// tgCacheEntry stores both the parsed value and dependencies discovered during parsing.
+	tgCacheEntry struct {
+		value        cty.Value
+		dependencies project.Paths
+	}
+)
+
+var (
+	// defaultParseCache is a package-level cache used by LoadModule to enable
+	// caching across multiple LoadModule calls without explicit cache management.
+	defaultParseCache     *ParseCache
+	defaultParseCacheOnce sync.Once
 )
 
 func init() {
 	// Logger colors are now handled by the logger implementation
 }
 
+func isCachingDisabled() bool {
+	return os.Getenv("TM_DISABLE_TG_CACHE") != ""
+}
+
+func getDefaultParseCache() *ParseCache {
+	if isCachingDisabled() {
+		return nil
+	}
+	defaultParseCacheOnce.Do(func() {
+		defaultParseCache = NewParseCache()
+	})
+	return defaultParseCache
+}
+
+// NewParseCache creates a new Terragrunt parse cache.
+// This is exported so config loading can create a shared cache across workers.
+func NewParseCache() *ParseCache {
+	return &ParseCache{
+		parsed: make(map[string]*tgCacheEntry),
+	}
+}
+
+func (c *ParseCache) get(path string) (*tgCacheEntry, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	entry, ok := c.parsed[path]
+	return entry, ok
+}
+
+func (c *ParseCache) set(path string, entry *tgCacheEntry) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.parsed[path] = entry
+}
+
 // LoadModule loads a Terragrunt module from dir and fname.
 //
 // If fname is not absolute, it is considered to be relative to dir.
+// This function uses a package-level shared cache for performance.
+// For explicit cache control, use LoadModuleWithCache.
 func LoadModule(rootdir string, dir project.Path, fname string, trackDependencies bool) (mod *Module, isRootModule bool, err error) {
+	return LoadModuleWithCache(rootdir, dir, fname, trackDependencies, getDefaultParseCache())
+}
+
+// LoadModuleWithCache loads a Terragrunt module with a shared parse cache.
+// This is exported so config loading can share a cache across parallel workers.
+func LoadModuleWithCache(rootdir string, dir project.Path, fname string, trackDependencies bool, cache *ParseCache) (mod *Module, isRootModule bool, err error) {
 	logger := log.With().
 		Str("action", "tg.LoadModule").
 		Str("dir", dir.String()).
@@ -97,6 +169,7 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 		Path:           project.PrjAbsPath(rootdir, cfgOpts.WorkingDir),
 		ConfigFile:     project.PrjAbsPath(rootdir, cfgfile),
 		FilesProcessed: map[string]struct{}{},
+		parseCache:     cache,
 	}
 
 	// Override the predefined functions to intercept the function calls that process paths.
@@ -291,6 +364,10 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 
 	sort.Strings(tgConfigFiles)
 
+	// Use a shared cache for all modules in this scan to avoid re-parsing the same files.
+	// Returns nil if caching is disabled via TM_DISABLE_TG_CACHE.
+	cache := getDefaultParseCache()
+
 	fileErrs := map[string]*errors.List{}
 	fileProcessed := map[string]struct{}{}
 	for _, absCfgFile := range tgConfigFiles {
@@ -303,7 +380,7 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 		fileDir := filepath.Dir(absCfgFile)
 		dir := project.PrjAbsPath(rootdir, fileDir)
 
-		mod, isRootModule, err := LoadModule(rootdir, dir, fileName, trackDependencies)
+		mod, isRootModule, err := LoadModuleWithCache(rootdir, dir, fileName, trackDependencies, cache)
 		if err != nil {
 			fileErrs[absCfgFile].Append(err)
 			continue

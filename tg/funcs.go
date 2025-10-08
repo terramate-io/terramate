@@ -159,6 +159,9 @@ func tgReadTerragruntConfigFuncImpl(ctx *tgconfig.ParsingContext, tgLogger log.L
 // Check the original version here: https://github.com/gruntwork-io/terragrunt/blob/b47b57ae0cd2c8644ca5625fceed0a2258b1a763/config/config_helpers.go#L578-L612
 // The important changes are:
 //   - The read file is added to the `mod.DependsOn` slice.
+//   - Results (value + transitive dependencies) are cached to avoid re-parsing the same file multiple times.
+//   - Caching can be disabled via --disable-tg-cache flag or TM_DISABLE_TG_CACHE env var if your
+//     configs use conditional file loading based on per-module context (rare but possible).
 func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger, configPath string, defaultVal *cty.Value, rootdir string, mod *Module) (cty.Value, error) {
 	targetConfig := getCleanedTargetConfigPath(configPath, ctx.TerragruntOptions.TerragruntConfigPath)
 	targetConfigFileExists := util.FileExists(targetConfig)
@@ -168,7 +171,52 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger,
 		return *defaultVal, nil
 	}
 
-	mod.DependsOn = append(mod.DependsOn, project.PrjAbsPath(rootdir, targetConfig))
+	// Track dependency - check if already present to avoid duplicates
+	depPath := project.PrjAbsPath(rootdir, targetConfig)
+	alreadyTracked := false
+	for _, existing := range mod.DependsOn {
+		if existing == depPath {
+			alreadyTracked = true
+			break
+		}
+	}
+	if !alreadyTracked {
+		mod.DependsOn = append(mod.DependsOn, depPath)
+	}
+
+	// Capture position after adding direct dependency so cache only stores transitive deps
+	depsBefore := len(mod.DependsOn)
+
+	// Canonicalize path for cache key to ensure consistent lookups
+	// regardless of how the file is referenced (relative paths, symlinks, etc.)
+	cacheKey, err := filepath.EvalSymlinks(targetConfig)
+	if err != nil {
+		// If EvalSymlinks fails (e.g., broken symlink), fall back to Abs
+		cacheKey, err = filepath.Abs(targetConfig)
+		if err != nil {
+			cacheKey = targetConfig // final fallback to non-canonical path
+		}
+	}
+
+	// Check cache first to avoid re-parsing the same file
+	if mod.parseCache != nil {
+		if entry, ok := mod.parseCache.get(cacheKey); ok {
+			// Replay cached dependencies onto current module
+			for _, dep := range entry.dependencies {
+				alreadyHas := false
+				for _, existing := range mod.DependsOn {
+					if existing == dep {
+						alreadyHas = true
+						break
+					}
+				}
+				if !alreadyHas {
+					mod.DependsOn = append(mod.DependsOn, dep)
+				}
+			}
+			return entry.value, nil
+		}
+	}
 
 	// We update the ctx of terragruntOptions to the config being read in.
 	clonedOpts := ctx.TerragruntOptions.Clone()
@@ -180,7 +228,21 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger,
 		return cty.NilVal, err
 	}
 
-	return tgconfig.TerragruntConfigAsCty(cfg)
+	val, err := tgconfig.TerragruntConfigAsCty(cfg)
+	if err != nil {
+		return cty.NilVal, err
+	}
+
+	// Store in cache for future use - cache both value and newly discovered dependencies
+	if mod.parseCache != nil {
+		newDeps := mod.DependsOn[depsBefore:]
+		mod.parseCache.set(cacheKey, &tgCacheEntry{
+			value:        val,
+			dependencies: append(project.Paths{}, newDeps...),
+		})
+	}
+
+	return val, nil
 }
 
 // tgReadTFVarsFileFuncImpl reads a *.tfvars or *.tfvars.json file and returns the contents as a JSON encoded string

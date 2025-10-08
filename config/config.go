@@ -52,6 +52,7 @@ type Root struct {
 
 	maxTgWorkers int
 	tgTaskChan   chan *Tree
+	tgParseCache *tg.ParseCache
 
 	// The mutex and files below are needed until we figure a better way
 	// of discovering Terragrunt modules.
@@ -174,6 +175,13 @@ func NewRoot(tree *Tree, hclOpts ...hcl.Option) *Root {
 }
 
 func (root *Root) initTgWorkers() {
+	// Initialize cache unless disabled via --disable-tg-cache flag or TM_DISABLE_TG_CACHE env var.
+	// A nil cache disables caching, which may be needed for configs with conditional
+	// file loading based on per-module context.
+	if os.Getenv("TM_DISABLE_TG_CACHE") == "" {
+		root.tgParseCache = tg.NewParseCache()
+	}
+
 	if !root.changeDetectionEnabled {
 		return
 	}
@@ -192,7 +200,10 @@ func (root *Root) tgWorker() {
 		root.tgTransientErrs[tgFile] = errors.L()
 		root.tgmu.Unlock()
 
-		tgMod, isRootModule, err := tg.LoadModule(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies)
+		// Use the shared cache across all workers to maximize cache hit rates.
+		// When modules are loaded in parallel, they can benefit from each other's
+		// parsing work on shared files (root terragrunt.hcl, account.hcl, etc).
+		tgMod, isRootModule, err := tg.LoadModuleWithCache(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies, root.tgParseCache)
 		root.tgmu.Lock()
 		if err != nil {
 			root.tgTransientErrs[tgFile] = err
