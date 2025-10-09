@@ -1337,3 +1337,190 @@ func createStack(t *testing.T, root *config.Root, absdir string) {
 	dir := project.PrjAbsPath(root.HostDir(), absdir)
 	assert.NoError(t, stack.Create(root, config.Stack{Dir: dir}), "terramate init failed")
 }
+
+func TestTerragruntDependencyBlocksDoNotTriggerChangeDetection(t *testing.T) {
+	t.Parallel()
+	repo := terragruntNestedIncludesTransitiveDepsRepo(t)
+
+	// First verify that the dependencies are correctly detected
+	root, err := config.LoadRoot(repo.Dir, true)
+	assert.NoError(t, err)
+
+	fooTree, found := root.Lookup(project.NewPath("/foo"))
+	assert.IsTrue(t, found, "foo stack not found")
+	fooMod, err := fooTree.TerragruntModule()
+	assert.NoError(t, err)
+	t.Logf("foo module DependsOn: %v", fooMod.DependsOn)
+	t.Logf("foo module After: %v", fooMod.After)
+
+	m := newManager(t, repo.Dir)
+
+	report, err := m.ListChanged(stack.ChangeConfig{BaseRef: defaultBranch})
+	assert.NoError(t, err, "unexpected error")
+
+	changed := report.Stacks
+
+	// When base/eks/terragrunt.hcl changes:
+	// - base/eks is NOT a stack (it's just an include file)
+	// - /dev1/eks, /prod/eks, /preprod/eks are changed (they include base/eks/terragrunt.hcl)
+	// - /foo is NOT changed (it only has dependency blocks pointing to the eks stacks,
+	//   which are for output access, not for change detection)
+	//
+	// This test verifies that:
+	// 1. Changes to included files propagate to the stacks that include them
+	// 2. Dependency blocks do NOT trigger transitive change detection
+	//
+	// The /foo stack would only be marked as changed if:
+	// - Its own terragrunt.hcl file changes
+	// - The base/foo/instance.hcl file it includes changes
+	// - Its local terraform module source changes
+	expectedChanged := []string{
+		"/dev1/eks",
+		"/preprod/eks",
+		"/prod/eks",
+	}
+
+	assertStacks(t, expectedChanged, changed, true)
+
+	// Explicitly verify that /foo is NOT in the changed list
+	for _, entry := range changed {
+		if entry.Stack.Dir.String() == "/foo" {
+			t.Fatalf("/foo should not be marked as changed when only its dependency targets change")
+		}
+	}
+}
+
+func terragruntNestedIncludesTransitiveDepsRepo(t *testing.T) repository {
+	repodir := test.NewRepo(t)
+	repo := repository{
+		Dir: repodir,
+	}
+
+	// Enable terragrunt change detection
+	test.WriteFile(t, repo.Dir, "terramate.tm.hcl", Doc(
+		Block("terramate",
+			Block("config",
+				Expr("experiments", `["terragrunt"]`),
+			),
+		),
+	).String())
+
+	// Create directories (create parent dirs first)
+	test.Mkdir(t, repo.Dir, "base")
+	baseEks := test.Mkdir(t, filepath.Join(repo.Dir, "base"), "eks")
+	baseFoo := test.Mkdir(t, filepath.Join(repo.Dir, "base"), "foo")
+
+	test.Mkdir(t, repo.Dir, "dev1")
+	dev1Eks := test.Mkdir(t, filepath.Join(repo.Dir, "dev1"), "eks")
+
+	test.Mkdir(t, repo.Dir, "prod")
+	prodEks := test.Mkdir(t, filepath.Join(repo.Dir, "prod"), "eks")
+
+	test.Mkdir(t, repo.Dir, "preprod")
+	preprodEks := test.Mkdir(t, filepath.Join(repo.Dir, "preprod"), "eks")
+
+	fooStack := test.Mkdir(t, repo.Dir, "foo")
+
+	root, err := config.LoadRoot(repo.Dir, false)
+	assert.NoError(t, err)
+
+	// Create stacks (only the runnable modules, NOT base/eks which is just an include file)
+	createStack(t, root, dev1Eks)
+	createStack(t, root, prodEks)
+	createStack(t, root, preprodEks)
+	createStack(t, root, fooStack)
+
+	// base/eks/terragrunt.hcl - just a shared config file (not a runnable stack)
+	// No terraform.source block, so it's not a runnable module
+	test.WriteFile(t, baseEks, "terragrunt.hcl", Doc(
+		Block("locals",
+			Str("environment", "base"),
+		),
+	).String())
+
+	// dev1/eks/terragrunt.hcl includes base/eks/terragrunt.hcl
+	test.WriteFile(t, dev1Eks, "terragrunt.hcl", Doc(
+		Block("include",
+			Labels("base"),
+			Expr("path", `find_in_parent_folders("base/eks/terragrunt.hcl")`),
+		),
+		Block("terraform",
+			Str("source", "https://some.etc/eks"),
+		),
+	).String())
+
+	// prod/eks/terragrunt.hcl includes base/eks/terragrunt.hcl
+	test.WriteFile(t, prodEks, "terragrunt.hcl", Doc(
+		Block("include",
+			Labels("base"),
+			Expr("path", `find_in_parent_folders("base/eks/terragrunt.hcl")`),
+		),
+		Block("terraform",
+			Str("source", "https://some.etc/eks"),
+		),
+	).String())
+
+	// preprod/eks/terragrunt.hcl includes base/eks/terragrunt.hcl
+	test.WriteFile(t, preprodEks, "terragrunt.hcl", Doc(
+		Block("include",
+			Labels("base"),
+			Expr("path", `find_in_parent_folders("base/eks/terragrunt.hcl")`),
+		),
+		Block("terraform",
+			Str("source", "https://some.etc/eks"),
+		),
+	).String())
+
+	// base/foo/instance.hcl is an include file (not runnable, no terraform block)
+	// It has dependencies on the three eks stacks
+	test.WriteFile(t, baseFoo, "instance.hcl", Doc(
+		Block("dependency",
+			Labels("dev1_eks"),
+			Str("config_path", "../dev1/eks"),
+		),
+		Block("dependency",
+			Labels("prod_eks"),
+			Str("config_path", "../prod/eks"),
+		),
+		Block("dependency",
+			Labels("preprod_eks"),
+			Str("config_path", "../preprod/eks"),
+		),
+	).String())
+
+	// foo/terragrunt.hcl includes base/foo/instance.hcl and is runnable
+	test.WriteFile(t, fooStack, "terragrunt.hcl", Doc(
+		Block("include",
+			Labels("base"),
+			Expr("path", `find_in_parent_folders("base/foo/instance.hcl")`),
+		),
+		Block("terraform",
+			Str("source", "https://some.etc/instance"),
+		),
+	).String())
+
+	// Setup git
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+
+	// Initial commit on testbranch
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("initial commit"), "commit files")
+
+	// Merge into main
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	// Now create a branch and modify base/eks/terragrunt.hcl
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+	test.WriteFile(t, baseEks, "terragrunt.hcl", Doc(
+		Block("locals",
+			Str("environment", "production"), // changed from "base"
+			Str("region", "us-east-1"),       // added
+		),
+	).String())
+	assert.NoError(t, g.Add(baseEks), "add files")
+	assert.NoError(t, g.Commit("changed base/eks config"), "commit files")
+
+	return repo
+}
