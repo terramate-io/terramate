@@ -192,6 +192,7 @@ type globalCliFlags struct {
 	LogDestination string   `env:"LOG_DESTINATION" optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination channel of log messages: 'stderr' or 'stdout'."`
 	Quiet          bool     `env:"QUIET" optional:"false" help:"Disable outputs."`
 	Verbose        int      `env:"VERBOSE" short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
+	DisableTgCache bool     `env:"TM_DISABLE_TG_CACHE" name:"disable-tg-cache" optional:"true" default:"false" help:"Disable Terragrunt config file caching (use if configs have conditional file loading based on per-module context)"`
 }
 
 type runSafeguardsCliSpec struct {
