@@ -150,20 +150,20 @@ func AbsPath(root, prjAbsPath string) string {
 
 // FriendlyFmtDir formats the directory in a friendly way for tooling output.
 func FriendlyFmtDir(root, wd, dir string) (string, bool) {
-	trimPart := PrjAbsPath(root, wd).String()
-	if !strings.HasPrefix(dir, trimPart) {
+	// Convert project paths to filesystem paths
+	wdHostPath := AbsPath(root, PrjAbsPath(root, wd).String())
+	dirHostPath := AbsPath(root, dir)
+
+	// Calculate relative path
+	relPath, err := filepath.Rel(wdHostPath, dirHostPath)
+	if err != nil {
 		return "", false
 	}
 
-	dir = strings.TrimPrefix(dir, trimPart)
+	// Convert to forward slashes for consistency
+	relPath = filepath.ToSlash(relPath)
 
-	if dir == "" {
-		dir = "."
-	} else if dir[0] == '/' {
-		dir = dir[1:]
-	}
-
-	return dir, true
+	return relPath, true
 }
 
 // Merge other runtime values into the current set.
