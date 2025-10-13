@@ -357,6 +357,18 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			RunOrder: parsedArgs.List.RunOrder,
 			Tags:     parsedArgs.Tags,
 			NoTags:   parsedArgs.NoTags,
+			OutputsSharingOptions: engine.OutputsSharingOptions{
+				IncludeOutputDependencies: parsedArgs.List.IncludeOutputDependencies,
+				OnlyOutputDependencies:    parsedArgs.List.OnlyOutputDependencies,
+				IncludeDependencies:       parsedArgs.List.IncludeDependencies,
+				OnlyDependencies:          parsedArgs.List.OnlyDependencies,
+				ExcludeDependencies:       parsedArgs.List.ExcludeDependencies,
+				IncludeAllDependents:      parsedArgs.List.IncludeAllDependents,
+				IncludeDirectDependents:   parsedArgs.List.IncludeDirectDependents,
+				OnlyDirectDependents:      parsedArgs.List.OnlyDirectDependents,
+				OnlyAllDependents:         parsedArgs.List.OnlyAllDependents,
+				ExcludeDependents:         parsedArgs.List.ExcludeDependents,
+			},
 		}, true, false, nil
 
 	case "generate":
@@ -470,6 +482,14 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			OutputsSharingOptions: engine.OutputsSharingOptions{
 				IncludeOutputDependencies: parsedArgs.Run.IncludeOutputDependencies,
 				OnlyOutputDependencies:    parsedArgs.Run.OnlyOutputDependencies,
+				IncludeDependencies:       parsedArgs.Run.IncludeDependencies,
+				OnlyDependencies:          parsedArgs.Run.OnlyDependencies,
+				ExcludeDependencies:       parsedArgs.Run.ExcludeDependencies,
+				IncludeAllDependents:      parsedArgs.Run.IncludeAllDependents,
+				IncludeDirectDependents:   parsedArgs.Run.IncludeDirectDependents,
+				OnlyDirectDependents:      parsedArgs.Run.OnlyDirectDependents,
+				OnlyAllDependents:         parsedArgs.Run.OnlyAllDependents,
+				ExcludeDependents:         parsedArgs.Run.ExcludeDependents,
 			},
 		}, true, false, nil
 
@@ -704,6 +724,14 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			OutputsSharingOptions: engine.OutputsSharingOptions{
 				IncludeOutputDependencies: parsedArgs.Script.Run.IncludeOutputDependencies,
 				OnlyOutputDependencies:    parsedArgs.Script.Run.OnlyOutputDependencies,
+				IncludeDependencies:       parsedArgs.Script.Run.IncludeDependencies,
+				OnlyDependencies:          parsedArgs.Script.Run.OnlyDependencies,
+				ExcludeDependencies:       parsedArgs.Script.Run.ExcludeDependencies,
+				IncludeAllDependents:      parsedArgs.Script.Run.IncludeAllDependents,
+				IncludeDirectDependents:   parsedArgs.Script.Run.IncludeDirectDependents,
+				OnlyDirectDependents:      parsedArgs.Script.Run.OnlyDirectDependents,
+				OnlyAllDependents:         parsedArgs.Script.Run.OnlyAllDependents,
+				ExcludeDependents:         parsedArgs.Script.Run.ExcludeDependents,
 			},
 			StatusFilters: runcmd.StatusFilters{
 				StackStatus:      parsedArgs.Script.Run.Status,
