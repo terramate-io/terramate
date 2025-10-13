@@ -50,7 +50,7 @@ jobs:
           repository: ${{github.event.pull_request.head.repo.full_name}}
           fetch-depth: 0
 
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 

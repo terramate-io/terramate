@@ -9,9 +9,9 @@ clone:
 
 pipelines:
   pull-requests:
-    '**':
+    "**":
       - step:
-          name: 'build Terramate'
+          name: "build Terramate"
           script:
             - make build
             - go install github.com/hashicorp/hc-install/cmd/hc-install@latest
@@ -19,11 +19,11 @@ pipelines:
             - cp ./terraform /usr/local/bin/terraform
             - ./bin/terramate run --changed -- terraform init
             - export TMC_API_DEBUG=1
-            - ./bin/terramate run --changed --sync-preview --terraform-plan-file=out.tfplan --target linux-go-packages --parallel 12 -- terraform plan -detailed-exitcode -out=out.tfplan
+            - ./bin/terramate run --changed --sync-preview --terraform-plan-file=out.tfplan --target linux-go-packages --parallel 5 -- terraform plan -detailed-exitcode -out=out.tfplan
   branches:
     main:
       - step:
-          name: 'build Terramate'
+          name: "build Terramate"
           script:
             - make build
             - go install github.com/hashicorp/hc-install/cmd/hc-install@latest
@@ -31,5 +31,5 @@ pipelines:
             - cp ./terraform /usr/local/bin/terraform
             - ./bin/terramate run --changed -- terraform init
             - export TMC_API_DEBUG=1
-            - ./bin/terramate run --changed --sync-deployment --terraform-plan-file=out.tfplan --target linux-go-packages --parallel 12 -- terraform plan -out=out.tfplan
+            - ./bin/terramate run --changed --sync-deployment --terraform-plan-file=out.tfplan --target linux-go-packages --parallel 5 -- terraform plan -out=out.tfplan
             - ./bin/terramate run --changed --sync-drift-status --target linux-go-packages --terraform-plan-file=out.tfplan -- terraform plan -detailed-exitcode -out=out.tfplan

@@ -144,8 +144,10 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 	}
 
 	var tgMod *configstack.TerraformModule
+	// Normalize paths for comparison on Windows (forward slash vs backslash)
+	normalizedWorkingDir := filepath.Clean(cfgOpts.WorkingDir)
 	for _, m := range modules {
-		if m.Path == cfgOpts.WorkingDir {
+		if filepath.Clean(m.Path) == normalizedWorkingDir {
 			tgMod = m
 			break
 		}

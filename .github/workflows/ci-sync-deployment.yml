@@ -10,6 +10,165 @@ on:
       - v*.x # backporting branches.
 
 jobs:
+  # Run e2e tests with dynamic splitting across platforms
+  e2e-tests:
+    name: E2E (${{ matrix.display_index }}/${{ matrix.total }})
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      checks: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS: Split core into 4 groups (138 tests / 4 = ~35 tests each)
+          # 4 runners × 3 CPUs = 12 effective CPUs
+          - os: macos-latest
+            package: ./e2etests/core
+            total: 4
+            index: 0
+            display_index: 1
+          - os: macos-latest
+            package: ./e2etests/core
+            total: 4
+            index: 1
+            display_index: 2
+          - os: macos-latest
+            package: ./e2etests/core
+            total: 4
+            index: 2
+            display_index: 3
+          - os: macos-latest
+            package: ./e2etests/core
+            total: 4
+            index: 3
+            display_index: 4
+          # macOS cloud: Split into 3 groups (19 tests / 3 = ~6-7 tests each)
+          - os: macos-latest
+            package: ./e2etests/cloud
+            total: 3
+            index: 0
+            display_index: 1
+          - os: macos-latest
+            package: ./e2etests/cloud
+            total: 3
+            index: 1
+            display_index: 2
+          - os: macos-latest
+            package: ./e2etests/cloud
+            total: 3
+            index: 2
+            display_index: 3
+
+          # Linux: Split core into 4 groups (138 tests / 4 = ~35 tests each)
+          # 4 runners × 8 CPUs = 32 effective CPUs
+          - os: blacksmith-8vcpu-ubuntu-2404
+            package: ./e2etests/core
+            total: 4
+            index: 0
+            display_index: 1
+          - os: blacksmith-8vcpu-ubuntu-2404
+            package: ./e2etests/core
+            total: 4
+            index: 1
+            display_index: 2
+          - os: blacksmith-8vcpu-ubuntu-2404
+            package: ./e2etests/core
+            total: 4
+            index: 2
+            display_index: 3
+          - os: blacksmith-8vcpu-ubuntu-2404
+            package: ./e2etests/core
+            total: 4
+            index: 3
+            display_index: 4
+          - os: blacksmith-8vcpu-ubuntu-2404
+            package: ./e2etests/cloud
+            total: 1
+            index: 0
+            display_index: 1
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Cache tools (Linux)
+        if: runner.os != 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/bin
+            ~/.cache/go-build
+          key: ${{ runner.os }}-tools-${{ hashFiles('makefiles/_mkconfig.mk', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-tools-
+
+      - name: Cache tools (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/bin
+            ~/Library/Caches/go-build
+          key: ${{ runner.os }}-tools-${{ hashFiles('makefiles/_mkconfig.mk', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-tools-
+
+      - uses: opentofu/setup-opentofu@592200bd4b9bbf4772ace78f887668b1aee8f716 # pin@v1.0.5
+        with:
+          tofu_version: 1.6.2
+          tofu_wrapper: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # pin@v3
+        with:
+          terraform_version: "1.7.5"
+          terraform_wrapper: false
+
+      - name: Install Terragrunt
+        uses: gruntwork-io/terragrunt-action@95fc057922e3c3d4cc021a81a213f088f333ddef # pin@v3.0.2
+        with:
+          tg_version: "0.88.0"
+          tf_path: "/usr/local/bin/terraform"
+
+      - name: Install Terramate
+        uses: terramate-io/terramate-action@b733b79e37eda5caba8703a75b522e9053d0846e # pin@i4k-fix-macos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build Terramate
+        run: make build && cp -v ./bin/terramate /usr/local/bin/terramate-bin
+
+      - name: make generate
+        run: make generate
+
+      - name: Split tests for this runner
+        id: test-split
+        uses: hashicorp-forge/go-test-split-action@v2.0.0
+        with:
+          packages: ${{ matrix.package }}
+          total: ${{ matrix.total }}
+          index: ${{ matrix.index }}
+
+      - name: Run e2e tests
+        if: steps.test-split.outputs.run != ''
+        timeout-minutes: 20
+        run: go test -count=1 -timeout=15m -run "${{ steps.test-split.outputs.run }}" ${{ matrix.package }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+
   build_test:
     name: Build and Test
     runs-on: ${{ matrix.os.value }}
@@ -25,9 +184,15 @@ jobs:
       matrix:
         os:
           - name: ubuntu
-            value: "blacksmith-4vcpu-ubuntu-2404"
-          - name: macos-ventura
-            value: "macos-13"
+            value: "blacksmith-8vcpu-ubuntu-2404"
+            # Linux Blacksmith: 8 CPUs, 16 GB RAM
+            go_fast_parallel: 10 # 1.25x CPU for I/O-bound tests
+            go_race_parallel: 8 # Match CPU count
+          - name: macos-latest
+            value: "macos-latest"
+            # macOS M1: 3 CPUs, 7 GB RAM
+            go_fast_parallel: 3 # Match CPU (conservative due to low RAM)
+            go_race_parallel: 2 # Below CPU (memory-intensive)
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
@@ -98,34 +263,28 @@ jobs:
 
       ### Run the Terramate tests and create a Cloud deployment
 
-      - name: Run Terraform deployment on changed packages
+      - name: Run fast tests on changed packages
         if: ${{ steps.list_go_packages.outputs.stdout }}
-        timeout-minutes: 30
-        run: terramate script run --changed --git-change-base HEAD^ --tags golang --continue-on-error --target ${{ matrix.os.name }}-go-packages --parallel 12 deploy
+        timeout-minutes: 20
+        run: terramate script run --changed --git-change-base HEAD^ --tags golang --continue-on-error --target ${{ matrix.os.name }}-go-packages --parallel ${{ matrix.os.go_fast_parallel }} deploy-fast
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
 
-      - name: Run all e2e tests if any Go packages changed
+      - name: Run race detector tests on changed packages
         if: ${{ steps.list_go_packages.outputs.stdout }}
         timeout-minutes: 30
-        run: terramate script run --tags e2etests --target ${{ matrix.os.name }}-e2e --parallel 12 deploy
+        run: terramate script run --changed --git-change-base HEAD^ --tags golang --continue-on-error --target ${{ matrix.os.name }}-go-packages --parallel ${{ matrix.os.go_race_parallel }} deploy-race
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
 
-      - name: Else only run the changed e2e packages
-        if: ${{ !steps.list_e2e_packages.outputs.stdout && steps.list_e2e_packages.outputs.stdout }}
-        timeout-minutes: 30
-        run: terramate script run --tags e2etests --changed --git-change-base HEAD^ --target "${{ matrix.os.name }}-e2e" --parallel 12 deploy
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"
+      # Note: E2E tests now run via the dynamic matrix in the e2e-tests job above
 
   release_dry_run:
     name: Release Dry Run
 
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
@@ -179,7 +338,8 @@ jobs:
           cosign verify-blob --key cosign.pub --signature ${{ env.SIGNATURE_FILE }} ${{ env.CHECKSUM_FILE }}
   ci:
     needs:
+      - e2e-tests
       - build_test
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - run: echo "All jobs ran successfully"

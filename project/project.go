@@ -122,6 +122,10 @@ func PrjAbsPath(root, abspath string) Path {
 	if !filepath.IsAbs(abspath) {
 		panic(fmt.Errorf("path %q is not absolute", abspath))
 	}
+	// Normalize paths to use OS-specific separators for comparison
+	root = filepath.Clean(root)
+	abspath = filepath.Clean(abspath)
+	
 	if root == abspath {
 		return NewPath("/")
 	}

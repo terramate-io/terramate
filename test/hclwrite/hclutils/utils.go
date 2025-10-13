@@ -50,7 +50,12 @@ func Output(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 
 // Command is a helper for a "command" attribute.
 func Command(args ...string) hclwrite.BlockBuilder {
-	expr := `["` + strings.Join(args, `","`) + `"]`
+	// Escape backslashes in arguments for Windows paths
+	escapedArgs := make([]string, len(args))
+	for i, arg := range args {
+		escapedArgs[i] = strings.ReplaceAll(arg, `\`, `\\`)
+	}
+	expr := `["` + strings.Join(escapedArgs, `","`) + `"]`
 	return Expr("command", expr)
 }
 

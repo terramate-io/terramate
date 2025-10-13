@@ -74,6 +74,15 @@ func StackPath(triggerFile project.Path) (project.Path, bool) {
 
 	stackPath := strings.TrimPrefix(triggerFile.String(), triggersPrefix)
 	stackPath = path.Dir(stackPath)
+	
+	// Ensure the stack path is absolute. path.Dir() can return "." for certain inputs
+	// like empty strings, which would cause project.NewPath to panic.
+	if stackPath == "." || stackPath == "" {
+		stackPath = "/"
+	} else if !path.IsAbs(stackPath) {
+		stackPath = "/" + stackPath
+	}
+	
 	return project.NewPath(stackPath), true
 }
 

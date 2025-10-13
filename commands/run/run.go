@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -337,7 +338,9 @@ func (s *Spec) evalRunArgs(st *config.Stack, target string, cmd []string) ([]str
 	}
 	var newargs []string
 	for _, arg := range cmd {
-		exprStr := `"` + arg + `"`
+		// Escape backslashes for HCL string parsing (important for Windows paths)
+		escapedArg := strings.ReplaceAll(arg, `\`, `\\`)
+		exprStr := `"` + escapedArg + `"`
 		expr, err := ast.ParseExpression(exprStr, "<cmd arg>")
 		if err != nil {
 			return nil, errors.E(err, "parsing %s", exprStr)

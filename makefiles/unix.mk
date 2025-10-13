@@ -40,6 +40,20 @@ test: test/helper build
 # 	Using `terramate` because it detects and fails if the generated files are outdated.
 	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -timeout 30m ./... || ./bin/helper rm $(tempdir)
 
+## test code (fast, without race detector)
+.PHONY: test/fast
+tempdir=$(shell ./bin/helper tempdir)
+test/fast: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -count=1 -timeout 15m ./... || ./bin/helper rm $(tempdir)
+
+## test code (race detector only)
+.PHONY: test/race
+tempdir=$(shell ./bin/helper tempdir)
+test/race: test/helper build
+# 	Using `terramate` because it detects and fails if the generated files are outdated.
+	TM_TEST_ROOT_TEMPDIR=$(tempdir) ./bin/terramate run --no-recursive -- go test -race -count=1 -timeout 30m ./... || ./bin/helper rm $(tempdir)
+
 ## test/sync code
 .PHONY: test/sync
 tempdir=$(shell ./bin/helper tempdir)
