@@ -28,6 +28,8 @@ type Spec struct {
 	Tags          []string
 	NoTags        []string
 	Printers      printer.Printers
+
+	engine.DependencyFilters
 }
 
 // StatusFilters contains the status filters for the list command.
@@ -88,6 +90,12 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 	for i, entry := range filteredStacks {
 		stacks[i] = entry.Stack.Sortable()
 		reasons[entry.Stack.ID] = entry.Reason
+	}
+
+	// Apply dependency filters
+	stacks, err = s.Engine.ApplyDependencyFilters(s.DependencyFilters, stacks, s.Target)
+	if err != nil {
+		return err
 	}
 
 	if s.RunOrder {

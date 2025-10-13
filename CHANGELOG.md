@@ -20,15 +20,28 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## v0.15.0
+## Unreleased
 
 ### Changed
 
 - (**BREAKING CHANGE**) Upgraded Terragrunt dependency from v0.55.21 to v0.82.0. This major version jump may introduce breaking changes in Terragrunt integration, particularly around configuration parsing and hook execution behavior.
+- Deprecated `--include-output-dependencies` and `--only-output-dependencies` flags in favor of the new, more comprehensive dependency management flags
 
 ### Added
 
 - Allow tags to start with numbers.
+- Add new CLI flags for dependency management in `list`, `run`, and `script run` commands:
+  - `--include-all-dependencies`: Add all stacks that the selected stacks depend on (direct + transitive) to the selection
+  - `--include-direct-dependencies`: Add stacks that the selected stacks directly depend on to the selection
+  - `--include-all-dependents`: Add all stacks that depend on the selected stacks (direct + transitive) to the selection
+  - `--include-direct-dependents`: Add stacks that directly depend on the selected stacks to the selection
+  - `--only-all-dependencies`: Replace selection with only all stacks that the selected stacks depend on (direct + transitive)
+  - `--only-direct-dependencies`: Replace selection with only stacks that the selected stacks directly depend on
+  - `--only-all-dependents`: Replace selection with only stacks that depend on the selected stacks (direct + transitive)
+  - `--only-direct-dependents`: Replace selection with only stacks that directly depend on the selected stacks
+  - `--exclude-all-dependencies`: Remove all stacks that the selected stacks depend on from the selection
+  - `--exclude-all-dependents`: Remove all dependent stacks from the selection
+  - Support for both Terragrunt and Terramate dependencies in the new dependency flags
 
 ### Fixed
 

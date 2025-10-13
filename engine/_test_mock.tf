@@ -22,7 +22,7 @@ type GitFilter struct{ ... }
 type Hooks struct{ ... }
 type LogSyncCondition func(task StackRunTask, run StackRun) bool
 type LogSyncer func(logger *zerolog.Logger, e *Engine, run StackRun, logs cloud.CommandLogs)
-type OutputsSharingOptions struct{ ... }
+type DependencyFilters struct{ ... }
 type Project struct{ ... }
     func NewProject(wd string) (prj *Project, found bool, err error)
 type RunAfterHook func(engine *Engine, run StackCloudRun, res RunResult, err error)

@@ -34,7 +34,7 @@ type (
 		Path       project.Path  `json:"path"`
 		Source     string        `json:"source"`
 		ConfigFile project.Path  `json:"config"`
-		After      project.Paths `json:"after,omitempty"`
+		After      project.Paths `json:"after"`
 
 		// DependsOn are paths that, when changed, must mark the module as changed.
 		DependsOn project.Paths `json:"depends_on,omitempty"`
@@ -231,6 +231,9 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 			depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
 
 			dependsOn[depProjectPath] = struct{}{}
+
+			// Also add to After for execution ordering
+			mod.After = append(mod.After, depProjectPath)
 		}
 	}
 
@@ -265,6 +268,23 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 		}
 		mod.After.Sort()
 	}
+
+	// Deduplicate After field to remove any duplicates that might have been added
+	// from both dependency blocks and dependencies.paths
+	if len(mod.After) > 0 {
+		seen := make(map[string]bool)
+		uniqueAfter := make(project.Paths, 0, len(mod.After))
+		for _, path := range mod.After {
+			pathStr := path.String()
+			if !seen[pathStr] {
+				seen[pathStr] = true
+				uniqueAfter = append(uniqueAfter, path)
+			}
+		}
+		mod.After = uniqueAfter
+		mod.After.Sort()
+	}
+
 	sort.Slice(mod.DependsOn, func(i, j int) bool {
 		return mod.DependsOn[i].String() < mod.DependsOn[j].String()
 	})
