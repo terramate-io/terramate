@@ -63,6 +63,34 @@ func TestDocumentOpenWithoutRootConfig(t *testing.T) {
 		params.URI.Filename())
 }
 
+func TestDocumentClose(t *testing.T) {
+	t.Parallel()
+	f := lstest.Setup(t)
+
+	f.Sandbox.CreateStack("stack")
+	f.Editor.CheckInitialize(f.Sandbox.RootDir())
+
+	filePath := fmt.Sprintf("stack/%s", stackpkg.DefaultFilename)
+	f.Editor.Open(filePath)
+
+	// Wait for diagnostics from open
+	<-f.Editor.Requests
+
+	// Close the document
+	f.Editor.Close(filePath)
+
+	// Give the server a moment to process the close notification
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify no additional requests (didClose is a notification, no response expected)
+	select {
+	case req := <-f.Editor.Requests:
+		t.Fatalf("unexpected request after close: %s", req.Method())
+	case <-time.After(100 * time.Millisecond):
+		// Expected: no requests after close
+	}
+}
+
 func TestDocumentRegressionErrorLoadingRootConfig(t *testing.T) {
 	t.Parallel()
 	f := lstest.Setup(t)
