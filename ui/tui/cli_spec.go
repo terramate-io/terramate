@@ -116,7 +116,7 @@ type FlagSpec struct {
 		IgnoreChange bool   `default:"false" help:"Trigger stacks to be ignored by change detection"`
 		Reason       string `default:"" name:"reason" help:"Set a reason for triggering the stack."`
 		cloudFilterFlags
-	} `cmd:"" hidden:""  help:"Mark a stack as changed so it will be triggered in Change Detection. (DEPRECATED)"`
+	} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 	Experimental struct {
 		Clone struct {
