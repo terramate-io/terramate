@@ -26,7 +26,7 @@ func TestCLIArgs(t *testing.T) {
 
 	AssertRunResult(t, cli.Run("--version"), RunExpected{
 		Status: 0,
-		Stdout: terramate.Version() + "\n",
+		Stdout: "terramate " + terramate.Version() + "\n",
 	})
 
 	AssertRunResult(t, cli.Run("--version", "list"), RunExpected{
