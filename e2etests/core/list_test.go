@@ -169,14 +169,6 @@ func listTestcases() []testcase {
 			},
 		},
 		{
-			name:   "invalid stack.tags - starting with number - fails+",
-			layout: []string{`s:stack:tags=["123abc"]`},
-			want: RunExpected{
-				StderrRegex: string(config.ErrStackInvalidTag),
-				Status:      1,
-			},
-		},
-		{
 			name:   "invalid stack.tags - starting with uppercase - fails",
 			layout: []string{`s:stack:tags=["Abc"]`},
 			want: RunExpected{
@@ -222,6 +214,14 @@ func listTestcases() []testcase {
 			want: RunExpected{
 				StderrRegex: string(config.ErrStackInvalidTag),
 				Status:      1,
+			},
+		},
+		{
+			name:       "stack.tags starting with number - works",
+			layout:     []string{`s:stack:tags=["123abc"]`},
+			filterTags: []string{"123abc"},
+			want: RunExpected{
+				Stdout: nljoin("stack"),
 			},
 		},
 		{
