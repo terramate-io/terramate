@@ -14,17 +14,17 @@ func Validate(tag string) error {
 	for i, r := range tag {
 		switch i {
 		case 0:
-			if !isLowerAlpha(r) {
+			if !isLowerAlnum(r) {
 				return errors.E(
 					ErrInvalidTag,
-					"%q: tags must start with lowercase alphabetic character ([a-z])",
+					"%q: tags must start with lowercase alphanumeric ([0-9a-z])",
 					tag)
 			}
 		case len(tag) - 1: // last rune
 			if !isLowerAlnum(r) {
 				return errors.E(
 					ErrInvalidTag,
-					"%q: tags must end with lowercase alphanumeric ([0-9a-z]+)",
+					"%q: tags must end with lowercase alphanumeric ([0-9a-z])",
 					tag)
 			}
 		default:

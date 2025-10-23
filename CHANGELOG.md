@@ -26,6 +26,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - (**BREAKING CHANGE**) Upgraded Terragrunt dependency from v0.55.21 to v0.82.0. This major version jump may introduce breaking changes in Terragrunt integration, particularly around configuration parsing and hook execution behavior.
 
+### Added
+
+- Allow tags to start with numbers.
+
 ### Fixed
 
 - Fix invalid Terragrunt argument errors on Terraform hooks that use conditional "if" logic. The upgrade to Terragrunt v0.82.0 resolves issues with hook execution behavior.
