@@ -25,7 +25,7 @@ jobs:
       matrix:
         os:
           - name: ubuntu
-            value: "ubuntu-24.04"
+            value: "blacksmith-4vcpu-ubuntu-2404"
           - name: macos-ventura
             value: "macos-13"
 
@@ -125,7 +125,7 @@ jobs:
   release_dry_run:
     name: Release Dry Run
 
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
@@ -180,6 +180,6 @@ jobs:
   ci:
     needs:
       - build_test
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - run: echo "All jobs ran successfully"
