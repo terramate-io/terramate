@@ -239,6 +239,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix `terramate cloud login --github` when the Github email is not verified but the associated Firebase account is verified.
 
+### Added
+
+- Add `--format` option to `terramate list --run-order` command. This option allows to format the output of the command as either `json` or `text` (current default). The json format is useful for automation and scripting as it groups the stacks by run order level.
+
 ## v0.12.0
 
 ### Added
