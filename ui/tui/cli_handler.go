@@ -322,6 +322,8 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			tel.StringFlag("filter-deployment-status", parsedArgs.List.DeploymentStatus),
 			tel.StringFlag("filter-target", parsedArgs.List.Target),
 			tel.BoolFlag("run-order", parsedArgs.List.RunOrder),
+			tel.StringFlag("format", parsedArgs.List.Format),
+			tel.StringFlag("label", parsedArgs.List.Label),
 		)
 		expStatus := parsedArgs.List.ExperimentalStatus
 		cloudStatus := parsedArgs.List.Status
@@ -355,8 +357,11 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 				DriftStatus:      parsedArgs.List.DriftStatus,
 			},
 			RunOrder: parsedArgs.List.RunOrder,
+			Format:   parsedArgs.List.Format,
+			Label:    parsedArgs.List.Label,
 			Tags:     parsedArgs.Tags,
 			NoTags:   parsedArgs.NoTags,
+			Printers: c.printers,
 		}, true, false, nil
 
 	case "generate":
