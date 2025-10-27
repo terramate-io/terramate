@@ -7,17 +7,41 @@ on:
     paths:
       - go.mod
       - go.sum
-      - '**.go'
-      - '!**_test.go'
-      - '!cloud/testserver/**'
-      - '**_bench_test.go'
+      - "**.go"
+      - "!cloud/testserver/**"
+      - .github/workflows/benchmark.yml
 
 permissions:
   pull-requests: write
 
 jobs:
-  benchmarks:
+  discover:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      packages: ${{ steps.find-packages.outputs.packages }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          fetch-depth: 0
+
+      - name: Find benchmark packages
+        id: find-packages
+        run: |
+          # Find all packages containing benchmark functions (not just files named *_bench_test.go)
+          packages=$( (grep -r --include='*_test.go' -l '^func Benchmark' . || true) | xargs -r dirname | sed 's|^\./||' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))' )
+          echo "packages=${packages}" >> $GITHUB_OUTPUT
+          echo "Found packages: ${packages}"
+
+  benchmarks:
+    needs: discover
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.discover.outputs.packages) }}
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
@@ -28,13 +52,54 @@ jobs:
 
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
+
+      - name: Set artifact name
+        id: artifact
+        run: |
+          # Replace / with - for artifact name compatibility
+          artifact_name=$(echo "${{ matrix.package }}" | tr '/' '-')
+          echo "name=benchmark-${artifact_name}" >> $GITHUB_OUTPUT
 
       - name: run benchcheck
         id: benchmark
         run: |
+          result=$(make bench/check 'pkg=./${{ matrix.package }}' 'parallel=1' 'new=${{ github.event.pull_request.head.sha }}' 'old=${{ github.event.pull_request.base.sha }}')
+          echo "$result"
+          echo "## Package: ${{ matrix.package }}" > benchmark-result.txt
+          echo "$result" >> benchmark-result.txt
+
+      - name: Upload benchmark result
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # pin@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: benchmark-result.txt
+          retention-days: 1
+
+  report:
+    needs: [discover, benchmarks]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: always() && needs.benchmarks.result != 'skipped'
+
+    steps:
+      - name: Download all benchmark results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # pin@v4
+        continue-on-error: true
+        with:
+          path: benchmark-results
+          pattern: benchmark-*
+
+      - name: Combine results
+        id: combine
+        run: |
           echo "result<<EOF" >> $GITHUB_OUTPUT
-          echo "$(make bench/check 'new=${{ github.event.pull_request.head.sha }}' 'old=${{ github.event.pull_request.base.ref }}')" >> $GITHUB_OUTPUT
+          # Sort and combine all benchmark result files
+          find benchmark-results -name 'benchmark-result.txt' -type f | sort | while read -r result_file; do
+            cat "$result_file" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "---" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+          done
           echo "EOF" >> $GITHUB_OUTPUT
 
       - uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # pin@v2
@@ -42,5 +107,5 @@ jobs:
           header: benchmark
           message: |
             ```
-            ${{ steps.benchmark.outputs.result }}
+            ${{ steps.combine.outputs.result }}
             ```
