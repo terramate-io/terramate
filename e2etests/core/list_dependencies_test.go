@@ -17,11 +17,49 @@ func TestListIncludeAllDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
-		`s:stack-d:after=["/stack-c"]`,
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d`,
 	})
+
+	// Create data dependencies using input.from_stack_id
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_c"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-c"),
+		),
+	).String())
+
 	s.Git().CommitAll("initial commit")
 	s.Git().Push("main")
 	s.Git().CheckoutNew("test-branch")
@@ -51,11 +89,41 @@ func TestListOnlyAllDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 		`s:stack-d`,
 	})
+
+	// Create data dependencies using input.from_stack_id
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -71,11 +139,49 @@ func TestListIncludeDirectDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-a"]`,
-		`s:stack-d:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d`,
 	})
+
+	// Create data dependencies: b→a, c→a, d→b
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -91,11 +197,49 @@ func TestListOnlyDirectDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-a"]`,
-		`s:stack-d:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d`,
 	})
+
+	// Create data dependencies: b→a, c→a, d→b
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -111,10 +255,40 @@ func TestListIncludeDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"];tags=["leaf"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c;tags=["leaf"]`,
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -130,10 +304,40 @@ func TestListOnlyDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"];tags=["leaf"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c;tags=["leaf"]`,
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -149,11 +353,41 @@ func TestListExcludeDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 		"s:stack-d",
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -169,11 +403,41 @@ func TestListExcludeDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 		"s:stack-d",
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -189,6 +453,13 @@ func TestListDependenciesWithOutputSharing(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		`f:terramate.tm:` + Terramate(
 			Config(
 				Experiments(hcl.SharingIsCaringExperimentName),
@@ -245,10 +516,41 @@ func TestListDependenciesWithChangedStacks(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["changed-test"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["changed-test"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+
 	s.Git().CommitAll("initial commit")
 	s.Git().Push("main")
 	s.Git().CheckoutNew("test-branch")
@@ -284,11 +586,47 @@ func TestListDependenciesMultipleDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:tags=["base"]`,
-		`s:stack-c:after=["/stack-a", "/stack-b"];tags=["leaf"]`,
-		`s:stack-d:after=["/stack-c"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b;tags=["base"]`,
+		`s:stack-c:id=stack-c;tags=["leaf"]`,
+		`s:stack-d:id=stack-d`,
 	})
+
+	// Create data dependencies: c→a, c→b, d→c
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_c"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-c"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -310,6 +648,13 @@ func TestListDeprecatedOutputDependenciesFlags(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		`f:terramate.tm:` + Terramate(
 			Config(
 				Experiments(hcl.SharingIsCaringExperimentName),
@@ -364,6 +709,13 @@ func TestListDeprecatedOutputDependenciesWarnings(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		`f:terramate.tm:` + Terramate(
 			Config(
 				Experiments(hcl.SharingIsCaringExperimentName),
@@ -419,10 +771,40 @@ func TestListDependentsWithTags(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["app"]`,
-		`s:stack-b:after=["/stack-a"];tags=["db"]`,
-		`s:stack-c:after=["/stack-b"];tags=["app"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["app"]`,
+		`s:stack-b:id=stack-b;tags=["db"]`,
+		`s:stack-c:id=stack-c;tags=["app"]`,
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -438,12 +820,50 @@ func TestListCombinedFiltersOnlyWithExclude(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
-		`s:stack-d:after=["/stack-c"];tags=["leaf"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d;tags=["leaf"]`,
 		"s:stack-e",
 	})
+
+	// Create data dependencies: d→c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_c"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-c"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -465,12 +885,50 @@ func TestListCombinedFiltersIncludeWithExclude(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
-		`s:stack-d:after=["/stack-c"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d`,
 		"s:stack-e",
 	})
+
+	// Create data dependencies: d→c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_c"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-c"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -493,12 +951,50 @@ func TestListCombinedFiltersOnlyDependentsWithExclude(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
-		`s:stack-d:after=["/stack-b"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d`,
 		"s:stack-e",
 	})
+
+	// Create data dependencies: c→b→a, d→b
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -520,12 +1016,50 @@ func TestListCombinedFiltersIncludeDependenciesWithExcludeDependents(t *testing.
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"];tags=["mid"]`,
-		`s:stack-d:after=["/stack-c"]`,
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c;tags=["mid"]`,
+		`s:stack-d:id=stack-d`,
 		"s:stack-e",
 	})
+
+	// Create data dependencies: d→c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_c"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-c"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -547,12 +1081,41 @@ func TestListCombinedFiltersMultipleIncludes(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"];tags=["middle"]`,
-		`s:stack-c:after=["/stack-b"]`,
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b;tags=["middle"]`,
+		`s:stack-c:id=stack-c`,
 		"s:stack-x",
-		`s:stack-y:after=["/stack-x"]`,
+		"s:stack-y",
 	})
+
+	// Create data dependencies: c→b→a, y→x
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -569,10 +1132,39 @@ func TestListExcludeFiltersWithNoSelection(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 	})
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
+		),
+	).String())
 
 	cli := NewCLI(t, s.RootDir())
 
@@ -585,5 +1177,58 @@ func TestListExcludeFiltersWithNoSelection(t *testing.T) {
 	res := cli.Run("list", "--only-all-dependencies", "--exclude-all-dependents")
 	AssertRunResult(t, res, RunExpected{
 		Stdout: nljoin("stack-a"),
+	})
+}
+
+func TestListNativeAfterDoesNotWidenScope(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		"s:stack-a",
+		`s:stack-b:after=["/stack-a"]`,
+		`s:stack-c:after=["/stack-b"];tags=["leaf"]`,
+	})
+	s.Git().CommitAll("init stacks")
+	s.Git().Push("main")
+	s.Git().CheckoutNew("test-branch")
+
+	// Change stack-c
+	s.RootEntry().CreateFile("stack-c/test.txt", "change")
+	s.Git().Add("stack-c/test.txt")
+	s.Git().Commit("change stack-c")
+
+	cli := NewCLI(t, s.RootDir())
+
+	// First, check what --changed returns without any dependency flags
+	res := cli.Run("list", "--changed")
+	AssertRunResult(t, res, RunExpected{
+		Stdout: nljoin("stack-c"),
+	})
+
+	// NEGATIVE TEST: native after should NOT widen scope
+	// With --include-all-dependencies on changed stack-c, we should only get stack-c itself
+	// because after is for ordering only, not data dependencies
+	res = cli.Run("list", "--changed", "--include-all-dependencies")
+	AssertRunResult(t, res, RunExpected{
+		Stdout: nljoin("stack-c"),
+	})
+
+	// Also test with tag selection
+	res = cli.Run("list", "--tags", "leaf", "--include-all-dependencies")
+	AssertRunResult(t, res, RunExpected{
+		Stdout: nljoin("stack-c"),
 	})
 }

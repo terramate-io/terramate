@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/hcl"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -16,6 +17,17 @@ func TestRunTerragruntIncludeAllDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		"f:terragrunt.hcl:" + Doc(
 			Block("terraform"),
 		).String(),
@@ -36,8 +48,9 @@ func TestRunTerragruntIncludeAllDependents(t *testing.T) {
 				Labels("root"),
 				Expr("path", `find_in_parent_folders()`),
 			),
-			Block("dependencies",
-				Expr("paths", `["../stack-a"]`),
+			Block("dependency",
+				Labels("stack_a"),
+				Str("config_path", "../stack-a"),
 			),
 		).String(),
 		"f:stack-c/terragrunt.hcl:" + Doc(
@@ -48,8 +61,9 @@ func TestRunTerragruntIncludeAllDependents(t *testing.T) {
 				Labels("root"),
 				Expr("path", `find_in_parent_folders()`),
 			),
-			Block("dependencies",
-				Expr("paths", `["../stack-b"]`),
+			Block("dependency",
+				Labels("stack_b"),
+				Str("config_path", "../stack-b"),
 			),
 		).String(),
 	})
@@ -60,7 +74,12 @@ func TestRunTerragruntIncludeAllDependents(t *testing.T) {
 		IgnoreStdout: true,
 	})
 
+	// Generate code with the dynamically added inputs
+	s.Generate()
+
 	s.Git().CommitAll("init stacks")
+	s.Git().Push("main")
+	s.Git().CheckoutNew("test-branch")
 
 	// Change stack-a to select it
 	s.RootEntry().CreateFile("stack-a/test.txt", "change")
@@ -84,6 +103,17 @@ func TestRunTerragruntOnlyAllDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		"f:terragrunt.hcl:" + Doc(
 			Block("terraform"),
 		).String(),
@@ -96,8 +126,9 @@ func TestRunTerragruntOnlyAllDependents(t *testing.T) {
 			Block("terraform",
 				Str("source", "github.com/example/module"),
 			),
-			Block("dependencies",
-				Expr("paths", `["../stack-a"]`),
+			Block("dependency",
+				Labels("stack_a"),
+				Str("config_path", "../stack-a"),
 			),
 		).String(),
 	})
@@ -106,7 +137,13 @@ func TestRunTerragruntOnlyAllDependents(t *testing.T) {
 	AssertRunResult(t, cli.Run("create", "--all-terragrunt"), RunExpected{
 		IgnoreStdout: true,
 	})
+
+	// Generate code with the dynamically added inputs
+	s.Generate()
+
 	s.Git().CommitAll("init stacks")
+	s.Git().Push("main")
+	s.Git().CheckoutNew("test-branch")
 
 	// Change stack-a
 	s.RootEntry().CreateFile("stack-a/test.txt", "change")
@@ -128,6 +165,17 @@ func TestRunTerragruntIncludeDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		"f:terragrunt.hcl:" + Doc(
 			Block("terraform"),
 		).String(),
@@ -159,6 +207,8 @@ func TestRunTerragruntIncludeDependencies(t *testing.T) {
 		IgnoreStdout: true,
 	})
 	s.Git().CommitAll("init stacks")
+	s.Git().Push("main")
+	s.Git().CheckoutNew("test-branch")
 
 	// Change stack-c
 	s.RootEntry().CreateFile("stack-c/test.txt", "change")
@@ -166,12 +216,11 @@ func TestRunTerragruntIncludeDependencies(t *testing.T) {
 	s.Git().Commit("change stack-c")
 
 	// Run on changed stacks with dependencies
+	// After our fix, dependencies.paths should NOT widen scope, so we should only run stack-c
 	res := cli.Run("run", "--changed", "--include-all-dependencies", "--", "echo", "executed")
 	AssertRunResult(t, res, RunExpected{
-		Stdout: "executed\nexecuted\nexecuted\n",
+		Stdout: "executed\n",
 		StderrRegexes: []string{
-			`Entering stack in /stack-a`,
-			`Entering stack in /stack-b`,
 			`Entering stack in /stack-c`,
 		},
 	})
@@ -182,6 +231,17 @@ func TestRunTerragruntOnlyDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
 		"f:terragrunt.hcl:" + Doc(
 			Block("terraform"),
 		).String(),
@@ -205,6 +265,8 @@ func TestRunTerragruntOnlyDependencies(t *testing.T) {
 		IgnoreStdout: true,
 	})
 	s.Git().CommitAll("init stacks")
+	s.Git().Push("main")
+	s.Git().CheckoutNew("test-branch")
 
 	// Change stack-b
 	s.RootEntry().CreateFile("stack-b/test.txt", "change")
@@ -212,11 +274,10 @@ func TestRunTerragruntOnlyDependencies(t *testing.T) {
 	s.Git().Commit("change stack-b")
 
 	// Run only on dependencies (not the changed stack itself)
+	// After our fix, dependencies.paths should NOT widen scope, so we should get no stacks
 	res := cli.Run("run", "--changed", "--only-all-dependencies", "--", "echo", "executed")
 	AssertRunResult(t, res, RunExpected{
-		Stdout: "executed\n",
-		StderrRegexes: []string{
-			`Entering stack in /stack-a`,
-		},
+		Stdout:        "",
+		StderrRegexes: []string{},
 	})
 }

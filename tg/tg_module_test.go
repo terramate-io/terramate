@@ -221,6 +221,10 @@ func TestTerragruntScanModules(t *testing.T) {
 							project.NewPath("/some/other/dir"),
 							project.NewPath("/some/other2/dir"),
 						},
+						DependencyBlocks: project.Paths{
+							project.NewPath("/some/other/dir"),
+							project.NewPath("/some/other2/dir"),
+						},
 					},
 					{
 						Path:       project.NewPath("/some/other/dir"),
@@ -606,6 +610,10 @@ func TestTerragruntScanModules(t *testing.T) {
 							project.NewPath("/some/other/dir"),
 							project.NewPath("/some/other2/dir"),
 						},
+						DependencyBlocks: project.Paths{
+							project.NewPath("/some/other/dir"),
+							project.NewPath("/some/other2/dir"),
+						},
 					},
 					{
 						Path:       project.NewPath("/some/other/dir"),
@@ -690,6 +698,9 @@ func TestTerragruntScanModules(t *testing.T) {
 						DependsOn: project.Paths{
 							project.NewPath("/terragrunt/dev/a1/b1"),
 						},
+						DependencyBlocks: project.Paths{
+							project.NewPath("/terragrunt/dev/a1/b1"),
+						},
 					},
 					{
 						Path:       project.NewPath("/terragrunt/dev/a2/b2/c2_2"),
@@ -700,6 +711,9 @@ func TestTerragruntScanModules(t *testing.T) {
 							project.NewPath("/terragrunt/dev/a2/b2/c2_3"),
 						},
 						DependsOn: project.Paths{
+							project.NewPath("/terragrunt/dev/a2/b2/c2_3"),
+						},
+						DependencyBlocks: project.Paths{
 							project.NewPath("/terragrunt/dev/a2/b2/c2_3"),
 						},
 					},
@@ -882,6 +896,11 @@ func TestTerragruntScanModules(t *testing.T) {
 							project.NewPath("/prod/eks"),
 						},
 						After: project.Paths{
+							project.NewPath("/dev1/eks"),
+							project.NewPath("/preprod/eks"),
+							project.NewPath("/prod/eks"),
+						},
+						DependencyBlocks: project.Paths{
 							project.NewPath("/dev1/eks"),
 							project.NewPath("/preprod/eks"),
 							project.NewPath("/prod/eks"),

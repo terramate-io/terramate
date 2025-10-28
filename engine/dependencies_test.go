@@ -45,7 +45,9 @@ func TestDependencyGraphConstruction(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name: "simple linear dependencies via stack.after",
+			// NOTE: stack.after does NOT create data dependencies, only ordering dependencies
+			// For testing data dependencies, we need to use input.from_stack_id (tested in TestDependencyGraphWithOutputSharing)
+			name: "stack.after does not create data dependencies",
 			layout: []string{
 				"s:stack-a",
 				`s:stack-b:after=["/stack-a"]`,
@@ -53,12 +55,12 @@ func TestDependencyGraphConstruction(t *testing.T) {
 			},
 			want: map[string][]string{
 				"/stack-a": {},
-				"/stack-b": {"/stack-a"},
-				"/stack-c": {"/stack-b"},
+				"/stack-b": {}, // NO dependency on stack-a (after is for ordering only)
+				"/stack-c": {}, // NO dependency on stack-b (after is for ordering only)
 			},
 		},
 		{
-			name: "multiple dependencies",
+			name: "multiple after entries do not create dependencies",
 			layout: []string{
 				"s:stack-a",
 				"s:stack-b",
@@ -67,7 +69,7 @@ func TestDependencyGraphConstruction(t *testing.T) {
 			want: map[string][]string{
 				"/stack-a": {},
 				"/stack-b": {},
-				"/stack-c": {"/stack-a", "/stack-b"},
+				"/stack-c": {}, // NO dependencies (after is for ordering only)
 			},
 		},
 		{
@@ -124,11 +126,61 @@ func TestDependencyGraphTransitiveDependencies(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
-		`s:stack-d:after=["/stack-c"]`,
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		"s:stack-a:id=stack-a",
+		"s:stack-b:id=stack-b",
+		"s:stack-c:id=stack-c",
+		"s:stack-d:id=stack-d",
 	})
+
+	// Set up output sharing: stack-b -> stack-a, stack-c -> stack-b, stack-d -> stack-c
+	s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+		Labels("out_a"),
+		Str("backend", "default"),
+		Expr("value", "a"),
+	).String())
+
+	s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+		Labels("in_a"),
+		Str("backend", "default"),
+		Expr("value", "outputs.out_a.value"),
+		Str("from_stack_id", "stack-a"),
+	).String())
+	s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+		Labels("out_b"),
+		Str("backend", "default"),
+		Expr("value", "b"),
+	).String())
+
+	s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+		Labels("in_b"),
+		Str("backend", "default"),
+		Expr("value", "outputs.out_b.value"),
+		Str("from_stack_id", "stack-b"),
+	).String())
+	s.RootEntry().CreateFile("stack-c/outputs.tm", Block("output",
+		Labels("out_c"),
+		Str("backend", "default"),
+		Expr("value", "c"),
+	).String())
+
+	s.RootEntry().CreateFile("stack-d/inputs.tm", Block("input",
+		Labels("in_c"),
+		Str("backend", "default"),
+		Expr("value", "outputs.out_c.value"),
+		Str("from_stack_id", "stack-c"),
+	).String())
+
 	s.Git().CommitAll("initial commit")
 
 	e := testEngine(t, s.RootDir())
@@ -157,11 +209,56 @@ func TestDependencyGraphDependents(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-a"]`,
-		`s:stack-d:after=["/stack-b"]`,
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+		"s:stack-a:id=stack-a",
+		"s:stack-b:id=stack-b",
+		"s:stack-c:id=stack-c",
+		"s:stack-d:id=stack-d",
 	})
+
+	// Set up output sharing: stack-b -> stack-a, stack-c -> stack-a, stack-d -> stack-b
+	s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+		Labels("out_a"),
+		Str("backend", "default"),
+		Expr("value", "a"),
+	).String())
+
+	s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+		Labels("in_a"),
+		Str("backend", "default"),
+		Expr("value", "outputs.out_a.value"),
+		Str("from_stack_id", "stack-a"),
+	).String())
+	s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+		Labels("out_b"),
+		Str("backend", "default"),
+		Expr("value", "b"),
+	).String())
+
+	s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+		Labels("in_a2"),
+		Str("backend", "default"),
+		Expr("value", "outputs.out_a.value"),
+		Str("from_stack_id", "stack-a"),
+	).String())
+
+	s.RootEntry().CreateFile("stack-d/inputs.tm", Block("input",
+		Labels("in_b"),
+		Str("backend", "default"),
+		Expr("value", "outputs.out_b.value"),
+		Str("from_stack_id", "stack-b"),
+	).String())
+
 	s.Git().CommitAll("initial commit")
 
 	e := testEngine(t, s.RootDir())
@@ -256,9 +353,25 @@ func TestDependencyGraphWithOutputSharing(t *testing.T) {
 func TestApplyDependencyFilters(t *testing.T) {
 	t.Parallel()
 
+	// Common setup for sharing experiment
+	sharingSetup := []string{
+		`f:terramate.tm:` + Terramate(
+			Config(
+				Experiments(hcl.SharingIsCaringExperimentName),
+			),
+		).String(),
+		`f:sharing.tm:` + Block("sharing_backend",
+			Labels("default"),
+			Expr("type", "terraform"),
+			Command("terraform", "output", "-json"),
+			Str("filename", "_sharing.tf"),
+		).String(),
+	}
+
 	type testcase struct {
 		name           string
 		layout         []string
+		setupFunc      func(sandbox.S) // function to set up inputs/outputs
 		filterOpts     engine.DependencyFilters
 		initialStacks  []string // paths of initially selected stacks
 		expectedStacks []string // paths of expected result stacks
@@ -267,10 +380,35 @@ func TestApplyDependencyFilters(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "only-dependencies: replace with dependencies",
-			layout: []string{
-				"s:stack-a",
-				`s:stack-b:after=["/stack-a"]`,
-				`s:stack-c:after=["/stack-b"]`,
+			layout: append(sharingSetup, []string{
+				"s:stack-a:id=stack-a",
+				"s:stack-b:id=stack-b",
+				"s:stack-c:id=stack-c",
+			}...),
+			setupFunc: func(s sandbox.S) {
+				// stack-b depends on stack-a, stack-c depends on stack-b
+				s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+					Labels("out_a"),
+					Str("backend", "default"),
+					Expr("value", "a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+					Labels("in_a"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_a.value"),
+					Str("from_stack_id", "stack-a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+					Labels("out_b"),
+					Str("backend", "default"),
+					Expr("value", "b"),
+				).String())
+				s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+					Labels("in_b"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_b.value"),
+					Str("from_stack_id", "stack-b"),
+				).String())
 			},
 			filterOpts: engine.DependencyFilters{
 				OnlyAllDependencies: true,
@@ -280,10 +418,34 @@ func TestApplyDependencyFilters(t *testing.T) {
 		},
 		{
 			name: "include-dependencies: add dependencies to selection",
-			layout: []string{
-				"s:stack-a",
-				`s:stack-b:after=["/stack-a"]`,
-				`s:stack-c:after=["/stack-b"]`,
+			layout: append(sharingSetup, []string{
+				"s:stack-a:id=stack-a",
+				"s:stack-b:id=stack-b",
+				"s:stack-c:id=stack-c",
+			}...),
+			setupFunc: func(s sandbox.S) {
+				s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+					Labels("out_a"),
+					Str("backend", "default"),
+					Expr("value", "a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+					Labels("in_a"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_a.value"),
+					Str("from_stack_id", "stack-a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+					Labels("out_b"),
+					Str("backend", "default"),
+					Expr("value", "b"),
+				).String())
+				s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+					Labels("in_b"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_b.value"),
+					Str("from_stack_id", "stack-b"),
+				).String())
 			},
 			filterOpts: engine.DependencyFilters{
 				IncludeAllDependencies: true,
@@ -293,10 +455,34 @@ func TestApplyDependencyFilters(t *testing.T) {
 		},
 		{
 			name: "only-direct-dependents: replace with direct dependents",
-			layout: []string{
-				"s:stack-a",
-				`s:stack-b:after=["/stack-a"]`,
-				`s:stack-c:after=["/stack-b"]`,
+			layout: append(sharingSetup, []string{
+				"s:stack-a:id=stack-a",
+				"s:stack-b:id=stack-b",
+				"s:stack-c:id=stack-c",
+			}...),
+			setupFunc: func(s sandbox.S) {
+				s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+					Labels("out_a"),
+					Str("backend", "default"),
+					Expr("value", "a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+					Labels("in_a"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_a.value"),
+					Str("from_stack_id", "stack-a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+					Labels("out_b"),
+					Str("backend", "default"),
+					Expr("value", "b"),
+				).String())
+				s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+					Labels("in_b"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_b.value"),
+					Str("from_stack_id", "stack-b"),
+				).String())
 			},
 			filterOpts: engine.DependencyFilters{
 				OnlyDirectDependents: true,
@@ -306,10 +492,34 @@ func TestApplyDependencyFilters(t *testing.T) {
 		},
 		{
 			name: "only-all-dependents: replace with all dependents",
-			layout: []string{
-				"s:stack-a",
-				`s:stack-b:after=["/stack-a"]`,
-				`s:stack-c:after=["/stack-b"]`,
+			layout: append(sharingSetup, []string{
+				"s:stack-a:id=stack-a",
+				"s:stack-b:id=stack-b",
+				"s:stack-c:id=stack-c",
+			}...),
+			setupFunc: func(s sandbox.S) {
+				s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+					Labels("out_a"),
+					Str("backend", "default"),
+					Expr("value", "a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+					Labels("in_a"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_a.value"),
+					Str("from_stack_id", "stack-a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+					Labels("out_b"),
+					Str("backend", "default"),
+					Expr("value", "b"),
+				).String())
+				s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+					Labels("in_b"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_b.value"),
+					Str("from_stack_id", "stack-b"),
+				).String())
 			},
 			filterOpts: engine.DependencyFilters{
 				OnlyAllDependents: true,
@@ -319,10 +529,34 @@ func TestApplyDependencyFilters(t *testing.T) {
 		},
 		{
 			name: "include-all-dependents: add all dependents to selection",
-			layout: []string{
-				"s:stack-a",
-				`s:stack-b:after=["/stack-a"]`,
-				`s:stack-c:after=["/stack-b"]`,
+			layout: append(sharingSetup, []string{
+				"s:stack-a:id=stack-a",
+				"s:stack-b:id=stack-b",
+				"s:stack-c:id=stack-c",
+			}...),
+			setupFunc: func(s sandbox.S) {
+				s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+					Labels("out_a"),
+					Str("backend", "default"),
+					Expr("value", "a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+					Labels("in_a"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_a.value"),
+					Str("from_stack_id", "stack-a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+					Labels("out_b"),
+					Str("backend", "default"),
+					Expr("value", "b"),
+				).String())
+				s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+					Labels("in_b"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_b.value"),
+					Str("from_stack_id", "stack-b"),
+				).String())
 			},
 			filterOpts: engine.DependencyFilters{
 				IncludeAllDependents: true,
@@ -332,10 +566,34 @@ func TestApplyDependencyFilters(t *testing.T) {
 		},
 		{
 			name: "include-direct-dependents: add direct dependents only",
-			layout: []string{
-				"s:stack-a",
-				`s:stack-b:after=["/stack-a"]`,
-				`s:stack-c:after=["/stack-b"]`,
+			layout: append(sharingSetup, []string{
+				"s:stack-a:id=stack-a",
+				"s:stack-b:id=stack-b",
+				"s:stack-c:id=stack-c",
+			}...),
+			setupFunc: func(s sandbox.S) {
+				s.RootEntry().CreateFile("stack-a/outputs.tm", Block("output",
+					Labels("out_a"),
+					Str("backend", "default"),
+					Expr("value", "a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/inputs.tm", Block("input",
+					Labels("in_a"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_a.value"),
+					Str("from_stack_id", "stack-a"),
+				).String())
+				s.RootEntry().CreateFile("stack-b/outputs.tm", Block("output",
+					Labels("out_b"),
+					Str("backend", "default"),
+					Expr("value", "b"),
+				).String())
+				s.RootEntry().CreateFile("stack-c/inputs.tm", Block("input",
+					Labels("in_b"),
+					Str("backend", "default"),
+					Expr("value", "outputs.out_b.value"),
+					Str("from_stack_id", "stack-b"),
+				).String())
 			},
 			filterOpts: engine.DependencyFilters{
 				IncludeDirectDependents: true,
@@ -349,6 +607,12 @@ func TestApplyDependencyFilters(t *testing.T) {
 			t.Parallel()
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
+
+			// Call setup function if provided
+			if tc.setupFunc != nil {
+				tc.setupFunc(s)
+			}
+
 			s.Git().CommitAll("initial commit")
 
 			e := testEngine(t, s.RootDir())

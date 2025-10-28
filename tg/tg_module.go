@@ -39,6 +39,10 @@ type (
 		// DependsOn are paths that, when changed, must mark the module as changed.
 		DependsOn project.Paths `json:"depends_on,omitempty"`
 
+		// DependencyBlocks are paths from Terragrunt dependency blocks (data dependencies).
+		// These represent actual data dependencies and should widen scope for dependency flags.
+		DependencyBlocks project.Paths `json:"dependency_blocks,omitempty"`
+
 		FilesProcessed map[string]struct{}
 	}
 
@@ -234,6 +238,9 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 			// Also add to After for execution ordering
 			mod.After = append(mod.After, depProjectPath)
+
+			// Track dependency blocks separately for data dependency graph
+			mod.DependencyBlocks = append(mod.DependencyBlocks, depProjectPath)
 		}
 	}
 
@@ -283,6 +290,21 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 		}
 		mod.After = uniqueAfter
 		mod.After.Sort()
+	}
+
+	// Deduplicate DependencyBlocks field
+	if len(mod.DependencyBlocks) > 0 {
+		seen := make(map[string]bool)
+		uniqueDeps := make(project.Paths, 0, len(mod.DependencyBlocks))
+		for _, path := range mod.DependencyBlocks {
+			pathStr := path.String()
+			if !seen[pathStr] {
+				seen[pathStr] = true
+				uniqueDeps = append(uniqueDeps, path)
+			}
+		}
+		mod.DependencyBlocks = uniqueDeps
+		mod.DependencyBlocks.Sort()
 	}
 
 	sort.Slice(mod.DependsOn, func(i, j int) bool {

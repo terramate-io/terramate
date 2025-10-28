@@ -4,8 +4,6 @@
 package engine
 
 import (
-	"path/filepath"
-
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -31,11 +29,13 @@ type DependencyGraph struct {
 }
 
 // NewDependencyGraph creates a new dependency graph from the given stacks.
-// It extracts dependencies from:
-// - stack.After field (Terragrunt dependencies.paths + Terramate native stack.after)
+// It extracts ONLY data dependencies from:
 // - input.from_stack_id (Terramate native output sharing)
-// - Terragrunt dependency blocks (if tgModules is provided)
-func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], tgModules tg.Modules, target string) (*DependencyGraph, error) {
+// - Terragrunt dependency blocks (converted to input.from_stack_id by addTerragruntDependencyInputs)
+//
+// NOTE: stack.After and stack.Before are NOT included because they contain ordering-only
+// dependencies (e.g., Terragrunt dependencies.paths) which should NOT widen scope.
+func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], _ tg.Modules, target string) (*DependencyGraph, error) {
 	logger := log.With().
 		Str("action", "engine.NewDependencyGraph()").
 		Logger()
@@ -56,34 +56,17 @@ func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], t
 		graph.dependents[st.Stack.Dir.String()] = []string{}
 	}
 
-	// Extract dependencies from stack.After field
+	// NOTE: We do NOT extract dependencies from stack.After and stack.Before here
+	// because those fields include ordering-only dependencies (e.g., Terragrunt dependencies.paths)
+	// which should NOT widen scope for --include-all-dependencies flags.
+	//
+	// Data dependencies are extracted from input.from_stack_id below, which are created by:
+	// - Terramate native output sharing (input.from_stack_id)
+	// - Terragrunt dependency blocks (converted to input.from_stack_id by addTerragruntDependencyInputs)
+
+	// Extract dependencies from input.from_stack_id (output sharing)
 	for _, st := range stacks {
 		stackPath := st.Stack.Dir.String()
-
-		// Add dependencies from stack.After (execution order dependencies)
-		for _, afterPath := range st.Stack.After {
-			// afterPath can be relative (../stack) or absolute (/stack)
-			// Convert to absolute project path
-			var normalizedPath string
-			if filepath.IsAbs(afterPath) {
-				// Already a project-absolute path (e.g., "/stack-a")
-				normalizedPath = afterPath
-			} else {
-				// Relative path (e.g., "../stack-a"), resolve relative to current stack
-				absPath := filepath.Join(project.AbsPath(rootcfg.HostDir(), stackPath), afterPath)
-				normalizedPath = project.PrjAbsPath(rootcfg.HostDir(), absPath).String()
-			}
-
-			if !stackPaths[normalizedPath] {
-				// Dependency not in current stack set, skip
-				logger.Debug().
-					Str("stack", stackPath).
-					Str("dependency", normalizedPath).
-					Msg("dependency not in current stack set, skipping")
-				continue
-			}
-			graph.addDependency(stackPath, normalizedPath)
-		}
 
 		// Add dependencies from input.from_stack_id (output sharing)
 		cfg, _ := rootcfg.Lookup(st.Stack.Dir)
@@ -124,45 +107,9 @@ func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], t
 		}
 	}
 
-	// Extract dependencies from Terragrunt dependency blocks
-	if tgModules != nil {
-		for _, st := range stacks {
-			stackPath := st.Stack.Dir.String()
-
-			// Reload the terragrunt module with dependency tracking enabled
-			// The initial load during config parsing has trackDependencies=false
-			trackDeps := true
-			reloadedMod, isRootModule, err := tg.LoadModule(rootcfg.HostDir(), st.Stack.Dir, "terragrunt.hcl", trackDeps)
-			if err != nil {
-				logger.Debug().
-					Err(err).
-					Str("stack", stackPath).
-					Msg("could not reload terragrunt module for dependency blocks")
-				continue
-			}
-
-			if !isRootModule {
-				continue
-			}
-
-			// Process dependencies from the After field (which now includes dependency blocks)
-			for _, depPath := range reloadedMod.After {
-				depPathStr := depPath.String()
-
-				// Check if the dependency is in our current stack set
-				if !stackPaths[depPathStr] {
-					logger.Debug().
-						Str("stack", stackPath).
-						Str("dependency", depPathStr).
-						Msg("terragrunt dependency not in current stack set, skipping")
-					continue
-				}
-
-				// Add the dependency to the graph
-				graph.addDependency(stackPath, depPathStr)
-			}
-		}
-	}
+	// Terragrunt dependency blocks are now handled via input.from_stack_id
+	// which is added during stack loading (see config.Tree.addTerragruntDependencyInputs)
+	// This ensures only data dependencies widen scope, not ordering-only dependencies
 
 	logger.Debug().
 		Int("stacks", len(stacks)).

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "github.com/terramate-io/terramate/e2etests/internal/runner"
+	"github.com/terramate-io/terramate/hcl"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
 )
@@ -16,15 +17,40 @@ func TestScriptRunIncludeAllDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 	})
 
-	// Enable scripts experiment and add a script to all stacks
+	// Enable experiments and add sharing backend
 	s.RootEntry().CreateFile("terramate.tm.hcl", Terramate(
 		Config(
-			Experiments("scripts"),
+			Experiments("scripts", hcl.SharingIsCaringExperimentName),
+		),
+	).String())
+
+	s.RootEntry().CreateFile("sharing.tm", Block("sharing_backend",
+		Labels("default"),
+		Expr("type", "terraform"),
+		Command("terraform", "output", "-json"),
+		Str("filename", "_sharing.tf"),
+	).String())
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
 		),
 	).String())
 
@@ -36,6 +62,7 @@ func TestScriptRunIncludeAllDependents(t *testing.T) {
 		),
 	).String())
 
+	s.Generate()
 	s.Git().CommitAll("initial commit")
 
 	cli := NewCLI(t, s.RootDir())
@@ -57,15 +84,40 @@ func TestScriptRunOnlyAllDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 	})
 
-	// Enable scripts experiment and add a script to all stacks
+	// Enable experiments and add sharing backend
 	s.RootEntry().CreateFile("terramate.tm.hcl", Terramate(
 		Config(
-			Experiments("scripts"),
+			Experiments("scripts", hcl.SharingIsCaringExperimentName),
+		),
+	).String())
+
+	s.RootEntry().CreateFile("sharing.tm", Block("sharing_backend",
+		Labels("default"),
+		Expr("type", "terraform"),
+		Command("terraform", "output", "-json"),
+		Str("filename", "_sharing.tf"),
+	).String())
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
 		),
 	).String())
 
@@ -77,6 +129,7 @@ func TestScriptRunOnlyAllDependents(t *testing.T) {
 		),
 	).String())
 
+	s.Generate()
 	s.Git().CommitAll("initial commit")
 
 	cli := NewCLI(t, s.RootDir())
@@ -97,15 +150,40 @@ func TestScriptRunIncludeAllDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"];tags=["leaf"]`,
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c;tags=["leaf"]`,
 	})
 
-	// Enable scripts experiment and add a script to all stacks
+	// Enable experiments and add sharing backend
 	s.RootEntry().CreateFile("terramate.tm.hcl", Terramate(
 		Config(
-			Experiments("scripts"),
+			Experiments("scripts", hcl.SharingIsCaringExperimentName),
+		),
+	).String())
+
+	s.RootEntry().CreateFile("sharing.tm", Block("sharing_backend",
+		Labels("default"),
+		Expr("type", "terraform"),
+		Command("terraform", "output", "-json"),
+		Str("filename", "_sharing.tf"),
+	).String())
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
 		),
 	).String())
 
@@ -117,6 +195,7 @@ func TestScriptRunIncludeAllDependencies(t *testing.T) {
 		),
 	).String())
 
+	s.Generate()
 	s.Git().CommitAll("initial commit")
 
 	cli := NewCLI(t, s.RootDir())
@@ -138,15 +217,40 @@ func TestScriptRunOnlyAllDependencies(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stack-a",
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"];tags=["leaf"]`,
+		`s:stack-a:id=stack-a`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c;tags=["leaf"]`,
 	})
 
-	// Enable scripts experiment and add a script to all stacks
+	// Enable experiments and add sharing backend
 	s.RootEntry().CreateFile("terramate.tm.hcl", Terramate(
 		Config(
-			Experiments("scripts"),
+			Experiments("scripts", hcl.SharingIsCaringExperimentName),
+		),
+	).String())
+
+	s.RootEntry().CreateFile("sharing.tm", Block("sharing_backend",
+		Labels("default"),
+		Expr("type", "terraform"),
+		Command("terraform", "output", "-json"),
+		Str("filename", "_sharing.tf"),
+	).String())
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
 		),
 	).String())
 
@@ -158,6 +262,7 @@ func TestScriptRunOnlyAllDependencies(t *testing.T) {
 		),
 	).String())
 
+	s.Generate()
 	s.Git().CommitAll("initial commit")
 
 	cli := NewCLI(t, s.RootDir())
@@ -178,16 +283,49 @@ func TestScriptRunIncludeDirectDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["base"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-a"]`,
-		`s:stack-d:after=["/stack-b"]`,
+		`s:stack-a:id=stack-a;tags=["base"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
+		`s:stack-d:id=stack-d`,
 	})
 
-	// Enable scripts experiment and add a script to all stacks
+	// Enable experiments and add sharing backend
 	s.RootEntry().CreateFile("terramate.tm.hcl", Terramate(
 		Config(
-			Experiments("scripts"),
+			Experiments("scripts", hcl.SharingIsCaringExperimentName),
+		),
+	).String())
+
+	s.RootEntry().CreateFile("sharing.tm", Block("sharing_backend",
+		Labels("default"),
+		Expr("type", "terraform"),
+		Command("terraform", "output", "-json"),
+		Str("filename", "_sharing.tf"),
+	).String())
+
+	// Create data dependencies: b→a, c→a, d→b
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-d/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
 		),
 	).String())
 
@@ -199,6 +337,7 @@ func TestScriptRunIncludeDirectDependents(t *testing.T) {
 		),
 	).String())
 
+	s.Generate()
 	s.Git().CommitAll("initial commit")
 
 	cli := NewCLI(t, s.RootDir())
@@ -220,15 +359,40 @@ func TestScriptRunWithChangedStacksAndDependents(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		`s:stack-a:tags=["changed-test"]`,
-		`s:stack-b:after=["/stack-a"]`,
-		`s:stack-c:after=["/stack-b"]`,
+		`s:stack-a:id=stack-a;tags=["changed-test"]`,
+		`s:stack-b:id=stack-b`,
+		`s:stack-c:id=stack-c`,
 	})
 
-	// Enable scripts experiment and add a script to all stacks
+	// Enable experiments and add sharing backend
 	s.RootEntry().CreateFile("terramate.tm.hcl", Terramate(
 		Config(
-			Experiments("scripts"),
+			Experiments("scripts", hcl.SharingIsCaringExperimentName),
+		),
+	).String())
+
+	s.RootEntry().CreateFile("sharing.tm", Block("sharing_backend",
+		Labels("default"),
+		Expr("type", "terraform"),
+		Command("terraform", "output", "-json"),
+		Str("filename", "_sharing.tf"),
+	).String())
+
+	// Create data dependencies: c→b→a
+	s.RootEntry().CreateFile("stack-b/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_a"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-a"),
+		),
+	).String())
+	s.RootEntry().CreateFile("stack-c/inputs.tm.hcl", Doc(
+		Block("input",
+			Labels("dep_b"),
+			Str("backend", "default"),
+			Expr("value", "null"),
+			Str("from_stack_id", "stack-b"),
 		),
 	).String())
 
@@ -240,6 +404,7 @@ func TestScriptRunWithChangedStacksAndDependents(t *testing.T) {
 		),
 	).String())
 
+	s.Generate()
 	s.Git().CommitAll("initial commit")
 	s.Git().Push("main")
 	s.Git().CheckoutNew("test-branch")
