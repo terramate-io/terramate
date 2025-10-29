@@ -76,7 +76,7 @@ type Spec struct {
 	Tags          []string
 	NoTags        []string
 
-	engine.OutputsSharingOptions
+	engine.DependencyFilters
 
 	Safeguards Safeguards
 
@@ -132,7 +132,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		}
 
 		stacks = append(stacks, st.Sortable())
-		stacks, err = s.Engine.AddOutputDependencies(s.OutputsSharingOptions, stacks, s.Target)
+		stacks, err = s.Engine.AddOutputDependencies(s.DependencyFilters, stacks, s.Target)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		stacks, err = s.Engine.ComputeSelectedStacks(s.GitFilter, tags, s.OutputsSharingOptions, s.Target, cloudFilters)
+		stacks, err = s.Engine.ComputeSelectedStacks(s.GitFilter, tags, s.DependencyFilters, s.Target, cloudFilters)
 		if err != nil {
 			return err
 		}

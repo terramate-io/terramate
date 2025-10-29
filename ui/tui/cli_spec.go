@@ -52,6 +52,7 @@ type FlagSpec struct {
 		RunOrder bool   `default:"false" help:"Sort listed stacks by order of execution"`
 
 		changeDetectionFlags
+		outputsSharingFlags
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
@@ -221,8 +222,23 @@ type changeDetectionFlags struct {
 }
 
 type outputsSharingFlags struct {
-	IncludeOutputDependencies bool `help:"Include stacks that are dependencies of the selected stacks. (requires outputs-sharing experiment enabled)"`
-	OnlyOutputDependencies    bool `help:"Only include stacks that are dependencies of the selected stacks. (requires outputs-sharing experiment enabled)"`
+	// Deprecated flags (hidden from help but still functional)
+	IncludeOutputDependencies bool `hidden:"" help:"(Deprecated: use --include-all-dependencies) Include stacks that are dependencies of the selected stacks."`
+	OnlyOutputDependencies    bool `hidden:"" help:"(Deprecated: use --only-all-dependencies) Only include stacks that are dependencies of the selected stacks."`
+
+	// Dependency filters (what selected stacks depend on)
+	IncludeAllDependencies    bool `help:"Add all stacks that the selected stacks depend on (direct + transitive) to the selection (Terragrunt + Terramate)"`
+	IncludeDirectDependencies bool `help:"Add stacks that the selected stacks directly depend on to the selection (Terragrunt + Terramate)"`
+	OnlyAllDependencies       bool `help:"Replace selection with only all stacks that the selected stacks depend on (direct + transitive) (Terragrunt + Terramate)"`
+	OnlyDirectDependencies    bool `help:"Replace selection with only stacks that the selected stacks directly depend on (Terragrunt + Terramate)"`
+	ExcludeAllDependencies    bool `help:"Remove all stacks that the selected stacks depend on from the selection (Terragrunt + Terramate)"`
+
+	// Dependent filters (what depends on selected stacks)
+	IncludeAllDependents    bool `help:"Add all stacks that depend on the selected stacks (direct + transitive) to the selection (Terragrunt + Terramate)"`
+	IncludeDirectDependents bool `help:"Add stacks that directly depend on the selected stacks to the selection (Terragrunt + Terramate)"`
+	OnlyDirectDependents    bool `help:"Replace selection with only stacks that directly depend on the selected stacks (Terragrunt + Terramate)"`
+	OnlyAllDependents       bool `help:"Replace selection with only stacks that depend on the selected stacks (direct + transitive) (Terragrunt + Terramate)"`
+	ExcludeAllDependents    bool `help:"Remove all dependent stacks from the selection (Terragrunt + Terramate)"`
 }
 
 type cloudTargetFlags struct {

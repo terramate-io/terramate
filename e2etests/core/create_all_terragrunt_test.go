@@ -568,7 +568,8 @@ func TestCreateAllTerragrunt(t *testing.T) {
 				tm := NewCLI(t, filepath.Join(s.RootDir(), tc.wd))
 				res := tm.Run("list", "--run-order")
 				AssertRunResult(t, res, RunExpected{
-					Stdout: nljoin(tc.wantOrder...),
+					Stdout:       nljoin(tc.wantOrder...),
+					IgnoreStderr: true, // Ignore warnings that may be re-emitted
 				})
 
 				if len(tc.tags) == 0 {

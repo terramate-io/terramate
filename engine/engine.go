@@ -97,10 +97,27 @@ type (
 		cloud CloudState
 	}
 
-	// OutputsSharingOptions holds the configuration for sharing outputs between stacks.
-	OutputsSharingOptions struct {
+	// DependencyFilters holds the configuration for filtering stacks based on their dependencies
+	// and dependents.
+	DependencyFilters struct {
+		// Deprecated: Use IncludeDependencies instead
 		IncludeOutputDependencies bool
-		OnlyOutputDependencies    bool
+		// Deprecated: Use OnlyDependencies instead
+		OnlyOutputDependencies bool
+
+		// Dependency filters (what selected stacks depend on)
+		IncludeAllDependencies    bool
+		IncludeDirectDependencies bool
+		OnlyAllDependencies       bool
+		OnlyDirectDependencies    bool
+		ExcludeAllDependencies    bool
+
+		// Dependent filters (what depends on selected stacks)
+		IncludeAllDependents    bool
+		IncludeDirectDependents bool
+		OnlyDirectDependents    bool
+		OnlyAllDependents       bool
+		ExcludeAllDependents    bool
 	}
 )
 
@@ -258,7 +275,7 @@ func (e *Engine) ListStacks(gitfilter GitFilter, target string, stackFilters res
 }
 
 // ComputeSelectedStacks computes stacks based on filters, working directory, tags, filesystem ordering, git changes, etc.
-func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClause, outputFlags OutputsSharingOptions, target string, stackFilters resources.StatusFilters) (config.List[*config.SortableStack], error) {
+func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClause, dependencyFilters DependencyFilters, target string, stackFilters resources.StatusFilters) (config.List[*config.SortableStack], error) {
 	report, err := e.ListStacks(gitfilter, target, stackFilters, true)
 	if err != nil {
 		return nil, err
@@ -277,24 +294,31 @@ func (e *Engine) ComputeSelectedStacks(gitfilter GitFilter, tags filter.TagClaus
 	if err != nil {
 		return nil, errors.E(err, "adding wanted stacks")
 	}
-	return e.AddOutputDependencies(outputFlags, stacks, target)
+	return e.AddOutputDependencies(dependencyFilters, stacks, target)
 }
 
 // AddOutputDependencies takes a list of stacks and adds potential output dependencies.
-func (e *Engine) AddOutputDependencies(outputFlags OutputsSharingOptions, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
+// Deprecated: This method now supports all dependency filtering via DependencyFilters.
+func (e *Engine) AddOutputDependencies(dependencyFilters DependencyFilters, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
+	return e.ApplyDependencyFilters(dependencyFilters, stacks, target)
+}
+
+// applyOutputSharingFilters implements the original deprecated behavior
+// that only considers input.from_stack_id dependencies (output-sharing)
+func (e *Engine) applyOutputSharingFilters(dependencyFilters DependencyFilters, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
 	logger := log.With().
-		Str("action", "engine.addOutputDependencies()").
+		Str("action", "engine.applyOutputSharingFilters()").
 		Logger()
 
-	if !outputFlags.IncludeOutputDependencies && !outputFlags.OnlyOutputDependencies {
+	if !dependencyFilters.IncludeOutputDependencies && !dependencyFilters.OnlyOutputDependencies {
 		logger.Debug().Msg("output dependencies not requested")
 		return stacks, nil
 	}
 
-	if outputFlags.IncludeOutputDependencies && outputFlags.OnlyOutputDependencies {
+	if dependencyFilters.IncludeOutputDependencies && dependencyFilters.OnlyOutputDependencies {
 		return nil, errors.E("--include-output-dependencies and --only-output-dependencies cannot be used together")
 	}
-	if (outputFlags.IncludeOutputDependencies || outputFlags.OnlyOutputDependencies) && !e.Config().HasExperiment(hcl.SharingIsCaringExperimentName) {
+	if (dependencyFilters.IncludeOutputDependencies || dependencyFilters.OnlyOutputDependencies) && !e.Config().HasExperiment(hcl.SharingIsCaringExperimentName) {
 		return nil, errors.E("--include-output-dependencies requires the '%s' experiment enabled", hcl.SharingIsCaringExperimentName)
 	}
 
@@ -358,7 +382,7 @@ func (e *Engine) AddOutputDependencies(outputFlags OutputsSharingOptions, stacks
 		}
 	}
 
-	if outputFlags.IncludeOutputDependencies {
+	if dependencyFilters.IncludeOutputDependencies {
 		for _, dep := range outputsMap {
 			if _, found := stacksMap[dep.Stack.Dir.String()]; !found {
 				stacks = append(stacks, dep)
@@ -373,6 +397,242 @@ func (e *Engine) AddOutputDependencies(outputFlags OutputsSharingOptions, stacks
 		stacks = append(stacks, dep)
 	}
 	return stacks, nil
+}
+
+// ApplyDependencyFilters applies dependency and dependent filters to the given stacks.
+// It supports both legacy output-sharing filters and new comprehensive dependency filters
+// for both Terragrunt and Terramate native stacks.
+func (e *Engine) ApplyDependencyFilters(opts DependencyFilters, stacks config.List[*config.SortableStack], target string) (config.List[*config.SortableStack], error) {
+	logger := log.With().
+		Str("action", "engine.ApplyDependencyFilters()").
+		Logger()
+
+	// Handle deprecated flags with original logic (output-sharing only)
+	if opts.IncludeOutputDependencies || opts.OnlyOutputDependencies {
+		if !e.Config().HasExperiment(hcl.SharingIsCaringExperimentName) {
+			return nil, errors.E("--include-output-dependencies requires the '%s' experiment enabled", hcl.SharingIsCaringExperimentName)
+		}
+
+		if opts.IncludeOutputDependencies && opts.OnlyOutputDependencies {
+			return nil, errors.E("--include-output-dependencies and --only-output-dependencies cannot be used together")
+		}
+
+		if opts.IncludeOutputDependencies {
+			logger.Warn().Msg("--include-output-dependencies is deprecated, use --include-direct-dependencies instead")
+		}
+		if opts.OnlyOutputDependencies {
+			logger.Warn().Msg("--only-output-dependencies is deprecated, use --only-direct-dependencies instead")
+		}
+
+		// Use original output-sharing logic to preserve exact same behavior
+		return e.applyOutputSharingFilters(opts, stacks, target)
+	}
+
+	// Check if any filters are requested
+	hasFilters := opts.IncludeAllDependencies || opts.IncludeDirectDependencies || opts.OnlyAllDependencies || opts.OnlyDirectDependencies || opts.ExcludeAllDependencies ||
+		opts.IncludeAllDependents || opts.IncludeDirectDependents ||
+		opts.OnlyDirectDependents || opts.OnlyAllDependents || opts.ExcludeAllDependents
+
+	if !hasFilters {
+		logger.Debug().Msg("no dependency filters requested")
+		return stacks, nil
+	}
+
+	// Validate filter combinations
+	if err := e.validateDependencyFilterOptions(opts); err != nil {
+		return nil, err
+	}
+
+	// Load all stacks for dependency graph construction
+	allStacks, err := config.LoadAllStacks(e.Config(), e.Config().Tree())
+	if err != nil {
+		return nil, errors.E(err, "loading all stacks for dependency graph")
+	}
+
+	// Load Terragrunt modules if they exist
+	var tgModules Modules
+	if e.Config().HasTerragruntStacks() {
+		logger.Debug().Msg("loading Terragrunt modules for dependency graph")
+		tgModules, err = LoadTerragruntModules(e.Config().HostDir(), project.PrjAbsPath(e.Config().HostDir(), e.wd()))
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to load Terragrunt modules, proceeding without them")
+			tgModules = nil
+		}
+	}
+
+	// Build dependency graph
+	graph, err := e.NewDependencyGraph(allStacks, tgModules, target)
+	if err != nil {
+		return nil, errors.E(err, "building dependency graph")
+	}
+
+	// Check for cycles and warn
+	cycles := graph.DetectCycles()
+	if len(cycles) > 0 {
+		logger.Warn().
+			Int("cycle_count", len(cycles)).
+			Msg("circular dependencies detected in stack graph")
+		for i, cycle := range cycles {
+			logger.Warn().
+				Int("cycle_num", i+1).
+				Strs("stacks", cycle).
+				Msg("circular dependency")
+		}
+	}
+
+	// Get current stack paths
+	currentStackPaths := make([]string, len(stacks))
+	stacksMap := make(map[string]*config.SortableStack)
+	for i, st := range stacks {
+		path := st.Stack.Dir.String()
+		currentStackPaths[i] = path
+		stacksMap[path] = st
+	}
+
+	// Apply filters in order: only → include → exclude
+	resultPaths := make(map[string]bool)
+
+	// Step 1: Handle "only" filters (replace selection)
+	if opts.OnlyAllDependencies {
+		logger.Debug().Msg("applying only-all-dependencies filter")
+		deps := graph.GetAllDependenciesForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	} else if opts.OnlyDirectDependencies {
+		logger.Debug().Msg("applying only-direct-dependencies filter")
+		deps := graph.GetDirectDependenciesForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	} else if opts.OnlyDirectDependents {
+		logger.Debug().Msg("applying only-direct-dependents filter")
+		deps := graph.GetDirectDependentsForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	} else if opts.OnlyAllDependents {
+		logger.Debug().Msg("applying only-all-dependents filter")
+		deps := graph.GetAllDependentsForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	} else {
+		// No "only" filter, start with current selection
+		for _, path := range currentStackPaths {
+			resultPaths[path] = true
+		}
+	}
+
+	// Step 2: Handle "include" filters (add to selection)
+	if opts.IncludeAllDependencies {
+		logger.Debug().Msg("applying include-all-dependencies filter")
+		deps := graph.GetAllDependenciesForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	}
+	if opts.IncludeDirectDependencies {
+		logger.Debug().Msg("applying include-direct-dependencies filter")
+		deps := graph.GetDirectDependenciesForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	}
+	if opts.IncludeDirectDependents {
+		logger.Debug().Msg("applying include-direct-dependents filter")
+		deps := graph.GetDirectDependentsForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	}
+	if opts.IncludeAllDependents {
+		logger.Debug().Msg("applying include-all-dependents filter")
+		deps := graph.GetAllDependentsForStacks(currentStackPaths)
+		for _, dep := range deps {
+			resultPaths[dep] = true
+		}
+	}
+
+	// Step 3: Handle "exclude" filters (remove from selection)
+	// Extract current selection paths from resultPaths for exclude calculations
+	currentResultPaths := make([]string, 0, len(resultPaths))
+	for path := range resultPaths {
+		currentResultPaths = append(currentResultPaths, path)
+	}
+
+	if opts.ExcludeAllDependencies {
+		logger.Debug().Msg("applying exclude-all-dependencies filter")
+		deps := graph.GetAllDependenciesForStacks(currentResultPaths)
+		for _, dep := range deps {
+			delete(resultPaths, dep)
+		}
+	}
+	if opts.ExcludeAllDependents {
+		logger.Debug().Msg("applying exclude-all-dependents filter")
+		deps := graph.GetAllDependentsForStacks(currentResultPaths)
+		for _, dep := range deps {
+			delete(resultPaths, dep)
+		}
+	}
+
+	// Build result list with consistent ordering
+	result := config.List[*config.SortableStack]{}
+	stacksByPath := make(map[string]*config.SortableStack)
+	for _, st := range allStacks {
+		stacksByPath[st.Stack.Dir.String()] = st
+	}
+
+	// Convert map to sorted slice for predictable output
+	sortedPaths := make([]string, 0, len(resultPaths))
+	for path := range resultPaths {
+		sortedPaths = append(sortedPaths, path)
+	}
+	slices.Sort(sortedPaths)
+
+	for _, path := range sortedPaths {
+		if st, found := stacksByPath[path]; found {
+			result = append(result, st)
+		} else {
+			logger.Warn().
+				Str("path", path).
+				Msg("stack in filter result not found in all stacks")
+		}
+	}
+
+	logger.Debug().
+		Int("input_count", len(stacks)).
+		Int("output_count", len(result)).
+		Msg("dependency filters applied")
+
+	return result, nil
+}
+
+// validateDependencyFilterOptions validates that filter combinations are valid
+func (e *Engine) validateDependencyFilterOptions(opts DependencyFilters) error {
+	// Count "only" filters
+	onlyCount := 0
+	if opts.OnlyAllDependencies {
+		onlyCount++
+	}
+	if opts.OnlyDirectDependencies {
+		onlyCount++
+	}
+	if opts.OnlyDirectDependents {
+		onlyCount++
+	}
+	if opts.OnlyAllDependents {
+		onlyCount++
+	}
+
+	if onlyCount > 1 {
+		return errors.E("only one of --only-all-dependencies, --only-direct-dependencies, --only-direct-dependents, or --only-all-dependents can be used at a time")
+	}
+
+	// "only" and "include" of the same type is redundant but not an error
+	// "only" and "exclude" is valid (only X, but exclude Y subset)
+
+	return nil
 }
 
 // FilterStacks filters stacks based on tags and working directory.
