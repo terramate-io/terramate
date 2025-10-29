@@ -50,6 +50,7 @@ type FlagSpec struct {
 		cloudFilterFlags
 		Target   string `help:"Select the deployment target of the filtered stacks."`
 		RunOrder bool   `default:"false" help:"Sort listed stacks by order of execution"`
+		Format   string `default:"text" help:"Format the output" enum:"text,json"`
 
 		changeDetectionFlags
 	} `cmd:"" help:"List stacks."`
