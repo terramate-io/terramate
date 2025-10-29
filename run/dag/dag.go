@@ -219,6 +219,70 @@ func (d *DAG[V]) AncestorsOf(id ID) []ID {
 	return d.dag[id]
 }
 
+// DirectAncestorsOf returns only the immediate ancestors of the given node
+// by performing transitive reduction - removing ancestors reachable through other ancestors.
+func (d *DAG[V]) DirectAncestorsOf(id ID) []ID {
+	ancestors := d.AncestorsOf(id)
+	if len(ancestors) <= 1 {
+		return ancestors // Already minimal
+	}
+
+	ancestorSet := make(map[ID]bool, len(ancestors))
+	for _, a := range ancestors {
+		ancestorSet[a] = true
+	}
+
+	reachableAncestors := make(map[ID]map[ID]bool, len(ancestors))
+	for _, ancestorID := range ancestors {
+		reachableAncestors[ancestorID] = d.findReachableAncestors(ancestorID, ancestorSet)
+	}
+
+	var directAncestors []ID
+	for _, ancestorID := range ancestors {
+		isDirect := true
+		for _, otherID := range ancestors {
+			if ancestorID != otherID && reachableAncestors[otherID][ancestorID] {
+				isDirect = false
+				break
+			}
+		}
+		if isDirect {
+			directAncestors = append(directAncestors, ancestorID)
+		}
+	}
+
+	return directAncestors
+}
+
+// findReachableAncestors finds all ancestors reachable from 'from' that are in the targets set.
+func (d *DAG[V]) findReachableAncestors(from ID, targets map[ID]bool) map[ID]bool {
+	reachable := make(map[ID]bool)
+	visited := make(map[ID]bool)
+	queue := make([]ID, 0, 16) // Pre-allocate reasonable capacity
+	queue = append(queue, from)
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		if visited[current] {
+			continue
+		}
+		visited[current] = true
+
+		for _, ancestor := range d.AncestorsOf(current) {
+			if targets[ancestor] {
+				reachable[ancestor] = true
+			}
+			if !visited[ancestor] {
+				queue = append(queue, ancestor)
+			}
+		}
+	}
+
+	return reachable
+}
+
 // HasCycle returns true if the DAG has a cycle.
 func (d *DAG[V]) HasCycle(id ID) bool {
 	if !d.validated {

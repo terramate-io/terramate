@@ -45,7 +45,9 @@ type FlagSpec struct {
 	} `cmd:"" help:"Format configuration files."`
 
 	List struct {
-		Why bool `help:"Shows the reason why the stack has changed."`
+		Why    bool   `help:"Shows the reason why the stack has changed."`
+		Format string `default:"text" enum:"text,json,dot" help:"Output format (text, json, or dot)"`
+		Label  string `short:"l" default:"stack.dir" enum:"stack.id,stack.name,stack.dir" help:"Label used in output (stack.id, stack.name, or stack.dir)"`
 
 		cloudFilterFlags
 		Target   string `help:"Select the deployment target of the filtered stacks."`
