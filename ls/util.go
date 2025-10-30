@@ -26,6 +26,39 @@ func posInRange(pos hcl.Pos, r hcl.Range) bool {
 		(r.End.Line > pos.Line || (r.End.Line == pos.Line && r.End.Column > pos.Column))
 }
 
+// isEnvVarTraversal checks if a traversal is a terramate.run.env.* reference
+// Returns true if the traversal matches: terramate.run.env.VAR_NAME
+func isEnvVarTraversal(traversal hcl.Traversal) bool {
+	if len(traversal) < 4 {
+		return false
+	}
+	if traversal.RootName() != "terramate" {
+		return false
+	}
+	attr1, ok := traversal[1].(hcl.TraverseAttr)
+	if !ok || attr1.Name != "run" {
+		return false
+	}
+	attr2, ok := traversal[2].(hcl.TraverseAttr)
+	if !ok || attr2.Name != "env" {
+		return false
+	}
+	_, ok = traversal[3].(hcl.TraverseAttr)
+	return ok
+}
+
+// extractEnvVarName extracts the variable name from a terramate.run.env.VAR_NAME traversal
+// Returns empty string if the traversal is not a valid env var reference
+func extractEnvVarName(traversal hcl.Traversal) string {
+	if !isEnvVarTraversal(traversal) {
+		return ""
+	}
+	if varAttr, ok := traversal[3].(hcl.TraverseAttr); ok {
+		return varAttr.Name
+	}
+	return ""
+}
+
 // posToByteOffset converts a line and character position to a byte offset in the content.
 // The character position is interpreted as UTF-16 code units (LSP default encoding).
 func posToByteOffset(content []byte, line, character int) int {
@@ -94,6 +127,84 @@ func (s *Server) searchGlobalsInDirWithPath(dir string, attrPath []string) (*lsp
 	}
 
 	return nil, false, nil
+}
+
+// searchEnvInDir searches for an env variable definition in terramate.config.run.env blocks
+func (s *Server) searchEnvInDir(dir string, envVarName string) (*lsp.Location, bool, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		filename := entry.Name()
+		if !isTerramateFile(filename) {
+			continue
+		}
+
+		fullPath := filepath.Join(dir, filename)
+		location, found, err := s.findEnvInFile(fullPath, envVarName)
+		if err != nil {
+			s.log.Debug().Err(err).Str("file", fullPath).Msg("skipping file with errors")
+			continue
+		}
+		if found {
+			return location, true, nil
+		}
+	}
+
+	return nil, false, nil
+}
+
+// findAllEnvInHierarchy searches for ALL env variable definitions with the given name
+// across the entire directory hierarchy from current dir to workspace root.
+// Returns all locations where the env var is defined (for renaming all occurrences).
+func (s *Server) findAllEnvInHierarchy(fname string, envVarName string) ([]lsp.Location, error) {
+	var locations []lsp.Location
+	dir := filepath.Dir(fname)
+
+	for {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			// Log but continue to parent directory
+			s.log.Debug().Err(err).Str("dir", dir).Msg("error reading directory")
+		} else {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					continue
+				}
+
+				filename := entry.Name()
+				if !isTerramateFile(filename) {
+					continue
+				}
+
+				fullPath := filepath.Join(dir, filename)
+				location, found, err := s.findEnvInFile(fullPath, envVarName)
+				if err != nil {
+					s.log.Debug().Err(err).Str("file", fullPath).Msg("skipping file with errors")
+					continue
+				}
+				if found {
+					locations = append(locations, *location)
+				}
+			}
+		}
+
+		// Move to parent directory
+		parent := filepath.Dir(dir)
+		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+			// Reached root or left workspace
+			break
+		}
+		dir = parent
+	}
+
+	return locations, nil
 }
 
 // findEnvInFile searches for an env variable in terramate.config.run.env block

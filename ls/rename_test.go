@@ -688,6 +688,138 @@ generate_hcl "test.hcl" {
 		assert.IsTrue(t, totalEdits == 3, "should rename definition (terramate.tm.hcl) and 2 references (stack.tm)")
 	})
 
+	t.Run("rename stack-level env variable with hierarchical resolution", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        GLOBAL_VAR = "global"
+      }
+    }
+  }
+}`,
+			`d:stacks`,
+			`d:stacks/stack-a`,
+			`f:stacks/stack-a/stack.tm:stack {
+  name = "stack-a"
+}
+
+terramate {
+  config {
+    run {
+      env {
+        STACK_VAR = "stack-specific"
+      }
+    }
+  }
+}
+
+generate_hcl "test.hcl" {
+  content {
+    global = terramate.run.env.GLOBAL_VAR
+    stack = terramate.run.env.STACK_VAR
+  }
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stacks/stack-a/stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stacks/stack-a/stack.tm")
+
+		// Rename STACK_VAR (defined at stack level)
+		// Position on STACK_VAR in line 17: stack = terramate.run.env.STACK_VAR
+		workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 17, 30, "RENAMED_STACK_VAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit for stack-level env var")
+
+		// Should rename definition and reference
+		totalEdits := 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+		}
+
+		assert.IsTrue(t, totalEdits == 2, "should rename stack-level definition and reference")
+
+		// Rename GLOBAL_VAR (defined at project root)
+		// Position on GLOBAL_VAR in line 16: global = terramate.run.env.GLOBAL_VAR
+		workspaceEdit, err = srv.createRenameEdits(context.Background(), fname, []byte(content), 16, 30, "RENAMED_GLOBAL_VAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit for project-wide env var")
+
+		// Should rename definition in terramate.tm.hcl and reference in stack.tm
+		totalEdits = 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+		}
+
+		assert.IsTrue(t, totalEdits == 2, "should rename project-wide definition and reference")
+	})
+
+	t.Run("rename env variable defined at multiple levels updates all definitions", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        FOO = "project-wide"
+      }
+    }
+  }
+}`,
+			`d:stacks`,
+			`d:stacks/my-stack`,
+			`f:stacks/my-stack/stack.tm:stack {
+  name = "my-stack"
+}
+
+terramate {
+  config {
+    run {
+      env {
+        FOO = "stack-override"
+      }
+    }
+  }
+}
+
+globals {
+  foo_value = terramate.run.env.FOO
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stacks/my-stack/stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stacks/my-stack/stack.tm")
+
+		// Rename FOO from the reference - should update BOTH definitions (project-wide and stack-level)
+		// Position on FOO in line 15: foo_value = terramate.run.env.FOO
+		workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 15, 30, "BAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit")
+
+		// Should rename:
+		// - 1 definition in terramate.tm.hcl (project root)
+		// - 1 definition in stack.tm (stack level)
+		// - 1 reference in stack.tm
+		// Total = 3 edits
+		totalEdits := 0
+		fileCount := 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+			fileCount++
+		}
+
+		assert.IsTrue(t, totalEdits == 3, "should rename both definitions (project + stack) and the reference")
+		assert.IsTrue(t, fileCount == 2, "should have edits in 2 files (terramate.tm.hcl and stack.tm)")
+	})
+
 	t.Run("cannot rename built-in terramate variables", func(t *testing.T) {
 		t.Parallel()
 

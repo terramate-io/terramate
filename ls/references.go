@@ -361,11 +361,10 @@ func (s *Server) findSymbolAtPosition(body *hclsyntax.Body, targetPos hcl.Pos) *
 						}
 
 						// Handle terramate.run.env.* - special case for environment variables
-						if rootName == "terramate" && len(fullPathParts) >= 3 && fullPathParts[0] == "run" && fullPathParts[1] == "env" {
-							// For terramate.run.env.FOO, the attribute is "FOO"
+						if envVarName := extractEnvVarName(scopeExpr.Traversal); envVarName != "" {
 							info.namespace = "terramate.run.env"
-							info.attributeName = fullPathParts[2]
-							info.fullPath = "terramate.run.env." + fullPathParts[2]
+							info.attributeName = envVarName
+							info.fullPath = "terramate.run.env." + envVarName
 						}
 					}
 				}
@@ -416,16 +415,25 @@ func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Lo
 		return s.findDefinitionLocation(body, info, fname)
 
 	case "terramate.run.env":
-		// Environment variables are always defined in terramate.tm.hcl at the workspace root
-		// in the terramate.config.run.env block
-		terramateConfigPath := filepath.Join(s.workspace, "terramate.tm.hcl")
-		location, found, err := s.findEnvInFile(terramateConfigPath, info.attributeName)
-		if err != nil {
-			s.log.Debug().Err(err).Str("file", terramateConfigPath).Msg("failed to read env definition file")
-			return nil
-		}
-		if found {
-			return location
+		// Environment variables can be defined at stack-level or project-wide
+		// Search hierarchically from current directory up to workspace root
+		dir := filepath.Dir(fname)
+		for {
+			location, found, err := s.searchEnvInDir(dir, info.attributeName)
+			if err != nil {
+				s.log.Debug().Err(err).Str("dir", dir).Msg("error searching env in dir")
+			}
+			if found {
+				return location
+			}
+
+			// Move to parent directory
+			parent := filepath.Dir(dir)
+			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+				// Reached root or left workspace
+				break
+			}
+			dir = parent
 		}
 	}
 
@@ -646,19 +654,8 @@ func (s *Server) matchesSymbol(traversal hcl.Traversal, info *symbolInfo) bool {
 		}
 
 		// Handle terramate.run.env.* references
-		if attr, ok := traversal[1].(hcl.TraverseAttr); ok && attr.Name == "run" {
-			if len(traversal) >= 4 {
-				if envAttr, ok := traversal[2].(hcl.TraverseAttr); ok && envAttr.Name == "env" {
-					// info.namespace should be "terramate.run.env" (normalized)
-					if info.namespace == "terramate.run.env" {
-						varAttr, ok := traversal[3].(hcl.TraverseAttr)
-						if !ok {
-							return false
-						}
-						return varAttr.Name == info.attributeName
-					}
-				}
-			}
+		if envVarName := extractEnvVarName(traversal); envVarName != "" {
+			return info.namespace == "terramate.run.env" && envVarName == info.attributeName
 		}
 
 		return false

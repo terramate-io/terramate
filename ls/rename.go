@@ -363,17 +363,9 @@ func (s *Server) canRename(fname string, content []byte, line, character uint32)
 							if attr, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok && attr.Name == "stack" {
 								// For terramate.stack.name, we want traversal[2] (the attribute name)
 								attrIdx = 2
-							} else if attr, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok && attr.Name == "run" {
+							} else if isEnvVarTraversal(scopeExpr.Traversal) {
 								// For terramate.run.env.MY_VAR, we want traversal[3] (the env variable name)
-								if len(scopeExpr.Traversal) >= 4 {
-									if envAttr, ok := scopeExpr.Traversal[2].(hcl.TraverseAttr); ok && envAttr.Name == "env" {
-										attrIdx = 3
-									} else {
-										attrIdx = len(scopeExpr.Traversal) - 1
-									}
-								} else {
-									attrIdx = len(scopeExpr.Traversal) - 1
-								}
+								attrIdx = 3
 							} else {
 								// Not a terramate.stack.* or terramate.run.env.* reference, use last index
 								attrIdx = len(scopeExpr.Traversal) - 1
@@ -486,21 +478,47 @@ func (s *Server) createRenameEdits(ctx context.Context, fname string, content []
 		return nil, err
 	}
 
-	// Also find the definition location and rename it
-	defLocation := s.findDefinitionForRename(fname, symbolInfo)
-	if defLocation != nil {
-		// Check if it's not already in locations
-		alreadyIncluded := false
-		for _, loc := range locations {
-			if loc.URI == defLocation.URI &&
-				loc.Range.Start.Line == defLocation.Range.Start.Line &&
-				loc.Range.Start.Character == defLocation.Range.Start.Character {
-				alreadyIncluded = true
-				break
+	// For env variables, find ALL definitions across the hierarchy (not just the closest one)
+	// This ensures renaming works bidirectionally - renaming any definition or reference
+	// updates all definitions at all levels and all references
+	if symbolInfo.namespace == "terramate.run.env" {
+		allEnvDefs, err := s.findAllEnvInHierarchy(fname, symbolInfo.attributeName)
+		if err != nil {
+			s.log.Debug().Err(err).Msg("error finding all env definitions")
+		}
+
+		// Add all definitions that aren't already in locations
+		for _, envDef := range allEnvDefs {
+			alreadyIncluded := false
+			for _, loc := range locations {
+				if loc.URI == envDef.URI &&
+					loc.Range.Start.Line == envDef.Range.Start.Line &&
+					loc.Range.Start.Character == envDef.Range.Start.Character {
+					alreadyIncluded = true
+					break
+				}
+			}
+			if !alreadyIncluded {
+				locations = append(locations, envDef)
 			}
 		}
-		if !alreadyIncluded {
-			locations = append([]lsp.Location{*defLocation}, locations...)
+	} else {
+		// For other namespaces, find the single definition location
+		defLocation := s.findDefinitionForRename(fname, symbolInfo)
+		if defLocation != nil {
+			// Check if it's not already in locations
+			alreadyIncluded := false
+			for _, loc := range locations {
+				if loc.URI == defLocation.URI &&
+					loc.Range.Start.Line == defLocation.Range.Start.Line &&
+					loc.Range.Start.Character == defLocation.Range.Start.Character {
+					alreadyIncluded = true
+					break
+				}
+			}
+			if !alreadyIncluded {
+				locations = append([]lsp.Location{*defLocation}, locations...)
+			}
 		}
 	}
 
@@ -551,16 +569,25 @@ func (s *Server) findDefinitionForRename(fname string, info *symbolInfo) *lsp.Lo
 		}
 
 	case "terramate.run.env":
-		// Environment variables are always defined in terramate.tm.hcl at the workspace root
-		// in the terramate.config.run.env block
-		terramateConfigPath := filepath.Join(s.workspace, "terramate.tm.hcl")
-		location, found, err := s.findEnvInFile(terramateConfigPath, info.attributeName)
-		if err != nil {
-			s.log.Debug().Err(err).Str("file", terramateConfigPath).Msg("failed to read env definition file")
-			return nil
-		}
-		if found {
-			return location
+		// Environment variables can be defined at stack-level or project-wide
+		// Search hierarchically from current directory up to workspace root
+		dir := filepath.Dir(fname)
+		for {
+			location, found, err := s.searchEnvInDir(dir, info.attributeName)
+			if err != nil {
+				s.log.Debug().Err(err).Str("dir", dir).Msg("error searching env in dir")
+			}
+			if found {
+				return location
+			}
+
+			// Move to parent directory
+			parent := filepath.Dir(dir)
+			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+				// Reached root or left workspace
+				break
+			}
+			dir = parent
 		}
 	}
 

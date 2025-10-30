@@ -174,6 +174,19 @@ func (s *Server) findDefinitions(fname string, content []byte, line, character u
 		}
 		return []lsp.Location{*loc}, nil
 	case "terramate":
+		// Special handling for env variables - return ALL definitions across hierarchy
+		if envVarName := extractEnvVarName(foundTraversal); envVarName != "" {
+			allLocations, err := s.findAllEnvInHierarchy(fname, envVarName)
+			if err != nil {
+				return nil, err
+			}
+			if len(allLocations) > 0 {
+				return allLocations, nil
+			}
+			return nil, nil
+		}
+
+		// For other terramate.* references, return single definition
 		loc, err := s.findTerramateDefinition(fname, foundTraversal)
 		if err != nil || loc == nil {
 			return nil, err
@@ -349,25 +362,27 @@ func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) 
 	}
 
 	// Check if this is a terramate.run.env.* reference
-	if attr, ok := secondPart.(hcl.TraverseAttr); ok && attr.Name == "run" {
-		if len(traversal) >= 4 {
-			// Check if traversal[2] is "env"
-			if envAttr, ok := traversal[2].(hcl.TraverseAttr); ok && envAttr.Name == "env" {
-				// This is terramate.run.env.VARIABLE_NAME
-				// Get the variable name from traversal[3]
-				if varAttr, ok := traversal[3].(hcl.TraverseAttr); ok {
-					envVarName := varAttr.Name
-					// Environment variables are always defined in terramate.tm.hcl at the workspace root
-					terramateConfigPath := filepath.Join(s.workspace, "terramate.tm.hcl")
-					location, found, err := s.findEnvInFile(terramateConfigPath, envVarName)
-					if err != nil {
-						return nil, err
-					}
-					if found {
-						return location, nil
-					}
-				}
+	if envVarName := extractEnvVarName(traversal); envVarName != "" {
+		// Environment variables can be defined at stack-level or project-wide
+		// Search hierarchically from current directory up to workspace root
+		// Note: findDefinitions handles returning all definitions for go-to-definition
+		dir := filepath.Dir(fname)
+		for {
+			location, found, err := s.searchEnvInDir(dir, envVarName)
+			if err != nil {
+				return nil, err
 			}
+			if found {
+				return location, nil
+			}
+
+			// Move to parent directory
+			parent := filepath.Dir(dir)
+			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+				// Reached root or left workspace
+				break
+			}
+			dir = parent
 		}
 	}
 
