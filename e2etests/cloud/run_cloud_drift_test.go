@@ -30,9 +30,9 @@ import (
 	"github.com/terramate-io/tfjson"
 )
 
-type expectedDriftStackPayloadRequests []expectedDriftStackPayloadRequest
-type expectedDriftStackPayloadRequest struct {
-	resources.DriftStackPayloadRequest
+type expectedDriftStacks []expectedDriftStack
+type expectedDriftStack struct {
+	resources.DriftWithStack
 
 	ChangesetASCIIRegexes []string
 }
@@ -53,7 +53,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	t.Parallel()
 	type want struct {
 		run    RunExpected
-		drifts expectedDriftStackPayloadRequests
+		drifts expectedDriftStacks
 	}
 	type testcase struct {
 		name          string
@@ -94,9 +94,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -105,8 +105,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -124,9 +126,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -135,8 +137,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -155,9 +159,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -166,12 +170,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -180,8 +186,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -202,9 +210,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Stdout:      "test",
 					StderrRegex: `(no such file or directory|The system cannot find the file specified)`,
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -213,12 +221,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -227,8 +237,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status:   drift.OK,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.OK,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -241,9 +253,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				HelperPath, "exit", "2",
 			},
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -252,8 +264,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -266,9 +280,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				HelperPath, "exit", "2",
 			},
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -277,8 +291,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -298,9 +314,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 					Status: 0,
 					Stdout: "/parent/child\n",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -309,8 +325,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "child",
 								Target:        "default",
 							},
-							Status:   drift.OK,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.OK,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -324,9 +342,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 			cmd: []string{HelperPath, "exit", "2"},
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -335,12 +353,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -349,8 +369,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -371,9 +393,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						clitest.CloudSkippingTerraformPlanSync,
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -382,8 +404,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -405,9 +429,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						"skipping",
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -416,8 +440,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -449,9 +475,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						`local_file.foo will be created`,
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -460,13 +486,15 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status: drift.Drifted,
-							Details: &resources.ChangesetDetails{
-								Provisioner:   "terraform",
-								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
-								Serial:        makeSerial(0),
+							Drift: resources.Drift{
+								Status: drift.Drifted,
+								Details: &resources.ChangesetDetails{
+									Provisioner:   "terraform",
+									ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+									Serial:        makeSerial(0),
+								},
+								Metadata: expectedMetadata,
 							},
-							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`Terraform used the selected providers to generate the following execution`,
@@ -474,7 +502,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -483,13 +511,15 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status: drift.Drifted,
-							Details: &resources.ChangesetDetails{
-								Provisioner:   "terraform",
-								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
-								Serial:        makeSerial(0),
+							Drift: resources.Drift{
+								Status: drift.Drifted,
+								Details: &resources.ChangesetDetails{
+									Provisioner:   "terraform",
+									ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+									Serial:        makeSerial(0),
+								},
+								Metadata: expectedMetadata,
 							},
-							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`Terraform used the selected providers to generate the following execution`,
@@ -526,9 +556,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						`local_file.foo will be created`,
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -537,13 +567,15 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status: drift.Drifted,
-							Details: &resources.ChangesetDetails{
-								Provisioner:   "opentofu",
-								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
-								Serial:        makeSerial(0),
+							Drift: resources.Drift{
+								Status: drift.Drifted,
+								Details: &resources.ChangesetDetails{
+									Provisioner:   "opentofu",
+									ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+									Serial:        makeSerial(0),
+								},
+								Metadata: expectedMetadata,
 							},
-							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`OpenTofu used the selected providers to generate the following execution`,
@@ -551,7 +583,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -560,13 +592,15 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status: drift.Drifted,
-							Details: &resources.ChangesetDetails{
-								Provisioner:   "opentofu",
-								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
-								Serial:        makeSerial(0),
+							Drift: resources.Drift{
+								Status: drift.Drifted,
+								Details: &resources.ChangesetDetails{
+									Provisioner:   "opentofu",
+									ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+									Serial:        makeSerial(0),
+								},
+								Metadata: expectedMetadata,
 							},
-							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`OpenTofu used the selected providers to generate the following execution`,
@@ -593,9 +627,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 			defaultBranch: "trunk",
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "trunk",
@@ -604,8 +638,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -647,9 +683,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 			},
 			target: "non-default-target",
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -658,8 +694,10 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								MetaName:      "stack",
 								MetaID:        "stack",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -823,14 +861,14 @@ func TestSyncPlanSerial(t *testing.T) {
 		cloud.WithCredential(&credential{}),
 	)
 
-	res, err := http.Request[resources.DriftStackPayloadRequests](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
+	res, err := http.Request[resources.DriftsWithStacks](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
 	assert.NoError(t, err)
 
 	got := res[0]
 	assertPlanSerial(t, got.Details.Serial, makeSerial(1))
 }
 
-func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, expectedDrifts expectedDriftStackPayloadRequests, minStartTime, maxEndTime time.Time) {
+func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, expectedDrifts expectedDriftStacks, minStartTime, maxEndTime time.Time) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -839,7 +877,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		cloud.WithCredential(&credential{}),
 	)
 
-	res, err := http.Request[resources.DriftStackPayloadRequests](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
+	res, err := http.Request[resources.DriftsWithStacks](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
 	assert.NoError(t, err)
 
 	if len(expectedDrifts) != len(res) {
@@ -851,7 +889,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		// Extract the embedded DriftStackPayloadRequest for comparison
 		// We need to use the embedded field selector here to extract just the embedded struct
 		// nolint:staticcheck // QF1008: we need the embedded field selector for struct comparison
-		expectedPayload := expected.DriftStackPayloadRequest
+		expectedPayload := expected.DriftWithStack
 		if diff := cmp.Diff(got, expectedPayload,
 			// Ignore hard to predict fields
 			// They are validated (for existence) in the testserver anyway.
@@ -863,7 +901,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			// whole argument list is interpolated, including the program name, and then
 			// on Windows it requires a special escaped string.
 			// See variable `HelperPathAsHCL`.
-			cmpopts.IgnoreFields(resources.DriftStackPayloadRequest{}, "Command", "Details", "StartedAt", "FinishedAt")); diff != "" {
+			cmpopts.IgnoreFields(resources.DriftWithStack{}, "Details", "StartedAt", "FinishedAt")); diff != "" {
 			t.Logf("want: %+v", expectedDrifts)
 			t.Logf("got: %+v", got)
 			t.Fatal(diff)
@@ -946,7 +984,7 @@ func assertPlanSerial(t *testing.T, got, want *int64) {
 	}
 }
 
-func assertDriftRunDuration(t *testing.T, got *resources.DriftStackPayloadRequest, minStartTime, maxEndTime time.Time) {
+func assertDriftRunDuration(t *testing.T, got *resources.DriftWithStack, minStartTime, maxEndTime time.Time) {
 	hasStartTime := got.StartedAt != nil
 	hasEndTime := got.FinishedAt != nil
 	assert.IsTrue(t, hasStartTime == hasEndTime, "hasStartTime(%s) == hasEndTime(%s)", hasStartTime, hasEndTime)

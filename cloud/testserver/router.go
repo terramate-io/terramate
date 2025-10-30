@@ -101,6 +101,7 @@ func RouterAdd(store *cloudstore.Data, router *httprouter.Router, enabled map[st
 	if enabled[cloud.DriftsPath] {
 		router.GET(cloud.DriftsPath+"/:orguuid/:stackid/:driftid", handler(store, GetDrift))
 		router.POST(cloud.DriftsPath+"/:orguuid", handler(store, PostDrift))
+		router.PATCH(cloud.DriftsPath+"/:orguuid/:driftuuid", handler(store, PatchDrift))
 
 		// test only
 		router.GET(cloud.DriftsPath+"/:orguuid", handler(store, GetDrifts))

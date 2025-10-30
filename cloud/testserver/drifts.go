@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
+	"github.com/terramate-io/terramate/cloud/api/drift"
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/testserver/cloudstore"
 	"github.com/terramate-io/terramate/errors"
@@ -47,7 +49,7 @@ func GetDrift(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, pa
 			marshalWrite(w, resources.Drift{
 				ID:       drift.ID,
 				Status:   drift.Status,
-				Details:  drift.Details,
+				Details:  drift.Changeset,
 				Metadata: drift.Metadata,
 			})
 			return
@@ -57,10 +59,10 @@ func GetDrift(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, pa
 	w.WriteHeader(http.StatusNotFound)
 }
 
-// PostDrift implements the POST /v1/drifts/:orguuid endpoint.
+// PostDrift implements the POST /v2/drifts/:orguuid endpoint.
 func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	orguuid := p.ByName("orguuid")
-	org, found := store.GetOrg(resources.UUID(orguuid))
+	orgUUID := p.ByName("orguuid")
+	org, found := store.GetOrg(resources.UUID(orgUUID))
 	if !found {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeString(w, "organization not found")
@@ -74,7 +76,7 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	var payload resources.DriftStackPayloadRequest
+	var payload resources.DriftCheckRunStartPayloadRequest
 	if err = json.Unmarshal(body, &payload); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, err)
@@ -105,15 +107,22 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 			State: cloudstore.NewState(),
 		}
 	}
-	_, err = store.InsertDrift(resources.UUID(orguuid), cloudstore.Drift{
+
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	_, err = store.InsertDrift(resources.UUID(orgUUID), cloudstore.Drift{
 		StackMetaID: payload.Stack.MetaID,
 		StackTarget: payload.Stack.Target,
 		Metadata:    payload.Metadata,
-		Details:     payload.Details,
-		Status:      payload.Status,
+		Status:      drift.Running,
 		Command:     payload.Command,
 		StartedAt:   payload.StartedAt,
-		FinishedAt:  payload.FinishedAt,
+		UUID:        resources.UUID(uuid.String()),
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -122,14 +131,81 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	}
 
 	var ok bool
-	st.State.Status, ok = stateTable()[payload.Status][st.State.DeploymentStatus]
+	st.State.Status, ok = stateTable()[drift.Running][st.State.DeploymentStatus]
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
-		writeErr(w, errors.E("invalid stack status: %s %s", payload.Status.String(), st.State.DeploymentStatus.String()))
+		writeErr(w, errors.E("invalid stack status: %s %s", drift.Running.String(), st.State.DeploymentStatus.String()))
 		return
 	}
 
-	_, err = store.UpsertStack(resources.UUID(orguuid), st)
+	_, err = store.UpsertStack(resources.UUID(orgUUID), st)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	marshalWrite(w, resources.DriftCheckRunStartResponse{
+		DriftUUID: resources.UUID(uuid.String()),
+	})
+}
+
+// PatchDrift implements the PATCH /v2/drifts/:orguuid/:driftuuid endpoint.
+func PatchDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	orgUUID := p.ByName("orguuid")
+	org, found := store.GetOrg(resources.UUID(orgUUID))
+	if !found {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeString(w, "organization not found")
+		return
+	}
+	driftUUID := p.ByName("driftuuid")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	var payload resources.UpdateDriftPayloadRequest
+	if err = json.Unmarshal(body, &payload); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	err = payload.Validate()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeErr(w, err)
+		return
+	}
+
+	driftCheck, updated := store.UpdateDrift(&org, resources.UUID(driftUUID), payload.Status, payload.Changeset, payload.UpdatedAt)
+	if !updated {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, fmt.Errorf("drift not found %s in org %s", driftUUID, org.UUID))
+		return
+	}
+
+	st, _, found := store.GetStackByMetaID(org, driftCheck.StackMetaID, driftCheck.StackTarget)
+	if !found {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, fmt.Errorf("stack not found %s (%s) in org %s", driftCheck.StackMetaID, driftCheck.StackTarget, org.UUID))
+		return
+	}
+
+	var ok bool
+	st.State.Status, ok = stateTable()[driftCheck.Status][st.State.DeploymentStatus]
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, errors.E("invalid stack status: %s %s", driftCheck.Status.String(), st.State.DeploymentStatus.String()))
+		return
+	}
+
+	_, err = store.UpsertStack(resources.UUID(orgUUID), st)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, err)
@@ -141,14 +217,14 @@ func PostDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 // GetDrifts implements the GET /drifts/:orguuid endpoint.
 // Note: this is not a real endpoint.
 func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p httprouter.Params) {
-	orguuid := p.ByName("orguuid")
-	org, found := store.GetOrg(resources.UUID(orguuid))
+	orgUUID := p.ByName("orguuid")
+	org, found := store.GetOrg(resources.UUID(orgUUID))
 	if !found {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeString(w, "organization not found")
 		return
 	}
-	res := resources.DriftStackPayloadRequests{}
+	res := resources.DriftsWithStacks{}
 	for _, drift := range org.Drifts {
 		st, _, ok := store.GetStackByMetaID(org, drift.StackMetaID, drift.StackTarget)
 		if !ok {
@@ -156,12 +232,14 @@ func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p
 			writeString(w, fmt.Sprintf("stack not found %s:%s", drift.StackMetaID, drift.StackTarget))
 			return
 		}
-		res = append(res, resources.DriftStackPayloadRequest{
-			Stack:      st.Stack,
-			Status:     drift.Status,
-			Metadata:   drift.Metadata,
-			Details:    drift.Details,
-			Command:    drift.Command,
+		res = append(res, resources.DriftWithStack{
+			Stack: st.Stack,
+			Drift: resources.Drift{
+				ID:       drift.ID,
+				Metadata: drift.Metadata,
+				Details:  drift.Changeset,
+				Status:   drift.Status,
+			},
 			StartedAt:  drift.StartedAt,
 			FinishedAt: drift.FinishedAt,
 		})

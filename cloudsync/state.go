@@ -24,8 +24,10 @@ type CloudRunState struct {
 	RunUUID resources.UUID
 
 	StackMeta2ID map[string]int64
-	// stackPreviews is a map of stack.ID to stackPreview.ID
+	// StackMeta2PreviewIDs is a map of stack.ID to stackPreview.ID
 	StackMeta2PreviewIDs map[string]string
+	// StackMeta2DriftUUIDs is a map of stack.ID to drift.UUID
+	StackMeta2DriftUUIDs map[string]resources.UUID
 	ReviewRequest        *resources.ReviewRequest
 	RREvent              struct {
 		PushedAt  *int64
@@ -59,6 +61,20 @@ func (rs *CloudRunState) SetMeta2PreviewID(metaID string, previewID string) {
 // CloudPreviewID returns the cloud preview ID of a stack given its metadata ID.
 func (rs CloudRunState) CloudPreviewID(metaID string) (string, bool) {
 	id, ok := rs.StackMeta2PreviewIDs[strings.ToLower(metaID)]
+	return id, ok
+}
+
+// SetMeta2DriftUUID sets the cloud drift UUID of a stack given its metadata ID.
+func (rs *CloudRunState) SetMeta2DriftUUID(metaID string, driftUUID resources.UUID) {
+	if rs.StackMeta2DriftUUIDs == nil {
+		rs.StackMeta2DriftUUIDs = make(map[string]resources.UUID)
+	}
+	rs.StackMeta2DriftUUIDs[strings.ToLower(metaID)] = driftUUID
+}
+
+// CloudDriftUUID returns the cloud drift UUID of a stack given its metadata ID.
+func (rs CloudRunState) CloudDriftUUID(metaID string) (resources.UUID, bool) {
+	id, ok := rs.StackMeta2DriftUUIDs[strings.ToLower(metaID)]
 	return id, ok
 }
 

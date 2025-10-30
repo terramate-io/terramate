@@ -49,7 +49,7 @@ type (
 		Members        []Member                         `json:"members"`
 		Stacks         []Stack                          `json:"stacks"`
 		Deployments    map[resources.UUID]*Deployment   `json:"deployments"`
-		Drifts         []Drift                          `json:"drifts"`
+		Drifts         map[resources.UUID]Drift         `json:"drifts"`
 		Previews       []Preview                        `json:"previews"`
 		ReviewRequests []resources.ReviewRequest        `json:"review_requests"`
 		Outputs        map[string]resources.StoreOutput `json:"outputs"` // map of (encoded key) -> output'
@@ -133,10 +133,11 @@ type (
 	// Drift model.
 	Drift struct {
 		ID          int64                         `json:"id"`
+		UUID        resources.UUID                `json:"uuid"`
 		StackMetaID string                        `json:"stack_meta_id"`
 		StackTarget string                        `json:"stack_target"`
 		Status      drift.Status                  `json:"status"`
-		Details     *resources.ChangesetDetails   `json:"details"`
+		Changeset   *resources.ChangesetDetails   `json:"changeset"`
 		Metadata    *resources.DeploymentMetadata `json:"metadata"`
 		Command     []string                      `json:"command"`
 		StartedAt   *time.Time                    `json:"started_at,omitempty"`
@@ -488,11 +489,13 @@ func (d *Data) GetStackDrifts(orguuid resources.UUID, stackID int64) ([]Drift, e
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var drifts []Drift
-	for i, drift := range org.Drifts {
+	i := 1
+	for _, drift := range org.Drifts {
 		drift.ID = int64(i) // lazy set, then can be unset in HCL
 		if drift.StackMetaID == st.MetaID {
 			drifts = append(drifts, drift)
 		}
+		i++
 	}
 	return drifts, nil
 }
@@ -547,9 +550,28 @@ func (d *Data) InsertDrift(orgID resources.UUID, drift Drift) (int, error) {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	org.Drifts = append(org.Drifts, drift)
+	if org.Drifts == nil {
+		org.Drifts = make(map[resources.UUID]Drift, 0)
+	}
+	org.Drifts[drift.UUID] = drift
 	d.Orgs[org.Name] = org
 	return len(org.Drifts) - 1, nil
+}
+
+// UpdateDrift updates the drift in the store.
+func (d *Data) UpdateDrift(org *Org, driftUUID resources.UUID, status drift.Status, changeset *resources.ChangesetDetails, at time.Time) (Drift, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	drift, found := org.Drifts[driftUUID]
+	if !found {
+		return Drift{}, false
+	}
+	drift.Changeset = changeset
+	drift.FinishedAt = &at
+	drift.Status = status
+	org.Drifts[driftUUID] = drift
+	d.Orgs[org.Name] = *org
+	return drift, true
 }
 
 // SetDeploymentStatus sets the given deployment stack to the given status.
@@ -826,7 +848,7 @@ func (org Org) Clone() Org {
 
 	// clones below are all shallow clones but enough for the mutation cases we handle.
 	neworg.Deployments = maps.Clone(org.Deployments)
-	neworg.Drifts = slices.Clone(org.Drifts)
+	neworg.Drifts = maps.Clone(org.Drifts)
 	neworg.Stacks = slices.Clone(org.Stacks)
 	neworg.Members = slices.Clone(org.Members)
 	neworg.ReviewRequests = slices.Clone(org.ReviewRequests)

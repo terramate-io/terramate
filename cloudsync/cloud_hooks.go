@@ -24,6 +24,10 @@ func BeforeRun(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState)
 		doCloudSyncDeployment(e, run, state, deployment.Running)
 	}
 
+	if run.Task.CloudSyncDriftStatus {
+		doDriftBefore(e, run, state)
+	}
+
 	if run.Task.CloudSyncPreview {
 		doPreviewBefore(e, run, state)
 	}
@@ -40,7 +44,7 @@ func AfterRun(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState, 
 	}
 
 	if run.Task.CloudSyncDriftStatus {
-		cloudSyncDriftStatus(e, run, state, res, err)
+		doDriftAfter(e, run, state, res, err)
 	}
 
 	if run.Task.CloudSyncPreview {
