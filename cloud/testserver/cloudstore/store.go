@@ -489,13 +489,10 @@ func (d *Data) GetStackDrifts(orguuid resources.UUID, stackID int64) ([]Drift, e
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var drifts []Drift
-	i := 1
 	for _, drift := range org.Drifts {
-		drift.ID = int64(i) // lazy set, then can be unset in HCL
 		if drift.StackMetaID == st.MetaID {
 			drifts = append(drifts, drift)
 		}
-		i++
 	}
 	return drifts, nil
 }
@@ -553,6 +550,7 @@ func (d *Data) InsertDrift(orgID resources.UUID, drift Drift) (int, error) {
 	if org.Drifts == nil {
 		org.Drifts = make(map[resources.UUID]Drift, 0)
 	}
+	drift.ID = int64(len(org.Drifts) + 1)
 	org.Drifts[drift.UUID] = drift
 	d.Orgs[org.Name] = org
 	return len(org.Drifts) - 1, nil
