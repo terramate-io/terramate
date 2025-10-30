@@ -1414,7 +1414,15 @@ func loadStackCodeCfgs(
 	for backendName, file := range backendMap {
 		backend, ok := cfg.SharingBackend(backendName)
 		if !ok {
-			return nil, errors.E("backend %s not found", backendName)
+			errs := errors.L()
+			for _, input := range file.inputs {
+				errs.Append(errors.E(input.Range, "input block %q references backend %q which is not defined", input.Name, backendName))
+			}
+			for _, output := range file.outputs {
+				errs.Append(errors.E(output.Range, "output block %q references backend %q which is not defined", output.Name, backendName))
+			}
+			errs.Append(errors.E("backend %q not found: define it using a 'sharing_backend' block", backendName))
+			return nil, errs.AsError()
 		}
 		sharingFile, err := sharing.PrepareFile(root, backend.Filename, file.inputs, file.outputs)
 		if err != nil {
