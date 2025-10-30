@@ -82,8 +82,17 @@ func doDriftAfter(e *engine.Engine, run engine.StackCloudRun, state *CloudRunSta
 
 	driftUUID, found := state.CloudDriftUUID(st.ID)
 	if !found {
-		logger.Error().Msg("missing drift UUID for stack ID")
-		return
+		// That could mean the doDriftBefore was never run as the command never ran.
+		// In this case we create the drift and we create the drift run and immediately failed.
+		if errors.IsAnyKind(err, engine.ErrRunCommandNotExecuted, engine.ErrRunFailed) {
+			doDriftBefore(e, run, state)
+			driftUUID, found = state.CloudDriftUUID(st.ID)
+		}
+
+		if !found {
+			logger.Error().Msg("missing drift UUID for stack ID")
+			return
+		}
 	}
 
 	logger = logger.With().Str("drift_uuid", string(driftUUID)).Logger()
