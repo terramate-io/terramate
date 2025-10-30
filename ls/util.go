@@ -96,37 +96,6 @@ func (s *Server) searchGlobalsInDirWithPath(dir string, attrPath []string) (*lsp
 	return nil, false, nil
 }
 
-// searchEnvInDir searches for an env variable definition in terramate.config.run.env blocks
-func (s *Server) searchEnvInDir(dir string, envVarName string) (*lsp.Location, bool, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, false, err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		filename := entry.Name()
-		if !isTerramateFile(filename) {
-			continue
-		}
-
-		fullPath := filepath.Join(dir, filename)
-		location, found, err := s.findEnvInFile(fullPath, envVarName)
-		if err != nil {
-			s.log.Debug().Err(err).Str("file", fullPath).Msg("skipping file with errors")
-			continue
-		}
-		if found {
-			return location, true, nil
-		}
-	}
-
-	return nil, false, nil
-}
-
 // findEnvInFile searches for an env variable in terramate.config.run.env block
 func (s *Server) findEnvInFile(fname string, envVarName string) (*lsp.Location, bool, error) {
 	syntaxBody, err := parseHCLFile(fname)

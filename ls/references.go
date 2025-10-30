@@ -231,6 +231,34 @@ func (s *Server) findSymbolAtPosition(body *hclsyntax.Body, targetPos hcl.Pos) *
 					}
 				}
 			}
+
+			// Check terramate.config.run.env blocks
+			if block.Type == "terramate" {
+				for _, configBlock := range block.Body.Blocks {
+					if configBlock.Type == "config" {
+						for _, runBlock := range configBlock.Body.Blocks {
+							if runBlock.Type == "run" {
+								for _, envBlock := range runBlock.Body.Blocks {
+									if envBlock.Type == "env" {
+										// Check attributes in env block
+										for _, attr := range envBlock.Body.Attributes {
+											if posInRange(targetPos, attr.NameRange) {
+												// Use terramate.run.env as the namespace to match references
+												info = &symbolInfo{
+													namespace:     "terramate.run.env",
+													attributeName: attr.Name,
+													fullPath:      "terramate.run.env." + attr.Name,
+												}
+												return nil
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 		return nil
 	})
@@ -331,6 +359,14 @@ func (s *Server) findSymbolAtPosition(body *hclsyntax.Body, targetPos hcl.Pos) *
 							info.attributeName = fullPathParts[1]
 							info.fullPath = "terramate.stack." + fullPathParts[1]
 						}
+
+						// Handle terramate.run.env.* - special case for environment variables
+						if rootName == "terramate" && len(fullPathParts) >= 3 && fullPathParts[0] == "run" && fullPathParts[1] == "env" {
+							// For terramate.run.env.FOO, the attribute is "FOO"
+							info.namespace = "terramate.run.env"
+							info.attributeName = fullPathParts[2]
+							info.fullPath = "terramate.run.env." + fullPathParts[2]
+						}
 					}
 				}
 			}
@@ -378,6 +414,19 @@ func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Lo
 			return nil
 		}
 		return s.findDefinitionLocation(body, info, fname)
+
+	case "terramate.run.env":
+		// Environment variables are always defined in terramate.tm.hcl at the workspace root
+		// in the terramate.config.run.env block
+		terramateConfigPath := filepath.Join(s.workspace, "terramate.tm.hcl")
+		location, found, err := s.findEnvInFile(terramateConfigPath, info.attributeName)
+		if err != nil {
+			s.log.Debug().Err(err).Str("file", terramateConfigPath).Msg("failed to read env definition file")
+			return nil
+		}
+		if found {
+			return location
+		}
 	}
 
 	return nil
@@ -595,6 +644,23 @@ func (s *Server) matchesSymbol(traversal hcl.Traversal, info *symbolInfo) bool {
 				return stackAttr == info.attributeName
 			}
 		}
+
+		// Handle terramate.run.env.* references
+		if attr, ok := traversal[1].(hcl.TraverseAttr); ok && attr.Name == "run" {
+			if len(traversal) >= 4 {
+				if envAttr, ok := traversal[2].(hcl.TraverseAttr); ok && envAttr.Name == "env" {
+					// info.namespace should be "terramate.run.env" (normalized)
+					if info.namespace == "terramate.run.env" {
+						varAttr, ok := traversal[3].(hcl.TraverseAttr)
+						if !ok {
+							return false
+						}
+						return varAttr.Name == info.attributeName
+					}
+				}
+			}
+		}
+
 		return false
 	}
 

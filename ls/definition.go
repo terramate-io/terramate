@@ -173,12 +173,6 @@ func (s *Server) findDefinitions(fname string, content []byte, line, character u
 			return nil, err
 		}
 		return []lsp.Location{*loc}, nil
-	case "env":
-		loc, err := s.findEnvDefinition(fname, foundTraversal)
-		if err != nil || loc == nil {
-			return nil, err
-		}
-		return []lsp.Location{*loc}, nil
 	case "terramate":
 		loc, err := s.findTerramateDefinition(fname, foundTraversal)
 		if err != nil || loc == nil {
@@ -332,45 +326,6 @@ func (s *Server) findLetDefinition(fname string, traversal hcl.Traversal) (*lsp.
 	return location, nil
 }
 
-// findEnvDefinition finds definitions for env namespace references (env.*)
-// Env variables are defined in terramate.config.run.env blocks
-func (s *Server) findEnvDefinition(fname string, traversal hcl.Traversal) (*lsp.Location, error) {
-	if len(traversal) < 2 {
-		return nil, nil
-	}
-
-	// Get the env variable name (env.MY_VAR)
-	attrTraverse, ok := traversal[1].(hcl.TraverseAttr)
-	if !ok {
-		return nil, nil
-	}
-	envVarName := attrTraverse.Name
-
-	// Search for env definitions in terramate.config.run.env blocks
-	// Start from current directory and move up to parents
-	dir := filepath.Dir(fname)
-
-	for {
-		location, found, err := s.searchEnvInDir(dir, envVarName)
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			return location, nil
-		}
-
-		// Move to parent directory
-		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
-			// Reached root or left workspace
-			break
-		}
-		dir = parent
-	}
-
-	return nil, nil
-}
-
 // findTerramateDefinition finds definitions for terramate namespace references
 func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) (*lsp.Location, error) {
 	if len(traversal) < 2 {
@@ -390,6 +345,29 @@ func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) 
 			}
 			stackAttr := stackAttrTraverse.Name
 			return s.findStackAttributeDefinition(fname, stackAttr)
+		}
+	}
+
+	// Check if this is a terramate.run.env.* reference
+	if attr, ok := secondPart.(hcl.TraverseAttr); ok && attr.Name == "run" {
+		if len(traversal) >= 4 {
+			// Check if traversal[2] is "env"
+			if envAttr, ok := traversal[2].(hcl.TraverseAttr); ok && envAttr.Name == "env" {
+				// This is terramate.run.env.VARIABLE_NAME
+				// Get the variable name from traversal[3]
+				if varAttr, ok := traversal[3].(hcl.TraverseAttr); ok {
+					envVarName := varAttr.Name
+					// Environment variables are always defined in terramate.tm.hcl at the workspace root
+					terramateConfigPath := filepath.Join(s.workspace, "terramate.tm.hcl")
+					location, found, err := s.findEnvInFile(terramateConfigPath, envVarName)
+					if err != nil {
+						return nil, err
+					}
+					if found {
+						return location, nil
+					}
+				}
+			}
 		}
 	}
 

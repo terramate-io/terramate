@@ -196,25 +196,25 @@ func (s *Server) canRename(fname string, content []byte, line, character uint32)
 		s.log.Debug().Msg("potential label is actually nested object - treating as attribute")
 	}
 
-	// Only allow renaming global, let, and terramate.stack attributes (not built-ins)
-	// Note: stack attributes use the "terramate.stack" namespace, both for definitions
-	// (when clicking on `name = "..."` in a stack block) and references (when clicking
-	// on `terramate.stack.name` in an expression).
+	// Only allow renaming user-defined variables: global, let, and terramate.run.env
+	// Note: terramate.run.env.* refers to environment variables defined in terramate.config.run.env blocks
+	// All other terramate.* metadata (including terramate.stack.*) is protected and cannot be renamed
+	// Stack attributes in stack {} blocks are also fixed metadata and cannot be renamed
 	switch symbolInfo.namespace {
-	case "global", "let", "terramate.stack":
+	case "global", "let", "terramate.run.env":
 		// These can be renamed
 		s.log.Debug().
 			Str("namespace", symbolInfo.namespace).
 			Msg("canRename: namespace is renameable")
 	default:
-		// terramate.* and others cannot be renamed
+		// Other terramate.* namespaces (metadata) cannot be renamed
 		s.log.Debug().
 			Str("namespace", symbolInfo.namespace).
-			Msg("canRename: namespace cannot be renamed")
+			Msg("canRename: namespace cannot be renamed (protected metadata)")
 		return nil
 	}
 
-	// First check if we're on an attribute definition (name range)
+	// Check if we're on an attribute definition or reference
 	var symbolRange *lsp.Range
 	_ = hclsyntax.VisitAll(syntaxBody, func(node hclsyntax.Node) hcl.Diagnostics {
 		if block, ok := node.(*hclsyntax.Block); ok {
@@ -309,6 +309,38 @@ func (s *Server) canRename(fname string, content []byte, line, character uint32)
 					}
 				}
 			}
+
+			// Check in terramate.config.run.env blocks
+			if block.Type == "terramate" {
+				for _, configBlock := range block.Body.Blocks {
+					if configBlock.Type == "config" {
+						for _, runBlock := range configBlock.Body.Blocks {
+							if runBlock.Type == "run" {
+								for _, envBlock := range runBlock.Body.Blocks {
+									if envBlock.Type == "env" {
+										// Check attributes in env block
+										for _, attr := range envBlock.Body.Attributes {
+											if posInRange(targetPos, attr.NameRange) && attr.Name == symbolInfo.attributeName {
+												symbolRange = &lsp.Range{
+													Start: lsp.Position{
+														Line:      uint32(attr.NameRange.Start.Line - 1),
+														Character: uint32(attr.NameRange.Start.Column - 1),
+													},
+													End: lsp.Position{
+														Line:      uint32(attr.NameRange.End.Line - 1),
+														Character: uint32(attr.NameRange.End.Column - 1),
+													},
+												}
+												return nil
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 
 		// If not on definition, check if on a reference
@@ -325,12 +357,25 @@ func (s *Server) canRename(fname string, content []byte, line, character uint32)
 
 						// Handle terramate.stack.* references - special case
 						// For terramate.stack.name, the attribute is at traversal[2], not traversal[1]
+						// Handle terramate.run.env.* references - special case
+						// For terramate.run.env.MY_VAR, the attribute is at traversal[3]
 						if rootName == "terramate" && len(scopeExpr.Traversal) >= 3 {
 							if attr, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok && attr.Name == "stack" {
 								// For terramate.stack.name, we want traversal[2] (the attribute name)
 								attrIdx = 2
+							} else if attr, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok && attr.Name == "run" {
+								// For terramate.run.env.MY_VAR, we want traversal[3] (the env variable name)
+								if len(scopeExpr.Traversal) >= 4 {
+									if envAttr, ok := scopeExpr.Traversal[2].(hcl.TraverseAttr); ok && envAttr.Name == "env" {
+										attrIdx = 3
+									} else {
+										attrIdx = len(scopeExpr.Traversal) - 1
+									}
+								} else {
+									attrIdx = len(scopeExpr.Traversal) - 1
+								}
 							} else {
-								// Not a terramate.stack.* reference, use last index
+								// Not a terramate.stack.* or terramate.run.env.* reference, use last index
 								attrIdx = len(scopeExpr.Traversal) - 1
 							}
 						} else {
@@ -429,7 +474,7 @@ func (s *Server) createRenameEdits(ctx context.Context, fname string, content []
 
 	// Only allow renaming user-defined symbols
 	switch symbolInfo.namespace {
-	case "global", "let", "terramate.stack":
+	case "global", "let", "terramate.run.env":
 		// OK to rename
 	default:
 		return nil, nil
@@ -479,8 +524,6 @@ func (s *Server) createRenameEdits(ctx context.Context, fname string, content []
 // findDefinitionForRename finds the definition of a symbol for renaming
 // Uses the same search strategy as findAndReturnDefinition in references.go
 func (s *Server) findDefinitionForRename(fname string, info *symbolInfo) *lsp.Location {
-	dir := filepath.Dir(fname)
-
 	switch info.namespace {
 	case "global":
 		// Extract full path from fullPath string
@@ -493,19 +536,6 @@ func (s *Server) findDefinitionForRename(fname string, info *symbolInfo) *lsp.Lo
 		location, _ := s.findGlobalWithImports(fname, attrPath)
 		return location
 
-	case "terramate.stack":
-		// Search current and parent directories for stack attributes
-		for {
-			location, found, _ := s.searchStackInDir(dir, info.attributeName)
-			if found {
-				return location
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
-				break
-			}
-			dir = parent
-		}
 	case "let":
 		// Let variables are in the same file
 		content, err := os.ReadFile(fname)
@@ -518,6 +548,19 @@ func (s *Server) findDefinitionForRename(fname string, info *symbolInfo) *lsp.Lo
 		}
 		if body, ok := file.Body.(*hclsyntax.Body); ok {
 			return s.findDefinitionLocation(body, info, fname)
+		}
+
+	case "terramate.run.env":
+		// Environment variables are always defined in terramate.tm.hcl at the workspace root
+		// in the terramate.config.run.env block
+		terramateConfigPath := filepath.Join(s.workspace, "terramate.tm.hcl")
+		location, found, err := s.findEnvInFile(terramateConfigPath, info.attributeName)
+		if err != nil {
+			s.log.Debug().Err(err).Str("file", terramateConfigPath).Msg("failed to read env definition file")
+			return nil
+		}
+		if found {
+			return location
 		}
 	}
 
