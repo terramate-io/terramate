@@ -128,6 +128,19 @@ func (e *Editor) Change(path, content string) {
 	assert.NoError(t, err, "call %q", lsp.MethodTextDocumentDidChange)
 }
 
+// Close sends a didClose notification to the language server.
+func (e *Editor) Close(path string) {
+	t := e.t
+	t.Helper()
+	abspath := filepath.Join(e.sandbox.RootDir(), path)
+	err := e.conn.Notify(context.Background(), lsp.MethodTextDocumentDidClose, lsp.DidCloseTextDocumentParams{
+		TextDocument: lsp.TextDocumentIdentifier{
+			URI: uri.File(abspath),
+		},
+	})
+	assert.NoError(t, err, "notifying %s", lsp.MethodTextDocumentDidClose)
+}
+
 // Command invokes the provided command in the LSP server.
 func (e *Editor) Command(cmd lsp.ExecuteCommandParams) (interface{}, error) {
 	t := e.t
@@ -143,8 +156,12 @@ func DefaultInitializeResult() lsp.InitializeResult {
 	return lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{
 			CompletionProvider: &lsp.CompletionOptions{},
-			DefinitionProvider: false,
+			DefinitionProvider: true,
 			HoverProvider:      false,
+			ReferencesProvider: true,
+			RenameProvider: map[string]interface{}{
+				"prepareProvider": true,
+			},
 			TextDocumentSync: map[string]interface{}{
 				"change":    float64(1),
 				"openClose": true,

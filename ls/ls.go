@@ -1,7 +1,11 @@
 // Copyright 2023 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
-// Package tmls implements a Terramate Language Server (LSP).
+// Package tmls implements a Terramate Language Server (LSP) providing:
+// - Go to Definition: Navigate to symbol definitions including globals, lets, and stack attributes
+// - Find References: Locate all references to a symbol across the workspace
+// - Rename Symbol: Rename symbols with workspace-wide refactoring support
+// - Import Resolution: Follows import chains for global variable resolution
 package tmls
 
 import (
@@ -11,7 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
+	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -31,6 +35,10 @@ type Server struct {
 	conn      jsonrpc2.Conn
 	workspace string
 	handlers  handlers
+
+	// documents stores open document content by file path
+	documents   map[string][]byte
+	documentsMu sync.RWMutex
 
 	log zerolog.Logger
 }
@@ -53,21 +61,58 @@ func NewServer(conn jsonrpc2.Conn) *Server {
 // ServerWithLogger creates a new language server with a custom logger.
 func ServerWithLogger(conn jsonrpc2.Conn, l zerolog.Logger) *Server {
 	s := &Server{
-		conn: conn,
-		log:  l,
+		conn:      conn,
+		documents: make(map[string][]byte),
+		log:       l,
 	}
 	s.buildHandlers()
 	return s
 }
 
+// getDocumentContent returns the content of an open document, or reads from disk if not cached
+func (s *Server) getDocumentContent(fname string) ([]byte, error) {
+	s.documentsMu.RLock()
+	content, ok := s.documents[fname]
+	s.documentsMu.RUnlock()
+
+	if ok {
+		s.log.Debug().Str("file", fname).Msg("using cached document content")
+		return content, nil
+	}
+
+	s.log.Debug().Str("file", fname).Msg("reading document from disk (not cached)")
+	return os.ReadFile(fname)
+}
+
+// setDocumentContent stores the content of an open document
+func (s *Server) setDocumentContent(fname string, content []byte) {
+	s.documentsMu.Lock()
+	s.documents[fname] = content
+	s.documentsMu.Unlock()
+	s.log.Debug().Str("file", fname).Int("size", len(content)).Msg("cached document content")
+}
+
+// deleteDocumentContent removes a document from the cache
+func (s *Server) deleteDocumentContent(fname string) {
+	s.documentsMu.Lock()
+	delete(s.documents, fname)
+	s.documentsMu.Unlock()
+	s.log.Debug().Str("file", fname).Msg("removed document from cache")
+}
+
 func (s *Server) buildHandlers() {
 	s.handlers = map[string]handler{
-		lsp.MethodInitialize:             s.handleInitialize,
-		lsp.MethodInitialized:            s.handleInitialized,
-		lsp.MethodTextDocumentDidOpen:    s.handleDocumentOpen,
-		lsp.MethodTextDocumentDidChange:  s.handleDocumentChange,
-		lsp.MethodTextDocumentDidSave:    s.handleDocumentSaved,
-		lsp.MethodTextDocumentCompletion: s.handleCompletion,
+		lsp.MethodInitialize:                s.handleInitialize,
+		lsp.MethodInitialized:               s.handleInitialized,
+		lsp.MethodTextDocumentDidOpen:       s.handleDocumentOpen,
+		lsp.MethodTextDocumentDidChange:     s.handleDocumentChange,
+		lsp.MethodTextDocumentDidClose:      s.handleDocumentClose,
+		lsp.MethodTextDocumentDidSave:       s.handleDocumentSaved,
+		lsp.MethodTextDocumentCompletion:    s.handleCompletion,
+		lsp.MethodTextDocumentDefinition:    s.handleDefinition,
+		lsp.MethodTextDocumentReferences:    s.handleReferences,
+		lsp.MethodTextDocumentRename:        s.handleRename,
+		lsp.MethodTextDocumentPrepareRename: s.handlePrepareRename,
 
 		// commands
 		MethodExecuteCommand: s.handleExecuteCommand,
@@ -119,10 +164,18 @@ func (s *Server) handleInitialize(
 			CompletionProvider: &lsp.CompletionOptions{},
 
 			// if we support `goto` definition.
-			DefinitionProvider: false,
+			DefinitionProvider: true,
 
 			// If we support `hover` info.
 			HoverProvider: false,
+
+			// if we support finding references
+			ReferencesProvider: true,
+
+			// if we support rename
+			RenameProvider: &lsp.RenameOptions{
+				PrepareProvider: true,
+			},
 
 			TextDocumentSync: lsp.TextDocumentSyncOptions{
 				// Send all file content on every change (can be optimized later).
@@ -181,6 +234,9 @@ func (s *Server) handleDocumentOpen(
 	fname := params.TextDocument.URI.Filename()
 	content := params.TextDocument.Text
 
+	// Cache the document content
+	s.setDocumentContent(fname, []byte(content))
+
 	return s.checkAndReply(ctx, reply, fname, content)
 }
 
@@ -205,7 +261,30 @@ func (s *Server) handleDocumentChange(
 	content := params.ContentChanges[0].Text
 	fname := params.TextDocument.URI.Filename()
 
+	// Update cached document content
+	s.setDocumentContent(fname, []byte(content))
+
 	return s.checkAndReply(ctx, reply, fname, content)
+}
+
+func (s *Server) handleDocumentClose(
+	ctx context.Context,
+	reply jsonrpc2.Replier,
+	r jsonrpc2.Request,
+	log zerolog.Logger,
+) error {
+	var params lsp.DidCloseTextDocumentParams
+	if err := json.Unmarshal(r.Params(), &params); err != nil {
+		log.Error().Err(err).Msg("failed to unmarshal params")
+		return jsonrpc2.ErrParse
+	}
+
+	fname := params.TextDocument.URI.Filename()
+
+	// Remove document from cache to prevent memory leak
+	s.deleteDocumentContent(fname)
+
+	return reply(ctx, nil, nil)
 }
 
 func (s *Server) handleDocumentSaved(
@@ -343,7 +422,7 @@ func listFiles(fromFile string) ([]string, error) {
 		}
 
 		filename := dirEntry.Name()
-		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
+		if isTerramateFile(filename) {
 			path := filepath.Join(dir, filename)
 
 			if path == fromFile {
