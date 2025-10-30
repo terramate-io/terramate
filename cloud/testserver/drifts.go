@@ -4,10 +4,12 @@
 package testserver
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
@@ -244,6 +246,13 @@ func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p
 			FinishedAt: drift.FinishedAt,
 		})
 	}
+
+	// Return them sorted by drift ID as retrieving from map is not predictable.
+	// The drift.ID is the way to know the order of insertion.
+	slices.SortFunc(res, func(a, b resources.DriftWithStack) int {
+		return cmp.Compare(a.Drift.ID, b.Drift.ID)
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	marshalWrite(w, res)

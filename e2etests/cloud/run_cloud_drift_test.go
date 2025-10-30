@@ -901,7 +901,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			// whole argument list is interpolated, including the program name, and then
 			// on Windows it requires a special escaped string.
 			// See variable `HelperPathAsHCL`.
-			cmpopts.IgnoreFields(resources.DriftWithStack{}, "Details", "StartedAt", "FinishedAt")); diff != "" {
+			cmpopts.IgnoreFields(resources.DriftWithStack{}, "ID", "Details", "StartedAt", "FinishedAt")); diff != "" {
 			t.Logf("want: %+v", expectedDrifts)
 			t.Logf("got: %+v", got)
 			t.Fatal(diff)
