@@ -58,7 +58,7 @@ func doDriftBefore(e *engine.Engine, run engine.StackCloudRun, state *CloudRunSt
 
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create drift")
-		e.DisableCloudFeatures(errors.E(errors.ErrInternal, "failed to create drift"))
+		e.DisableCloudFeatures(errors.E(errors.ErrInternal, clitest.CloudSyncDriftFailedMessage))
 		return
 	}
 
