@@ -307,18 +307,38 @@ func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID resources.U
 func (c *Client) CreateStackDrift(
 	ctx context.Context,
 	orgUUID resources.UUID,
-	driftPayload resources.DriftStackPayloadRequest,
-) (resources.EmptyResponse, error) {
+	driftPayload resources.DriftCheckRunStartPayloadRequest,
+) (resources.DriftCheckRunStartResponse, error) {
 	err := driftPayload.Validate()
 	if err != nil {
-		return resources.EmptyResponse(""), errors.E(err, "failed to prepare the request")
+		return resources.DriftCheckRunStartResponse{}, errors.E(err, "failed to prepare the request")
 	}
-	return http.Post[resources.EmptyResponse](
+	return http.Post[resources.DriftCheckRunStartResponse](
 		ctx,
 		c,
 		driftPayload,
 		c.URL(path.Join(DriftsPath, string(orgUUID))),
 	)
+}
+
+// UpdateStackDrift updates the drift status for the given drift UUID using v2 API.
+func (c *Client) UpdateStackDrift(
+	ctx context.Context,
+	orgUUID resources.UUID,
+	driftUUID resources.UUID,
+	driftPayload resources.UpdateDriftPayloadRequest,
+) error {
+	err := driftPayload.Validate()
+	if err != nil {
+		return errors.E(err, "failed to prepare the request")
+	}
+	_, err = http.Patch[resources.EmptyResponse](
+		ctx,
+		c,
+		driftPayload,
+		c.URL(path.Join(DriftsPath, string(orgUUID), string(driftUUID))),
+	)
+	return err
 }
 
 // SyncCommandLogs sends a batch of command logs to Terramate Cloud.

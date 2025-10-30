@@ -25,7 +25,7 @@ import (
 func TestScriptRunDriftStatus(t *testing.T) {
 	type want struct {
 		run    RunExpected
-		drifts expectedDriftStackPayloadRequests
+		drifts expectedDriftStacks
 	}
 	type testcase struct {
 		name          string
@@ -91,9 +91,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -102,8 +102,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -130,9 +132,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -141,8 +143,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -172,9 +176,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 					Status:      1,
 					StderrRegex: "executable file not found",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -183,8 +187,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -207,9 +213,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			},
 			cmd: []string{"cmd"},
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -218,8 +224,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -247,9 +255,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				run: RunExpected{
 					Stdout: "/parent/child\n",
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -258,8 +266,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "child",
 								Target:        "default",
 							},
-							Status:   drift.OK,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.OK,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -283,9 +293,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			},
 			cmd: []string{"cmd"},
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -294,12 +304,14 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -308,8 +320,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -338,9 +352,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						clitest.CloudSkippingTerraformPlanSync,
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -349,8 +363,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -380,9 +396,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						"skipping",
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -391,8 +407,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
@@ -430,9 +448,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						`local_file.foo will be created`,
 					},
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -441,13 +459,15 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status: drift.Drifted,
-							Details: &resources.ChangesetDetails{
-								Provisioner:   "terraform",
-								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
-								Serial:        makeSerial(0),
+							Drift: resources.Drift{
+								Status: drift.Drifted,
+								Details: &resources.ChangesetDetails{
+									Provisioner:   "terraform",
+									ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+									Serial:        makeSerial(0),
+								},
+								Metadata: expectedMetadata,
 							},
-							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`Terraform used the selected providers to generate the following execution`,
@@ -455,7 +475,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -464,13 +484,15 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "s2",
 								Target:        "default",
 							},
-							Status: drift.Drifted,
-							Details: &resources.ChangesetDetails{
-								Provisioner:   "terraform",
-								ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
-								Serial:        makeSerial(0),
+							Drift: resources.Drift{
+								Status: drift.Drifted,
+								Details: &resources.ChangesetDetails{
+									Provisioner:   "terraform",
+									ChangesetJSON: loadJSONPlan(t, "testdata/cloud-sync-drift-plan-file/sanitized.plan.json"),
+									Serial:        makeSerial(0),
+								},
+								Metadata: expectedMetadata,
 							},
-							Metadata: expectedMetadata,
 						},
 						ChangesetASCIIRegexes: []string{
 							`Terraform used the selected providers to generate the following execution`,
@@ -505,9 +527,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 			cmd:           []string{"cmd"},
 			defaultBranch: "trunk",
 			want: want{
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "trunk",
@@ -516,8 +538,10 @@ func TestScriptRunDriftStatus(t *testing.T) {
 								MetaID:        "stack",
 								Target:        "default",
 							},
-							Status:   drift.Drifted,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Drifted,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},

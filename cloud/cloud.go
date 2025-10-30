@@ -32,7 +32,7 @@ const (
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
 	// DriftsPath is the drifts endpoint base path.
-	DriftsPath = "/v1/drifts"
+	DriftsPath = "/v2/drifts"
 	// StacksPath is the stacks endpoint base path.
 	StacksPath = "/v1/stacks"
 	// ReviewRequestsPath is the review requests endpoint base path.
