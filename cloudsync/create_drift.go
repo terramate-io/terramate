@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/api/drift"
@@ -81,9 +82,18 @@ func doDriftAfter(e *engine.Engine, run engine.StackCloudRun, state *CloudRunSta
 		Logger()
 
 	driftUUID, found := state.CloudDriftUUID(st.ID)
-	if !found {
-		logger.Error().Msg("missing drift UUID for stack ID")
-		return
+	if !found || driftUUID == "" || driftUUID == resources.UUID(uuid.Nil.String()) {
+		// That could mean the doDriftBefore was never run as the command never ran.
+		// In this case we create the drift and we create the drift run and immediately failed.
+		if errors.IsAnyKind(err, engine.ErrRunCommandNotExecuted, engine.ErrRunFailed) {
+			doDriftBefore(e, run, state)
+			driftUUID, found = state.CloudDriftUUID(st.ID)
+		}
+
+		if !found || driftUUID == "" || driftUUID == resources.UUID(uuid.Nil.String()) {
+			logger.Error().Msg("missing drift UUID for stack ID")
+			return
+		}
 	}
 
 	logger = logger.With().Str("drift_uuid", string(driftUUID)).Logger()
