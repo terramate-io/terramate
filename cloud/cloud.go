@@ -31,6 +31,8 @@ const (
 	MembershipsPath = "/v1/memberships"
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
+	// DriftsV1Path is the drifts V1 endpoint base path.
+	DriftsV1Path = "/v1/drifts"
 	// DriftsPath is the drifts endpoint base path.
 	DriftsPath = "/v2/drifts"
 	// StacksPath is the stacks endpoint base path.

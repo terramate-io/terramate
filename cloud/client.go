@@ -266,7 +266,7 @@ func (c *Client) StackLastDrift(ctx context.Context, orgUUID resources.UUID, sta
 
 // DriftDetails retrieves details of the given driftID.
 func (c *Client) DriftDetails(ctx context.Context, orgUUID resources.UUID, stackID int64, driftID int64) (resources.Drift, error) {
-	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa64(stackID), strconv.Itoa64(driftID))
+	path := path.Join(DriftsV1Path, string(orgUUID), strconv.Itoa64(stackID), strconv.Itoa64(driftID))
 	return http.Get[resources.Drift](ctx, c, c.URL(path))
 }
 
