@@ -1509,7 +1509,7 @@ func TestCloudSyncUIMode(t *testing.T) {
 			},
 		},
 		{
-			name: "/v1/drifts is not working",
+			name: "/v2/drifts is not working",
 			endpoints: map[string]bool{
 				cloud.UsersPath:       true,
 				cloud.MembershipsPath: true,
