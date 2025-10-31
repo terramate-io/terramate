@@ -216,7 +216,7 @@ func PatchDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetDrifts implements the GET /drifts/:orguuid endpoint.
+// GetDrifts implements the GET /v2/drifts/:orguuid endpoint.
 // Note: this is not a real endpoint.
 func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p httprouter.Params) {
 	orgUUID := p.ByName("orguuid")

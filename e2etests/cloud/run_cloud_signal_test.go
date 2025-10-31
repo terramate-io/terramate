@@ -144,6 +144,24 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					IgnoreStdout: true,
 					IgnoreStderr: true,
 				},
+				drifts: expectedDriftStacks{
+					{
+						DriftWithStack: resources.DriftWithStack{
+							Stack: resources.Stack{
+								Repository:    normalizedTestRemoteRepo,
+								DefaultBranch: "main",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
+								Target:        "default",
+							},
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
+						},
+					},
+				},
 			},
 		},
 		{

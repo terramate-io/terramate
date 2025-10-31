@@ -104,7 +104,7 @@ func doDriftAfter(e *engine.Engine, run engine.StackCloudRun, state *CloudRunSta
 		status = drift.OK
 	case res.ExitCode == 2:
 		status = drift.Drifted
-	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, engine.ErrRunCommandNotExecuted, engine.ErrRunFailed):
+	case res.ExitCode == 1 || res.ExitCode > 2 || errors.IsAnyKind(err, engine.ErrRunCommandNotExecuted, engine.ErrRunFailed, engine.ErrRunCanceled):
 		status = drift.Failed
 	default:
 		// ignore exit codes < 0
