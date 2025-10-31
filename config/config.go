@@ -467,11 +467,6 @@ func (tree *Tree) Stack() (*Stack, error) {
 	tree.muStacks.Lock()
 	defer tree.muStacks.Unlock()
 	if tree.stack == nil {
-		// Add inputs from Terragrunt dependency blocks before loading the stack
-		if err := tree.addTerragruntDependencyInputs(); err != nil {
-			return nil, err
-		}
-
 		s, err := LoadStack(tree.Root(), tree.Dir())
 		if err != nil {
 			return nil, err
@@ -479,79 +474,6 @@ func (tree *Tree) Stack() (*Stack, error) {
 		tree.stack = s
 	}
 	return tree.stack, nil
-}
-
-// addTerragruntDependencyInputs adds input entries for Terragrunt dependency blocks.
-// This converts Terragrunt dependency blocks (data dependencies) into Terramate inputs
-// so that the dependency graph correctly widens scope for dependency flags.
-func (tree *Tree) addTerragruntDependencyInputs() error {
-	if !tree.IsTerragruntModule() || !tree.IsStack() {
-		return nil
-	}
-
-	// Wait for background worker to finish loading if it's running
-	if tree.terragruntModuleLoadFinished != nil {
-		<-tree.terragruntModuleLoadFinished
-	}
-
-	// Reload the Terragrunt module with dependency tracking enabled
-	// The cached module was loaded with trackDependencies=false during initial scan
-	rootdir := tree.Root().HostDir()
-	mod, isRootModule, err := tg.LoadModule(rootdir, tree.Dir(), tree.TgRootFile, true)
-	if err != nil || !isRootModule || mod == nil {
-		// Not a root module or error loading, skip
-		return nil
-	}
-
-	// For each dependency block, create an input with from_stack_id
-	for i, depPath := range mod.DependencyBlocks {
-		// Find the stack at this dependency path
-		depTree, found := tree.Root().Lookup(depPath)
-		if !found || !depTree.IsStack() {
-			// Dependency stack doesn't exist or isn't a stack, skip silently
-			// (could be outside project or not a stack)
-			continue
-		}
-
-		// Get the stack ID from the dependency
-		depStackID := depTree.Node.Stack.ID
-		if depStackID == "" {
-			// Dependency stack has no ID, skip
-			continue
-		}
-
-		// Create an expression for the stack ID
-		// Parse as a quoted string: "stack-id"
-		stackIDExpr, err := ast.ParseExpression(fmt.Sprintf(`"%s"`, depStackID), "terragrunt-dependency")
-		if err != nil {
-			return errors.E(err, "creating expression for terragrunt dependency")
-		}
-
-		// Create a null expression for the value (we don't use it, just needed for schema)
-		nullExpr, err := ast.ParseExpression("null", "terragrunt-dependency-value")
-		if err != nil {
-			return errors.E(err, "creating null expression")
-		}
-
-		// Create a backend expression
-		backendExpr, err := ast.ParseExpression(`"default"`, "terragrunt-dependency-backend")
-		if err != nil {
-			return errors.E(err, "creating backend expression")
-		}
-
-		// Create an input for this dependency
-		input := hcl.Input{
-			Name:        fmt.Sprintf("terragrunt_dep_%d", i),
-			Backend:     backendExpr,
-			Value:       nullExpr,
-			FromStackID: stackIDExpr,
-		}
-
-		// Add to the node's inputs
-		tree.Node.Inputs = append(tree.Node.Inputs, input)
-	}
-
-	return nil
 }
 
 // Stacks returns the stack nodes from the tree.
