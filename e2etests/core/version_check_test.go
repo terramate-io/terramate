@@ -103,7 +103,7 @@ func TestProvidesCorrectVersion(t *testing.T) {
 
 	s := sandbox.NoGit(t, false)
 	cli := NewCLI(t, s.RootDir())
-	want := tm.Version() + "\n"
+	want := "terramate " + tm.Version() + "\n"
 
 	AssertRunResult(t, cli.Run("version"), RunExpected{
 		Status: 0,

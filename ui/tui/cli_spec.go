@@ -337,3 +337,28 @@ func migrateBoolFlag(flag *bool, alias bool) {
 		*flag = alias
 	}
 }
+
+// AsFlagSpec extracts the given spec into the target spec type.
+// This enables creating nested spec types that can be stored as type `any`
+// so that the inner type can still be accessed without knowing the outer type.
+func AsFlagSpec[T any](spec any) *T {
+	for {
+		if x, ok := spec.(*T); ok {
+			return x
+		}
+		switch x := spec.(type) {
+		case interface{ UnwrapFlagSpec() any }:
+			spec = x.UnwrapFlagSpec()
+			if spec == nil {
+				return nil
+			}
+		default:
+			return nil
+		}
+	}
+}
+
+// UnwrapFlagSpec is the reference implementation for the root spec.
+func (*FlagSpec) UnwrapFlagSpec() any {
+	return nil
+}
