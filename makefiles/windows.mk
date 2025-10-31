@@ -36,8 +36,29 @@ test: test/helper build
 	go test -timeout 30m -p 100 ./...
 	set status=%errorlevel%
 	.\bin\helper.exe rm $(tempdir)
-# 	Please uncomment line below when all Windows tests are fixed.	
-#	exit %status%
+	exit %status%
+
+## test code (fast, without race detector)
+.PHONY: test/fast
+.ONESHELL:
+tempdir=$(shell .\bin\helper.exe tempdir)
+test/fast: test/helper build
+	set TM_TEST_ROOT_TEMPDIR=$(tempdir)
+	go test -timeout 15m -p 100 ./...
+	set status=%errorlevel%
+	.\bin\helper.exe rm $(tempdir)
+	exit %status%
+
+## test code (race detector only)
+.PHONY: test/race
+.ONESHELL:
+tempdir=$(shell .\bin\helper.exe tempdir)
+test/race: test/helper build
+	set TM_TEST_ROOT_TEMPDIR=$(tempdir)
+	go test -race -timeout 30m -p 100 ./...
+	set status=%errorlevel%
+	.\bin\helper.exe rm $(tempdir)
+	exit %status%
 
  ## remove build artifacts
 .PHONY: clean
