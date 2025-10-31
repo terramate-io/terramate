@@ -122,6 +122,11 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 		c.clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
 	}
 
+	// Set environment variable for Terragrunt cache disabling if flag is set
+	if parsedArgs.DisableTgCache {
+		_ = os.Setenv("TM_DISABLE_TG_CACHE", "1")
+	}
+
 	if c.clicfg.UserTerramateDir == "" {
 		homeTmDir, err := userTerramateDir()
 		if err != nil {
