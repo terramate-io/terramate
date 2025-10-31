@@ -42,7 +42,7 @@ const (
 	// Unrecognized indicates any drift status returned from TMC but not
 	// recognized by this client version.
 	Unrecognized
-	lastStatus = Failed
+	lastStatus = Running
 )
 
 const (
