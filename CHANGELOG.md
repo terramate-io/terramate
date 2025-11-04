@@ -42,7 +42,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `--exclude-all-dependencies`: Remove all stacks that the selected stacks depend on from the selection
   - `--exclude-all-dependents`: Remove all dependent stacks from the selection
   - Support for both Terragrunt and Terramate dependencies in the new dependency flags
-  - Add go-to definitions and symbol renaming capabilities to the language server for `globals`, `let` and `terramate.run.env.*` statements
+- Add go-to definitions and symbol renaming capabilities to the language server for `globals`, `let` and `terramate.run.env.*` statements
 
 
 ### Fixed
