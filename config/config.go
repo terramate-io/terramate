@@ -177,14 +177,19 @@ func (root *Root) initTgWorkers() {
 	if !root.changeDetectionEnabled {
 		return
 	}
+
+	cache, err := tg.NewFileExistsCache(root.HostDir(), tg.IsHCLFile)
+	if err != nil {
+		log.Debug().Err(err).Msg("failed to cache, not using it")
+	}
 	root.tgTransientErrs = map[string]error{}
 	root.tgProcessedFiles = make(map[string]struct{})
 	for i := 0; i < root.maxTgWorkers; i++ {
-		go root.tgWorker()
+		go root.tgWorker(cache)
 	}
 }
 
-func (root *Root) tgWorker() {
+func (root *Root) tgWorker(cache *tg.FileExistsCache) {
 	const trackTerragruntDependencies = false
 	for tree := range root.tgTaskChan {
 		tgFile := filepath.Join(tree.HostDir(), tree.TgRootFile)
@@ -192,7 +197,7 @@ func (root *Root) tgWorker() {
 		root.tgTransientErrs[tgFile] = errors.L()
 		root.tgmu.Unlock()
 
-		tgMod, isRootModule, err := tg.LoadModule(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies)
+		tgMod, isRootModule, err := tg.LoadModule(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies, cache)
 		root.tgmu.Lock()
 		if err != nil {
 			root.tgTransientErrs[tgFile] = err

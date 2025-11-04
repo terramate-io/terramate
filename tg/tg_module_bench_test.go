@@ -23,7 +23,7 @@ func BenchmarkModuleDiscovery(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := tg.ScanModules(s.RootDir(), project.NewPath("/"), true)
+		_, err := tg.ScanModules(s.RootDir(), project.NewPath("/"), true, nil)
 		if err != nil {
 			b.Fatal(err)
 		}

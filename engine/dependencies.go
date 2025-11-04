@@ -16,7 +16,7 @@ type Modules = tg.Modules
 
 // LoadTerragruntModules is a helper to load Terragrunt modules
 func LoadTerragruntModules(rootdir string, dir project.Path) (Modules, error) {
-	return tg.ScanModules(rootdir, dir, true)
+	return tg.ScanModules(rootdir, dir, true, nil)
 }
 
 // DependencyGraph represents the dependency relationships between stacks.

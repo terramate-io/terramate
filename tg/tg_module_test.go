@@ -934,7 +934,7 @@ func TestTerragruntScanModules(t *testing.T) {
 			if basedir.String() == "" {
 				basedir = project.NewPath("/")
 			}
-			modules, err := tg.ScanModules(s.RootDir(), basedir, !tc.ignoreDeps)
+			modules, err := tg.ScanModules(s.RootDir(), basedir, !tc.ignoreDeps, nil)
 			errtest.Assert(t, err, tc.want.err)
 			if err != nil {
 				return

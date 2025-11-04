@@ -35,7 +35,7 @@ func main() {
 		dir = rootdir
 	}
 
-	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, dir), true)
+	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, dir), true, nil)
 	abortOnErr(err)
 
 	if *isJSON {

@@ -57,7 +57,7 @@ func init() {
 // LoadModule loads a Terragrunt module from dir and fname.
 //
 // If fname is not absolute, it is considered to be relative to dir.
-func LoadModule(rootdir string, dir project.Path, fname string, trackDependencies bool) (mod *Module, isRootModule bool, err error) {
+func LoadModule(rootdir string, dir project.Path, fname string, trackDependencies bool, cache *FileExistsCache) (mod *Module, isRootModule bool, err error) {
 	logger := log.With().
 		Str("action", "tg.LoadModule").
 		Str("dir", dir.String()).
@@ -105,9 +105,9 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 	// Override the predefined functions to intercept the function calls that process paths.
 	pctx.PredefinedFunctions = make(map[string]function.Function)
-	pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, tgLogger, rootdir, mod)
+	pctx.PredefinedFunctions[config.FuncNameFindInParentFolders] = tgFindInParentFoldersFuncImpl(pctx, tgLogger, rootdir, mod, cache)
 	pctx.PredefinedFunctions[config.FuncNameReadTerragruntConfig] = tgReadTerragruntConfigFuncImpl(pctx, tgLogger, rootdir, mod)
-	pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, tgLogger, rootdir, mod, tgReadTFVarsFileFuncImpl)
+	pctx.PredefinedFunctions[config.FuncNameReadTfvarsFile] = wrapStringSliceToStringAsFuncImpl(pctx, tgLogger, rootdir, mod, tgReadTFVarsFileFuncImpl, cache)
 
 	// override Terraform function
 	pctx.PredefinedFunctions["file"] = tgFileFuncImpl(pctx, rootdir, mod)
@@ -316,7 +316,7 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 // ScanModules scans dir looking for Terragrunt modules. It returns a list of
 // modules with its "DependsOn paths" computed.
-func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modules, error) {
+func ScanModules(rootdir string, dir project.Path, trackDependencies bool, cache *FileExistsCache) (Modules, error) {
 	absDir := project.AbsPath(rootdir, dir.String())
 	opts := newTerragruntOptions(absDir, "")
 
@@ -345,7 +345,7 @@ func ScanModules(rootdir string, dir project.Path, trackDependencies bool) (Modu
 		fileDir := filepath.Dir(absCfgFile)
 		dir := project.PrjAbsPath(rootdir, fileDir)
 
-		mod, isRootModule, err := LoadModule(rootdir, dir, fileName, trackDependencies)
+		mod, isRootModule, err := LoadModule(rootdir, dir, fileName, trackDependencies, cache)
 		if err != nil {
 			fileErrs[absCfgFile].Append(err)
 			continue

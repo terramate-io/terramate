@@ -41,11 +41,11 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-type tgFunction func(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, args []string) (string, error)
+type tgFunction func(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, args []string, cache *FileExistsCache) (string, error)
 
 // tgFindInParentFoldersFuncImpl implements the Terragrunt `find_in_parent_folders` function.
-func tgFindInParentFoldersFuncImpl(pctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module) function.Function {
-	return wrapStringSliceToStringAsFuncImpl(pctx, tgLogger, rootdir, mod, findInParentFoldersImpl)
+func tgFindInParentFoldersFuncImpl(pctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, cache *FileExistsCache) function.Function {
+	return wrapStringSliceToStringAsFuncImpl(pctx, tgLogger, rootdir, mod, findInParentFoldersImpl, cache)
 }
 
 // findInParentFoldersImpl searches for a file in the parent directories of the caller's scope,
@@ -67,6 +67,7 @@ func findInParentFoldersImpl(
 	rootdir string,
 	mod *Module,
 	params []string,
+	cache *FileExistsCache,
 ) (abspath string, err error) {
 	defer func() {
 		if err == nil {
@@ -112,8 +113,14 @@ func findInParentFoldersImpl(
 			fileToFind = tgconfig.GetDefaultConfigPath(parentDir.HostPath(rootdir))
 		}
 
-		if util.FileExists(fileToFind) {
-			return fileToFind, nil
+		if cache != nil {
+			if cache.FileExists(fileToFind) {
+				return fileToFind, nil
+			}
+		} else {
+			if util.FileExists(fileToFind) {
+				return fileToFind, nil
+			}
 		}
 
 		currentDir = parentDir
@@ -184,7 +191,7 @@ func readTerragruntConfigImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger,
 }
 
 // tgReadTFVarsFileFuncImpl reads a *.tfvars or *.tfvars.json file and returns the contents as a JSON encoded string
-func tgReadTFVarsFileFuncImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, args []string) (string, error) {
+func tgReadTFVarsFileFuncImpl(ctx *tgconfig.ParsingContext, tgLogger log.Logger, rootdir string, mod *Module, args []string, _ *FileExistsCache) (string, error) {
 	if len(args) != 1 {
 		return "", errors.WithStackTrace(tgconfig.WrongNumberOfParamsError{Func: "read_tfvars_file", Expected: "1", Actual: len(args)})
 	}
@@ -315,6 +322,7 @@ func wrapStringSliceToStringAsFuncImpl(
 	rootdir string,
 	mod *Module,
 	toWrap tgFunction,
+	cache *FileExistsCache,
 ) function.Function {
 	return function.New(&function.Spec{
 		VarParam: &function.Parameter{Type: cty.String},
@@ -324,7 +332,7 @@ func wrapStringSliceToStringAsFuncImpl(
 			if err != nil {
 				return cty.StringVal(""), err
 			}
-			out, err := toWrap(ctx, tgLogger, rootdir, mod, params)
+			out, err := toWrap(ctx, tgLogger, rootdir, mod, params, cache)
 			if err != nil {
 				return cty.StringVal(""), err
 			}

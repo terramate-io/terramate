@@ -234,7 +234,7 @@ func (s *Spec) execScanCreate(ctx context.Context) error {
 
 func (s *Spec) initTerragrunt() error {
 	rootdir := s.Engine.Config().HostDir()
-	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, s.WorkingDir), true)
+	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, s.WorkingDir), true, nil)
 	if err != nil {
 		return errors.E(err, "scanning for Terragrunt modules")
 	}
