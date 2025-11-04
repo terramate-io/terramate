@@ -258,8 +258,8 @@ func (s *Spec) Exec(ctx context.Context) error {
 			LogSyncCondition: func(task engine.StackRunTask, _ engine.StackRun) bool {
 				return task.CloudSyncDeployment || task.CloudSyncPreview
 			},
-			LogSyncer: func(logger *zerolog.Logger, e *engine.Engine, run engine.StackRun, logs resources.CommandLogs) {
-				cloudsync.Logs(logger, e, run, &s.state, logs)
+			LogSyncer: func(logger *zerolog.Logger, e *engine.Engine, run engine.StackRun, task engine.StackRunTask, logs resources.CommandLogs) {
+				cloudsync.Logs(logger, e, run, task, &s.state, logs)
 			},
 		},
 	})

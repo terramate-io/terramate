@@ -346,22 +346,22 @@ func (c *Client) SyncCommandLogs(
 	ctx context.Context,
 	orgUUID resources.UUID,
 	stackID int64,
-	deploymentUUID resources.UUID,
+	entity Entity,
 	logs resources.CommandLogs,
-	stackPreviewID string,
 ) error {
 	err := logs.Validate()
 	if err != nil {
 		return errors.E(err, "failed to prepare the request")
 	}
 
-	url := c.URL(path.Join(
-		StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", string(deploymentUUID), "logs",
-	))
-
-	// if the command logs are for a stack preview, use the stack preview url.
-	if stackPreviewID != "" {
-		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), stackPreviewID, "logs"))
+	var url url.URL
+	switch entity.Kind {
+	case EntityKindDeployment:
+		url = c.URL(path.Join(
+			StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", entity.EntityID, "logs",
+		))
+	case EntityKindPreview:
+		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), entity.EntityID, "logs"))
 	}
 
 	_, err = http.Post[resources.EmptyResponse](ctx, c, logs, url)

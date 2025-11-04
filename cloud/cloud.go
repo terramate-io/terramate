@@ -137,3 +137,21 @@ func HTMLURL(region Region) string {
 	}
 	return "https://" + region.String() + ".cloud.terramate.io"
 }
+
+// Entity defines the cloud possible entities with its identifier.
+type Entity struct {
+	Kind     EntityKind
+	EntityID string
+}
+
+// EntityKind are the types of Entities that exist.
+type EntityKind int
+
+const (
+	// EntityKindDeployment is the deployment sync entity.
+	EntityKindDeployment EntityKind = iota + 1
+	// EntityKindDrift is the drift check sync entity.
+	EntityKindDrift
+	// EntityKindPreview is the preview sync entity.
+	EntityKindPreview
+)

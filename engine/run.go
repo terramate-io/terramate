@@ -109,7 +109,7 @@ type RunBeforeHook func(engine *Engine, run StackCloudRun)
 type RunAfterHook func(engine *Engine, run StackCloudRun, res RunResult, err error)
 
 // LogSyncer is a function that is called when the cloud API is enabled and the log sync condition is met.
-type LogSyncer func(logger *zerolog.Logger, e *Engine, run StackRun, logs resources.CommandLogs)
+type LogSyncer func(logger *zerolog.Logger, e *Engine, run StackRun, task StackRunTask, logs resources.CommandLogs)
 
 // LogSyncCondition is a function that is used to determine if the log syncer should be enabled for a given task.
 type LogSyncCondition func(task StackRunTask, run StackRun) bool
@@ -462,7 +462,7 @@ func (e *Engine) RunAll(
 			var logSyncer *cloud.LogSyncer
 			if isCloudSync {
 				logSyncer = cloud.NewLogSyncer(func(logs resources.CommandLogs) {
-					opts.Hooks.LogSyncer(&logger, e, run, logs)
+					opts.Hooks.LogSyncer(&logger, e, run, task, logs)
 				})
 			}
 
