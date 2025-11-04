@@ -31,11 +31,11 @@ type DependencyGraph struct {
 // NewDependencyGraph creates a new dependency graph from the given stacks.
 // It extracts ONLY data dependencies from:
 // - input.from_stack_id (Terramate native output sharing)
-// - Terragrunt dependency blocks (converted to input.from_stack_id by addTerragruntDependencyInputs)
+// - Terragrunt dependency blocks (read directly from mod.DependencyBlocks)
 //
 // NOTE: stack.After and stack.Before are NOT included because they contain ordering-only
 // dependencies (e.g., Terragrunt dependencies.paths) which should NOT widen scope.
-func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], _ tg.Modules, target string) (*DependencyGraph, error) {
+func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], tgModules tg.Modules, target string) (*DependencyGraph, error) {
 	logger := log.With().
 		Str("action", "engine.NewDependencyGraph()").
 		Logger()
@@ -60,9 +60,9 @@ func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], _
 	// because those fields include ordering-only dependencies (e.g., Terragrunt dependencies.paths)
 	// which should NOT widen scope for --include-all-dependencies flags.
 	//
-	// Data dependencies are extracted from input.from_stack_id below, which are created by:
-	// - Terramate native output sharing (input.from_stack_id)
-	// - Terragrunt dependency blocks (converted to input.from_stack_id by addTerragruntDependencyInputs)
+	// Data dependencies are extracted from:
+	// - input.from_stack_id (Terramate native output sharing)
+	// - Terragrunt dependency blocks (mod.DependencyBlocks - data dependencies only)
 
 	// Extract dependencies from input.from_stack_id (output sharing)
 	for _, st := range stacks {
@@ -107,9 +107,30 @@ func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], _
 		}
 	}
 
-	// Terragrunt dependency blocks are now handled via input.from_stack_id
-	// which is added during stack loading (see config.Tree.addTerragruntDependencyInputs)
-	// This ensures only data dependencies widen scope, not ordering-only dependencies
+	// Extract dependencies from Terragrunt dependency blocks (data dependencies only)
+	// These are read directly from mod.DependencyBlocks without requiring input blocks
+	for _, mod := range tgModules {
+		// Find the stack corresponding to this module
+		modStackPath := mod.Path.String()
+		if _, isStack := stackPaths[modStackPath]; !isStack {
+			// Module doesn't correspond to a stack in the current set, skip
+			continue
+		}
+
+		// Process each dependency block path
+		for _, depPath := range mod.DependencyBlocks {
+			depStackPath := depPath.String()
+			if !stackPaths[depStackPath] {
+				logger.Debug().
+					Str("stack", modStackPath).
+					Str("dependency", depStackPath).
+					Msg("dependency from Terragrunt dependency block not in current stack set, skipping")
+				continue
+			}
+
+			graph.addDependency(modStackPath, depStackPath)
+		}
+	}
 
 	logger.Debug().
 		Int("stacks", len(stacks)).
