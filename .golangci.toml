@@ -1,13 +1,23 @@
-[issues]
-exclude-use-default = false
+version = '2'
 
-[[issues.exclude-rules]]
+[formatters]
+enable = ['gofmt']
+
+[formatters.exclusions]
+generated = 'lax'
+paths = ['third_party$', 'builtin$', 'examples$']
+
+[linters]
+enable = ['revive', 'misspell', 'bodyclose']
+
+[linters.exclusions]
+generated = 'lax'
+paths = ['third_party$', 'builtin$', 'examples$']
+
+[[linters.exclusions.rules]]
 linters = ['revive']
 path = '(.+)_test\.go'
 text = 'dot-imports:'
-
-[linters]
-enable = ['revive', 'misspell', 'gofmt', 'bodyclose']
 
 [run]
 timeout = '15m'

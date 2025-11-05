@@ -2,6 +2,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
 globals "tools" {
-  GOLANGCI_LINT_VERSION = "v1.64.8"
+  GOLANGCI_LINT_VERSION = "v2.6.1"
   ADDLICENSE_VERSION    = "v1.0.0"
 }
