@@ -1,22 +1,20 @@
-Terramate is an Infrastructure as Code orchestration, observability and visibility platform for Terraform, OpenTofu and
-Terragrunt. Terramate accelerates your IaC projects with faster pipelines, reduced blast radius, drift and
-vulnerability detection, full visibility and observability in minutes.
+Terramate is an Infrastructure as Code orchestration, observability and visibility platform for Terraform, OpenTofu and Terragrunt.
+
+Terramate accelerates your IaC projects with faster pipelines, reduced blast radius, drift and vulnerability detection, full visibility and observability in minutes.
 
 It consists of a CLI and a Cloud Platform which in combination provide you
 with the best IaC experience you can get:
-
-- Stack Orchestration with Change Detection.
-- Code Generation.
+  - Stack Orchestration with Change Detection.
+  - Code Generation.
 
 With Terramate Cloud you bring additional enterprise-grade features to your team 
 with zero additional effort:
-
-- Pull Request Change Previews and Collaboration.
-- Deployment Management and Audibility of Changes.
-- Drift Detection and Drift Reconciliation.
-- Resource Browser and Resource Policy Checks.
-- Notifications and Alerting on failures, violations, and successes.
-- Dashboards, Analytics, and Reporting.
+  - Pull Request Change Previews and Collaboration.
+  - Deployment Management and Audibility of Changes.
+  - Drift Detection and Drift Reconciliation.
+  - Resource Browser and Resource Policy Checks.
+  - Notifications and Alerting on failures, violations, and successes.
+  - Dashboards, Analytics, and Reporting.
 
 Want to know more? Book a Terramate Cloud Demo at https://terramate.io/demo today!
 
