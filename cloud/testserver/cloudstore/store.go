@@ -239,6 +239,11 @@ func (d *Data) MustOrgByName(name string) Org {
 func (d *Data) GetOrg(uuid resources.UUID) (Org, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+	return d.getOrgByUUID(uuid)
+}
+
+// getOrgByUUID gets an organization by UUID without locking.
+func (d *Data) getOrgByUUID(uuid resources.UUID) (Org, bool) {
 	for _, org := range d.Orgs {
 		if org.UUID == uuid {
 			return org.Clone(), true
@@ -547,12 +552,13 @@ func (d *Data) FindDeploymentForCommit(orgID resources.UUID, commitSHA string) (
 
 // InsertDrift inserts a new drift into the store for the provided org.
 func (d *Data) InsertDrift(orgID resources.UUID, drift Drift) (int, error) {
-	org, found := d.GetOrg(orgID)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	org, found := d.getOrgByUUID(orgID)
 	if !found {
 		return 0, errors.E(ErrNotExists, "org uuid %s", orgID)
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	if org.Drifts == nil {
 		org.Drifts = make(map[resources.UUID]Drift, 0)
 	}
@@ -566,6 +572,7 @@ func (d *Data) InsertDrift(orgID resources.UUID, drift Drift) (int, error) {
 func (d *Data) UpdateDrift(org *Org, driftUUID resources.UUID, status drift.Status, changeset *resources.ChangesetDetails, at time.Time) (Drift, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
 	drift, found := org.Drifts[driftUUID]
 	if !found {
 		return Drift{}, false
@@ -584,12 +591,13 @@ func (d *Data) InsertDriftLogs(
 	driftUUID resources.UUID,
 	logs resources.CommandLogs,
 ) error {
-	org, found := d.GetOrg(orgID)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	org, found := d.getOrgByUUID(orgID)
 	if !found {
 		return errors.E(ErrNotExists, "org uuid %s", orgID)
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
 
 	drift, found := org.Drifts[driftUUID]
 	if !found {
