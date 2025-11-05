@@ -155,3 +155,16 @@ const (
 	// EntityKindPreview is the preview sync entity.
 	EntityKindPreview
 )
+
+// String returns the string representing an EntityKind.
+func (k EntityKind) String() string {
+	switch k {
+	case EntityKindDeployment:
+		return "deployment"
+	case EntityKindPreview:
+		return "preview"
+	case EntityKindDrift:
+		return "drift"
+	}
+	return "unknown"
+}

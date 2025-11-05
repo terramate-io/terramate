@@ -142,6 +142,12 @@ type (
 		Command     []string                      `json:"command"`
 		StartedAt   *time.Time                    `json:"started_at,omitempty"`
 		FinishedAt  *time.Time                    `json:"finished_at,omitempty"`
+		State       DriftState                    `json:"state"`
+	}
+
+	// DriftState is the state of a drift check run.
+	DriftState struct {
+		Logs resources.CommandLogs
 	}
 )
 
@@ -570,6 +576,48 @@ func (d *Data) UpdateDrift(org *Org, driftUUID resources.UUID, status drift.Stat
 	org.Drifts[driftUUID] = drift
 	d.Orgs[org.Name] = *org
 	return drift, true
+}
+
+// InsertDriftLogs inserts logs for the given drift.
+func (d *Data) InsertDriftLogs(
+	orgID resources.UUID,
+	driftUUID resources.UUID,
+	logs resources.CommandLogs,
+) error {
+	org, found := d.GetOrg(orgID)
+	if !found {
+		return errors.E(ErrNotExists, "org uuid %s", orgID)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	drift, found := org.Drifts[driftUUID]
+	if !found {
+		return errors.E(ErrNotExists, "drift uuid %s", driftUUID)
+	}
+
+	drift.State.Logs = append(drift.State.Logs, logs...)
+	d.Orgs[org.Name].Drifts[driftUUID] = drift
+	return nil
+}
+
+// GetDriftLogs gets logs for the given drift.
+func (d *Data) GetDriftLogs(
+	orgID resources.UUID,
+	driftUUID resources.UUID,
+) (resources.CommandLogs, error) {
+	org, found := d.GetOrg(orgID)
+	if !found {
+		return nil, errors.E(ErrNotExists, "org uuid %s", orgID)
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	drift, found := org.Drifts[driftUUID]
+	if !found {
+		return nil, errors.E(ErrNotExists, "drift uuid %s", driftUUID)
+	}
+	return drift.State.Logs, nil
 }
 
 // SetDeploymentStatus sets the given deployment stack to the given status.

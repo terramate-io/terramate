@@ -136,6 +136,7 @@ type (
 	// Drift represents the drift information for a given stack.
 	Drift struct {
 		ID       int64               `json:"id"`
+		UUID     UUID                `json:"uuid,omitempty"`
 		Status   drift.Status        `json:"status"`
 		Details  *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`

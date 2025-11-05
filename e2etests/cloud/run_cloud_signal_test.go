@@ -120,8 +120,9 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 	t.Parallel()
 	type want struct {
-		run    RunExpected
-		drifts expectedDriftStacks
+		run       RunExpected
+		drifts    expectedDriftStacks
+		cloudLogs []RunExpected
 	}
 	type testcase struct {
 		name       string
@@ -162,6 +163,9 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					StdoutRegex: "ready",
+				}},
 			},
 		},
 		{
@@ -192,6 +196,9 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					Stdout: "ready",
+				}},
 			},
 		},
 	} {
@@ -235,7 +242,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				result := fixture.Run()
 				maxEndTime := time.Now().UTC()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
+				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime, tc.want.cloudLogs)
 			})
 		}
 	}

@@ -63,20 +63,37 @@ func Logs(logger *zerolog.Logger, e *engine.Engine, run engine.StackRun, task en
 	ctx, cancel := context.WithTimeout(context.Background(), cloud.DefaultTimeout)
 	defer cancel()
 
-	var entity cloud.Entity
+	var (
+		entity cloud.Entity
+		found  bool
+	)
 	if task.CloudSyncDeployment {
 		entity = cloud.Entity{
 			Kind:     cloud.EntityKindDeployment,
 			EntityID: string(state.RunUUID),
 		}
+		found = true
 	} else if task.CloudSyncPreview {
-		stackPreviewID, _ := state.CloudPreviewID(run.Stack.ID)
+		var stackPreviewID string
+		stackPreviewID, found = state.CloudPreviewID(run.Stack.ID)
 		entity = cloud.Entity{
 			Kind:     cloud.EntityKindPreview,
 			EntityID: stackPreviewID,
 		}
+	} else if task.CloudSyncDriftStatus {
+		var driftUUID resources.UUID
+		driftUUID, found = state.CloudDriftUUID(run.Stack.ID)
+		entity = cloud.Entity{
+			Kind:     cloud.EntityKindDrift,
+			EntityID: string(driftUUID),
+		}
 	} else {
-		logger.Debug().Msg("No logs sent as unknonw cloud sync task")
+		logger.Debug().Msg("No logs sent as unknown cloud sync task")
+		return
+	}
+
+	if !found {
+		logger.Warn().Str("kind", entity.Kind.String()).Msg("Missing entity identifier to sync logs")
 		return
 	}
 

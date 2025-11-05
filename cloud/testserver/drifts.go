@@ -170,6 +170,7 @@ func PatchDrift(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, 
 		writeErr(w, err)
 		return
 	}
+	justClose(r.Body)
 
 	var payload resources.UpdateDriftPayloadRequest
 	if err = json.Unmarshal(body, &payload); err != nil {
@@ -238,6 +239,7 @@ func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p
 			Stack: st.Stack,
 			Drift: resources.Drift{
 				ID:       drift.ID,
+				UUID:     drift.UUID,
 				Metadata: drift.Metadata,
 				Details:  drift.Changeset,
 				Status:   drift.Status,
@@ -256,4 +258,68 @@ func GetDrifts(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	marshalWrite(w, res)
+}
+
+// InsertDriftLogs implements the POST /v2/drifts/:orguuid/:driftuuid/logs endpoint.
+func InsertDriftLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	orgUUID := p.ByName("orguuid")
+	org, found := store.GetOrg(resources.UUID(orgUUID))
+	if !found {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeString(w, "organization not found")
+		return
+	}
+	driftUUID := resources.UUID(p.ByName("driftuuid"))
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+	justClose(r.Body)
+
+	var logs resources.CommandLogs
+	err = json.Unmarshal(body, &logs)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = store.InsertDriftLogs(org.UUID, driftUUID, logs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetDriftLogs implements the GET /v2/drifts/:orguuid/:driftuuid/logs endpoint.
+func GetDriftLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Request, p httprouter.Params) {
+	orgUUID := p.ByName("orguuid")
+	org, found := store.GetOrg(resources.UUID(orgUUID))
+	if !found {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeString(w, "organization not found")
+		return
+	}
+	driftUUID := resources.UUID(p.ByName("driftuuid"))
+
+	logs, err := store.GetDriftLogs(org.UUID, driftUUID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeErr(w, err)
+		return
+	}
+
+	data, err := json.MarshalIndent(logs, "", "    ")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	write(w, data)
 }

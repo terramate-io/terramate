@@ -362,6 +362,9 @@ func (c *Client) SyncCommandLogs(
 		))
 	case EntityKindPreview:
 		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), entity.EntityID, "logs"))
+	case EntityKindDrift:
+		url = c.URL(path.Join(
+			DriftsPath, string(orgUUID), entity.EntityID, "logs"))
 	}
 
 	_, err = http.Post[resources.EmptyResponse](ctx, c, logs, url)

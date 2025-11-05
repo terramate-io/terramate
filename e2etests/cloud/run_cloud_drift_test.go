@@ -52,8 +52,9 @@ func init() {
 func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 	t.Parallel()
 	type want struct {
-		run    RunExpected
-		drifts expectedDriftStacks
+		run       RunExpected
+		drifts    expectedDriftStacks
+		cloudLogs []RunExpected
 	}
 	type testcase struct {
 		name          string
@@ -112,6 +113,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// Missing feature as it should be synched.
+				cloudLogs: []RunExpected{},
 			},
 		},
 		{
@@ -144,6 +147,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// Missing feature as it should be synched.
+				cloudLogs: []RunExpected{},
 			},
 		},
 		{
@@ -193,6 +198,8 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// Missing feature as it should be synched.
+				cloudLogs: []RunExpected{},
 			},
 		},
 		{
@@ -242,6 +249,14 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 								Metadata: expectedMetadata,
 							},
 						},
+					},
+				},
+				cloudLogs: []RunExpected{
+					{
+						StderrRegex: `(no such file or directory|The system cannot find the file specified)`,
+					},
+					{
+						Stdout: "test",
 					},
 				},
 			},
@@ -332,6 +347,9 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					Stdout: "/parent/child",
+				}},
 			},
 		},
 		{
@@ -411,6 +429,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// This error is not sent via logs
 			},
 		},
 		{
@@ -447,6 +466,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// This error is not sent via logs
 			},
 		},
 		{
@@ -527,6 +547,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					StdoutRegexes: []string{
+						`Terraform used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				}, {
+					StdoutRegexes: []string{
+						`Terraform used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				}},
 			},
 		},
 		{
@@ -608,6 +639,17 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					StdoutRegexes: []string{
+						`OpenTofu used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				}, {
+					StdoutRegexes: []string{
+						`OpenTofu used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				}},
 			},
 		},
 		{
@@ -759,7 +801,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				result := cli.Run(runflags...)
 				maxEndTime := time.Now().UTC()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
+				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime, tc.want.cloudLogs)
 
 				for _, wantDrift := range tc.want.drifts {
 					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(wantDrift.Stack.Path[1:])), env...)
@@ -868,8 +910,8 @@ func TestSyncPlanSerial(t *testing.T) {
 	assertPlanSerial(t, got.Details.Serial, makeSerial(1))
 }
 
-func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, expectedDrifts expectedDriftStacks, minStartTime, maxEndTime time.Time) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, expectedDrifts expectedDriftStacks, minStartTime, maxEndTime time.Time, cloudLogs []RunExpected) {
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 
 	client := cloud.NewClient(
@@ -877,7 +919,8 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		cloud.WithCredential(&credential{}),
 	)
 
-	res, err := http.Request[resources.DriftsWithStacks](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(cloudData.MustOrgByName("terramate").UUID))), nil)
+	orgUUID := cloudData.MustOrgByName("terramate").UUID
+	res, err := http.Request[resources.DriftsWithStacks](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(orgUUID))), nil)
 	assert.NoError(t, err)
 
 	if len(expectedDrifts) != len(res) {
@@ -901,7 +944,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			// whole argument list is interpolated, including the program name, and then
 			// on Windows it requires a special escaped string.
 			// See variable `HelperPathAsHCL`.
-			cmpopts.IgnoreFields(resources.DriftWithStack{}, "ID", "Details", "StartedAt", "FinishedAt")); diff != "" {
+			cmpopts.IgnoreFields(resources.DriftWithStack{}, "ID", "UUID", "Details", "StartedAt", "FinishedAt")); diff != "" {
 			t.Logf("want: %+v", expectedDrifts)
 			t.Logf("got: %+v", got)
 			t.Fatal(diff)
@@ -916,6 +959,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		}
 
 		assertDriftRunDuration(t, &got, minStartTime, maxEndTime)
+		assertDriftLogs(t, client, orgUUID, got.Drift.UUID, safeCloudLogs(cloudLogs, i))
 
 		if expected.Details == nil {
 			continue
@@ -970,6 +1014,43 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			t.Fatal(diff)
 		}
 	}
+}
+
+func safeCloudLogs(exps []RunExpected, i int) RunExpected {
+	if i >= len(exps) {
+		return RunExpected{}
+	}
+	return exps[i]
+}
+
+func assertDriftLogs(t *testing.T, client *cloud.Client, orgUUID, driftUUID resources.UUID, want RunExpected) {
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+
+	res, err := http.Request[resources.CommandLogs](ctx, client, "GET", client.URL(path.Join(cloud.DriftsPath, string(orgUUID), string(driftUUID), "logs")), nil)
+	assert.NoError(t, err)
+
+	var stdout, stderr string
+	for i, logLine := range res {
+		switch logLine.Channel {
+		case resources.StdoutLogChannel:
+			if i > 0 {
+				stdout += "\n"
+			}
+			stdout += logLine.Message
+		case resources.StderrLogChannel:
+			if i > 0 {
+				stderr += "\n"
+			}
+			stderr += logLine.Message
+		}
+	}
+
+	AssertRunResult(t, RunResult{
+		Stdout: stdout,
+		Stderr: stderr,
+		Status: want.Status,
+	}, want)
 }
 
 func assertPlanSerial(t *testing.T, got, want *int64) {

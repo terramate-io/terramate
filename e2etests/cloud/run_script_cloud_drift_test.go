@@ -24,8 +24,9 @@ import (
 
 func TestScriptRunDriftStatus(t *testing.T) {
 	type want struct {
-		run    RunExpected
-		drifts expectedDriftStacks
+		run       RunExpected
+		drifts    expectedDriftStacks
+		cloudLogs []RunExpected
 	}
 	type testcase struct {
 		name          string
@@ -273,6 +274,9 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					Stdout: "/parent/child",
+				}},
 			},
 		},
 		{
@@ -370,6 +374,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// This should be sent to the cloud.
+				cloudLogs: []RunExpected{},
 			},
 		},
 		{
@@ -414,6 +420,8 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				// This should be sent to the cloud.
+				cloudLogs: []RunExpected{},
 			},
 		},
 		{
@@ -500,6 +508,17 @@ func TestScriptRunDriftStatus(t *testing.T) {
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					StdoutRegexes: []string{
+						`Terraform used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				}, {
+					StdoutRegexes: []string{
+						`Terraform used the selected providers to generate the following execution`,
+						`local_file.foo will be created`,
+					},
+				}},
 			},
 		},
 		{
@@ -607,7 +626,7 @@ func TestScriptRunDriftStatus(t *testing.T) {
 				result := cli.Run(runflags...)
 				maxEndTime := time.Now().UTC()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
+				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime, tc.want.cloudLogs)
 			})
 		}
 	}
