@@ -343,6 +343,100 @@ generate_hcl "test.hcl" {
 			wantFile: "stack.tm",
 			wantLine: 2,
 		},
+		{
+			name: "find env variable definition in same file",
+			layout: []string{
+				`f:stack.tm:stack {
+  name = "test-stack"
+}
+
+terramate {
+  config {
+    run {
+      env {
+        FOO = "BAR"
+      }
+    }
+  }
+}
+
+globals {
+  foo = terramate.run.env.FOO
+}
+`,
+			},
+			file:     "stack.tm",
+			line:     15, // line with "foo = terramate.run.env.FOO"
+			char:     26, // position on "FOO" in "terramate.run.env.FOO"
+			wantFile: "stack.tm",
+			wantLine: 8, // line with "FOO = "BAR""
+		},
+		{
+			name: "find env variable definition in parent directory",
+			layout: []string{
+				`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        PARENT_VAR = "parent"
+      }
+    }
+  }
+}
+`,
+				`f:child/stack.tm:stack {
+  name = "child-stack"
+}
+
+globals {
+  var = terramate.run.env.PARENT_VAR
+}
+`,
+			},
+			file:     "child/stack.tm",
+			line:     5,  // line with "var = terramate.run.env.PARENT_VAR"
+			char:     30, // position on "PARENT_VAR"
+			wantFile: "terramate.tm.hcl",
+			wantLine: 4, // line with "PARENT_VAR = "parent""
+		},
+		{
+			name: "find all env variable definitions when defined at multiple levels",
+			layout: []string{
+				`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        FOO = "project-wide"
+      }
+    }
+  }
+}
+`,
+				`f:child/stack.tm:stack {
+  name = "child-stack"
+}
+
+terramate {
+  config {
+    run {
+      env {
+        FOO = "stack-override"
+      }
+    }
+  }
+}
+
+globals {
+  var = terramate.run.env.FOO
+}
+`,
+			},
+			file:     "child/stack.tm",
+			line:     15, // line with "var = terramate.run.env.FOO"
+			char:     26, // position on "FOO"
+			wantFile: "", // We'll check multiple locations below
+			wantLine: 0,
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -358,6 +452,25 @@ generate_hcl "test.hcl" {
 
 			locations, err := srv.findDefinitions(fname, []byte(content), tc.line, tc.char)
 			assert.NoError(t, err, "findDefinitions failed")
+
+			// Special handling for the multi-level env variable test
+			if tc.name == "find all env variable definitions when defined at multiple levels" {
+				// Should find 2 definitions: one in terramate.tm.hcl and one in child/stack.tm
+				assert.IsTrue(t, len(locations) == 2, "expected to find 2 definitions (project + stack level)")
+
+				// Check we have both files
+				gotFiles := make(map[string]bool)
+				for _, loc := range locations {
+					gotFiles[loc.URI.Filename()] = true
+				}
+
+				wantTerramateConfig := filepath.Join(s.RootDir(), "terramate.tm.hcl")
+				wantStackFile := filepath.Join(s.RootDir(), "child/stack.tm")
+
+				assert.IsTrue(t, gotFiles[wantTerramateConfig], "should find definition in terramate.tm.hcl")
+				assert.IsTrue(t, gotFiles[wantStackFile], "should find definition in child/stack.tm")
+				return
+			}
 
 			if tc.wantFile == "" {
 				// Expected no definition found

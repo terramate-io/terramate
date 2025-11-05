@@ -231,6 +231,34 @@ func (s *Server) findSymbolAtPosition(body *hclsyntax.Body, targetPos hcl.Pos) *
 					}
 				}
 			}
+
+			// Check terramate.config.run.env blocks
+			if block.Type == "terramate" {
+				for _, configBlock := range block.Body.Blocks {
+					if configBlock.Type == "config" {
+						for _, runBlock := range configBlock.Body.Blocks {
+							if runBlock.Type == "run" {
+								for _, envBlock := range runBlock.Body.Blocks {
+									if envBlock.Type == "env" {
+										// Check attributes in env block
+										for _, attr := range envBlock.Body.Attributes {
+											if posInRange(targetPos, attr.NameRange) {
+												// Use terramate.run.env as the namespace to match references
+												info = &symbolInfo{
+													namespace:     "terramate.run.env",
+													attributeName: attr.Name,
+													fullPath:      "terramate.run.env." + attr.Name,
+												}
+												return nil
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 		return nil
 	})
@@ -331,6 +359,13 @@ func (s *Server) findSymbolAtPosition(body *hclsyntax.Body, targetPos hcl.Pos) *
 							info.attributeName = fullPathParts[1]
 							info.fullPath = "terramate.stack." + fullPathParts[1]
 						}
+
+						// Handle terramate.run.env.* - special case for environment variables
+						if envVarName := extractEnvVarName(scopeExpr.Traversal); envVarName != "" {
+							info.namespace = "terramate.run.env"
+							info.attributeName = envVarName
+							info.fullPath = "terramate.run.env." + envVarName
+						}
 					}
 				}
 			}
@@ -378,6 +413,28 @@ func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Lo
 			return nil
 		}
 		return s.findDefinitionLocation(body, info, fname)
+
+	case "terramate.run.env":
+		// Environment variables can be defined at stack-level or project-wide
+		// Search hierarchically from current directory up to workspace root
+		dir := filepath.Dir(fname)
+		for {
+			location, found, err := s.searchEnvInDir(dir, info.attributeName)
+			if err != nil {
+				s.log.Debug().Err(err).Str("dir", dir).Msg("error searching env in dir")
+			}
+			if found {
+				return location
+			}
+
+			// Move to parent directory
+			parent := filepath.Dir(dir)
+			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+				// Reached root or left workspace
+				break
+			}
+			dir = parent
+		}
 	}
 
 	return nil
@@ -595,6 +652,12 @@ func (s *Server) matchesSymbol(traversal hcl.Traversal, info *symbolInfo) bool {
 				return stackAttr == info.attributeName
 			}
 		}
+
+		// Handle terramate.run.env.* references
+		if envVarName := extractEnvVarName(traversal); envVarName != "" {
+			return info.namespace == "terramate.run.env" && envVarName == info.attributeName
+		}
+
 		return false
 	}
 

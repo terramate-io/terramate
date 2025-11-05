@@ -173,13 +173,20 @@ func (s *Server) findDefinitions(fname string, content []byte, line, character u
 			return nil, err
 		}
 		return []lsp.Location{*loc}, nil
-	case "env":
-		loc, err := s.findEnvDefinition(fname, foundTraversal)
-		if err != nil || loc == nil {
-			return nil, err
-		}
-		return []lsp.Location{*loc}, nil
 	case "terramate":
+		// Special handling for env variables - return ALL definitions across hierarchy
+		if envVarName := extractEnvVarName(foundTraversal); envVarName != "" {
+			allLocations, err := s.findAllEnvInHierarchy(fname, envVarName)
+			if err != nil {
+				return nil, err
+			}
+			if len(allLocations) > 0 {
+				return allLocations, nil
+			}
+			return nil, nil
+		}
+
+		// For other terramate.* references, return single definition
 		loc, err := s.findTerramateDefinition(fname, foundTraversal)
 		if err != nil || loc == nil {
 			return nil, err
@@ -332,45 +339,6 @@ func (s *Server) findLetDefinition(fname string, traversal hcl.Traversal) (*lsp.
 	return location, nil
 }
 
-// findEnvDefinition finds definitions for env namespace references (env.*)
-// Env variables are defined in terramate.config.run.env blocks
-func (s *Server) findEnvDefinition(fname string, traversal hcl.Traversal) (*lsp.Location, error) {
-	if len(traversal) < 2 {
-		return nil, nil
-	}
-
-	// Get the env variable name (env.MY_VAR)
-	attrTraverse, ok := traversal[1].(hcl.TraverseAttr)
-	if !ok {
-		return nil, nil
-	}
-	envVarName := attrTraverse.Name
-
-	// Search for env definitions in terramate.config.run.env blocks
-	// Start from current directory and move up to parents
-	dir := filepath.Dir(fname)
-
-	for {
-		location, found, err := s.searchEnvInDir(dir, envVarName)
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			return location, nil
-		}
-
-		// Move to parent directory
-		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
-			// Reached root or left workspace
-			break
-		}
-		dir = parent
-	}
-
-	return nil, nil
-}
-
 // findTerramateDefinition finds definitions for terramate namespace references
 func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) (*lsp.Location, error) {
 	if len(traversal) < 2 {
@@ -390,6 +358,31 @@ func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) 
 			}
 			stackAttr := stackAttrTraverse.Name
 			return s.findStackAttributeDefinition(fname, stackAttr)
+		}
+	}
+
+	// Check if this is a terramate.run.env.* reference
+	if envVarName := extractEnvVarName(traversal); envVarName != "" {
+		// Environment variables can be defined at stack-level or project-wide
+		// Search hierarchically from current directory up to workspace root
+		// Note: findDefinitions handles returning all definitions for go-to-definition
+		dir := filepath.Dir(fname)
+		for {
+			location, found, err := s.searchEnvInDir(dir, envVarName)
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				return location, nil
+			}
+
+			// Move to parent directory
+			parent := filepath.Dir(dir)
+			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+				// Reached root or left workspace
+				break
+			}
+			dir = parent
 		}
 	}
 

@@ -40,7 +40,7 @@ func TestPrepareRename(t *testing.T) {
 			canRename: true,
 		},
 		{
-			name: "can rename stack attribute reference",
+			name: "cannot rename stack metadata attribute",
 			layout: []string{
 				`f:stack.tm:stack {
   name = "test"
@@ -57,11 +57,11 @@ generate_hcl "test.hcl" {
 			},
 			file:      "stack.tm",
 			line:      7,
-			char:      33, // on "name" in terramate.stack.name
-			canRename: true,
+			char:      33,    // on "name" in terramate.stack.name
+			canRename: false, // terramate.stack.* metadata is protected
 		},
 		{
-			name: "can rename stack attribute definition",
+			name: "cannot rename stack attribute definition",
 			layout: []string{
 				`f:stack.tm:stack {
   name = "test"
@@ -78,8 +78,8 @@ generate_hcl "test.hcl" {
 			},
 			file:      "stack.tm",
 			line:      1,
-			char:      5, // on "name" in definition: name = "test"
-			canRename: true,
+			char:      5,     // on "name" in definition: name = "test"
+			canRename: false, // stack attributes are fixed metadata
 		},
 		{
 			name: "cannot rename terramate built-in",
@@ -254,7 +254,7 @@ func TestRenameGlobalVariable(t *testing.T) {
 	assert.IsTrue(t, totalEdits >= 3, "should have at least 3 edits (1 def + 2 refs)")
 }
 
-func TestRenameStackAttribute(t *testing.T) {
+func TestCannotRenameStackMetadata(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -284,21 +284,13 @@ generate_hcl "test.hcl" {
 	fname := filepath.Join(s.RootDir(), "stack.tm")
 	content := test.ReadFile(t, s.RootDir(), "stack.tm")
 
-	// Try to rename from a reference (in generate block)
+	// Try to rename "name" in terramate.stack.name - should NOT be allowed
 	workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 7, 33, "display_name")
 	assert.NoError(t, err)
-	assert.IsTrue(t, workspaceEdit != nil, "expected workspace edit")
-
-	// Should rename the definition and all references
-	totalEdits := 0
-	for _, edits := range workspaceEdit.Changes {
-		totalEdits += len(edits)
-	}
-
-	assert.IsTrue(t, totalEdits >= 4, "should rename definition + 3 references")
+	assert.IsTrue(t, workspaceEdit == nil, "should NOT allow renaming terramate.stack.* metadata")
 }
 
-func TestRenameStackAttributeFromDefinition(t *testing.T) {
+func TestCannotRenameStackAttributeDefinition(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -330,20 +322,10 @@ generate_hcl "test.hcl" {
 
 	// Try to rename from the definition (not from a reference)
 	// Position on "name" in the definition: name = "my-stack"
+	// Stack attributes are fixed metadata and cannot be renamed
 	workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 1, 5, "display_name")
 	assert.NoError(t, err)
-	assert.IsTrue(t, workspaceEdit != nil, "expected workspace edit when renaming from definition")
-
-	// Should rename the definition and all references
-	totalEdits := 0
-	for _, edits := range workspaceEdit.Changes {
-		totalEdits += len(edits)
-		for _, edit := range edits {
-			assert.EqualStrings(t, "display_name", edit.NewText, "edit should change to display_name")
-		}
-	}
-
-	assert.IsTrue(t, totalEdits >= 4, "should rename definition + 3 references when renaming from definition")
+	assert.IsTrue(t, workspaceEdit == nil, "should NOT allow renaming stack attribute definitions (fixed metadata)")
 }
 
 func TestRenameInvalidIdentifier(t *testing.T) {
@@ -441,7 +423,7 @@ func TestRenameGlobalInNestedDirectory(t *testing.T) {
 	assert.IsTrue(t, totalEdits >= 3, "should rename definition in parent directory and all references")
 }
 
-func TestRenameStackAttributeInNestedDirectory(t *testing.T) {
+func TestCannotRenameStackAttributeInNestedDirectory(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -467,18 +449,10 @@ func TestRenameStackAttributeInNestedDirectory(t *testing.T) {
 	fname := filepath.Join(s.RootDir(), "parent/child/config.tm")
 	content := test.ReadFile(t, s.RootDir(), "parent/child/config.tm")
 
-	// Rename custom_attr (position on "custom_attr" in terramate.stack.custom_attr)
+	// Try to rename custom_attr in terramate.stack.custom_attr - should NOT be allowed
 	workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 3, 31, "renamed_attr")
 	assert.NoError(t, err)
-	assert.IsTrue(t, workspaceEdit != nil, "expected workspace edit")
-
-	// Should rename the definition and reference
-	totalEdits := 0
-	for _, edits := range workspaceEdit.Changes {
-		totalEdits += len(edits)
-	}
-
-	assert.IsTrue(t, totalEdits >= 2, "should rename stack attribute definition in parent and reference")
+	assert.IsTrue(t, workspaceEdit == nil, "should NOT allow renaming terramate.stack.* attributes (even custom ones)")
 }
 
 func TestRenameEdgeCases(t *testing.T) {
@@ -663,5 +637,239 @@ func TestRenameEdgeCases(t *testing.T) {
 		// Should not allow renaming built-in terramate.path
 		renameRange := srv.canRename(fname, []byte(content), 1, 20)
 		assert.IsTrue(t, renameRange == nil, "cannot rename built-in symbols")
+	})
+}
+
+func TestRenameEnvironmentVariable(t *testing.T) {
+	t.Parallel()
+
+	t.Run("rename env variable defined in terramate.config.run.env", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        MY_VAR = "value"
+        OTHER_VAR = "other"
+      }
+    }
+  }
+}`,
+			`f:stack.tm:stack {
+  name = terramate.run.env.MY_VAR
+}
+
+generate_hcl "test.hcl" {
+  content {
+    value = terramate.run.env.MY_VAR
+  }
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stack.tm")
+
+		// Rename MY_VAR to RENAMED_VAR
+		// Position on MY_VAR in line: name = terramate.run.env.MY_VAR
+		workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 1, 27, "RENAMED_VAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit for env var")
+
+		// Should rename definition and both references
+		totalEdits := 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+		}
+
+		assert.IsTrue(t, totalEdits == 3, "should rename definition (terramate.tm.hcl) and 2 references (stack.tm)")
+	})
+
+	t.Run("rename stack-level env variable with hierarchical resolution", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        GLOBAL_VAR = "global"
+      }
+    }
+  }
+}`,
+			`d:stacks`,
+			`d:stacks/stack-a`,
+			`f:stacks/stack-a/stack.tm:stack {
+  name = "stack-a"
+}
+
+terramate {
+  config {
+    run {
+      env {
+        STACK_VAR = "stack-specific"
+      }
+    }
+  }
+}
+
+generate_hcl "test.hcl" {
+  content {
+    global = terramate.run.env.GLOBAL_VAR
+    stack = terramate.run.env.STACK_VAR
+  }
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stacks/stack-a/stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stacks/stack-a/stack.tm")
+
+		// Rename STACK_VAR (defined at stack level)
+		// Position on STACK_VAR in line 17: stack = terramate.run.env.STACK_VAR
+		workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 17, 30, "RENAMED_STACK_VAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit for stack-level env var")
+
+		// Should rename definition and reference
+		totalEdits := 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+		}
+
+		assert.IsTrue(t, totalEdits == 2, "should rename stack-level definition and reference")
+
+		// Rename GLOBAL_VAR (defined at project root)
+		// Position on GLOBAL_VAR in line 16: global = terramate.run.env.GLOBAL_VAR
+		workspaceEdit, err = srv.createRenameEdits(context.Background(), fname, []byte(content), 16, 30, "RENAMED_GLOBAL_VAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit for project-wide env var")
+
+		// Should rename definition in terramate.tm.hcl and reference in stack.tm
+		totalEdits = 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+		}
+
+		assert.IsTrue(t, totalEdits == 2, "should rename project-wide definition and reference")
+	})
+
+	t.Run("rename env variable defined at multiple levels updates all definitions", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:terramate.tm.hcl:terramate {
+  config {
+    run {
+      env {
+        FOO = "project-wide"
+      }
+    }
+  }
+}`,
+			`d:stacks`,
+			`d:stacks/my-stack`,
+			`f:stacks/my-stack/stack.tm:stack {
+  name = "my-stack"
+}
+
+terramate {
+  config {
+    run {
+      env {
+        FOO = "stack-override"
+      }
+    }
+  }
+}
+
+globals {
+  foo_value = terramate.run.env.FOO
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stacks/my-stack/stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stacks/my-stack/stack.tm")
+
+		// Rename FOO from the reference - should update BOTH definitions (project-wide and stack-level)
+		// Position on FOO in line 15: foo_value = terramate.run.env.FOO
+		workspaceEdit, err := srv.createRenameEdits(context.Background(), fname, []byte(content), 15, 30, "BAR")
+		assert.NoError(t, err)
+		assert.IsTrue(t, workspaceEdit != nil, "should create workspace edit")
+
+		// Should rename:
+		// - 1 definition in terramate.tm.hcl (project root)
+		// - 1 definition in stack.tm (stack level)
+		// - 1 reference in stack.tm
+		// Total = 3 edits
+		totalEdits := 0
+		fileCount := 0
+		for _, edits := range workspaceEdit.Changes {
+			totalEdits += len(edits)
+			fileCount++
+		}
+
+		assert.IsTrue(t, totalEdits == 3, "should rename both definitions (project + stack) and the reference")
+		assert.IsTrue(t, fileCount == 2, "should have edits in 2 files (terramate.tm.hcl and stack.tm)")
+	})
+
+	t.Run("cannot rename built-in terramate variables", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:stack.tm:stack {
+  name = terramate.path
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stack.tm")
+
+		// Should not allow renaming terramate.path
+		renameRange := srv.canRename(fname, []byte(content), 1, 20)
+		assert.IsTrue(t, renameRange == nil, "cannot rename built-in terramate.* variables")
+	})
+
+	t.Run("cannot rename terramate.stack metadata attributes", func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{
+			`f:stack.tm:stack {
+  name = "my-stack"
+  description = "test"
+}
+
+globals {
+  stack_name = terramate.stack.name
+  stack_id = terramate.stack.id
+  stack_path = terramate.stack.path.absolute
+}`,
+		})
+
+		srv := newTestServer(t, s.RootDir())
+		fname := filepath.Join(s.RootDir(), "stack.tm")
+		content := test.ReadFile(t, s.RootDir(), "stack.tm")
+
+		// Try to rename "name" in terramate.stack.name (line 5, position on "name")
+		renameRange := srv.canRename(fname, []byte(content), 5, 26)
+		assert.IsTrue(t, renameRange == nil, "cannot rename terramate.stack.name")
+
+		// Try to rename "id" in terramate.stack.id
+		renameRange = srv.canRename(fname, []byte(content), 6, 24)
+		assert.IsTrue(t, renameRange == nil, "cannot rename terramate.stack.id")
+
+		// Try to rename "absolute" in terramate.stack.path.absolute
+		renameRange = srv.canRename(fname, []byte(content), 7, 42)
+		assert.IsTrue(t, renameRange == nil, "cannot rename terramate.stack.path.absolute")
 	})
 }
