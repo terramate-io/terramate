@@ -878,7 +878,7 @@ func (s PreviewStacks) Validate() error {
 		if stack.Cmd == nil {
 			errs.Append(errors.E(`missing "cmd" field for stack[%d]`, i))
 		}
-		if err := stack.Stack.Validate(); err != nil {
+		if err := stack.Validate(); err != nil {
 			errs.Append(errors.E(err, "invalid attributes for stack[%d]", i))
 		}
 	}

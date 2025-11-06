@@ -91,11 +91,11 @@ func PostDeployment(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 	var stackIDs []int64
 	res := resources.DeploymentStacksResponse{}
 	for _, s := range rPayload.Stacks {
-		if s.Stack.Target == "" {
-			s.Stack.Target = "default"
+		if s.Target == "" {
+			s.Target = "default"
 		}
 		state := cloudstore.NewState()
-		gotStack, _, found := store.GetStackByMetaID(org, s.Stack.MetaID, s.Stack.Target)
+		gotStack, _, found := store.GetStackByMetaID(org, s.MetaID, s.Target)
 		if found {
 			state = gotStack.State
 		}
