@@ -804,7 +804,7 @@ func TestCLIRunWithCloudSyncDriftStatus(t *testing.T) {
 				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime, tc.want.cloudLogs)
 
 				for _, wantDrift := range tc.want.drifts {
-					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(wantDrift.Stack.Path[1:])), env...)
+					cli := NewCLI(t, filepath.Join(s.RootDir(), filepath.FromSlash(wantDrift.Path[1:])), env...)
 
 					showArgs := []string{"cloud", "drift", "show"}
 					if tc.target != "" {
@@ -959,7 +959,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 		}
 
 		assertDriftRunDuration(t, &got, minStartTime, maxEndTime)
-		assertDriftLogs(t, client, orgUUID, got.Drift.UUID, safeCloudLogs(cloudLogs, i))
+		assertDriftLogs(t, client, orgUUID, got.UUID, safeCloudLogs(cloudLogs, i))
 
 		if expected.Details == nil {
 			continue
