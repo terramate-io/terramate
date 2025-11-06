@@ -20,15 +20,19 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## 0.15.0
+## Unreleased
 
 ### Changed
 
+- Change the protocol with Terramate Cloud to send drift check runs to
+  start and end instead of a single fire and forget operation.
 - (**BREAKING CHANGE**) Upgraded Terragrunt dependency from v0.55.21 to v0.82.0. This major version jump may introduce breaking changes in Terragrunt integration, particularly around configuration parsing and hook execution behavior.
 - Deprecated `--include-output-dependencies` and `--only-output-dependencies` flags in favor of the new, more comprehensive dependency management flags
 
 ### Added
 
+- Send command logs (stdout and stderr) to Terramate Cloud when
+  `--sync-drift-status` is set in `terramate run` and `terramate script run` commands.
 - Allow tags to start with numbers.
 - Add new CLI flags for dependency management in `list`, `run`, and `script run` commands:
   - `--include-all-dependencies`: Add all stacks that the selected stacks depend on (direct + transitive) to the selection
