@@ -2210,7 +2210,7 @@ func validateMap(block *ast.Block) (err error) {
 	}
 	_, ok := block.Attributes["for_each"]
 	if !ok {
-		return errors.E(block.Block.TypeRange,
+		return errors.E(block.TypeRange,
 			"map.for_each attribute is required")
 	}
 	_, ok = block.Attributes["key"]

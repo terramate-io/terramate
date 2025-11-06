@@ -126,7 +126,7 @@ func ParseSource(modsource string) (Source, error) {
 		subdir := parseURLSubdir(u)
 		// We don't want : on the pathstr. So we replace the possible :
 		// that can exist on the host.
-		pathstr := path.Join(strings.Replace(u.Host, ":", "-", -1), u.Path)
+		pathstr := path.Join(strings.ReplaceAll(u.Host, ":", "-"), u.Path)
 		pathstr = strings.TrimSuffix(pathstr, ".git")
 
 		if err != nil {

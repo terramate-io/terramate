@@ -154,11 +154,12 @@ func (e *Engine) SetupCloudConfig(requestedFeatures []string) error {
 	var invitedOrgs resources.MemberOrganizations
 	var ssoInvitedOrgs resources.MemberOrganizations
 	for _, org := range orgs {
-		if org.Status == "active" || org.Status == "trusted" {
+		switch org.Status {
+		case "active", "trusted":
 			activeOrgs = append(activeOrgs, org)
-		} else if org.Status == "invited" {
+		case "invited":
 			invitedOrgs = append(invitedOrgs, org)
-		} else if org.Status == "sso_invited" {
+		case "sso_invited":
 			ssoInvitedOrgs = append(ssoInvitedOrgs, org)
 		}
 	}

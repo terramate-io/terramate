@@ -190,11 +190,12 @@ func fibonacci() {
 
 	var v int64
 
-	if n == 0 {
+	switch n {
+	case 0:
 		v = 0
-	} else if n == 1 {
+	case 1:
 		v = 1
-	} else {
+	default:
 		v = 0
 		for _, i := range []int64{n - 1, n - 2} {
 			b, err := os.ReadFile(fmt.Sprintf("../fib.%v/fib.txt", i))

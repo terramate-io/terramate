@@ -62,11 +62,11 @@ func (b *Block) LabelRanges() hcl.Range {
 			// blockname  { ... }
 			//          ^ ^
 			Start: hcl.Pos{
-				Line:   b.Block.TypeRange.Start.Line,
-				Column: b.Block.TypeRange.Start.Column + len(b.Type),
-				Byte:   b.Block.TypeRange.Start.Byte + len(b.Type),
+				Line:   b.TypeRange.Start.Line,
+				Column: b.TypeRange.Start.Column + len(b.Type),
+				Byte:   b.TypeRange.Start.Byte + len(b.Type),
 			},
-			End: b.Block.OpenBraceRange.End,
+			End: b.OpenBraceRange.End,
 		}
 	case 1:
 		return b.Block.LabelRanges[0]

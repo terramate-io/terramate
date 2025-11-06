@@ -299,7 +299,7 @@ func (d *Data) GetStackByMetaID(org Org, id string, target string) (Stack, int64
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for i, st := range org.Stacks {
-		if st.Stack.MetaID == id && target == st.Stack.Target {
+		if st.MetaID == id && target == st.Target {
 			return st, int64(i), true
 		}
 	}
@@ -337,7 +337,7 @@ func (d *Data) UpsertStack(orguuid resources.UUID, st Stack) (int64, error) {
 	st.State.UpdatedAt = &t
 	st.State.SeenAt = &t
 
-	_, id, found := d.GetStackByMetaID(org, st.Stack.MetaID, st.Stack.Target)
+	_, id, found := d.GetStackByMetaID(org, st.MetaID, st.Target)
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -429,7 +429,7 @@ func (d *Data) UpsertStackPreview(org Org, previewID string, sp *StackPreview) (
 
 	if found {
 		stackPreviews := org.Previews[pIndex].StackPreviews
-		_, spIndex, spFound := d.getStackPreviewByMetaID(sp.Stack.MetaID, stackPreviews)
+		_, spIndex, spFound := d.getStackPreviewByMetaID(sp.MetaID, stackPreviews)
 		if spFound {
 			stackPreviews[spIndex] = sp
 			d.Orgs[org.Name] = org
@@ -755,7 +755,7 @@ func (d *Data) GetOutputByKey(orgUUID resources.UUID, key resources.StoreOutputK
 
 func (d *Data) getStackPreviewByMetaID(spMetaID string, stackPreviews []*StackPreview) (*StackPreview, int64, bool) {
 	for i := range stackPreviews {
-		if stackPreviews[i].Stack.MetaID == spMetaID {
+		if stackPreviews[i].MetaID == spMetaID {
 			return stackPreviews[i], int64(i), true
 		}
 	}

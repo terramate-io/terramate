@@ -6,23 +6,44 @@ generate_file "/.golangci.toml" {
 
   lets {
     config = {
+      version = "2"
       linters = {
         enable = [
           "revive",
           "misspell",
-          "gofmt",
           "bodyclose",
         ]
+
+        exclusions = {
+          generated = "lax"
+          paths = [
+            "third_party$",
+            "builtin$",
+            "examples$",
+          ]
+
+          rules = [
+            {
+              path    = "(.+)_test\\.go"
+              text    = "dot-imports:"
+              linters = ["revive"]
+            }
+          ]
+        }
       }
-      issues = {
-        "exclude-rules" = [
-          {
-            path    = "(.+)_test\\.go"
-            text    = "dot-imports:"
-            linters = ["revive"]
-          }
+
+      formatters = {
+        enable = [
+          "gofmt",
         ]
-        exclude-use-default = false
+        exclusions = {
+          generated = "lax"
+          paths = [
+            "third_party$",
+            "builtin$",
+            "examples$",
+          ]
+        }
       }
 
       run = {

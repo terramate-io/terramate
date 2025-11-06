@@ -26,7 +26,6 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/run"
 
 	runutil "github.com/terramate-io/terramate/run"
 	"github.com/terramate-io/terramate/run/dag"
@@ -239,7 +238,7 @@ func (e *Engine) RunAll(
 	}()
 
 	// map of stackName -> map of backendName -> outputs
-	allOutputs := runutil.NewOnceMap[string, *run.OnceMap[string, cty.Value]]()
+	allOutputs := runutil.NewOnceMap[string, *runutil.OnceMap[string, cty.Value]]()
 
 	err = sched.Run(func(run StackRun) error {
 		errs := errors.L()

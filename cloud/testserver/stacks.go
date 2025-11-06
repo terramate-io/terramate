@@ -128,7 +128,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	if repoStr != "" {
 		andFilters = append(andFilters,
 			func(st cloudstore.Stack) bool {
-				return st.Stack.Repository == repoStr
+				return st.Repository == repoStr
 			},
 		)
 	}
@@ -136,7 +136,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	if targetStr != "" {
 		andFilters = append(andFilters,
 			func(st cloudstore.Stack) bool {
-				return st.Stack.Target == targetStr
+				return st.Target == targetStr
 			},
 		)
 	}
@@ -144,7 +144,7 @@ func GetStacks(store *cloudstore.Data, w http.ResponseWriter, r *http.Request, p
 	if metaID != "" {
 		andFilters = append(andFilters,
 			func(st cloudstore.Stack) bool {
-				return st.Stack.MetaID == metaID
+				return st.MetaID == metaID
 			},
 		)
 	}
@@ -297,7 +297,7 @@ func GetDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, _ *http.Re
 	stack := stacks[stackid]
 	deploymentUUID := resources.UUID(p.ByName("deployment_uuid"))
 
-	logs, err := store.GetDeploymentLogs(orguuid, stack.Stack.MetaID, stack.Stack.Target, deploymentUUID, 0)
+	logs, err := store.GetDeploymentLogs(orguuid, stack.MetaID, stack.Target, deploymentUUID, 0)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, err)
@@ -350,7 +350,7 @@ func GetDeploymentLogsEvents(store *cloudstore.Data, w http.ResponseWriter, _ *h
 
 	// send a ping every 1s
 	for {
-		logs, err := store.GetDeploymentLogs(orguuid, stack.Stack.MetaID, stack.Stack.Target, deploymentUUID, line)
+		logs, err := store.GetDeploymentLogs(orguuid, stack.MetaID, stack.Target, deploymentUUID, line)
 		if err != nil {
 			writeErr(w, err)
 			return
@@ -414,7 +414,7 @@ func PostDeploymentLogs(store *cloudstore.Data, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = store.InsertDeploymentLogs(orguuid, stack.Stack.MetaID, stack.Stack.Target, deploymentUUID, logs)
+	err = store.InsertDeploymentLogs(orguuid, stack.MetaID, stack.Target, deploymentUUID, logs)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		writeErr(w, err)

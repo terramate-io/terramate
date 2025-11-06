@@ -101,7 +101,7 @@ func NewCLI(t *testing.T, chdir string, env ...string) CLI {
 	}
 	// custom cliconfig file
 	tm.userDir = test.TempDir(t)
-	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.Replace(tm.userDir, "\\", "\\\\", -1)))
+	cliConfigPath := test.WriteFile(t, tm.userDir, "terramate.rc", fmt.Sprintf(testCliConfigFormat, strings.ReplaceAll(tm.userDir, "\\", "\\\\")))
 	env = append(env,
 		"TM_CLI_CONFIG_FILE="+cliConfigPath,
 	)
@@ -582,5 +582,5 @@ func RemoveEnv(environ []string, names ...string) []string {
 
 // remove tabs and newlines
 func flatten(s string) string {
-	return strings.Replace((strings.Replace(s, "\n", "", -1)), "\t", "", -1)
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\t", "")
 }

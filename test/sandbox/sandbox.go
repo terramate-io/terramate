@@ -573,7 +573,7 @@ func (se StackEntry) ModSource(mod DirEntry) string {
 func (se StackEntry) WriteConfig(cfg hcl.Config) {
 	var out bytes.Buffer
 	assert.NoError(se.t, hcl.PrintConfig(&out, cfg))
-	se.DirEntry.CreateFile(terramate.DefaultFilename, out.String())
+	se.CreateFile(terramate.DefaultFilename, out.String())
 }
 
 // DeleteStackConfig deletes the default stack definition file.
@@ -599,13 +599,13 @@ func (se StackEntry) Load(root *config.Root) *config.Stack {
 
 // Path returns the absolute path of the stack.
 func (se StackEntry) Path() string {
-	return se.DirEntry.abspath
+	return se.abspath
 }
 
 // RelPath returns the relative path of the stack. It is relative to the base
 // dir of the test environment that created this stack.
 func (se StackEntry) RelPath() string {
-	return se.DirEntry.relpath
+	return se.relpath
 }
 
 func newDirEntry(t testing.TB, rootdir string, relpath string) DirEntry {

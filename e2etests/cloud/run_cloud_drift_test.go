@@ -848,7 +848,11 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 
 	for i, expected := range expectedDrifts {
 		got := res[i]
-		if diff := cmp.Diff(got, expected.DriftStackPayloadRequest,
+		// Extract the embedded DriftStackPayloadRequest for comparison
+		// We need to use the embedded field selector here to extract just the embedded struct
+		// nolint:staticcheck // QF1008: we need the embedded field selector for struct comparison
+		expectedPayload := expected.DriftStackPayloadRequest
+		if diff := cmp.Diff(got, expectedPayload,
 			// Ignore hard to predict fields
 			// They are validated (for existence) in the testserver anyway.
 			cmpopts.IgnoreFields(resources.GitMetadata{}, "GitCommitSHA", "GitCommitAuthorTime"),
@@ -865,21 +869,21 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			t.Fatal(diff)
 		}
 
-		if (expected.DriftStackPayloadRequest.Details == nil) !=
+		if (expected.Details == nil) !=
 			(got.Details == nil) {
 			t.Fatalf("drift_detals is absent in expected or got result: want %v != got %v",
-				expected.DriftStackPayloadRequest.Details,
+				expected.Details,
 				got.Details,
 			)
 		}
 
 		assertDriftRunDuration(t, &got, minStartTime, maxEndTime)
 
-		if expected.DriftStackPayloadRequest.Details == nil {
+		if expected.Details == nil {
 			continue
 		}
 
-		assert.EqualStrings(t, expected.DriftStackPayloadRequest.Details.Provisioner,
+		assert.EqualStrings(t, expected.Details.Provisioner,
 			got.Details.Provisioner,
 			"provisioner mismatch",
 		)
@@ -900,7 +904,7 @@ func assertRunDrifts(t *testing.T, cloudData *cloudstore.Data, tmcAddr string, e
 			}
 
 		} else {
-			assert.EqualStrings(t, expected.DriftStackPayloadRequest.Details.ChangesetASCII,
+			assert.EqualStrings(t, expected.Details.ChangesetASCII,
 				got.Details.ChangesetASCII,
 				"changeset_ascii mismatch")
 		}

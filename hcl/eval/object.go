@@ -337,6 +337,6 @@ func (v CtyValue) IsObject() bool { return false }
 
 // Raw returns the original cty.Value value (unmarked).
 func (v CtyValue) Raw() cty.Value {
-	val, _ := v.Value.Unmark()
+	val, _ := v.Unmark()
 	return val
 }

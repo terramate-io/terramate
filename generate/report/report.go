@@ -208,7 +208,7 @@ func (r *Report) sortFilenames() {
 		success.sortFilenames()
 	}
 	for _, failure := range r.Failures {
-		failure.Result.sortFilenames()
+		failure.sortFilenames()
 	}
 }
 
