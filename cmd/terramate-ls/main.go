@@ -105,12 +105,13 @@ func configureLogging(logLevel string, logFmt string, output io.Writer) {
 		os.Exit(1)
 	}
 
-	if logFmt == "json" {
+	switch logFmt {
+	case "json":
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		log.Logger = log.Output(output)
-	} else if logFmt == "text" { // no color
+	case "text": // no color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: true, TimeFormat: time.RFC3339})
-	} else { // default: console mode using color
+	default: // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
 }

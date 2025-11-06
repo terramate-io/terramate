@@ -137,9 +137,10 @@ func (s Status) Is(filter FilterStatus) bool {
 
 // NewStatusFilter creates a new filter for deployment statuses.
 func NewStatusFilter(str string) (FilterStatus, error) {
-	if str == "unhealthy" {
+	switch str {
+	case "unhealthy":
 		return UnhealthyFilter, nil
-	} else if str == "healthy" {
+	case "healthy":
 		return HealthyFilter, nil
 	}
 
