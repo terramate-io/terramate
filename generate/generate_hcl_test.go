@@ -17,7 +17,6 @@ import (
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
-	"github.com/terramate-io/terramate/generate/report"
 	genreport "github.com/terramate-io/terramate/generate/report"
 
 	"github.com/terramate-io/terramate/project"
@@ -79,7 +78,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"empty"},
@@ -119,7 +118,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"any"},
@@ -217,7 +216,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"file.hcl"},
@@ -336,7 +335,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"file.hcl"},
@@ -431,7 +430,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"file.hcl"},
@@ -498,7 +497,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"stacks.hcl"},
@@ -539,7 +538,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -594,7 +593,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -759,7 +758,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"backend.tf", "locals.tf", "provider.tf"},
@@ -930,7 +929,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"backend.tf", "locals.tf", "provider.tf"},
@@ -992,7 +991,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"traversal.tf"},
@@ -1034,9 +1033,9 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -1084,9 +1083,9 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -1131,9 +1130,9 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -1182,7 +1181,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack"),
 						Created: []string{"repeated"},
@@ -1217,7 +1216,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test"},
@@ -1252,7 +1251,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test"},
@@ -1291,7 +1290,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test"},
@@ -1343,9 +1342,9 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -1383,9 +1382,9 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -1453,7 +1452,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{".tflint.hcl"},
@@ -1499,7 +1498,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -1555,7 +1554,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -1603,7 +1602,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -1643,7 +1642,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/s1"),
 						Created: []string{"root.hcl"},
@@ -1700,7 +1699,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/s1"),
 						Created: []string{"root.hcl", "root.txt"},
@@ -1740,7 +1739,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/s1/s2"),
 						Created: []string{"root.hcl"},
@@ -1783,7 +1782,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -1850,7 +1849,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -1925,7 +1924,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -1982,7 +1981,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -2051,7 +2050,7 @@ EOT
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"root.hcl"},
@@ -2184,7 +2183,7 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test"},
@@ -2243,7 +2242,7 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test"},
@@ -2291,7 +2290,7 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/st{a}ck\\s/stack-1"),
 						Created: []string{"test"},
@@ -2355,7 +2354,7 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stack-1"),
 						Created: []string{"generated"},
@@ -2558,7 +2557,7 @@ func TestGenerateHCLStackFilters(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/aws/stacks/dev"),
 						Created: []string{
@@ -2656,7 +2655,7 @@ func TestGenerateHCLStackFiltersSC11177(t *testing.T) {
 				},
 			},
 			wantReport: genreport.Report{
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/stacks/project-factory/factory-1/custom-roles/role-1"),
 						Created: []string{"test"},
@@ -3049,7 +3048,7 @@ func TestGenerateHCLCleanupOldFilesDONTIgnoreDotFiles(t *testing.T) {
 	test.WriteFile(t, filepath.Join(s.RootDir(), "another"), ".test.tf", genhcl.DefaultHeader())
 
 	test.AssertEqualReports(t, s.Generate(), genreport.Report{
-		Successes: []report.Result{
+		Successes: []genreport.Result{
 			{Dir: project.NewPath("/another"), Deleted: []string{".test.tf"}},
 			{Dir: project.NewPath("/somedir"), Deleted: []string{".test.tf"}},
 		},
