@@ -15,6 +15,7 @@ import (
 
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -27,9 +28,6 @@ const defaultTriggerReason = "Created using Terramate CLI without setting specif
 
 // PathSpec represents the trigger specification for when you trigger an specific path.
 type PathSpec struct {
-	WorkingDir   string
-	Printers     printer.Printers
-	Engine       *engine.Engine
 	Path         string
 	Change       bool
 	IgnoreChange bool
@@ -37,13 +35,24 @@ type PathSpec struct {
 	NoTags       []string
 	Reason       string
 	Recursive    bool
+
+	workingDir string
+	printers   printer.Printers
+	engine     *engine.Engine
 }
 
 // Name returns the name of the filter.
 func (s *PathSpec) Name() string { return "trigger" }
 
+// Requirements returns the requirements of the command.
+func (s *PathSpec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the trigger command.
-func (s *PathSpec) Exec(_ context.Context) error {
+func (s *PathSpec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
 	changeFlag := s.Change
 	ignoreFlag := s.IgnoreChange
 
@@ -70,11 +79,11 @@ func (s *PathSpec) Exec(_ context.Context) error {
 	if reason == "" {
 		reason = defaultTriggerReason
 	}
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 	rootdir := cfg.HostDir()
 	basePath := s.Path
 	if !path.IsAbs(basePath) {
-		basePath = filepath.Join(s.WorkingDir, filepath.FromSlash(basePath))
+		basePath = filepath.Join(s.workingDir, filepath.FromSlash(basePath))
 	} else {
 		basePath = filepath.Join(rootdir, filepath.FromSlash(basePath))
 	}
@@ -105,11 +114,11 @@ func (s *PathSpec) Exec(_ context.Context) error {
 		}
 		stacks = append(stacks, st.Sortable())
 	} else {
-		stacksReport, err := s.Engine.ListStacks(engine.NoGitFilter(), cloudstack.AnyTarget, resources.NoStatusFilters(), false)
+		stacksReport, err := s.engine.ListStacks(engine.NoGitFilter(), cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 		if err != nil {
 			return errors.E(err, "listing stacks")
 		}
-		filteredStacks, err := s.Engine.FilterStacks(stacksReport.Stacks,
+		filteredStacks, err := s.engine.FilterStacks(stacksReport.Stacks,
 			engine.ByBasePath(prjBasePath),
 			engine.ByTags(s.Tags, s.NoTags),
 		)
@@ -124,7 +133,7 @@ func (s *PathSpec) Exec(_ context.Context) error {
 		if err := trigger.Create(cfg, st.Dir(), kind, reason); err != nil {
 			return errors.E(err, "unable to create trigger")
 		}
-		s.Printers.Stdout.Println(fmt.Sprintf("Created %s trigger for stack %q", kindName, st.Dir()))
+		s.printers.Stdout.Println(fmt.Sprintf("Created %s trigger for stack %q", kindName, st.Dir()))
 	}
 	return nil
 }

@@ -266,6 +266,15 @@ func (e *Engine) CloudOrgName() string {
 	return ""
 }
 
+// CloudRegion returns the cloud region from configuration, defaulting to EU.
+func (e *Engine) CloudRegion() cloud.Region {
+	rootcfg := e.RootNode()
+	if rootcfg.Terramate != nil && rootcfg.Terramate.Config != nil && rootcfg.Terramate.Config.Cloud != nil {
+		return rootcfg.Terramate.Config.Cloud.Location
+	}
+	return cloud.EU
+}
+
 // IsCloudEnabled returns true if cloud features are enabled.
 func (e *Engine) IsCloudEnabled() bool {
 	return !e.state.cloud.disabled

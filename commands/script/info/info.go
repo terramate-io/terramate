@@ -19,6 +19,8 @@ import (
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/commands"
+	"github.com/terramate-io/terramate/commands/script"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -29,25 +31,38 @@ import (
 
 // Spec is the "script info" command specification.
 type Spec struct {
-	WorkingDir string
-	Engine     *engine.Engine
-	Printers   printer.Printers
-	GitFilter  engine.GitFilter
-	Labels     []string
+	GitFilter engine.GitFilter
+	Labels    []string
+
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "script info" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any {
+	return commands.RequirementsList{
+		commands.RequireEngine(),
+		commands.RequireExperiments(script.Experiment),
+	}
+}
+
 // Exec executes the "script info" command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
 	labels := s.Labels
-	entries, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
+	entries, err := s.engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		return err
 	}
 
-	filtered, err := s.Engine.FilterStacks(entries.Stacks, engine.ByWorkingDir())
+	filtered, err := s.engine.FilterStacks(entries.Stacks, engine.ByWorkingDir())
 	if err != nil {
 		return err
 	}
@@ -57,50 +72,50 @@ func (s *Spec) Exec(_ context.Context) error {
 		stacks[i] = e.Stack.Sortable()
 	}
 
-	root := s.Engine.Config()
+	root := s.engine.Config()
 	m := newScriptsMatcher(labels)
 	m.Search(root, stacks)
 
 	if len(m.Results) == 0 {
-		s.Printers.Stderr.Println(color.RedString("script not found: ") +
+		s.printers.Stderr.Println(color.RedString("script not found: ") +
 			strings.Join(s.Labels, " "))
 		return errors.E("failed to execute command")
 	}
 
 	for _, x := range m.Results {
-		s.Printers.Stdout.Println(fmt.Sprintf("Definition: %v", x.ScriptCfg.Range))
+		s.printers.Stdout.Println(fmt.Sprintf("Definition: %v", x.ScriptCfg.Range))
 		if x.ScriptCfg.Name != nil {
-			s.Printers.Stdout.Println(fmt.Sprintf("Name: %s", nameTruncation(exprString(x.ScriptCfg.Name.Expr), "script.name")))
+			s.printers.Stdout.Println(fmt.Sprintf("Name: %s", nameTruncation(exprString(x.ScriptCfg.Name.Expr), "script.name")))
 		}
 		if x.ScriptCfg.Description != nil {
-			s.Printers.Stdout.Println(fmt.Sprintf("Description: %s", descTruncation(exprString(x.ScriptCfg.Description.Expr), "script.description")))
+			s.printers.Stdout.Println(fmt.Sprintf("Description: %s", descTruncation(exprString(x.ScriptCfg.Description.Expr), "script.description")))
 		}
 		if len(x.Stacks) > 0 {
-			s.Printers.Stdout.Println("Stacks:")
+			s.printers.Stdout.Println("Stacks:")
 			for _, st := range x.Stacks {
-				s.Printers.Stdout.Println(fmt.Sprintf("  %v", st.Dir()))
+				s.printers.Stdout.Println(fmt.Sprintf("  %v", st.Dir()))
 			}
 		} else {
-			s.Printers.Stdout.Println("Stacks: (none)")
+			s.printers.Stdout.Println("Stacks: (none)")
 		}
 
-		s.Printers.Stdout.Println("Jobs:")
+		s.printers.Stdout.Println("Jobs:")
 		for _, job := range x.ScriptCfg.Jobs {
 			for cmdIdx, cmd := range formatScriptJob(job) {
 				if cmdIdx == 0 {
 					if job.Name != nil {
-						s.Printers.Stdout.Println(fmt.Sprintf("  Name: %s", nameTruncation(exprString(job.Name.Expr), "script.job.name")))
+						s.printers.Stdout.Println(fmt.Sprintf("  Name: %s", nameTruncation(exprString(job.Name.Expr), "script.job.name")))
 					}
 					if job.Description != nil {
-						s.Printers.Stdout.Println(fmt.Sprintf("  Description: %s", descTruncation(exprString(job.Description.Expr), "script.job.description")))
+						s.printers.Stdout.Println(fmt.Sprintf("  Description: %s", descTruncation(exprString(job.Description.Expr), "script.job.description")))
 					}
-					s.Printers.Stdout.Println(fmt.Sprintf("  * %v", cmd))
+					s.printers.Stdout.Println(fmt.Sprintf("  * %v", cmd))
 				} else {
-					s.Printers.Stdout.Println(fmt.Sprintf("    %v", cmd))
+					s.printers.Stdout.Println(fmt.Sprintf("    %v", cmd))
 				}
 			}
 		}
-		s.Printers.Stdout.Println("")
+		s.printers.Stdout.Println("")
 	}
 	return nil
 }

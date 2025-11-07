@@ -11,6 +11,7 @@ import (
 	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/api/drift"
 	"github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -20,27 +21,34 @@ import (
 
 // Spec is the command specification for the cloud drift show command.
 type Spec struct {
-	WorkingDir  string
-	Engine      *engine.Engine
-	Printers    printer.Printers
 	Verbosiness int
+	Target      string
 
-	Target string
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "cloud drift show" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the cloud drift show command.
-func (s *Spec) Exec(ctx context.Context) error {
-	err := s.Engine.SetupCloudConfig([]string{fmt.Sprintf("%q command shows the drift status of the stack", s.Name())})
+func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
+	err := s.engine.SetupCloudConfig([]string{fmt.Sprintf("%q command shows the drift status of the stack", s.Name())})
 	if err != nil {
 		return err
 	}
 
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 	rootdir := cfg.HostDir()
-	st, found, err := config.TryLoadStack(cfg, project.PrjAbsPath(rootdir, s.WorkingDir))
+	st, found, err := config.TryLoadStack(cfg, project.PrjAbsPath(rootdir, s.workingDir))
 	if err != nil {
 		return errors.E(err, "loading stack in current directory")
 	}
@@ -54,7 +62,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 	target := s.Target
 
 	isTargetConfigEnabled := false
-	err = s.Engine.CheckTargetsConfiguration(target, "", func(isTargetEnabled bool) error {
+	err = s.engine.CheckTargetsConfiguration(target, "", func(isTargetEnabled bool) error {
 		if !isTargetEnabled {
 			return errors.E("--target must be set when terramate.config.cloud.targets.enabled is true")
 		}
@@ -69,9 +77,9 @@ func (s *Spec) Exec(ctx context.Context) error {
 		target = "default"
 	}
 
-	client := s.Engine.CloudClient()
-	org := s.Engine.CloudState().Org
-	repo, err := s.Engine.Project().PrettyRepo()
+	client := s.engine.CloudClient()
+	org := s.engine.CloudState().Org
+	repo, err := s.engine.Project().PrettyRepo()
 	if err != nil {
 		return err
 	}
@@ -89,7 +97,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 	}
 
 	if stackResp.Status != stack.Drifted && stackResp.DriftStatus != drift.Drifted {
-		s.Printers.Stdout.Println(fmt.Sprintf("Stack %s is not drifted.", st.Dir.String()))
+		s.printers.Stdout.Println(fmt.Sprintf("Stack %s is not drifted.", st.Dir.String()))
 		return nil
 	}
 
@@ -116,8 +124,8 @@ func (s *Spec) Exec(ctx context.Context) error {
 		return errors.E("Stack %s is drifted, but no details are available.", st.Dir.String())
 	}
 	if s.Verbosiness > 0 {
-		s.Printers.Stdout.Println(fmt.Sprintf("drift provisioner: %s", driftData.Details.Provisioner))
+		s.printers.Stdout.Println(fmt.Sprintf("drift provisioner: %s", driftData.Details.Provisioner))
 	}
-	s.Printers.Stdout.Println(driftData.Details.ChangesetASCII)
+	s.printers.Stdout.Println(driftData.Details.ChangesetASCII)
 	return nil
 }

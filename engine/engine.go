@@ -16,7 +16,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	hhcl "github.com/terramate-io/hcl/v2"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/config"
@@ -161,15 +160,6 @@ func (e *Engine) RepoChecks() stack.RepoChecks { return e.state.repoChecks }
 
 // RootNode returns the root node of the project.
 func (e *Engine) RootNode() hcl.Config { return e.project.root.Tree().Node }
-
-// CloudRegion returns the cloud region from configuration, defaulting to EU.
-func (e *Engine) CloudRegion() cloud.Region {
-	rootcfg := e.RootNode()
-	if rootcfg.Terramate != nil && rootcfg.Terramate.Config != nil && rootcfg.Terramate.Config.Cloud != nil {
-		return rootcfg.Terramate.Config.Cloud.Location
-	}
-	return cloud.EU
-}
 
 // Config returns the root configuration of the project.
 func (e *Engine) Config() *config.Root {

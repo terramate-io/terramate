@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/alecthomas/kong"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/willabides/kongplete"
 )
@@ -21,8 +22,11 @@ type Spec struct {
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "install-completions" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return nil }
+
 // Exec executes the install-completions command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(_ context.Context, _ commands.CLI) error {
 	err := s.Installer.Run(s.KongCtx)
 	if err != nil {
 		return errors.E(err, "installing shell completions")

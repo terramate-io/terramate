@@ -6,12 +6,8 @@ package tui
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
-	"github.com/rs/zerolog/log"
-	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate/cloud/api/status"
 	"github.com/terramate-io/terramate/commands"
 	clonecmd "github.com/terramate-io/terramate/commands/clone"
@@ -28,7 +24,6 @@ import (
 	vendordownloadcmd "github.com/terramate-io/terramate/commands/experimental/vendordownload"
 	fmtcmd "github.com/terramate-io/terramate/commands/fmt"
 	gencmd "github.com/terramate-io/terramate/commands/generate"
-	reqvercmd "github.com/terramate-io/terramate/commands/requiredversion"
 	runcmd "github.com/terramate-io/terramate/commands/run"
 	scriptinfocmd "github.com/terramate-io/terramate/commands/script/info"
 	scriptlistcmd "github.com/terramate-io/terramate/commands/script/list"
@@ -38,15 +33,10 @@ import (
 	listcmd "github.com/terramate-io/terramate/commands/stack/list"
 	triggercmd "github.com/terramate-io/terramate/commands/trigger"
 	"github.com/terramate-io/terramate/commands/version"
-	"github.com/terramate-io/terramate/config"
-	"github.com/terramate-io/terramate/config/filter"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/safeguard"
-	"github.com/terramate-io/terramate/ui/tui/cliconfig"
 	"github.com/terramate-io/terramate/ui/tui/clitest"
-	"github.com/terramate-io/terramate/ui/tui/out"
 
 	"github.com/alecthomas/kong"
 
@@ -55,10 +45,6 @@ import (
 
 // ErrSetup is the error returned when the CLI fails to setup its initial values.
 const ErrSetup errors.Kind = "failed to setup Terramate"
-
-type handlerState struct {
-	tags filter.TagClause
-}
 
 func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool) {
 	p := AsFlagSpec[FlagSpec](parsedSpec)
@@ -89,203 +75,58 @@ func DefaultRootFlagHandlers() []RootFlagHandlers {
 	}
 }
 
-// DefaultBeforeConfigHandler implements the default flags handling for when
-// the config is not yet parsed.
-// Use [WithSpecHandler] if you need a different behavior.
-func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Executor, found bool, cont bool, err error) {
-	kctx := ctx.Value(KongContext).(*kong.Context)
-
-	parsedArgs := AsFlagSpec[FlagSpec](c.input)
+// SelectCommand selects the command handler and extracts the parameters.
+func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd commands.Command, err error) {
+	parsedArgs := AsFlagSpec[FlagSpec](flags)
 	if parsedArgs == nil {
 		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
 	}
 
-	// profiler is only started if Terramate is built with -tags profiler
-	startProfiler(parsedArgs.CPUProfiling)
-
-	err = ConfigureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
-		parsedArgs.LogDestination, c.state.stdout, c.state.stderr)
-	if err != nil {
-		return nil, false, false, err
-	}
-
-	c.state.verbose = parsedArgs.Verbose
-
-	if parsedArgs.Quiet {
-		c.state.verbose = -1
-	}
-
-	c.state.output = out.New(c.state.verbose, c.state.stdout, c.state.stderr)
-
-	c.clicfg, err = cliconfig.Load()
-	if err != nil {
-		printer.Stderr.ErrorWithDetails("failed to load cli configuration file", err)
-		return nil, false, false, errors.E(ErrSetup)
-	}
-
-	migrateFlagAliases(parsedArgs)
-
-	// cmdline flags override configuration file.
-
-	if parsedArgs.DisableCheckpoint {
-		c.clicfg.DisableCheckpoint = parsedArgs.DisableCheckpoint
-	}
-
-	if parsedArgs.DisableCheckpointSignature {
-		c.clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
-	}
-
-	if c.clicfg.UserTerramateDir == "" {
-		homeTmDir, err := userTerramateDir()
-		if err != nil {
-			printer.Stderr.ErrorWithDetails(fmt.Sprintf("Please either export the %s environment variable or "+
-				"set the homeTerramateDir option in the %s configuration file",
-				cliconfig.DirEnv,
-				cliconfig.Filename),
-				err)
-			return nil, false, false, errors.E(ErrSetup)
-
-		}
-		c.clicfg.UserTerramateDir = homeTmDir
-	}
-
-	c.checkpointResponse = make(chan *checkpoint.CheckResponse, 1)
-	go runCheckpoint(
-		c.product,
-		c.version,
-		c.clicfg,
-		c.checkpointResponse,
-	)
-
-	command := kctx.Command()
+	// TODO: This function also sets the analytics. Maybe it should be done somewhere else.
 
 	switch command {
 	case "version":
 		return &version.Spec{
-			Product:       c.product,
-			PrettyProduct: c.prettyProduct,
-			Version:       c.version,
-			InfoChan:      c.checkpointResponse,
-		}, true, false, nil
+			InfoChan: c.checkpointResponse,
+		}, nil
+
 	case "install-completions":
+		kctx := ctx.Value(KongContext).(*kong.Context)
+
 		return &compcmd.Spec{
 			Installer: parsedArgs.InstallCompletions,
 			KongCtx:   kctx,
-		}, true, false, nil
+		}, nil
+
 	case "experimental cloud login": // Deprecated: use cloud login
 		fallthrough
 	case "cloud login":
 		if parsedArgs.Cloud.Login.Github {
 			return &logincmd.GithubSpec{
-				Printers:  c.printers,
-				CliCfg:    c.clicfg,
 				Verbosity: parsedArgs.Verbose,
-			}, true, false, nil
-		} else if !parsedArgs.Cloud.Login.SSO {
-			return &logincmd.GoogleSpec{
-				Printers:  c.printers,
-				CliCfg:    c.clicfg,
+			}, nil
+		} else if parsedArgs.Cloud.Login.SSO {
+			return &logincmd.SSOSpec{
 				Verbosity: parsedArgs.Verbose,
-			}, true, false, nil
+			}, nil
 		}
+		return &logincmd.GoogleSpec{
+			Verbosity: parsedArgs.Verbose,
+		}, nil
 
-		// --sso is handled later
-	}
-
-	logger := log.With().
-		Str("workingDir", c.state.wd).
-		Logger()
-
-	if parsedArgs.Chdir != "" {
-		logger.Debug().
-			Str("dir", parsedArgs.Chdir).
-			Msg("Changing working directory")
-
-		err = os.Chdir(parsedArgs.Chdir)
-		if err != nil {
-			return nil, false, false, errors.E(ErrSetup, err, "changing working dir to %s", parsedArgs.Chdir)
-		}
-
-		c.state.wd, err = os.Getwd()
-		if err != nil {
-			return nil, false, false, errors.E(ErrSetup, err, "getting workdir")
-		}
-	}
-
-	c.state.wd, err = filepath.EvalSymlinks(c.state.wd)
-	if err != nil {
-		return nil, false, false, errors.E(ErrSetup, err, "evaluating symlinks on working dir: %s", c.state.wd)
-	}
-
-	if val := os.Getenv("CI"); envVarIsSet(val) {
-		c.state.uimode = engine.AutomationMode
-	}
-
-	c.state.changeDetectionEnabled = parsedArgs.Changed
-	return nil, false, true, nil
-}
-
-// DefaultAfterConfigHandler implements the default flags handling for when
-// the config is already parsed.
-// Use [WithSpecHandler] if you need a different behavior.
-func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, bool, bool, error) {
-	kctx := ctx.Value(KongContext).(*kong.Context)
-	cmd := kctx.Command()
-
-	logger := log.With().
-		Str("action", "DefaultAfterConfigHandler()").
-		Str("cmd", cmd).
-		Str("workingDir", c.state.wd).
-		Logger()
-
-	rv := reqvercmd.Spec{
-		Version: c.version,
-		Root:    c.state.engine.Config(),
-	}
-
-	err := rv.Exec(context.TODO())
-	if err != nil {
-		return nil, false, false, err
-	}
-
-	parsedArgs := AsFlagSpec[FlagSpec](c.input)
-	if parsedArgs == nil {
-		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
-	}
-
-	if parsedArgs.Changed && !c.Engine().Project().HasCommits() {
-		return nil, false, false, errors.E("flag --changed requires a repository with at least two commits")
-	}
-
-	var state handlerState
-	filters, err := filter.ParseTags(parsedArgs.Tags, parsedArgs.NoTags)
-	if err != nil {
-		return nil, false, false, err
-	}
-
-	state.tags = filters
-
-	logger.Debug().Msg("Handle command.")
-
-	defer stopProfiler(parsedArgs.CPUProfiling)
-
-	switch cmd {
 	case "fmt", "fmt <files>":
-		c.InitAnalytics("fmt",
+		c.SetCommandAnalytics("fmt",
 			tel.BoolFlag("detailed-exit-code", parsedArgs.Fmt.DetailedExitCode),
 		)
 		return &fmtcmd.Spec{
-			WorkingDir:       c.state.wd,
 			Check:            parsedArgs.Fmt.Check,
 			DetailedExitCode: parsedArgs.Fmt.DetailedExitCode,
 			Files:            parsedArgs.Fmt.Files,
-			Printers:         c.printers,
-		}, true, false, nil
+		}, nil
+
 	case "create <path>":
-		c.InitAnalytics("create")
+		c.SetCommandAnalytics("create")
 		return &createcmd.Spec{
-			Engine:           c.state.engine,
-			WorkingDir:       c.state.wd,
 			Path:             parsedArgs.Create.Path,
 			IgnoreExisting:   parsedArgs.Create.IgnoreExisting,
 			AllTerraform:     parsedArgs.Create.AllTerraform,
@@ -302,17 +143,14 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			StackWatch:       parsedArgs.Create.Watch,
 			StackWants:       parsedArgs.Create.Wants,
 			StackWantedBy:    parsedArgs.Create.WantedBy,
-			Printers:         c.printers,
 			Verbosity:        parsedArgs.Verbose,
-		}, true, false, nil
+		}, nil
 	case "create":
-		c.InitAnalytics("create",
+		c.SetCommandAnalytics("create",
 			tel.BoolFlag("all-terragrunt", parsedArgs.Create.AllTerragrunt),
 			tel.BoolFlag("all-terraform", parsedArgs.Create.AllTerraform),
 		)
 		return &createcmd.Spec{
-			Engine:           c.state.engine,
-			WorkingDir:       c.state.wd,
 			IgnoreExisting:   parsedArgs.Create.IgnoreExisting,
 			AllTerraform:     parsedArgs.Create.AllTerraform,
 			AllTerragrunt:    parsedArgs.Create.AllTerragrunt,
@@ -328,12 +166,11 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			StackWatch:       parsedArgs.Create.Watch,
 			StackWants:       parsedArgs.Create.Wants,
 			StackWantedBy:    parsedArgs.Create.WantedBy,
-			Printers:         c.printers,
 			Verbosity:        parsedArgs.Verbose,
-		}, true, false, nil
+		}, nil
 
 	case "list":
-		c.InitAnalytics("list",
+		c.SetCommandAnalytics("list",
 			tel.BoolFlag("filter-changed", parsedArgs.Changed),
 			tel.BoolFlag("filter-tags", len(parsedArgs.Tags) != 0),
 			tel.StringFlag("filter-status", parsedArgs.List.Status),
@@ -345,7 +182,7 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		expStatus := parsedArgs.List.ExperimentalStatus
 		cloudStatus := parsedArgs.List.Status
 		if expStatus != "" && cloudStatus != "" {
-			return nil, false, false, errors.E("--experimental-status and --status cannot be used together")
+			return nil, errors.E("--experimental-status and --status cannot be used together")
 		}
 
 		var statusStr string
@@ -362,10 +199,9 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.List.DisableChangeDetection,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		return &listcmd.Spec{
-			Engine:    c.state.engine,
 			GitFilter: gitfilter,
 			Target:    parsedArgs.List.Target,
 			StatusFilters: listcmd.StatusFilters{
@@ -390,46 +226,40 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 				OnlyAllDependents:         parsedArgs.List.OnlyAllDependents,
 				ExcludeAllDependents:      parsedArgs.List.ExcludeAllDependents,
 			},
-		}, true, false, nil
+		}, nil
 
 	case "generate":
-		c.InitAnalytics("generate",
+		c.SetCommandAnalytics("generate",
 			tel.BoolFlag("detailed-exit-code", parsedArgs.Generate.DetailedExitCode),
 			tel.BoolFlag("parallel", parsedArgs.Generate.Parallel > 0),
 		)
 		return &gencmd.Spec{
-			Engine:           c.state.engine,
-			WorkingDir:       c.state.wd,
 			DetailedExitCode: parsedArgs.Generate.DetailedExitCode,
 			Parallel:         parsedArgs.Generate.Parallel,
 			PrintReport:      true,
-			Printers:         c.printers,
-		}, true, false, nil
+		}, nil
+
 	case "experimental clone <srcdir> <destdir>":
-		c.InitAnalytics("clone")
+		c.SetCommandAnalytics("clone")
 		return &clonecmd.Spec{
-			Engine:          c.state.engine,
-			WorkingDir:      c.state.wd,
 			SrcDir:          parsedArgs.Experimental.Clone.SrcDir,
 			DstDir:          parsedArgs.Experimental.Clone.DestDir,
 			SkipChildStacks: parsedArgs.Experimental.Clone.SkipChildStacks,
 			NoGenerate:      parsedArgs.Experimental.Clone.NoGenerate,
-			Printers:        c.printers,
-		}, true, false, nil
+		}, nil
+
 	case "experimental vendor download <source> <ref>":
-		c.InitAnalytics("vendor-download")
+		c.SetCommandAnalytics("vendor-download")
 		return &vendordownloadcmd.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.state.engine,
-			Printers:   c.printers,
-			Source:     parsedArgs.Experimental.Vendor.Download.Source,
-			Reference:  parsedArgs.Experimental.Vendor.Download.Reference,
-			Dir:        parsedArgs.Experimental.Vendor.Download.Dir,
-		}, true, false, nil
+			Source:    parsedArgs.Experimental.Vendor.Download.Source,
+			Reference: parsedArgs.Experimental.Vendor.Download.Reference,
+			Dir:       parsedArgs.Experimental.Vendor.Download.Dir,
+		}, nil
+
 	case "run":
-		return nil, false, false, errors.E("no command specified")
+		return nil, errors.E("no command specified")
 	case "run <cmd>":
-		c.InitAnalytics("run",
+		c.SetCommandAnalytics("run",
 			tel.BoolFlag("filter-changed", parsedArgs.Changed),
 			tel.BoolFlag("filter-tags", len(parsedArgs.Tags) != 0),
 			tel.StringFlag("filter-status", parsedArgs.Run.Status),
@@ -450,7 +280,7 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		)
 		sf, err := setupSafeguards(parsedArgs, parsedArgs.Run.runSafeguardsCliSpec)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
@@ -459,17 +289,10 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.Run.DisableChangeDetection,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		return &runcmd.Spec{
-			Engine:     c.Engine(),
-			WorkingDir: c.state.wd,
-			Safeguards: sf,
-			Printers:   c.printers,
-			Stdout:     c.state.stdout,
-			Stderr:     c.state.stderr,
-			Stdin:      c.state.stdin,
-
+			Safeguards:      sf,
 			GitFilter:       gitfilter,
 			Command:         parsedArgs.Run.Command,
 			Quiet:           parsedArgs.Quiet,
@@ -514,81 +337,52 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 				OnlyAllDependents:         parsedArgs.Run.OnlyAllDependents,
 				ExcludeAllDependents:      parsedArgs.Run.ExcludeAllDependents,
 			},
-		}, true, false, nil
-
-	case "cloud login":
-		if !parsedArgs.Cloud.Login.SSO {
-			panic(errors.E(errors.ErrInternal, "please report this as a bug"))
-		}
-		orgName := c.cloudOrgName()
-		if orgName == "" {
-			return nil, false, false, errors.E(
-				errors.E("No Terramate Cloud organization configured."),
-				"Set `terramate.config.cloud.organization` or export `TM_CLOUD_ORGANIZATION` to the organization shortname that you intend to login.",
-			)
-		}
-		return &logincmd.SSOSpec{
-			Engine:    c.Engine(),
-			Region:    c.Engine().CloudRegion(),
-			Printers:  c.printers,
-			Verbosity: parsedArgs.Verbose,
-			OrgName:   orgName,
-		}, true, false, nil
+		}, nil
 
 	case "cloud info":
-		c.InitAnalytics("cloud-info")
+		c.SetCommandAnalytics("cloud-info")
 		return &cloudinfocmd.Spec{
-			Engine:    c.Engine(),
-			Printers:  c.printers,
 			Verbosity: parsedArgs.Verbose,
-		}, true, false, nil
+		}, nil
+
 	case "cloud drift show":
-		c.InitAnalytics("cloud-drift-show")
+		c.SetCommandAnalytics("cloud-drift-show")
 		return &clouddriftshowcmd.Spec{
-			WorkingDir:  c.state.wd,
-			Engine:      c.Engine(),
-			Printers:    c.printers,
 			Verbosiness: parsedArgs.Verbose,
 			Target:      parsedArgs.Cloud.Drift.Show.Target,
-		}, true, false, nil
+		}, nil
 
 	case "experimental eval":
-		return nil, false, false, errors.E("no expression specified")
+		return nil, errors.E("no expression specified")
 	case "experimental eval <expr>":
 		return &evalcmd.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			Exprs:      parsedArgs.Experimental.Eval.Exprs,
-			Globals:    parsedArgs.Experimental.Eval.Global,
-			AsJSON:     parsedArgs.Experimental.Eval.AsJSON,
-		}, true, false, nil
+			Exprs:   parsedArgs.Experimental.Eval.Exprs,
+			Globals: parsedArgs.Experimental.Eval.Global,
+			AsJSON:  parsedArgs.Experimental.Eval.AsJSON,
+		}, nil
+
 	case "experimental partial-eval":
-		return nil, false, false, errors.E("no expression specified")
+		return nil, errors.E("no expression specified")
 	case "experimental partial-eval <expr>":
 		return &evalcmd.PartialSpec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			Exprs:      parsedArgs.Experimental.PartialEval.Exprs,
-			Globals:    parsedArgs.Experimental.PartialEval.Global,
-		}, true, false, nil
+			Exprs:   parsedArgs.Experimental.PartialEval.Exprs,
+			Globals: parsedArgs.Experimental.PartialEval.Global,
+		}, nil
+
 	case "experimental get-config-value":
-		return nil, false, false, errors.E("no variable specified")
+		return nil, errors.E("no variable specified")
 	case "experimental get-config-value <var>":
 		return &evalcmd.GetConfigValueSpec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			Vars:       parsedArgs.Experimental.GetConfigValue.Vars,
-			Globals:    parsedArgs.Experimental.GetConfigValue.Global,
-			AsJSON:     parsedArgs.Experimental.GetConfigValue.AsJSON,
-		}, true, false, nil
+			Vars:    parsedArgs.Experimental.GetConfigValue.Vars,
+			Globals: parsedArgs.Experimental.GetConfigValue.Global,
+			AsJSON:  parsedArgs.Experimental.GetConfigValue.AsJSON,
+		}, nil
+
 	case "experimental trigger": // Deprecated
 		parsedArgs.Trigger = parsedArgs.Experimental.Trigger
 		fallthrough
 	case "trigger":
-		c.InitAnalytics("trigger")
+		c.SetCommandAnalytics("trigger")
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
 			parsedArgs.GitChangeBase,
@@ -596,12 +390,12 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			nil,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		expStatus := parsedArgs.Trigger.ExperimentalStatus
 		cloudStatus := parsedArgs.Trigger.Status
 		if expStatus != "" && cloudStatus != "" {
-			return nil, false, false, errors.E("--experimental-status and --status cannot be used together")
+			return nil, errors.E("--experimental-status and --status cannot be used together")
 		}
 
 		var statusStr string
@@ -612,16 +406,13 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		}
 
 		if statusStr == "" && parsedArgs.Trigger.DeploymentStatus == "" && parsedArgs.Trigger.DriftStatus == "" {
-			return nil, false, false, errors.E("trigger command expects either a stack path or a cloud filter such as --status")
+			return nil, errors.E("trigger command expects either a stack path or a cloud filter such as --status")
 		}
 		if parsedArgs.Trigger.Recursive {
-			return nil, false, false, errors.E("cloud filters such as --status are incompatible with --recursive flag")
+			return nil, errors.E("cloud filters such as --status are incompatible with --recursive flag")
 		}
 		return &triggercmd.FilterSpec{
-			Engine:     c.Engine(),
-			WorkingDir: c.state.wd,
-			Printers:   c.printers,
-			GitFilter:  gitfilter,
+			GitFilter: gitfilter,
 			StatusFilters: triggercmd.StatusFilters{
 				StackStatus:      statusStr,
 				DeploymentStatus: parsedArgs.Trigger.DeploymentStatus,
@@ -632,24 +423,21 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			Tags:         parsedArgs.Tags,
 			NoTags:       parsedArgs.NoTags,
 			Reason:       parsedArgs.Trigger.Reason,
-		}, true, false, nil
+		}, nil
 
 	case "experimental trigger <stack>": // Deprecated
 		parsedArgs.Trigger = parsedArgs.Experimental.Trigger
 		fallthrough
 	case "trigger <stack>":
-		c.InitAnalytics("trigger",
+		c.SetCommandAnalytics("trigger",
 			tel.StringFlag("stack", parsedArgs.Trigger.Stack),
 			tel.BoolFlag("change", parsedArgs.Trigger.Change),
 			tel.BoolFlag("ignore-change", parsedArgs.Trigger.IgnoreChange),
 		)
 		if parsedArgs.Trigger.Status != "" && parsedArgs.Trigger.Recursive {
-			return nil, false, false, errors.E("cloud filters such as --status are incompatible with --recursive flag")
+			return nil, errors.E("cloud filters such as --status are incompatible with --recursive flag")
 		}
 		return &triggercmd.PathSpec{
-			Engine:       c.Engine(),
-			WorkingDir:   c.state.wd,
-			Printers:     c.printers,
 			Change:       parsedArgs.Trigger.Change,
 			IgnoreChange: parsedArgs.Trigger.IgnoreChange,
 			Tags:         parsedArgs.Tags,
@@ -657,51 +445,38 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			Reason:       parsedArgs.Trigger.Reason,
 			Path:         parsedArgs.Trigger.Stack,
 			Recursive:    parsedArgs.Trigger.Recursive,
-		}, true, false, nil
+		}, nil
 
 	case "script list":
-		checkScriptEnabled(c.Config())
-		c.InitAnalytics("script-list")
-		return &scriptlistcmd.Spec{
-			Engine:     c.Engine(),
-			Printers:   c.printers,
-			WorkingDir: c.state.wd,
-		}, true, false, nil
+		c.SetCommandAnalytics("script-list")
+		return &scriptlistcmd.Spec{}, nil
+
 	case "script tree":
-		checkScriptEnabled(c.Config())
-		c.InitAnalytics("script-tree")
-		return &scripttreecmd.Spec{
-			Engine:     c.Engine(),
-			WorkingDir: c.state.wd,
-			Printers:   c.printers,
-		}, true, false, nil
+		c.SetCommandAnalytics("script-tree")
+		return &scripttreecmd.Spec{}, nil
+
 	case "script info":
-		checkScriptEnabled(c.Config())
-		return nil, false, false, errors.E("no script specified")
+		return nil, errors.E("no script specified")
+
 	case "script info <cmds>":
-		checkScriptEnabled(c.Config())
-		c.InitAnalytics("script-info")
+		c.SetCommandAnalytics("script-info")
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
 			parsedArgs.GitChangeBase,
 			nil, nil,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		return &scriptinfocmd.Spec{
-			Engine:     c.Engine(),
-			WorkingDir: c.state.wd,
-			Printers:   c.printers,
-			GitFilter:  gitfilter,
-			Labels:     parsedArgs.Script.Info.Cmds,
-		}, true, false, nil
+			GitFilter: gitfilter,
+			Labels:    parsedArgs.Script.Info.Cmds,
+		}, nil
+
 	case "script run":
-		checkScriptEnabled(c.Config())
-		return nil, false, false, errors.E("no script specified")
+		return nil, errors.E("no script specified")
 	case "script run <cmds>":
-		checkScriptEnabled(c.Config())
-		c.InitAnalytics("script-run",
+		c.SetCommandAnalytics("script-run",
 			tel.BoolFlag("filter-changed", parsedArgs.Changed),
 			tel.BoolFlag("filter-tags", len(parsedArgs.Tags) != 0),
 			tel.StringFlag("filter-status", parsedArgs.Script.Run.Status),
@@ -713,7 +488,7 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		)
 		sf, err := setupSafeguards(parsedArgs, parsedArgs.Script.Run.runSafeguardsCliSpec)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
@@ -722,16 +497,10 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.Script.Run.DisableChangeDetection,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		return &scriptruncmd.Spec{
-			Engine:     c.Engine(),
-			WorkingDir: c.state.wd,
 			Safeguards: sf,
-			Printers:   c.printers,
-			Stdout:     c.state.stdout,
-			Stderr:     c.state.stderr,
-			Stdin:      c.state.stdin,
 			GitFilter:  gitfilter,
 
 			Quiet:           parsedArgs.Quiet,
@@ -764,16 +533,17 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 				DeploymentStatus: parsedArgs.Script.Run.DeploymentStatus,
 			},
 			Labels: parsedArgs.Script.Run.Cmds,
-		}, true, false, nil
+		}, nil
+
 	case "debug show globals":
-		c.InitAnalytics("debug-show-globals")
+		c.SetCommandAnalytics("debug-show-globals")
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
 			parsedArgs.GitChangeBase,
 			nil, nil,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		statusFilters, err := status.ParseFilters(
@@ -782,28 +552,25 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.Debug.Show.Globals.DeploymentStatus,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		return &debugglobalscmd.Spec{
-			WorkingDir:    c.state.wd,
-			Engine:        c.Engine(),
-			Printers:      c.printers,
 			GitFilter:     gitfilter,
 			Tags:          parsedArgs.Tags,
 			NoTags:        parsedArgs.NoTags,
 			StatusFilters: statusFilters,
-		}, true, false, nil
+		}, nil
 
 	case "debug show generate-origins":
-		c.InitAnalytics("debug-show-generate-origins")
+		c.SetCommandAnalytics("debug-show-generate-origins")
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
 			parsedArgs.GitChangeBase,
 			nil, nil,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		statusFilters, err := status.ParseFilters(
@@ -812,28 +579,25 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.Debug.Show.GenerateOrigins.DeploymentStatus,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		return &generateoriginscmd.Spec{
-			WorkingDir:    c.state.wd,
-			Engine:        c.Engine(),
-			Printers:      c.printers,
 			GitFilter:     gitfilter,
 			Tags:          parsedArgs.Tags,
 			NoTags:        parsedArgs.NoTags,
 			StatusFilters: statusFilters,
-		}, true, false, nil
+		}, nil
 
 	case "debug show metadata":
-		c.InitAnalytics("debug-show-metadata")
+		c.SetCommandAnalytics("debug-show-metadata")
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
 			parsedArgs.GitChangeBase,
 			nil, nil,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		statusFilters, err := status.ParseFilters(
@@ -842,27 +606,25 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.Debug.Show.Metadata.DeploymentStatus,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		return &debugshowmetadatacmd.Spec{
-			WorkingDir:    c.state.wd,
-			Engine:        c.Engine(),
-			Printers:      c.printers,
 			GitFilter:     gitfilter,
 			Tags:          parsedArgs.Tags,
 			NoTags:        parsedArgs.NoTags,
 			StatusFilters: statusFilters,
-		}, true, false, nil
+		}, nil
+
 	case "debug show runtime-env":
-		c.InitAnalytics("debug-show-runtime-env")
+		c.SetCommandAnalytics("debug-show-runtime-env")
 		gitfilter, err := engine.NewGitFilter(
 			parsedArgs.Changed,
 			parsedArgs.GitChangeBase,
 			nil, nil,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 		statusFilters, err := status.ParseFilters(
 			parsedArgs.Debug.Show.RuntimeEnv.Status,
@@ -870,48 +632,25 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 			parsedArgs.Debug.Show.RuntimeEnv.DeploymentStatus,
 		)
 		if err != nil {
-			return nil, false, false, err
+			return nil, err
 		}
 
 		return &debugshowruntimeenv.Spec{
-			WorkingDir:    c.state.wd,
-			Engine:        c.Engine(),
-			Printers:      c.printers,
 			GitFilter:     gitfilter,
 			Tags:          parsedArgs.Tags,
 			NoTags:        parsedArgs.NoTags,
 			StatusFilters: statusFilters,
-		}, true, false, nil
+		}, nil
 
 	case "experimental run-graph":
-		c.InitAnalytics("graph")
+		c.SetCommandAnalytics("graph")
 		return &rungraphcmd.Spec{
-			WorkingDir: c.state.wd,
-			Engine:     c.Engine(),
-			Printers:   c.printers,
 			Label:      parsedArgs.Experimental.RunGraph.Label,
 			OutputFile: parsedArgs.Experimental.RunGraph.Outfile,
-		}, true, false, nil
+		}, nil
 	default:
-		return nil, false, false, errors.E("unexpected command sequence")
+		return nil, errors.E("unexpected command sequence")
 	}
-}
-
-func checkScriptEnabled(cfg *config.Root) {
-	if cfg.HasExperiment("scripts") {
-		return
-	}
-
-	printer.Stderr.Error(`The "scripts" feature is not enabled`)
-	printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute.`)
-	printer.Stderr.Println(`Example:
-
-terramate {
-  config {
-    experiments = ["scripts"]
-  }
-}`)
-	os.Exit(1)
 }
 
 func envVarIsSet(val string) bool {

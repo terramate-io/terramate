@@ -13,6 +13,8 @@ import (
 	"golang.org/x/exp/maps"
 
 	hhcl "github.com/terramate-io/hcl/v2"
+	"github.com/terramate-io/terramate/commands"
+	"github.com/terramate-io/terramate/commands/script"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/hcl"
@@ -23,9 +25,9 @@ import (
 
 // Spec represents the script list specification.
 type Spec struct {
-	Engine     *engine.Engine
-	Printers   printer.Printers
-	WorkingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
+	workingDir string
 }
 
 type scriptListEntry struct {
@@ -39,10 +41,22 @@ type scriptListMap map[string]*scriptListEntry
 // Name returns the name of the script list command.
 func (s *Spec) Name() string { return "script list" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any {
+	return commands.RequirementsList{
+		commands.RequireEngine(),
+		commands.RequireExperiments(script.Experiment),
+	}
+}
+
 // Exec executes the script list command.
-func (s *Spec) Exec(_ context.Context) error {
-	root := s.Engine.Config()
-	srcpath := project.PrjAbsPath(root.HostDir(), s.WorkingDir)
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
+	root := s.engine.Config()
+	srcpath := project.PrjAbsPath(root.HostDir(), s.workingDir)
 
 	cfg, found := root.Lookup(srcpath)
 	if !found {
@@ -57,19 +71,19 @@ func (s *Spec) Exec(_ context.Context) error {
 	for _, name := range sortedKeys(entries) {
 		entry := entries[name]
 
-		s.Printers.Stdout.Println(name)
+		s.printers.Stdout.Println(name)
 		if entry.ScriptCfg.Name != nil {
-			s.Printers.Stdout.Println(fmt.Sprintf("  Name: %v", nameTruncation(exprString(entry.ScriptCfg.Name.Expr), "script.name")))
+			s.printers.Stdout.Println(fmt.Sprintf("  Name: %v", nameTruncation(exprString(entry.ScriptCfg.Name.Expr), "script.name")))
 		}
 		if entry.ScriptCfg.Description != nil {
-			s.Printers.Stdout.Println(fmt.Sprintf("  Description: %v", exprString(entry.ScriptCfg.Description.Expr)))
+			s.printers.Stdout.Println(fmt.Sprintf("  Description: %v", exprString(entry.ScriptCfg.Description.Expr)))
 		}
-		s.Printers.Stdout.Println(fmt.Sprintf("  Defined at %v", entry.Dir))
+		s.printers.Stdout.Println(fmt.Sprintf("  Defined at %v", entry.Dir))
 
 		if entry.DefCount > 1 {
-			s.Printers.Stdout.Println(fmt.Sprintf("    (+%v more)", entry.DefCount-1))
+			s.printers.Stdout.Println(fmt.Sprintf("    (+%v more)", entry.DefCount-1))
 		}
-		s.Printers.Stdout.Println("")
+		s.printers.Stdout.Println("")
 	}
 	return nil
 }

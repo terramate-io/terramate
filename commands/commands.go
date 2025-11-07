@@ -3,12 +3,65 @@
 
 package commands
 
-import "context"
+import (
+	"context"
+	"io"
 
-// Executor is an interface for commands.
-type Executor interface {
+	"github.com/terramate-io/terramate/engine"
+	"github.com/terramate-io/terramate/printer"
+	"github.com/terramate-io/terramate/ui/tui/cliconfig"
+)
+
+// Command is an interface for a command handler.
+type Command interface {
 	// Name of the comamnd.
 	Name() string
+
+	// Requirements is a generic interface to query a command for common requirements
+	// that will be fulfilled by the CLI before executing it.
+	//
+	// Examples for this include cloud setup, config loading, experiments etc.
+	Requirements(context.Context, CLI) any
+
 	// Exec executes the command.
-	Exec(ctx context.Context) error
+	Exec(context.Context, CLI) error
+}
+
+// CLI is the interface for common CLI data required by commands.
+type CLI interface {
+	Version() string
+	Product() string
+	PrettyProduct() string
+
+	WorkingDir() string
+
+	Printers() printer.Printers
+	Stdout() io.Writer
+	Stderr() io.Writer
+	Stdin() io.Reader
+
+	// Config returns the userconfig.
+	Config() cliconfig.Config
+
+	// Engine returns the engine.
+	// Will only be available for commands that
+	Engine() *engine.Engine
+}
+
+type RequirementsList []any
+
+func HasRequirement[T any](ctx context.Context, cli CLI, cmd Command) (*T, bool) {
+	r := cmd.Requirements(ctx, cli)
+	switch r := r.(type) {
+	case RequirementsList:
+		for _, req := range r {
+			match, ok := req.(*T)
+			if ok {
+				return match, true
+			}
+		}
+	case *T:
+		return r, true
+	}
+	return nil, false
 }

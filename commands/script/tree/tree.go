@@ -18,6 +18,8 @@ import (
 	hhcl "github.com/terramate-io/hcl/v2"
 
 	"github.com/fatih/color"
+	"github.com/terramate-io/terramate/commands"
+	"github.com/terramate-io/terramate/commands/script"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/hcl"
@@ -28,18 +30,30 @@ import (
 
 // Spec is the "script tree" command specification.
 type Spec struct {
-	Engine     *engine.Engine
-	WorkingDir string
-	Printers   printer.Printers
+	engine     *engine.Engine
+	workingDir string
+	printers   printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "script tree" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any {
+	return commands.RequirementsList{
+		commands.RequireEngine(),
+		commands.RequireExperiments(script.Experiment),
+	}
+}
+
 // Exec executes the script tree command.
-func (s *Spec) Exec(_ context.Context) error {
-	root := s.Engine.Config()
-	srcpath := project.PrjAbsPath(root.HostDir(), s.WorkingDir)
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
+	root := s.engine.Config()
+	srcpath := project.PrjAbsPath(root.HostDir(), s.workingDir)
 
 	cfg, found := root.Lookup(srcpath)
 	if !found {
@@ -51,7 +65,7 @@ func (s *Spec) Exec(_ context.Context) error {
 
 	var sb strings.Builder
 	rootNode.format(&sb, "", nil)
-	s.Printers.Stdout.Println(sb.String())
+	s.printers.Stdout.Println(sb.String())
 	return nil
 }
 

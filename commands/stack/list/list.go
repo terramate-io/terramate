@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/terramate-io/terramate/cloud/api/status"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -19,7 +20,6 @@ import (
 
 // Spec is the command specification for the list command.
 type Spec struct {
-	Engine        *engine.Engine
 	GitFilter     engine.GitFilter
 	Reason        bool
 	Target        string
@@ -27,9 +27,10 @@ type Spec struct {
 	RunOrder      bool
 	Tags          []string
 	NoTags        []string
-	Printers      printer.Printers
 
 	engine.DependencyFilters
+
+	engine *engine.Engine
 }
 
 // StatusFilters contains the status filters for the list command.
@@ -42,13 +43,18 @@ type StatusFilters struct {
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "list" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the list command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.engine = cli.Engine()
+
 	if s.Reason && !s.GitFilter.IsChanged {
 		return errors.E("the --why flag must be used together with --changed")
 	}
 
-	err := s.Engine.CheckTargetsConfiguration(s.Target, "", func(isTargetSet bool) error {
+	err := s.engine.CheckTargetsConfiguration(s.Target, "", func(isTargetSet bool) error {
 		isStatusSet := s.StatusFilters.StackStatus != ""
 		isDeploymentStatusSet := s.StatusFilters.DeploymentStatus != ""
 		isDriftStatusSet := s.StatusFilters.DriftStatus != ""
@@ -69,7 +75,7 @@ func (s *Spec) Exec(_ context.Context) error {
 		return err
 	}
 
-	report, err := s.Engine.ListStacks(s.GitFilter, s.Target, cloudFilters, false)
+	report, err := s.engine.ListStacks(s.GitFilter, s.Target, cloudFilters, false)
 	if err != nil {
 		return err
 	}
@@ -77,7 +83,7 @@ func (s *Spec) Exec(_ context.Context) error {
 }
 
 func (s *Spec) printStacksList(allStacks []stack.Entry) error {
-	filteredStacks, err := s.Engine.FilterStacks(allStacks,
+	filteredStacks, err := s.engine.FilterStacks(allStacks,
 		engine.ByWorkingDir(),
 		engine.ByTags(s.Tags, s.NoTags),
 	)
@@ -93,7 +99,7 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 	}
 
 	// Apply dependency filters
-	stacks, err = s.Engine.ApplyDependencyFilters(s.DependencyFilters, stacks, s.Target)
+	stacks, err = s.engine.ApplyDependencyFilters(s.DependencyFilters, stacks, s.Target)
 	if err != nil {
 		return err
 	}
@@ -101,7 +107,7 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 	if s.RunOrder {
 		var failReason string
 		var err error
-		failReason, err = run.Sort(s.Engine.Config(), stacks,
+		failReason, err = run.Sort(s.engine.Config(), stacks,
 			func(s *config.SortableStack) *config.Stack { return s.Stack })
 		if err != nil {
 			return errors.E(err, "Invalid stack configuration: "+failReason)
@@ -110,7 +116,7 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 
 	for _, st := range stacks {
 		dir := st.Dir().String()
-		friendlyDir, ok := s.Engine.FriendlyFmtDir(dir)
+		friendlyDir, ok := s.engine.FriendlyFmtDir(dir)
 		if !ok {
 			printer.Stderr.Error(fmt.Sprintf("Unable to format stack dir %s", dir))
 			printer.Stdout.Println(dir)

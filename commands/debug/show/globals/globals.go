@@ -11,6 +11,7 @@ import (
 
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/globals"
@@ -19,27 +20,35 @@ import (
 
 // Spec is the command specification for the debug globals command.
 type Spec struct {
-	WorkingDir    string
-	Engine        *engine.Engine
-	Printers      printer.Printers
 	GitFilter     engine.GitFilter
 	StatusFilters resources.StatusFilters
 	Tags          []string
 	NoTags        []string
+
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "debug globals" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the debug globals command.
-func (s *Spec) Exec(_ context.Context) error {
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
+	report, err := s.engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
 	if err != nil {
 		return err
 	}
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 
-	filteredStacks, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
+	filteredStacks, err := s.engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
 	if err != nil {
 		return err
 	}
@@ -56,9 +65,9 @@ func (s *Spec) Exec(_ context.Context) error {
 			continue
 		}
 
-		s.Printers.Stdout.Println(fmt.Sprintf("\nstack %q:", stack.Dir))
+		s.printers.Stdout.Println(fmt.Sprintf("\nstack %q:", stack.Dir))
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
-			s.Printers.Stdout.Println(fmt.Sprintf("\t%s", line))
+			s.printers.Stdout.Println(fmt.Sprintf("\t%s", line))
 		}
 	}
 	return nil

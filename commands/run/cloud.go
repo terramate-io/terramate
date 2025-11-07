@@ -32,19 +32,19 @@ func (s *Spec) checkCloudSync() error {
 		feats = append(feats, cloudFeatSyncPreview)
 	}
 
-	err := s.Engine.SetupCloudConfig(feats)
-	err = s.Engine.HandleCloudCriticalError(err)
+	err := s.engine.SetupCloudConfig(feats)
+	err = s.engine.HandleCloudCriticalError(err)
 	if err != nil {
 		return err
 	}
 
-	if s.Engine.IsCloudDisabled() {
+	if s.engine.IsCloudDisabled() {
 		return nil
 	}
 
 	if s.SyncDeployment {
 		uuid, err := uuid.GenerateUUID()
-		err = s.Engine.HandleCloudCriticalError(err)
+		err = s.engine.HandleCloudCriticalError(err)
 		if err != nil {
 			return err
 		}

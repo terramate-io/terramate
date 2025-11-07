@@ -11,6 +11,7 @@ import (
 
 	"github.com/emicklei/dot"
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -22,23 +23,31 @@ import (
 
 // Spec is the command specification for the run-graph command.
 type Spec struct {
-	WorkingDir string
-	Engine     *engine.Engine
-	Printers   printer.Printers
 	Label      string
 	OutputFile string
+
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "experimental run-graph" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the run-graph command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
 	var getLabel func(s *config.Stack) string
 
 	logger := log.With().
 		Str("action", "generateGraph()").
-		Str("workingDir", s.WorkingDir).
+		Str("workingDir", s.workingDir).
 		Logger()
 
 	switch s.Label {
@@ -54,7 +63,7 @@ func (s *Spec) Exec(_ context.Context) error {
 		return errors.E(`-label expects the values "stack.name" or "stack.dir"`)
 	}
 
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 
 	entries, err := stack.List(cfg, cfg.Tree())
 	if err != nil {
@@ -68,7 +77,7 @@ func (s *Spec) Exec(_ context.Context) error {
 
 	visited := dag.Visited{}
 
-	filteredStacks, err := s.Engine.FilterStacks(entries, engine.ByWorkingDir())
+	filteredStacks, err := s.engine.FilterStacks(entries, engine.ByWorkingDir())
 	if err != nil {
 		return err
 	}
@@ -109,7 +118,7 @@ func (s *Spec) Exec(_ context.Context) error {
 	outFile := s.OutputFile
 	var out io.Writer
 	if outFile == "" {
-		out = s.Printers.Stdout
+		out = s.printers.Stdout
 	} else {
 		f, err := os.Create(outFile)
 		if err != nil {

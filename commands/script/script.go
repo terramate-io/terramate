@@ -14,6 +14,8 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 )
 
+const Experiment = "scripts"
+
 // InfoEntry represents a script entry.
 type InfoEntry struct {
 	ScriptCfg *hcl.Script
