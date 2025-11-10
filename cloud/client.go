@@ -266,7 +266,7 @@ func (c *Client) StackLastDrift(ctx context.Context, orgUUID resources.UUID, sta
 
 // DriftDetails retrieves details of the given driftID.
 func (c *Client) DriftDetails(ctx context.Context, orgUUID resources.UUID, stackID int64, driftID int64) (resources.Drift, error) {
-	path := path.Join(DriftsPath, string(orgUUID), strconv.Itoa64(stackID), strconv.Itoa64(driftID))
+	path := path.Join(DriftsV1Path, string(orgUUID), strconv.Itoa64(stackID), strconv.Itoa64(driftID))
 	return http.Get[resources.Drift](ctx, c, c.URL(path))
 }
 
@@ -307,13 +307,13 @@ func (c *Client) UpdateDeploymentStacks(ctx context.Context, orgUUID resources.U
 func (c *Client) CreateStackDrift(
 	ctx context.Context,
 	orgUUID resources.UUID,
-	driftPayload resources.DriftStackPayloadRequest,
-) (resources.EmptyResponse, error) {
+	driftPayload resources.DriftCheckRunStartPayloadRequest,
+) (resources.DriftCheckRunStartResponse, error) {
 	err := driftPayload.Validate()
 	if err != nil {
-		return resources.EmptyResponse(""), errors.E(err, "failed to prepare the request")
+		return resources.DriftCheckRunStartResponse{}, errors.E(err, "failed to prepare the request")
 	}
-	return http.Post[resources.EmptyResponse](
+	return http.Post[resources.DriftCheckRunStartResponse](
 		ctx,
 		c,
 		driftPayload,
@@ -321,27 +321,50 @@ func (c *Client) CreateStackDrift(
 	)
 }
 
+// UpdateStackDrift updates the drift status for the given drift UUID using v2 API.
+func (c *Client) UpdateStackDrift(
+	ctx context.Context,
+	orgUUID resources.UUID,
+	driftUUID resources.UUID,
+	driftPayload resources.UpdateDriftPayloadRequest,
+) error {
+	err := driftPayload.Validate()
+	if err != nil {
+		return errors.E(err, "failed to prepare the request")
+	}
+	_, err = http.Patch[resources.EmptyResponse](
+		ctx,
+		c,
+		driftPayload,
+		c.URL(path.Join(DriftsPath, string(orgUUID), string(driftUUID))),
+	)
+	return err
+}
+
 // SyncCommandLogs sends a batch of command logs to Terramate Cloud.
 func (c *Client) SyncCommandLogs(
 	ctx context.Context,
 	orgUUID resources.UUID,
 	stackID int64,
-	deploymentUUID resources.UUID,
+	entity Entity,
 	logs resources.CommandLogs,
-	stackPreviewID string,
 ) error {
 	err := logs.Validate()
 	if err != nil {
 		return errors.E(err, "failed to prepare the request")
 	}
 
-	url := c.URL(path.Join(
-		StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", string(deploymentUUID), "logs",
-	))
-
-	// if the command logs are for a stack preview, use the stack preview url.
-	if stackPreviewID != "" {
-		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), stackPreviewID, "logs"))
+	var url url.URL
+	switch entity.Kind {
+	case EntityKindDeployment:
+		url = c.URL(path.Join(
+			StacksPath, string(orgUUID), strconv.Itoa64(stackID), "deployments", entity.EntityID, "logs",
+		))
+	case EntityKindPreview:
+		url = c.URL(path.Join(StackPreviewsPath, string(orgUUID), entity.EntityID, "logs"))
+	case EntityKindDrift:
+		url = c.URL(path.Join(
+			DriftsPath, string(orgUUID), entity.EntityID, "logs"))
 	}
 
 	_, err = http.Post[resources.EmptyResponse](ctx, c, logs, url)

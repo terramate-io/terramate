@@ -31,8 +31,10 @@ const (
 	MembershipsPath = "/v1/memberships"
 	// DeploymentsPath is the deployments endpoint base path.
 	DeploymentsPath = "/v1/deployments"
+	// DriftsV1Path is the drifts V1 endpoint base path.
+	DriftsV1Path = "/v1/drifts"
 	// DriftsPath is the drifts endpoint base path.
-	DriftsPath = "/v1/drifts"
+	DriftsPath = "/v2/drifts"
 	// StacksPath is the stacks endpoint base path.
 	StacksPath = "/v1/stacks"
 	// ReviewRequestsPath is the review requests endpoint base path.
@@ -134,4 +136,35 @@ func HTMLURL(region Region) string {
 		return "https://cloud.terramate.io"
 	}
 	return "https://" + region.String() + ".cloud.terramate.io"
+}
+
+// Entity defines the cloud possible entities with its identifier.
+type Entity struct {
+	Kind     EntityKind
+	EntityID string
+}
+
+// EntityKind are the types of Entities that exist.
+type EntityKind int
+
+const (
+	// EntityKindDeployment is the deployment sync entity.
+	EntityKindDeployment EntityKind = iota + 1
+	// EntityKindDrift is the drift check sync entity.
+	EntityKindDrift
+	// EntityKindPreview is the preview sync entity.
+	EntityKindPreview
+)
+
+// String returns the string representing an EntityKind.
+func (k EntityKind) String() string {
+	switch k {
+	case EntityKindDeployment:
+		return "deployment"
+	case EntityKindPreview:
+		return "preview"
+	case EntityKindDrift:
+		return "drift"
+	}
+	return "unknown"
 }

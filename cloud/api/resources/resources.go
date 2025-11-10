@@ -136,6 +136,7 @@ type (
 	// Drift represents the drift information for a given stack.
 	Drift struct {
 		ID       int64               `json:"id"`
+		UUID     UUID                `json:"uuid,omitempty"`
 		Status   drift.Status        `json:"status"`
 		Details  *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata *DeploymentMetadata `json:"metadata,omitempty"`
@@ -150,16 +151,37 @@ type (
 		Pagination PaginatedResult `json:"paginated_result"`
 	}
 
-	// DriftStackPayloadRequest is the payload for the drift sync.
-	DriftStackPayloadRequest struct {
+	// DriftCheckRunStartPayloadRequest is the payload for starting drift sync.
+	DriftCheckRunStartPayloadRequest struct {
 		Stack      Stack               `json:"stack"`
-		Status     drift.Status        `json:"drift_status"`
-		Details    *ChangesetDetails   `json:"drift_details,omitempty"`
 		Metadata   *DeploymentMetadata `json:"metadata,omitempty"`
 		StartedAt  *time.Time          `json:"started_at,omitempty"`
 		FinishedAt *time.Time          `json:"finished_at,omitempty"`
 		Command    []string            `json:"command"`
 	}
+
+	// DriftCheckRunStartResponse represents the drift creation response.
+	DriftCheckRunStartResponse struct {
+		DriftUUID UUID `json:"uuid"`
+	}
+
+	// UpdateDriftPayloadRequest is the request payload for updating a drift.
+	UpdateDriftPayloadRequest struct {
+		Status    drift.Status      `json:"status"`
+		Changeset *ChangesetDetails `json:"changeset,omitempty"`
+		UpdatedAt time.Time         `json:"updated_at"`
+	}
+
+	// DriftWithStack is the drift API object. Not used by Terramate CLI but only by the test server by now.
+	DriftWithStack struct {
+		Drift
+		Stack
+		StartedAt  *time.Time `json:"started_at"`
+		FinishedAt *time.Time `json:"finished_at"`
+	}
+
+	// DriftsWithStacks is a list of drifts with stacks.
+	DriftsWithStacks []DriftWithStack
 
 	// CreatePreviewPayloadRequest is the request payload for the creation of
 	// stack deployments.
@@ -208,7 +230,7 @@ type (
 	}
 
 	// DriftStackPayloadRequests is a list of DriftStackPayloadRequest
-	DriftStackPayloadRequests []DriftStackPayloadRequest
+	DriftStackPayloadRequests []DriftCheckRunStartPayloadRequest
 
 	// DeploymentMetadata stores the metadata available in the target platform.
 	// It's marshaled as a flat hashmap of values.
@@ -532,13 +554,17 @@ var (
 	_ = Resource(Reviewers{})
 	_ = Resource(Label{})
 	_ = Resource(Drifts{})
-	_ = Resource(DriftStackPayloadRequest{})
+	_ = Resource(DriftCheckRunStartPayloadRequest{})
 	_ = Resource(DriftStackPayloadRequests{})
+	_ = Resource(DriftWithStack{})
+	_ = Resource(DriftsWithStacks{})
 	_ = Resource(ChangesetDetails{})
 	_ = Resource(CommandLogs{})
 	_ = Resource(CommandLog{})
 	_ = Resource(CreatePreviewPayloadRequest{})
 	_ = Resource(CreatePreviewResponse{})
+	_ = Resource(DriftCheckRunStartResponse{})
+	_ = Resource(UpdateDriftPayloadRequest{})
 	_ = Resource(UpdateStackPreviewPayloadRequest{})
 	_ = Resource(ReviewRequestResponse{})
 	_ = Resource(ReviewRequestResponses{})
@@ -750,16 +776,27 @@ func (ds Drifts) Validate() error {
 	return validateResourceList(ds...)
 }
 
-// Validate the drift request payload.
-func (d DriftStackPayloadRequest) Validate() error {
+// Validate a drift with stack.
+func (d DriftWithStack) Validate() error {
 	if err := d.Stack.Validate(); err != nil {
 		return err
 	}
-	if err := d.Status.Validate(); err != nil {
+	if err := d.Drift.Validate(); err != nil {
 		return err
 	}
-	if d.Details != nil {
-		return d.Details.Validate()
+
+	return nil
+}
+
+// Validate a list of drifts.
+func (ds DriftsWithStacks) Validate() error {
+	return validateResourceList(ds...)
+}
+
+// Validate the drift request payload.
+func (d DriftCheckRunStartPayloadRequest) Validate() error {
+	if err := d.Stack.Validate(); err != nil {
+		return err
 	}
 	if d.Metadata != nil {
 		err := d.Metadata.Validate()
@@ -767,15 +804,11 @@ func (d DriftStackPayloadRequest) Validate() error {
 			return err
 		}
 	}
-
-	if d.Details != nil {
-		err := d.Details.Validate()
-		if err != nil {
-			return err
-		}
+	if len(d.Command) == 0 {
+		return errors.E(`field "command" is required"`)
 	}
 
-	return d.Status.Validate()
+	return nil
 }
 
 // Validate the list of drift requests.
@@ -936,6 +969,28 @@ func (r CreatePreviewResponse) Validate() error {
 	}
 
 	return errs.AsError()
+}
+
+// Validate validates the DriftCheckRunStartResponse payload
+func (r DriftCheckRunStartResponse) Validate() error {
+	if r.DriftUUID == "" {
+		return errors.E(`missing "uuid" field`)
+	}
+	return nil
+}
+
+// Validate validates the UpdateDriftPayloadRequest payload
+func (r UpdateDriftPayloadRequest) Validate() error {
+	if err := r.Status.Validate(); err != nil {
+		return err
+	}
+	if r.Changeset != nil {
+		return r.Changeset.Validate()
+	}
+	if r.UpdatedAt.IsZero() {
+		return errors.E(`missing "updated_at" field`)
+	}
+	return nil
 }
 
 // Validate the DeploymentReviewRequest object.

@@ -24,6 +24,10 @@ func BeforeRun(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState)
 		doCloudSyncDeployment(e, run, state, deployment.Running)
 	}
 
+	if run.Task.CloudSyncDriftStatus {
+		doDriftBefore(e, run, state)
+	}
+
 	if run.Task.CloudSyncPreview {
 		doPreviewBefore(e, run, state)
 	}
@@ -40,7 +44,7 @@ func AfterRun(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState, 
 	}
 
 	if run.Task.CloudSyncDriftStatus {
-		cloudSyncDriftStatus(e, run, state, res, err)
+		doDriftAfter(e, run, state, res, err)
 	}
 
 	if run.Task.CloudSyncPreview {
@@ -49,18 +53,53 @@ func AfterRun(e *engine.Engine, run engine.StackCloudRun, state *CloudRunState, 
 }
 
 // Logs synchronizes the logs of a command with the Terramate Cloud.
-func Logs(logger *zerolog.Logger, e *engine.Engine, run engine.StackRun, state *CloudRunState, logs resources.CommandLogs) {
+func Logs(logger *zerolog.Logger, e *engine.Engine, run engine.StackRun, task engine.StackRunTask, state *CloudRunState, logs resources.CommandLogs) {
 	if !e.IsCloudEnabled() {
 		return
 	}
 	data, _ := json.Marshal(logs)
 	logger.Debug().RawJSON("logs", data).Msg("synchronizing logs")
+
 	ctx, cancel := context.WithTimeout(context.Background(), cloud.DefaultTimeout)
 	defer cancel()
+
+	var (
+		entity cloud.Entity
+		found  bool
+	)
+	if task.CloudSyncDeployment {
+		entity = cloud.Entity{
+			Kind:     cloud.EntityKindDeployment,
+			EntityID: string(state.RunUUID),
+		}
+		found = true
+	} else if task.CloudSyncPreview {
+		var stackPreviewID string
+		stackPreviewID, found = state.CloudPreviewID(run.Stack.ID)
+		entity = cloud.Entity{
+			Kind:     cloud.EntityKindPreview,
+			EntityID: stackPreviewID,
+		}
+	} else if task.CloudSyncDriftStatus {
+		var driftUUID resources.UUID
+		driftUUID, found = state.CloudDriftUUID(run.Stack.ID)
+		entity = cloud.Entity{
+			Kind:     cloud.EntityKindDrift,
+			EntityID: string(driftUUID),
+		}
+	} else {
+		logger.Debug().Msg("No logs sent as unknown cloud sync task")
+		return
+	}
+
+	if !found {
+		logger.Warn().Str("kind", entity.Kind.String()).Msg("Missing entity identifier to sync logs")
+		return
+	}
+
 	stackID, _ := state.StackCloudID(run.Stack.ID)
-	stackPreviewID, _ := state.CloudPreviewID(run.Stack.ID)
 	err := e.CloudClient().SyncCommandLogs(
-		ctx, e.CloudState().Org.UUID, stackID, state.RunUUID, logs, stackPreviewID,
+		ctx, e.CloudState().Org.UUID, stackID, entity, logs,
 	)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to sync logs")

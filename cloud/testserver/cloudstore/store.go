@@ -49,7 +49,7 @@ type (
 		Members        []Member                         `json:"members"`
 		Stacks         []Stack                          `json:"stacks"`
 		Deployments    map[resources.UUID]*Deployment   `json:"deployments"`
-		Drifts         []Drift                          `json:"drifts"`
+		Drifts         map[resources.UUID]Drift         `json:"drifts"`
 		Previews       []Preview                        `json:"previews"`
 		ReviewRequests []resources.ReviewRequest        `json:"review_requests"`
 		Outputs        map[string]resources.StoreOutput `json:"outputs"` // map of (encoded key) -> output'
@@ -133,14 +133,21 @@ type (
 	// Drift model.
 	Drift struct {
 		ID          int64                         `json:"id"`
+		UUID        resources.UUID                `json:"uuid"`
 		StackMetaID string                        `json:"stack_meta_id"`
 		StackTarget string                        `json:"stack_target"`
 		Status      drift.Status                  `json:"status"`
-		Details     *resources.ChangesetDetails   `json:"details"`
+		Changeset   *resources.ChangesetDetails   `json:"changeset"`
 		Metadata    *resources.DeploymentMetadata `json:"metadata"`
 		Command     []string                      `json:"command"`
 		StartedAt   *time.Time                    `json:"started_at,omitempty"`
 		FinishedAt  *time.Time                    `json:"finished_at,omitempty"`
+		State       DriftState                    `json:"state"`
+	}
+
+	// DriftState is the state of a drift check run.
+	DriftState struct {
+		Logs resources.CommandLogs
 	}
 )
 
@@ -232,6 +239,11 @@ func (d *Data) MustOrgByName(name string) Org {
 func (d *Data) GetOrg(uuid resources.UUID) (Org, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+	return d.getOrgByUUID(uuid)
+}
+
+// getOrgByUUID gets an organization by UUID without locking.
+func (d *Data) getOrgByUUID(uuid resources.UUID) (Org, bool) {
 	for _, org := range d.Orgs {
 		if org.UUID == uuid {
 			return org.Clone(), true
@@ -488,8 +500,7 @@ func (d *Data) GetStackDrifts(orguuid resources.UUID, stackID int64) ([]Drift, e
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var drifts []Drift
-	for i, drift := range org.Drifts {
-		drift.ID = int64(i) // lazy set, then can be unset in HCL
+	for _, drift := range org.Drifts {
 		if drift.StackMetaID == st.MetaID {
 			drifts = append(drifts, drift)
 		}
@@ -541,15 +552,80 @@ func (d *Data) FindDeploymentForCommit(orgID resources.UUID, commitSHA string) (
 
 // InsertDrift inserts a new drift into the store for the provided org.
 func (d *Data) InsertDrift(orgID resources.UUID, drift Drift) (int, error) {
-	org, found := d.GetOrg(orgID)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	org, found := d.getOrgByUUID(orgID)
 	if !found {
 		return 0, errors.E(ErrNotExists, "org uuid %s", orgID)
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	org.Drifts = append(org.Drifts, drift)
+	if org.Drifts == nil {
+		org.Drifts = make(map[resources.UUID]Drift, 0)
+	}
+	drift.ID = int64(len(org.Drifts) + 1)
+	org.Drifts[drift.UUID] = drift
 	d.Orgs[org.Name] = org
 	return len(org.Drifts) - 1, nil
+}
+
+// UpdateDrift updates the drift in the store.
+func (d *Data) UpdateDrift(org *Org, driftUUID resources.UUID, status drift.Status, changeset *resources.ChangesetDetails, at time.Time) (Drift, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	drift, found := org.Drifts[driftUUID]
+	if !found {
+		return Drift{}, false
+	}
+	drift.Changeset = changeset
+	drift.FinishedAt = &at
+	drift.Status = status
+	org.Drifts[driftUUID] = drift
+	d.Orgs[org.Name] = *org
+	return drift, true
+}
+
+// InsertDriftLogs inserts logs for the given drift.
+func (d *Data) InsertDriftLogs(
+	orgID resources.UUID,
+	driftUUID resources.UUID,
+	logs resources.CommandLogs,
+) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	org, found := d.getOrgByUUID(orgID)
+	if !found {
+		return errors.E(ErrNotExists, "org uuid %s", orgID)
+	}
+
+	drift, found := org.Drifts[driftUUID]
+	if !found {
+		return errors.E(ErrNotExists, "drift uuid %s", driftUUID)
+	}
+
+	drift.State.Logs = append(drift.State.Logs, logs...)
+	d.Orgs[org.Name].Drifts[driftUUID] = drift
+	return nil
+}
+
+// GetDriftLogs gets logs for the given drift.
+func (d *Data) GetDriftLogs(
+	orgID resources.UUID,
+	driftUUID resources.UUID,
+) (resources.CommandLogs, error) {
+	org, found := d.GetOrg(orgID)
+	if !found {
+		return nil, errors.E(ErrNotExists, "org uuid %s", orgID)
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	drift, found := org.Drifts[driftUUID]
+	if !found {
+		return nil, errors.E(ErrNotExists, "drift uuid %s", driftUUID)
+	}
+	return drift.State.Logs, nil
 }
 
 // SetDeploymentStatus sets the given deployment stack to the given status.
@@ -826,7 +902,7 @@ func (org Org) Clone() Org {
 
 	// clones below are all shallow clones but enough for the mutation cases we handle.
 	neworg.Deployments = maps.Clone(org.Deployments)
-	neworg.Drifts = slices.Clone(org.Drifts)
+	neworg.Drifts = maps.Clone(org.Drifts)
 	neworg.Stacks = slices.Clone(org.Stacks)
 	neworg.Members = slices.Clone(org.Members)
 	neworg.ReviewRequests = slices.Clone(org.ReviewRequests)

@@ -120,8 +120,9 @@ func TestCLIRunWithCloudSyncDeploymentWithSignals(t *testing.T) {
 func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 	t.Parallel()
 	type want struct {
-		run    RunExpected
-		drifts expectedDriftStackPayloadRequests
+		run       RunExpected
+		drifts    expectedDriftStacks
+		cloudLogs []RunExpected
 	}
 	type testcase struct {
 		name       string
@@ -144,6 +145,27 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					IgnoreStdout: true,
 					IgnoreStderr: true,
 				},
+				drifts: expectedDriftStacks{
+					{
+						DriftWithStack: resources.DriftWithStack{
+							Stack: resources.Stack{
+								Repository:    normalizedTestRemoteRepo,
+								DefaultBranch: "main",
+								Path:          "/stack",
+								MetaName:      "stack",
+								MetaID:        "stack",
+								Target:        "default",
+							},
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
+						},
+					},
+				},
+				cloudLogs: []RunExpected{{
+					StdoutRegex: "ready",
+				}},
 			},
 		},
 		{
@@ -156,9 +178,9 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 					IgnoreStdout: true,
 					IgnoreStderr: true,
 				},
-				drifts: expectedDriftStackPayloadRequests{
+				drifts: expectedDriftStacks{
 					{
-						DriftStackPayloadRequest: resources.DriftStackPayloadRequest{
+						DriftWithStack: resources.DriftWithStack{
 							Stack: resources.Stack{
 								Repository:    normalizedTestRemoteRepo,
 								DefaultBranch: "main",
@@ -167,11 +189,16 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 								MetaID:        "s1",
 								Target:        "default",
 							},
-							Status:   drift.Failed,
-							Metadata: expectedMetadata,
+							Drift: resources.Drift{
+								Status:   drift.Failed,
+								Metadata: expectedMetadata,
+							},
 						},
 					},
 				},
+				cloudLogs: []RunExpected{{
+					Stdout: "ready",
+				}},
 			},
 		},
 	} {
@@ -215,7 +242,7 @@ func TestCLIRunWithCloudSyncDriftStatusWithSignals(t *testing.T) {
 				result := fixture.Run()
 				maxEndTime := time.Now().UTC()
 				AssertRunResult(t, result, tc.want.run)
-				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime)
+				assertRunDrifts(t, cloudData, addr, tc.want.drifts, minStartTime, maxEndTime, tc.want.cloudLogs)
 			})
 		}
 	}

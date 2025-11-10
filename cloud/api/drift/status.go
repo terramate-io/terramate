@@ -37,10 +37,12 @@ const (
 	Drifted
 	// Failed status indicates the drift detection of the stack failed.
 	Failed
+	// Running status indicates the drift detection of the stack is running.
+	Running
 	// Unrecognized indicates any drift status returned from TMC but not
 	// recognized by this client version.
 	Unrecognized
-	lastStatus = Failed
+	lastStatus = Running
 )
 
 const (
@@ -91,6 +93,8 @@ func (s *Status) UnmarshalJSON(b []byte) error {
 		*s = Drifted
 	case "failed":
 		*s = Failed
+	case "running":
+		*s = Running
 	default:
 		*s = Unrecognized
 	}
@@ -108,6 +112,8 @@ func (s Status) String() string {
 		return "drifted"
 	case Failed:
 		return "failed"
+	case Running:
+		return "running"
 	default:
 		return "unrecognized (" + strconv.Itoa(int(s)) + ")"
 	}
@@ -145,7 +151,7 @@ func (f FilterStatus) String() string {
 	}
 	var out bytes.Buffer
 
-	for i := OK; i <= Failed; i *= 2 {
+	for i := OK; i <= lastStatus; i *= 2 {
 		s := Status(i)
 		if Status(f)&s > 0 {
 			if out.Len() > 0 {

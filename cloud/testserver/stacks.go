@@ -29,6 +29,13 @@ func stateTable() map[drift.Status]map[deployment.Status]stack.Status {
 			deployment.Failed:   stack.Failed,
 			deployment.Canceled: stack.Failed,
 		},
+		drift.Running: {
+			deployment.OK:       stack.OK,
+			deployment.Pending:  stack.OK,
+			deployment.Running:  stack.OK,
+			deployment.Failed:   stack.Failed,
+			deployment.Canceled: stack.Failed,
+		},
 		drift.OK: {
 			deployment.OK:       stack.OK,
 			deployment.Failed:   stack.OK,
@@ -489,7 +496,7 @@ func GetStackDrifts(store *cloudstore.Data, w http.ResponseWriter, r *http.Reque
 		res.Drifts = append(res.Drifts, resources.Drift{
 			ID:       drift.ID,
 			Status:   drift.Status,
-			Details:  drift.Details,
+			Details:  drift.Changeset,
 			Metadata: drift.Metadata,
 		})
 	}
