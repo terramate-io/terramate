@@ -44,7 +44,11 @@ type StatusFilters struct {
 func (s *Spec) Name() string { return "list" }
 
 // Requirements returns the requirements of the command.
-func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+func (s *Spec) Requirements(context.Context, commands.CLI) any {
+	return commands.RequireEngine(
+		commands.WithTerragrunt(s.GitFilter.IsChanged || s.HasDependencyFilters()),
+	)
+}
 
 // Exec executes the list command.
 func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {

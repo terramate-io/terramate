@@ -20,7 +20,7 @@ type Command interface {
 	// Requirements is a generic interface to query a command for common requirements
 	// that will be fulfilled by the CLI before executing it.
 	//
-	// Examples for this include cloud setup, config loading, experiments etc.
+	// The result can either by a single requirement, or a RequirementsList.
 	Requirements(context.Context, CLI) any
 
 	// Exec executes the command.
@@ -48,8 +48,12 @@ type CLI interface {
 	Engine() *engine.Engine
 }
 
+// RequirementsList allows to return multiple requirements from Command.Requirements().
 type RequirementsList []any
 
+// HasRequirement checks if the given command has requirement of type T, and returns it if found.
+// If the command returns a single requirement, it will be checked against T.
+// If it returns a RequirementsList, each element will be checked.
 func HasRequirement[T any](ctx context.Context, cli CLI, cmd Command) (*T, bool) {
 	r := cmd.Requirements(ctx, cli)
 	switch r := r.(type) {

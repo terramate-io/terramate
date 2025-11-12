@@ -44,10 +44,7 @@ func (s *Spec) Name() string { return "script info" }
 
 // Requirements returns the requirements of the command.
 func (s *Spec) Requirements(context.Context, commands.CLI) any {
-	return commands.RequirementsList{
-		commands.RequireEngine(),
-		commands.RequireExperiments(script.Experiment),
-	}
+	return commands.RequireEngine(commands.WithExperiments(script.ExperimentName))
 }
 
 // Exec executes the "script info" command.

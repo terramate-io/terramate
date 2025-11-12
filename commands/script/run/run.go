@@ -77,10 +77,10 @@ func (s *Spec) Name() string { return "script run" }
 
 // Requirements returns the requirements of the command.
 func (s *Spec) Requirements(context.Context, commands.CLI) any {
-	return commands.RequirementsList{
-		commands.RequireEngine(),
-		commands.RequireExperiments(script.Experiment),
-	}
+	return commands.RequireEngine(
+		commands.WithTerragrunt(s.GitFilter.IsChanged || s.HasDependencyFilters()),
+		commands.WithExperiments(script.ExperimentName),
+	)
 }
 
 // Exec executes the script run command.

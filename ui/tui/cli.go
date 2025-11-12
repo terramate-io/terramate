@@ -92,8 +92,6 @@ type state struct {
 	output  out.O
 	wd      string
 	uimode  engine.UIMode
-
-	changeDetectionEnabled bool
 }
 
 // Option is a function that modifies the CLI behavior.
@@ -312,8 +310,8 @@ func (c *CLI) setWorkingDirectory(parsedArgs *FlagSpec) error {
 	return nil
 }
 
-func (c *CLI) initEngine() error {
-	engine, foundRoot, err := engine.Load(c.state.wd, c.state.changeDetectionEnabled, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
+func (c *CLI) initEngine(req *commands.EngineRequirement) error {
+	engine, foundRoot, err := engine.Load(c.state.wd, req.LoadTerragruntModules, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
 	if err != nil {
 		// TODO: This should return the error.
 		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
@@ -460,8 +458,6 @@ func (c *CLI) Exec(args []string) {
 	startProfiler(parsedArgs.CPUProfiling)
 	defer stopProfiler(parsedArgs.CPUProfiling)
 
-	c.state.changeDetectionEnabled = parsedArgs.Changed
-
 	// Setup context.
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, KongContext, kctx)
@@ -484,18 +480,19 @@ func (c *CLI) Exec(args []string) {
 	cmd, err := c.commandSelector(ctx, c, kctx.Command(), c.input)
 	mustSucceed(err)
 
-	if _, yes := commands.HasRequirement[commands.EngineRequirement](ctx, c, cmd); yes {
+	if req, yes := commands.HasRequirement[commands.EngineRequirement](ctx, c, cmd); yes {
 		mustSucceed(c.setWorkingDirectory(parsedArgs))
 
 		// Init the engine, this includes loading the config tree.
-		mustSucceed(c.initEngine())
+		mustSucceed(c.initEngine(req))
 
 		mustSucceed(c.checkEngineInvariants(parsedArgs))
 
 		// Experiments require the engine since they are config based.
-		if expReq, yes := commands.HasRequirement[commands.ExperimentsRequirement](ctx, c, cmd); yes {
-			// Will os.Exit on fail...
-			c.checkExperiments(expReq.Names...)
+
+		if len(req.Experiments) > 0 {
+			// TODO(snk): Will os.Exit on fail. This is not nice.
+			c.checkExperiments(req.Experiments...)
 		}
 
 		c.setProjectAnalytics()

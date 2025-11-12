@@ -47,8 +47,8 @@ type Root struct {
 
 	// hasTerragruntStacks tells if the repository has any Terragrunt stack.
 	hasTerragruntStacks *bool
-	// changeDetectionEnabled tells if change detection is enabled.
-	changeDetectionEnabled bool
+
+	loadTerragruntModules bool
 
 	maxTgWorkers int
 	tgTaskChan   chan *Tree
@@ -118,7 +118,7 @@ type List[T DirElem] []T
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string, changeDetectionEnabled bool, hclOpts ...hcl.Option) (tree *Root, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string, loadTerragruntModules bool, hclOpts ...hcl.Option) (tree *Root, configpath string, found bool, err error) {
 	for {
 		parser, err := hcl.NewTerramateParser(fromdir, fromdir, hclOpts...)
 		if err != nil {
@@ -141,7 +141,7 @@ func TryLoadConfig(fromdir string, changeDetectionEnabled bool, hclOpts ...hcl.O
 			rootTree := NewTree(fromdir)
 			rootTree.Node = *cfg
 			root := NewRoot(rootTree, hclOpts...)
-			root.changeDetectionEnabled = changeDetectionEnabled
+			root.loadTerragruntModules = loadTerragruntModules
 			root.initTgWorkers()
 			err = root.loadTree(rootTree, fromdir, hclOpts...)
 			if err != nil {
@@ -174,7 +174,7 @@ func NewRoot(tree *Tree, hclOpts ...hcl.Option) *Root {
 }
 
 func (root *Root) initTgWorkers() {
-	if !root.changeDetectionEnabled {
+	if !root.loadTerragruntModules {
 		return
 	}
 	root.tgTransientErrs = map[string]error{}
@@ -208,7 +208,7 @@ func (root *Root) tgWorker() {
 }
 
 // LoadRoot loads the root configuration tree.
-func LoadRoot(rootdir string, changeDetectionEnabled bool, hclOpts ...hcl.Option) (*Root, error) {
+func LoadRoot(rootdir string, loadTerragruntModules bool, hclOpts ...hcl.Option) (*Root, error) {
 	rootcfg, err := hcl.ParseDir(rootdir, rootdir, hclOpts...)
 	if err != nil {
 		return nil, err
@@ -216,7 +216,7 @@ func LoadRoot(rootdir string, changeDetectionEnabled bool, hclOpts ...hcl.Option
 	rootTree := NewTree(rootdir)
 	rootTree.Node = *rootcfg
 	root := NewRoot(rootTree, hclOpts...)
-	root.changeDetectionEnabled = changeDetectionEnabled
+	root.loadTerragruntModules = loadTerragruntModules
 	root.initTgWorkers()
 	err = root.loadTree(rootTree, rootdir, hclOpts...)
 	if err != nil {
@@ -646,7 +646,7 @@ func (root *Root) loadTree(parentTree *Tree, cfgdir string, hclOpts ...hcl.Optio
 		parentTree.TgRootFile = filesResult.TgRootFile
 	}
 
-	if filesResult.TgRootFile != "" && root.changeDetectionEnabled {
+	if filesResult.TgRootFile != "" && root.loadTerragruntModules {
 		parentTree.terragruntModuleLoadFinished = make(chan struct{})
 		root.tgTaskChan <- parentTree
 	}

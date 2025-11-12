@@ -98,7 +98,7 @@ func TestDependencyGraphConstruction(t *testing.T) {
 			allStacks, err := config.LoadAllStacks(e.Config(), e.Config().Tree())
 			assert.NoError(t, err)
 
-			graph, err := e.NewDependencyGraph(allStacks, nil, "")
+			graph, err := e.NewDependencyGraph(allStacks, "")
 			assert.NoError(t, err)
 
 			// Verify dependencies
@@ -188,7 +188,7 @@ func TestDependencyGraphTransitiveDependencies(t *testing.T) {
 	allStacks, err := config.LoadAllStacks(e.Config(), e.Config().Tree())
 	assert.NoError(t, err)
 
-	graph, err := e.NewDependencyGraph(allStacks, nil, "")
+	graph, err := e.NewDependencyGraph(allStacks, "")
 	assert.NoError(t, err)
 
 	// Test transitive dependencies for stack-d
@@ -266,7 +266,7 @@ func TestDependencyGraphDependents(t *testing.T) {
 	allStacks, err := config.LoadAllStacks(e.Config(), e.Config().Tree())
 	assert.NoError(t, err)
 
-	graph, err := e.NewDependencyGraph(allStacks, nil, "")
+	graph, err := e.NewDependencyGraph(allStacks, "")
 	assert.NoError(t, err)
 
 	// Test direct dependents of stack-a
@@ -336,7 +336,7 @@ func TestDependencyGraphWithOutputSharing(t *testing.T) {
 	allStacks, err := config.LoadAllStacks(e.Config(), e.Config().Tree())
 	assert.NoError(t, err)
 
-	graph, err := e.NewDependencyGraph(allStacks, nil, "")
+	graph, err := e.NewDependencyGraph(allStacks, "")
 	assert.NoError(t, err)
 
 	// Verify stack-b depends on stack-a via input.from_stack_id
