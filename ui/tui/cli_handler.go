@@ -61,10 +61,19 @@ type handlerState struct {
 }
 
 func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, run func(c *CLI, value any) error, isset bool) {
-	p := parsedSpec.(*FlagSpec)
+	p := AsFlagSpec[FlagSpec](parsedSpec)
+	if p == nil {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
+
 	if p.VersionFlag {
 		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
-			fmt.Println(c.version)
+			// TODO(snk): We change this later.
+			if c.Product() != "terramate" {
+				fmt.Printf("%s %s\n", c.Product(), c.Version())
+			} else {
+				fmt.Println(c.Version())
+			}
 			return nil
 		}, true
 	}
@@ -86,7 +95,11 @@ func DefaultRootFlagHandlers() []RootFlagHandlers {
 func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Executor, found bool, cont bool, err error) {
 	kctx := ctx.Value(KongContext).(*kong.Context)
 
-	parsedArgs := c.input.(*FlagSpec)
+	parsedArgs := AsFlagSpec[FlagSpec](c.input)
+	if parsedArgs == nil {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
+
 	// profiler is only started if Terramate is built with -tags profiler
 	startProfiler(parsedArgs.CPUProfiling)
 
@@ -138,6 +151,7 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 
 	c.checkpointResponse = make(chan *checkpoint.CheckResponse, 1)
 	go runCheckpoint(
+		c.product,
 		c.version,
 		c.clicfg,
 		c.checkpointResponse,
@@ -148,8 +162,10 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 	switch command {
 	case "version":
 		return &version.Spec{
-			Version:  c.version,
-			InfoChan: c.checkpointResponse,
+			Product:       c.product,
+			PrettyProduct: c.prettyProduct,
+			Version:       c.version,
+			InfoChan:      c.checkpointResponse,
 		}, true, false, nil
 	case "install-completions":
 		return &compcmd.Spec{
@@ -232,7 +248,10 @@ func DefaultAfterConfigHandler(ctx context.Context, c *CLI) (commands.Executor, 
 		return nil, false, false, err
 	}
 
-	parsedArgs := c.input.(*FlagSpec)
+	parsedArgs := AsFlagSpec[FlagSpec](c.input)
+	if parsedArgs == nil {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
 
 	if parsedArgs.Changed && !c.Engine().Project().HasCommits() {
 		return nil, false, false, errors.E("flag --changed requires a repository with at least two commits")

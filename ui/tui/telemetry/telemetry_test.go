@@ -11,6 +11,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 
+	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/test/sandbox"
 
 	. "github.com/terramate-io/terramate/ui/tui/telemetry"
@@ -153,6 +154,23 @@ func TestSendMessage(t *testing.T) {
 		err := <-done
 		assert.NoError(t, err)
 		assert.EqualInts(t, 1, len(tr.receivedReqs))
+		assert.EqualStrings(t, "terramate/v"+terramate.Version(), tr.receivedReqs[0].Header.Get("User-Agent"))
+	})
+
+	t.Run("With custom product and version", func(t *testing.T) {
+		tr := &fakeTransport{}
+		cl := &http.Client{Transport: tr}
+
+		done := SendMessage(&Message{}, SendMessageParams{
+			Client:  cl,
+			Product: "terramate-custom",
+			Version: "1.2.3",
+		})
+
+		err := <-done
+		assert.NoError(t, err)
+		assert.EqualInts(t, 1, len(tr.receivedReqs))
+		assert.EqualStrings(t, "terramate-custom/v1.2.3", tr.receivedReqs[0].Header.Get("User-Agent"))
 	})
 }
 

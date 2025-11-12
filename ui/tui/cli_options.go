@@ -46,8 +46,19 @@ func WithStdin(r io.Reader) Option {
 	}
 }
 
-// WithName is an option modify the project name.
-func WithName(name string) Option {
+// WithProduct is an option modify the product name.
+// Default is `terramate`.
+func WithProduct(product, prettyProduct string) Option {
+	return func(c *CLI) error {
+		c.product = product
+		c.prettyProduct = prettyProduct
+		return nil
+	}
+}
+
+// WithBinaryName is an option modify the name of the binary.
+// Default is `terramate`.
+func WithBinaryName(name string) Option {
 	return func(c *CLI) error {
 		c.kongOpts.name = name
 		return nil
