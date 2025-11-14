@@ -28,13 +28,7 @@ func (s *Spec) Name() string { return "version" }
 
 // Exec executes the version command.
 func (s *Spec) Exec(ctx context.Context) error {
-	// TODO(snk): Using the <product> <version> output would be a breaking change.
-	// We change this separately later.
-	if s.Product != "terramate" {
-		fmt.Printf("%s %s\n", s.Product, s.Version)
-	} else {
-		fmt.Println(s.Version)
-	}
+	fmt.Printf("%s %s\n", s.Product, s.Version)
 
 	if s.InfoChan == nil {
 		return nil
