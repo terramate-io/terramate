@@ -14,6 +14,9 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 )
 
+// ExperimentName is the name of the scripts experiment.
+const ExperimentName = "scripts"
+
 // InfoEntry represents a script entry.
 type InfoEntry struct {
 	ScriptCfg *hcl.Script

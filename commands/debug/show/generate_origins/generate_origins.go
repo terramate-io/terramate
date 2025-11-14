@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
@@ -21,26 +22,32 @@ import (
 
 // Spec is the command specification for the generate-origins command.
 type Spec struct {
-	WorkingDir    string
-	Engine        *engine.Engine
-	Printers      printer.Printers
 	GitFilter     engine.GitFilter
 	StatusFilters resources.StatusFilters
 	Tags          []string
 	NoTags        []string
+
+	engine   *engine.Engine
+	printers printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "debug generate-origins" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the generate-origins command.
-func (s *Spec) Exec(_ context.Context) error {
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
+	report, err := s.engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
 	if err != nil {
 		return errors.E(err, "generate debug: selecting stacks")
 	}
 
-	filteredStacks, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
+	filteredStacks, err := s.engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
 	if err != nil {
 		return err
 	}
@@ -50,12 +57,12 @@ func (s *Spec) Exec(_ context.Context) error {
 		selectedStacks[entry.Stack.Dir] = struct{}{}
 	}
 
-	vendorDir, err := s.Engine.VendorDir()
+	vendorDir, err := s.engine.VendorDir()
 	if err != nil {
 		return err
 	}
 
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 	results, err := generate.Load(cfg, vendorDir)
 	if err != nil {
 		return errors.E(err, "generate debug: loading generated code")
@@ -69,7 +76,7 @@ func (s *Spec) Exec(_ context.Context) error {
 		if res.Err != nil {
 			errmsg := fmt.Sprintf("generate debug error on dir %s: %v", res.Dir, res.Err)
 			log.Error().Msg(errmsg)
-			s.Printers.Stderr.Println(errmsg)
+			s.printers.Stderr.Println(errmsg)
 			continue
 		}
 
@@ -82,7 +89,7 @@ func (s *Spec) Exec(_ context.Context) error {
 
 		for _, file := range files {
 			filepath := path.Join(res.Dir.String(), file.Label())
-			s.Printers.Stdout.Println(fmt.Sprintf("%s origin: %v", filepath, file.Range()))
+			s.printers.Stdout.Println(fmt.Sprintf("%s origin: %v", filepath, file.Range()))
 		}
 	}
 	return nil

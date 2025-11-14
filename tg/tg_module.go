@@ -89,11 +89,9 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 
 		// for ordering
 		config.DependenciesBlock,
-	}
 
-	if trackDependencies {
 		// Need for parsing out the dependencies
-		decodeOptions = append(decodeOptions, config.DependencyBlock)
+		config.DependencyBlock,
 	}
 
 	pctx := config.NewParsingContext(context.Background(), tgLogger, cfgOpts).WithDecodeList(decodeOptions...)
@@ -191,57 +189,56 @@ func LoadModule(rootdir string, dir project.Path, fname string, trackDependencie
 		dependsOn[project.PrjAbsPath(rootdir, includedFile)] = struct{}{}
 	}
 
-	if trackDependencies {
-		// "dependency" block is TerragruntDependencies
-		// they get automatically added into tgConfig.Dependencies.Paths
-		for _, dep := range tgConfig.TerragruntDependencies {
-			if dep.Enabled != nil && !*dep.Enabled {
-				continue
-			}
-			// ConfigPath is now a cty.Value in v0.82.0+
-			if dep.ConfigPath.IsNull() {
-				logger.Warn().Msg("dependency ConfigPath is null, skipping")
-				continue
-			}
-			if !dep.ConfigPath.IsKnown() {
-				logger.Warn().Msg("dependency ConfigPath is unknown, skipping")
-				continue
-			}
-			if dep.ConfigPath.Type() != cty.String {
-				logger.Warn().
-					Str("type", dep.ConfigPath.Type().FriendlyName()).
-					Msg("dependency ConfigPath is not a string, skipping")
-				continue
-			}
+	// "dependency" block is TerragruntDependencies
+	// they get automatically added into tgConfig.Dependencies.Paths
+	for _, dep := range tgConfig.TerragruntDependencies {
+		if dep.Enabled != nil && !*dep.Enabled {
+			continue
+		}
+		// ConfigPath is now a cty.Value in v0.82.0+
+		if dep.ConfigPath.IsNull() {
+			logger.Warn().Msg("dependency ConfigPath is null, skipping")
+			continue
+		}
+		if !dep.ConfigPath.IsKnown() {
+			logger.Warn().Msg("dependency ConfigPath is unknown, skipping")
+			continue
+		}
+		if dep.ConfigPath.Type() != cty.String {
+			logger.Warn().
+				Str("type", dep.ConfigPath.Type().FriendlyName()).
+				Msg("dependency ConfigPath is not a string, skipping")
+			continue
+		}
 
-			depConfigPath := dep.ConfigPath.AsString()
-			depAbsPath := depConfigPath
-			if !filepath.IsAbs(depConfigPath) {
-				depAbsPath = filepath.Join(tgMod.Path, depConfigPath)
-			}
+		depConfigPath := dep.ConfigPath.AsString()
+		depAbsPath := depConfigPath
+		if !filepath.IsAbs(depConfigPath) {
+			depAbsPath = filepath.Join(tgMod.Path, depConfigPath)
+		}
 
-			logger.Trace().
-				Str("mod-path", tgMod.Path).
-				Str("dep-path", depConfigPath).
-				Str("dep-abs-path", depAbsPath).
-				Msg("found dependency (in dependency.config_path)")
+		logger.Trace().
+			Str("mod-path", tgMod.Path).
+			Str("dep-path", depConfigPath).
+			Str("dep-abs-path", depAbsPath).
+			Msg("found dependency (in dependency.config_path)")
 
-			if depAbsPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
-				warnDependencyOutsideProject(mod, depAbsPath, "dependency.config_path")
+		if depAbsPath != rootdir && !strings.HasPrefix(depAbsPath, rootdir+string(filepath.Separator)) {
+			warnDependencyOutsideProject(mod, depAbsPath, "dependency.config_path")
+			continue
+		}
 
-				continue
-			}
+		depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
 
-			depProjectPath := project.PrjAbsPath(rootdir, depAbsPath)
-
+		if trackDependencies {
 			dependsOn[depProjectPath] = struct{}{}
 
 			// Also add to After for execution ordering
 			mod.After = append(mod.After, depProjectPath)
-
-			// Track dependency blocks separately for data dependency graph
-			mod.DependencyBlocks = append(mod.DependencyBlocks, depProjectPath)
 		}
+
+		// Track dependency blocks separately for data dependency graph.
+		mod.DependencyBlocks = append(mod.DependencyBlocks, depProjectPath)
 	}
 
 	for p := range dependsOn {

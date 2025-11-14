@@ -71,7 +71,7 @@ func TestListTerragruntIncludeAllDependents(t *testing.T) {
 	s.Git().Add("stack-a/test.txt")
 	s.Git().Commit("change stack-a")
 
-	// List changed stacks with all dependents (HIGH PRIORITY test for customer TF1)
+	// List changed stacks with all dependents
 	res := cli.Run("list", "--changed", "--include-all-dependents")
 	AssertRunResult(t, res, RunExpected{
 		Stdout: nljoin("stack-a", "stack-b", "stack-c"),

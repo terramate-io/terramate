@@ -22,7 +22,7 @@ import (
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/commands"
-	"github.com/terramate-io/terramate/config"
+	reqvercmd "github.com/terramate-io/terramate/commands/requiredversion"
 	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -63,16 +63,15 @@ type CLI struct {
 
 	checkpointResponse chan *checkpoint.CheckResponse
 
-	beforeConfigHandler Handler
-	afterConfigHandler  Handler
+	commandSelector CommandSelector
 
 	bindings                  *di.Bindings
 	beforeConfigSetupHandlers []BindingsSetupHandler
 	afterConfigSetupHandlers  []BindingsSetupHandler
 }
 
-// Handler is a function that handles the CLI configuration.
-type Handler func(ctx context.Context, c *CLI) (commands.Executor, bool, bool, error)
+// CommandSelector is a function that handles command selection.
+type CommandSelector func(ctx context.Context, c *CLI, command string, flags any) (commands.Command, error)
 
 type kongOptions struct {
 	name                      string
@@ -93,8 +92,6 @@ type state struct {
 	output  out.O
 	wd      string
 	uimode  engine.UIMode
-
-	changeDetectionEnabled bool
 }
 
 // Option is a function that modifies the CLI behavior.
@@ -144,8 +141,7 @@ func NewCLI(opts ...Option) (*CLI, error) {
 	if c.parser == nil {
 		err := WithSpecHandler(
 			&FlagSpec{},
-			DefaultBeforeConfigHandler,
-			DefaultAfterConfigHandler,
+			SelectCommand,
 			DefaultRootFlagHandlers()...)(c)
 
 		if err != nil {
@@ -169,6 +165,11 @@ func NewCLI(opts ...Option) (*CLI, error) {
 	c.printers.Stdout = printer.NewPrinter(c.state.stdout)
 	c.printers.Stderr = printer.NewPrinter(c.state.stderr)
 	c.state.uimode = engine.HumanMode
+
+	if val := os.Getenv("CI"); envVarIsSet(val) {
+		c.state.uimode = engine.AutomationMode
+	}
+
 	return c, nil
 }
 
@@ -200,14 +201,184 @@ func (c *CLI) Version() string { return c.version }
 // WorkingDir returns the CLI working directory.
 func (c *CLI) WorkingDir() string { return c.state.wd }
 
-// Config returns the CLI Terramate configuration.
-func (c *CLI) Config() *config.Root { return c.state.engine.Config() }
+// Config returns the CLI Terramate user configuration.
+func (c *CLI) Config() cliconfig.Config { return c.clicfg }
 
 // Engine returns the CLI Terramate engine.
 func (c *CLI) Engine() *engine.Engine { return c.state.engine }
 
 // Printers returns the CLI printers.
 func (c *CLI) Printers() printer.Printers { return c.printers }
+
+// Stdout returns the stdout writer.
+func (c *CLI) Stdout() io.Writer { return c.state.stdout }
+
+// Stderr returns the stderr writer.
+func (c *CLI) Stderr() io.Writer { return c.state.stderr }
+
+// Stdin returns the stdout writer.
+func (c *CLI) Stdin() io.Reader { return c.state.stdin }
+
+func (c *CLI) initLogging(parsedArgs *FlagSpec) error {
+	// Called again with parsed parameters.
+	err := ConfigureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
+		parsedArgs.LogDestination, c.state.stdout, c.state.stderr)
+	if err != nil {
+		return err
+	}
+
+	c.state.verbose = parsedArgs.Verbose
+
+	if parsedArgs.Quiet {
+		c.state.verbose = -1
+	}
+
+	c.state.output = out.New(c.state.verbose, c.state.stdout, c.state.stderr)
+	return nil
+}
+
+func (c *CLI) loadUserConfig(parsedArgs *FlagSpec) error {
+	var err error
+	c.clicfg, err = cliconfig.Load()
+	if err != nil {
+		printer.Stderr.ErrorWithDetails("failed to load cli configuration file", err)
+		return errors.E(ErrSetup)
+	}
+
+	if parsedArgs.DisableCheckpoint {
+		c.clicfg.DisableCheckpoint = parsedArgs.DisableCheckpoint
+	}
+
+	if parsedArgs.DisableCheckpointSignature {
+		c.clicfg.DisableCheckpointSignature = parsedArgs.DisableCheckpointSignature
+	}
+
+	if c.clicfg.UserTerramateDir == "" {
+		homeTmDir, err := userTerramateDir()
+		if err != nil {
+			printer.Stderr.ErrorWithDetails(fmt.Sprintf("Please either export the %s environment variable or "+
+				"set the homeTerramateDir option in the %s configuration file",
+				cliconfig.DirEnv,
+				cliconfig.Filename),
+				err)
+			return errors.E(ErrSetup)
+
+		}
+		c.clicfg.UserTerramateDir = homeTmDir
+	}
+
+	return nil
+}
+
+func (c *CLI) initCheckpoint() {
+	c.checkpointResponse = make(chan *checkpoint.CheckResponse, 1)
+	go runCheckpoint(
+		c.product,
+		c.version,
+		c.clicfg,
+		c.checkpointResponse,
+	)
+}
+
+func (c *CLI) setWorkingDirectory(parsedArgs *FlagSpec) error {
+	logger := log.With().
+		Str("workingDir", c.state.wd).
+		Logger()
+
+	var err error
+	if parsedArgs.Chdir != "" {
+		logger.Debug().
+			Str("dir", parsedArgs.Chdir).
+			Msg("Changing working directory")
+
+		err = os.Chdir(parsedArgs.Chdir)
+		if err != nil {
+			return errors.E(ErrSetup, err, "changing working dir to %s", parsedArgs.Chdir)
+		}
+
+		c.state.wd, err = os.Getwd()
+		if err != nil {
+			return errors.E(ErrSetup, err, "getting workdir")
+		}
+	}
+
+	c.state.wd, err = filepath.EvalSymlinks(c.state.wd)
+	if err != nil {
+		return errors.E(ErrSetup, err, "evaluating symlinks on working dir: %s", c.state.wd)
+	}
+
+	return nil
+}
+
+func (c *CLI) initEngine(req *commands.EngineRequirement) error {
+	engine, foundRoot, err := engine.Load(c.state.wd, req.LoadTerragruntModules, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
+	if err != nil {
+		// TODO: This should return the error.
+		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
+	}
+
+	if !foundRoot {
+		// TODO: This should return the error.
+		printer.Stderr.Fatal(`Terramate was unable to detect a project root.
+
+Please ensure you run Terramate inside a Git repository or create a new one here by calling 'git init'.
+
+Using Terramate together with Git is the recommended way. Git is required to be installed.
+
+Alternatively you can create a Terramate config to make the current directory the project root.
+
+Please see https://terramate.io/docs/cli/projects/configuration for details.
+`)
+	}
+
+	c.state.engine = engine
+
+	return nil
+}
+
+func (c *CLI) checkEngineInvariants(parsedArgs *FlagSpec) error {
+	// Commits
+	if parsedArgs.Changed && !c.Engine().Project().HasCommits() {
+		return errors.E("flag --changed requires a repository with at least two commits")
+	}
+
+	// Required version
+	rv := reqvercmd.Spec{
+		Version: c.version,
+		Root:    c.state.engine.Config(),
+	}
+
+	err := rv.Exec(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *CLI) checkExperiments(names ...string) {
+	cfg := c.state.engine.Config()
+
+	for _, name := range names {
+
+		if cfg.HasExperiment(name) {
+			continue
+		}
+
+		printer.Stderr.Error(fmt.Sprintf(`The "%s" feature is not enabled`, name))
+		printer.Stderr.Println(`In order to enable it you must set the terramate.config.experiments attribute.`)
+		printer.Stderr.Println(fmt.Sprintf(`Example:
+
+terramate {
+  config {
+    experiments = ["%s"]
+  }
+}`, name))
+
+		// TODO(snk): This shouldn't just exit...
+		os.Exit(1)
+	}
+}
 
 // Exec executes the CLI with the given arguments.
 func (c *CLI) Exec(args []string) {
@@ -227,6 +398,7 @@ func (c *CLI) Exec(args []string) {
 		os.Exit(1)
 	}
 
+	// Parse command line arguments.
 	kctx, kerr := c.parser.Parse(args)
 
 	if c.kongExit && c.kongExitStatus == 0 {
@@ -272,97 +444,82 @@ func (c *CLI) Exec(args []string) {
 		printer.Stderr.Fatal(errors.E("command %s cannot be used with flag %s", kctx.Command(), rootFlagSet))
 	}
 
-	ctx := context.WithValue(context.Background(), KongContext, kctx)
+	// Errors on this level are fatal.
+	mustSucceed := func(err error) {
+		if err != nil {
+			printer.Stderr.Fatal(err)
+		}
+	}
+
+	parsedArgs := c.input.(*FlagSpec)
+	migrateFlagAliases(parsedArgs)
+
+	// profiler is only started if Terramate is built with -tags profiler
+	startProfiler(parsedArgs.CPUProfiling)
+	defer stopProfiler(parsedArgs.CPUProfiling)
+
+	// Setup context.
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, KongContext, kctx)
 	ctx = context.WithValue(ctx, KongError, err)
 	ctx = di.WithBindings(ctx, c.bindings)
 
 	// Setup bindings before config loading.
 	for _, setup := range c.beforeConfigSetupHandlers {
-		err := setup(c, c.bindings)
-		if err != nil {
-			printer.Stderr.Fatal(err)
+		mustSucceed(setup(c, c.bindings))
+	}
+	mustSucceed(di.Validate(c.bindings))
+	mustSucceed(di.InitAll(c.bindings))
+
+	mustSucceed(c.initLogging(parsedArgs))
+	mustSucceed(c.loadUserConfig(parsedArgs))
+
+	c.initCheckpoint()
+
+	// Select the command handler.
+	cmd, err := c.commandSelector(ctx, c, kctx.Command(), c.input)
+	mustSucceed(err)
+
+	if req, yes := commands.HasRequirement[commands.EngineRequirement](ctx, c, cmd); yes {
+		mustSucceed(c.setWorkingDirectory(parsedArgs))
+
+		// Init the engine, this includes loading the config tree.
+		mustSucceed(c.initEngine(req))
+
+		mustSucceed(c.checkEngineInvariants(parsedArgs))
+
+		// Experiments require the engine since they are config based.
+
+		if len(req.Experiments) > 0 {
+			// TODO(snk): Will os.Exit on fail. This is not nice.
+			c.checkExperiments(req.Experiments...)
 		}
-	}
-	if err := di.Validate(c.bindings); err != nil {
-		printer.Stderr.Fatal(err)
-	}
-	if err := di.InitAll(c.bindings); err != nil {
-		printer.Stderr.Fatal(err)
-	}
 
-	cmd, ok, cont, err := c.beforeConfigHandler(ctx, c)
-	if err != nil {
-		printer.Stderr.Fatal(err)
-	}
-	if ok {
-		err := cmd.Exec(ctx)
-		if err != nil {
-			printer.Stderr.FatalWithDetails(fmt.Sprintf("executing %q", cmd.Name()), err)
+		c.setProjectAnalytics()
+
+		// Setup bindings after config loading.
+		for _, setup := range c.afterConfigSetupHandlers {
+			mustSucceed(setup(c, c.bindings))
 		}
-		return
+		mustSucceed(di.Validate(c.bindings))
+		mustSucceed(di.InitAll(c.bindings))
+
+		defer c.sendAndWaitForAnalytics()
 	}
 
-	if !cont {
-		return
-	}
-
-	engine, foundRoot, err := engine.Load(c.state.wd, c.state.changeDetectionEnabled, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
-	if err != nil {
-		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
-	}
-
-	if !foundRoot {
-		printer.Stderr.Fatal(`Terramate was unable to detect a project root.
-
-Please ensure you run Terramate inside a Git repository or create a new one here by calling 'git init'.
-
-Using Terramate together with Git is the recommended way. Git is required to be installed.
-
-Alternatively you can create a Terramate config to make the current directory the project root.
-
-Please see https://terramate.io/docs/cli/projects/configuration for details.
-`)
-	}
-
-	c.state.engine = engine
-
-	// Setup bindings after config loading.
-	for _, setup := range c.afterConfigSetupHandlers {
-		err := setup(c, c.bindings)
-		if err != nil {
-			printer.Stderr.Fatal(err)
-		}
-	}
-	if err := di.Validate(c.bindings); err != nil {
-		printer.Stderr.Fatal(err)
-	}
-	if err := di.InitAll(c.bindings); err != nil {
-		printer.Stderr.Fatal(err)
-	}
-
-	defer c.sendAndWaitForAnalytics()
-
-	cmd, found, cont, err := c.afterConfigHandler(ctx, c)
-	if err != nil {
-		printer.Stderr.Fatal(err)
-	}
-
-	if !found && cont {
-		return
-	}
-
-	if !found {
-		panic("command not found -- should be handled by kong")
-	}
-
-	err = cmd.Exec(di.WithBindings(context.TODO(), c.bindings))
-	if err != nil {
-		printer.Stderr.Fatal(err)
-	}
+	// Invoke the command handler at last.
+	mustSucceed(cmd.Exec(ctx, c))
 }
 
-// InitAnalytics initializes the analytics record.
-func (c *CLI) InitAnalytics(cmd string, opts ...tel.MessageOpt) {
+// SetCommandAnalytics initializes the analytics record.
+func (c *CLI) SetCommandAnalytics(cmd string, opts ...tel.MessageOpt) {
+	allOpts := []tel.MessageOpt{tel.Command(cmd)}
+	allOpts = append(allOpts, opts...)
+
+	tel.DefaultRecord.Set(allOpts...)
+}
+
+func (c *CLI) setProjectAnalytics() {
 	cpsigfile := filepath.Join(c.clicfg.UserTerramateDir, "checkpoint_signature")
 	anasigfile := filepath.Join(c.clicfg.UserTerramateDir, "analytics_signature")
 
@@ -374,12 +531,10 @@ func (c *CLI) InitAnalytics(cmd string, opts ...tel.MessageOpt) {
 
 	r := tel.DefaultRecord
 	r.Set(
-		tel.Command(cmd),
-		tel.OrgName(c.cloudOrgName()),
+		tel.OrgName(c.state.engine.CloudOrgName()),
 		tel.DetectFromEnv(cliauth.CredentialFile(c.clicfg), cpsigfile, anasigfile, project.CIPlatform(), repo),
 		tel.StringFlag("chdir", c.state.wd),
 	)
-	r.Set(opts...)
 }
 
 func (c *CLI) sendAndWaitForAnalytics() {
@@ -416,22 +571,6 @@ func (c *CLI) isTelemetryEnabled() bool {
 		return true
 	}
 	return *cfg.Terramate.Config.Telemetry.Enabled
-}
-
-func (c *CLI) cloudOrgName() string {
-	orgName := os.Getenv("TM_CLOUD_ORGANIZATION")
-	if orgName != "" {
-		return orgName
-	}
-
-	cfg := c.state.engine.Config().Tree().Node
-	if cfg.Terramate != nil &&
-		cfg.Terramate.Config != nil &&
-		cfg.Terramate.Config.Cloud != nil {
-		return cfg.Terramate.Config.Cloud.Organization
-	}
-
-	return ""
 }
 
 // ConfigureLogging configures Terramate global logging.

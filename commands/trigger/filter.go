@@ -6,6 +6,7 @@ package trigger
 import (
 	"context"
 
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/printer"
 
@@ -22,9 +23,6 @@ type StatusFilters struct {
 
 // FilterSpec represents the trigger filter specification.
 type FilterSpec struct {
-	WorkingDir    string
-	Engine        *engine.Engine
-	Printers      printer.Printers
 	GitFilter     engine.GitFilter
 	StatusFilters StatusFilters
 	Tags          []string
@@ -32,13 +30,24 @@ type FilterSpec struct {
 	Change        bool
 	IgnoreChange  bool
 	Reason        string
+
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
 }
 
 // Name returns the name of the filter.
 func (s *FilterSpec) Name() string { return "trigger" }
 
+// Requirements returns the requirements of the command.
+func (s *FilterSpec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the trigger command.
-func (s *FilterSpec) Exec(ctx context.Context) error {
+func (s *FilterSpec) Exec(ctx context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
 	cloudFilters, err := status.ParseFilters(
 		s.StatusFilters.StackStatus,
 		s.StatusFilters.DeploymentStatus,
@@ -48,12 +57,12 @@ func (s *FilterSpec) Exec(ctx context.Context) error {
 		return err
 	}
 
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, cloudFilters, false)
+	report, err := s.engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, cloudFilters, false)
 	if err != nil {
 		return err
 	}
 
-	filteredStacks, err := s.Engine.FilterStacks(report.Stacks,
+	filteredStacks, err := s.engine.FilterStacks(report.Stacks,
 		engine.ByWorkingDir(),
 		engine.ByTags(s.Tags, s.NoTags),
 	)
@@ -63,16 +72,14 @@ func (s *FilterSpec) Exec(ctx context.Context) error {
 
 	for _, st := range filteredStacks {
 		stackTrigger := PathSpec{
-			WorkingDir:   s.WorkingDir,
-			Printers:     s.Printers,
-			Engine:       s.Engine,
+
 			Change:       s.Change,
 			IgnoreChange: s.IgnoreChange,
 			Reason:       s.Reason,
 			Path:         st.Stack.Dir.String(),
 		}
 
-		err := stackTrigger.Exec(ctx)
+		err := stackTrigger.Exec(ctx, cli)
 		if err != nil {
 			return err
 		}

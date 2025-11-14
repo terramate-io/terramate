@@ -54,7 +54,7 @@ type Project struct {
 }
 
 // NewProject creates a new project from the working directory.
-func NewProject(wd string, changeDetectionEnabled bool, parserOpts ...hcl.Option) (prj *Project, found bool, err error) {
+func NewProject(wd string, loadTerragruntModules bool, parserOpts ...hcl.Option) (prj *Project, found bool, err error) {
 	prj = &Project{
 		wd: wd,
 	}
@@ -75,7 +75,7 @@ func NewProject(wd string, changeDetectionEnabled bool, parserOpts ...hcl.Option
 			return nil, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 		}
 
-		cfg, err := config.LoadRoot(rootdir, changeDetectionEnabled, parserOpts...)
+		cfg, err := config.LoadRoot(rootdir, loadTerragruntModules, parserOpts...)
 		if err != nil {
 			return nil, false, err
 		}
@@ -93,7 +93,7 @@ func NewProject(wd string, changeDetectionEnabled bool, parserOpts ...hcl.Option
 		return prj, true, nil
 	}
 
-	rootcfg, rootcfgpath, rootfound, err := config.TryLoadConfig(wd, changeDetectionEnabled, parserOpts...)
+	rootcfg, rootcfgpath, rootfound, err := config.TryLoadConfig(wd, loadTerragruntModules, parserOpts...)
 	if err != nil {
 		return nil, false, err
 	}

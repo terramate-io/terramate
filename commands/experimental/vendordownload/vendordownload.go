@@ -10,6 +10,7 @@ import (
 	"path"
 
 	"github.com/rs/zerolog/log"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/modvendor/download"
@@ -20,26 +21,33 @@ import (
 
 // Spec represents the vendor download specification.
 type Spec struct {
-	WorkingDir string
-	Engine     *engine.Engine
-	Printers   printer.Printers
-
 	Dir       string
 	Source    string
 	Reference string
+
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
 }
 
 // Name returns the name of the vendor download command.
 func (s *Spec) Name() string { return "vendor" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the vendor download command.
-func (s *Spec) Exec(_ context.Context) error {
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
 	source := s.Source
 	ref := s.Reference
 
-	rootdir := s.Engine.Config().HostDir()
+	rootdir := s.engine.Config().HostDir()
 	logger := log.With().
-		Str("workingDir", s.WorkingDir).
+		Str("workingDir", s.workingDir).
 		Str("rootdir", rootdir).
 		Str("action", "cli.vendor()").
 		Str("source", source).
@@ -64,11 +72,11 @@ func (s *Spec) Exec(_ context.Context) error {
 	dir := s.Dir
 	if dir != "" {
 		if !path.IsAbs(dir) {
-			dir = project.PrjAbsPath(rootdir, s.WorkingDir).Join(dir).String()
+			dir = project.PrjAbsPath(rootdir, s.workingDir).Join(dir).String()
 		}
 		vendorDir = project.NewPath(dir)
 	} else {
-		vendorDir, err = s.Engine.VendorDir()
+		vendorDir, err = s.engine.VendorDir()
 		if err != nil {
 			return errors.E(err, "failed to get vendor directory")
 		}
@@ -93,7 +101,7 @@ func (s *Spec) Exec(_ context.Context) error {
 		}
 	}
 
-	s.Printers.Stdout.Println(report.String())
+	s.printers.Stdout.Println(report.String())
 	return nil
 }
 
@@ -102,7 +110,7 @@ func (s *Spec) handleVendorProgressEvents(eventsStream download.ProgressEventStr
 
 	go func() {
 		for event := range eventsStream {
-			s.Printers.Stdout.Println(fmt.Sprintf("vendor: %s %s at %s",
+			s.printers.Stdout.Println(fmt.Sprintf("vendor: %s %s at %s",
 				event.Message, event.Module.Raw, event.TargetDir))
 			log.Info().
 				Str("module", event.Module.Raw).

@@ -17,6 +17,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	"github.com/terramate-io/terramate/cloud/api/status"
 	"github.com/terramate-io/terramate/cloudsync"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -39,13 +40,6 @@ const (
 
 // Spec is the command specification for the run command.
 type Spec struct {
-	Engine     *engine.Engine
-	WorkingDir string
-	Printers   printer.Printers
-	Stdout     io.Writer
-	Stderr     io.Writer
-	Stdin      io.Reader
-
 	// Behavior control options
 	Command         []string
 	Quiet           bool
@@ -81,6 +75,13 @@ type Spec struct {
 	Safeguards Safeguards
 
 	state cloudsync.CloudRunState
+
+	workingDir string
+	engine     *engine.Engine
+	printers   printer.Printers
+	stdout     io.Writer
+	stderr     io.Writer
+	stdin      io.Reader
 }
 
 // StatusFilters holds the status filters for the run command.
@@ -103,13 +104,27 @@ type Safeguards struct {
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "run" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any {
+	return commands.RequireEngine(
+		commands.WithTerragrunt(s.GitFilter.IsChanged || s.HasDependencyFilters()),
+	)
+}
+
 // Exec executes the run command.
-func (s *Spec) Exec(ctx context.Context) error {
+func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+	s.stdout = cli.Stdout()
+	s.stderr = cli.Stderr()
+	s.stdin = cli.Stdin()
+
 	if len(s.Command) == 0 {
 		return errors.E("run expects a command")
 	}
 
-	err := CheckOutdatedGeneratedCode(ctx, s.Engine, s.Safeguards, s.WorkingDir)
+	err := CheckOutdatedGeneratedCode(ctx, s.engine, s.Safeguards, s.workingDir)
 	if err != nil {
 		return err
 	}
@@ -118,11 +133,11 @@ func (s *Spec) Exec(ctx context.Context) error {
 		return err
 	}
 
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 	rootdir := cfg.HostDir()
 	var stacks config.List[*config.SortableStack]
 	if s.NoRecursive {
-		st, found, err := config.TryLoadStack(cfg, project.PrjAbsPath(rootdir, s.WorkingDir))
+		st, found, err := config.TryLoadStack(cfg, project.PrjAbsPath(rootdir, s.workingDir))
 		if err != nil {
 			return errors.E(err, "loading stack in current directory")
 		}
@@ -132,7 +147,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		}
 
 		stacks = append(stacks, st.Sortable())
-		stacks, err = s.Engine.AddOutputDependencies(s.DependencyFilters, stacks, s.Target)
+		stacks, err = s.engine.AddOutputDependencies(s.DependencyFilters, stacks, s.Target)
 		if err != nil {
 			return err
 		}
@@ -149,20 +164,20 @@ func (s *Spec) Exec(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		stacks, err = s.Engine.ComputeSelectedStacks(s.GitFilter, tags, s.DependencyFilters, s.Target, cloudFilters)
+		stacks, err = s.engine.ComputeSelectedStacks(s.GitFilter, tags, s.DependencyFilters, s.Target, cloudFilters)
 		if err != nil {
 			return err
 		}
 
 		if !s.DryRun {
-			err = GitFileSafeguards(s.Engine, true, s.Safeguards)
+			err = GitFileSafeguards(s.engine, true, s.Safeguards)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	err = GitSafeguardDefaultBranchIsReachable(s.Engine, s.Safeguards)
+	err = GitSafeguardDefaultBranchIsReachable(s.engine, s.Safeguards)
 	if err != nil {
 		return err
 	}
@@ -193,7 +208,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		return errors.E(ErrConflictOptions, "--tofu-plan-file requires flags --sync-deployment or --sync-drift-status or --sync-preview")
 	}
 
-	err = s.Engine.CheckTargetsConfiguration(s.Target, s.FromTarget, func(isTargetSet bool) error {
+	err = s.engine.CheckTargetsConfiguration(s.Target, s.FromTarget, func(isTargetSet bool) error {
 		isStatusSet := s.StatusFilters.StackStatus != ""
 		isUsingCloudFeat := cloudSyncEnabled || isStatusSet
 
@@ -214,21 +229,21 @@ func (s *Spec) Exec(ctx context.Context) error {
 	}
 
 	if cloudSyncEnabled {
-		if !s.Engine.Project().IsRepo() {
+		if !s.engine.Project().IsRepo() {
 			return errors.E("cloud features requires a git repository")
 		}
-		err = s.Engine.EnsureAllStackHaveIDs(stacks)
+		err = s.engine.EnsureAllStackHaveIDs(stacks)
 		if err != nil {
 			return err
 		}
 
-		cloudsync.DetectCloudMetadata(s.Engine, &s.state)
+		cloudsync.DetectCloudMetadata(s.engine, &s.state)
 	}
 
 	isCICD := os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != "" || os.Getenv("BITBUCKET_BUILD_NUMBER") != ""
 	if s.SyncPreview && !isCICD {
 		printer.Stderr.Warn(cloudSyncPreviewCICDWarning)
-		s.Engine.DisableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
+		s.engine.DisableCloudFeatures(errors.E(cloudSyncPreviewCICDWarning))
 	}
 
 	var runs []engine.StackRun
@@ -267,7 +282,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		// This will just select all runs, since the CloudSyncDeployment was set just above.
 		// Still, it's convenient to re-use this function here.
 		deployRuns := engine.SelectCloudStackTasks(runs, engine.IsDeploymentTask)
-		err := cloudsync.CreateCloudDeployment(s.Engine, s.WorkingDir, deployRuns, &s.state)
+		err := cloudsync.CreateCloudDeployment(s.engine, s.workingDir, deployRuns, &s.state)
 		if err != nil {
 			return err
 		}
@@ -276,7 +291,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 	if s.SyncPreview && s.cloudEnabled() {
 		// See comment above.
 		previewRuns := engine.SelectCloudStackTasks(runs, engine.IsPreviewTask)
-		for metaID, previewID := range cloudsync.CreateCloudPreview(s.Engine, s.GitFilter, previewRuns, s.Target, s.FromTarget, &s.state) {
+		for metaID, previewID := range cloudsync.CreateCloudPreview(s.engine, s.GitFilter, previewRuns, s.Target, s.FromTarget, &s.state) {
 			s.state.SetMeta2PreviewID(metaID, previewID)
 		}
 
@@ -285,16 +300,16 @@ func (s *Spec) Exec(ctx context.Context) error {
 		}
 	}
 
-	err = s.Engine.RunAll(runs, engine.RunAllOptions{
+	err = s.engine.RunAll(runs, engine.RunAllOptions{
 		Quiet:           s.Quiet,
 		DryRun:          s.DryRun,
 		Reverse:         s.Reverse,
 		ScriptRun:       false,
 		ContinueOnError: s.ContinueOnError,
 		Parallel:        s.Parallel,
-		Stdout:          s.Stdout,
-		Stderr:          s.Stderr,
-		Stdin:           s.Stdin,
+		Stdout:          s.stdout,
+		Stderr:          s.stderr,
+		Stdin:           s.stdin,
 		Hooks: &engine.Hooks{
 			Before: func(e *engine.Engine, run engine.StackCloudRun) {
 				cloudsync.BeforeRun(e, run, &s.state)
@@ -316,7 +331,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 	return nil
 }
 
-func (s *Spec) cloudEnabled() bool { return s.Engine.IsCloudEnabled() }
+func (s *Spec) cloudEnabled() bool { return s.engine.IsCloudEnabled() }
 
 // SelectPlanFile returns the plan file and provisioner to use based on the provided flags.
 func SelectPlanFile(terraformPlan, tofuPlan string) (planfile, provisioner string) {
@@ -331,7 +346,7 @@ func SelectPlanFile(terraformPlan, tofuPlan string) (planfile, provisioner strin
 }
 
 func (s *Spec) evalRunArgs(st *config.Stack, target string, cmd []string) ([]string, error) {
-	ctx, err := s.Engine.SetupEvalContext(st.HostDir(s.Engine.Config()), st, target, map[string]string{})
+	ctx, err := s.engine.SetupEvalContext(st.HostDir(s.engine.Config()), st, target, map[string]string{})
 	if err != nil {
 		return nil, err
 	}
@@ -356,17 +371,17 @@ func (s *Spec) evalRunArgs(st *config.Stack, target string, cmd []string) ([]str
 }
 
 func (s *Spec) writePreviewURL() {
-	client := s.Engine.CloudClient()
+	client := s.engine.CloudClient()
 	rrNumber := 0
 	if s.state.Metadata != nil && s.state.Metadata.GithubPullRequestNumber != 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), cloud.DefaultTimeout)
 		defer cancel()
-		reviews, err := client.ListReviewRequests(ctx, s.Engine.CloudState().Org.UUID)
+		reviews, err := client.ListReviewRequests(ctx, s.engine.CloudState().Org.UUID)
 		if err != nil {
 			printer.Stderr.Warn(fmt.Sprintf("unable to list review requests: %v", err))
 			return
 		}
-		headCommit, err := s.Engine.Project().HeadCommit()
+		headCommit, err := s.engine.Project().HeadCommit()
 		if err != nil {
 			printer.Stderr.Warn(fmt.Sprintf("unable to get head commit: %v", err))
 			return
@@ -384,11 +399,11 @@ func (s *Spec) writePreviewURL() {
 		cloudURL = "https://cloud.stg.terramate.io"
 	}
 
-	var url = fmt.Sprintf("%s/o/%s/review-requests\n", cloudURL, s.Engine.CloudState().Org.Name)
+	var url = fmt.Sprintf("%s/o/%s/review-requests\n", cloudURL, s.engine.CloudState().Org.Name)
 	if rrNumber != 0 {
 		url = fmt.Sprintf("%s/o/%s/review-requests/%d\n",
 			cloudURL,
-			s.Engine.CloudState().Org.Name,
+			s.engine.CloudState().Org.Name,
 			rrNumber)
 	}
 

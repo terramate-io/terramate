@@ -10,30 +10,30 @@ import (
 	"time"
 
 	"github.com/terramate-io/go-checkpoint"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
 )
 
 // Spec represents the version command specification.
 type Spec struct {
-	Product       string
-	PrettyProduct string
-	Version       string
-
 	InfoChan chan *checkpoint.CheckResponse
 }
 
 // Name returns the name of the version command.
 func (s *Spec) Name() string { return "version" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return nil }
+
 // Exec executes the version command.
-func (s *Spec) Exec(ctx context.Context) error {
+func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 	// TODO(snk): Using the <product> <version> output would be a breaking change.
 	// We change this separately later.
-	if s.Product != "terramate" {
-		fmt.Printf("%s %s\n", s.Product, s.Version)
+	if cli.Product() != "terramate" {
+		fmt.Printf("%s %s\n", cli.Product(), cli.Version())
 	} else {
-		fmt.Println(s.Version)
+		fmt.Println(cli.Version())
 	}
 
 	if s.InfoChan == nil {
@@ -52,7 +52,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 			releaseDate := time.Unix(int64(info.CurrentReleaseDate), 0).UTC()
 			printer.Stdout.Println(fmt.Sprintf("\nYour version of %s is out of date! The latest version\n"+
 				"is %s (released on %s).\nYou can update by downloading from %s",
-				s.PrettyProduct,
+				cli.PrettyProduct(),
 				info.CurrentVersion, releaseDate.Format(time.UnixDate),
 				info.CurrentDownloadURL))
 		}
@@ -63,7 +63,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 				plural = "s"
 			}
 
-			printer.Stdout.Println(fmt.Sprintf("\nYour version of %s has %d alert%s:\n", s.PrettyProduct, len(info.Alerts), plural))
+			printer.Stdout.Println(fmt.Sprintf("\nYour version of %s has %d alert%s:\n", cli.PrettyProduct(), len(info.Alerts), plural))
 
 			for _, alert := range info.Alerts {
 				urlDesc := ""

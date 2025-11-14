@@ -16,7 +16,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	hhcl "github.com/terramate-io/hcl/v2"
-	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/config"
@@ -78,7 +77,7 @@ type (
 
 		uimode UIMode
 
-		changeDetectionEnabled bool
+		loadTerragruntModules bool
 	}
 
 	// GitFilter holds the configuration for git change detection.
@@ -121,13 +120,20 @@ type (
 	}
 )
 
+// HasDependencyFilters returns if there are any dependency filters set.
+func (df *DependencyFilters) HasDependencyFilters() bool {
+	return df.IncludeAllDependencies || df.IncludeDirectDependencies || df.OnlyAllDependencies || df.OnlyDirectDependencies || df.ExcludeAllDependencies ||
+		df.IncludeAllDependents || df.IncludeDirectDependents ||
+		df.OnlyDirectDependents || df.OnlyAllDependents || df.ExcludeAllDependents
+}
+
 // NoGitFilter returns a GitFilter for unfiltered list.
 func NoGitFilter() GitFilter { return GitFilter{} }
 
 // Load loads the engine with the given working directory and CLI configuration.
 // If the project is not found, it returns false.
-func Load(wd string, changeDetectionEnabled bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
-	prj, found, err := NewProject(wd, changeDetectionEnabled, hclOpts...)
+func Load(wd string, loadTerragruntModules bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
+	prj, found, err := NewProject(wd, loadTerragruntModules, hclOpts...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -139,13 +145,13 @@ func Load(wd string, changeDetectionEnabled bool, clicfg cliconfig.Config, uimod
 		return nil, true, errors.E(err, "setting configuration")
 	}
 	return &Engine{
-		project:                prj,
-		printers:               printers,
-		verbosity:              verbosity,
-		uimode:                 uimode,
-		usercfg:                clicfg,
-		hclOpts:                hclOpts,
-		changeDetectionEnabled: changeDetectionEnabled,
+		project:               prj,
+		printers:              printers,
+		verbosity:             verbosity,
+		uimode:                uimode,
+		usercfg:               clicfg,
+		hclOpts:               hclOpts,
+		loadTerragruntModules: loadTerragruntModules,
 	}, true, nil
 }
 
@@ -162,15 +168,6 @@ func (e *Engine) RepoChecks() stack.RepoChecks { return e.state.repoChecks }
 // RootNode returns the root node of the project.
 func (e *Engine) RootNode() hcl.Config { return e.project.root.Tree().Node }
 
-// CloudRegion returns the cloud region from configuration, defaulting to EU.
-func (e *Engine) CloudRegion() cloud.Region {
-	rootcfg := e.RootNode()
-	if rootcfg.Terramate != nil && rootcfg.Terramate.Config != nil && rootcfg.Terramate.Config.Cloud != nil {
-		return rootcfg.Terramate.Config.Cloud.Location
-	}
-	return cloud.EU
-}
-
 // Config returns the root configuration of the project.
 func (e *Engine) Config() *config.Root {
 	return e.project.root
@@ -183,7 +180,7 @@ func (e *Engine) HCLOptions() []hcl.Option {
 
 // ReloadConfig reloads the root configuration of the project.
 func (e *Engine) ReloadConfig() error {
-	rootcfg, err := config.LoadRoot(e.rootdir(), e.changeDetectionEnabled, e.hclOpts...)
+	rootcfg, err := config.LoadRoot(e.rootdir(), e.loadTerragruntModules, e.hclOpts...)
 	if err != nil {
 		return err
 	}
@@ -429,11 +426,7 @@ func (e *Engine) ApplyDependencyFilters(opts DependencyFilters, stacks config.Li
 	}
 
 	// Check if any filters are requested
-	hasFilters := opts.IncludeAllDependencies || opts.IncludeDirectDependencies || opts.OnlyAllDependencies || opts.OnlyDirectDependencies || opts.ExcludeAllDependencies ||
-		opts.IncludeAllDependents || opts.IncludeDirectDependents ||
-		opts.OnlyDirectDependents || opts.OnlyAllDependents || opts.ExcludeAllDependents
-
-	if !hasFilters {
+	if !opts.HasDependencyFilters() {
 		logger.Debug().Msg("no dependency filters requested")
 		return stacks, nil
 	}
@@ -449,19 +442,8 @@ func (e *Engine) ApplyDependencyFilters(opts DependencyFilters, stacks config.Li
 		return nil, errors.E(err, "loading all stacks for dependency graph")
 	}
 
-	// Load Terragrunt modules if they exist
-	var tgModules Modules
-	if e.Config().HasTerragruntStacks() {
-		logger.Debug().Msg("loading Terragrunt modules for dependency graph")
-		tgModules, err = LoadTerragruntModules(e.Config().HostDir(), project.PrjAbsPath(e.Config().HostDir(), e.wd()))
-		if err != nil {
-			logger.Warn().Err(err).Msg("failed to load Terragrunt modules, proceeding without them")
-			tgModules = nil
-		}
-	}
-
 	// Build dependency graph
-	graph, err := e.NewDependencyGraph(allStacks, tgModules, target)
+	graph, err := e.NewDependencyGraph(allStacks, target)
 	if err != nil {
 		return nil, errors.E(err, "building dependency graph")
 	}

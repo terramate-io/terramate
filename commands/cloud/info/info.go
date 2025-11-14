@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/terramate-io/terramate/cloud"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/errors/verbosity"
@@ -20,17 +21,22 @@ import (
 
 // Spec is the command specification for the cloud info command.
 type Spec struct {
-	Engine    *engine.Engine
-	Printers  printer.Printers
 	Verbosity int
+
+	engine *engine.Engine
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "cloud info" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the cloud info command.
-func (s *Spec) Exec(_ context.Context) error {
-	err := s.Engine.LoadCredential()
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.engine = cli.Engine()
+
+	err := s.engine.LoadCredential()
 	if err != nil {
 		if errors.IsKind(err, auth.ErrLoginRequired) {
 			return errors.E(
@@ -39,12 +45,12 @@ func (s *Spec) Exec(_ context.Context) error {
 			)
 		}
 		if errors.IsKind(err, clitest.ErrCloudOnboardingIncomplete) {
-			return newCloudOnboardingIncompleteError(s.Engine.CloudClient().Region())
+			return newCloudOnboardingIncompleteError(s.engine.CloudClient().Region())
 		}
 		return errors.E(err, "failed to load the cloud credentials")
 	}
-	cred := s.Engine.Credential()
-	cred.Info(s.Engine.CloudOrgName())
+	cred := s.engine.Credential()
+	cred.Info(s.engine.CloudOrgName())
 
 	// verbose info
 	if s.Verbosity > 0 && cred.HasExpiration() {

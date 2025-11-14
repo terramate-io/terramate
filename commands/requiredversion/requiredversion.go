@@ -13,6 +13,8 @@ import (
 	"github.com/terramate-io/terramate/versions"
 )
 
+// Note(snk): This is not a real command?
+
 // Spec is the command specification for the required-version command.
 type Spec struct {
 	Version string

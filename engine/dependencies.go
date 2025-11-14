@@ -7,17 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/project"
-	"github.com/terramate-io/terramate/tg"
 )
-
-// Modules is an alias for tg.Modules to avoid import cycles
-type Modules = tg.Modules
-
-// LoadTerragruntModules is a helper to load Terragrunt modules
-func LoadTerragruntModules(rootdir string, dir project.Path) (Modules, error) {
-	return tg.ScanModules(rootdir, dir, true)
-}
 
 // DependencyGraph represents the dependency relationships between stacks.
 type DependencyGraph struct {
@@ -35,7 +25,7 @@ type DependencyGraph struct {
 //
 // NOTE: stack.After and stack.Before are NOT included because they contain ordering-only
 // dependencies (e.g., Terragrunt dependencies.paths) which should NOT widen scope.
-func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], tgModules tg.Modules, target string) (*DependencyGraph, error) {
+func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], target string) (*DependencyGraph, error) {
 	logger := log.With().
 		Str("action", "engine.NewDependencyGraph()").
 		Logger()
@@ -105,30 +95,36 @@ func (e *Engine) NewDependencyGraph(stacks config.List[*config.SortableStack], t
 
 			graph.addDependency(stackPath, depPath)
 		}
-	}
 
-	// Extract dependencies from Terragrunt dependency blocks (data dependencies only)
-	// These are read directly from mod.DependencyBlocks without requiring input blocks
-	for _, mod := range tgModules {
-		// Find the stack corresponding to this module
-		modStackPath := mod.Path.String()
-		if _, isStack := stackPaths[modStackPath]; !isStack {
-			// Module doesn't correspond to a stack in the current set, skip
-			continue
-		}
-
-		// Process each dependency block path
-		for _, depPath := range mod.DependencyBlocks {
-			depStackPath := depPath.String()
-			if !stackPaths[depStackPath] {
-				logger.Debug().
-					Str("stack", modStackPath).
-					Str("dependency", depStackPath).
-					Msg("dependency from Terragrunt dependency block not in current stack set, skipping")
+		if cfg.IsTerragruntModule() {
+			mod, err := cfg.TerragruntModule()
+			if err != nil {
+				return nil, errors.E(err, "failed to get terragrunt module for stack %s", stackPath)
+			}
+			if mod == nil {
 				continue
 			}
 
-			graph.addDependency(modStackPath, depStackPath)
+			// Find the stack corresponding to this module
+			modStackPath := mod.Path.String()
+			if _, isStack := stackPaths[modStackPath]; !isStack {
+				// Module doesn't correspond to a stack in the current set, skip
+				continue
+			}
+
+			// Process each dependency block path
+			for _, depPath := range mod.DependencyBlocks {
+				depStackPath := depPath.String()
+				if !stackPaths[depStackPath] {
+					logger.Debug().
+						Str("stack", modStackPath).
+						Str("dependency", depStackPath).
+						Msg("dependency from Terragrunt dependency block not in current stack set, skipping")
+					continue
+				}
+
+				graph.addDependency(modStackPath, depStackPath)
+			}
 		}
 	}
 

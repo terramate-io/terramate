@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -30,9 +31,7 @@ import (
 
 // Spec represents the create stack specification.
 type Spec struct {
-	Engine     *engine.Engine
-	WorkingDir string
-	Path       string
+	Path string
 
 	AllTerraform   bool
 	AllTerragrunt  bool
@@ -54,14 +53,23 @@ type Spec struct {
 	StackWants       []string
 	StackWantedBy    []string
 
-	Printers printer.Printers
+	workingDir string
+	printers   printer.Printers
+	engine     *engine.Engine
 }
 
 // Name returns the name of the create stack command.
 func (s *Spec) Name() string { return "create" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
+
 // Exec executes the create stack command.
-func (s *Spec) Exec(ctx context.Context) error {
+func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
+	s.workingDir = cli.WorkingDir()
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
 	scanFlags := 0
 	if s.AllTerraform {
 		scanFlags++
@@ -85,14 +93,14 @@ func (s *Spec) Exec(ctx context.Context) error {
 		if s.Path != "" {
 			return errors.E("Invalid args: path argument cannot be provided with --all-terraform, --all-terragrunt, --ensure-stack-ids")
 		}
-		return s.execScanCreate(ctx)
+		return s.execScanCreate(ctx, cli)
 	}
 
 	if s.Path == "" {
 		return errors.E("Missing args: path argument or one of --all-terraform, --all-terragrunt, --ensure-stack-ids must be provided")
 	}
 
-	stackHostDir := filepath.Join(s.WorkingDir, s.Path)
+	stackHostDir := filepath.Join(s.workingDir, s.Path)
 
 	stackID := s.StackID
 	if s.StackID == "" {
@@ -118,7 +126,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		tags = append(tags, strings.Split(tag, ",")...)
 	}
 
-	rootdir := s.Engine.Config().HostDir()
+	rootdir := s.engine.Config().HostDir()
 	watch, err := config.ValidateWatchPaths(rootdir, stackHostDir, s.StackWatch)
 	if err != nil {
 		return errors.E(err, "invalid --watch argument value")
@@ -137,7 +145,7 @@ func (s *Spec) Exec(ctx context.Context) error {
 		Tags:        tags,
 	}
 
-	err = stack.Create(s.Engine.Config(), stackSpec, s.Imports...)
+	err = stack.Create(s.engine.Config(), stackSpec, s.Imports...)
 	if err != nil {
 		logger := log.With().
 			Stringer("stack", stackSpec.Dir).
@@ -159,30 +167,27 @@ func (s *Spec) Exec(ctx context.Context) error {
 		return errors.E(err, "Cannot create stack")
 	}
 
-	s.Printers.Stdout.Success("Created stack " + stackSpec.Dir.String())
+	s.printers.Stdout.Success("Created stack " + stackSpec.Dir.String())
 
 	if s.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
 		return nil
 	}
 
-	err = s.Engine.Config().LoadSubTree(stackSpec.Dir)
+	err = s.engine.Config().LoadSubTree(stackSpec.Dir)
 	if err != nil {
 		return errors.E(err, "Unable to load new stack")
 	}
 
 	generate := gencmd.Spec{
-		Engine:        s.Engine,
-		WorkingDir:    s.WorkingDir,
 		MinimalReport: true,
 		PrintReport:   s.Verbosity > 0,
-		Printers:      s.Printers,
 	}
 
-	return generate.Exec(ctx)
+	return generate.Exec(ctx, cli)
 }
 
-func (s *Spec) execScanCreate(ctx context.Context) error {
+func (s *Spec) execScanCreate(ctx context.Context, cli commands.CLI) error {
 	var flagname string
 	switch {
 	case s.EnsureStackIDs:
@@ -223,7 +228,7 @@ func (s *Spec) execScanCreate(ctx context.Context) error {
 
 	switch flagname {
 	case "--all-terraform":
-		return s.initTerraform(ctx)
+		return s.initTerraform(ctx, cli)
 	case "--all-terragrunt":
 		return s.initTerragrunt()
 	case "--ensure-stack-ids":
@@ -233,14 +238,14 @@ func (s *Spec) execScanCreate(ctx context.Context) error {
 }
 
 func (s *Spec) initTerragrunt() error {
-	rootdir := s.Engine.Config().HostDir()
-	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, s.WorkingDir), true)
+	rootdir := s.engine.Config().HostDir()
+	modules, err := tg.ScanModules(rootdir, project.PrjAbsPath(rootdir, s.workingDir), true)
 	if err != nil {
 		return errors.E(err, "scanning for Terragrunt modules")
 	}
 	errs := errors.L()
 	for _, mod := range modules {
-		tree, found := s.Engine.Config().Lookup(mod.Path)
+		tree, found := s.engine.Config().Lookup(mod.Path)
 		if found && tree.IsStack() {
 			continue
 		}
@@ -286,13 +291,13 @@ func (s *Spec) initTerragrunt() error {
 			After:       after,
 		}
 
-		err = stack.Create(s.Engine.Config(), stackSpec)
+		err = stack.Create(s.engine.Config(), stackSpec)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
-		s.Printers.Stdout.Println(fmt.Sprintf("Created stack %s", stackSpec.Dir))
+		s.printers.Stdout.Println(fmt.Sprintf("Created stack %s", stackSpec.Dir))
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -301,8 +306,8 @@ func (s *Spec) initTerragrunt() error {
 	return nil
 }
 
-func (s *Spec) initTerraform(ctx context.Context) error {
-	err := s.initTerraformDir(s.WorkingDir)
+func (s *Spec) initTerraform(ctx context.Context, cli commands.CLI) error {
+	err := s.initTerraformDir(s.workingDir)
 	if err != nil {
 		return errors.E(err, "failed to initialize some directories")
 	}
@@ -312,26 +317,23 @@ func (s *Spec) initTerraform(ctx context.Context) error {
 		return nil
 	}
 
-	err = s.Engine.ReloadConfig()
+	err = s.engine.ReloadConfig()
 	if err != nil {
 		return errors.E(err, "reloading the configuration")
 	}
 
 	generate := gencmd.Spec{
-		Engine:        s.Engine,
-		WorkingDir:    s.WorkingDir,
-		Printers:      s.Printers,
 		MinimalReport: true,
 	}
 
-	return generate.Exec(ctx)
+	return generate.Exec(ctx, cli)
 }
 
 func (s *Spec) initTerraformDir(baseDir string) error {
-	rootdir := s.Engine.Config().HostDir()
+	rootdir := s.engine.Config().HostDir()
 	pdir := project.PrjAbsPath(rootdir, baseDir)
 	var isStack bool
-	tree, found := s.Engine.Config().Lookup(pdir)
+	tree, found := s.engine.Config().Lookup(pdir)
 	if found {
 		isStack = tree.IsStack()
 	}
@@ -389,13 +391,13 @@ func (s *Spec) initTerraformDir(baseDir string) error {
 			Tags:        tags,
 		}
 
-		err = stack.Create(s.Engine.Config(), stackSpec)
+		err = stack.Create(s.engine.Config(), stackSpec)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
-		s.Printers.Stdout.Println(fmt.Sprintf("Created stack %s", stackSpec.Dir))
+		s.printers.Stdout.Println(fmt.Sprintf("Created stack %s", stackSpec.Dir))
 
 		// so other files in the same directory do not trigger stack creation.
 		isStack = true
@@ -404,12 +406,12 @@ func (s *Spec) initTerraformDir(baseDir string) error {
 }
 
 func (s *Spec) ensureStackID() error {
-	report, err := s.Engine.ListStacks(engine.NoGitFilter(), cloudstack.AnyTarget, resources.NoStatusFilters(), false)
+	report, err := s.engine.ListStacks(engine.NoGitFilter(), cloudstack.AnyTarget, resources.NoStatusFilters(), false)
 	if err != nil {
 		return errors.E(err, "listing stacks")
 	}
 
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 	for _, entry := range report.Stacks {
 		if entry.Stack.ID != "" {
 			continue
@@ -420,7 +422,7 @@ func (s *Spec) ensureStackID() error {
 			return errors.E(err, "failed to update stack.id of stack %s", entry.Stack.Dir)
 		}
 
-		s.Printers.Stdout.Println(fmt.Sprintf("Generated ID %s for stack %s", id, entry.Stack.Dir))
+		s.printers.Stdout.Println(fmt.Sprintf("Generated ID %s for stack %s", id, entry.Stack.Dir))
 	}
 	return nil
 }

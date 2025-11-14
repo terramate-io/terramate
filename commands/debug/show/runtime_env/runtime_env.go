@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/printer"
@@ -19,41 +20,49 @@ import (
 
 // Spec is the command specification for the show-runtime-env command.
 type Spec struct {
-	WorkingDir    string
-	Engine        *engine.Engine
-	Printers      printer.Printers
 	GitFilter     engine.GitFilter
 	StatusFilters resources.StatusFilters
 	Tags          []string
 	NoTags        []string
+
+	engine   *engine.Engine
+	printers printer.Printers
 }
 
 // Name returns the name of the command.
 func (s *Spec) Name() string { return "debug show runtime-env" }
 
+// Requirements returns the requirements of the command.
+func (s *Spec) Requirements(context.Context, commands.CLI) any {
+	return commands.RequireEngine()
+}
+
 // Exec executes the show-runtime-env command.
-func (s *Spec) Exec(_ context.Context) error {
-	report, err := s.Engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
+func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+	s.engine = cli.Engine()
+	s.printers = cli.Printers()
+
+	report, err := s.engine.ListStacks(s.GitFilter, cloudstack.AnyTarget, s.StatusFilters, false)
 	if err != nil {
 		return errors.E(err, "listing stacks")
 	}
 
-	stackEntries, err := s.Engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
+	stackEntries, err := s.engine.FilterStacks(report.Stacks, engine.ByWorkingDir(), engine.ByTags(s.Tags, s.NoTags))
 	if err != nil {
 		return err
 	}
 
-	cfg := s.Engine.Config()
+	cfg := s.engine.Config()
 	for _, stackEntry := range stackEntries {
 		envVars, err := run.LoadEnv(cfg, stackEntry.Stack)
 		if err != nil {
 			return errors.E(err, "loading stack run environment")
 		}
 
-		s.Printers.Stdout.Println(fmt.Sprintf("\nstack %q:", stackEntry.Stack.Dir))
+		s.printers.Stdout.Println(fmt.Sprintf("\nstack %q:", stackEntry.Stack.Dir))
 
 		for _, envVar := range envVars {
-			s.Printers.Stdout.Println(fmt.Sprintf("\t%s", envVar))
+			s.printers.Stdout.Println(fmt.Sprintf("\t%s", envVar))
 		}
 	}
 	return nil
