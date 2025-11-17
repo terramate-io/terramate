@@ -178,7 +178,9 @@ type FlagSpec struct {
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions."`
 
-	Version struct{} `cmd:"" help:"Show Terramate version"`
+	Version struct {
+		Full bool `help:"Include the product name in the version output"`
+	} `cmd:"" help:"Show Terramate version"`
 }
 
 type globalCliFlags struct {
