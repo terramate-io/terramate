@@ -19,6 +19,7 @@ type Spec struct {
 	Product       string
 	PrettyProduct string
 	Version       string
+	Full          bool
 
 	InfoChan chan *checkpoint.CheckResponse
 }
@@ -28,7 +29,11 @@ func (s *Spec) Name() string { return "version" }
 
 // Exec executes the version command.
 func (s *Spec) Exec(ctx context.Context) error {
-	fmt.Printf("%s %s\n", s.Product, s.Version)
+	if s.Full {
+		fmt.Printf("%s %s\n", s.Product, s.Version)
+	} else {
+		fmt.Println(s.Version)
+	}
 
 	if s.InfoChan == nil {
 		return nil

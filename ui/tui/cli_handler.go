@@ -68,7 +68,7 @@ func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, r
 
 	if p.VersionFlag {
 		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
-			fmt.Printf("%s %s\n", c.Product(), c.Version())
+			fmt.Println(c.Version())
 			return nil
 		}, true
 	}
@@ -160,6 +160,7 @@ func DefaultBeforeConfigHandler(ctx context.Context, c *CLI) (cmd commands.Execu
 			Product:       c.product,
 			PrettyProduct: c.prettyProduct,
 			Version:       c.version,
+			Full:          parsedArgs.Version.Full,
 			InfoChan:      c.checkpointResponse,
 		}, true, false, nil
 	case "install-completions":
