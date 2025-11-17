@@ -17,6 +17,7 @@ import (
 
 // Spec represents the version command specification.
 type Spec struct {
+	Full     bool
 	InfoChan chan *checkpoint.CheckResponse
 }
 
@@ -28,9 +29,7 @@ func (s *Spec) Requirements(context.Context, commands.CLI) any { return nil }
 
 // Exec executes the version command.
 func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
-	// TODO(snk): Using the <product> <version> output would be a breaking change.
-	// We change this separately later.
-	if cli.Product() != "terramate" {
+	if s.Full {
 		fmt.Printf("%s %s\n", cli.Product(), cli.Version())
 	} else {
 		fmt.Println(cli.Version())

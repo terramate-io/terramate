@@ -54,12 +54,7 @@ func handleRootVersionFlagAlone(parsedSpec any, _ *CLI) (name string, val any, r
 
 	if p.VersionFlag {
 		return "--version", p.VersionFlag, func(c *CLI, _ any) error {
-			// TODO(snk): We change this later.
-			if c.Product() != "terramate" {
-				fmt.Printf("%s %s\n", c.Product(), c.Version())
-			} else {
-				fmt.Println(c.Version())
-			}
+			fmt.Println(c.Version())
 			return nil
 		}, true
 	}
@@ -88,6 +83,7 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 	case "version":
 		return &version.Spec{
 			InfoChan: c.checkpointResponse,
+			Full:     parsedArgs.Version.Full,
 		}, nil
 
 	case "install-completions":
