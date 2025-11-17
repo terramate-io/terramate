@@ -48,7 +48,6 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - Support for both Terragrunt and Terramate dependencies in the new dependency flags
 - Add go-to definitions and symbol renaming capabilities to the language server for `globals`, `let` and `terramate.run.env.*` statements
 
-
 ### Fixed
 
 - Fix invalid Terragrunt argument errors on Terraform hooks that use conditional "if" logic. The upgrade to Terragrunt v0.82.0 resolves issues with hook execution behavior.
