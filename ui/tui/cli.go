@@ -68,10 +68,15 @@ type CLI struct {
 	bindings                  *di.Bindings
 	beforeConfigSetupHandlers []BindingsSetupHandler
 	afterConfigSetupHandlers  []BindingsSetupHandler
+
+	postInitEngineHooks []PostInitEngineHook
 }
 
 // CommandSelector is a function that handles command selection.
 type CommandSelector func(ctx context.Context, c *CLI, command string, flags any) (commands.Command, error)
+
+// PostInitEngineHook is a function that is run after the engine was initialized.
+type PostInitEngineHook func(ctx context.Context, c *CLI) error
 
 type kongOptions struct {
 	name                      string
@@ -503,6 +508,10 @@ func (c *CLI) Exec(args []string) {
 		}
 		mustSucceed(di.Validate(c.bindings))
 		mustSucceed(di.InitAll(c.bindings))
+
+		for _, hook := range c.postInitEngineHooks {
+			mustSucceed(hook(ctx, c))
+		}
 
 		defer c.sendAndWaitForAnalytics()
 	}
