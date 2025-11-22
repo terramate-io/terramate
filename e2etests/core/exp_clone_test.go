@@ -6,6 +6,7 @@ package core_test
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -290,6 +291,11 @@ func TestCloneStacksWithChildren(t *testing.T) {
 
 func TestCloneErrorCleanup(t *testing.T) {
 	t.Parallel()
+	
+	// Skip on Windows - file permission handling is different and chmod(0) doesn't prevent access
+	if runtime.GOOS == "windows" {
+		t.Skip("file permissions work differently on Windows")
+	}
 
 	const (
 		dstdir = "cloned_dir"

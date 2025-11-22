@@ -5,25 +5,64 @@ name: ci-experimental
 on:
   pull_request:
 
-
 jobs:
-  build_test:
-    name: Build and Test
-    runs-on: ${{ matrix.os }}
+  # Split Windows e2e tests across multiple runners
+  e2e-tests-windows:
+    name: E2E (Windows ${{ matrix.display_index }}/${{ matrix.total }})
+    runs-on: windows-latest
     timeout-minutes: 30
 
     strategy:
+      fail-fast: false
       matrix:
-        os: [ "windows-2022" ]
+        include:
+          # Windows: Split core into 4 groups (138 tests / 4 = ~35 tests each)
+          - package: ./e2etests/core
+            total: 4
+            index: 0
+            display_index: 1
+          - package: ./e2etests/core
+            total: 4
+            index: 1
+            display_index: 2
+          - package: ./e2etests/core
+            total: 4
+            index: 2
+            display_index: 3
+          - package: ./e2etests/core
+            total: 4
+            index: 3
+            display_index: 4
+          # Windows cloud: Split into 2 groups
+          - package: ./e2etests/cloud
+            total: 2
+            index: 0
+            display_index: 1
+          - package: ./e2etests/cloud
+            total: 2
+            index: 1
+            display_index: 2
 
     steps:
       - name: configure git
         run: git config --global core.autocrlf input
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Cache tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\go-build
+            ~\go\pkg\mod
+            ~\go\bin
+          key: ${{ runner.os }}-tools-${{ hashFiles('makefiles/_mkconfig.mk', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-tools-
 
       - uses: opentofu/setup-opentofu@592200bd4b9bbf4772ace78f887668b1aee8f716 # pin@v1.0.5
         with:
@@ -31,11 +70,30 @@ jobs:
           tofu_wrapper: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # pin@v3
+        with:
+          terraform_version: "1.7.5"
+          terraform_wrapper: false
+
       - name: make build
         run: make build
 
       - name: make generate
-        run: make generate && git diff
+        run: make generate
 
-      - name: make test
-        run: make test
+      - name: Split tests for this runner
+        id: test-split
+        uses: hashicorp-forge/go-test-split-action@v2.0.0
+        with:
+          packages: ${{ matrix.package }}
+          total: ${{ matrix.total }}
+          index: ${{ matrix.index }}
+
+      - name: Run e2e tests
+        if: steps.test-split.outputs.run != ''
+        timeout-minutes: 20
+        shell: bash
+        run: go test -count=1 -timeout=15m -run "${{ steps.test-split.outputs.run }}" ${{ matrix.package }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TM_TEST_TERRAFORM_REQUIRED_VERSION: "1.7.5"

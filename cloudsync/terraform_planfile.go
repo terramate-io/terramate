@@ -159,7 +159,7 @@ func runTerraformShow(e *engine.Engine, run engine.StackCloudRun, flags ...strin
 			return "", errors.E(clitest.ErrCloudTerraformPlanFile, "command timed out: %s. consider using --plan-render-timeout to increase the timeout.", cmd.String())
 		}
 
-		logger.Error().Str("stderr", stderr.String()).Msg("command stderr")
+		logger.Warn().Str("stderr", stderr.String()).Msg("command stderr")
 		return "", errors.E(clitest.ErrCloudTerraformPlanFile, "executing: %s", cmd.String())
 	}
 
