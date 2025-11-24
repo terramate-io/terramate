@@ -99,7 +99,7 @@ func (s *Server) findAllReferences(ctx context.Context, fname string, content []
 		references = s.findReferencesInFile(fname, symbolInfo)
 	} else {
 		// Search entire workspace for global, terramate.stack, etc.
-		references = s.searchReferencesInWorkspace(ctx, symbolInfo)
+		references = s.searchReferencesInWorkspace(ctx, fname, symbolInfo)
 	}
 	locations = append(locations, references...)
 
@@ -379,6 +379,7 @@ func (s *Server) findSymbolAtPosition(body *hclsyntax.Body, targetPos hcl.Pos) *
 // findAndReturnDefinition finds the definition of a symbol and returns its location
 // Now uses import-aware search for globals
 func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Location {
+
 	switch info.namespace {
 	case "global":
 		// Extract full path from fullPath string
@@ -394,13 +395,23 @@ func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Lo
 	case "terramate.stack":
 		// Search current and parent directories for stack attributes
 		dir := filepath.Dir(fname)
+
+		workspace, err := s.findWorkspaceForDir(dir)
+		if err != nil {
+			s.log.Debug().
+				Str("fname", fname).
+				Strs("workspaces", s.workspaces).
+				Msg("failed to find workspace for directory")
+			return nil
+		}
+
 		for {
 			location, found, _ := s.searchStackInDir(dir, info.attributeName)
 			if found {
 				return location
 			}
 			parent := filepath.Dir(dir)
-			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+			if parent == dir || !strings.HasPrefix(parent, workspace) {
 				break
 			}
 			dir = parent
@@ -418,6 +429,16 @@ func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Lo
 		// Environment variables can be defined at stack-level or project-wide
 		// Search hierarchically from current directory up to workspace root
 		dir := filepath.Dir(fname)
+
+		workspace, err := s.findWorkspaceForDir(dir)
+		if err != nil {
+			s.log.Debug().
+				Str("fname", fname).
+				Strs("workspaces", s.workspaces).
+				Msg("failed to find workspace for directory")
+			return nil
+		}
+
 		for {
 			location, found, err := s.searchEnvInDir(dir, info.attributeName)
 			if err != nil {
@@ -429,7 +450,7 @@ func (s *Server) findAndReturnDefinition(fname string, info *symbolInfo) *lsp.Lo
 
 			// Move to parent directory
 			parent := filepath.Dir(dir)
-			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+			if parent == dir || !strings.HasPrefix(parent, workspace) {
 				// Reached root or left workspace
 				break
 			}
@@ -527,14 +548,23 @@ func (s *Server) findDefinitionLocation(body *hclsyntax.Body, info *symbolInfo, 
 // Optimization Opportunities:
 //   - Add file caching to avoid re-parsing unchanged files
 //   - Use concurrent workers for parallel file processing
-func (s *Server) searchReferencesInWorkspace(ctx context.Context, info *symbolInfo) []lsp.Location {
+func (s *Server) searchReferencesInWorkspace(ctx context.Context, fname string, info *symbolInfo) []lsp.Location {
 	var locations []lsp.Location
 
-	if s.workspace == "" {
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(fname))
+	if err != nil {
+		s.log.Debug().
+			Str("fname", fname).
+			Strs("workspaces", s.workspaces).
+			Msg("failed to find workspace for directory")
 		return locations
 	}
 
-	_ = filepath.Walk(s.workspace, func(path string, fileInfo os.FileInfo, err error) error {
+	if workspace == "" {
+		return locations
+	}
+
+	_ = filepath.Walk(workspace, func(path string, fileInfo os.FileInfo, err error) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

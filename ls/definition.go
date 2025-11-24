@@ -345,6 +345,11 @@ func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) 
 		return nil, nil
 	}
 
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(fname))
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if this is a terramate.stack.* reference
 	secondPart := traversal[1]
 	if attr, ok := secondPart.(hcl.TraverseAttr); ok && attr.Name == "stack" {
@@ -378,7 +383,7 @@ func (s *Server) findTerramateDefinition(fname string, traversal hcl.Traversal) 
 
 			// Move to parent directory
 			parent := filepath.Dir(dir)
-			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+			if parent == dir || !strings.HasPrefix(parent, workspace) {
 				// Reached root or left workspace
 				break
 			}
@@ -440,6 +445,11 @@ func (s *Server) findStackAttributeDefinition(fname string, attrName string) (*l
 	// Search for stack blocks in the current directory and parents
 	dir := filepath.Dir(fname)
 
+	workspace, err := s.findWorkspaceForDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
 	for {
 		// Look for stack definitions in .tm and .tm.hcl files in this directory
 		location, found, err := s.searchStackInDir(dir, attrName)
@@ -452,7 +462,7 @@ func (s *Server) findStackAttributeDefinition(fname string, attrName string) (*l
 
 		// Move to parent directory
 		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+		if parent == dir || !strings.HasPrefix(parent, workspace) {
 			// Reached root or left workspace
 			break
 		}
@@ -527,7 +537,7 @@ func (s *Server) findStringLiteralDefinition(body *hclsyntax.Body, targetPos hcl
 }
 
 // findStackRefInArray finds stack references in array expressions
-func (s *Server) findStackRefInArray(expr hcl.Expression, targetPos hcl.Pos, _ string) *lsp.Location {
+func (s *Server) findStackRefInArray(expr hcl.Expression, targetPos hcl.Pos, fname string) *lsp.Location {
 	tupleExpr, ok := expr.(*hclsyntax.TupleConsExpr)
 	if !ok {
 		return nil
@@ -553,7 +563,7 @@ func (s *Server) findStackRefInArray(expr hcl.Expression, targetPos hcl.Pos, _ s
 			}
 
 			if stackPath != "" {
-				return s.findStackByPath(stackPath)
+				return s.findStackByPath(fname, stackPath)
 			}
 		}
 	}
@@ -565,8 +575,16 @@ func (s *Server) findStackRefInArray(expr hcl.Expression, targetPos hcl.Pos, _ s
 func (s *Server) resolveImportPath(currentFile string, sourcePath string) *lsp.Location {
 	var absPath string
 
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(currentFile))
+	if err != nil {
+		s.log.Debug().
+			Str("currentFile", currentFile).
+			Msg("file not in any current workspace")
+		return nil
+	}
+
 	if filepath.IsAbs(sourcePath) || strings.HasPrefix(sourcePath, "/") {
-		absPath = filepath.Join(s.workspace, strings.TrimPrefix(sourcePath, "/"))
+		absPath = filepath.Join(workspace, strings.TrimPrefix(sourcePath, "/"))
 	} else {
 		currentDir := filepath.Dir(currentFile)
 		absPath = filepath.Join(currentDir, sourcePath)
@@ -582,11 +600,11 @@ func (s *Server) resolveImportPath(currentFile string, sourcePath string) *lsp.L
 		return nil
 	}
 
-	if s.workspace != "" && !strings.HasPrefix(resolvedPath, s.workspace) {
+	if workspace != "" && !strings.HasPrefix(resolvedPath, workspace) {
 		s.log.Debug().
 			Str("sourcePath", sourcePath).
 			Str("resolvedPath", resolvedPath).
-			Str("workspace", s.workspace).
+			Str("workspace", workspace).
 			Msg("import path resolves outside workspace - possible directory traversal attempt")
 		return nil
 	}
@@ -606,13 +624,21 @@ func (s *Server) resolveImportPath(currentFile string, sourcePath string) *lsp.L
 }
 
 // findStackByPath finds a stack definition by its path.
-func (s *Server) findStackByPath(stackPath string) *lsp.Location {
+func (s *Server) findStackByPath(fname, stackPath string) *lsp.Location {
 	var searchDir string
 
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(fname))
+	if err != nil {
+		s.log.Debug().
+			Str("stackPath", stackPath).
+			Msg("stack not in any current workspace")
+		return nil
+	}
+
 	if filepath.IsAbs(stackPath) || strings.HasPrefix(stackPath, "/") {
-		searchDir = filepath.Join(s.workspace, strings.TrimPrefix(stackPath, "/"))
+		searchDir = filepath.Join(workspace, strings.TrimPrefix(stackPath, "/"))
 	} else {
-		searchDir = filepath.Join(s.workspace, stackPath)
+		searchDir = filepath.Join(workspace, stackPath)
 	}
 
 	searchDir = filepath.Clean(searchDir)
@@ -622,11 +648,11 @@ func (s *Server) findStackByPath(stackPath string) *lsp.Location {
 		return nil
 	}
 
-	if s.workspace != "" && !strings.HasPrefix(resolvedDir, s.workspace) {
+	if workspace != "" && !strings.HasPrefix(resolvedDir, workspace) {
 		s.log.Debug().
 			Str("stackPath", stackPath).
 			Str("resolvedDir", resolvedDir).
-			Str("workspace", s.workspace).
+			Str("workspace", workspace).
 			Msg("stack path resolves outside workspace - possible directory traversal attempt")
 		return nil
 	}

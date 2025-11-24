@@ -219,7 +219,7 @@ func BenchmarkSearchWorkspace(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_ = srv.searchReferencesInWorkspace(context.Background(), info)
+				_ = srv.searchReferencesInWorkspace(b.Context(), filepath.Join(s.RootDir(), "globals.tm"), info)
 			}
 		})
 	}

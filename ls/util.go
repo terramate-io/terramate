@@ -167,6 +167,11 @@ func (s *Server) findAllEnvInHierarchy(fname string, envVarName string) ([]lsp.L
 	var locations []lsp.Location
 	dir := filepath.Dir(fname)
 
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(fname))
+	if err != nil {
+		return nil, err
+	}
+
 	for {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -197,7 +202,7 @@ func (s *Server) findAllEnvInHierarchy(fname string, envVarName string) ([]lsp.L
 
 		// Move to parent directory
 		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+		if parent == dir || !strings.HasPrefix(parent, workspace) {
 			// Reached root or left workspace
 			break
 		}
@@ -500,6 +505,15 @@ func (s *Server) searchObjectForKey(fname string, objExpr *hclsyntax.ObjectConsE
 func (s *Server) hasLabeledBlockWithPath(fname string, labelPath []string) bool {
 	dir := filepath.Dir(fname)
 
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(fname))
+	if err != nil {
+		s.log.Debug().
+			Str("fname", fname).
+			Strs("workspaces", s.workspaces).
+			Msg("failed to find workspace for directory")
+		return false
+	}
+
 	// Search current directory and parents
 	for {
 		// Check this directory
@@ -523,7 +537,7 @@ func (s *Server) hasLabeledBlockWithPath(fname string, labelPath []string) bool 
 
 		// Move to parent directory
 		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+		if parent == dir || !strings.HasPrefix(parent, workspace) {
 			break
 		}
 		dir = parent
@@ -598,6 +612,16 @@ func (s *Server) findAllLabeledBlockDefinitions(fname string, labelPath []string
 
 	// Search from current directory up to workspace root
 	dir := filepath.Dir(fname)
+
+	workspace, err := s.findWorkspaceForDir(dir)
+	if err != nil {
+		s.log.Debug().
+			Str("fname", fname).
+			Strs("workspaces", s.workspaces).
+			Msg("failed to find workspace for directory")
+		return nil
+	}
+
 	for {
 		// Search this directory and its imports
 		locs := s.findLabeledBlocksInDirForDefinition(dir, labelPath, visited)
@@ -605,7 +629,7 @@ func (s *Server) findAllLabeledBlockDefinitions(fname string, labelPath []string
 
 		// Move to parent directory
 		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+		if parent == dir || !strings.HasPrefix(parent, workspace) {
 			break
 		}
 		dir = parent

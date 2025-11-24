@@ -22,6 +22,11 @@ func (s *Server) findGlobalWithImports(fname string, attrPath []string) (*lsp.Lo
 	// Start search from current file's directory
 	dir := filepath.Dir(fname)
 
+	workspace, err := s.findWorkspaceForDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
 	// Search current directory and parents (including their imports)
 	for {
 		location, found := s.searchWithImports(dir, attrPath, visited)
@@ -31,7 +36,7 @@ func (s *Server) findGlobalWithImports(fname string, attrPath []string) (*lsp.Lo
 
 		// Move to parent directory
 		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+		if parent == dir || !strings.HasPrefix(parent, workspace) {
 			break
 		}
 		dir = parent
@@ -186,8 +191,17 @@ func (s *Server) extractImportsFromFile(fname string) []string {
 func (s *Server) resolveImportToAbsPath(currentFile string, sourcePath string) string {
 	var absPath string
 
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(currentFile))
+	if err != nil {
+		s.log.Debug().
+			Str("currentFile", currentFile).
+			Strs("workspaces", s.workspaces).
+			Msg("failed to find workspace for directory")
+		return ""
+	}
+
 	if filepath.IsAbs(sourcePath) || strings.HasPrefix(sourcePath, "/") {
-		absPath = filepath.Join(s.workspace, strings.TrimPrefix(sourcePath, "/"))
+		absPath = filepath.Join(workspace, strings.TrimPrefix(sourcePath, "/"))
 	} else {
 		currentDir := filepath.Dir(currentFile)
 		absPath = filepath.Join(currentDir, sourcePath)
@@ -199,11 +213,11 @@ func (s *Server) resolveImportToAbsPath(currentFile string, sourcePath string) s
 		return ""
 	}
 
-	if s.workspace != "" && !strings.HasPrefix(resolvedPath, s.workspace) {
+	if workspace != "" && !strings.HasPrefix(resolvedPath, workspace) {
 		s.log.Debug().
 			Str("sourcePath", sourcePath).
 			Str("resolvedPath", resolvedPath).
-			Str("workspace", s.workspace).
+			Str("workspace", workspace).
 			Msg("import path resolves outside workspace - possible directory traversal attempt")
 		return ""
 	}

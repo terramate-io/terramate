@@ -59,10 +59,12 @@ func (s *Server) createStack(params lsp.ExecuteCommandParams) error {
 		return errors.E(ErrCreateStackNoArguments)
 	}
 
+	// TODO(snk): Add support for selecting the targeted workspace.
+
 	// TODO(i4k): load stack once when handling the initialize method.
-	root, err := config.LoadRoot(s.workspace, false)
+	root, err := config.LoadRoot(s.workspaces[0], false)
 	if err != nil {
-		return errors.E(err, "loading project root from %s", s.workspace)
+		return errors.E(err, "loading project root from %s", s.workspaces[0])
 	}
 
 	stackConfig := config.Stack{}
@@ -81,7 +83,7 @@ func (s *Server) createStack(params lsp.ExecuteCommandParams) error {
 				return errors.E(ErrCreateStackInvalidArgument, err, "failed to parse URI: %s", argVal)
 			}
 
-			stackConfig.Dir = project.PrjAbsPath(s.workspace, dir.Filename())
+			stackConfig.Dir = project.PrjAbsPath(s.workspaces[0], dir.Filename())
 		case "genid":
 			id, err := uuid.NewRandom()
 			if err != nil {

@@ -573,6 +573,15 @@ func (s *Server) findDefinitionForRename(fname string, info *symbolInfo) *lsp.Lo
 		// Search hierarchically from current directory up to workspace root
 		dir := filepath.Dir(fname)
 		for {
+			workspace, err := s.findWorkspaceForDir(dir)
+			if err != nil {
+				s.log.Debug().
+					Str("fname", fname).
+					Strs("workspaces", s.workspaces).
+					Msg("failed to find workspace for directory")
+				return nil
+			}
+
 			location, found, err := s.searchEnvInDir(dir, info.attributeName)
 			if err != nil {
 				s.log.Debug().Err(err).Str("dir", dir).Msg("error searching env in dir")
@@ -583,7 +592,7 @@ func (s *Server) findDefinitionForRename(fname string, info *symbolInfo) *lsp.Lo
 
 			// Move to parent directory
 			parent := filepath.Dir(dir)
-			if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+			if parent == dir || !strings.HasPrefix(parent, workspace) {
 				// Reached root or left workspace
 				break
 			}

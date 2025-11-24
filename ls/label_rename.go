@@ -65,13 +65,23 @@ func (s *Server) findAndRenameLabeledBlocks(startFile string, labelPath []string
 
 	// Search current directory and parents (including imports)
 	dir := filepath.Dir(startFile)
+
+	workspace, err := s.findWorkspaceForDir(dir)
+	if err != nil {
+		s.log.Debug().
+			Str("startFile", startFile).
+			Strs("workspaces", s.workspaces).
+			Msg("failed to find workspace for directory")
+		return edits
+	}
+
 	for {
 		// Search this directory and its imports
 		s.findLabeledBlocksInDir(dir, labelPath, oldName, newName, edits, visited)
 
 		// Move to parent
 		parent := filepath.Dir(dir)
-		if parent == dir || !strings.HasPrefix(parent, s.workspace) {
+		if parent == dir || !strings.HasPrefix(parent, workspace) {
 			break
 		}
 		dir = parent
@@ -183,12 +193,21 @@ func (s *Server) renameLabelInFile(fname string, labelPath []string, _, newName 
 
 // findAndRenamePathReferences finds all references to paths containing the component
 // and creates edits to rename that specific component in the path.
-func (s *Server) findAndRenamePathReferences(ctx context.Context, _ string, componentIdx int, oldName, newName string,
+func (s *Server) findAndRenamePathReferences(ctx context.Context, fname string, componentIdx int, oldName, newName string,
 	pathComponents []string) map[lsp.DocumentURI][]lsp.TextEdit {
 
 	edits := make(map[lsp.DocumentURI][]lsp.TextEdit)
 
-	_ = filepath.Walk(s.workspace, func(path string, fileInfo os.FileInfo, err error) error {
+	workspace, err := s.findWorkspaceForDir(filepath.Dir(fname))
+	if err != nil {
+		s.log.Debug().
+			Str("fname", fname).
+			Strs("workspaces", s.workspaces).
+			Msg("failed to find workspace for directory")
+		return edits
+	}
+
+	_ = filepath.Walk(workspace, func(path string, fileInfo os.FileInfo, err error) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
