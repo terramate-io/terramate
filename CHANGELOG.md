@@ -47,6 +47,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
   - `--exclude-all-dependents`: Remove all dependent stacks from the selection
   - Support for both Terragrunt and Terramate dependencies in the new dependency flags
 - Add go-to definitions and symbol renaming capabilities to the language server for `globals`, `let` and `terramate.run.env.*` statements
+- Add `--full` flag to `terramate version` to include the full product name in the version output.
 
 ### Fixed
 
