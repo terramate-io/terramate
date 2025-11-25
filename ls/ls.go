@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -32,9 +33,9 @@ const MethodExecuteCommand = "workspace/executeCommand"
 
 // Server is the Language Server.
 type Server struct {
-	conn      jsonrpc2.Conn
-	workspace string
-	handlers  handlers
+	conn       jsonrpc2.Conn
+	workspaces []string
+	handlers   handlers
 
 	// documents stores open document content by file path
 	documents   map[string][]byte
@@ -123,7 +124,7 @@ func (s *Server) buildHandlers() {
 func (s *Server) Handler(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
 	logger := s.log.With().
 		Str("action", "server.Handler()").
-		Str("workspace", s.workspace).
+		Strs("workspaces", s.workspaces).
 		Str("method", r.Method()).
 		Logger()
 
@@ -144,9 +145,14 @@ func (s *Server) handleInitialize(
 	r jsonrpc2.Request,
 	log zerolog.Logger,
 ) error {
+	type workspaceFolder struct {
+		URI  string `json:"uri,omitempty"`
+		Name string `json:"name,omitempty"`
+	}
 	type initParams struct {
-		ProcessID int    `json:"processId,omitempty"`
-		RootURI   string `json:"rootUri,omitempty"`
+		ProcessID        int               `json:"processId,omitempty"`
+		RootURI          string            `json:"rootUri,omitempty"`
+		WorkspaceFolders []workspaceFolder `json:"workspaceFolders,omitempty"`
 	}
 
 	var params initParams
@@ -158,7 +164,14 @@ func (s *Server) handleInitialize(
 		return jsonrpc2.ErrInvalidParams
 	}
 
-	s.workspace = string(uri.New(params.RootURI).Filename())
+	if len(params.WorkspaceFolders) > 0 {
+		for _, wsfolder := range params.WorkspaceFolders {
+			s.workspaces = append(s.workspaces, uri.New(wsfolder.URI).Filename())
+		}
+	} else {
+		s.workspaces = []string{uri.New(params.RootURI).Filename()}
+	}
+
 	err := reply(ctx, lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{
 			CompletionProvider: &lsp.CompletionOptions{},
@@ -197,7 +210,7 @@ func (s *Server) handleInitialize(
 		log.Fatal().Err(err).Msg("failed to reply")
 	}
 
-	log.Info().Msgf("client connected using workspace %q", s.workspace)
+	log.Info().Msgf("client connected using workspaces %q", s.workspaces)
 
 	err = s.conn.Notify(ctx, lsp.MethodWindowShowMessage, lsp.ShowMessageParams{
 		Message: "connected to terramate-ls",
@@ -437,6 +450,15 @@ func listFiles(fromFile string) ([]string, error) {
 	return files, nil
 }
 
+func (s *Server) findWorkspaceForDir(dir string) (string, error) {
+	for _, ws := range s.workspaces {
+		if dir == ws || strings.HasPrefix(dir, ws+string(filepath.Separator)) {
+			return ws, nil
+		}
+	}
+	return "", errors.E("dir '%s' is not in any of workspaces '%v'", dir, s.workspaces)
+}
+
 // checkFiles checks if the given provided files have errors but the currentFile
 // is handled separately because it can be unsaved.
 func (s *Server) checkFiles(files []string, currentFile string, currentContent string) error {
@@ -444,7 +466,11 @@ func (s *Server) checkFiles(files []string, currentFile string, currentContent s
 	var experiments []string
 	root, rootdir, found, err := config.TryLoadConfig(dir, false)
 	if !found {
-		rootdir = s.workspace
+		var err error
+		rootdir, err = s.findWorkspaceForDir(dir)
+		if err != nil {
+			return err
+		}
 	} else if err == nil {
 		experiments = root.Tree().Node.Experiments()
 	}

@@ -24,7 +24,7 @@ type testingTB interface {
 }
 
 // newTestServer creates a new language server for testing
-func newTestServer(t testingTB, workspace string) *Server {
+func newTestServer(t testingTB, workspaces ...string) *Server {
 	t.Helper()
 
 	conn := &testConn{}
@@ -40,7 +40,7 @@ func newTestServer(t testingTB, workspace string) *Server {
 	}
 
 	srv := ServerWithLogger(conn, logger)
-	srv.workspace = workspace
+	srv.workspaces = workspaces
 
 	return srv
 }
@@ -921,7 +921,6 @@ func TestFindStackDependencyDefinition(t *testing.T) {
 			wantFile: "vpc/stack.tm",
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
