@@ -456,7 +456,11 @@ func (c *CLI) Exec(args []string) {
 		}
 	}
 
-	parsedArgs := c.input.(*FlagSpec)
+	parsedArgs := AsFlagSpec[FlagSpec](c.input)
+	if parsedArgs == nil {
+		panic(errors.E(errors.ErrInternal, "please report this as a bug"))
+	}
+
 	migrateFlagAliases(parsedArgs)
 
 	// profiler is only started if Terramate is built with -tags profiler
