@@ -159,10 +159,18 @@ func WithBeforeConfigSetup(handlers ...BindingsSetupHandler) Option {
 }
 
 // WithAfterConfigSetup is an option to setup handlers that run after the config is loaded.
-// Bindings set here will available in afterConfigHandlers and during command execution.
+// Bindings set here will available in postInitEngineHooks and during command execution.
 func WithAfterConfigSetup(handlers ...BindingsSetupHandler) Option {
 	return func(c *CLI) error {
 		c.afterConfigSetupHandlers = handlers
+		return nil
+	}
+}
+
+// WithPostInitEngineHooks is an option to run functions after engine initialization, but before commands.
+func WithPostInitEngineHooks(hooks ...PostInitEngineHook) Option {
+	return func(c *CLI) error {
+		c.postInitEngineHooks = hooks
 		return nil
 	}
 }
