@@ -98,43 +98,62 @@ func TestTmSlugIntegrationWithEval(t *testing.T) {
 
 	type testcase struct {
 		expr string
-		want interface{} // can be string for single values or []interface{} for lists
+		want cty.Value
 	}
 
 	tests := []testcase{
-		// Existing behavior tests (backward compatibility)
 		{
 			expr: `tm_slug("I am the slug")`,
-			want: "i-am-the-slug",
+			want: cty.StringVal("i-am-the-slug"),
 		},
 		{
 			expr: `tm_slug("i-am-already-slug-1")`,
-			want: "i-am-already-slug-1",
+			want: cty.StringVal("i-am-already-slug-1"),
 		},
 		{
 			expr: `tm_slug("Dollar$%special")`,
-			want: "dollar--special",
+			want: cty.StringVal("dollar--special"),
 		},
 		{
 			expr: `tm_slug("")`,
-			want: "",
+			want: cty.StringVal(""),
 		},
-		// New list functionality tests
 		{
 			expr: `tm_slug(["Hello World!", "Grand/Child A"])`,
-			want: []interface{}{"hello-world-", "grand-child-a"},
+			want: cty.ListVal([]cty.Value{
+				cty.StringVal("hello-world-"),
+				cty.StringVal("grand-child-a"),
+			}),
 		},
 		{
 			expr: `tm_slug([])`,
-			want: []interface{}{},
+			want: cty.ListValEmpty(cty.String),
 		},
 		{
 			expr: `tm_slug(["café", "naïve"])`,
-			want: []interface{}{"caf-", "na-ve"},
+			want: cty.ListVal([]cty.Value{
+				cty.StringVal("caf-"),
+				cty.StringVal("na-ve"),
+			}),
 		},
 		{
 			expr: `tm_slug(["A","B C","D/E"])`,
-			want: []interface{}{"a", "b-c", "d-e"},
+			want: cty.ListVal([]cty.Value{
+				cty.StringVal("a"),
+				cty.StringVal("b-c"),
+				cty.StringVal("d-e"),
+			}),
+		},
+		{
+			expr: `tm_slug(null)`,
+			want: cty.DynamicVal,
+		},
+		{
+			expr: `{a = "hello", b = tm_slug(null)}`,
+			want: cty.ObjectVal(map[string]cty.Value{
+				"a": cty.StringVal("hello"),
+				"b": cty.DynamicVal,
+			}),
 		},
 	}
 
@@ -144,31 +163,7 @@ func TestTmSlugIntegrationWithEval(t *testing.T) {
 			ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
 			val, err := ctx.Eval(test.NewExpr(t, tc.expr))
 			assert.NoError(t, err)
-
-			switch expected := tc.want.(type) {
-			case string:
-				// Single string result
-				got := val.AsString()
-				assert.EqualStrings(t, expected, got)
-			case []interface{}:
-				// List result
-				assert.IsTrue(t, val.Type().IsListType() || val.Type().IsTupleType())
-
-				var got []interface{}
-				if val.LengthInt() == 0 {
-					got = []interface{}{}
-				} else {
-					it := val.ElementIterator()
-					for it.Next() {
-						_, elem := it.Element()
-						got = append(got, elem.AsString())
-					}
-				}
-				assert.EqualInts(t, len(expected), len(got))
-				for i, exp := range expected {
-					assert.EqualStrings(t, exp.(string), got[i].(string))
-				}
-			}
+			assert.IsTrue(t, tc.want.RawEquals(val))
 		})
 	}
 }
@@ -306,30 +301,16 @@ func TestTmSlugNullHandling(t *testing.T) {
 	})
 }
 
-// TestTmSlugDynamicNull ensures tm_slug(null) produces a dynamic result that can be tokenized
-func TestTmSlugDynamicNull(t *testing.T) {
-	// Evaluate through context to get a proper dynamic null literal
+func TestTmSlugNullTokenize(t *testing.T) {
 	rootdir := test.TempDir(t)
 	ctx := eval.NewContext(stdlib.Functions(rootdir, []string{}))
-	val, err := ctx.Eval(test.NewExpr(t, `tm_slug(null)`))
+	val, err := ctx.Eval(test.NewExpr(t, `{ a = "hello", b = tm_slug(null) }`))
 	assert.NoError(t, err)
-	// When null is passed to tm_slug, HCL returns a dynamic result without calling the function
-	assert.IsTrue(t, val.Type() == cty.DynamicPseudoType)
 
-	// Ensure tokenization does not panic for the result
-	_ = ast.TokensForValue(val)
-}
+	tok := ast.TokensForValue(val)
 
-// TestTmSlugDynamicUnknown ensures dynamic values can be tokenized without panicking
-func TestTmSlugDynamicUnknown(t *testing.T) {
-	// When calling a function with cty.DynamicVal, HCL short-circuits and returns cty.DynamicVal
-	// without calling the function implementation
-	result := cty.DynamicVal
-
-	// The main test is that tokenization doesn't panic
-	_ = ast.TokensForValue(result)
-
-	// Verify it's still dynamic
-	assert.IsTrue(t, result.Type() == cty.DynamicPseudoType)
-	assert.IsTrue(t, !result.IsWhollyKnown())
+	assert.EqualStrings(t, `{
+a="hello"
+b=null
+}`, string(tok.Bytes()))
 }

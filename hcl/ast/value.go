@@ -31,10 +31,11 @@ func (builder *tokenBuilder) fromValue(val cty.Value) {
 		builder.fromExpr(customdecode.ExpressionFromVal(val))
 	case val.IsNull():
 		builder.add(ident("null", 0))
-	case !val.IsWhollyKnown():
+	case !val.IsKnown():
 		// Handle unknown values (including dynamic pseudo-type unknowns)
 		// These represent values that couldn't be resolved during evaluation
 		// Render as null to avoid panics when trying to extract concrete values
+		// TODO(snk): Implement tm_slug differently, then we can probably remove this.
 		builder.add(ident("null", 0))
 	case typ == cty.Bool:
 		if val.True() {
