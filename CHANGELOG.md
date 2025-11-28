@@ -26,6 +26,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Add support for multi-project workspaces to Terramate language server.
 
+### Fixed
+
+- Fix `tm_slug(null)` expressions turning their containing HCL collection types to `null` during code generation.
+
 ## 0.15.0
 
 ### Changed
