@@ -37,6 +37,8 @@ type Server struct {
 	workspaces []string
 	handlers   handlers
 
+	hclOptions []hcl.Option
+
 	// documents stores open document content by file path
 	documents   map[string][]byte
 	documentsMu sync.RWMutex
@@ -54,20 +56,37 @@ type handler = func(
 
 type handlers map[string]handler
 
-// NewServer creates a new language server.
-func NewServer(conn jsonrpc2.Conn) *Server {
-	return ServerWithLogger(conn, log.Logger)
-}
+// Option type for the language server.
+type Option func(*Server)
 
-// ServerWithLogger creates a new language server with a custom logger.
-func ServerWithLogger(conn jsonrpc2.Conn, l zerolog.Logger) *Server {
+// NewServer creates a new language server.
+func NewServer(conn jsonrpc2.Conn, opts ...Option) *Server {
 	s := &Server{
 		conn:      conn,
 		documents: make(map[string][]byte),
-		log:       l,
+		log:       log.Logger,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
 	s.buildHandlers()
 	return s
+}
+
+// WithLogger sets a custom logger.
+func WithLogger(l zerolog.Logger) Option {
+	return func(s *Server) {
+		s.log = l
+	}
+}
+
+// WithHCLOptions sets the HCL parser options.
+func WithHCLOptions(hclOpts ...hcl.Option) Option {
+	return func(s *Server) {
+		s.hclOptions = hclOpts
+	}
 }
 
 // getDocumentContent returns the content of an open document, or reads from disk if not cached
@@ -474,8 +493,10 @@ func (s *Server) checkFiles(files []string, currentFile string, currentContent s
 	} else if err == nil {
 		experiments = root.Tree().Node.Experiments()
 	}
+	opts := []hcl.Option{hcl.WithExperiments(experiments...)}
+	opts = append(opts, s.hclOptions...)
 
-	parser, err := hcl.NewTerramateParser(rootdir, dir, hcl.WithExperiments(experiments...))
+	parser, err := hcl.NewTerramateParser(rootdir, dir, opts...)
 	if err != nil {
 		return errors.E(err, "failed to create terramate parser")
 	}
