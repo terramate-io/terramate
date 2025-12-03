@@ -39,7 +39,7 @@ func newTestServer(t testingTB, workspaces ...string) *Server {
 		logger = zerolog.Nop()
 	}
 
-	srv := ServerWithLogger(conn, logger)
+	srv := NewServer(conn, WithLogger(logger))
 	srv.workspaces = workspaces
 
 	return srv
