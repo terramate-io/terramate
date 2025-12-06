@@ -204,14 +204,16 @@ func TestScriptRun(t *testing.T) {
 			args:      []string{"--continue-on-error"},
 			want: RunExpected{
 				Status: 1,
-				Stderr: `Script 0 at /stack-a/script.tm:2,5-13,6 having 3 job(s)` + "\n" +
-					"/stack-a (script:0 job:0.0)> echo hello1" + "\n" +
-					"/stack-a (script:0 job:1.0)> someunknowncommand" + "\n" +
-					"/stack-a/stack-b (script:0 job:0.0)> echo hello1" + "\n" +
-					"/stack-a/stack-b (script:0 job:1.0)> someunknowncommand" + "\n" +
-					"Error: one or more commands failed" + "\n" +
-					"> executable file not found in $PATH: running " + "`someunknowncommand`" + " in stack /stack-a: someunknowncommand" + "\n" +
-					"> executable file not found in $PATH: running " + "`someunknowncommand`" + " in stack /stack-a/stack-b: someunknowncommand" + "\n",
+				StderrRegexes: []string{
+					`Script 0 at /stack-a/script\.tm:2,5-13,6 having 3 job\(s\)`,
+					`/stack-a \(script:0 job:0\.0\)> echo hello1`,
+					`/stack-a \(script:0 job:1\.0\)> someunknowncommand`,
+					`/stack-a/stack-b \(script:0 job:0\.0\)> echo hello1`,
+					`/stack-a/stack-b \(script:0 job:1\.0\)> someunknowncommand`,
+					`Error: one or more commands failed`,
+					`> executable file not found in (\$|%)PATH(%)?:.*someunknowncommand.*in stack /stack-a:`,
+					`> executable file not found in (\$|%)PATH(%)?:.*someunknowncommand.*in stack /stack-a/stack-b:`,
+				},
 				Stdout: "hello1" + "\n" +
 					"hello1" + "\n",
 			},
@@ -228,7 +230,7 @@ func TestScriptRun(t *testing.T) {
 					command = ["echo", "hello1"]
 				  }
 				  job {
-					command = ["` + HelperPath + `", "false"]
+					command = ["` + HelperPathAsHCL + `", "false"]
 				  }
 				  job {
 					command = ["echo", "hello2"]
@@ -240,14 +242,16 @@ func TestScriptRun(t *testing.T) {
 			args:      []string{"--continue-on-error"},
 			want: RunExpected{
 				Status: 1,
-				Stderr: "Script 0 at /stack-a/script.tm:2,5-13,6 having 3 job(s)\n" +
-					"/stack-a (script:0 job:0.0)> echo hello1\n" +
-					"/stack-a (script:0 job:1.0)> " + HelperPath + " false\n" +
-					"/stack-a/stack-b (script:0 job:0.0)> echo hello1\n" +
-					"/stack-a/stack-b (script:0 job:1.0)> " + HelperPath + " false\n" +
-					"Error: one or more commands failed\n" +
-					"> execution failed: running " + HelperPath + " false (in /stack-a): exit status 1\n" +
-					"> execution failed: running " + HelperPath + " false (in /stack-a/stack-b): exit status 1\n",
+				StderrRegexes: []string{
+					`Script 0 at /stack-a/script\.tm:2,5-\d+,6 having 3 job\(s\)`,
+					`/stack-a \(script:0 job:0\.0\)> echo hello1`,
+					`/stack-a \(script:0 job:1\.0\)>.*helper.*false`,
+					`/stack-a/stack-b \(script:0 job:0\.0\)> echo hello1`,
+					`/stack-a/stack-b \(script:0 job:1\.0\)>.*helper.*false`,
+					`Error: one or more commands failed`,
+					`> execution failed: running.*helper.*false \(in /stack-a\): exit status 1`,
+					`> execution failed: running.*helper.*false \(in /stack-a/stack-b\): exit status 1`,
+				},
 				Stdout: "hello1" + "\n" +
 					"hello1" + "\n",
 			},

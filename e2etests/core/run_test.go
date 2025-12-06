@@ -2688,8 +2688,10 @@ func TestRunOutput(t *testing.T) {
 			name:    "run without eval",
 			runArgs: []string{HelperPath, "echo", "hello"},
 			want: RunExpected{
-				Stderr: "terramate: Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: Executing command "%s echo hello"`, HelperPath) + "\n",
+				StderrRegexes: []string{
+					`terramate: Entering stack in /stack`,
+					`terramate: Executing command ".*helper.*echo hello"`,
+				},
 				Stdout: "hello\n",
 			},
 		},
@@ -2697,8 +2699,10 @@ func TestRunOutput(t *testing.T) {
 			name:    "run with eval",
 			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.name}"},
 			want: RunExpected{
-				Stderr: "terramate: Entering stack in /stack" + "\n" +
-					fmt.Sprintf(`terramate: Executing command "%s echo stack"`, HelperPath) + "\n",
+				StderrRegexes: []string{
+					`terramate: Entering stack in /stack`,
+					`terramate: Executing command ".*helper.*echo stack"`,
+				},
 				Stdout: "stack\n",
 			},
 		},
@@ -2706,10 +2710,13 @@ func TestRunOutput(t *testing.T) {
 			name:    "run with eval with error",
 			runArgs: []string{"--eval", HelperPath, "echo", "${terramate.stack.abcabc}"},
 			want: RunExpected{
-				Stderr: "Error: unable to evaluate command" + "\n" +
-					`> <cmd arg>:1,19-26: eval expression: eval "${terramate.stack.abcabc}": This object does not have an attribute named "abcabc"` + ".\n",
+				StderrRegexes: []string{
+					`Error: unable to evaluate command`,
+					`terramate\.stack\.abcabc`,
+					`does not have an attribute`,
+				},
 				Stdout: "",
-				Status: 1,
+				Status:  1,
 			},
 		},
 	} {
