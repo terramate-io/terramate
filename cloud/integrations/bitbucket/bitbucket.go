@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/terramate-io/terramate/errors"
@@ -178,13 +179,13 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 		"links",
 	}
 
-	fieldsQuery := ""
+	var fieldsQuery []string
 	for _, f := range fields {
-		fieldsQuery += fmt.Sprintf("values.%s,", f)
+		fieldsQuery = append(fieldsQuery, fmt.Sprintf("values.%s", f))
 	}
 
 	url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests?fields=%s",
-		c.baseURL(), c.Workspace, c.RepoSlug, commit, fieldsQuery)
+		c.baseURL(), c.Workspace, c.RepoSlug, commit, strings.Join(fieldsQuery, ","))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
