@@ -26,8 +26,8 @@ jobs:
         os:
           - name: ubuntu
             value: "blacksmith-4vcpu-ubuntu-2404"
-          - name: macos-ventura
-            value: "macos-13"
+          - name: macos-15
+            value: "macos-15"
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin@v4
