@@ -24,13 +24,13 @@ func TestClient_GetPullRequestsByCommit_TrailingComma(t *testing.T) {
 		// Assert that 'fields' query parameter does NOT end with a comma
 		if strings.HasSuffix(fields, ",") {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Trailing comma detected in fields parameter"))
+			_, _ = w.Write([]byte("Trailing comma detected in fields parameter"))
 			return
 		}
 
 		// Return a valid empty response if the request is correct
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"values": []}`))
+		_, _ = w.Write([]byte(`{"values": []}`))
 	}))
 	defer server.Close()
 
