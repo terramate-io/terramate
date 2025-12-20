@@ -48,3 +48,35 @@ func TestClient_GetPullRequestsByCommit_TrailingComma(t *testing.T) {
 		t.Fatalf("Expected no error, but got: %v", err)
 	}
 }
+
+func TestClient_GetPullRequest(t *testing.T) {
+	// Setup a mock server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check that the URL path is correct
+		if !strings.Contains(r.URL.Path, "/repositories/workspace/repo/pullrequests/123") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		// Return a valid dummy PR response
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id": 123, "title": "Test PR"}`))
+	}))
+	defer server.Close()
+
+	client := Client{
+		BaseURL:   server.URL,
+		Workspace: "workspace",
+		RepoSlug:  "repo",
+		Token:     "token",
+	}
+
+	pr, err := client.GetPullRequest(123)
+	if err != nil {
+		t.Fatalf("Expected no error, but got: %v", err)
+	}
+
+	if pr.ID != 123 {
+		t.Errorf("Expected PR ID 123, got %d", pr.ID)
+	}
+}
