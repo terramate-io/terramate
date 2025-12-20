@@ -393,10 +393,13 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 	}
 
 	token := os.Getenv("BITBUCKET_TOKEN")
+	token = strings.TrimSpace(token)
+	token = strings.TrimPrefix(token, "Bearer ")
+
 	if token == "" {
 		printer.Stderr.WarnWithDetails(
-			"Export BITBUCKET_TOKEN with your Bitbucket access token for enabling metadata collection",
-			errors.E("No Bitbucket token detected. Some relevant data cannot be collected."),
+			"Export BITBUCKET_TOKEN for enabling metadata collection",
+			errors.E("No Bitbucket credentials detected. Some relevant data cannot be collected."),
 		)
 	}
 
@@ -409,71 +412,108 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 
 	ctx, cancel := context.WithTimeout(context.Background(), bitbucket.DefaultTimeout)
 	defer cancel()
-	prs, err := client.GetPullRequestsByCommit(ctx, md.BitbucketPipelinesCommit)
-	if err != nil {
-		printer.Stderr.WarnWithDetails(
-			"failed to retrieve pull requests associated with commit. "+
-				"Check if the Bitbucket token is valid and has the required permissions. "+
-				"Note that Bitbucket requires enabling the Pull Requests API in the UI. "+
-				"Check our Bitbucket documentation page at https://terramate.io/docs/cli/automation/bitbucket-pipelines/",
-			err)
 
-		return
-	}
-
-	if len(prs) == 0 {
-		printer.Stderr.Warn("No pull requests associated with commit")
-		return
-	}
-
-	// check the right PR based on source and destination branches
+	// Try to get PR directly if ID is available (more reliable)
+	prIDStr := os.Getenv("BITBUCKET_PR_ID")
 	var pullRequest *bitbucket.PR
-	for _, pr := range prs {
-		pr := pr
 
-		// only PR events have source and destination branches
-		if md.BitbucketPipelinesDestinationBranch != "" &&
-			pr.Source.Branch.Name == md.BitbucketPipelinesBranch && pr.Destination.Branch.Name == md.BitbucketPipelinesDestinationBranch {
-			pullRequest = &pr
-			break
-		} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) {
-			// the pr.MergeCommit.Hash contains a short 12 character commit hash
-			pullRequest = &pr
-			break
+	if prIDStr != "" {
+		id64, err := strconv.Atoi64(prIDStr)
+		if err == nil {
+			id := int(id64)
+			logger.Debug().
+				Int("pr_id", id).
+				Msg("fetching pull request by id")
+
+			pr, err := client.GetPullRequest(id)
+			if err != nil {
+				printer.Stderr.WarnWithDetails("failed to retrieve pull request by ID", err)
+			} else {
+				// Verify this PR matches the commit if we have one, strictly speaking not required but good for safety
+				// In pipelines, PR_ID implies context is that PR.
+				pullRequest = &pr
+			}
+		}
+	}
+
+	// Fallback to commit search if PR not found by ID
+	var prs []bitbucket.PR
+	if pullRequest == nil {
+
+		var err error
+		prs, err = client.GetPullRequestsByCommit(ctx, md.BitbucketPipelinesCommit)
+		if err != nil {
+			printer.Stderr.WarnWithDetails(
+				"failed to retrieve pull requests associated with commit. "+
+					"Check if the Bitbucket token is valid and has the required permissions. "+
+					"Note that Bitbucket requires enabling the Pull Requests API in the UI. "+
+					"Check our Bitbucket documentation page at https://terramate.io/docs/cli/automation/bitbucket-pipelines/",
+				err,
+			)
+			return
+		}
+
+		// check the right PR based on source and destination branches
+		for _, pr := range prs {
+			pr := pr
+
+			// only PR events have source and destination branches
+			if md.BitbucketPipelinesDestinationBranch != "" &&
+				pr.Source.Branch.Name == md.BitbucketPipelinesBranch && pr.Destination.Branch.Name == md.BitbucketPipelinesDestinationBranch {
+				pullRequest = &pr
+				break
+			} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) {
+				// the pr.MergeCommit.Hash contains a short 12 character commit hash
+				pullRequest = &pr
+				break
+			}
 		}
 	}
 
 	if pullRequest == nil {
-		printer.Stderr.Warn("No pull request found with matching source and destination branches")
+		if len(prs) == 0 {
+			printer.Stderr.Warn("No pull request found with matching source and destination branches")
+		}
 		return
 	}
 
 	// The pullRequest.source.commit.hash is a short 12 character commit hash
 
 	var commitHash string
+	var commitDate time.Time
 	commit, err := client.GetCommit(ctx, pullRequest.Source.Commit.ShortHash)
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to retrieve commit information", err)
 	} else {
 		commitHash = commit.ShortHash
+		if commit.Date != "" {
+			var err error
+			commitDate, err = time.Parse(time.RFC3339, commit.Date)
+			if err != nil {
+				printer.Stderr.WarnWithDetails("failed to parse commit date", err)
+			}
+		}
 	}
 
 	pullRequest.Source.Commit.SHA = commitHash
 
-	buildNumber, err := strconv.Atoi64(md.BitbucketPipelinesBuildNumber)
-	if err != nil {
-		printer.Stderr.WarnWithDetails("failed to parse Bitbucket CI build number", err)
-		return
+	if !commitDate.IsZero() {
+		ts := commitDate.Unix()
+		state.RREvent.PushedAt = &ts
+	} else {
+		// fallback to PR updated time
+		if t, err := time.Parse(time.RFC3339, pullRequest.UpdatedOn); err == nil {
+			ts := t.Unix()
+			state.RREvent.PushedAt = &ts
+		} else {
+			printer.Stderr.WarnWithDetails("failed to parse PR updated_on time", err)
+		}
 	}
 
-	state.RREvent.PushedAt = &buildNumber
 	state.RREvent.CommitSHA = commitHash
 	state.ReviewRequest = newBitbucketReviewRequest(e, pullRequest)
 
-	// New grouping structure.
 	md.BitbucketPullRequest = metadata.NewBitbucketPullRequest(pullRequest)
-
-	logger.Debug().Msg("Bitbucket metadata detected")
 }
 
 func setGitlabCIMetadata(_ *engine.Engine, md *resources.DeploymentMetadata, state *CloudRunState) {

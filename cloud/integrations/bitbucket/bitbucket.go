@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/terramate-io/terramate/errors"
@@ -95,6 +94,7 @@ type (
 	// Commit is a Bitbucket commit.
 	Commit struct {
 		ShortHash string `json:"hash"`
+		Date      string `json:"date"`
 
 		// Note: this is not part of the Bitbucket API response.
 		// This is fetched from the commit API and stored here for convenience.
@@ -184,8 +184,8 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 		fieldsQuery = append(fieldsQuery, fmt.Sprintf("values.%s", f))
 	}
 
-	url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests?fields=%s",
-		c.baseURL(), c.Workspace, c.RepoSlug, commit, strings.Join(fieldsQuery, ","))
+	url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests",
+		c.baseURL(), c.Workspace, c.RepoSlug, commit)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -217,7 +217,7 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d (%s)", resp.StatusCode, data)
+		return nil, fmt.Errorf("unexpected status code: %d from %s (%s)", resp.StatusCode, url, data)
 	}
 
 	var prResp PullRequestResponse
