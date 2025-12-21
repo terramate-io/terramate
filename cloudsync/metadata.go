@@ -443,7 +443,7 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 	if pullRequest == nil {
 
 		var err error
-		prs, err = client.GetPullRequestsByCommit(ctx, md.BitbucketPipelinesCommit)
+		prs, err = client.GetPullRequestsForCommit(ctx, md.BitbucketPipelinesCommit, md.BitbucketPipelinesBranch)
 		if err != nil {
 			printer.Stderr.WarnWithDetails(
 				"failed to retrieve pull requests associated with commit. "+

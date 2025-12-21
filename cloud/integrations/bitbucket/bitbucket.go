@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/terramate-io/terramate/errors"
@@ -152,51 +154,85 @@ type (
 	}
 )
 
-// GetPullRequestsByCommit fetches a list of pull requests that contain the given commit.
-// TODO: implement pagination.
-func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (prs []PR, err error) {
-	url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests",
-		c.baseURL(), c.Workspace, c.RepoSlug, commit)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+// GetPullRequestsForCommit fetches a list of pull requests that contain the given commit.
+// It filters by branch first (required) and then filters by commit hash client-side.
+func (c *Client) GetPullRequestsForCommit(ctx context.Context, commit, branch string) (prs []PR, err error) {
+	if branch == "" {
+		return nil, fmt.Errorf("branch is required for Bitbucket PR lookup")
 	}
 
-	req.Header.Set("Accept", "application/json")
+	// Bitbucket API does not support filtering by commit hash in the `q` parameter.
+	// We filter by branch name (which is supported) and then filter by commit hash client-side.
+	// We search in both source and destination branches because in deployment pipelines (e.g. on main),
+	// the branch is the destination.
+	// We also explicitly include closed PRs in the search.
+	// We handle pagination to ensure we check all results, sorted by updated date.
+	// See: https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-get
+	query := fmt.Sprintf("(source.branch.name=\"%s\" OR destination.branch.name=\"%s\") AND (state=\"OPEN\" OR state=\"MERGED\" OR state=\"DECLINED\")", branch, branch)
+	url := fmt.Sprintf("%s/repositories/%s/%s/pullrequests?q=%s&sort=-updated_on&pagelen=50",
+		c.baseURL(), c.Workspace, c.RepoSlug, url.QueryEscape(query))
 
-	if c.HTTPClient == nil {
-		c.HTTPClient = &http.Client{}
+	var matched []PR
+
+	// Bitbucket often returns short hashes (12 chars), while the input commit might be full SHA (40 chars).
+	// We check for prefix match in both directions to be safe.
+	match := func(sha1, sha2 string) bool {
+		if sha1 == "" || sha2 == "" {
+			return false
+		}
+		return strings.HasPrefix(sha1, sha2) || strings.HasPrefix(sha2, sha1)
 	}
 
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
+	for url != "" {
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
 
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
+		req.Header.Set("Accept", "application/json")
 
-	defer func() {
+		if c.HTTPClient == nil {
+			c.HTTPClient = &http.Client{}
+		}
+
+		if c.Token != "" {
+			req.Header.Set("Authorization", "Bearer "+c.Token)
+		}
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute request: %w", err)
+		}
+
+		data, err := io.ReadAll(resp.Body)
+		// We explicitly close the body here to avoid accumulating open connections in the loop
+		// which would happen if we used defer.
 		err = errors.L(err, resp.Body.Close()).AsError()
-	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.E(err, "reading response body")
+		if err != nil {
+			return nil, errors.E(err, "reading response body")
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("unexpected status code: %d from %s (%s)", resp.StatusCode, url, data)
+		}
+
+		var prResp PullRequestResponse
+		err = json.Unmarshal(data, &prResp)
+		if err != nil {
+			return nil, errors.E(err, "unmarshaling PR list")
+		}
+
+		for _, pr := range prResp.Values {
+			if match(commit, pr.Source.Commit.ShortHash) || match(commit, pr.MergeCommit.ShortHash) {
+				matched = append(matched, pr)
+			}
+		}
+
+		url = prResp.Next
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d from %s (%s)", resp.StatusCode, url, data)
-	}
-
-	var prResp PullRequestResponse
-	err = json.Unmarshal(data, &prResp)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling PR list")
-	}
-	return prResp.Values, nil
+	return matched, nil
 }
 
 // GetPullRequest fetches a pull request by its ID.

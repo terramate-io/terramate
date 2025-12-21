@@ -5,32 +5,63 @@ package bitbucket
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestClient_GetPullRequestsByCommit_TrailingComma(t *testing.T) {
-	// Setup a mock server that checks for the trailing comma
+func TestClient_GetPullRequestsForCommit(t *testing.T) {
+	// Setup a mock server that checks for the query parameter
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check that the URL path and query parameters are correct
-		if !strings.Contains(r.URL.Path, "/repositories/workspace/repo/commit/commit-hash/pullrequests") {
+		if !strings.Contains(r.URL.Path, "/repositories/workspace/repo/pullrequests") {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		fields := r.URL.Query().Get("fields")
-		// Assert that 'fields' query parameter does NOT end with a comma
-		if strings.HasSuffix(fields, ",") {
+		q := r.URL.Query().Get("q")
+		expectedQuery := `(source.branch.name="main" OR destination.branch.name="main") AND (state="OPEN" OR state="MERGED" OR state="DECLINED")`
+		if q != expectedQuery {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte("Trailing comma detected in fields parameter"))
+			w.Write([]byte(fmt.Sprintf("Unexpected q parameter: got %s, want %s", q, expectedQuery)))
 			return
 		}
 
-		// Return a valid empty response if the request is correct
+		if r.URL.Query().Get("sort") != "-updated_on" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Unexpected sort parameter"))
+			return
+		}
+
+		if r.URL.Query().Get("pagelen") != "50" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Unexpected pagelen parameter"))
+			return
+		}
+
+		// Return a response with multiple PRs to test client-side filtering
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"values": []}`))
+		_, _ = w.Write([]byte(`{
+			"values": [
+				{
+					"id": 1,
+					"source": { "commit": { "hash": "target-commit-hash" } },
+					"merge_commit": { "hash": "other-hash" }
+				},
+				{
+					"id": 2,
+					"source": { "commit": { "hash": "other-hash" } },
+					"merge_commit": { "hash": "target-commit-hash" }
+				},
+				{
+					"id": 3,
+					"source": { "commit": { "hash": "non-matching-hash" } },
+					"merge_commit": { "hash": "non-matching-hash" }
+				}
+			]
+		}`))
 	}))
 	defer server.Close()
 
@@ -41,26 +72,66 @@ func TestClient_GetPullRequestsByCommit_TrailingComma(t *testing.T) {
 		Token:     "token",
 	}
 
-	_, err := client.GetPullRequestsByCommit(context.Background(), "commit-hash")
+	prs, err := client.GetPullRequestsForCommit(context.Background(), "target-commit-hash", "main")
 
-	// We expect NO error now
+	// We expect NO error
 	if err != nil {
 		t.Fatalf("Expected no error, but got: %v", err)
 	}
+
+	// We expect 2 matching PRs (id 1 and 2)
+	if len(prs) != 2 {
+		t.Errorf("Expected 2 matching PRs, got %d", len(prs))
+	}
 }
 
-func TestClient_GetPullRequest(t *testing.T) {
-	// Setup a mock server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check that the URL path is correct
-		if !strings.Contains(r.URL.Path, "/repositories/workspace/repo/pullrequests/123") {
+// Redefining proper test function
+func TestClient_GetPullRequestsForCommit_Pagination_Proper(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/repositories/workspace/repo/pullrequests") {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		// Return a valid dummy PR response
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"id": 123, "title": "Test PR"}`))
+		page := r.URL.Query().Get("page")
+
+		if page == "" || page == "1" {
+			w.WriteHeader(http.StatusOK)
+			// Return first page with next link pointing to this same server
+			// We iterate through pages.
+			nextURL := fmt.Sprintf("%s/repositories/workspace/repo/pullrequests?page=2", server.URL)
+
+			// We MUST escape JSON string if needed, but URL is safe here.
+			response := fmt.Sprintf(`{
+				"next": "%s",
+				"values": [
+					{
+						"id": 1,
+						"source": { "commit": { "hash": "other-hash" } },
+						"merge_commit": { "hash": "other-hash" }
+					}
+				]
+			}`, nextURL)
+			w.Write([]byte(response))
+			return
+		}
+
+		if page == "2" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"values": [
+					{
+						"id": 2,
+						"source": { "commit": { "hash": "target-commit-hash" } },
+						"merge_commit": { "hash": "other-hash" }
+					}
+				]
+			}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 
@@ -71,17 +142,93 @@ func TestClient_GetPullRequest(t *testing.T) {
 		Token:     "token",
 	}
 
-	pr, err := client.GetPullRequest(context.Background(), 123)
+	// We pass a dummy branch since we are testing pagination flow mainly
+	prs, err := client.GetPullRequestsForCommit(context.Background(), "target-commit-hash", "target-branch")
+
 	if err != nil {
 		t.Fatalf("Expected no error, but got: %v", err)
 	}
 
-	if pr.ID != 123 {
-		t.Errorf("Expected PR ID 123, got %d", pr.ID)
+	if len(prs) != 1 {
+		t.Errorf("Expected 1 match from page 2, got %d", len(prs))
+	}
+	if len(prs) > 0 && prs[0].ID != 2 {
+		t.Errorf("Expected PR ID 2, got %d", prs[0].ID)
 	}
 }
 
-func TestClient_GetPullRequestsByCommit_NoFieldsQuery(t *testing.T) {
+func TestClient_GetPullRequestsForCommit_Pagination(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/repositories/workspace/repo/pullrequests") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		page := r.URL.Query().Get("page")
+
+		if page == "" || page == "1" {
+			w.WriteHeader(http.StatusOK)
+			// Return first page with next link pointing to this same server
+			// We iterate through pages.
+			nextURL := fmt.Sprintf("%s/repositories/workspace/repo/pullrequests?page=2", server.URL)
+
+			// We MUST escape JSON string if needed, but URL is safe here.
+			response := fmt.Sprintf(`{
+				"next": "%s",
+				"values": [
+					{
+						"id": 1,
+						"source": { "commit": { "hash": "other-hash" } },
+						"merge_commit": { "hash": "other-hash" }
+					}
+				]
+			}`, nextURL)
+			w.Write([]byte(response))
+			return
+		}
+
+		if page == "2" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"values": [
+					{
+						"id": 2,
+						"source": { "commit": { "hash": "target-commit-hash" } },
+						"merge_commit": { "hash": "other-hash" }
+					}
+				]
+			}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := Client{
+		BaseURL:   server.URL,
+		Workspace: "workspace",
+		RepoSlug:  "repo",
+		Token:     "token",
+	}
+
+	// We pass a dummy branch since we are testing pagination flow mainly
+	prs, err := client.GetPullRequestsForCommit(context.Background(), "target-commit-hash", "target-branch")
+
+	if err != nil {
+		t.Fatalf("Expected no error, but got: %v", err)
+	}
+
+	if len(prs) != 1 {
+		t.Errorf("Expected 1 match from page 2, got %d", len(prs))
+	}
+	if len(prs) > 0 && prs[0].ID != 2 {
+		t.Errorf("Expected PR ID 2, got %d", prs[0].ID)
+	}
+}
+
+func TestClient_GetPullRequestsForCommit_NoFieldsQuery(t *testing.T) {
 	// Setup a mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check that 'fields' query parameter is NOT present
@@ -104,7 +251,7 @@ func TestClient_GetPullRequestsByCommit_NoFieldsQuery(t *testing.T) {
 		Token:     "token",
 	}
 
-	_, err := client.GetPullRequestsByCommit(context.Background(), "commit-hash")
+	_, err := client.GetPullRequestsForCommit(context.Background(), "commit-hash", "main")
 
 	if err != nil {
 		t.Fatalf("Expected no error, but got: %v", err)
