@@ -464,8 +464,9 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 				pr.Source.Branch.Name == md.BitbucketPipelinesBranch && pr.Destination.Branch.Name == md.BitbucketPipelinesDestinationBranch {
 				pullRequest = &pr
 				break
-			} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) {
-				// the pr.MergeCommit.Hash contains a short 12 character commit hash
+			} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) ||
+				strings.HasPrefix(md.BitbucketPipelinesCommit, pr.Source.Commit.ShortHash) {
+				// the pr.MergeCommit.Hash and pr.Source.Commit.Hash contains a short 12 character commit hash
 				pullRequest = &pr
 				break
 			}
