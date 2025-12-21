@@ -228,6 +228,66 @@ func TestClient_GetPullRequestsForCommit_Pagination(t *testing.T) {
 	}
 }
 
+func TestClient_GetPullRequestsForCommit_SpecialChars(t *testing.T) {
+	// Setup a mock server that checks for the correctly escaped query parameter
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("q")
+		// internal/quote"branch -> internal/quote\"branch
+		// We expect the query to contain the escaped version
+		expectedPart := `source.branch.name="internal/quote\"branch"`
+		if !strings.Contains(q, expectedPart) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(fmt.Sprintf("Expected query to contain %s, got %s", expectedPart, q)))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"values": []}`))
+	}))
+	defer server.Close()
+
+	client := Client{
+		BaseURL:   server.URL,
+		Workspace: "workspace",
+		RepoSlug:  "repo",
+		Token:     "token",
+	}
+
+	// Use a branch name with a double quote
+	_, err := client.GetPullRequestsForCommit(context.Background(), "commit-hash", `internal/quote"branch`)
+	if err != nil {
+		t.Fatalf("Expected no error, but got: %v", err)
+	}
+}
+
+func TestClient_GetPullRequestsForCommit_EmptyBranch(t *testing.T) {
+	// Setup a mock server that checks for the legacy URL
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Expect call to /repositories/workspace/repo/commit/commit-hash/pullrequests
+		if !strings.Contains(r.URL.Path, "/commit/commit-hash/pullrequests") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"values": []}`))
+	}))
+	defer server.Close()
+
+	client := Client{
+		BaseURL:   server.URL,
+		Workspace: "workspace",
+		RepoSlug:  "repo",
+		Token:     "token",
+	}
+
+	// Pass empty branch
+	_, err := client.GetPullRequestsForCommit(context.Background(), "commit-hash", "")
+	if err != nil {
+		t.Fatalf("Expected no error, but got: %v", err)
+	}
+}
+
 func TestClient_GetPullRequestsForCommit_NoFieldsQuery(t *testing.T) {
 	// Setup a mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

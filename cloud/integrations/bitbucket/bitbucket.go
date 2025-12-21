@@ -158,21 +158,22 @@ type (
 // It filters by branch first (required) and then filters by commit hash client-side.
 func (c *Client) GetPullRequestsForCommit(ctx context.Context, commit, branch string) (prs []PR, err error) {
 	if branch == "" {
-		return nil, fmt.Errorf("branch is required for Bitbucket PR lookup")
+		// Fallback to legacy endpoint for tag builds or when branch is unknown.
+		// This endpoint can be unreliable with pipeline tokens (requires specific app permissions),
+		// but it's the only option when we don't have a branch to search by.
+		// See: https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-commit-commit-pullrequests-get
+		url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests",
+			c.baseURL(), c.Workspace, c.RepoSlug, commit)
+		return c.getPullRequests(ctx, url, nil)
 	}
 
-	// Bitbucket API does not support filtering by commit hash in the `q` parameter.
-	// We filter by branch name (which is supported) and then filter by commit hash client-side.
-	// We search in both source and destination branches because in deployment pipelines (e.g. on main),
-	// the branch is the destination.
-	// We also explicitly include closed PRs in the search.
-	// We handle pagination to ensure we check all results, sorted by updated date.
-	// See: https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-pullrequests-get
-	query := fmt.Sprintf("(source.branch.name=\"%s\" OR destination.branch.name=\"%s\") AND (state=\"OPEN\" OR state=\"MERGED\" OR state=\"DECLINED\")", branch, branch)
+	// Escape special characters in branch name for the query
+	escapedBranch := strings.ReplaceAll(branch, "\\", "\\\\")
+	escapedBranch = strings.ReplaceAll(escapedBranch, "\"", "\\\"")
+
+	query := fmt.Sprintf("(source.branch.name=\"%s\" OR destination.branch.name=\"%s\") AND (state=\"OPEN\" OR state=\"MERGED\" OR state=\"DECLINED\")", escapedBranch, escapedBranch)
 	url := fmt.Sprintf("%s/repositories/%s/%s/pullrequests?q=%s&sort=-updated_on&pagelen=50",
 		c.baseURL(), c.Workspace, c.RepoSlug, url.QueryEscape(query))
-
-	var matched []PR
 
 	// Bitbucket often returns short hashes (12 chars), while the input commit might be full SHA (40 chars).
 	// We check for prefix match in both directions to be safe.
@@ -182,6 +183,18 @@ func (c *Client) GetPullRequestsForCommit(ctx context.Context, commit, branch st
 		}
 		return strings.HasPrefix(sha1, sha2) || strings.HasPrefix(sha2, sha1)
 	}
+
+	filter := func(pr PR) bool {
+		return match(commit, pr.Source.Commit.ShortHash) || match(commit, pr.MergeCommit.ShortHash)
+	}
+
+	return c.getPullRequests(ctx, url, filter)
+}
+
+// getPullRequests handles pagination and fetching PRs from a given URL.
+// Optional filter function can be provided to filter results client-side.
+func (c *Client) getPullRequests(ctx context.Context, url string, filter func(PR) bool) ([]PR, error) {
+	var matched []PR
 
 	for url != "" {
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -224,7 +237,7 @@ func (c *Client) GetPullRequestsForCommit(ctx context.Context, commit, branch st
 		}
 
 		for _, pr := range prResp.Values {
-			if match(commit, pr.Source.Commit.ShortHash) || match(commit, pr.MergeCommit.ShortHash) {
+			if filter == nil || filter(pr) {
 				matched = append(matched, pr)
 			}
 		}
