@@ -472,6 +472,8 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 
 	if pullRequest == nil {
 		if len(prs) == 0 {
+			printer.Stderr.Warn(fmt.Sprintf("No pull request associated with commit %q", md.BitbucketPipelinesCommit))
+		} else {
 			printer.Stderr.Warn("No pull request found with matching source and destination branches")
 		}
 		return
