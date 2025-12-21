@@ -71,7 +71,7 @@ func TestClient_GetPullRequest(t *testing.T) {
 		Token:     "token",
 	}
 
-	pr, err := client.GetPullRequest(123)
+	pr, err := client.GetPullRequest(context.Background(), 123)
 	if err != nil {
 		t.Fatalf("Expected no error, but got: %v", err)
 	}

@@ -425,7 +425,7 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 				Int("pr_id", id).
 				Msg("fetching pull request by id")
 
-			pr, err := client.GetPullRequest(id)
+			pr, err := client.GetPullRequest(ctx, id)
 			if err != nil {
 				printer.Stderr.WarnWithDetails("failed to retrieve pull request by ID", err)
 			} else {

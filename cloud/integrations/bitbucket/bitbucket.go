@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/terramate-io/terramate/errors"
@@ -192,6 +193,10 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	q := req.URL.Query()
+	q.Set("fields", strings.Join(fieldsQuery, ","))
+	req.URL.RawQuery = q.Encode()
+
 	req.Header.Set("Accept", "application/json")
 
 	if c.HTTPClient == nil {
@@ -229,11 +234,11 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 }
 
 // GetPullRequest fetches a pull request by its ID.
-func (c *Client) GetPullRequest(id int) (pr PR, err error) {
+func (c *Client) GetPullRequest(ctx context.Context, id int) (pr PR, err error) {
 	url := fmt.Sprintf("%s/repositories/%s/%s/pullrequests/%d",
 		c.baseURL(), c.Workspace, c.RepoSlug, id)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return PR{}, fmt.Errorf("failed to create request: %w", err)
 	}
