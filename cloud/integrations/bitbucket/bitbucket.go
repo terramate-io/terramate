@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/terramate-io/terramate/errors"
@@ -156,35 +155,6 @@ type (
 // GetPullRequestsByCommit fetches a list of pull requests that contain the given commit.
 // TODO: implement pagination.
 func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (prs []PR, err error) {
-	fields := []string{
-		"type",
-		"id",
-		"title",
-		"rendered",
-		"summary",
-		"state",
-		"author.*",
-		"source.branch.name",
-		"source.commit.hash",
-		"destination.branch.name",
-		"merge_commit",
-		"comment_count",
-		"task_count",
-		"close_source_branch",
-		"closed_by",
-		"reason",
-		"created_on",
-		"updated_on",
-		"reviewers",
-		"participants",
-		"links",
-	}
-
-	var fieldsQuery []string
-	for _, f := range fields {
-		fieldsQuery = append(fieldsQuery, fmt.Sprintf("values.%s", f))
-	}
-
 	url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests",
 		c.baseURL(), c.Workspace, c.RepoSlug, commit)
 
@@ -192,10 +162,6 @@ func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
-	q := req.URL.Query()
-	q.Set("fields", strings.Join(fieldsQuery, ","))
-	req.URL.RawQuery = q.Encode()
 
 	req.Header.Set("Accept", "application/json")
 
