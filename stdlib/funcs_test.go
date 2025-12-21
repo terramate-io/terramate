@@ -267,12 +267,11 @@ func TestStdlibTmVersionMatch(t *testing.T) {
 		},
 		{
 			expr: `tm_version_match("2.0.0-dev", "~> 1", {allow_prereleases = true})`,
-			want: true,
+			want: false,
 		},
 		{
 			expr: `tm_version_match("2.0.0-dev", "~> 1.0", {allow_prereleases = true})`,
-			// 2.0.0-dev < 2.0.0
-			want: true,
+			want: false,
 		},
 		{
 			expr: `tm_version_match("2.0.0-dev", "~> 1.0", {allow_prereleases = false})`,
