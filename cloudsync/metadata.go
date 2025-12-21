@@ -419,7 +419,9 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 
 	if prIDStr != "" {
 		id64, err := strconv.Atoi64(prIDStr)
-		if err == nil {
+		if err != nil {
+			printer.Stderr.WarnWithDetails(fmt.Sprintf("Failed to parse BITBUCKET_PR_ID %q as int", prIDStr), err)
+		} else {
 			id := int(id64)
 			logger.Debug().
 				Int("pr_id", id).

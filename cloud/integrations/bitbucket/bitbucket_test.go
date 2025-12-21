@@ -80,3 +80,33 @@ func TestClient_GetPullRequest(t *testing.T) {
 		t.Errorf("Expected PR ID 123, got %d", pr.ID)
 	}
 }
+
+func TestClient_GetPullRequestsByCommit_NoFieldsQuery(t *testing.T) {
+	// Setup a mock server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check that 'fields' query parameter is NOT present
+		if r.URL.Query().Has("fields") {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("Unexpected 'fields' query parameter"))
+			return
+		}
+
+		// Return a valid empty response
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"values": []}`))
+	}))
+	defer server.Close()
+
+	client := Client{
+		BaseURL:   server.URL,
+		Workspace: "workspace",
+		RepoSlug:  "repo",
+		Token:     "token",
+	}
+
+	_, err := client.GetPullRequestsByCommit(context.Background(), "commit-hash")
+
+	if err != nil {
+		t.Fatalf("Expected no error, but got: %v", err)
+	}
+}
