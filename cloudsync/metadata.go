@@ -455,22 +455,7 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 			return
 		}
 
-		// check the right PR based on source and destination branches
-		for _, pr := range prs {
-			pr := pr
-
-			// only PR events have source and destination branches
-			if md.BitbucketPipelinesDestinationBranch != "" &&
-				pr.Source.Branch.Name == md.BitbucketPipelinesBranch && pr.Destination.Branch.Name == md.BitbucketPipelinesDestinationBranch {
-				pullRequest = &pr
-				break
-			} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) ||
-				strings.HasPrefix(md.BitbucketPipelinesCommit, pr.Source.Commit.ShortHash) {
-				// the pr.MergeCommit.Hash and pr.Source.Commit.Hash contains a short 12 character commit hash
-				pullRequest = &pr
-				break
-			}
-		}
+		pullRequest = findMatchingBitbucketPR(prs, md.BitbucketPipelinesCommit, md.BitbucketPipelinesBranch, md.BitbucketPipelinesDestinationBranch)
 	}
 
 	if pullRequest == nil {
@@ -598,6 +583,26 @@ func setBitbucketPipelinesMetadata(e *engine.Engine, md *resources.DeploymentMet
 		md.BitbucketPipelinesTriggeredByDisplayName = user.DisplayName
 		md.BitbucketPipelinesTriggeredByAvatarURL = user.Links.Avatar.Href
 	}
+}
+
+func findMatchingBitbucketPR(prs []bitbucket.PR, commit, branch, destBranch string) *bitbucket.PR {
+	for _, pr := range prs {
+		pr := pr // fix loop variable capturing
+
+		// only PR events have source and destination branches
+		if destBranch != "" &&
+			pr.Source.Branch.Name == branch &&
+			pr.Destination.Branch.Name == destBranch {
+			return &pr
+		}
+
+		if (pr.MergeCommit.ShortHash != "" && strings.HasPrefix(commit, pr.MergeCommit.ShortHash)) ||
+			(pr.Source.Commit.ShortHash != "" && strings.HasPrefix(commit, pr.Source.Commit.ShortHash)) {
+			// the pr.MergeCommit.Hash and pr.Source.Commit.Hash contains a short 12 character commit hash
+			return &pr
+		}
+	}
+	return nil
 }
 
 func newBitbucketReviewRequest(e *engine.Engine, pr *bitbucket.PR) *resources.ReviewRequest {
