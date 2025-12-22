@@ -586,6 +586,13 @@ func setBitbucketPipelinesMetadata(e *engine.Engine, md *resources.DeploymentMet
 }
 
 func findMatchingBitbucketPR(prs []bitbucket.PR, commit, branch, destBranch string) *bitbucket.PR {
+	match := func(sha1, sha2 string) bool {
+		if sha1 == "" || sha2 == "" {
+			return false
+		}
+		return strings.HasPrefix(sha1, sha2) || strings.HasPrefix(sha2, sha1)
+	}
+
 	for _, pr := range prs {
 		pr := pr // fix loop variable capturing
 
@@ -596,8 +603,7 @@ func findMatchingBitbucketPR(prs []bitbucket.PR, commit, branch, destBranch stri
 			return &pr
 		}
 
-		if (pr.MergeCommit.ShortHash != "" && strings.HasPrefix(commit, pr.MergeCommit.ShortHash)) ||
-			(pr.Source.Commit.ShortHash != "" && strings.HasPrefix(commit, pr.Source.Commit.ShortHash)) {
+		if match(commit, pr.MergeCommit.ShortHash) || match(commit, pr.Source.Commit.ShortHash) {
 			// the pr.MergeCommit.Hash and pr.Source.Commit.Hash contains a short 12 character commit hash
 			return &pr
 		}

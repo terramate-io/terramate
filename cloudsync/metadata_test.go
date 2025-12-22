@@ -143,6 +143,28 @@ func TestFindMatchingBitbucketPR(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "matches when commit is substring of PR hash (reverse prefix)",
+			prs: []bitbucket.PR{
+				{
+					ID: 7,
+					Source: bitbucket.TargetBranch{
+						Commit: bitbucket.Commit{
+							ShortHash: testCommit, // PR has long hash
+						},
+					},
+				},
+			},
+			commit: testShortCommit, // Input is short hash
+			want: &bitbucket.PR{
+				ID: 7,
+				Source: bitbucket.TargetBranch{
+					Commit: bitbucket.Commit{
+						ShortHash: testCommit,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
