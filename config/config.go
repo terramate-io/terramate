@@ -188,10 +188,6 @@ func (root *Root) tgWorker() {
 	const trackTerragruntDependencies = false
 	for tree := range root.tgTaskChan {
 		tgFile := filepath.Join(tree.HostDir(), tree.TgRootFile)
-		root.tgmu.Lock()
-		root.tgTransientErrs[tgFile] = errors.L()
-		root.tgmu.Unlock()
-
 		tgMod, isRootModule, err := tg.LoadModule(root.HostDir(), tree.Dir(), tree.TgRootFile, trackTerragruntDependencies)
 		root.tgmu.Lock()
 		if err != nil {
@@ -201,6 +197,8 @@ func (root *Root) tgWorker() {
 			for file := range tgMod.FilesProcessed {
 				root.tgProcessedFiles[file] = struct{}{}
 			}
+		} else {
+			printer.Stderr.Warnf("Terragrunt file %q is an incomplete root module. If this is only meant to be included by actual root modules, consider renaming it and adjust the configuration accordingly (e.g. \"terragrunt-root.hcl\").", tgFile)
 		}
 		root.tgmu.Unlock()
 		close(tree.terragruntModuleLoadFinished)
