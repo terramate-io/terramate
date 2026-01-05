@@ -17,7 +17,9 @@ func TestListTerragruntIncludeAllDependents(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"f:terragrunt.hcl:" + Doc(
-			Block("terraform"),
+			Block("terraform",
+				Str("source", "github.com/example/module"),
+			),
 		).String(),
 		"f:stack-a/terragrunt.hcl:" + Doc(
 			Block("terraform",
@@ -84,7 +86,9 @@ func TestListTerragruntOnlyAllDependents(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"f:terragrunt.hcl:" + Doc(
-			Block("terraform"),
+			Block("terraform",
+				Str("source", "github.com/example/module"),
+			),
 		).String(),
 		"f:stack-a/terragrunt.hcl:" + Doc(
 			Block("terraform",
@@ -170,7 +174,8 @@ func TestListTerragruntIncludeDependencies(t *testing.T) {
 	// After our fix, dependencies.paths should NOT widen scope, so we should only get stack-c
 	res := cli.Run("list", "--changed", "--include-all-dependencies")
 	AssertRunResult(t, res, RunExpected{
-		Stdout: nljoin("stack-c"),
+		Stdout:      nljoin("stack-c"),
+		StderrRegex: "incomplete root module",
 	})
 }
 
@@ -180,7 +185,9 @@ func TestListTerragruntOnlyDependencies(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"f:terragrunt.hcl:" + Doc(
-			Block("terraform"),
+			Block("terraform",
+				Str("source", "github.com/example/module"),
+			),
 		).String(),
 		"f:stack-a/terragrunt.hcl:" + Doc(
 			Block("terraform",
@@ -224,7 +231,9 @@ func TestListTerragruntDependenciesPathsDoNotWidenScope(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"f:terragrunt.hcl:" + Doc(
-			Block("terraform"),
+			Block("terraform",
+				Str("source", "github.com/example/module"),
+			),
 		).String(),
 		"f:stack-a/terragrunt.hcl:" + Doc(
 			Block("terraform",

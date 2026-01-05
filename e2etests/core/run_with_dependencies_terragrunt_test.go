@@ -277,8 +277,8 @@ func TestRunTerragruntOnlyDependencies(t *testing.T) {
 	// After our fix, dependencies.paths should NOT widen scope, so we should get no stacks
 	res := cli.Run("run", "--changed", "--only-all-dependencies", "--", "echo", "executed")
 	AssertRunResult(t, res, RunExpected{
-		Stdout:        "",
-		StderrRegexes: []string{},
+		Stdout:      "",
+		StderrRegex: "incomplete root module",
 	})
 }
 
