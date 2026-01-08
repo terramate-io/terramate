@@ -364,7 +364,7 @@ func (s *Spec) initTerraformDir(baseDir string) error {
 			continue
 		}
 
-		if filepath.Ext(f.Name()) != ".tf" {
+		if !hasTFExt(f.Name()) {
 			continue
 		}
 
@@ -403,6 +403,11 @@ func (s *Spec) initTerraformDir(baseDir string) error {
 		isStack = true
 	}
 	return errs.AsError()
+}
+
+func hasTFExt(fname string) bool {
+	ext := filepath.Ext(fname)
+	return ext == ".tf" || ext == ".tofu"
 }
 
 func (s *Spec) ensureStackID() error {

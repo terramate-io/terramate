@@ -267,7 +267,7 @@ func vendorAll(
 			return filepath.SkipDir
 		}
 
-		if !d.Type().IsRegular() || !strings.HasSuffix(path, ".tf") {
+		if !d.Type().IsRegular() || !hasTFExt(path) {
 			return nil
 		}
 
@@ -502,4 +502,8 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 		}
 	}
 	return errs.AsError()
+}
+
+func hasTFExt(p string) bool {
+	return strings.HasSuffix(p, ".tf") || strings.HasSuffix(p, ".tofu")
 }

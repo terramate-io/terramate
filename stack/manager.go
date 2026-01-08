@@ -305,7 +305,7 @@ rangeStacks:
 
 		// Terraform module change detection
 		err := m.filesApply(stack.Dir, func(fname string) error {
-			if path.Ext(fname) != ".tf" {
+			if !hasTFExt(fname) {
 				return nil
 			}
 
@@ -612,7 +612,7 @@ func (m *Manager) tfModuleChanged(
 		if changed {
 			return nil
 		}
-		if path.Ext(fname) != ".tf" {
+		if !hasTFExt(fname) {
 			return nil
 		}
 
@@ -643,6 +643,11 @@ func (m *Manager) tfModuleChanged(
 	}
 
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
+}
+
+func hasTFExt(fname string) bool {
+	ext := path.Ext(fname)
+	return ext == ".tf" || ext == ".tofu"
 }
 
 func (m *Manager) changedFiles(gitBaseRef string, dirtyFiles ...project.Path) (project.Paths, error) {
