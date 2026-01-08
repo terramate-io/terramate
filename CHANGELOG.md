@@ -20,6 +20,15 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add support for the `.tofu` file extension in places where `.tf` files are considered. This includes:
+  - `create --all-terraform` to detect stacks.
+  - Any commands that support change detection (`--changed`).
+  - Files downloaded by `tm_vendor`.
+
 ## 0.15.3
 
 ### Fixed
