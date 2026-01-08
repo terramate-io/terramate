@@ -57,7 +57,7 @@ func CreateCloudPreview(e *engine.Engine, gitfilter engine.GitFilter, runs []eng
 	if state.ReviewRequest == nil || state.RREvent.PushedAt == nil {
 		printer.Stderr.WarnWithDetails(
 			"unable to create preview: missing review request information",
-			errors.E("--sync-preview can only be used when GITHUB_TOKEN or GITLAB_TOKEN is exported and Terramate runs in a CI/CD environment triggered by a Pull/Merge Request event"),
+			errors.E("--sync-preview can only be used when GITHUB_TOKEN, GITLAB_TOKEN or BITBUCKET_TOKEN is exported and Terramate runs in a CI/CD environment triggered by a Pull/Merge Request event"),
 		)
 		e.DisableCloudFeatures(cloudError())
 		return map[string]string{}
