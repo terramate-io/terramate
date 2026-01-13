@@ -24,6 +24,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
+- Fix error in safeguards when the name of the Git default branch matches multiple remote branch names.
 - Fix auto-detection of `--git-change-base` for running change detection with disabled safeguards on commits that are behind main.
   - Before, this would compare changes to the latest commit on the main branch.
   - Now, it uses the result of `git merge-base` between the current commit and the latest commit on the main branch.
