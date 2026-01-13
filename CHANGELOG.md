@@ -20,6 +20,14 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- Fix auto-detection of `--git-change-base` for running change detection with disabled safeguards on commits that are behind main.
+  - Before, this would compare changes to the latest commit on the main branch.
+  - Now, it uses the result of `git merge-base` between the current commit and the latest commit on the main branch.
+
 ## 0.15.4
 
 ### Added

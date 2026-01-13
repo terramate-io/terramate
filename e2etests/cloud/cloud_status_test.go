@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/terramate-io/terramate/stack"
 
 	"github.com/terramate-io/terramate/cloud/api/deployment"
 	"github.com/terramate-io/terramate/cloud/api/drift"
@@ -836,7 +835,7 @@ func TestCloudStatusRegresionCrash(t *testing.T) {
 	result := cli.Run(args...)
 	AssertRunResult(t, result, RunExpected{
 		Status:      1,
-		StderrRegex: string(stack.ErrListChanged),
+		StderrRegex: "setting up git",
 	})
 }
 
