@@ -211,6 +211,39 @@ func TestFetchRemoteRev(t *testing.T) {
 
 }
 
+func TestFetchRemoteRevAmbiguous(t *testing.T) {
+	t.Parallel()
+	repodir := mkOneCommitRepo(t)
+	git := test.NewGitWrapper(t, repodir, []string{})
+
+	remote, revision := addDefaultRemoteRev(t, git)
+
+	assert.NoError(t, git.Checkout("my/main", true))
+	assert.NoError(t, git.Push("origin", "my/main"))
+
+	assert.NoError(t, git.Push("origin", "refs/remotes/*:refs/remotes/*"))
+
+	remoteRef, err := git.FetchRemoteRev(remote, revision)
+	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
+
+	assert.EqualStrings(
+		t,
+		CookedCommitID,
+		remoteRef.CommitID,
+		"remote reference ID doesn't match cooked commit ID",
+	)
+
+	const wantRefName = "refs/heads/main"
+
+	assert.EqualStrings(
+		t,
+		wantRefName,
+		remoteRef.Name,
+		"remote ref name doesn't match local",
+	)
+
+}
+
 func TestFetchRemoteRevErrorHandling(t *testing.T) {
 	t.Parallel()
 	repodir := mkOneCommitRepo(t)

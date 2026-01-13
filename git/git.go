@@ -421,29 +421,40 @@ func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
 		Str("workingDir", cfg.WorkingDir).
 		Logger()
 
+	refHead := "refs/heads/" + ref
+
 	logger.Debug().Msg("List references in remote repository.")
-	output, err := git.exec("ls-remote", remote, ref)
+	output, err := git.exec("ls-remote", remote, refHead)
 	if err != nil {
 		return Ref{}, fmt.Errorf(
 			"Git.FetchRemoteRev: git ls-remote %q %q: %v",
 			remote,
-			ref,
+			refHead,
 			err,
 		)
 	}
-	parsed := strings.Split(output, "\t")
-	if len(parsed) != 2 {
-		return Ref{}, fmt.Errorf(
-			"Git.FetchRemoteRev: git ls-remote %q %q can't parse: %v",
-			remote,
-			ref,
-			output,
-		)
+	for _, line := range removeEmptyLines(strings.Split(output, "\n")) {
+		parsed := strings.Split(line, "\t")
+		if len(parsed) != 2 {
+			return Ref{}, fmt.Errorf(
+				"Git.FetchRemoteRev: git ls-remote %q %q can't parse: %v",
+				remote,
+				refHead,
+				line,
+			)
+		}
+		if parsed[1] == refHead {
+			return Ref{
+				CommitID: parsed[0],
+				Name:     parsed[1],
+			}, nil
+		}
 	}
-	return Ref{
-		CommitID: parsed[0],
-		Name:     parsed[1],
-	}, nil
+	return Ref{}, fmt.Errorf(
+		"Git.FetchRemoteRev: git ls-remote %q %q: no match found",
+		remote,
+		refHead,
+	)
 }
 
 // MergeBase finds the common commit ancestor of commit1 and commit2.
