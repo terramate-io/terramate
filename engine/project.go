@@ -266,20 +266,25 @@ func (p *Project) DefaultBaseRef() (string, error) {
 	}
 
 	if isDefault {
-		remoteDefault, err1 := p.RemoteDefaultCommit()
+		remoteDefault, err1 := p.LocalDefaultBranchCommit()
 		headCommit, err2 := p.HeadCommit()
 		if err := errors.L(err1, err2); err.AsError() != nil {
 			return "", err
 		}
 		if remoteDefault == headCommit {
 			_, err := p.Git.Wrapper.RevParse(defaultBranchBaseRef)
-			if err == nil {
-				p.Git.defaultBaseRef = defaultBranchBaseRef
-				return p.Git.defaultBaseRef, nil
+			if err != nil {
+				return "", err
 			}
+			p.Git.defaultBaseRef = defaultBranchBaseRef
+			return p.Git.defaultBaseRef, nil
 		}
 	}
-	p.Git.defaultBaseRef = p.DefaultBranchRef()
+	mergeBase, err := p.Git.Wrapper.MergeBase("HEAD", p.DefaultBranchRef())
+	if err != nil {
+		return "", err
+	}
+	p.Git.defaultBaseRef = mergeBase
 	return p.Git.defaultBaseRef, nil
 }
 
@@ -296,12 +301,18 @@ func (p *Project) DefaultLocalBaseRef() (string, error) {
 
 	if isDefault {
 		_, err := p.Git.Wrapper.RevParse(defaultBranchBaseRef)
-		if err == nil {
-			p.Git.defaultLocalBaseRef = defaultBranchBaseRef
-			return p.Git.defaultLocalBaseRef, nil
+		if err != nil {
+			return "", err
 		}
+		p.Git.defaultLocalBaseRef = defaultBranchBaseRef
+		return p.Git.defaultLocalBaseRef, nil
+
 	}
-	p.Git.defaultLocalBaseRef = git.DefaultBranch
+	mergeBase, err := p.Git.Wrapper.MergeBase("HEAD", git.DefaultBranch)
+	if err != nil {
+		return "", err
+	}
+	p.Git.defaultLocalBaseRef = mergeBase
 	return p.Git.defaultLocalBaseRef, nil
 }
 
