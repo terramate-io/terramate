@@ -25,19 +25,19 @@ func TestClient_GetPullRequestsForCommit(t *testing.T) {
 		expectedQuery := `(source.branch.name="main" OR destination.branch.name="main") AND (state="OPEN" OR state="MERGED" OR state="DECLINED")`
 		if q != expectedQuery {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(fmt.Sprintf("Unexpected q parameter: got %s, want %s", q, expectedQuery)))
+			_, _ = fmt.Fprintf(w, "Unexpected q parameter: got %s, want %s", q, expectedQuery)
 			return
 		}
 
 		if r.URL.Query().Get("sort") != "-updated_on" {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Unexpected sort parameter"))
+			_, _ = w.Write([]byte("Unexpected sort parameter"))
 			return
 		}
 
 		if r.URL.Query().Get("pagelen") != "50" {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Unexpected pagelen parameter"))
+			_, _ = w.Write([]byte("Unexpected pagelen parameter"))
 			return
 		}
 
@@ -112,13 +112,13 @@ func TestClient_GetPullRequestsForCommit_Pagination(t *testing.T) {
 					}
 				]
 			}`, nextURL)
-			w.Write([]byte(response))
+			_, _ = w.Write([]byte(response))
 			return
 		}
 
 		if page == "2" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{
+			_, _ = w.Write([]byte(`{
 				"values": [
 					{
 						"id": 2,
@@ -165,12 +165,12 @@ func TestClient_GetPullRequestsForCommit_SpecialChars(t *testing.T) {
 		expectedPart := `source.branch.name="internal/quote\"branch"`
 		if !strings.Contains(q, expectedPart) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(fmt.Sprintf("Expected query to contain %s, got %s", expectedPart, q)))
+			_, _ = fmt.Fprintf(w, "Expected query to contain %s, got %s", expectedPart, q)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"values": []}`))
+		_, _ = w.Write([]byte(`{"values": []}`))
 	}))
 	defer server.Close()
 
@@ -198,7 +198,7 @@ func TestClient_GetPullRequestsForCommit_EmptyBranch(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"values": []}`))
+		_, _ = w.Write([]byte(`{"values": []}`))
 	}))
 	defer server.Close()
 
