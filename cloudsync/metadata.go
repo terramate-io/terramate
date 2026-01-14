@@ -468,40 +468,29 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 	// The pullRequest.source.commit.hash is a short 12 character commit hash
 
 	var commitHash string
-	var commitDate time.Time
 	commit, err := client.GetCommit(ctx, pullRequest.Source.Commit.ShortHash)
 	if err != nil {
 		printer.Stderr.WarnWithDetails("failed to retrieve commit information", err)
 	} else {
 		commitHash = commit.ShortHash
-		if commit.Date != "" {
-			var err error
-			commitDate, err = time.Parse(time.RFC3339, commit.Date)
-			if err != nil {
-				printer.Stderr.WarnWithDetails("failed to parse commit date", err)
-			}
-		}
 	}
 
 	pullRequest.Source.Commit.SHA = commitHash
 
-	if !commitDate.IsZero() {
-		ts := commitDate.Unix()
-		state.RREvent.PushedAt = &ts
-	} else {
-		// fallback to PR updated time
-		if t, err := time.Parse(time.RFC3339, pullRequest.UpdatedOn); err == nil {
-			ts := t.Unix()
-			state.RREvent.PushedAt = &ts
-		} else {
-			printer.Stderr.WarnWithDetails("failed to parse PR updated_on time", err)
-		}
+	buildNumber, err := strconv.Atoi64(md.BitbucketPipelinesBuildNumber)
+	if err != nil {
+		printer.Stderr.WarnWithDetails("failed to parse Bitbucket CI build number", err)
+		return
 	}
 
+	state.RREvent.PushedAt = &buildNumber
 	state.RREvent.CommitSHA = commitHash
 	state.ReviewRequest = newBitbucketReviewRequest(e, pullRequest)
 
+	// New grouping structure.
 	md.BitbucketPullRequest = metadata.NewBitbucketPullRequest(pullRequest)
+
+	logger.Debug().Msg("Bitbucket metadata detected")
 }
 
 func setGitlabCIMetadata(_ *engine.Engine, md *resources.DeploymentMetadata, state *CloudRunState) {
