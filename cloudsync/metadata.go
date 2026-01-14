@@ -393,6 +393,7 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 	}
 
 	token := os.Getenv("BITBUCKET_TOKEN")
+
 	if token == "" {
 		printer.Stderr.WarnWithDetails(
 			"Export BITBUCKET_TOKEN with your Bitbucket access token for enabling metadata collection",
@@ -409,42 +410,58 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 
 	ctx, cancel := context.WithTimeout(context.Background(), bitbucket.DefaultTimeout)
 	defer cancel()
-	prs, err := client.GetPullRequestsByCommit(ctx, md.BitbucketPipelinesCommit)
-	if err != nil {
-		printer.Stderr.WarnWithDetails(
-			"failed to retrieve pull requests associated with commit. "+
-				"Check if the Bitbucket token is valid and has the required permissions. "+
-				"Note that Bitbucket requires enabling the Pull Requests API in the UI. "+
-				"Check our Bitbucket documentation page at https://terramate.io/docs/cli/automation/bitbucket-pipelines/",
-			err)
 
-		return
-	}
-
-	if len(prs) == 0 {
-		printer.Stderr.Warn("No pull requests associated with commit")
-		return
-	}
-
-	// check the right PR based on source and destination branches
+	// Try to get PR directly if ID is available (more reliable)
+	prIDStr := os.Getenv("BITBUCKET_PR_ID")
 	var pullRequest *bitbucket.PR
-	for _, pr := range prs {
-		pr := pr
 
-		// only PR events have source and destination branches
-		if md.BitbucketPipelinesDestinationBranch != "" &&
-			pr.Source.Branch.Name == md.BitbucketPipelinesBranch && pr.Destination.Branch.Name == md.BitbucketPipelinesDestinationBranch {
-			pullRequest = &pr
-			break
-		} else if strings.HasPrefix(md.BitbucketPipelinesCommit, pr.MergeCommit.ShortHash) {
-			// the pr.MergeCommit.Hash contains a short 12 character commit hash
-			pullRequest = &pr
-			break
+	if prIDStr != "" {
+		id64, err := strconv.Atoi64(prIDStr)
+		if err != nil {
+			printer.Stderr.WarnWithDetails(fmt.Sprintf("Failed to parse BITBUCKET_PR_ID %q as int", prIDStr), err)
+		} else {
+			id := int(id64)
+			logger.Debug().
+				Int("pr_id", id).
+				Msg("fetching pull request by id")
+
+			pr, err := client.GetPullRequest(ctx, id)
+			if err != nil {
+				printer.Stderr.WarnWithDetails("failed to retrieve pull request by ID", err)
+			} else {
+				// Verify this PR matches the commit if we have one, strictly speaking not required but good for safety
+				// In pipelines, PR_ID implies context is that PR.
+				pullRequest = &pr
+			}
 		}
 	}
 
+	// Fallback to commit search if PR not found by ID
+	var prs []bitbucket.PR
 	if pullRequest == nil {
-		printer.Stderr.Warn("No pull request found with matching source and destination branches")
+
+		var err error
+		prs, err = client.GetPullRequestsForCommit(ctx, md.BitbucketPipelinesCommit, md.BitbucketPipelinesBranch)
+		if err != nil {
+			printer.Stderr.WarnWithDetails(
+				"failed to retrieve pull requests associated with commit. "+
+					"Check if the Bitbucket token is valid and has the required permissions. "+
+					"Note that Bitbucket requires enabling the Pull Requests API in the UI. "+
+					"Check our Bitbucket documentation page at https://terramate.io/docs/cli/automation/bitbucket-pipelines/",
+				err,
+			)
+			return
+		}
+
+		pullRequest = findMatchingBitbucketPR(prs, md.BitbucketPipelinesCommit, md.BitbucketPipelinesBranch, md.BitbucketPipelinesDestinationBranch)
+	}
+
+	if pullRequest == nil {
+		if len(prs) == 0 {
+			printer.Stderr.Warn(fmt.Sprintf("No pull request associated with commit %q", md.BitbucketPipelinesCommit))
+		} else {
+			printer.Stderr.Warn("No pull request found with matching source and destination branches")
+		}
 		return
 	}
 
@@ -553,6 +570,32 @@ func setBitbucketPipelinesMetadata(e *engine.Engine, md *resources.DeploymentMet
 		md.BitbucketPipelinesTriggeredByDisplayName = user.DisplayName
 		md.BitbucketPipelinesTriggeredByAvatarURL = user.Links.Avatar.Href
 	}
+}
+
+func findMatchingBitbucketPR(prs []bitbucket.PR, commit, branch, destBranch string) *bitbucket.PR {
+	match := func(sha1, sha2 string) bool {
+		if sha1 == "" || sha2 == "" {
+			return false
+		}
+		return strings.HasPrefix(sha1, sha2) || strings.HasPrefix(sha2, sha1)
+	}
+
+	for _, pr := range prs {
+		pr := pr // fix loop variable capturing
+
+		// only PR events have source and destination branches
+		if destBranch != "" &&
+			pr.Source.Branch.Name == branch &&
+			pr.Destination.Branch.Name == destBranch {
+			return &pr
+		}
+
+		if match(commit, pr.MergeCommit.ShortHash) || match(commit, pr.Source.Commit.ShortHash) {
+			// the pr.MergeCommit.Hash and pr.Source.Commit.Hash contains a short 12 character commit hash
+			return &pr
+		}
+	}
+	return nil
 }
 
 func newBitbucketReviewRequest(e *engine.Engine, pr *bitbucket.PR) *resources.ReviewRequest {

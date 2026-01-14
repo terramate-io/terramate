@@ -24,6 +24,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
+- Improve Bitbucket PR fetching logic.
+  - Use `BITBUCKET_PR_ID` when provided, instead of searching for the PR through API queries.
+  - Fix PR detection for merged PRs in deployment runs.
+  - Implement missing pagination in API queries.
 - Fix error in safeguards when the name of the Git default branch matches multiple remote branch names.
 - Fix auto-detection of `--git-change-base` for running change detection with disabled safeguards on commits that are behind main.
   - Before, this would compare changes to the latest commit on the main branch.

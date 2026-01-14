@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -95,6 +96,7 @@ type (
 	// Commit is a Bitbucket commit.
 	Commit struct {
 		ShortHash string `json:"hash"`
+		Date      string `json:"date"`
 
 		// Note: this is not part of the Bitbucket API response.
 		// This is fetched from the commit API and stored here for convenience.
@@ -152,88 +154,106 @@ type (
 	}
 )
 
-// GetPullRequestsByCommit fetches a list of pull requests that contain the given commit.
-// TODO: implement pagination.
-func (c *Client) GetPullRequestsByCommit(ctx context.Context, commit string) (prs []PR, err error) {
-	fields := []string{
-		"type",
-		"id",
-		"title",
-		"rendered",
-		"summary",
-		"state",
-		"author.*",
-		"source.branch.name",
-		"source.commit.hash",
-		"destination.branch.name",
-		"merge_commit",
-		"comment_count",
-		"task_count",
-		"close_source_branch",
-		"closed_by",
-		"reason",
-		"created_on",
-		"updated_on",
-		"reviewers",
-		"participants",
-		"links",
+// GetPullRequestsForCommit fetches a list of pull requests that contain the given commit.
+// It filters by branch first (required) and then filters by commit hash client-side.
+func (c *Client) GetPullRequestsForCommit(ctx context.Context, commit, branch string) (prs []PR, err error) {
+	if branch == "" {
+		// Fallback to legacy endpoint for tag builds or when branch is unknown.
+		// This endpoint can be unreliable with pipeline tokens (requires specific app permissions),
+		// but it's the only option when we don't have a branch to search by.
+		// See: https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/#api-repositories-workspace-repo-slug-commit-commit-pullrequests-get
+		url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests",
+			c.baseURL(), c.Workspace, c.RepoSlug, commit)
+		return c.getPullRequests(ctx, url, nil)
 	}
 
-	var fieldsQuery []string
-	for _, f := range fields {
-		fieldsQuery = append(fieldsQuery, fmt.Sprintf("values.%s", f))
+	// Escape special characters in branch name for the query
+	escapedBranch := strings.ReplaceAll(branch, "\\", "\\\\")
+	escapedBranch = strings.ReplaceAll(escapedBranch, "\"", "\\\"")
+
+	query := fmt.Sprintf("(source.branch.name=\"%s\" OR destination.branch.name=\"%s\") AND (state=\"OPEN\" OR state=\"MERGED\" OR state=\"DECLINED\")", escapedBranch, escapedBranch)
+	url := fmt.Sprintf("%s/repositories/%s/%s/pullrequests?q=%s&sort=-updated_on&pagelen=50",
+		c.baseURL(), c.Workspace, c.RepoSlug, url.QueryEscape(query))
+
+	// Bitbucket often returns short hashes (12 chars), while the input commit might be full SHA (40 chars).
+	// We check for prefix match in both directions to be safe.
+	match := func(sha1, sha2 string) bool {
+		if sha1 == "" || sha2 == "" {
+			return false
+		}
+		return strings.HasPrefix(sha1, sha2) || strings.HasPrefix(sha2, sha1)
 	}
 
-	url := fmt.Sprintf("%s/repositories/%s/%s/commit/%s/pullrequests?fields=%s",
-		c.baseURL(), c.Workspace, c.RepoSlug, commit, strings.Join(fieldsQuery, ","))
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	filter := func(pr PR) bool {
+		return match(commit, pr.Source.Commit.ShortHash) || match(commit, pr.MergeCommit.ShortHash)
 	}
 
-	req.Header.Set("Accept", "application/json")
+	return c.getPullRequests(ctx, url, filter)
+}
 
-	if c.HTTPClient == nil {
-		c.HTTPClient = &http.Client{}
-	}
+// getPullRequests handles pagination and fetching PRs from a given URL.
+// Optional filter function can be provided to filter results client-side.
+func (c *Client) getPullRequests(ctx context.Context, url string, filter func(PR) bool) ([]PR, error) {
+	var matched []PR
 
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
+	for url != "" {
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
 
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
+		req.Header.Set("Accept", "application/json")
 
-	defer func() {
+		if c.HTTPClient == nil {
+			c.HTTPClient = &http.Client{}
+		}
+
+		if c.Token != "" {
+			req.Header.Set("Authorization", "Bearer "+c.Token)
+		}
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute request: %w", err)
+		}
+
+		data, err := io.ReadAll(resp.Body)
+		// We explicitly close the body here to avoid accumulating open connections in the loop
+		// which would happen if we used defer.
 		err = errors.L(err, resp.Body.Close()).AsError()
-	}()
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.E(err, "reading response body")
+		if err != nil {
+			return nil, errors.E(err, "reading response body")
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("unexpected status code: %d from %s (%s)", resp.StatusCode, url, data)
+		}
+
+		var prResp PullRequestResponse
+		err = json.Unmarshal(data, &prResp)
+		if err != nil {
+			return nil, errors.E(err, "unmarshaling PR list")
+		}
+
+		for _, pr := range prResp.Values {
+			if filter == nil || filter(pr) {
+				matched = append(matched, pr)
+			}
+		}
+
+		url = prResp.Next
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d (%s)", resp.StatusCode, data)
-	}
-
-	var prResp PullRequestResponse
-	err = json.Unmarshal(data, &prResp)
-	if err != nil {
-		return nil, errors.E(err, "unmarshaling PR list")
-	}
-	return prResp.Values, nil
+	return matched, nil
 }
 
 // GetPullRequest fetches a pull request by its ID.
-func (c *Client) GetPullRequest(id int) (pr PR, err error) {
+func (c *Client) GetPullRequest(ctx context.Context, id int) (pr PR, err error) {
 	url := fmt.Sprintf("%s/repositories/%s/%s/pullrequests/%d",
 		c.baseURL(), c.Workspace, c.RepoSlug, id)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return PR{}, fmt.Errorf("failed to create request: %w", err)
 	}
