@@ -393,13 +393,11 @@ func detectBitbucketMetadata(e *engine.Engine, owner, reponame string, state *Cl
 	}
 
 	token := os.Getenv("BITBUCKET_TOKEN")
-	token = strings.TrimSpace(token)
-	token = strings.TrimPrefix(token, "Bearer ")
 
 	if token == "" {
 		printer.Stderr.WarnWithDetails(
-			"Export BITBUCKET_TOKEN for enabling metadata collection",
-			errors.E("No Bitbucket credentials detected. Some relevant data cannot be collected."),
+			"Export BITBUCKET_TOKEN with your Bitbucket access token for enabling metadata collection",
+			errors.E("No Bitbucket token detected. Some relevant data cannot be collected."),
 		)
 	}
 
