@@ -281,7 +281,7 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tre
 			logger.Warn().Msgf("path %s not found in configuration", path.String())
 			continue
 		}
-		stacks = append(stacks, node.stacks((*Tree).IsStack)...)
+		stacks = append(stacks, node.visit((*Tree).IsStack)...)
 	}
 
 	sort.Sort(stacks)
@@ -295,7 +295,7 @@ func (root *Root) StacksByTagsFilters(filters []string) (project.Paths, error) {
 	if err != nil {
 		return nil, err
 	}
-	return root.tree.stacks(func(tree *Tree) bool {
+	return root.tree.visit(func(tree *Tree) bool {
 		if !hasFilter || !tree.IsStack() {
 			return false
 		}
@@ -305,7 +305,7 @@ func (root *Root) StacksByTagsFilters(filters []string) (project.Paths, error) {
 
 // StackByID returns the stack with the given ID.
 func (root *Root) StackByID(id string) (*Stack, bool, error) {
-	stacks := root.tree.stacks(func(tree *Tree) bool {
+	stacks := root.tree.visit(func(tree *Tree) bool {
 		return tree.IsStack() && tree.Node.Stack.ID == id
 	})
 	if len(stacks) == 0 {
@@ -477,7 +477,7 @@ func (tree *Tree) Stack() (*Stack, error) {
 // Stacks returns the stack nodes from the tree.
 // The search algorithm is a Deep-First-Search (DFS).
 func (tree *Tree) Stacks() List[*Tree] {
-	stacks := tree.stacks((*Tree).IsStack)
+	stacks := tree.visit((*Tree).IsStack)
 	sort.Sort(stacks)
 	return stacks
 }
@@ -517,15 +517,17 @@ func (tree *Tree) TerragruntModule() (*tg.Module, error) {
 	return nil, nil
 }
 
-func (tree *Tree) stacks(cond func(*Tree) bool) List[*Tree] {
-	var stacks List[*Tree]
+func (tree *Tree) visit(cond func(*Tree) bool) List[*Tree] {
+	var r List[*Tree]
 	if cond(tree) {
-		stacks = append(stacks, tree)
+		r = append(r, tree)
 	}
-	for _, children := range tree.Children {
-		stacks = append(stacks, children.stacks(cond)...)
+	for name, child := range tree.Children {
+		if !Skip(name) {
+			r = append(r, child.visit(cond)...)
+		}
 	}
-	return stacks
+	return r
 }
 
 // Lookup a node from the tree using a filesystem query path.
