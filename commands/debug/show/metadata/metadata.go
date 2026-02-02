@@ -74,6 +74,30 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 		}
 		tagsVal, _ := json.Marshal(tags)
 
+		before := []string{}
+		if len(stack.Before) > 0 {
+			before = stack.Before
+		}
+		beforeVal, _ := json.Marshal(before)
+
+		after := []string{}
+		if len(stack.After) > 0 {
+			after = stack.After
+		}
+		afterVal, _ := json.Marshal(after)
+
+		wants := []string{}
+		if len(stack.Wants) > 0 {
+			wants = stack.Wants
+		}
+		wantsVal, _ := json.Marshal(wants)
+
+		wantedBy := []string{}
+		if len(stack.WantedBy) > 0 {
+			wantedBy = stack.WantedBy
+		}
+		wantedByVal, _ := json.Marshal(wantedBy)
+
 		s.printers.Stdout.Println(fmt.Sprintf("\nstack %q:", stack.Dir))
 		if stack.ID != "" {
 			s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.id=%q", stack.ID))
@@ -81,6 +105,10 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.name=%q", stack.Name))
 		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.description=%q", stack.Description))
 		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.tags=%s", string(tagsVal)))
+		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.before=%s", string(beforeVal)))
+		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.after=%s", string(afterVal)))
+		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.wants=%s", string(wantsVal)))
+		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.wanted_by=%s", string(wantedByVal)))
 		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.path.absolute=%q", stack.Dir))
 		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.path.basename=%q", stack.PathBase()))
 		s.printers.Stdout.Println(fmt.Sprintf("\tterramate.stack.path.relative=%q", stack.RelPath()))
