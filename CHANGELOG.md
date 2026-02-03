@@ -27,6 +27,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Add orchestration metadata fields to `terramate debug show metadata` command output.
   - The command now displays `before`, `after`, `wants`, and `wanted_by` fields for each stack.
 
+### Fixed
+
+- Fix `terramate list --changed --why` flag not working.
+
 ## 0.15.5
 
 ### Fixed

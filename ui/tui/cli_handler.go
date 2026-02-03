@@ -199,6 +199,7 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 		}
 		return &listcmd.Spec{
 			GitFilter: gitfilter,
+			Reason:    parsedArgs.List.Why,
 			Target:    parsedArgs.List.Target,
 			StatusFilters: listcmd.StatusFilters{
 				StackStatus:      statusStr,
