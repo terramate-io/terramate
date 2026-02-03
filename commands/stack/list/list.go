@@ -99,7 +99,7 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 	stacks := make(config.List[*config.SortableStack], len(filteredStacks))
 	for i, entry := range filteredStacks {
 		stacks[i] = entry.Stack.Sortable()
-		reasons[entry.Stack.ID] = entry.Reason
+		reasons[entry.Stack.Dir.String()] = entry.Reason
 	}
 
 	// Apply dependency filters
@@ -127,7 +127,7 @@ func (s *Spec) printStacksList(allStacks []stack.Entry) error {
 			continue
 		}
 		if s.Reason {
-			printer.Stdout.Println(fmt.Sprintf("%s - %s", friendlyDir, reasons[st.ID]))
+			printer.Stdout.Println(fmt.Sprintf("%s - %s", friendlyDir, reasons[dir]))
 		} else {
 			printer.Stdout.Println(friendlyDir)
 		}
