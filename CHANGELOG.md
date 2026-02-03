@@ -20,6 +20,13 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add orchestration metadata fields to `terramate debug show metadata` command output.
+  - The command now displays `before`, `after`, `wants`, and `wanted_by` fields for each stack.
+
 ## 0.15.5
 
 ### Fixed
