@@ -46,6 +46,9 @@ type CLI interface {
 	// Engine returns the engine.
 	// Will only be available for commands that
 	Engine() *engine.Engine
+
+	// Reload reloads the engine config and re-runs post-init hooks.
+	Reload(ctx context.Context) error
 }
 
 // RequirementsList allows to return multiple requirements from Command.Requirements().

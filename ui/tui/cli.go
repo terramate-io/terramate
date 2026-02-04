@@ -215,6 +215,19 @@ func (c *CLI) Engine() *engine.Engine { return c.state.engine }
 // Printers returns the CLI printers.
 func (c *CLI) Printers() printer.Printers { return c.printers }
 
+// Reload reloads the engine configuration and re-runs post-init hooks.
+func (c *CLI) Reload(ctx context.Context) error {
+	if err := c.state.engine.ReloadConfig(); err != nil {
+		return err
+	}
+	for _, hook := range c.postInitEngineHooks {
+		if err := hook(ctx, c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Stdout returns the stdout writer.
 func (c *CLI) Stdout() io.Writer { return c.state.stdout }
 
