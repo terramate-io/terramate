@@ -44,7 +44,7 @@ type CLI interface {
 	Config() cliconfig.Config
 
 	// Engine returns the engine.
-	// Will only be available for commands that have the engine requirement.
+	// Will only be available for commands that have EngineRequirement.
 	Engine() *engine.Engine
 
 	// Reload reloads the engine config and re-runs post-init hooks.

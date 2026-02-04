@@ -217,6 +217,9 @@ func (c *CLI) Printers() printer.Printers { return c.printers }
 
 // Reload reloads the engine configuration and re-runs post-init hooks.
 func (c *CLI) Reload(ctx context.Context) error {
+	if c.state.engine == nil {
+		return errors.E("engine not initialized: Reload requires EngineRequirement")
+	}
 	if err := c.state.engine.ReloadConfig(); err != nil {
 		return err
 	}
