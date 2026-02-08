@@ -6,6 +6,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/terramate-io/terramate/cloud/api/status"
@@ -24,6 +25,11 @@ import (
 	vendordownloadcmd "github.com/terramate-io/terramate/commands/experimental/vendordownload"
 	fmtcmd "github.com/terramate-io/terramate/commands/fmt"
 	gencmd "github.com/terramate-io/terramate/commands/generate"
+	pluginaddcmd "github.com/terramate-io/terramate/commands/plugin/add"
+	pluginexeccmd "github.com/terramate-io/terramate/commands/plugin/execgrpc"
+	pluginlistcmd "github.com/terramate-io/terramate/commands/plugin/list"
+	pluginremovecmd "github.com/terramate-io/terramate/commands/plugin/remove"
+	pluginupdatecmd "github.com/terramate-io/terramate/commands/plugin/update"
 	runcmd "github.com/terramate-io/terramate/commands/run"
 	scriptinfocmd "github.com/terramate-io/terramate/commands/script/info"
 	scriptlistcmd "github.com/terramate-io/terramate/commands/script/list"
@@ -639,6 +645,24 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 			StatusFilters: statusFilters,
 		}, nil
 
+	case "plugin add <plugin>":
+		return &pluginaddcmd.Spec{
+			PluginName: parsedArgs.Plugin.Add.Name,
+			Source:     parsedArgs.Plugin.Add.Source,
+		}, nil
+	case "plugin remove <plugin>":
+		return &pluginremovecmd.Spec{
+			PluginName: parsedArgs.Plugin.Remove.Name,
+		}, nil
+	case "plugin update":
+		return &pluginupdatecmd.Spec{}, nil
+	case "plugin update <plugin>":
+		return &pluginupdatecmd.Spec{
+			PluginName: parsedArgs.Plugin.Update.Name,
+		}, nil
+	case "plugin list":
+		return &pluginlistcmd.Spec{}, nil
+
 	case "experimental run-graph":
 		c.SetCommandAnalytics("graph")
 		return &rungraphcmd.Spec{
@@ -646,8 +670,35 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 			OutputFile: parsedArgs.Experimental.RunGraph.Outfile,
 		}, nil
 	default:
+		if pluginCmd, ok := c.pluginCommand(normalizePluginCommand(command)); ok {
+			kctx := ctx.Value(KongContext).(*kong.Context)
+			args, flags := extractCommandValues(kctx)
+			c.SetCommandAnalytics(pluginCmd.Command)
+			return &pluginexeccmd.Spec{
+				PluginName: pluginCmd.PluginName,
+				BinaryPath: pluginCmd.BinaryPath,
+				Command:    pluginCmd.Command,
+				Args:       args,
+				Flags:      flags,
+			}, nil
+		}
 		return nil, errors.E("unexpected command sequence")
 	}
+}
+
+func normalizePluginCommand(command string) string {
+	if command == "" {
+		return ""
+	}
+	parts := strings.Fields(command)
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if strings.HasPrefix(part, "<") || strings.HasPrefix(part, "[") {
+			continue
+		}
+		out = append(out, part)
+	}
+	return strings.Join(out, " ")
 }
 
 func envVarIsSet(val string) bool {

@@ -132,6 +132,11 @@ func (tm *CLI) SetWorkingDir(dir string) {
 	tm.wd = dir
 }
 
+// UserDir returns the configured user terramate directory.
+func (tm CLI) UserDir() string {
+	return tm.userDir
+}
+
 // PrependToPath prepend the provided directory to the OS's PATH
 // environment variable in a portable way.
 func (tm *CLI) PrependToPath(dir string) {

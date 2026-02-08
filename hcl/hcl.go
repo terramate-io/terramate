@@ -563,32 +563,28 @@ func NewTerramateParser(rootdir string, dir string, opts ...Option) (*TerramateP
 		state:                     initialState,
 	}
 
+	// Always load default block handlers first, then apply options which may
+	// add additional handlers (e.g. from gRPC plugins). This ensures that
+	// core blocks like "globals" are always registered even when plugins
+	// contribute their own block handlers.
+	for _, spec := range DefaultUnmergedBlockParsers() {
+		p.addUnmergedBlockHandler(spec)
+	}
+	for _, spec := range DefaultMergedBlockHandlers() {
+		p.addMergedBlockHandler(spec)
+	}
+	for _, spec := range DefaultMergedLabelsBlockHandlers() {
+		p.addMergedLabelsBlockHandler(spec)
+	}
+	for _, spec := range DefaultUniqueBlockHandlers() {
+		p.addUniqueBlockHandler(spec)
+	}
+
 	for _, opt := range opts {
 		opt(p)
 	}
 
 	p.evalctx = eval.NewContext(stdlib.Functions(dir, p.experiments))
-
-	if len(p.unmergedBlockHandlers) == 0 {
-		for _, spec := range DefaultUnmergedBlockParsers() {
-			p.addUnmergedBlockHandler(spec)
-		}
-	}
-	if len(p.mergedBlockHandlers) == 0 {
-		for _, spec := range DefaultMergedBlockHandlers() {
-			p.addMergedBlockHandler(spec)
-		}
-	}
-	if len(p.mergedLabelsBlockHandlers) == 0 {
-		for _, spec := range DefaultMergedLabelsBlockHandlers() {
-			p.addMergedLabelsBlockHandler(spec)
-		}
-	}
-	if len(p.uniqueBlockHandlers) == 0 {
-		for _, spec := range DefaultUniqueBlockHandlers() {
-			p.addUniqueBlockHandler(spec)
-		}
-	}
 	return p, nil
 }
 

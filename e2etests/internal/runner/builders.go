@@ -69,6 +69,28 @@ func BuildTestHelper(projectRoot, binDir string) (string, error) {
 	return outBinPath, nil
 }
 
+// BuildTestGRPCPlugin builds the gRPC test plugin binary.
+func BuildTestGRPCPlugin(projectRoot, binDir string) (string, error) {
+	goBin, err := lookupGoBin()
+	if err != nil {
+		return "", errors.E("failed to setup e2e tests: %v", err)
+	}
+	outBinPath := filepath.Join(binDir, "grpc-plugin"+platExeSuffix())
+	cmd := exec.Command(
+		goBin,
+		"build",
+		"-buildvcs=false",
+		"-o",
+		outBinPath,
+		path.Join(projectRoot, "e2etests", "cmd", "grpcplugin"),
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to build gRPC test plugin: %v (output: %s)", err, string(out))
+	}
+	return outBinPath, nil
+}
+
 func lookupGoBin() (string, error) {
 	exeSuffix := platExeSuffix()
 	goBin, err := exec.LookPath("go" + exeSuffix)

@@ -4,12 +4,15 @@
 package tui
 
 import (
+	"context"
 	"io"
 
 	"github.com/alecthomas/kong"
 	"github.com/posener/complete"
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/hcl"
+	"github.com/terramate-io/terramate/plugin/extension"
 	"github.com/willabides/kongplete"
 )
 
@@ -119,6 +122,9 @@ func WithSpecHandler(a any, commandSelector CommandSelector, checkers ...RootFla
 			}),
 			kong.Writers(c.state.stdout, c.state.stderr),
 		}
+		if len(c.kongDynamicOptions) > 0 {
+			kongOptions = append(kongOptions, c.kongDynamicOptions...)
+		}
 		parser, err := kong.New(a, kongOptions...)
 
 		c.parser = parser
@@ -173,4 +179,69 @@ func WithPostInitEngineHooks(hooks ...PostInitEngineHook) Option {
 		c.postInitEngineHooks = hooks
 		return nil
 	}
+}
+
+// WithExtension converts a plugin extension into CLI options.
+func WithExtension(ext extension.Extension) []Option {
+	if ext == nil {
+		return nil
+	}
+
+	opts := []Option{}
+
+	if info, ok := ext.(extension.CLIInfo); ok {
+		if product, pretty := info.Product(); product != "" || pretty != "" {
+			opts = append(opts, WithProduct(product, pretty))
+		}
+		if name := info.BinaryName(); name != "" {
+			opts = append(opts, WithBinaryName(name))
+		}
+		if desc := info.Description(); desc != "" {
+			opts = append(opts, WithDescription(desc))
+		}
+	}
+
+	if version := ext.Version(); version != "" {
+		opts = append(opts, WithVersion(version))
+	}
+
+	if hclOpts := ext.HCLOptions(); len(hclOpts) > 0 {
+		opts = append(opts, WithHCLOptions(hclOpts...))
+	}
+
+	spec := ext.FlagSpec()
+	selector := ext.CommandSelector()
+	if spec != nil && selector != nil {
+		opts = append(opts, WithSpecHandler(
+			spec,
+			func(ctx context.Context, c *CLI, command string, flags any) (commands.Command, error) {
+				return selector(ctx, c, command, flags)
+			},
+			DefaultRootFlagHandlers()...,
+		))
+	}
+
+	if handlers := ext.AfterConfigSetup(); len(handlers) > 0 {
+		wrapped := make([]BindingsSetupHandler, 0, len(handlers))
+		for _, handler := range handlers {
+			h := handler
+			wrapped = append(wrapped, func(c *CLI, b *di.Bindings) error {
+				return h(c, b)
+			})
+		}
+		opts = append(opts, WithAfterConfigSetup(wrapped...))
+	}
+
+	if hooks := ext.PostInitEngineHooks(); len(hooks) > 0 {
+		wrapped := make([]PostInitEngineHook, 0, len(hooks))
+		for _, hook := range hooks {
+			h := hook
+			wrapped = append(wrapped, func(ctx context.Context, c *CLI) error {
+				return h(ctx, c)
+			})
+		}
+		opts = append(opts, WithPostInitEngineHooks(wrapped...))
+	}
+
+	return opts
 }

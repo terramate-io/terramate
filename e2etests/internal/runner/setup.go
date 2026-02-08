@@ -39,6 +39,9 @@ var terragruntCleanup func()
 // HelperPath is the path to the test binary we compiled for test purposes
 var HelperPath string
 
+// GRPCPluginPath is the path to the gRPC test plugin binary.
+var GRPCPluginPath string
+
 // HelperPathAsHCL is the path to the test binary but as a safe HCL expression
 // that's valid in all supported OSs.
 var HelperPathAsHCL string
@@ -60,6 +63,12 @@ func Setup(projectRoot string) (err error) {
 		}
 
 		HelperPath, err = BuildTestHelper(projectRoot, toolsetTestPath)
+		if err != nil {
+			err = errors.E(err, "failed to setup e2e tests")
+			return
+		}
+
+		GRPCPluginPath, err = BuildTestGRPCPlugin(projectRoot, toolsetTestPath)
 		if err != nil {
 			err = errors.E(err, "failed to setup e2e tests")
 			return

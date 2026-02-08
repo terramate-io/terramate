@@ -176,6 +176,20 @@ type FlagSpec struct {
 		} `cmd:"" hidden:"" help:"Terramate Cloud commands (DEPRECATED)"`
 	} `cmd:"" help:"Use experimental features."`
 
+	Plugin struct {
+		Add struct {
+			Name   string `arg:"" name:"plugin" help:"Plugin name (optionally name@version)."`
+			Source string `optional:"true" name:"source" short:"s" help:"Install from a local directory containing plugin binaries."`
+		} `cmd:"" help:"Install a plugin."`
+		Remove struct {
+			Name string `arg:"" name:"plugin" help:"Plugin name."`
+		} `cmd:"" help:"Remove an installed plugin."`
+		Update struct {
+			Name string `arg:"" optional:"true" name:"plugin" help:"Plugin name."`
+		} `cmd:"" help:"Update an installed plugin."`
+		List struct{} `cmd:"" help:"List installed plugins."`
+	} `cmd:"" help:"Manage Terramate plugins."`
+
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions."`
 
 	Version struct {

@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/terramate-io/terramate/engine"
+	pb "github.com/terramate-io/terramate/plugin/proto/v1"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/ui/tui/cliconfig"
 )
@@ -50,6 +51,9 @@ type CLI interface {
 	// Reload reloads the engine config and re-runs post-init hooks.
 	// Must only be called by commands that have the engine requirement.
 	Reload(ctx context.Context) error
+
+	// ShowForm renders a form and returns the collected values.
+	ShowForm(ctx context.Context, req *pb.FormRequest) (*pb.FormResponse, error)
 }
 
 // RequirementsList allows to return multiple requirements from Command.Requirements().

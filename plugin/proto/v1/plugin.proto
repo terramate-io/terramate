@@ -1,0 +1,339 @@
+// Copyright 2026 Google LLC
+// SPDX-License-Identifier: MPL-2.0
+
+syntax = "proto3";
+
+package terramate.plugin.v1;
+
+option go_package = "github.com/terramate-io/terramate/plugin/proto/v1";
+
+service PluginService {
+  rpc GetPluginInfo(Empty) returns (PluginInfo);
+  rpc GetCapabilities(Empty) returns (Capabilities);
+  rpc Shutdown(Empty) returns (Empty);
+}
+
+message Empty {}
+
+message PluginInfo {
+  string name = 1;
+  string version = 2;
+  string product_name = 3;
+  string product_pretty_name = 4;
+  string description = 5;
+  string compatible_with = 6;
+}
+
+message Capabilities {
+  bool has_commands = 1;
+  bool has_hcl_schema = 2;
+  bool has_post_init_hooks = 3;
+  bool has_generate_override = 4;
+}
+
+service CommandService {
+  rpc GetCommands(Empty) returns (CommandList);
+  rpc ExecuteCommand(CommandRequest) returns (stream CommandOutput);
+  rpc ExecuteCommandWithInput(stream CommandInput) returns (stream CommandOutput);
+}
+
+message CommandSpec {
+  string name = 1;
+  string help = 2;
+  repeated CommandArg args = 3;
+  repeated CommandFlag flags = 4;
+  repeated CommandSpec subcommands = 5;
+}
+
+message CommandArg {
+  string name = 1;
+  string help = 2;
+  bool required = 3;
+}
+
+message CommandFlag {
+  string name = 1;
+  string short = 2;
+  string help = 3;
+  string default_value = 4;
+  string type = 5;
+  repeated string enum_values = 6;
+}
+
+message CommandList {
+  repeated CommandSpec commands = 1;
+}
+
+message CommandRequest {
+  string command = 1;
+  map<string, string> args = 2;
+  map<string, string> flags = 3;
+  string working_dir = 4;
+  string root_dir = 5;
+}
+
+message CommandInput {
+  oneof input {
+    CommandRequest request = 1;
+    bytes stdin = 2;
+    bool stdin_close = 3;
+    FormResponse form_response = 4;
+  }
+}
+
+message CommandOutput {
+  oneof output {
+    bytes stdout = 1;
+    bytes stderr = 2;
+    int32 exit_code = 3;
+    FileWrite file_write = 4;
+    FormRequest form_request = 5;
+  }
+}
+
+message FileWrite {
+  string path = 1;
+  bytes content = 2;
+  uint32 mode = 3;
+}
+
+message FormRequest {
+  string id = 1;
+  string title = 2;
+  repeated FormField fields = 3;
+}
+
+message FormField {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  bool required = 4;
+  string default_value = 5;
+  string placeholder = 6;
+  oneof field_type {
+    SelectFormField select = 10;
+    MultiSelectFormField multi_select = 11;
+    TextInputFormField text_input = 12;
+    TextAreaFormField text_area = 13;
+    ConfirmFormField confirm = 14;
+  }
+}
+
+message SelectFormField {
+  repeated FormOption options = 1;
+}
+
+message MultiSelectFormField {
+  repeated FormOption options = 1;
+}
+
+message FormOption {
+  string label = 1;
+  string value = 2;
+}
+
+message TextInputFormField {}
+
+message TextAreaFormField {}
+
+message ConfirmFormField {
+  string affirmative = 1;
+  string negative = 2;
+}
+
+message FormResponse {
+  string id = 1;
+  map<string, string> values = 2;
+  bool cancelled = 3;
+}
+
+service HCLSchemaService {
+  rpc GetHCLSchema(Empty) returns (HCLSchemaList);
+  rpc ProcessParsedBlocks(ParsedBlocksRequest) returns (ParsedBlocksResponse);
+}
+
+service LifecycleService {
+  rpc PostInit(PostInitRequest) returns (PostInitResponse);
+}
+
+service GenerateService {
+  rpc Generate(GenerateRequest) returns (stream GenerateOutput);
+}
+
+message HCLSchemaList {
+  repeated HCLBlockSchema blocks = 1;
+}
+
+message HCLBlockSchema {
+  string name = 1;
+  BlockKind kind = 2;
+  int32 label_count = 3;
+  repeated HCLAttributeSchema attributes = 4;
+  repeated HCLBlockSchema nested_blocks = 5;
+}
+
+enum BlockKind {
+  BLOCK_UNMERGED = 0;
+  BLOCK_MERGED = 1;
+  BLOCK_MERGED_LABELS = 2;
+  BLOCK_UNIQUE = 3;
+}
+
+message HCLAttributeSchema {
+  string name = 1;
+  string type = 2;
+  bool required = 3;
+}
+
+message ParsedBlocksRequest {
+  string block_type = 1;
+  repeated ParsedBlock blocks = 2;
+}
+
+message ParsedBlock {
+  string file_path = 1;
+  repeated string labels = 2;
+  map<string, AttributeValue> attributes = 3;
+  repeated ParsedBlock nested_blocks = 4;
+  string raw_hcl = 5;
+  string block_type = 6;
+}
+
+message AttributeValue {
+  oneof value {
+    string string_value = 1;
+    int64 int_value = 2;
+    double float_value = 3;
+    bool bool_value = 4;
+    string expression_text = 5;
+    bytes json_value = 6;
+  }
+}
+
+message ParsedBlocksResponse {
+  repeated Diagnostic diagnostics = 1;
+  bytes plugin_data = 2;
+}
+
+message PostInitRequest {
+  string root_dir = 1;
+}
+
+message PostInitResponse {
+  repeated Diagnostic diagnostics = 1;
+  repeated StackMetadataUpdate stack_updates = 2;
+  repeated ConfigPatch config_patches = 3;
+}
+
+message StackMetadataUpdate {
+  string path = 1;
+  StackMetadata metadata = 2;
+  bool merge = 3;
+}
+
+message ConfigPatch {
+  string path = 1;
+  bytes plugin_data = 2;
+}
+
+message GenerateRequest {
+  string root_dir = 1;
+  repeated string stacks = 2;
+  bool detailed_exit_code = 3;
+}
+
+message GenerateOutput {
+  oneof output {
+    bytes stdout = 1;
+    bytes stderr = 2;
+    int32 exit_code = 3;
+    FileWrite file_write = 4;
+  }
+}
+
+message Diagnostic {
+  enum Severity {
+    ERROR = 0;
+    WARNING = 1;
+  }
+  Severity severity = 1;
+  string summary = 2;
+  string detail = 3;
+  string file = 4;
+  int32 line = 5;
+  int32 column = 6;
+}
+
+service HostService {
+  rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+  rpc WriteFile(WriteFileRequest) returns (Empty);
+  rpc WalkDir(WalkDirRequest) returns (stream DirEntry);
+
+  rpc GetConfigTree(GetConfigTreeRequest) returns (ConfigTreeNode);
+  rpc GetStackMetadata(GetStackRequest) returns (StackMetadata);
+  rpc SetStackMetadata(SetStackRequest) returns (Empty);
+
+  rpc GetRootDir(Empty) returns (StringValue);
+  rpc GetUserTerramateDir(Empty) returns (StringValue);
+}
+
+message StringValue {
+  string value = 1;
+}
+
+message ReadFileRequest {
+  string path = 1;
+}
+
+message ReadFileResponse {
+  bytes content = 1;
+}
+
+message WriteFileRequest {
+  string path = 1;
+  bytes content = 2;
+  uint32 mode = 3;
+}
+
+message WalkDirRequest {
+  string root = 1;
+  string pattern = 2;
+}
+
+message DirEntry {
+  string path = 1;
+  bool is_dir = 2;
+}
+
+message GetConfigTreeRequest {
+  string path = 1;
+}
+
+message ConfigTreeNode {
+  string dir = 1;
+  bool is_stack = 2;
+  StackMetadata stack = 3;
+  map<string, string> attributes = 4;
+  bytes plugin_data = 5;
+}
+
+message GetStackRequest {
+  string path = 1;
+}
+
+message SetStackRequest {
+  string path = 1;
+  StackMetadata metadata = 2;
+  bool merge = 3;
+}
+
+message StackMetadata {
+  string name = 1;
+  string description = 2;
+  repeated string tags = 3;
+  repeated string after = 4;
+  repeated string before = 5;
+  repeated string wants = 6;
+  repeated string wanted_by = 7;
+  repeated string watch = 8;
+}

@@ -5,34 +5,39 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net"
+	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/rs/zerolog/log"
-
-	"os"
 	"time"
 
 	_ "embed"
 
 	"github.com/alecthomas/kong"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/go-checkpoint"
 	"github.com/terramate-io/terramate"
 	"github.com/terramate-io/terramate/commands"
 	reqvercmd "github.com/terramate-io/terramate/commands/requiredversion"
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
+	plugingrpc "github.com/terramate-io/terramate/plugin/grpc"
+	pb "github.com/terramate-io/terramate/plugin/proto/v1"
 	"github.com/terramate-io/terramate/printer"
+	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/ui/tui/cliauth"
 	"github.com/terramate-io/terramate/ui/tui/cliconfig"
 	"github.com/terramate-io/terramate/ui/tui/out"
+	"google.golang.org/grpc"
 
 	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
 )
@@ -56,20 +61,26 @@ type CLI struct {
 	kongExitStatus int
 
 	// The CLI engine works with any spec.
-	input            any
-	parser           *kong.Kong
-	rootFlagCheckers []RootFlagHandlers
-	hclOptions       []hcl.Option
+	input              any
+	parser             *kong.Kong
+	rootFlagCheckers   []RootFlagHandlers
+	hclOptions         []hcl.Option
+	kongDynamicOptions []kong.Option
 
 	checkpointResponse chan *checkpoint.CheckResponse
 
 	commandSelector CommandSelector
+	pluginCommands  map[string]PluginCommand
 
 	bindings                  *di.Bindings
 	beforeConfigSetupHandlers []BindingsSetupHandler
 	afterConfigSetupHandlers  []BindingsSetupHandler
 
 	postInitEngineHooks []PostInitEngineHook
+
+	// host service server for plugins
+	hostService     *plugingrpc.HostService
+	hostServiceStop func()
 }
 
 // CommandSelector is a function that handles command selection.
@@ -239,6 +250,11 @@ func (c *CLI) Stderr() io.Writer { return c.state.stderr }
 
 // Stdin returns the stdout writer.
 func (c *CLI) Stdin() io.Reader { return c.state.stdin }
+
+// ShowForm renders a form and returns the collected values.
+func (c *CLI) ShowForm(context.Context, *pb.FormRequest) (*pb.FormResponse, error) {
+	return nil, errors.E("form rendering is only supported for plugin commands")
+}
 
 func (c *CLI) initLogging(parsedArgs *FlagSpec) error {
 	// Called again with parsed parameters.
@@ -499,6 +515,9 @@ func (c *CLI) Exec(args []string) {
 	mustSucceed(c.initLogging(parsedArgs))
 	mustSucceed(c.loadUserConfig(parsedArgs))
 
+	// Start host service server before config parsing so plugins can access it during parsing.
+	mustSucceed(c.startHostService())
+
 	c.initCheckpoint()
 
 	// Select the command handler.
@@ -510,6 +529,10 @@ func (c *CLI) Exec(args []string) {
 
 		// Init the engine, this includes loading the config tree.
 		mustSucceed(c.initEngine(req))
+
+		// Update host service with the loaded root configuration.
+		c.updateHostServiceRoot()
+		mustSucceed(c.runPostInitPlugins(ctx))
 
 		mustSucceed(c.checkEngineInvariants(parsedArgs))
 
@@ -536,6 +559,9 @@ func (c *CLI) Exec(args []string) {
 		defer c.sendAndWaitForAnalytics()
 	}
 
+	// Ensure host service is stopped when CLI exits.
+	defer c.stopHostService()
+
 	// Invoke the command handler at last.
 	mustSucceed(cmd.Exec(ctx, c))
 }
@@ -546,6 +572,216 @@ func (c *CLI) SetCommandAnalytics(cmd string, opts ...tel.MessageOpt) {
 	allOpts = append(allOpts, opts...)
 
 	tel.DefaultRecord.Set(allOpts...)
+}
+
+func (c *CLI) startHostService() error {
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return errors.E(err, "failed to start host service listener")
+	}
+
+	server := grpc.NewServer()
+	c.hostService = plugingrpc.NewHostService(nil, c.clicfg.UserTerramateDir)
+	pb.RegisterHostServiceServer(server, c.hostService)
+
+	go func() {
+		_ = server.Serve(lis)
+	}()
+
+	addr := lis.Addr().String()
+	if err := os.Setenv(plugingrpc.HostAddrEnv, addr); err != nil {
+		server.Stop()
+		_ = lis.Close()
+		return errors.E(err, "failed to set %s environment variable", plugingrpc.HostAddrEnv)
+	}
+
+	c.hostServiceStop = func() {
+		server.Stop()
+		_ = lis.Close()
+	}
+
+	return nil
+}
+
+func (c *CLI) stopHostService() {
+	if c.hostServiceStop != nil {
+		c.hostServiceStop()
+		c.hostServiceStop = nil
+	}
+	c.hostService = nil
+}
+
+func (c *CLI) updateHostServiceRoot() {
+	if c.hostService == nil || c.state.engine == nil {
+		return
+	}
+	c.hostService.SetRoot(c.state.engine.Config())
+}
+
+func (c *CLI) runPostInitPlugins(ctx context.Context) error {
+	if isEnvVarSet(os.Getenv("TM_DISABLE_GRPC_PLUGINS")) {
+		return nil
+	}
+	if c.state.engine == nil {
+		return nil
+	}
+	logger := log.With().Str("action", "post-init-plugins").Logger()
+	const postInitTimeout = 1 * time.Minute
+	installed, err := plugingrpc.DiscoverInstalled(c.clicfg.UserTerramateDir)
+	if err != nil {
+		return err
+	}
+	for _, plg := range installed {
+		pluginCtx, cancel := context.WithTimeout(ctx, postInitTimeout)
+		client, err := plugingrpc.NewHostClient(plg.BinaryPath)
+		if err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("failed to start plugin")
+			cancel()
+			continue
+		}
+		grpcClient := client.Client()
+		caps, err := grpcClient.PluginService.GetCapabilities(pluginCtx, &pb.Empty{})
+		if err != nil {
+			client.Kill()
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("failed to fetch plugin capabilities")
+			cancel()
+			continue
+		}
+		if caps == nil || !caps.HasPostInitHooks {
+			client.Kill()
+			cancel()
+			continue
+		}
+		resp, err := grpcClient.LifecycleService.PostInit(pluginCtx, &pb.PostInitRequest{
+			RootDir: c.state.engine.Config().HostDir(),
+		})
+		client.Kill()
+		cancel()
+		if err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("post-init hook failed")
+			continue
+		}
+		if err := plugingrpc.DiagnosticsError(resp.Diagnostics); err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("post-init diagnostics error")
+			continue
+		}
+		if err := c.applyStackUpdates(ctx, resp.StackUpdates); err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("post-init stack update failed")
+			continue
+		}
+		if err := c.applyConfigPatches(plg.Manifest.Name, resp.ConfigPatches); err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("post-init config patch failed")
+			continue
+		}
+	}
+	return nil
+}
+
+func isEnvVarSet(val string) bool {
+	return val != "" && val != "0" && val != "false"
+}
+
+func (c *CLI) applyStackUpdates(ctx context.Context, updates []*pb.StackMetadataUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	if c.hostService == nil {
+		return errors.E(errors.ErrInternal, "host service is not initialized")
+	}
+	for _, update := range updates {
+		if update == nil {
+			continue
+		}
+		_, err := c.hostService.SetStackMetadata(ctx, &pb.SetStackRequest{
+			Path:     update.Path,
+			Metadata: update.Metadata,
+			Merge:    update.Merge,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *CLI) applyConfigPatches(pluginName string, patches []*pb.ConfigPatch) error {
+	if len(patches) == 0 {
+		return nil
+	}
+	root := c.state.engine.Config()
+	for _, patch := range patches {
+		if patch == nil || len(patch.PluginData) == 0 {
+			continue
+		}
+		if err := c.applyConfigPatch(root, pluginName, patch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *CLI) applyConfigPatch(root *config.Root, pluginName string, patch *pb.ConfigPatch) error {
+	if patch.Path == "" {
+		return errors.E(errors.ErrInternal, "config patch path is required")
+	}
+	prjPath, err := toProjectPath(root.HostDir(), patch.Path)
+	if err != nil {
+		return err
+	}
+	node, found := root.Lookup(prjPath)
+	if !found {
+		return errors.E(errors.ErrInternal, "config path not found: %s", patch.Path)
+	}
+
+	ext := node.Node.External
+	if ext == nil {
+		ext = &plugingrpc.HCLExternalData{Plugins: map[string]map[string][][]byte{}}
+		node.Node.External = ext
+	}
+	typed, ok := ext.(*plugingrpc.HCLExternalData)
+	if !ok {
+		return errors.E(errors.ErrInternal, "unexpected external data type %T", ext)
+	}
+	if typed.Plugins == nil {
+		typed.Plugins = map[string]map[string][][]byte{}
+	}
+	if typed.Plugins[pluginName] == nil {
+		typed.Plugins[pluginName] = map[string][][]byte{}
+	}
+	blockType := "post_init"
+	if bt := pluginDataBlockType(patch.PluginData); bt != "" {
+		blockType = bt
+	}
+	typed.Plugins[pluginName][blockType] = append(typed.Plugins[pluginName][blockType], patch.PluginData)
+	return nil
+}
+
+func pluginDataBlockType(data []byte) string {
+	if len(data) == 0 {
+		return ""
+	}
+	var payload struct {
+		BlockType string `json:"block_type"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return ""
+	}
+	return payload.BlockType
+}
+
+func toProjectPath(rootDir string, path string) (project.Path, error) {
+	if path == "" || path == "/" {
+		return project.NewPath("/"), nil
+	}
+	// Distinguish between absolute filesystem paths (which start with rootDir)
+	// and project-relative paths (which start with "/" but are not under rootDir).
+	if filepath.IsAbs(path) && strings.HasPrefix(path, rootDir) {
+		return project.PrjAbsPath(rootDir, path), nil
+	}
+	if strings.HasPrefix(path, "/") {
+		return project.NewPath(path), nil
+	}
+	return project.NewPath("/" + filepath.ToSlash(path)), nil
 }
 
 func (c *CLI) setProjectAnalytics() {

@@ -3319,6 +3319,11 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 			gotenv = append(gotenv[:i], gotenv[i+1:]...)
 		}
 	}
+	for i, e := range gotenv {
+		if strings.HasPrefix(e, "TM_PLUGIN_HOST_ADDR=") {
+			gotenv = append(gotenv[:i], gotenv[i+1:]...)
+		}
+	}
 
 	sort.Strings(gotenv)
 	sort.Strings(wantenv)

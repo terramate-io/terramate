@@ -7,9 +7,11 @@ package generate
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/commands"
@@ -21,6 +23,8 @@ import (
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/modvendor/download"
+	plugingrpc "github.com/terramate-io/terramate/plugin/grpc"
+	pb "github.com/terramate-io/terramate/plugin/proto/v1"
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 )
@@ -55,6 +59,14 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 	logger := log.With().
 		Str("action", "commands/generate").
 		Logger()
+
+	usedOverride, err := s.execGenerateOverride(ctx, cli)
+	if err != nil {
+		return err
+	}
+	if usedOverride {
+		return nil
+	}
 
 	vendorProgressEvents := download.NewEventStream()
 
@@ -141,6 +153,116 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 		return errors.E(exit.Failed)
 	}
 	return nil
+}
+
+func (s *Spec) execGenerateOverride(ctx context.Context, cli commands.CLI) (bool, error) {
+	if val := os.Getenv("TM_DISABLE_GRPC_PLUGINS"); val != "" && val != "0" && val != "false" {
+		return false, nil
+	}
+	userDir := cli.Config().UserTerramateDir
+	if userDir == "" {
+		return false, nil
+	}
+	logger := log.With().Str("action", "commands/generate/override").Logger()
+	const generateTimeout = 15 * time.Minute
+
+	installed, err := plugingrpc.DiscoverInstalled(userDir)
+	if err != nil {
+		return false, err
+	}
+	for _, plg := range installed {
+		pluginCtx, cancel := context.WithTimeout(ctx, generateTimeout)
+		client, err := plugingrpc.NewHostClient(plg.BinaryPath)
+		if err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("failed to start plugin")
+			cancel()
+			continue
+		}
+		grpcClient := client.Client()
+		caps, err := grpcClient.PluginService.GetCapabilities(pluginCtx, &pb.Empty{})
+		if err != nil {
+			client.Kill()
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("failed to fetch plugin capabilities")
+			cancel()
+			continue
+		}
+		if caps == nil || !caps.HasGenerateOverride {
+			client.Kill()
+			cancel()
+			continue
+		}
+		req := &pb.GenerateRequest{
+			RootDir:          s.engine.Config().HostDir(),
+			DetailedExitCode: s.DetailedExitCode,
+		}
+		stream, err := grpcClient.GenerateService.Generate(pluginCtx, req)
+		if err != nil {
+			client.Kill()
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("generate override failed to start")
+			cancel()
+			continue
+		}
+		exitCode, err := s.consumeGenerateStream(stream, req.RootDir)
+		client.Kill()
+		cancel()
+		if err != nil {
+			logger.Error().Err(err).Str("plugin", plg.Manifest.Name).Msg("generate override failed")
+			continue
+		}
+		if exitCode != 0 {
+			return true, errors.E(exit.Status(exitCode))
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *Spec) consumeGenerateStream(stream pb.GenerateService_GenerateClient, rootDir string) (int32, error) {
+	var exitCode int32
+	for {
+		output, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return exitCode, err
+		}
+		switch msg := output.Output.(type) {
+		case *pb.GenerateOutput_Stdout:
+			if len(msg.Stdout) > 0 {
+				_, _ = s.printers.Stdout.Write(msg.Stdout)
+			}
+		case *pb.GenerateOutput_Stderr:
+			if len(msg.Stderr) > 0 {
+				_, _ = s.printers.Stderr.Write(msg.Stderr)
+			}
+		case *pb.GenerateOutput_FileWrite:
+			if err := s.writeGenerateFile(rootDir, msg.FileWrite); err != nil {
+				return exitCode, err
+			}
+		case *pb.GenerateOutput_ExitCode:
+			exitCode = msg.ExitCode
+		}
+	}
+	return exitCode, nil
+}
+
+func (s *Spec) writeGenerateFile(rootDir string, file *pb.FileWrite) error {
+	if file == nil || file.Path == "" {
+		return nil
+	}
+	target := file.Path
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(rootDir, target)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	mode := os.FileMode(file.Mode)
+	if mode == 0 {
+		mode = 0o644
+	}
+	return os.WriteFile(target, file.Content, mode)
 }
 
 func (s *Spec) vendorDir() (project.Path, error) {

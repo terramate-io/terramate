@@ -1,0 +1,9 @@
+// Copyright 2026 Google LLC
+// SPDX-License-Identifier: MPL-2.0
+
+stack {
+  name        = "package plugin // import \"github.com/terramate-io/terramate/plugin\""
+  description = "package plugin // import \"github.com/terramate-io/terramate/plugin\"\n\nPackage plugin provides plugin installation helpers.\n\nfunc DefaultUserTerramateDir() (string, error)\nfunc IsCompatible(baseVersion, compatibleWith string) (bool, error)\nfunc ManifestPath(pluginDir string) string\nfunc ParseNameVersion(value string) (string, string)\nfunc PluginDir(userTerramateDir, name string) string\nfunc PluginsDir(userTerramateDir string) string\nfunc Remove(userTerramateDir, name string) error\nfunc ResolveUserTerramateDir() (string, error)\nfunc SaveManifest(pluginDir string, m Manifest) error\nfunc VerifySHA256(path, expected string) error\nfunc VerifySignature(binaryPath, signaturePath, publicKeyPath string) error\ntype Binary struct{ ... }\ntype BinaryKind string\n    const BinaryCLI BinaryKind = \"cli\" ...\ntype InstallOptions struct{ ... }\ntype Manifest struct{ ... }\n    func Install(ctx context.Context, name string, opts InstallOptions) (Manifest, error)\n    func InstallFromLocal(_ context.Context, name string, opts InstallOptions) (Manifest, error)\n    func ListInstalled(userTerramateDir string) ([]Manifest, error)\n    func LoadManifest(pluginDir string) (Manifest, error)\ntype Protocol string\n    const ProtocolGRPC Protocol = \"grpc\"\ntype RegistryAsset struct{ ... }\ntype RegistryBinary struct{ ... }\ntype RegistryClient struct{ ... }\n    func NewRegistryClient(baseURL string) *RegistryClient\ntype RegistryIndex struct{ ... }\ntype RegistryVersion struct{ ... }\ntype Type string\n    const TypeGRPC Type = \"grpc\""
+  tags        = ["golang", "plugin"]
+  id          = "964560b7-205d-48fb-9683-990f67158750"
+}
