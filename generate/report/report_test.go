@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/generate/report"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
 )
 
@@ -17,7 +17,7 @@ func TestReportFull(t *testing.T) {
 
 	type testcase struct {
 		name        string
-		report      report.Report
+		report      genreport.Report
 		wantFull    string
 		wantMinimal string
 	}
@@ -25,13 +25,13 @@ func TestReportFull(t *testing.T) {
 	tcases := []testcase{
 		{
 			name:        "empty report",
-			report:      report.Report{},
+			report:      genreport.Report{},
 			wantFull:    "Nothing to do, generated code is up to date",
 			wantMinimal: "",
 		},
 		{
 			name: "with bootstrap err",
-			report: report.Report{
+			report: genreport.Report{
 				BootstrapErr: errors.E("such fail, much terrible"),
 			},
 			wantFull: `Fatal failure preparing for code generation.
@@ -41,15 +41,15 @@ Error details: such fail, much terrible`,
 		},
 		{
 			name: "with bootstrap err results are ignored (should have none)",
-			report: report.Report{
+			report: genreport.Report{
 				BootstrapErr: errors.E("ignore"),
-				Successes: []report.Result{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/test"),
 						Created: []string{"test"},
 					},
 				},
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
 						Error: errors.E("ignored"),
 					},
@@ -62,8 +62,8 @@ Error details: ignore`,
 		},
 		{
 			name: "success results",
-			report: report.Report{
-				Successes: []report.Result{
+			report: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/test"),
 						Created: []string{"test"},
@@ -118,16 +118,16 @@ Deleted file /test4/removed2.tf`,
 		},
 		{
 			name: "failure results",
-			report: report.Report{
-				Failures: []report.FailureResult{
+			report: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/test"),
 						},
 						Error: errors.E("full error"),
 					},
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir:     project.NewPath("/test2"),
 							Created: []string{"created1.tf", "created2.tf"},
 							Changed: []string{"changed.tf", "changed2.tf"},
@@ -165,8 +165,8 @@ Deleted file /test2/removed2.tf`,
 		},
 		{
 			name: "partial result",
-			report: report.Report{
-				Successes: []report.Result{
+			report: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/success"),
 						Created: []string{"created.tf"},
@@ -180,15 +180,15 @@ Deleted file /test2/removed2.tf`,
 						Deleted: []string{"removed.tf"},
 					},
 				},
-				Failures: []report.FailureResult{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/failed"),
 						},
 						Error: errors.E("error"),
 					},
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/failed2"),
 						},
 						Error: errors.E("error"),
@@ -229,22 +229,22 @@ Error on /failed2: error`,
 		},
 		{
 			name: "error result is a list",
-			report: report.Report{
-				Failures: []report.FailureResult{
+			report: genreport.Report{
+				Failures: []genreport.FailureResult{
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/empty"),
 						},
 						Error: errors.L(),
 					},
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/failed"),
 						},
 						Error: errors.L(errors.E("error")),
 					},
 					{
-						Result: report.Result{
+						Result: genreport.Result{
 							Dir: project.NewPath("/failed2"),
 						},
 						Error: errors.L(
@@ -274,8 +274,8 @@ Error on /failed2: error2`,
 		},
 		{
 			name: "cleanup error result",
-			report: report.Report{
-				Successes: []report.Result{
+			report: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir:     project.NewPath("/success"),
 						Created: []string{"created.tf"},

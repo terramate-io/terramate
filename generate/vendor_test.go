@@ -8,12 +8,14 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/event"
-	"github.com/terramate-io/terramate/generate/report"
+	genreport "github.com/terramate-io/terramate/generate/report"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
-	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+
 	"github.com/terramate-io/terramate/test/sandbox"
 	"github.com/terramate-io/terramate/tf"
+
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateVendor(t *testing.T) {
@@ -82,8 +84,8 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 			},
-			wantReport: report.Report{
-				Successes: []report.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
@@ -167,8 +169,8 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 			},
-			wantReport: report.Report{
-				Successes: []report.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/"),
 						Created: []string{
@@ -230,8 +232,8 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 			},
-			wantReport: report.Report{
-				Successes: []report.Result{
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
 					{
 						Dir: project.NewPath("/stack"),
 						Created: []string{
@@ -293,11 +295,10 @@ func TestGenerateVendorRequestEvents(t *testing.T) {
 
 	t.Log("generating code")
 
-	generateAPI := newGenerateAPIForTest(t)
+	generateAPI := newGenerateAPIForTest(t, &s)
+	r := generateAPI.Do(s.Config(), project.NewPath("/"), 0, vendorDir, events)
 
-	report := generateAPI.Do(s.Config(), project.NewPath("/"), 0, vendorDir, events)
-
-	t.Logf("generation report: %s", report.Full())
+	t.Logf("generation report: %s", r.Full())
 
 	close(events)
 

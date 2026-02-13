@@ -28,7 +28,7 @@ func testEngine(t *testing.T, rootdir string) *engine.Engine {
 		Stdout: printer.NewPrinter(io.Discard),
 		Stderr: printer.NewPrinter(io.Discard),
 	}
-	e, found, err := engine.Load(rootdir, false, cliconfig.Config{}, engine.HumanMode, printers, 0)
+	e, found, err := engine.Load(t.Context(), rootdir, false, cliconfig.Config{}, engine.HumanMode, printers, 0)
 	assert.NoError(t, err)
 	assert.IsTrue(t, found, "project not found")
 	return e

@@ -978,7 +978,7 @@ func testGenfile(t *testing.T, tcase testcase) {
 		globals := s.LoadStackGlobals(root, st)
 		vendorDir := project.NewPath("/modules")
 		evalctx := stack.NewEvalCtx(root, st, globals)
-		got, err := genfile.Load(root, st, evalctx.Context, vendorDir, nil)
+		got, err := genfile.Load(root, st, evalctx.Context, vendorDir, nil, nil, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

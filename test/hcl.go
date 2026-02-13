@@ -21,6 +21,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/terramate-io/terramate/project"
 	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
 )
 
@@ -83,6 +84,7 @@ func AssertTerramateConfig(t *testing.T, got, want *hcl.Config) {
 	if diff := cmp.Diff(got, want,
 		cmpopts.IgnoreUnexported(hcl.Config{}),
 		cmpopts.IgnoreUnexported(project.Path{}),
+		cmpopts.IgnoreUnexported(cty.Value{}),
 
 		// this contains the Raw HCL constructs and it was never tested here.
 		cmpopts.IgnoreFields(hcl.Config{}, "Imported"),
@@ -91,6 +93,27 @@ func AssertTerramateConfig(t *testing.T, got, want *hcl.Config) {
 		cmpopts.IgnoreFields(hcl.Config{}, "Globals", "Asserts", "Scripts", "Inputs", "Outputs"),
 		cmpopts.IgnoreFields(hcl.RunEnv{}, "Attributes"), // because Expr and Range
 		cmpopts.IgnoreFields(hcl.Config{}, "Generate"),
+
+		// HCL attributes contain Expr (expressions) and Range fields that cannot
+		// be meaningfully compared with cmp.Diff (expressions contain cty.Value
+		// with unexported fields). We only care about attribute Name matching.
+		cmpopts.IgnoreFields(hhcl.Attribute{}, "Expr"),
+
+		// hhcl.Range has exported fields (Filename, Start, End) that differ
+		// between hand-crafted expected configs and parsed configs. Since ranges
+		// are not meaningful to compare in these tests, ignore them.
+		cmpopts.IgnoreTypes(hhcl.Range{}),
+		cmpopts.IgnoreTypes(info.Range{}),
+
+		cmpopts.SortSlices(func(a, b *hcl.DefineSchema) bool {
+			return a.Name < b.Name
+		}),
+		cmpopts.SortSlices(func(a, b *hcl.DefineObjectAttribute) bool {
+			return a.Name < b.Name
+		}),
+		cmpopts.SortSlices(func(a, b *hcl.BundleEnvValues) bool {
+			return a.EnvID.Name < b.EnvID.Name
+		}),
 	); diff != "" {
 		t.Logf("want: %+v", want)
 		t.Logf("got: %+v", got)

@@ -10,19 +10,19 @@ import (
 	"sort"
 
 	"github.com/gobwas/glob"
+	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
-	"github.com/terramate-io/terramate/stdlib"
-	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
-
-	"github.com/rs/zerolog/log"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/terramate-io/terramate/stdlib"
+	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
 )
 
 const (
@@ -131,15 +131,31 @@ func (f File) String() string {
 func Load(
 	root *config.Root,
 	st *config.Stack,
-	parentctx *eval.Context,
+	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
+	bundles []*config.Bundle,
+	env *config.Environment,
 ) ([]File, error) {
 	genFileBlocks, err := loadGenFileBlocks(root, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
+	return EvalBlocks(root, genFileBlocks, st, evalctx, vendorDir, vendorRequests, bundles, env, false)
+}
 
+// EvalBlocks evaluates the generate_file blocks and returns the File structs.
+func EvalBlocks(
+	root *config.Root,
+	genFileBlocks []hcl.GenFileBlock,
+	st *config.Stack,
+	evalctx *eval.Context,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+	bundles []*config.Bundle,
+	env *config.Environment,
+	isFromComponent bool,
+) ([]File, error) {
 	var files []File
 
 	hasBlocksWithRootContext := false
@@ -185,12 +201,14 @@ func Load(
 			st.Dir.String(),
 			path.Dir(name)))
 
-		evalctx := parentctx.Copy()
+		evalctx := evalctx.Copy()
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
+		evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(bundles, env))
+		evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(bundles, env))
 
 		dircfg, _ := root.Lookup(st.Dir)
-		file, skip, err := Eval(genFileBlock, dircfg, evalctx)
+		file, skip, err := Eval(genFileBlock, dircfg, evalctx, isFromComponent)
 		if err != nil {
 			return nil, err
 		}
@@ -212,7 +230,7 @@ func Load(
 }
 
 // Eval the generate_file block.
-func Eval(block hcl.GenFileBlock, cfg *config.Tree, evalctx *eval.Context) (file File, skip bool, err error) {
+func Eval(block hcl.GenFileBlock, cfg *config.Tree, evalctx *eval.Context, isFromComponent bool) (file File, skip bool, err error) {
 	name := block.Label
 	err = lets.Load(block.Lets, evalctx)
 	if err != nil {
@@ -260,9 +278,13 @@ func Eval(block hcl.GenFileBlock, cfg *config.Tree, evalctx *eval.Context) (file
 		}
 
 		inherit = value.True()
+
+		if inherit && isFromComponent {
+			return File{}, false, errors.E(ErrInheritEval, `"inherit = true" is not supported within a component definition`)
+		}
 	}
 
-	if !inherit && block.Dir != cfg.Dir() {
+	if !isFromComponent && !inherit && block.Dir != cfg.Dir() {
 		// ignore non-inheritable block
 		return File{}, true, nil
 	}

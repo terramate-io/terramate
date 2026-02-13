@@ -17,6 +17,8 @@ require (
 	github.com/google/go-github/v58 v58.0.0
 	github.com/gruntwork-io/go-commons v0.17.2
 	github.com/gruntwork-io/terragrunt v0.82.0
+	github.com/hashicorp/go-getter v1.7.9
+	github.com/hashicorp/go-set/v3 v3.0.1
 	github.com/hashicorp/go-version v1.7.0
 	github.com/hashicorp/hc-install v0.6.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
@@ -36,6 +38,7 @@ require (
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/protocol v0.12.0
 	go.lsp.dev/uri v0.3.0
+	go.yaml.in/yaml/v4 v4.0.0-rc.2
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.18.0
@@ -130,7 +133,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/gruntwork-io/terragrunt-engine-go v0.0.15 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-getter v1.7.9 // indirect
 	github.com/hashicorp/go-getter/v2 v2.2.3 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-plugin v1.6.3 // indirect

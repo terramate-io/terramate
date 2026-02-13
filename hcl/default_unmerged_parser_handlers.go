@@ -17,6 +17,8 @@ func DefaultUnmergedBlockParsers() []UnmergedBlockHandlerConstructor {
 		newInputBlockConstructor,
 		newOutputBlockConstructor,
 		newScriptBlockConstructor,
+		newScaffoldBlockConstructor,
+		newEnvironmentBlockConstructor,
 	}
 }
 
@@ -50,4 +52,12 @@ func newOutputBlockConstructor() UnmergedBlockHandler {
 
 func newScriptBlockConstructor() UnmergedBlockHandler {
 	return NewScriptBlockParser()
+}
+
+func newScaffoldBlockConstructor() UnmergedBlockHandler {
+	return NewScaffoldBlockParser()
+}
+
+func newEnvironmentBlockConstructor() UnmergedBlockHandler {
+	return NewEnvironmentBlockParser()
 }

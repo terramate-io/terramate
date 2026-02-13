@@ -77,11 +77,16 @@ type Config struct {
 	SharingBackends SharingBackends
 	Inputs          Inputs
 	Outputs         Outputs
+	Defines         []*Define
+	Components      []*Component
+	Bundles         []*BundleTemplate
+	Scaffold        *Scaffold
+	Environments    []*Environment
+
+	// Stacks holds the extra attributes for the stack.
+	BundleStacks map[string]BundleStack
 
 	Imported RawConfig
-
-	// External are parsed configuration from library clients.
-	External any
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
@@ -147,6 +152,22 @@ type Output struct {
 	Description hcl.Expression
 	Value       hcl.Expression
 	Sensitive   hcl.Expression
+}
+
+// Environment represents an environment definition in the catalyst config.
+type Environment struct {
+	ID          *ast.Attribute
+	Name        *ast.Attribute
+	Description *ast.Attribute
+	PromoteFrom *ast.Attribute
+	Info        info.Range
+}
+
+// BundleStack has the pro-only fields of the stack.
+// TODO(i4k): we will likely handle them in the opensource version as well.
+type BundleStack struct {
+	FromBundleFile  string
+	FromBundleLabel string
 }
 
 // These are the valid sharing_backend types.

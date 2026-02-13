@@ -27,6 +27,7 @@ import (
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/resolve"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/printer"
@@ -331,8 +332,8 @@ func (c *CLI) setWorkingDirectory(parsedArgs *FlagSpec) error {
 	return nil
 }
 
-func (c *CLI) initEngine(req *commands.EngineRequirement) error {
-	engine, foundRoot, err := engine.Load(c.state.wd, req.LoadTerragruntModules, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
+func (c *CLI) initEngine(ctx context.Context, req *commands.EngineRequirement) error {
+	engine, foundRoot, err := engine.Load(ctx, c.state.wd, req.LoadTerragruntModules, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
 	if err != nil {
 		// TODO: This should return the error.
 		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
@@ -509,7 +510,7 @@ func (c *CLI) Exec(args []string) {
 		mustSucceed(c.setWorkingDirectory(parsedArgs))
 
 		// Init the engine, this includes loading the config tree.
-		mustSucceed(c.initEngine(req))
+		mustSucceed(c.initEngine(ctx, req))
 
 		mustSucceed(c.checkEngineInvariants(parsedArgs))
 
@@ -668,17 +669,24 @@ func runCheckpoint(product, version string, clicfg cliconfig.Config, result chan
 }
 
 // DefaultBeforeConfigSetup sets up the default bindings.
-func DefaultBeforeConfigSetup(*CLI, *di.Bindings) error {
+func DefaultBeforeConfigSetup(c *CLI, b *di.Bindings) error {
 	errs := errors.L()
-	// Nothing yet.
+	errs.Append(SetupResolveAPI(c, b))
+	errs.Append(SetupGenerateAPI(c, b))
 	return errs.AsError()
 }
 
 // DefaultAfterConfigSetup sets up the default bindings.
 func DefaultAfterConfigSetup(c *CLI, b *di.Bindings) error {
 	errs := errors.L()
-	errs.Append(SetupGenerateAPI(c, b))
+	// Nothing yet.
 	return errs.AsError()
+}
+
+// SetupResolveAPI configures the resolve API bindings for package resolution.
+func SetupResolveAPI(c *CLI, b *di.Bindings) error {
+	cachedir := filepath.Join(c.Config().UserTerramateDir, "package_cache")
+	return di.Bind(b, resolve.NewAPI(cachedir))
 }
 
 // SetupGenerateAPI binds generate.API.

@@ -32,7 +32,8 @@ import (
 	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/fs"
 	"github.com/terramate-io/terramate/generate"
-	"github.com/terramate-io/terramate/generate/report"
+	genreport "github.com/terramate-io/terramate/generate/report"
+	"github.com/terramate-io/terramate/generate/resolve"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
@@ -252,18 +253,22 @@ func (s S) Git() *Git {
 }
 
 // Generate generates code for all stacks on the sandbox
-func (s S) Generate() *report.Report {
+func (s S) Generate() *genreport.Report {
 	return s.GenerateWith(s.Config(), project.NewPath("/modules"))
 }
 
 // GenerateWith generates code for all stacks inside the provided path.
-func (s S) GenerateWith(root *config.Root, vendorDir project.Path) *report.Report {
+func (s S) GenerateWith(root *config.Root, vendorDir project.Path) *genreport.Report {
 	t := s.t
 	t.Helper()
 
+	cachedir := t.TempDir()
+
 	b := di.NewBindings(t.Context())
+	assert.NoError(t, di.Bind(b, resolve.NewAPI(cachedir)))
 	assert.NoError(t, di.Bind(b, generate.NewAPI()))
 	ctx := di.WithBindings(context.Background(), b)
+
 	generateAPI, err := di.Get[generate.API](ctx)
 	assert.NoError(t, err)
 

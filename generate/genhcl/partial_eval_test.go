@@ -1899,7 +1899,7 @@ EOT
 			globals := s.LoadStackGlobals(root, st)
 			vendorDir := project.NewPath("/modules")
 			evalctx := stack.NewEvalCtx(root, st, globals)
-			got, err := genhcl.Load(root, st, evalctx.Context, vendorDir, nil)
+			got, err := genhcl.Load(root, st, evalctx.Context, vendorDir, nil, nil, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

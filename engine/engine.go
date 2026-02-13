@@ -132,8 +132,8 @@ func NoGitFilter() GitFilter { return GitFilter{} }
 
 // Load loads the engine with the given working directory and CLI configuration.
 // If the project is not found, it returns false.
-func Load(wd string, loadTerragruntModules bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
-	prj, found, err := NewProject(wd, loadTerragruntModules, hclOpts...)
+func Load(ctx context.Context, wd string, loadTerragruntModules bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
+	prj, found, err := NewProject(ctx, wd, loadTerragruntModules, hclOpts...)
 	if err != nil {
 		return nil, false, err
 	}

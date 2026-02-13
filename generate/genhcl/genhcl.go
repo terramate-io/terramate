@@ -11,23 +11,24 @@ import (
 
 	"github.com/gobwas/glob"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
+
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/terramate-io/hcl/v2/hclwrite"
+
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/event"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
+	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/fmt"
 	"github.com/terramate-io/terramate/hcl/info"
-	"github.com/terramate-io/terramate/stdlib"
-	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
-
-	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/lets"
 	"github.com/terramate-io/terramate/project"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/terramate-io/terramate/stdlib"
+	tel "github.com/terramate-io/terramate/ui/tui/telemetry"
 )
 
 // HCL represents generated HCL code from a single block.
@@ -189,20 +190,35 @@ func CommentStyleFromConfig(tree *config.Tree) CommentStyle {
 //
 // Metadata and globals for the stack are used on the evaluation of the
 // generate_hcl blocks.
-//
-// The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
 	st *config.Stack,
 	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
+	bundles []*config.Bundle,
+	env *config.Environment,
 ) ([]HCL, error) {
 	hclBlocks, err := loadGenHCLBlocks(root, st, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
+	return EvalBlocks(root, hclBlocks, st, evalctx, vendorDir, vendorRequests, bundles, env, "")
+}
 
+// EvalBlocks evaluates the generate_hcl blocks and returns the HCL structs.
+// baseFilename is used to prefix the generated file name (eg.: used with components).
+func EvalBlocks(
+	root *config.Root,
+	hclBlocks []hcl.GenHCLBlock,
+	st *config.Stack,
+	evalctx *eval.Context,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+	bundles []*config.Bundle,
+	env *config.Environment,
+	baseFilename string,
+) ([]HCL, error) {
 	tel.DefaultRecord.Set(
 		tel.BoolFlag("hcl", len(hclBlocks) != 0, "generate"),
 	)
@@ -211,7 +227,7 @@ func Load(
 
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
-		name := hclBlock.Label
+		name := baseFilename + hclBlock.Label
 
 		matchedAnyStackFilter := len(hclBlock.StackFilters) == 0
 		for _, cond := range hclBlock.StackFilters {
@@ -251,6 +267,14 @@ func Load(
 			stdlib.Name("vendor"),
 			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 		)
+		evalctx.SetFunction(
+			stdlib.Name("bundle"),
+			config.BundleFunc(bundles, env),
+		)
+		evalctx.SetFunction(
+			stdlib.Name("bundles"),
+			config.BundlesFunc(bundles, env),
+		)
 
 		err := lets.Load(hclBlock.Lets, evalctx)
 		if err != nil {
@@ -283,7 +307,9 @@ func Load(
 			continue
 		}
 
+		isFromComponent := baseFilename != ""
 		inherit := true
+
 		if hclBlock.Inherit != nil {
 			value, err := evalctx.Eval(hclBlock.Inherit.Expr)
 			if err != nil {
@@ -299,9 +325,13 @@ func Load(
 			}
 
 			inherit = value.True()
+
+			if inherit && isFromComponent {
+				return nil, errors.E(ErrInheritEval, `"inherit = true" is not supported within a component definition`)
+			}
 		}
 
-		if !inherit && hclBlock.Dir != st.Dir {
+		if !isFromComponent && !inherit && hclBlock.Dir != st.Dir {
 			// ignore non-inheritable block
 			continue
 		}

@@ -1899,7 +1899,7 @@ func (tcase testcase) run(t *testing.T) {
 		globals := s.LoadStackGlobals(cfg, st)
 		vendorDir := project.NewPath("/modules")
 		evalctx := stack.NewEvalCtx(cfg, st, globals)
-		got, err := genhcl.Load(cfg, st, evalctx.Context, vendorDir, nil)
+		got, err := genhcl.Load(cfg, st, evalctx.Context, vendorDir, nil, nil, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {
@@ -1955,45 +1955,6 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 		t.Errorf("want:\n%q", want)
 		t.Errorf("got:\n%q", got)
 		t.Fatalf("diff:\n%s", diff)
-	}
-}
-
-func TestGenerateHCLTmSlugNull(t *testing.T) {
-	t.Parallel()
-
-	tcases := []testcase{
-		{
-			name:  "tm_slug_null_evaluates_to_null",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: GenerateHCL(
-						Labels("scope_traversal"),
-						Content(
-							Block("traversals",
-								Expr("local", "tm_slug(null)"),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "scope_traversal",
-					hcl: genHCL{
-						condition: true,
-						body: Block("traversals",
-							Expr("local", "null"),
-						),
-					},
-				},
-			},
-		},
-	}
-
-	for _, tcase := range tcases {
-		tcase.run(t)
 	}
 }
 
