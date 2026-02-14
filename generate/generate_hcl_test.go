@@ -2110,7 +2110,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	generateAPI := newGenerateAPIForTest(t, &s)
+	generateAPI := newGenerateAPIForTest(t)
 	report := generateAPI.Do(s.Config(), project.NewPath("/"), 0, project.NewPath("/modules"), nil)
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")

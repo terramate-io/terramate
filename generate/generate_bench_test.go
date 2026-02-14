@@ -55,7 +55,7 @@ func BenchmarkGenerate(b *testing.B) {
 	}
 	`, numGlobalsPerStack/2))
 
-	generateAPI := newGenerateAPIForTest(b, &s)
+	generateAPI := newGenerateAPIForTest(b)
 	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(b, err)
 
@@ -111,7 +111,7 @@ func BenchmarkGenerateRegex(b *testing.B) {
 	}
 	`, numGlobalsPerStack/2))
 
-	generateAPI := newGenerateAPIForTest(b, &s)
+	generateAPI := newGenerateAPIForTest(b)
 
 	root, err := config.LoadRoot(s.RootDir(), false)
 	assert.NoError(b, err)

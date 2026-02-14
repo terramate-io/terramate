@@ -1199,7 +1199,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			if fromdir == "" {
 				fromdir = "/"
 			}
-			generateAPI := newGenerateAPIForTest(t, &s)
+			generateAPI := newGenerateAPIForTest(t)
 
 			cfg, err := config.LoadRoot(s.RootDir(), false)
 			assert.NoError(t, err)
@@ -1308,7 +1308,7 @@ func assertEqualStringList(t *testing.T, got []string, want []string) {
 	}
 }
 
-func newGenerateAPIForTest(t testing.TB, s *sandbox.S) generate.API {
+func newGenerateAPIForTest(t testing.TB) generate.API {
 	cachedir := t.TempDir()
 
 	b := di.NewBindings(t.Context())

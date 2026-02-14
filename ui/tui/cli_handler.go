@@ -25,6 +25,7 @@ import (
 	fmtcmd "github.com/terramate-io/terramate/commands/fmt"
 	gencmd "github.com/terramate-io/terramate/commands/generate"
 	runcmd "github.com/terramate-io/terramate/commands/run"
+	scaffoldcmd "github.com/terramate-io/terramate/commands/scaffold"
 	scriptinfocmd "github.com/terramate-io/terramate/commands/script/info"
 	scriptlistcmd "github.com/terramate-io/terramate/commands/script/list"
 	scriptruncmd "github.com/terramate-io/terramate/commands/script/run"
@@ -234,6 +235,13 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 			DetailedExitCode: parsedArgs.Generate.DetailedExitCode,
 			Parallel:         parsedArgs.Generate.Parallel,
 			PrintReport:      true,
+		}, nil
+
+	case "scaffold":
+		c.SetCommandAnalytics("scaffold")
+		return &scaffoldcmd.Spec{
+			OutputFormat: parsedArgs.Scaffold.OutputFormat,
+			Generate:     parsedArgs.Scaffold.Generate,
 		}, nil
 
 	case "experimental clone <srcdir> <destdir>":

@@ -119,6 +119,11 @@ type FlagSpec struct {
 		cloudFilterFlags
 	} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
+	Scaffold struct {
+		OutputFormat string `default:"yaml" help:"The output format of created files. Can be 'yaml' or 'hcl'." enum:"yaml,hcl"`
+		Generate     bool   `default:"false" help:"Run terramate generate after creating a bundle instance."`
+	} `cmd:"" help:"Add existing bundles or components to your repository."`
+
 	Experimental struct {
 		Clone struct {
 			SrcDir          string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned."`

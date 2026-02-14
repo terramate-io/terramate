@@ -295,7 +295,7 @@ func TestGenerateVendorRequestEvents(t *testing.T) {
 
 	t.Log("generating code")
 
-	generateAPI := newGenerateAPIForTest(t, &s)
+	generateAPI := newGenerateAPIForTest(t)
 	r := generateAPI.Do(s.Config(), project.NewPath("/"), 0, vendorDir, events)
 
 	t.Logf("generation report: %s", r.Full())

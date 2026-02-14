@@ -1561,7 +1561,7 @@ func TestOutdatedDetection(t *testing.T) {
 					}
 				}
 
-				generateAPI := newGenerateAPIForTest(t, &s)
+				generateAPI := newGenerateAPIForTest(t)
 				got, err := generateAPI.DetectOutdated(s.Config(), target, vendorDir)
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {

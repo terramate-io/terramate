@@ -677,7 +677,7 @@ func DefaultBeforeConfigSetup(c *CLI, b *di.Bindings) error {
 }
 
 // DefaultAfterConfigSetup sets up the default bindings.
-func DefaultAfterConfigSetup(c *CLI, b *di.Bindings) error {
+func DefaultAfterConfigSetup(_ *CLI, _ *di.Bindings) error {
 	errs := errors.L()
 	// Nothing yet.
 	return errs.AsError()
