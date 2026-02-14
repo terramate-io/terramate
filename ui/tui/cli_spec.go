@@ -120,9 +120,25 @@ type FlagSpec struct {
 	} `cmd:"" help:"Mark a stack as changed so it will be triggered in Change Detection."`
 
 	Scaffold struct {
-		OutputFormat string `default:"yaml" help:"The output format of created files. Can be 'yaml' or 'hcl'." enum:"yaml,hcl"`
+		OutputFormat string `hidden:"" default:"yaml" help:"The output format of created files. Can be 'yaml' or 'hcl'." enum:"yaml,hcl"`
 		Generate     bool   `default:"false" help:"Run terramate generate after creating a bundle instance."`
 	} `cmd:"" help:"Add existing bundles or components to your repository."`
+
+	Component struct {
+		Create struct {
+			Path string `arg:"" name:"path" predictor:"file" help:"Path to the Terraform module directory. Relative paths are resolved from the working directory; absolute paths (e.g. /modules/s3-module) are resolved relative to the project root. Defaults to current directory." default:"."`
+		} `cmd:"" help:"Create a component from a Terramate module in the specified directory (or current directory if not specified)."`
+	} `cmd:"" help:"Manage components."`
+
+	Package struct {
+		Create struct {
+			ManifestOnly bool   `default:"false" help:"Create the manifest without copying the contained files."`
+			Location     string `default:"" help:"Location override of the package."`
+			Name         string `default:"" help:"Name of the package."`
+			Description  string `default:"" help:"Description of the package."`
+			OutputDir    string `arg:"" name:"output-dir" predictor:"file" help:"Output directory for the package."`
+		} `hidden:"" cmd:"" help:"Create a package containing bundles and components."`
+	} `cmd:"" help:"Manage packages containing bundles and components."`
 
 	Experimental struct {
 		Clone struct {

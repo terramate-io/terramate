@@ -27,4 +27,10 @@ type API interface {
 		target *config.Tree,
 		vendorDir project.Path,
 	) ([]string, error)
+
+	// Load will load return all the generated files within a project, but without making any changes.
+	Load(
+		root *config.Root,
+		vendorDir project.Path,
+	) ([]LoadResult, error)
 }

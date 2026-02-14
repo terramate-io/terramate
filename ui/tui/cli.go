@@ -221,7 +221,7 @@ func (c *CLI) Reload(ctx context.Context) error {
 	if c.state.engine == nil {
 		return errors.E("engine not initialized: Reload requires EngineRequirement")
 	}
-	if err := c.state.engine.ReloadConfig(); err != nil {
+	if err := c.state.engine.ReloadConfig(ctx); err != nil {
 		return err
 	}
 	for _, hook := range c.postInitEngineHooks {
@@ -484,21 +484,21 @@ func (c *CLI) Exec(args []string) {
 	startProfiler(parsedArgs.CPUProfiling)
 	defer stopProfiler(parsedArgs.CPUProfiling)
 
+	mustSucceed(c.initLogging(parsedArgs))
+	mustSucceed(c.loadUserConfig(parsedArgs))
+
 	// Setup context.
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, KongContext, kctx)
 	ctx = context.WithValue(ctx, KongError, err)
 	ctx = di.WithBindings(ctx, c.bindings)
 
-	// Setup bindings before config loading.
+	// Setup bindings before engine config loading.
 	for _, setup := range c.beforeConfigSetupHandlers {
 		mustSucceed(setup(c, c.bindings))
 	}
 	mustSucceed(di.Validate(c.bindings))
 	mustSucceed(di.InitAll(c.bindings))
-
-	mustSucceed(c.initLogging(parsedArgs))
-	mustSucceed(c.loadUserConfig(parsedArgs))
 
 	c.initCheckpoint()
 
@@ -523,7 +523,7 @@ func (c *CLI) Exec(args []string) {
 
 		c.setProjectAnalytics()
 
-		// Setup bindings after config loading.
+		// Setup bindings after engine config loading.
 		for _, setup := range c.afterConfigSetupHandlers {
 			mustSucceed(setup(c, c.bindings))
 		}

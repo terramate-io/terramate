@@ -13,6 +13,7 @@ import (
 	"github.com/terramate-io/terramate/cloud/api/resources"
 	cloudstack "github.com/terramate-io/terramate/cloud/api/stack"
 	"github.com/terramate-io/terramate/commands"
+	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
@@ -38,7 +39,7 @@ func (s *Spec) Name() string { return "debug generate-origins" }
 func (s *Spec) Requirements(context.Context, commands.CLI) any { return commands.RequireEngine() }
 
 // Exec executes the generate-origins command.
-func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
+func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 	s.engine = cli.Engine()
 	s.printers = cli.Printers()
 
@@ -62,8 +63,13 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 		return err
 	}
 
+	generateAPI, err := di.Get[generate.API](ctx)
+	if err != nil {
+		return err
+	}
+
 	cfg := s.engine.Config()
-	results, err := generate.Load(cfg, vendorDir)
+	results, err := generateAPI.Load(cfg, vendorDir)
 	if err != nil {
 		return errors.E(err, "generate debug: loading generated code")
 	}

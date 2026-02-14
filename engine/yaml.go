@@ -22,7 +22,10 @@ func loadYAMLConfigs(rootcfg *config.Root) error {
 	rootdir := rootcfg.HostDir()
 
 	dirFS := os.DirFS(rootdir)
-	err := fs.WalkDir(dirFS, ".", func(p string, d fs.DirEntry, _ error) error {
+	err := fs.WalkDir(dirFS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if d.IsDir() {
 			return nil
 		}
@@ -34,6 +37,9 @@ func loadYAMLConfigs(rootcfg *config.Root) error {
 		if err != nil {
 			return err
 		}
+		defer func() {
+			_ = r.Close()
+		}()
 
 		var bundle yaml.BundleInstance
 		err = yaml.Decode(r, &bundle)

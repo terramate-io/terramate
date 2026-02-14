@@ -42,8 +42,8 @@ func (c *testCLI) Stderr() io.Writer          { return c.stderr }
 func (c *testCLI) Stdin() io.Reader           { return bytes.NewBuffer(nil) }
 func (c *testCLI) Config() cliconfig.Config   { return cliconfig.Config{} }
 func (c *testCLI) Engine() *engine.Engine     { return c.engine }
-func (c *testCLI) Reload(_ context.Context) error {
-	return c.engine.ReloadConfig()
+func (c *testCLI) Reload(ctx context.Context) error {
+	return c.engine.ReloadConfig(ctx)
 }
 
 var _ commands.CLI = (*testCLI)(nil)

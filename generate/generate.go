@@ -130,7 +130,7 @@ type LoadResult struct {
 // If a critical error that fails the loading of all results happens it returns
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
-func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
+func (s *apiImpl) Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 	g := &gState{
 		root:          root,
 		workchan:      make(chan *config.Tree),

@@ -110,6 +110,15 @@ func NewProject(ctx context.Context, wd string, loadTerragruntModules bool, pars
 	if !rootfound {
 		return nil, false, nil
 	}
+
+	if err := loadYAMLConfigs(rootcfg); err != nil {
+		return nil, false, err
+	}
+
+	if err := applyBundleStacks(ctx, rootcfg); err != nil {
+		return nil, false, err
+	}
+
 	prj.rootdir = rootcfgpath
 	prj.root = rootcfg
 	prj.stackManager = stack.NewManager(prj.root)

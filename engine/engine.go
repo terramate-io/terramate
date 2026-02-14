@@ -179,12 +179,22 @@ func (e *Engine) HCLOptions() []hcl.Option {
 }
 
 // ReloadConfig reloads the root configuration of the project.
-func (e *Engine) ReloadConfig() error {
+func (e *Engine) ReloadConfig(ctx context.Context) error {
 	rootcfg, err := config.LoadRoot(e.rootdir(), e.loadTerragruntModules, e.hclOpts...)
 	if err != nil {
 		return err
 	}
+
+	if err := loadYAMLConfigs(rootcfg); err != nil {
+		return err
+	}
+
+	if err := applyBundleStacks(ctx, rootcfg); err != nil {
+		return err
+	}
+
 	e.project.root = rootcfg
+
 	return nil
 }
 

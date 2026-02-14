@@ -5,7 +5,6 @@ package config
 
 import (
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
 
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/terramate/errors"
@@ -79,7 +78,7 @@ func evalStringList(evalctx *eval.Context, expr hhcl.Expression, name string) ([
 			r = append(r, elem.AsString())
 		} else {
 			errs.Append(errors.E(ErrSchema, expr.Range(),
-				"command must be a list(string), but element %d has type %s",
+				"%s must be a list(string), but element %d has type %s",
 				name, index, elem.Type().FriendlyName()))
 		}
 		index++
@@ -138,7 +137,7 @@ func evalOptionalStringList(evalctx *eval.Context, expr hhcl.Expression, name st
 			r = append(r, elem.AsString())
 		} else {
 			errs.Append(errors.E(ErrSchema, expr.Range(),
-				"command must be a list(string), but element %d has type %s",
+				"%s must be a list(string), but element %d has type %s",
 				name, index, elem.Type().FriendlyName()))
 		}
 		index++
@@ -149,18 +148,4 @@ func evalOptionalStringList(evalctx *eval.Context, expr hhcl.Expression, name st
 	}
 
 	return r, nil
-}
-
-// IsCompatibleType checks if a value can be converted to the wanted type.
-func IsCompatibleType(v cty.Value, wantTyp cty.Type) (bool, error) {
-	if wantTyp == cty.NilType {
-		return true, nil
-	}
-
-	_, err := convert.Convert(v, wantTyp)
-	if err != nil {
-		msg := convert.MismatchMessage(v.Type(), wantTyp)
-		return false, errors.E(msg)
-	}
-	return true, nil
 }

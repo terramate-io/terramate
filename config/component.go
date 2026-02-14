@@ -368,12 +368,12 @@ func ListLocalComponentDefinitions(root *Root, dir project.Path) ([]ComponentDef
 	srcHostDir := dir.HostPath(root.HostDir())
 	srcAbsDir := project.PrjAbsPath(root.HostDir(), srcHostDir)
 
+	var r []ComponentDefinitionEntry
+
 	componentsDir, ok := root.Lookup(srcAbsDir)
 	if !ok {
-		return nil, errors.E("component definitions not found in  %s", srcAbsDir)
+		return r, nil
 	}
-
-	var r []ComponentDefinitionEntry
 
 	for _, subdir := range componentsDir.AsList() {
 		// Ignore the folder that contains the definitions of installed remote packages.

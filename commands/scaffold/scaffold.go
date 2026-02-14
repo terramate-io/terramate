@@ -588,8 +588,8 @@ func createBundleInstance(outpath string, content string) error {
 		}
 	}()
 
-	_, _ = f.WriteString(content)
-	return nil
+	_, err = f.WriteString(content)
+	return err
 }
 
 type stringAccessor struct {
@@ -749,7 +749,7 @@ type multiSelectAccessor struct {
 }
 
 func (i *multiSelectAccessor) Get() []cty.Value {
-	if i.v.Type().IsListType() {
+	if i.v.CanIterateElements() {
 		return i.v.AsValueSlice()
 	}
 	return []cty.Value{}
