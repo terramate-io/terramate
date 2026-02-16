@@ -55,6 +55,7 @@ furies:
   - 
     account: terramate
     secret_name: FURY_TOKEN
+    skip: "{{ .Prerelease }}"
     formats:
       - deb
       - rpm

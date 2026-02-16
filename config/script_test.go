@@ -12,6 +12,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -23,7 +25,6 @@ import (
 	errtest "github.com/terramate-io/terramate/test/errors"
 
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
-	"github.com/zclconf/go-cty/cty"
 )
 
 type scriptTestcase struct {

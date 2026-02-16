@@ -317,7 +317,7 @@ func (s *Spec) initTerraform(ctx context.Context, cli commands.CLI) error {
 		return nil
 	}
 
-	err = s.engine.ReloadConfig()
+	err = s.engine.ReloadConfig(ctx)
 	if err != nil {
 		return errors.E(err, "reloading the configuration")
 	}

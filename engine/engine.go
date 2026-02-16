@@ -132,8 +132,8 @@ func NoGitFilter() GitFilter { return GitFilter{} }
 
 // Load loads the engine with the given working directory and CLI configuration.
 // If the project is not found, it returns false.
-func Load(wd string, loadTerragruntModules bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
-	prj, found, err := NewProject(wd, loadTerragruntModules, hclOpts...)
+func Load(ctx context.Context, wd string, loadTerragruntModules bool, clicfg cliconfig.Config, uimode UIMode, printers printer.Printers, verbosity int, hclOpts ...hcl.Option) (e *Engine, found bool, err error) {
+	prj, found, err := NewProject(ctx, wd, loadTerragruntModules, hclOpts...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -179,12 +179,22 @@ func (e *Engine) HCLOptions() []hcl.Option {
 }
 
 // ReloadConfig reloads the root configuration of the project.
-func (e *Engine) ReloadConfig() error {
+func (e *Engine) ReloadConfig(ctx context.Context) error {
 	rootcfg, err := config.LoadRoot(e.rootdir(), e.loadTerragruntModules, e.hclOpts...)
 	if err != nil {
 		return err
 	}
+
+	if err := loadYAMLConfigs(rootcfg); err != nil {
+		return err
+	}
+
+	if err := applyBundleStacks(ctx, rootcfg); err != nil {
+		return err
+	}
+
 	e.project.root = rootcfg
+
 	return nil
 }
 

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/terramate-io/terramate/errors"
-	genreport "github.com/terramate-io/terramate/generate/report"
+	"github.com/terramate-io/terramate/generate/report"
 
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/test"
@@ -42,8 +42,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"empty.txt"},
@@ -91,8 +91,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"stacks.txt"},
@@ -114,10 +114,10 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 			},
-			wantReport: genreport.Report{
-				Failures: []genreport.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: genreport.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/"),
 						},
 						Error: errors.E(generate.ErrInvalidGenBlockLabel),
@@ -147,8 +147,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"stacks.txt"},
@@ -226,8 +226,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/"),
 						Created: []string{"file1.txt", "file2.txt"},
@@ -297,8 +297,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"file.txt"},
@@ -325,10 +325,10 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 			},
-			wantReport: genreport.Report{
-				Failures: []genreport.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: genreport.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(generate.ErrInvalidGenBlockLabel),
@@ -348,10 +348,10 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 			},
-			wantReport: genreport.Report{
-				Failures: []genreport.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: genreport.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/"),
 						},
 						Error: errors.E(generate.ErrInvalidGenBlockLabel),
@@ -382,8 +382,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"empty.txt"},
@@ -414,8 +414,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"empty.txt"},
@@ -485,8 +485,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"file.txt"},
@@ -524,8 +524,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"file.txt"},
@@ -555,10 +555,10 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 			},
-			wantReport: genreport.Report{
-				Failures: []genreport.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: genreport.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/target"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -643,8 +643,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"file.txt", "file2.txt", "file3.txt"},
@@ -682,8 +682,8 @@ func TestGenerateRootContext(t *testing.T) {
 					},
 				},
 			},
-			wantReport: genreport.Report{
-				Successes: []genreport.Result{
+			wantReport: report.Report{
+				Successes: []report.Result{
 					{
 						Dir:     project.NewPath("/target"),
 						Created: []string{"file.txt"},
@@ -713,10 +713,10 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 			},
-			wantReport: genreport.Report{
-				Failures: []genreport.FailureResult{
+			wantReport: report.Report{
+				Failures: []report.FailureResult{
 					{
-						Result: genreport.Result{
+						Result: report.Result{
 							Dir: project.NewPath("/target"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
@@ -767,14 +767,14 @@ func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T
 	}
 
 	createConfig(filename, false)
-	report := s.Generate()
-	test.AssertEqualReports(t, report, genreport.Report{})
+	r := s.Generate()
+	test.AssertEqualReports(t, r, report.Report{})
 	assertFileDontExist(filename)
 
 	createConfig(filename, true)
-	report = s.Generate()
-	test.AssertEqualReports(t, report, genreport.Report{
-		Successes: []genreport.Result{
+	r = s.Generate()
+	test.AssertEqualReports(t, r, report.Report{
+		Successes: []report.Result{
 			{
 				Dir:     project.NewPath("/"),
 				Created: []string{filename},
@@ -784,9 +784,9 @@ func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T
 	assertFileExist(filename)
 
 	createConfig(filename, false)
-	report = s.Generate()
-	test.AssertEqualReports(t, report, genreport.Report{
-		Successes: []genreport.Result{
+	r = s.Generate()
+	test.AssertEqualReports(t, r, report.Report{
+		Successes: []report.Result{
 			{
 				Dir:     project.NewPath("/"),
 				Deleted: []string{filename},

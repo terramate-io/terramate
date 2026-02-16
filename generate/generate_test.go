@@ -15,17 +15,21 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
+
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/di"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/generate/genhcl"
 	genreport "github.com/terramate-io/terramate/generate/report"
+	"github.com/terramate-io/terramate/generate/resolve"
 	"github.com/terramate-io/terramate/project"
 	stackpkg "github.com/terramate-io/terramate/stack"
 	"github.com/terramate-io/terramate/test"
-	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 	"github.com/terramate-io/terramate/test/sandbox"
+
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
 type (
@@ -1196,7 +1200,11 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				fromdir = "/"
 			}
 			generateAPI := newGenerateAPIForTest(t)
-			report := generateAPI.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
+
+			cfg, err := config.LoadRoot(s.RootDir(), false)
+			assert.NoError(t, err)
+
+			report := generateAPI.Do(cfg, project.NewPath(fromdir), 0, vendorDir, nil)
 			test.AssertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
@@ -1204,8 +1212,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				generateAPI := newGenerateAPIForTest(t)
-				report := generateAPI.Do(s.Config(), project.NewPath(fromdir), 0, vendorDir, nil)
+				report := generateAPI.Do(cfg, project.NewPath(fromdir), 0, vendorDir, nil)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
 				test.AssertEqualReports(t, report, genreport.Report{
@@ -1255,7 +1262,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				return ok
 			}
 
-			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
+			err = filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
 				assert.NoError(t, err, "checking for unwanted generated files")
@@ -1302,10 +1309,12 @@ func assertEqualStringList(t *testing.T, got []string, want []string) {
 }
 
 func newGenerateAPIForTest(t testing.TB) generate.API {
-	t.Helper()
+	cachedir := t.TempDir()
 
 	b := di.NewBindings(t.Context())
+	assert.NoError(t, di.Bind(b, resolve.NewAPI(cachedir)))
 	assert.NoError(t, di.Bind(b, generate.NewAPI()))
+
 	ctx := di.WithBindings(context.Background(), b)
 	generateAPI, err := di.Get[generate.API](ctx)
 	assert.NoError(t, err)

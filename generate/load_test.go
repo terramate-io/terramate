@@ -10,7 +10,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/generate"
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
@@ -545,7 +544,8 @@ func TestLoad(t *testing.T) {
 				root.CreateFile(cfg.path, cfg.body.String())
 			}
 
-			got, err := generate.Load(s.Config(), project.NewPath("/modules"))
+			generateAPI := newGenerateAPIForTest(t)
+			got, err := generateAPI.Load(s.Config(), project.NewPath("/modules"))
 			assert.IsError(t, err, tcase.wantErr)
 			if tcase.wantErr != nil {
 				return

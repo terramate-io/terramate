@@ -24,6 +24,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Added
 
+- Add new bundles and components framework.
+  - Update `generate` to bundle/component code generation.
+  - Add new `scaffold` command that provides an interactive UI to instantiate bundles.
+  - Add new `component create` to auto-create component defintions from existing Terraform modules.
 - Add orchestration metadata fields to `terramate debug show metadata` command output.
   - The command now displays `before`, `after`, `wants`, and `wanted_by` fields for each stack.
 

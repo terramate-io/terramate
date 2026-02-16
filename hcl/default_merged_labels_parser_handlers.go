@@ -10,9 +10,24 @@ type MergedLabelsBlockHandlerConstructor func() MergedLabelsBlockHandler
 func DefaultMergedLabelsBlockHandlers() []MergedLabelsBlockHandlerConstructor {
 	return []MergedLabelsBlockHandlerConstructor{
 		newGlobalsBlockConstructor,
+		newDefineBlockConstructor,
+		newComponentBlockConstructor,
+		newBundleBlockConstructor,
 	}
 }
 
 func newGlobalsBlockConstructor() MergedLabelsBlockHandler {
 	return NewGlobalsBlockParser()
+}
+
+func newDefineBlockConstructor() MergedLabelsBlockHandler {
+	return NewDefineBlockParser()
+}
+
+func newComponentBlockConstructor() MergedLabelsBlockHandler {
+	return NewComponentBlockParser()
+}
+
+func newBundleBlockConstructor() MergedLabelsBlockHandler {
+	return NewBundleBlockParser()
 }

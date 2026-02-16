@@ -4,11 +4,13 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
+
 	"github.com/terramate-io/terramate/ci"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -54,7 +56,7 @@ type Project struct {
 }
 
 // NewProject creates a new project from the working directory.
-func NewProject(wd string, loadTerragruntModules bool, parserOpts ...hcl.Option) (prj *Project, found bool, err error) {
+func NewProject(ctx context.Context, wd string, loadTerragruntModules bool, parserOpts ...hcl.Option) (prj *Project, found bool, err error) {
 	prj = &Project{
 		wd: wd,
 	}
@@ -80,6 +82,14 @@ func NewProject(wd string, loadTerragruntModules bool, parserOpts ...hcl.Option)
 			return nil, false, err
 		}
 
+		if err := loadYAMLConfigs(cfg); err != nil {
+			return nil, false, err
+		}
+
+		if err := applyBundleStacks(ctx, cfg); err != nil {
+			return nil, false, err
+		}
+
 		gw = gw.With().WorkingDir(rootdir).Wrapper()
 
 		prj.isRepo = true
@@ -100,6 +110,15 @@ func NewProject(wd string, loadTerragruntModules bool, parserOpts ...hcl.Option)
 	if !rootfound {
 		return nil, false, nil
 	}
+
+	if err := loadYAMLConfigs(rootcfg); err != nil {
+		return nil, false, err
+	}
+
+	if err := applyBundleStacks(ctx, rootcfg); err != nil {
+		return nil, false, err
+	}
+
 	prj.rootdir = rootcfgpath
 	prj.root = rootcfg
 	prj.stackManager = stack.NewManager(prj.root)

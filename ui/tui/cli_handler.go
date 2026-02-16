@@ -15,6 +15,7 @@ import (
 	cloudinfocmd "github.com/terramate-io/terramate/commands/cloud/info"
 	logincmd "github.com/terramate-io/terramate/commands/cloud/login"
 	compcmd "github.com/terramate-io/terramate/commands/completions"
+	componentcreatecmd "github.com/terramate-io/terramate/commands/component/create"
 	generateoriginscmd "github.com/terramate-io/terramate/commands/debug/show/generate_origins"
 	debugglobalscmd "github.com/terramate-io/terramate/commands/debug/show/globals"
 	debugshowmetadatacmd "github.com/terramate-io/terramate/commands/debug/show/metadata"
@@ -24,7 +25,9 @@ import (
 	vendordownloadcmd "github.com/terramate-io/terramate/commands/experimental/vendordownload"
 	fmtcmd "github.com/terramate-io/terramate/commands/fmt"
 	gencmd "github.com/terramate-io/terramate/commands/generate"
+	pkgcreatecmd "github.com/terramate-io/terramate/commands/package/create"
 	runcmd "github.com/terramate-io/terramate/commands/run"
+	scaffoldcmd "github.com/terramate-io/terramate/commands/scaffold"
 	scriptinfocmd "github.com/terramate-io/terramate/commands/script/info"
 	scriptlistcmd "github.com/terramate-io/terramate/commands/script/list"
 	scriptruncmd "github.com/terramate-io/terramate/commands/script/run"
@@ -234,6 +237,32 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 			DetailedExitCode: parsedArgs.Generate.DetailedExitCode,
 			Parallel:         parsedArgs.Generate.Parallel,
 			PrintReport:      true,
+		}, nil
+
+	case "scaffold":
+		c.SetCommandAnalytics("scaffold")
+		return &scaffoldcmd.Spec{
+			OutputFormat: parsedArgs.Scaffold.OutputFormat,
+			Generate:     parsedArgs.Scaffold.Generate,
+		}, nil
+
+	case "component create", "component create <path>":
+		c.SetCommandAnalytics("component-create")
+		path := parsedArgs.Component.Create.Path
+		return &componentcreatecmd.Spec{
+			Path: path,
+		}, nil
+
+	case "package create <output-dir>":
+		c.SetCommandAnalytics("package-create")
+		return &pkgcreatecmd.Spec{
+			OutputDir: parsedArgs.Package.Create.OutputDir,
+
+			ManifestOnly: parsedArgs.Package.Create.ManifestOnly,
+
+			PackageLocation:    parsedArgs.Package.Create.Location,
+			PackageName:        parsedArgs.Package.Create.Name,
+			PackageDescription: parsedArgs.Package.Create.Description,
 		}, nil
 
 	case "experimental clone <srcdir> <destdir>":

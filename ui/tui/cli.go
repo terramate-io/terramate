@@ -27,6 +27,7 @@ import (
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/generate"
+	"github.com/terramate-io/terramate/generate/resolve"
 	"github.com/terramate-io/terramate/git"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/printer"
@@ -220,7 +221,7 @@ func (c *CLI) Reload(ctx context.Context) error {
 	if c.state.engine == nil {
 		return errors.E("engine not initialized: Reload requires EngineRequirement")
 	}
-	if err := c.state.engine.ReloadConfig(); err != nil {
+	if err := c.state.engine.ReloadConfig(ctx); err != nil {
 		return err
 	}
 	for _, hook := range c.postInitEngineHooks {
@@ -331,8 +332,8 @@ func (c *CLI) setWorkingDirectory(parsedArgs *FlagSpec) error {
 	return nil
 }
 
-func (c *CLI) initEngine(req *commands.EngineRequirement) error {
-	engine, foundRoot, err := engine.Load(c.state.wd, req.LoadTerragruntModules, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
+func (c *CLI) initEngine(ctx context.Context, req *commands.EngineRequirement) error {
+	engine, foundRoot, err := engine.Load(ctx, c.state.wd, req.LoadTerragruntModules, c.clicfg, c.state.uimode, c.printers, c.state.verbose, c.hclOptions...)
 	if err != nil {
 		// TODO: This should return the error.
 		printer.Stderr.FatalWithDetails("unable to parse configuration", err)
@@ -483,21 +484,21 @@ func (c *CLI) Exec(args []string) {
 	startProfiler(parsedArgs.CPUProfiling)
 	defer stopProfiler(parsedArgs.CPUProfiling)
 
+	mustSucceed(c.initLogging(parsedArgs))
+	mustSucceed(c.loadUserConfig(parsedArgs))
+
 	// Setup context.
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, KongContext, kctx)
 	ctx = context.WithValue(ctx, KongError, err)
 	ctx = di.WithBindings(ctx, c.bindings)
 
-	// Setup bindings before config loading.
+	// Setup bindings before engine config loading.
 	for _, setup := range c.beforeConfigSetupHandlers {
 		mustSucceed(setup(c, c.bindings))
 	}
 	mustSucceed(di.Validate(c.bindings))
 	mustSucceed(di.InitAll(c.bindings))
-
-	mustSucceed(c.initLogging(parsedArgs))
-	mustSucceed(c.loadUserConfig(parsedArgs))
 
 	c.initCheckpoint()
 
@@ -509,7 +510,7 @@ func (c *CLI) Exec(args []string) {
 		mustSucceed(c.setWorkingDirectory(parsedArgs))
 
 		// Init the engine, this includes loading the config tree.
-		mustSucceed(c.initEngine(req))
+		mustSucceed(c.initEngine(ctx, req))
 
 		mustSucceed(c.checkEngineInvariants(parsedArgs))
 
@@ -522,7 +523,7 @@ func (c *CLI) Exec(args []string) {
 
 		c.setProjectAnalytics()
 
-		// Setup bindings after config loading.
+		// Setup bindings after engine config loading.
 		for _, setup := range c.afterConfigSetupHandlers {
 			mustSucceed(setup(c, c.bindings))
 		}
@@ -668,17 +669,24 @@ func runCheckpoint(product, version string, clicfg cliconfig.Config, result chan
 }
 
 // DefaultBeforeConfigSetup sets up the default bindings.
-func DefaultBeforeConfigSetup(*CLI, *di.Bindings) error {
+func DefaultBeforeConfigSetup(c *CLI, b *di.Bindings) error {
+	errs := errors.L()
+	errs.Append(SetupResolveAPI(c, b))
+	errs.Append(SetupGenerateAPI(c, b))
+	return errs.AsError()
+}
+
+// DefaultAfterConfigSetup sets up the default bindings.
+func DefaultAfterConfigSetup(_ *CLI, _ *di.Bindings) error {
 	errs := errors.L()
 	// Nothing yet.
 	return errs.AsError()
 }
 
-// DefaultAfterConfigSetup sets up the default bindings.
-func DefaultAfterConfigSetup(c *CLI, b *di.Bindings) error {
-	errs := errors.L()
-	errs.Append(SetupGenerateAPI(c, b))
-	return errs.AsError()
+// SetupResolveAPI configures the resolve API bindings for package resolution.
+func SetupResolveAPI(c *CLI, b *di.Bindings) error {
+	cachedir := filepath.Join(c.Config().UserTerramateDir, "package_cache")
+	return di.Bind(b, resolve.NewAPI(cachedir))
 }
 
 // SetupGenerateAPI binds generate.API.

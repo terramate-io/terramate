@@ -10,13 +10,14 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 
-	"golang.org/x/exp/slices"
-
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
+
 	hhcl "github.com/terramate-io/hcl/v2"
 	"github.com/terramate-io/hcl/v2/hclparse"
 	"github.com/terramate-io/hcl/v2/hclsyntax"
@@ -30,7 +31,6 @@ import (
 	"github.com/terramate-io/terramate/printer"
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/tg"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -222,6 +222,7 @@ func LoadRoot(rootdir string, loadTerragruntModules bool, hclOpts ...hcl.Option)
 	}
 	close(root.tgTaskChan)
 	root.initRuntime()
+
 	return root, nil
 }
 
