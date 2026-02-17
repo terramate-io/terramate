@@ -5,6 +5,7 @@ package config
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"maps"
 	"path"
@@ -171,21 +172,13 @@ func FlattenBundleTemplate(bundleTpl *hcl.BundleTemplate) []*hcl.Bundle {
 	return bundles
 }
 
-// EvalBundles recursively collects all the bundles in the given dir and evaluates them.
-func EvalBundles(root *Root, bundlesHCL []*hcl.BundleTemplate, resolveAPI resolve.API, evalctx *eval.Context, envs []*Environment, allowFetch bool) ([]*Bundle, error) {
-	bundles := []*Bundle{}
-
-	for _, bundleTplHCL := range bundlesHCL {
-		for _, bundleHCL := range FlattenBundleTemplate(bundleTplHCL) {
-			bundle, err := EvalBundle(root, resolveAPI, evalctx, bundleHCL, envs, allowFetch)
-			if err != nil {
-				return nil, err
-			}
-			bundles = append(bundles, bundle)
-		}
+// FlattenBundleTemplates is a helper that to [FlattenBundleTemplate] for a list of bundle templates.
+func FlattenBundleTemplates(bundleTpls []*hcl.BundleTemplate) []*hcl.Bundle {
+	r := []*hcl.Bundle{}
+	for _, tpl := range bundleTpls {
+		r = append(r, FlattenBundleTemplate(tpl)...)
 	}
-
-	return bundles, nil
+	return r
 }
 
 // EvalBundleSchemaNamespaces evaluates the uses_schemas blocks of a bundle definition.
@@ -210,7 +203,7 @@ func EvalBundleSchemaNamespaces(root *Root, resolveAPI resolve.API, evalctx *eva
 }
 
 // EvalBundle evaluates the bundle.
-func EvalBundle(root *Root, resolveAPI resolve.API, evalctx *eval.Context, inst *hcl.Bundle, envs []*Environment, allowFetch bool) (*Bundle, error) {
+func EvalBundle(ctx context.Context, root *Root, resolveAPI resolve.API, evalctx *eval.Context, inst *hcl.Bundle, reg *Registry, allowFetch bool) (*Bundle, error) {
 	logger := log.With().
 		Str("action", "EvalBundle()").
 		Str("bundle", inst.Name).
@@ -283,7 +276,7 @@ func EvalBundle(root *Root, resolveAPI resolve.API, evalctx *eval.Context, inst 
 		return nil, errors.E(inst.Source.Range, "source '%s' is not a bundle definition", src)
 	}
 
-	evaluated.Environment, err = checkBundleEnvironment(evalctx, inst, defineBundle, envs)
+	evaluated.Environment, err = checkBundleEnvironment(evalctx, inst, defineBundle, reg.Environments)
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +311,10 @@ func EvalBundle(root *Root, resolveAPI resolve.API, evalctx *eval.Context, inst 
 	}
 
 	evalctx.SetNamespace("bundle", bundleNS)
+
+	// We enable preemptable mode here. This function may suspend execution in case
+	// tm_bundle(key) is not available yet.
+	evalctx.SetFunction("tm_bundle", BundleFunc(ctx, reg, evaluated.Environment, true))
 
 	evaluated.Inputs, err = EvalInputs(
 		evalctx,
@@ -899,7 +896,9 @@ func evalOptions(evalctx *eval.Context, inputName string, expr hhcl.Expression, 
 
 		elemType := elem.Type()
 		if elemType == cty.String {
-			if valueType.String() != "string" {
+			_, isBundleType := valueType.(*typeschema.BundleType)
+			// A bundle reference is stored as a string, but the type doesn't say "string".
+			if valueType.String() != "string" && !isBundleType {
 				return nil, errors.E(expr.Range(), "%s: invalid value type in options at index %d", inputName, index)
 			}
 			options = append(options, NamedValue{Name: elem.AsString(), Value: elem})

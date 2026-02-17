@@ -16,11 +16,12 @@ import (
 	"github.com/terramate-io/terramate/globals"
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/eval"
+	"github.com/terramate-io/terramate/preempt"
 	"github.com/terramate-io/terramate/stdlib"
 )
 
 // LoadProjectBundles recursively collects all the bundles in the given dir and evaluates them.
-func LoadProjectBundles(root *config.Root, resolveAPI resolve.API, evalctx *eval.Context, allowFetch bool) ([]*config.Bundle, error) {
+func LoadProjectBundles(root *config.Root, resolveAPI resolve.API, evalctx *eval.Context, allowFetch bool) (*config.Registry, error) {
 	type entry struct {
 		cfg        *config.Tree
 		bundlesHCL []*hcl.BundleTemplate
@@ -37,37 +38,56 @@ func LoadProjectBundles(root *config.Root, resolveAPI resolve.API, evalctx *eval
 		})
 	}
 	if len(entries) == 0 {
-		return nil, nil
+		return &config.Registry{}, nil
 	}
 
 	if resolveAPI == nil {
 		return nil, errors.E("internal error: ResolveAPI not initialized for bundle evaluation. please report this error.")
 	}
 
-	envs, err := config.EvalEnvironments(root, evalctx)
+	var err error
+	var reg config.Registry
+
+	reg.Environments, err = config.EvalEnvironments(root, evalctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var allBundles []*config.Bundle
-	for _, e := range entries {
-		// This will add the globals to the context.
-		// This is a best effort, there might be undefined stack. variables, so we ignore any errors.
-		// Expressions that are evaluatable will still be set.
-		bundleEvalCtx := evalctx.ChildContext()
+	// We have a chicken-egg problem here:
+	// - looking up bundles by their alias when evaluating input
+	// - calculating the alias, using inputs
+	// There is no way to know what alias a bundle is going to have, so we cannot construct a dependency graph for ordering beforehand.
+	// Instead, we solve it by making bundle evaluation preemptable on tm_bundle() calls.
+	err = preempt.Run(context.TODO(), func(yield func(preempt.Preemptable) bool) {
+		for _, e := range entries {
+			// This will add the globals to the context.
+			// This is a best effort, there might be undefined stack. variables, so we ignore any errors.
+			// Expressions that are evaluatable will still be set.
+			bundleEvalCtx := evalctx.ChildContext()
 
-		// TODO(snk): Causes dependency cycle.
-		_ = globals.ForDir(root, e.cfg.Dir(), bundleEvalCtx)
+			_ = globals.ForDir(root, e.cfg.Dir(), bundleEvalCtx)
 
-		bundles, err := config.EvalBundles(root, e.bundlesHCL, resolveAPI, bundleEvalCtx, envs, allowFetch)
-		if err != nil {
-			return nil, err
+			for _, bundleHCL := range config.FlattenBundleTemplates(e.bundlesHCL) {
+				cont := yield(func(ctx context.Context) ([]string, error) {
+					bundle, err := config.EvalBundle(ctx, root, resolveAPI, bundleEvalCtx, bundleHCL, &reg, allowFetch)
+					if err != nil {
+						return nil, err
+					}
+
+					reg.Bundles = append(reg.Bundles, bundle)
+					return config.BundleAwaitKeys(bundle), nil
+				})
+				if !cont {
+					return
+				}
+			}
 		}
-
-		allBundles = append(allBundles, bundles...)
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return allBundles, nil
+	return &reg, nil
 }
 
 func applyBundleStacks(ctx context.Context, root *config.Root) error {
@@ -80,12 +100,12 @@ func applyBundleStacks(ctx context.Context, root *config.Root) error {
 	resolveAPI, _ := di.Get[resolve.API](ctx)
 
 	// TODO(snk): Cache this
-	bundles, err := LoadProjectBundles(root, resolveAPI, evalctx, true)
+	reg, err := LoadProjectBundles(root, resolveAPI, evalctx, true)
 	if err != nil {
 		return err
 	}
 
-	for _, bundle := range bundles {
+	for _, bundle := range reg.Bundles {
 		for _, bundleStack := range bundle.Stacks {
 			if err := applyBundleStack(root, bundleStack); err != nil {
 				return err

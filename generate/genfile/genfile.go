@@ -5,6 +5,7 @@
 package genfile
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -134,14 +135,14 @@ func Load(
 	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-	bundles []*config.Bundle,
+	reg *config.Registry,
 	env *config.Environment,
 ) ([]File, error) {
 	genFileBlocks, err := loadGenFileBlocks(root, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
-	return EvalBlocks(root, genFileBlocks, st, evalctx, vendorDir, vendorRequests, bundles, env, false)
+	return EvalBlocks(root, genFileBlocks, st, evalctx, vendorDir, vendorRequests, reg, env, false)
 }
 
 // EvalBlocks evaluates the generate_file blocks and returns the File structs.
@@ -152,7 +153,7 @@ func EvalBlocks(
 	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-	bundles []*config.Bundle,
+	reg *config.Registry,
 	env *config.Environment,
 	isFromComponent bool,
 ) ([]File, error) {
@@ -204,8 +205,8 @@ func EvalBlocks(
 		evalctx := evalctx.Copy()
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
-		evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(bundles, env))
-		evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(bundles, env))
+		evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), reg, env, false))
+		evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(reg, env))
 
 		dircfg, _ := root.Lookup(st.Dir)
 		file, skip, err := Eval(genFileBlock, dircfg, evalctx, isFromComponent)

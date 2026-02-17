@@ -4,6 +4,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -70,7 +71,7 @@ func EvalComponentInputSchemas(evalctx *eval.Context, def *hcl.DefineComponent) 
 
 // EvalComponent evaluates a component and returns the component with the inputs resolved.
 // evalctx will be modified to contain `component.input`.
-func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, component *hcl.Component, bundles []*Bundle, envs []*Environment, allowFetch bool) (*Component, *hcl.Config, error) {
+func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, component *hcl.Component, reg *Registry, allowFetch bool) (*Component, *hcl.Config, error) {
 	if component.Source == nil {
 		return nil, nil, errors.E(
 			hcl.ErrComponentMissingSourceAttribute,
@@ -148,7 +149,7 @@ func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, co
 		return nil, nil, errors.E(component.Source.Range, "source '%s' is not a component definition", evaluated.Source)
 	}
 
-	evaluated.Environment, err = checkComponentEnvironment(evalctx, component, envs)
+	evaluated.Environment, err = checkComponentEnvironment(evalctx, component, reg.Environments)
 	if err != nil {
 		return nil, nil, err
 
@@ -159,8 +160,8 @@ func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, co
 		return nil, nil, err
 	}
 
-	evalctx.SetFunction("tm_bundle", BundleFunc(bundles, evaluated.Environment))
-	evalctx.SetFunction("tm_bundles", BundlesFunc(bundles, evaluated.Environment))
+	evalctx.SetFunction("tm_bundle", BundleFunc(context.TODO(), reg, evaluated.Environment, false))
+	evalctx.SetFunction("tm_bundles", BundlesFunc(reg, evaluated.Environment))
 
 	compNS := map[string]cty.Value{
 		"environment": MakeEnvObject(evaluated.Environment),
