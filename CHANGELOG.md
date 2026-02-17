@@ -20,14 +20,18 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
-## Unreleased
+## 0.16.0
+
+### Merged from Terramate Catalyst
+
+- Add new bundles and components framework.
+  - Latest feature: First-class support for environments, see http://terramate.io/docs/environments for details.
+- Update `generate` to implement bundle/component code generation.
+- Add new `scaffold` command that provides an interactive UI to instantiate bundles.
+- Add new `component create` command to auto-create component defintions from existing Terraform modules.
 
 ### Added
 
-- Add new bundles and components framework.
-  - Update `generate` to bundle/component code generation.
-  - Add new `scaffold` command that provides an interactive UI to instantiate bundles.
-  - Add new `component create` to auto-create component defintions from existing Terraform modules.
 - Add orchestration metadata fields to `terramate debug show metadata` command output.
   - The command now displays `before`, `after`, `wants`, and `wanted_by` fields for each stack.
 
