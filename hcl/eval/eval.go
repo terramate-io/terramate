@@ -4,6 +4,7 @@
 package eval
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/terramate-io/terramate/errors"
@@ -36,9 +37,10 @@ func NewContext(funcs map[string]function.Function) *Context {
 	}
 }
 
-// ChildContext creates a new child HCL context that inherits all parent HCL variables and functions.
+// ChildContext creates a new child HCL context that inherits copies of all
+// parent HCL variables and functions so mutations don't leak back to the parent.
 func (c *Context) ChildContext() *Context {
-	child := NewContext(c.hclctx.Functions)
+	child := NewContext(maps.Clone(c.hclctx.Functions))
 	for k, v := range c.hclctx.Variables {
 		child.hclctx.Variables[k] = v
 	}
@@ -135,12 +137,13 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, bool, erro
 	return newexpr, hasUnknowns, nil
 }
 
-// Copy the eval context.
+// Copy the eval context. Both variables and functions are shallow-cloned so
+// mutations in the copy don't affect the original.
 func (c *Context) Copy() *Context {
 	newctx := &hhcl.EvalContext{
+		Functions: maps.Clone(c.hclctx.Functions),
 		Variables: map[string]cty.Value{},
 	}
-	newctx.Functions = c.hclctx.Functions
 	for k, v := range c.hclctx.Variables {
 		newctx.Variables[k] = v
 	}

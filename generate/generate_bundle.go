@@ -15,7 +15,7 @@ import (
 )
 
 func (g *gState) generateBundleStacks(report *genreport.Report, allowCreate bool) {
-	for _, bundle := range g.bundles {
+	for _, bundle := range g.registry.Bundles {
 		for _, stack := range bundle.Stacks {
 			g.generateBundleStack(bundle, stack, report, allowCreate)
 		}

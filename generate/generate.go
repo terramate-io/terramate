@@ -84,7 +84,7 @@ type gState struct {
 	wg         sync.WaitGroup
 	workchan   chan *config.Tree
 
-	bundles []*config.Bundle
+	registry *config.Registry
 	// Workdir -> name -> bundle
 	bundlesByPath map[project.Path]map[string]*config.Bundle
 }
@@ -365,13 +365,13 @@ func (g *gState) loadBundles() error {
 	evalctx.SetNamespace("terramate", g.root.Runtime())
 
 	var err error
-	g.bundles, err = engine.LoadProjectBundles(g.root, g.resolveAPI, evalctx, true)
+	g.registry, err = engine.LoadProjectBundles(g.root, g.resolveAPI, evalctx, true)
 	if err != nil {
 		return err
 	}
 
 	// Setup the lookup cache
-	for _, bundle := range g.bundles {
+	for _, bundle := range g.registry.Bundles {
 		bundlesForDir := g.bundlesByPath[bundle.Workdir]
 		if bundlesForDir == nil {
 			bundlesForDir = make(map[string]*config.Bundle)
@@ -1565,12 +1565,12 @@ func (g *gState) loadStackCodeCfgs(
 	var genfilesConfigs []GenFile
 
 	// Load regular generate blocks
-	genfiles, err := genfile.Load(root, st, evalctx.Context, vendorDir, vendorRequests, g.bundles, nil)
+	genfiles, err := genfile.Load(root, st, evalctx.Context, vendorDir, vendorRequests, g.registry, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(root, st, evalctx.Context, vendorDir, vendorRequests, g.bundles, nil)
+	genhcls, err := genhcl.Load(root, st, evalctx.Context, vendorDir, vendorRequests, g.registry, nil)
 	if err != nil {
 		return nil, err
 	}
