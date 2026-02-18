@@ -27,20 +27,13 @@ func (g *gState) loadComponentGenFiles(
 	// Get component instantiations for this stack
 	cfg, _ := root.Lookup(st.Dir)
 
-	// TODO(snk): This is wasteful, it will be loaded many times instead of just once.
-	// For now it doesn't matter, but lets refactor eventually.
-	envs, err := config.EvalEnvironments(root, evalctx)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, comp := range cfg.Node.Components {
 		evalctx := evalctx.ChildContext()
 		if comp.BundleObject != nil {
 			evalctx.SetNamespaceRaw("bundle", *comp.BundleObject)
 		}
 
-		evalComp, compCfg, err := config.EvalComponent(root, g.resolveAPI, evalctx, comp, g.bundles, envs, false)
+		evalComp, compCfg, err := config.EvalComponent(root, g.resolveAPI, evalctx, comp, g.registry, false)
 		if err != nil {
 			return nil, err
 		}
@@ -55,12 +48,12 @@ func (g *gState) loadComponentGenFiles(
 		// TODO(i4k): fix genfile.Load to not inherit blocks
 
 		// Load generate blocks from component
-		genFiles, err := genfile.EvalBlocks(root, compCfg.Generate.Files, st, compCtx, vendorDir, vendorRequests, g.bundles, evalComp.Environment, true)
+		genFiles, err := genfile.EvalBlocks(root, compCfg.Generate.Files, st, compCtx, vendorDir, vendorRequests, g.registry, evalComp.Environment, true)
 		if err != nil {
 			return nil, err
 		}
 
-		genHCLs, err := genhcl.EvalBlocks(root, compCfg.Generate.HCLs, st, compCtx, vendorDir, vendorRequests, g.bundles, evalComp.Environment, "component_"+comp.Name+"_")
+		genHCLs, err := genhcl.EvalBlocks(root, compCfg.Generate.HCLs, st, compCtx, vendorDir, vendorRequests, g.registry, evalComp.Environment, "component_"+comp.Name+"_")
 		if err != nil {
 			return nil, err
 		}

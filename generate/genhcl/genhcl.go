@@ -5,6 +5,7 @@
 package genhcl
 
 import (
+	"context"
 	stdfmt "fmt"
 	"path"
 	"sort"
@@ -196,14 +197,14 @@ func Load(
 	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-	bundles []*config.Bundle,
+	reg *config.Registry,
 	env *config.Environment,
 ) ([]HCL, error) {
 	hclBlocks, err := loadGenHCLBlocks(root, st, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
-	return EvalBlocks(root, hclBlocks, st, evalctx, vendorDir, vendorRequests, bundles, env, "")
+	return EvalBlocks(root, hclBlocks, st, evalctx, vendorDir, vendorRequests, reg, env, "")
 }
 
 // EvalBlocks evaluates the generate_hcl blocks and returns the HCL structs.
@@ -215,7 +216,7 @@ func EvalBlocks(
 	evalctx *eval.Context,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-	bundles []*config.Bundle,
+	reg *config.Registry,
 	env *config.Environment,
 	baseFilename string,
 ) ([]HCL, error) {
@@ -269,11 +270,11 @@ func EvalBlocks(
 		)
 		evalctx.SetFunction(
 			stdlib.Name("bundle"),
-			config.BundleFunc(bundles, env),
+			config.BundleFunc(context.TODO(), reg, env, false),
 		)
 		evalctx.SetFunction(
 			stdlib.Name("bundles"),
-			config.BundlesFunc(bundles, env),
+			config.BundlesFunc(reg, env),
 		)
 
 		err := lets.Load(hclBlock.Lets, evalctx)

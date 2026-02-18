@@ -75,12 +75,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 	evalctx := eval.NewContext(stdlib.Functions(root.HostDir(), root.Tree().Node.Experiments()))
 	evalctx.SetNamespace("terramate", root.Runtime())
 
-	envs, err := config.EvalEnvironments(root, evalctx)
-	if err != nil {
-		return err
-	}
-
-	bundles, err := engine.LoadProjectBundles(root, resolveAPI, evalctx, true)
+	reg, err := engine.LoadProjectBundles(root, resolveAPI, evalctx, true)
 	if err != nil {
 		return err
 	}
@@ -212,13 +207,13 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 								}
 							}
 
-							envRequired, err = checkEnvRequired(evalctx, selectedBundle.Define, envs)
+							envRequired, err = checkEnvRequired(evalctx, selectedBundle.Define, reg.Environments)
 							if err != nil {
 								return err
 							}
 
 							if !envRequired {
-								evalctx = s.setupBundleContext(evalctx, bundles, nil)
+								evalctx = s.setupBundleContext(evalctx, reg, nil)
 
 								enabled, err := isBundleEnabled(evalctx, selectedBundle.Define)
 								if err != nil {
@@ -228,7 +223,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 									return fmt.Errorf("bundle is not enabled")
 								}
 							} else {
-								outputEnv = envs[0].ID
+								outputEnv = reg.Environments[0].ID
 							}
 							return nil
 						}),
@@ -238,21 +233,21 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 						Title("Select the target environment").
 						Value(&outputEnv).
 						OptionsFunc(func() []huh.Option[string] {
-							return makeEnvOptions(envs)
-						}, &envs).
+							return makeEnvOptions(reg.Environments)
+						}, &reg.Environments).
 						Validate(func(envID string) error {
 							if state.NavigatingBack {
 								return nil
 							}
 
 							var selectedEnv *config.Environment
-							for _, env := range envs {
+							for _, env := range reg.Environments {
 								if env.ID == envID {
 									selectedEnv = env
 									break
 								}
 							}
-							evalctx = s.setupBundleContext(evalctx, bundles, selectedEnv)
+							evalctx = s.setupBundleContext(evalctx, reg, selectedEnv)
 
 							enabled, err := isBundleEnabled(evalctx, selectedBundle.Define)
 							if err != nil {
@@ -801,11 +796,12 @@ func makeSelectInputField(def *config.InputDefinition, v *cty.Value) (huh.Field,
 	defaultIndex := -1
 
 	// Move the default to the top if found.
-	if def.PromptDefault != cty.NilVal {
+	if def.PromptDefault != cty.NilVal && !def.PromptDefault.IsNull() {
 		for idx, e := range def.Options {
 			if c := def.PromptDefault.Equals(e.Value); c.Type() == cty.Bool && c.True() {
 				bundleOptions = append(bundleOptions, huh.NewOption(e.Name, e.Value))
 				defaultIndex = idx
+				break
 			}
 		}
 	}
@@ -842,11 +838,12 @@ func makeMultiSelectInputField(def *config.InputDefinition, v *cty.Value) (huh.F
 	defaultIndex := -1
 
 	// Move the default to the top if found.
-	if def.PromptDefault != cty.NilVal {
+	if def.PromptDefault != cty.NilVal && !def.PromptDefault.IsNull() {
 		for idx, e := range def.Options {
 			if c := def.PromptDefault.Equals(e.Value); c.Type() == cty.Bool && c.True() {
 				bundleOptions = append(bundleOptions, huh.NewOption(e.Name, e.Value))
 				defaultIndex = idx
+				break
 			}
 		}
 	}
@@ -1146,7 +1143,7 @@ func (s *Spec) setupGlobals(evalctx *eval.Context) *eval.Context {
 	return evalctx
 }
 
-func (s *Spec) setupBundleContext(evalctx *eval.Context, bundles []*config.Bundle, env *config.Environment) *eval.Context {
+func (s *Spec) setupBundleContext(evalctx *eval.Context, reg *config.Registry, env *config.Environment) *eval.Context {
 	var bundleVals map[string]cty.Value
 	if bundleNS, ok := evalctx.GetNamespace("bundle"); ok {
 		bundleVals = bundleNS.AsValueMap()
@@ -1156,8 +1153,8 @@ func (s *Spec) setupBundleContext(evalctx *eval.Context, bundles []*config.Bundl
 	bundleVals["environment"] = config.MakeEnvObject(env)
 	evalctx.SetNamespace("bundle", bundleVals)
 
-	evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(bundles, env))
-	evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(bundles, env))
+	evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), reg, env, false))
+	evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(reg, env))
 	return evalctx
 }
 

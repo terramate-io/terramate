@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 %{
-package types
+package typeschema
 
 import (
 	"fmt"
@@ -30,13 +30,14 @@ import (
 %token KW_NUMBER
 %token KW_ANY_OF
 %token KW_HAS
+%token KW_BUNDLE
 
 // Terminals
 %token <str> STR
 %token '(' ')' ',' '.' '+'
 
 // Non-terminals
-%type <typ>  type_expr primitive_type list_type set_type map_type tuple_type
+%type <typ>  type_expr primitive_type list_type set_type map_type tuple_type bundle_type
 %type <typ>  any_of_type all_of_type has_type strict_object_ref merge_operand
 
 // Helper lists
@@ -62,6 +63,7 @@ type_expr:
 |   any_of_type
 |   all_of_type
 |   has_type
+|   bundle_type
 
 any_of_type:
     KW_ANY_OF '(' type_expr ',' type_arg_list ')' {
@@ -123,6 +125,11 @@ tuple_type:
         $$ = &TupleType{Elems: $3}
     }
 
+bundle_type:
+    KW_BUNDLE '(' STR ')' {
+        $$ = &BundleType{ClassID: $3}
+    }
+
 // Generic list of types (for anyOf, tuple)
 type_arg_list:
     type_arg_list ',' type_expr {
@@ -178,11 +185,15 @@ func (l *Lexer) Lex(lval *yySymType) int {
 		case "number":  return KW_NUMBER
         case "any_of":  return KW_ANY_OF
         case "has":     return KW_HAS
+        case "bundle":  return KW_BUNDLE
         
 		default:
 			lval.str = text
 			return STR
 		}
+	case scanner.String:
+		lval.str = text[1 : len(text)-1]
+		return STR
 	default:
 		return int(text[0])
 	}

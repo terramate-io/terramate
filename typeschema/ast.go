@@ -583,6 +583,53 @@ func IsCollectionType(typ Type) bool {
 	return false
 }
 
+// BundleType represents a bundle reference type.
+type BundleType struct {
+	ClassID string
+}
+
+// Apply validates the given value for a bundle type input.
+// Accepted value types:
+//   - null: passed through as-is
+//   - string: a bundle key (alias or UUID)
+//   - tuple/list [key, envID]: a bundle key with an explicit environment ID
+//
+// This method only validates; it does NOT resolve the bundle.
+func (b BundleType) Apply(val cty.Value, _ *eval.Context, _ SchemaNamespaces, _ bool) (cty.Value, error) {
+	if val.IsNull() {
+		return val, nil
+	}
+
+	switch {
+	case val.Type() == cty.String:
+		return val, nil
+
+	case val.Type().IsTupleType() || val.Type().IsListType():
+		elems := val.AsValueSlice()
+		if len(elems) != 2 {
+			return val, errors.E("bundle type expects a [key, envID] tuple of length 2, got %d", len(elems))
+		}
+		for i, e := range elems {
+			if e.Type() != cty.String {
+				return val, errors.E("bundle type tuple element %d must be string, got %s", i, e.Type().FriendlyName())
+			}
+		}
+		return val, nil
+
+	default:
+		return val, errors.E("bundle type expects a string or [key, envID] tuple, got %s", val.Type().FriendlyName())
+	}
+}
+
+// Visit calls fn on this type.
+func (b *BundleType) Visit(fn func(Type) error) error {
+	return fn(b)
+}
+
+func (b BundleType) String() string {
+	return fmt.Sprintf("bundle(%q)", b.ClassID)
+}
+
 // IsAnyType returns true if the type is AnyType.
 func IsAnyType(typ Type) bool {
 	switch typ.(type) {

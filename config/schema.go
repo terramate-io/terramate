@@ -180,5 +180,48 @@ func applyInputSchema(name string, v cty.Value, evalctx *eval.Context, schemas t
 	if err != nil {
 		return v, err
 	}
-	return schema.Apply(v, evalctx, schemas)
+	v, err = schema.Apply(v, evalctx, schemas)
+	if err != nil {
+		return v, err
+	}
+	if bt, ok := schema.Type.(*typeschema.BundleType); ok {
+		return resolveBundleType(bt, name, v, evalctx)
+	}
+	return v, nil
+}
+
+// resolveBundleType resolves a bundle-typed input value by calling tm_bundle.
+func resolveBundleType(bt *typeschema.BundleType, name string, v cty.Value, evalctx *eval.Context) (cty.Value, error) {
+	if v.IsNull() {
+		return v, nil
+	}
+
+	var args []cty.Value
+
+	switch {
+	case v.Type() == cty.String:
+		args = []cty.Value{cty.StringVal(bt.ClassID), v}
+
+	case v.Type().IsTupleType() || v.Type().IsListType():
+		elems := v.AsValueSlice()
+		args = []cty.Value{cty.StringVal(bt.ClassID), elems[0], elems[1]}
+
+	case v.Type().IsObjectType() || v.Type().IsMapType():
+		return v, nil
+
+	default:
+		return v, errors.E("unexpected value type %s for bundle input %q", v.Type().FriendlyName(), name)
+	}
+
+	hclctx := evalctx.Unwrap()
+	fn, ok := hclctx.Functions["tm_bundle"]
+	if !ok {
+		return v, errors.E("tm_bundle function not available in eval context")
+	}
+
+	result, err := fn.Call(args)
+	if err != nil {
+		return v, err
+	}
+	return result, nil
 }
