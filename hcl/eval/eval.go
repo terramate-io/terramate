@@ -87,8 +87,15 @@ func (c *Context) DeleteNamespace(name string) {
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (c *Context) HasNamespace(name string) bool {
-	_, has := c.hclctx.Variables[name]
-	return has
+	ctx := c.hclctx
+	for ctx != nil {
+		_, has := ctx.Variables[name]
+		if has {
+			return true
+		}
+		ctx = ctx.Parent()
+	}
+	return false
 }
 
 // Eval will evaluate an expression given its context.
@@ -121,7 +128,7 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, bool, erro
 		// NOTE(i4k): Template*Expr are also kept because we support an special
 		// HEREDOC handling detection and then if evaluated it will be converted
 		// to plain quoted strings.
-		return newexpr, hasUnknowns, nil
+		return newexpr, false, nil
 	}
 	var evaluated cty.Value
 	evaluated, err = c.Eval(newexpr)
@@ -132,7 +139,7 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, bool, erro
 		Val:      evaluated,
 		SrcRange: newexpr.Range(),
 	}
-	return newexpr, hasUnknowns, nil
+	return newexpr, false, nil
 }
 
 // Copy the eval context.
