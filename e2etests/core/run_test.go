@@ -40,12 +40,13 @@ func TestCLIRunOrder(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		name         string
-		layout       []string
-		filterTags   []string
-		filterNoTags []string
-		workingDir   string
-		want         RunExpected
+		name               string
+		layout             []string
+		fsOrderingDisabled bool
+		filterTags         []string
+		filterNoTags       []string
+		workingDir         string
+		want               RunExpected
 	}
 
 	for _, tc := range []testcase{
@@ -543,6 +544,22 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "stack-b after stack-a after parent - fs ordering disabled",
+			layout: []string{
+				`s:parent/stack-b:after=["/parent/stack-a"]`,
+				`s:parent/stack-a`,
+				`s:parent:after=["/parent/stack-b"]`,
+			},
+			fsOrderingDisabled: true,
+			want: RunExpected{
+				Stdout: nljoin(
+					"/parent/stack-a",
+					"/parent/stack-b",
+					"/parent",
+				),
+			},
+		},
+		{
 			name: "implicit order with tags - Zied case",
 			layout: []string{
 				`s:project:tags=["project"];before=["tag:identity"]`,
@@ -919,6 +936,16 @@ func TestCLIRunOrder(t *testing.T) {
 					t.Parallel()
 					copiedLayout := make([]string, len(tc.layout))
 					copy(copiedLayout, tc.layout)
+					if tc.fsOrderingDisabled {
+						copiedLayout = append(copiedLayout,
+							fmt.Sprintf("f:disable_fs_ordering.tm:%s", Terramate(
+								Config(
+									Block("order_of_execution",
+										Bool("nested", false),
+									),
+								),
+							).String()))
+					}
 					if runtime.GOOS != "windows" {
 						copiedLayout = append(copiedLayout,
 
