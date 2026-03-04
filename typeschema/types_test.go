@@ -149,6 +149,18 @@ func TestParse(t *testing.T) {
 			},
 		},
 
+		// Bundle type
+		{
+			in:         `bundle("my.class/v1")`,
+			wantString: `bundle("my.class/v1")`,
+			wantType:   &BundleType{ClassID: "my.class/v1"},
+		},
+		{
+			in:         `bundle(MyClass)`,
+			wantString: `bundle("MyClass")`,
+			wantType:   &BundleType{ClassID: "MyClass"},
+		},
+
 		// Nested / Precedence
 		// Input: "any_of(A + B, C)"
 		{
@@ -653,4 +665,90 @@ func TestValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBundleTypeApply(t *testing.T) {
+	t.Parallel()
+
+	evalctx := eval.NewContext(map[string]function.Function{})
+	schemas := NewSchemaNamespaces()
+
+	t.Run("string key validates and passes through", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		input := cty.StringVal("my-key")
+		result, err := typ.Apply(input, evalctx, schemas, true)
+		assert.NoError(t, err)
+		assert.IsTrue(t, input.RawEquals(result), "expected string to pass through unchanged")
+	})
+
+	t.Run("null value passes through", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		result, err := typ.Apply(cty.NullVal(cty.String), evalctx, schemas, true)
+		assert.NoError(t, err)
+		assert.IsTrue(t, result.IsNull(), "expected null result")
+	})
+
+	t.Run("tuple [key, envID] validates and passes through", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		input := cty.TupleVal([]cty.Value{cty.StringVal("my-key"), cty.StringVal("prod")})
+		result, err := typ.Apply(input, evalctx, schemas, true)
+		assert.NoError(t, err)
+		assert.IsTrue(t, input.RawEquals(result), "expected tuple to pass through unchanged")
+	})
+
+	t.Run("non-string and non-tuple value returns error", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		_, err := typ.Apply(cty.NumberIntVal(42), evalctx, schemas, true)
+		assert.Error(t, err)
+	})
+
+	t.Run("tuple wrong length returns error", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		input := cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b"), cty.StringVal("c")})
+		_, err := typ.Apply(input, evalctx, schemas, true)
+		assert.Error(t, err)
+	})
+
+	t.Run("tuple with non-string element returns error", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		input := cty.TupleVal([]cty.Value{cty.StringVal("key"), cty.NumberIntVal(1)})
+		_, err := typ.Apply(input, evalctx, schemas, true)
+		assert.Error(t, err)
+	})
+
+	t.Run("object value returns error", func(t *testing.T) {
+		t.Parallel()
+
+		typ := &BundleType{ClassID: "my.class/v1"}
+		input := cty.ObjectVal(map[string]cty.Value{
+			"class": cty.StringVal("my.class/v1"),
+			"key":   cty.StringVal("my-key"),
+		})
+		_, err := typ.Apply(input, evalctx, schemas, true)
+		assert.Error(t, err)
+	})
+
+	t.Run("parsed bundle type validates correctly", func(t *testing.T) {
+		t.Parallel()
+
+		typ, err := Parse(`bundle("test.class/v2")`, nil)
+		assert.NoError(t, err)
+
+		input := cty.StringVal("some-alias")
+		result, err := typ.Apply(input, evalctx, schemas, true)
+		assert.NoError(t, err)
+		assert.IsTrue(t, input.RawEquals(result), "expected string to pass through unchanged")
+	})
 }

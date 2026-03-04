@@ -20,6 +20,23 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add support `type = bundle(<class>)` to inputs and attributes. Usage example:
+  ```hcl
+  input "parent_team" {
+    type        = bundle("terramate.io/tf-github-team")
+    prompt      = "Parent Team"
+    options = tm_concat(
+      [{ name = "-- None --", value = null }],
+      [for parent in tm_bundles("terramate.io/tf-github-team") : parent.alias]
+    )
+    default = null
+  }
+  ```
+
 ## 0.16.0
 
 ### Merged from Terramate Catalyst
