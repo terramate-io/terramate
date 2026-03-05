@@ -28,6 +28,7 @@ type TextWidget struct {
 	numberMode    bool
 }
 
+// NewTextWidget creates a single-line text input widget for strings or numbers.
 func NewTextWidget(wctx *WidgetContext, valueType typeschema.Type) *TextWidget {
 	numberMode := valueType.String() == "number"
 
@@ -52,10 +53,12 @@ func NewTextWidget(wctx *WidgetContext, valueType typeschema.Type) *TextWidget {
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *TextWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *TextWidget) Prepare() {
 	w.textInput.Reset()
 	w.textInput.Focus()
@@ -66,12 +69,13 @@ func (w *TextWidget) Prepare() {
 	w.textInput.Placeholder = ctyToDisplayString(w.defaultValue)
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *TextWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
 		w.validationErr = nil
 
-		newVal := cty.NilVal
+		var newVal cty.Value
 		textVal := w.textInput.Value()
 
 		if textVal != "" {
@@ -108,6 +112,7 @@ func (w *TextWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	}
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *TextWidget) Render() []string {
 	lines := []string{fmt.Sprintf("  %s %s", promptStyle.Render("›"), w.textInput.View())}
 	if w.validationErr != nil {
@@ -116,21 +121,20 @@ func (w *TextWidget) Render() []string {
 	return lines
 }
 
+// FormatDisplay returns a display string for the current value.
 func (w *TextWidget) FormatDisplay() string {
 	return ctyToDisplayString(w.wctx.Value)
 }
 
+// ForwardMsg forwards a bubbletea message to the underlying text input.
 func (w *TextWidget) ForwardMsg(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	w.textInput, cmd = w.textInput.Update(msg)
 	return cmd
 }
 
+// AcceptSubFormResult is a no-op; text widgets do not use sub-forms.
 func (w *TextWidget) AcceptSubFormResult(SubFormResult) bool { return true }
-
-// ---------------------------------------------------------------------------
-// BoolWidget
-// ---------------------------------------------------------------------------
 
 // BoolWidget provides a Yes/No toggle.
 type BoolWidget struct {
@@ -138,16 +142,19 @@ type BoolWidget struct {
 	cursor bool
 }
 
+// NewBoolWidget creates a Yes/No toggle widget.
 func NewBoolWidget(wctx *WidgetContext) *BoolWidget {
 	return &BoolWidget{
 		wctx: wctx,
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *BoolWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *BoolWidget) Prepare() {
 	val := w.wctx.Value
 	if val != cty.NilVal {
@@ -164,6 +171,7 @@ func (w *BoolWidget) Prepare() {
 	w.cursor = false
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *BoolWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyUp, tea.KeyLeft:
@@ -179,6 +187,7 @@ func (w *BoolWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *BoolWidget) Render() []string {
 	var yesBtn, noBtn string
 	if w.cursor {
@@ -192,6 +201,7 @@ func (w *BoolWidget) Render() []string {
 	return []string{toggle}
 }
 
+// FormatDisplay returns a display string for the current boolean value.
 func (w *BoolWidget) FormatDisplay() string {
 	val := w.wctx.Value
 	if val != cty.NilVal {
@@ -203,15 +213,13 @@ func (w *BoolWidget) FormatDisplay() string {
 	return ""
 }
 
+// ForwardMsg is a no-op; bool widgets have no underlying input component.
 func (w *BoolWidget) ForwardMsg(tea.Msg) tea.Cmd {
 	return nil
 }
 
+// AcceptSubFormResult is a no-op; bool widgets do not use sub-forms.
 func (w *BoolWidget) AcceptSubFormResult(SubFormResult) bool { return true }
-
-// ---------------------------------------------------------------------------
-// MultilineWidget
-// ---------------------------------------------------------------------------
 
 // MultilineWidget wraps a textarea.Model for multi-line text inputs.
 type MultilineWidget struct {
@@ -221,6 +229,7 @@ type MultilineWidget struct {
 	validationErr error
 }
 
+// NewMultilineWidget creates a multi-line text area widget.
 func NewMultilineWidget(wctx *WidgetContext) *MultilineWidget {
 	ta := textarea.New()
 	ta.Prompt = ""
@@ -244,10 +253,12 @@ func NewMultilineWidget(wctx *WidgetContext) *MultilineWidget {
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *MultilineWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *MultilineWidget) Prepare() {
 	w.textArea.Reset()
 	w.textArea.Focus()
@@ -258,12 +269,13 @@ func (w *MultilineWidget) Prepare() {
 	w.textArea.Placeholder = ctyToDisplayString(w.defaultValue)
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *MultilineWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
-	switch {
-	case msg.Type == tea.KeyCtrlS:
+	switch msg.Type {
+	case tea.KeyCtrlS:
 		w.validationErr = nil
 
-		newVal := cty.NilVal
+		var newVal cty.Value
 		textVal := w.textArea.Value()
 
 		if textVal != "" {
@@ -279,7 +291,7 @@ func (w *MultilineWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 		w.wctx.UpdateValue(newVal)
 		w.textArea.Blur()
 		return WidgetConfirmed, nil
-	case msg.Type == tea.KeyEsc, msg.Type == tea.KeyShiftTab:
+	case tea.KeyEsc, tea.KeyShiftTab:
 		w.textArea.Blur()
 		return WidgetBack, nil
 	default:
@@ -291,6 +303,7 @@ func (w *MultilineWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	}
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *MultilineWidget) Render() []string {
 	taView := w.textArea.View()
 	totalLines := w.textArea.LineCount()
@@ -365,6 +378,7 @@ func renderTextareaScrollbar(trackHeight, totalLines, cursorLine int) string {
 	return sb.String()
 }
 
+// FormatDisplay returns a truncated display string for the current value.
 func (w *MultilineWidget) FormatDisplay() string {
 	s := ctyToDisplayString(w.wctx.Value)
 	truncated := false
@@ -382,12 +396,14 @@ func (w *MultilineWidget) FormatDisplay() string {
 	return s
 }
 
+// ForwardMsg forwards a bubbletea message to the underlying text area.
 func (w *MultilineWidget) ForwardMsg(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	w.textArea, cmd = w.textArea.Update(msg)
 	return cmd
 }
 
+// AcceptSubFormResult is a no-op; multiline widgets do not use sub-forms.
 func (w *MultilineWidget) AcceptSubFormResult(SubFormResult) bool { return true }
 
 // ---------------------------------------------------------------------------

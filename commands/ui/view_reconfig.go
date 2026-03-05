@@ -73,16 +73,6 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	return nil
 }
 
-// findBundleByLocation looks up a bundle in the registry by its location.
-func (m Model) findBundleByLocation(location string) *config.Bundle {
-	for _, b := range m.EngineState.Registry.Bundles {
-		if fmt.Sprintf("%s:%s", b.Workdir.String(), b.Name) == location {
-			return b
-		}
-	}
-	return nil
-}
-
 // loadBundleEvalContext creates a bundle eval context and loads the schema namespaces for the given bundle.
 func (m Model) loadBundleEvalContext(bde *config.BundleDefinitionEntry) (typeschema.EvalContext, error) {
 	est := m.EngineState

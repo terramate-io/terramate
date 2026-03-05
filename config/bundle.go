@@ -140,7 +140,7 @@ func (def *InputDefinition) EvalDefault(schemactx typeschema.EvalContext) (cty.V
 	return val, nil
 }
 
-// EvalDefault tries to evaluate the default expression, and if it fails, returns the expression as a string.
+// TryEvalDefault tries to evaluate the default expression, and if it fails, returns the expression as a string.
 func (def *InputDefinition) TryEvalDefault(schemactx typeschema.EvalContext) cty.Value {
 	if def.defaultExpr == nil {
 		return cty.NilVal
@@ -754,6 +754,7 @@ func ListLocalBundleDefinitions(root *Root, evalctx *eval.Context, dir project.P
 	return r, nil
 }
 
+// LoadSingleBundleDefinition loads and returns a single bundle definition from the given directory.
 func LoadSingleBundleDefinition(root *Root, dir project.Path) (*Tree, *hcl.DefineBundle, error) {
 	err := root.LoadSubTree(dir)
 	if err != nil {

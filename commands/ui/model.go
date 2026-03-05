@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/terramate-io/terramate/commands"
@@ -29,6 +28,7 @@ import (
 // ViewState represents which view is currently active.
 type ViewState int
 
+// ViewCloudLogin and the following constants enumerate the possible view states.
 const (
 	ViewCloudLogin     ViewState = iota // Cloud login prompt (shown first)
 	ViewEnvSelect                       // Initial environment selection
@@ -45,6 +45,7 @@ const (
 // FocusArea represents which section has focus in the overview.
 type FocusArea int
 
+// FocusCommands and the following constants enumerate the overview focus areas.
 const (
 	FocusCommands FocusArea = iota
 	FocusSummary
@@ -53,6 +54,7 @@ const (
 // BundleSelectPage represents the current page in the bundle selection view.
 type BundleSelectPage int
 
+// BundleSelectCollection and the following constants enumerate the bundle selection pages.
 const (
 	BundleSelectCollection BundleSelectPage = iota
 	BundleSelectBundle
@@ -224,34 +226,6 @@ func inputsToValueMap(inputs map[string]cty.Value) map[string]cty.Value {
 	return out
 }
 
-func newPromptInput() textarea.Model {
-	ta := textarea.New()
-	ta.Placeholder = "Describe what you want to do ... or select an action from ↓"
-	ta.Prompt = ""
-	ta.CharLimit = 0 // no limit
-	ta.SetWidth(uiWidth - 8)
-	ta.SetHeight(1)
-	ta.ShowLineNumbers = false
-
-	ta.FocusedStyle.Base = lipgloss.NewStyle()
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(colorTextSubtle)
-	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(colorText)
-	ta.FocusedStyle.Prompt = lipgloss.NewStyle()
-	ta.FocusedStyle.EndOfBuffer = lipgloss.NewStyle()
-
-	ta.BlurredStyle.Base = lipgloss.NewStyle()
-	ta.BlurredStyle.CursorLine = lipgloss.NewStyle()
-	ta.BlurredStyle.Placeholder = lipgloss.NewStyle().Foreground(colorTextSubtle)
-	ta.BlurredStyle.Text = lipgloss.NewStyle().Foreground(colorTextMuted)
-	ta.BlurredStyle.Prompt = lipgloss.NewStyle()
-	ta.BlurredStyle.EndOfBuffer = lipgloss.NewStyle()
-
-	ta.Focus()
-
-	return ta
-}
-
 // ctrlCResetMsg is sent after the double-press window expires.
 type ctrlCResetMsg struct{}
 
@@ -354,18 +328,22 @@ func (m Model) View() string {
 	}
 }
 
+// PendingChanges returns the list of changes that have been saved but not yet applied.
 func (m *Model) PendingChanges() []Change {
 	return m.EngineState.Registry.PendingChanges
 }
 
+// SetPendingChanges replaces the current list of pending changes.
 func (m *Model) SetPendingChanges(c []Change) {
 	m.EngineState.Registry.PendingChanges = c
 }
 
+// ProposedChanges returns the list of proposed (unsaved) changes in the current session.
 func (m *Model) ProposedChanges() []Change {
 	return m.EngineState.Registry.ProposedChanges
 }
 
+// SetProposedChanges replaces the current list of proposed changes.
 func (m *Model) SetProposedChanges(c []Change) {
 	m.EngineState.Registry.ProposedChanges = c
 }
@@ -489,6 +467,7 @@ func (r *Registry) MatchingBundleOptions(classID string, env *config.Environment
 	return options
 }
 
+// IsBundleUnique checks that no existing or pending bundle conflicts with the given alias and class.
 func (r *Registry) IsBundleUnique(alias, classID, hostPath string) error {
 	if alias != "" {
 		for _, b := range r.Bundles {

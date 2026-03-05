@@ -19,6 +19,7 @@ import (
 // InputFocusArea represents which panel has focus in the split input view.
 type InputFocusArea int
 
+// InputFocusActive and the following constants define the input view focus areas.
 const (
 	InputFocusActive    InputFocusArea = iota // Top panel: current input / buttons
 	InputFocusCompleted                       // Bottom panel: completed inputs
@@ -27,6 +28,7 @@ const (
 // InputsFormState represents the current state of the inputs form.
 type InputsFormState int
 
+// InputsFormActive and the following constants define the inputs form states.
 const (
 	InputsFormActive InputsFormState = iota
 	InputsFormAccepted
@@ -540,7 +542,7 @@ func (f *InputsForm) TriggerDiscard() {
 	f.focus = InputFocusActive
 }
 
-// SetValidationErr sets an error to display at the top of the
+// SetValidationError sets an error to display at the top of the
 // completed panel. The error is cleared automatically on the next key press.
 func (f *InputsForm) SetValidationError(err error) {
 	f.validationErr = err
@@ -729,12 +731,12 @@ func (f InputsForm) Update(msg tea.Msg) (InputsForm, tea.Cmd) {
 		// When the completed panel is focused, handle navigation there.
 		if f.focus == InputFocusCompleted {
 			// Ctrl+U/D for scrolling
-			switch {
-			case msg.Type == tea.KeyPgUp || msg.Type == tea.KeyCtrlU:
+			switch msg.Type {
+			case tea.KeyPgUp, tea.KeyCtrlU:
 				f.viewport.HalfPageUp()
 				f.browsing = true
 				return f, nil
-			case msg.Type == tea.KeyPgDown || msg.Type == tea.KeyCtrlD:
+			case tea.KeyPgDown, tea.KeyCtrlD:
 				f.viewport.HalfPageDown()
 				f.browsing = true
 				return f, nil
@@ -744,12 +746,12 @@ func (f InputsForm) Update(msg tea.Msg) (InputsForm, tea.Cmd) {
 		}
 
 		// Active panel: Ctrl+U/D scroll the completed viewport
-		switch {
-		case msg.Type == tea.KeyPgUp || msg.Type == tea.KeyCtrlU:
+		switch msg.Type {
+		case tea.KeyPgUp, tea.KeyCtrlU:
 			f.viewport.HalfPageUp()
 			f.browsing = true
 			return f, nil
-		case msg.Type == tea.KeyPgDown || msg.Type == tea.KeyCtrlD:
+		case tea.KeyPgDown, tea.KeyCtrlD:
 			f.viewport.HalfPageDown()
 			f.browsing = true
 			return f, nil
@@ -881,23 +883,23 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 
 	if f.confirmingDiscard {
 		// Two-step: confirming discard (Yes / No)
-		switch {
-		case msg.Type == tea.KeyLeft:
+		switch msg.Type {
+		case tea.KeyLeft:
 			if f.discardConfirmIdx > 0 {
 				f.discardConfirmIdx--
 			}
-		case msg.Type == tea.KeyRight:
+		case tea.KeyRight:
 			if f.discardConfirmIdx < 1 {
 				f.discardConfirmIdx++
 			}
-		case msg.Type == tea.KeyEnter:
+		case tea.KeyEnter:
 			if f.discardConfirmIdx == 0 {
 				f.state = InputsFormDiscarded
 			} else {
 				f.confirmingDiscard = false
 				f.focus = f.preDiscardFocus
 			}
-		case msg.Type == tea.KeyEsc:
+		case tea.KeyEsc:
 			f.confirmingDiscard = false
 			f.focus = f.preDiscardFocus
 		}
@@ -907,8 +909,8 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 	// Normal state: Accept / Discard
 	changed, unchanged := f.completedVisibleIndices()
 	combined := append(changed, unchanged...)
-	switch {
-	case msg.Type == tea.KeyLeft:
+	switch msg.Type {
+	case tea.KeyLeft:
 		if f.buttonIdx > 0 {
 			f.buttonIdx--
 		} else {
@@ -922,11 +924,11 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 				}
 			}
 		}
-	case msg.Type == tea.KeyRight:
+	case tea.KeyRight:
 		if f.buttonIdx < 1 {
 			f.buttonIdx++
 		}
-	case msg.Type == tea.KeyUp, msg.Type == tea.KeyDown:
+	case tea.KeyUp, tea.KeyDown:
 		// Switch to the completed list so the user can navigate and re-enter inputs.
 		if len(combined) > 0 {
 			f.focus = InputFocusCompleted
@@ -936,10 +938,10 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 				f.completedCursor = 0
 			}
 		}
-	case msg.Type == tea.KeyShiftTab:
+	case tea.KeyShiftTab:
 		f.goBack()
 		return f, nil
-	case msg.Type == tea.KeyEnter:
+	case tea.KeyEnter:
 		if f.buttonIdx == 0 {
 			f.state = InputsFormAccepted
 		} else if f.skipDiscardConfirm {
@@ -1296,7 +1298,6 @@ var (
 	checkboxOff       = lipgloss.NewStyle().Foreground(colorTextMuted)
 
 	boolActiveStyle   = lipgloss.NewStyle().Padding(0, 2).Background(colorPrimary).Foreground(lipgloss.Color("0")).Bold(true)
-	boolDimStyle      = lipgloss.NewStyle().Padding(0, 2).Background(colorBgMuted).Foreground(colorTextMuted)
 	boolInactiveStyle = lipgloss.NewStyle().Padding(0, 2).Background(colorBgSubtle).Foreground(colorText)
 
 	validationStyle = lipgloss.NewStyle().Foreground(colorError)

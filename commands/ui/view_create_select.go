@@ -92,7 +92,6 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 
 	if len(est.LocalBundleDefs) > 0 && collIdx == 0 {
 		// Local "fake" collection. No need to download anything, we have the files already.
-		bde = &est.LocalBundleDefs[m.selectedBundleIdx]
 		bde = &est.LocalBundleDefs[bundleIdx]
 		source = bde.Tree.Dir().String()
 	} else {

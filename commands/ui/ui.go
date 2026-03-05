@@ -1,6 +1,7 @@
 // Copyright 2025 Terramate GmbH
 // SPDX-License-Identifier: MPL-2.0
 
+// Package ui implements the terramate ui command.
 package ui
 
 import (

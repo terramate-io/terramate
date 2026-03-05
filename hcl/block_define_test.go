@@ -169,12 +169,12 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Default:     newAttribute(t, "default"),
 									},
@@ -211,7 +211,7 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 							Component: &hcl.DefineComponent{
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
-										Name:        "input1",
+										Name: "input1",
 										Prompt: &hcl.DefineInputPrompt{
 											Text:    newAttribute(t, "prompt"),
 											Options: newAttribute(t, "options"),
@@ -258,13 +258,13 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -317,12 +317,12 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 								},
@@ -376,12 +376,12 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 								},
@@ -644,13 +644,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -701,13 +701,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -758,13 +758,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -775,13 +775,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -957,7 +957,7 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"my_input": {
 										Name:        "my_input",
-										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 										Immutable:   newAttribute(t, "immutable"),

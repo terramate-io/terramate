@@ -59,6 +59,7 @@ type SubFormResult struct {
 // WidgetSignal communicates intent from a widget back to InputsForm.
 type WidgetSignal int
 
+// WidgetContinue and the following constants define the signals a widget can return.
 const (
 	WidgetContinue    WidgetSignal = iota // Normal operation, keep editing
 	WidgetConfirmed                       // Value accepted, advance to next input
@@ -82,7 +83,7 @@ type SharedWidgetContext struct {
 	FromEnv   *config.Environment
 }
 
-// SharedWidgetContext provides shared resources to widgets.
+// WidgetContext provides per-input context including the shared resources, display width, and current value.
 type WidgetContext struct {
 	*SharedWidgetContext
 	Width int
