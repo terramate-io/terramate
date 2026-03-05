@@ -57,15 +57,19 @@ type Attribute[T any] struct {
 	Column      int
 	HeadComment string
 	LineComment string
+	FootComment string
 }
 
 // Attr is a helper function to create an Attribute.
 func Attr[T any](v T, args ...any) Attribute[T] {
 	var line, column int
-	var headComment, lineComment string
+	var headComment, lineComment, footComment string
 	switch len(args) {
 	case 0:
 		break
+	case 5:
+		footComment = args[4].(string)
+		fallthrough
 	case 4:
 		lineComment = args[3].(string)
 		fallthrough
@@ -80,12 +84,12 @@ func Attr[T any](v T, args ...any) Attribute[T] {
 		panic("invalid args")
 	}
 
-	return Attribute[T]{V: v, Line: line, Column: column, HeadComment: headComment, LineComment: lineComment}
+	return Attribute[T]{V: v, Line: line, Column: column, HeadComment: headComment, LineComment: lineComment, FootComment: footComment}
 }
 
 func attrToMapItem[T any](name string, attr Attribute[T]) MapItem[any] {
 	return MapItem[any]{
-		Key:   Attribute[string]{V: name, HeadComment: attr.HeadComment},
+		Key:   Attribute[string]{V: name, HeadComment: attr.HeadComment, FootComment: attr.FootComment},
 		Value: Attribute[any]{V: attr.V, LineComment: attr.LineComment},
 	}
 }

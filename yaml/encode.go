@@ -75,6 +75,7 @@ func (v Seq[T]) MarshalYAML() (any, error) {
 		}
 		valNode.HeadComment = elem.Value.HeadComment
 		valNode.LineComment = elem.Value.LineComment
+		valNode.FootComment = elem.Value.FootComment
 		node.Content[i] = valNode
 	}
 	return &node, nil
@@ -100,7 +101,12 @@ func (v Map[T]) MarshalYAML() (any, error) {
 		}
 
 		keyNode.HeadComment = elem.Key.HeadComment
+		keyNode.LineComment = elem.Key.LineComment
+		keyNode.FootComment = elem.Key.FootComment
+
+		valNode.HeadComment = elem.Value.HeadComment
 		valNode.LineComment = elem.Value.LineComment
+		valNode.FootComment = elem.Value.FootComment
 
 		node.Content[offset] = &keyNode
 		node.Content[offset+1] = valNode
@@ -155,13 +161,19 @@ func encodeMapOfStructs[T StructEncoder](obj Attribute[Map[T]]) (Attribute[Map[a
 			return Attribute[Map[any]]{}, err
 		}
 		ret[i] = MapItem[any]{
-			Key:   mapItem.Key,
-			Value: Attribute[any]{V: encoded, LineComment: mapItem.Value.LineComment},
+			Key: mapItem.Key,
+			Value: Attribute[any]{
+				V:           encoded,
+				HeadComment: mapItem.Value.HeadComment,
+				LineComment: mapItem.Value.LineComment,
+				FootComment: mapItem.Value.FootComment,
+			},
 		}
 	}
 	return Attribute[Map[any]]{
 		V:           ret,
 		HeadComment: obj.HeadComment,
 		LineComment: obj.LineComment,
+		FootComment: obj.FootComment,
 	}, nil
 }
