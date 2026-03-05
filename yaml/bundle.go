@@ -5,8 +5,6 @@
 package yaml
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 )
 
@@ -50,8 +48,9 @@ func (b *BundleInstance) EncodeMetadata() (Map[any], error) {
 
 // EncodeSpec encodes the bundle instance spec into a Map.
 func (b *BundleInstance) EncodeSpec() (Map[any], error) {
-	r := Map[any]{
-		attrToMapItem("source", b.Source),
+	r := Map[any]{}
+	if b.Source.V != nil {
+		r = append(r, attrToMapItem("source", b.Source))
 	}
 	if len(b.Inputs.V) > 0 {
 		r = append(r, attrToMapItem("inputs", b.Inputs))
@@ -119,9 +118,6 @@ func (b *BundleInstance) DecodeSpec(spec Attribute[Map[any]]) error {
 		default:
 			return newAttrErrorf(mapItem.Key, "unexpected attribute: spec.%s. must be one of [source, inputs]", mapItem.Key.V)
 		}
-	}
-	if b.Source.V == nil {
-		return fmt.Errorf("spec.source is missing")
 	}
 	return nil
 }

@@ -106,7 +106,7 @@ func BundleFunc(ctx context.Context, reg *Registry, currentEnv *Environment, use
 			}
 
 			for _, b := range reg.Bundles {
-				if b.Class != class || !pred(b) {
+				if b.DefinitionMetadata.Class != class || !pred(b) {
 					continue
 				}
 				// If the bundle has an environment, match it against the current environment.
@@ -156,7 +156,7 @@ func BundlesFunc(reg *Registry, currentEnv *Environment) function.Function {
 
 			var r []cty.Value
 			for _, b := range reg.Bundles {
-				if class != "*" && class != b.Class {
+				if class != "*" && class != b.DefinitionMetadata.Class {
 					continue
 				}
 				// If the bundle has an environment, match it against the current environment.
@@ -189,7 +189,7 @@ func MakeObjectFromBundle(b *Bundle) cty.Value {
 
 	return cty.ObjectVal(map[string]cty.Value{
 		"alias":       cty.StringVal(b.Alias),
-		"class":       cty.StringVal(b.Class),
+		"class":       cty.StringVal(b.DefinitionMetadata.Class),
 		"uuid":        uuidVal,
 		"input":       cty.ObjectVal(b.Inputs),
 		"export":      cty.ObjectVal(b.Exports),

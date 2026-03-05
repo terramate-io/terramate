@@ -649,8 +649,8 @@ func TestValidate(t *testing.T) {
 			typ, err := Parse(tc.schema, nil)
 			assert.NoError(t, err, "Parse failed for schema: %s", tc.schema)
 
-			evalctx := eval.NewContext(map[string]function.Function{})
-			output, err := typ.Apply(tc.input, evalctx, schemas, true)
+			evctx := EvalContext{Evalctx: eval.NewContext(map[string]function.Function{}), Schemas: schemas}
+			output, err := typ.Apply(tc.input, evctx, true)
 
 			if tc.expectErr {
 				assert.Error(t, err, "Expected validation error for input %s against %s", tc.input, tc.schema)
@@ -670,15 +670,17 @@ func TestValidate(t *testing.T) {
 func TestBundleTypeApply(t *testing.T) {
 	t.Parallel()
 
-	evalctx := eval.NewContext(map[string]function.Function{})
-	schemas := NewSchemaNamespaces()
+	evctx := EvalContext{
+		Evalctx: eval.NewContext(map[string]function.Function{}),
+		Schemas: NewSchemaNamespaces(),
+	}
 
 	t.Run("string key validates and passes through", func(t *testing.T) {
 		t.Parallel()
 
 		typ := &BundleType{ClassID: "my.class/v1"}
 		input := cty.StringVal("my-key")
-		result, err := typ.Apply(input, evalctx, schemas, true)
+		result, err := typ.Apply(input, evctx, true)
 		assert.NoError(t, err)
 		assert.IsTrue(t, input.RawEquals(result), "expected string to pass through unchanged")
 	})
@@ -687,7 +689,7 @@ func TestBundleTypeApply(t *testing.T) {
 		t.Parallel()
 
 		typ := &BundleType{ClassID: "my.class/v1"}
-		result, err := typ.Apply(cty.NullVal(cty.String), evalctx, schemas, true)
+		result, err := typ.Apply(cty.NullVal(cty.String), evctx, true)
 		assert.NoError(t, err)
 		assert.IsTrue(t, result.IsNull(), "expected null result")
 	})
@@ -697,7 +699,7 @@ func TestBundleTypeApply(t *testing.T) {
 
 		typ := &BundleType{ClassID: "my.class/v1"}
 		input := cty.TupleVal([]cty.Value{cty.StringVal("my-key"), cty.StringVal("prod")})
-		result, err := typ.Apply(input, evalctx, schemas, true)
+		result, err := typ.Apply(input, evctx, true)
 		assert.NoError(t, err)
 		assert.IsTrue(t, input.RawEquals(result), "expected tuple to pass through unchanged")
 	})
@@ -706,7 +708,7 @@ func TestBundleTypeApply(t *testing.T) {
 		t.Parallel()
 
 		typ := &BundleType{ClassID: "my.class/v1"}
-		_, err := typ.Apply(cty.NumberIntVal(42), evalctx, schemas, true)
+		_, err := typ.Apply(cty.NumberIntVal(42), evctx, true)
 		assert.Error(t, err)
 	})
 
@@ -715,7 +717,7 @@ func TestBundleTypeApply(t *testing.T) {
 
 		typ := &BundleType{ClassID: "my.class/v1"}
 		input := cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b"), cty.StringVal("c")})
-		_, err := typ.Apply(input, evalctx, schemas, true)
+		_, err := typ.Apply(input, evctx, true)
 		assert.Error(t, err)
 	})
 
@@ -724,7 +726,7 @@ func TestBundleTypeApply(t *testing.T) {
 
 		typ := &BundleType{ClassID: "my.class/v1"}
 		input := cty.TupleVal([]cty.Value{cty.StringVal("key"), cty.NumberIntVal(1)})
-		_, err := typ.Apply(input, evalctx, schemas, true)
+		_, err := typ.Apply(input, evctx, true)
 		assert.Error(t, err)
 	})
 
@@ -736,7 +738,7 @@ func TestBundleTypeApply(t *testing.T) {
 			"class": cty.StringVal("my.class/v1"),
 			"key":   cty.StringVal("my-key"),
 		})
-		_, err := typ.Apply(input, evalctx, schemas, true)
+		_, err := typ.Apply(input, evctx, true)
 		assert.Error(t, err)
 	})
 
@@ -747,7 +749,7 @@ func TestBundleTypeApply(t *testing.T) {
 		assert.NoError(t, err)
 
 		input := cty.StringVal("some-alias")
-		result, err := typ.Apply(input, evalctx, schemas, true)
+		result, err := typ.Apply(input, evctx, true)
 		assert.NoError(t, err)
 		assert.IsTrue(t, input.RawEquals(result), "expected string to pass through unchanged")
 	})

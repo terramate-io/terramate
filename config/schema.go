@@ -75,11 +75,11 @@ func EvalDefineSchema(evalctx *eval.Context, schemaHCL *hcl.DefineSchema) (*type
 
 	typeStr := "any"
 
-	inlineAttrs, err := EvalObjectAttributes(evalctx, schemaHCL.ObjectAttributes)
+	configAttrs, err := EvalObjectAttributes(evalctx, schemaHCL.ObjectAttributes)
 	if err != nil {
 		return nil, err
 	}
-	if len(inlineAttrs) > 0 {
+	if len(configAttrs) > 0 {
 		typeStr = "object"
 	}
 
@@ -87,7 +87,7 @@ func EvalDefineSchema(evalctx *eval.Context, schemaHCL *hcl.DefineSchema) (*type
 		typeStr = getExprTokens(schemaHCL.Type.Expr)
 	}
 
-	ret.Type, err = typeschema.Parse(typeStr, inlineAttrs)
+	ret.Type, err = typeschema.Parse(typeStr, extractSchemaAttrs(configAttrs))
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +95,9 @@ func EvalDefineSchema(evalctx *eval.Context, schemaHCL *hcl.DefineSchema) (*type
 	return ret, nil
 }
 
-// EvalObjectAttributes evaluates HCL object attribute definitions into type attributes.
-func EvalObjectAttributes(evalctx *eval.Context, attrsHCL []*hcl.DefineObjectAttribute) ([]*typeschema.ObjectTypeAttribute, error) {
-	var ret []*typeschema.ObjectTypeAttribute
+// EvalObjectAttributes evaluates HCL object attribute definitions into config-level attributes.
+func EvalObjectAttributes(evalctx *eval.Context, attrsHCL []*hcl.DefineObjectAttribute) ([]*ObjectAttribute, error) {
+	var ret []*ObjectAttribute
 
 	for _, attrHCL := range attrsHCL {
 		var err error
@@ -127,19 +127,56 @@ func EvalObjectAttributes(evalctx *eval.Context, attrsHCL []*hcl.DefineObjectAtt
 			}
 		}
 
-		ret = append(ret, &typeschema.ObjectTypeAttribute{
-			Name:        attrHCL.Name,
-			Type:        attrTyp,
+		var prompt PromptConfig
+		if p := attrHCL.Prompt; p != nil {
+			if p.Text != nil {
+				prompt.Text, err = EvalString(evalctx, p.Text.Expr, "prompt.text")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if p.Multiline != nil {
+				prompt.Multiline, err = EvalBool(evalctx, p.Multiline.Expr, "prompt.multiline")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if p.Multiselect != nil {
+				prompt.Multiselect, err = EvalBool(evalctx, p.Multiselect.Expr, "prompt.multiselect")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if p.Options != nil {
+				prompt.optionsExpr = p.Options.Expr
+			}
+			if p.Condition != nil {
+				prompt.conditionExpr = p.Condition.Expr
+			}
+		}
+
+		ret = append(ret, &ObjectAttribute{
+			Schema: &typeschema.ObjectTypeAttribute{
+				Name:     attrHCL.Name,
+				Type:     attrTyp,
+				Required: required,
+				Default:  attrHCL.Default,
+			},
 			Description: desc,
-			Required:    required,
-			// The default is not evaluated yet.
-			// It may reference bundle inputs, so it must be evaluated later during bundle input evaluation.
-			Default: attrHCL.Default,
-			//Range:       attrHCL.DefRange, // TODO
+			Prompt:      prompt,
 		})
 	}
 
 	return ret, nil
+}
+
+// extractSchemaAttrs extracts the type-level attributes from config-level ObjectAttributes.
+func extractSchemaAttrs(attrs []*ObjectAttribute) []*typeschema.ObjectTypeAttribute {
+	ret := make([]*typeschema.ObjectTypeAttribute, len(attrs))
+	for i, a := range attrs {
+		ret[i] = a.Schema
+	}
+	return ret
 }
 
 // EvalInputSchema evaluates an input definition into a type schema.
@@ -149,12 +186,11 @@ func EvalInputSchema(evalctx *eval.Context, inputHCL *hcl.DefineInput) (*typesch
 	}
 
 	typeStr := "any"
-
-	inlineAttrs, err := EvalObjectAttributes(evalctx, inputHCL.ObjectAttributes)
+	configAttrs, err := EvalObjectAttributes(evalctx, inputHCL.ObjectAttributes)
 	if err != nil {
 		return nil, err
 	}
-	if len(inlineAttrs) > 0 {
+	if len(configAttrs) > 0 {
 		typeStr = "object"
 	}
 
@@ -162,7 +198,7 @@ func EvalInputSchema(evalctx *eval.Context, inputHCL *hcl.DefineInput) (*typesch
 		typeStr = getExprTokens(inputHCL.Type.Expr)
 	}
 
-	schema.Type, err = typeschema.Parse(typeStr, inlineAttrs)
+	schema.Type, err = typeschema.Parse(typeStr, extractSchemaAttrs(configAttrs))
 	if err != nil {
 		return nil, errors.E(err, "failed to parse typestr %s", typeStr)
 	}
@@ -175,17 +211,17 @@ func getExprTokens(expr hhcl.Expression) string {
 	return strings.TrimSpace(string(tokens))
 }
 
-func applyInputSchema(name string, v cty.Value, evalctx *eval.Context, schemas typeschema.SchemaNamespaces) (cty.Value, error) {
-	schema, err := schemas.Lookup("input." + name)
+func applyInputSchema(name string, v cty.Value, sc typeschema.EvalContext) (cty.Value, error) {
+	schema, err := sc.Schemas.Lookup("input." + name)
 	if err != nil {
 		return v, err
 	}
-	v, err = schema.Apply(v, evalctx, schemas)
+	v, err = schema.Apply(v, sc)
 	if err != nil {
 		return v, err
 	}
 	if bt, ok := schema.Type.(*typeschema.BundleType); ok {
-		return resolveBundleType(bt, name, v, evalctx)
+		return resolveBundleType(bt, name, v, sc.Evalctx)
 	}
 	return v, nil
 }

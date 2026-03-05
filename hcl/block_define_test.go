@@ -169,12 +169,12 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Default:     newAttribute(t, "default"),
 									},
@@ -212,13 +212,15 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{
+											Text:    newAttribute(t, "prompt"),
+											Options: newAttribute(t, "options"),
+										},
 										Description: newAttribute(t, "description"),
-										Options:     newAttribute(t, "options"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt:      &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 								},
@@ -256,13 +258,13 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -315,12 +317,12 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 								},
@@ -374,13 +376,52 @@ func TestDefineComponentBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1": {
 										Name:        "input1",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 									},
 									"input2": {
 										Name:        "input2",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define component input with immutable and prompt sub-block",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("component",
+						Block("input",
+							Labels("my_input"),
+							Expr("type", `string`),
+							Bool("immutable", true),
+							Block("prompt",
+								Str("text", "Override text"),
+								Expr("condition", `true`),
+							),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Component: &hcl.DefineComponent{
+								Inputs: map[string]*hcl.DefineInput{
+									"my_input": {
+										Name:      "my_input",
+										Type:      newAttribute(t, "type"),
+										Immutable: newAttribute(t, "immutable"),
+										Prompt: &hcl.DefineInputPrompt{
+											Text:      newAttribute(t, "text"),
+											Condition: newAttribute(t, "condition"),
+										},
 									},
 								},
 							},
@@ -603,13 +644,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -660,13 +701,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -717,13 +758,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -734,13 +775,13 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 								Inputs: map[string]*hcl.DefineInput{
 									"input1_name": {
 										Name:        "input1_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
 									"input2_name": {
 										Name:        "input2_name",
-										Prompt:      newAttribute(t, "prompt"),
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
 										Description: newAttribute(t, "description"),
 										Type:        newAttribute(t, "type"),
 									},
@@ -892,6 +933,127 @@ func TestDefineBundleBlockOKCases(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "define bundle input with immutable attribute",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("bundle",
+						Block("input",
+							Labels("my_input"),
+							Str("prompt", "My Input"),
+							Str("description", "An immutable input"),
+							Expr("type", `string`),
+							Bool("immutable", true),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Bundle: &hcl.DefineBundle{
+								Stacks: map[string]*hcl.DefineStack{},
+								Inputs: map[string]*hcl.DefineInput{
+									"my_input": {
+										Name:        "my_input",
+										Prompt: &hcl.DefineInputPrompt{Text: newAttribute(t, "prompt")},
+										Description: newAttribute(t, "description"),
+										Type:        newAttribute(t, "type"),
+										Immutable:   newAttribute(t, "immutable"),
+									},
+								},
+								Exports: map[string]*hcl.DefineExport{},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define bundle input with prompt sub-block",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("bundle",
+						Block("input",
+							Labels("my_input"),
+							Str("description", "Input with prompt block"),
+							Expr("type", `string`),
+							Block("prompt",
+								Str("text", "Override prompt text"),
+								Expr("options", `["a", "b"]`),
+								Expr("condition", `true`),
+							),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Bundle: &hcl.DefineBundle{
+								Stacks: map[string]*hcl.DefineStack{},
+								Inputs: map[string]*hcl.DefineInput{
+									"my_input": {
+										Name:        "my_input",
+										Description: newAttribute(t, "description"),
+										Type:        newAttribute(t, "type"),
+										Prompt: &hcl.DefineInputPrompt{
+											Text:      newAttribute(t, "text"),
+											Options:   newAttribute(t, "options"),
+											Condition: newAttribute(t, "condition"),
+										},
+									},
+								},
+								Exports: map[string]*hcl.DefineExport{},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define bundle input with immutable and prompt sub-block with partial attributes",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("bundle",
+						Block("input",
+							Labels("my_input"),
+							Str("prompt", "My Input"),
+							Expr("type", `string`),
+							Bool("immutable", true),
+							Block("prompt",
+								Expr("condition", `true`),
+							),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Bundle: &hcl.DefineBundle{
+								Stacks: map[string]*hcl.DefineStack{},
+								Inputs: map[string]*hcl.DefineInput{
+									"my_input": {
+										Name:      "my_input",
+										Type:      newAttribute(t, "type"),
+										Immutable: newAttribute(t, "immutable"),
+										Prompt: &hcl.DefineInputPrompt{
+											Text:      newAttribute(t, "prompt"),
+											Condition: newAttribute(t, "condition"),
+										},
+									},
+								},
+								Exports: map[string]*hcl.DefineExport{},
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
@@ -1017,6 +1179,223 @@ func TestDefineSchemaBlockOKCases(t *testing.T) {
 											Description: newAttribute(t, "description"),
 											Type:        newAttribute(t, "type"),
 										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define schema with object attribute prompt block with all fields",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Labels("schema", "my_schema"),
+					Str("description", "my schema description"),
+					Block("attribute",
+						Labels("name"),
+						Str("description", "the server hostname"),
+						Expr("type", `string`),
+						Block("prompt",
+							Str("text", "Enter the server hostname"),
+							Bool("multiline", true),
+							Bool("multiselect", false),
+							Expr("options", `["a", "b"]`),
+							Expr("condition", `true`),
+						),
+					),
+					Block("attribute",
+						Labels("env"),
+						Str("description", "the environment"),
+						Expr("type", `string`),
+						Block("prompt",
+							Str("text", "Select the environment"),
+							Expr("options", `["dev", "staging", "prod"]`),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Schemas: []*hcl.DefineSchema{
+								{
+									Name:        "my_schema",
+									Description: newAttribute(t, "description"),
+									ObjectAttributes: []*hcl.DefineObjectAttribute{
+										{
+											Name:        "name",
+											Description: newAttribute(t, "description"),
+											Type:        newAttribute(t, "type"),
+											Prompt: &hcl.DefineInputPrompt{
+												Text:        newAttribute(t, "text"),
+												Multiline:   newAttribute(t, "multiline"),
+												Multiselect: newAttribute(t, "multiselect"),
+												Options:     newAttribute(t, "options"),
+												Condition:   newAttribute(t, "condition"),
+											},
+										},
+										{
+											Name:        "env",
+											Description: newAttribute(t, "description"),
+											Type:        newAttribute(t, "type"),
+											Prompt: &hcl.DefineInputPrompt{
+												Text:    newAttribute(t, "text"),
+												Options: newAttribute(t, "options"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define schema with prompt block using nested syntax",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("schema",
+						Labels("my_schema"),
+						Str("description", "my schema description"),
+						Expr("type", `string`),
+						Block("prompt",
+							Str("text", "Enter a value"),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Schemas: []*hcl.DefineSchema{
+								{
+									Name:        "my_schema",
+									Description: newAttribute(t, "description"),
+									Type:        newAttribute(t, "type"),
+									Prompt: &hcl.DefineInputPrompt{
+										Text: newAttribute(t, "text"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define schema with prompt block using labeled syntax",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Labels("schema", "my_schema"),
+					Str("description", "my schema description"),
+					Expr("type", `string`),
+					Block("prompt",
+						Str("text", "Enter a value"),
+						Expr("options", `["a", "b", "c"]`),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Schemas: []*hcl.DefineSchema{
+								{
+									Name:        "my_schema",
+									Description: newAttribute(t, "description"),
+									Type:        newAttribute(t, "type"),
+									Prompt: &hcl.DefineInputPrompt{
+										Text:    newAttribute(t, "text"),
+										Options: newAttribute(t, "options"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define schema with prompt block with all fields",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("schema",
+						Labels("my_schema"),
+						Str("description", "my schema description"),
+						Expr("type", `string`),
+						Block("prompt",
+							Str("text", "Enter a value"),
+							Expr("options", `["x", "y"]`),
+							Expr("condition", `true`),
+							Bool("multiline", true),
+							Bool("multiselect", false),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Schemas: []*hcl.DefineSchema{
+								{
+									Name:        "my_schema",
+									Description: newAttribute(t, "description"),
+									Type:        newAttribute(t, "type"),
+									Prompt: &hcl.DefineInputPrompt{
+										Text:        newAttribute(t, "text"),
+										Options:     newAttribute(t, "options"),
+										Condition:   newAttribute(t, "condition"),
+										Multiline:   newAttribute(t, "multiline"),
+										Multiselect: newAttribute(t, "multiselect"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "define schema with attributes and prompt block combined",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("schema",
+						Labels("my_schema"),
+						Str("description", "a schema"),
+						Block("attribute",
+							Labels("attr1"),
+							Str("description", "attribute 1"),
+							Expr("type", `string`),
+						),
+						Block("prompt",
+							Str("text", "Schema prompt"),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				config: hcl.Config{
+					Defines: []*hcl.Define{
+						{
+							Schemas: []*hcl.DefineSchema{
+								{
+									Name:        "my_schema",
+									Description: newAttribute(t, "description"),
+									ObjectAttributes: []*hcl.DefineObjectAttribute{
+										{
+											Name:        "attr1",
+											Description: newAttribute(t, "description"),
+											Type:        newAttribute(t, "type"),
+										},
+									},
+									Prompt: &hcl.DefineInputPrompt{
+										Text: newAttribute(t, "text"),
 									},
 								},
 							},
@@ -1404,6 +1783,100 @@ func TestDefineBlockFailCases(t *testing.T) {
 					errors.E(hcl.ErrUnrecognizedStackAttribute),
 					errors.E(hcl.ErrUnrecognizedStackAttribute),
 				},
+			},
+		},
+		{
+			name: "schema prompt sub-block with labels fails",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("schema",
+						Labels("my_schema"),
+						Str("description", "my schema"),
+						Block("prompt",
+							Labels("bad_label"),
+							Str("text", "value"),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				errs: []error{errors.E(hcl.ErrTerramateSchema)},
+			},
+		},
+		{
+			name: "schema duplicate prompt sub-block fails",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("schema",
+						Labels("my_schema"),
+						Str("description", "my schema"),
+						Block("prompt",
+							Str("text", "first"),
+						),
+						Block("prompt",
+							Str("text", "second"),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				errs: []error{errors.E(hcl.ErrTerramateSchema)},
+			},
+		},
+		{
+			name: "schema prompt sub-block with unrecognized attribute fails",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("schema",
+						Labels("my_schema"),
+						Str("description", "my schema"),
+						Block("prompt",
+							Str("unknown_attr", "value"),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				errs: []error{errors.E(hcl.ErrUnrecognizedInputAttribute)},
+			},
+		},
+		{
+			name: "prompt sub-block with unrecognized attribute",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("bundle",
+						Block("input",
+							Labels("my_input"),
+							Str("prompt", "My Input"),
+							Block("prompt",
+								Str("unknown_attr", "value"),
+							),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				errs: []error{errors.E(hcl.ErrUnrecognizedInputAttribute)},
+			},
+		},
+		{
+			name: "prompt sub-block with labels fails",
+			input: []cfgfile{
+				{filename: "defines.tm", body: Block("define",
+					Block("bundle",
+						Block("input",
+							Labels("my_input"),
+							Str("prompt", "My Input"),
+							Block("prompt",
+								Labels("bad_label"),
+								Str("text", "Override"),
+							),
+						),
+					),
+				).String()},
+			},
+			want: want{
+				errs: []error{errors.E(hcl.ErrTerramateSchema)},
 			},
 		},
 	} {

@@ -75,6 +75,7 @@ type DefineSchema struct {
 	Description      *ast.Attribute
 	Type             *ast.Attribute
 	ObjectAttributes []*DefineObjectAttribute
+	Prompt           *DefineInputPrompt // TODO(snk): Parsed, but not yet evaluated.
 	DefRange         hhcl.Range
 }
 
@@ -136,16 +137,24 @@ type UsesSchemas struct {
 // DefineInput represents an input for a component/bundle.
 type DefineInput struct {
 	Name                string
-	Prompt              *ast.Attribute
 	Description         *ast.Attribute
 	Type                *ast.Attribute
 	ObjectAttributes    []*DefineObjectAttribute
 	Default             *ast.Attribute
-	Options             *ast.Attribute
-	Multiline           *ast.Attribute
-	Multiselect         *ast.Attribute
+	Immutable           *ast.Attribute
 	RequiredForScaffold *ast.Attribute
+	Prompt              *DefineInputPrompt
 	DefRange            hhcl.Range
+}
+
+// DefineInputPrompt represents the prompt sub-block inside an input definition.
+// It controls how the input is presented during interactive prompts.
+type DefineInputPrompt struct {
+	Text        *ast.Attribute
+	Options     *ast.Attribute
+	Condition   *ast.Attribute
+	Multiline   *ast.Attribute
+	Multiselect *ast.Attribute
 }
 
 // DefineObjectAttribute represents an object attribute of a top-level schema definition.
@@ -155,6 +164,7 @@ type DefineObjectAttribute struct {
 	Type        *ast.Attribute
 	Default     *ast.Attribute
 	Required    *ast.Attribute
+	Prompt      *DefineInputPrompt
 	DefRange    hhcl.Range
 }
 
@@ -867,13 +877,22 @@ func parseInputBlock(inputs map[string]*DefineInput, block *ast.MergedBlock, lab
 }
 
 func parseInputBody(block *ast.MergedBlock, ret *DefineInput) error {
+	// These locals capture deprecated top-level attributes that get folded
+	// into the prompt sub-block after parsing.
+	var (
+		promptAttr      *ast.Attribute
+		optionsAttr     *ast.Attribute
+		multilineAttr   *ast.Attribute
+		multiselectAttr *ast.Attribute
+	)
 	validAttrs := map[string]**ast.Attribute{
-		"prompt":                &ret.Prompt,
+		"prompt":                &promptAttr,
 		"description":           &ret.Description,
 		"type":                  &ret.Type,
-		"options":               &ret.Options,
-		"multiline":             &ret.Multiline,
-		"multiselect":           &ret.Multiselect,
+		"options":               &optionsAttr,
+		"multiline":             &multilineAttr,
+		"multiselect":           &multiselectAttr,
+		"immutable":             &ret.Immutable,
 		"required_for_scaffold": &ret.RequiredForScaffold,
 		"default":               &ret.Default,
 	}
@@ -897,6 +916,14 @@ func parseInputBody(block *ast.MergedBlock, ret *DefineInput) error {
 			errors.E(ret.RequiredForScaffold.Range, "attribute 'required_for_scaffold' is deprecated. it no longer has any effect."),
 		)
 	}
+	deprecatedAttrs := []*ast.Attribute{promptAttr, optionsAttr, multilineAttr, multiselectAttr}
+	for _, attr := range deprecatedAttrs {
+		if attr != nil {
+			printer.Stderr.Warn(
+				errors.E(attr.Range, "attribute %q is deprecated in input blocks. use the prompt { } block instead.", attr.Name),
+			)
+		}
+	}
 
 	for labels, subBlock := range block.Blocks {
 		switch subBlock.Type {
@@ -906,17 +933,92 @@ func parseInputBody(block *ast.MergedBlock, ret *DefineInput) error {
 				return err
 			}
 			ret.ObjectAttributes = append(ret.ObjectAttributes, typeAttr)
+		case "prompt":
+			if ret.Prompt != nil {
+				return errors.E(ErrTerramateSchema, subBlock.RawOrigins[0].DefRange(),
+					"duplicate prompt block in input %q", ret.Name)
+			}
+			prompt, err := parsePromptBlock(subBlock, labels)
+			if err != nil {
+				return err
+			}
+			ret.Prompt = prompt
 		default:
 			return errors.E(
 				ErrUnrecognizedDefineSubBlock,
 				subBlock.RawOrigins[0].DefRange(),
-				`unexpected block type %q, expected "attribute"`,
+				`unexpected block type %q, expected "attribute" or "prompt"`,
 				subBlock.Type,
 			)
 		}
 	}
 
+	return foldDeprecatedPromptAttrs(ret, promptAttr, optionsAttr, multilineAttr, multiselectAttr)
+}
+
+// foldDeprecatedPromptAttrs folds deprecated top-level input attributes into the
+// prompt sub-block. Errors if both the attribute and the corresponding prompt block
+// field are set.
+func foldDeprecatedPromptAttrs(
+	ret *DefineInput,
+	promptAttr, optionsAttr, multilineAttr, multiselectAttr *ast.Attribute,
+) error {
+	if promptAttr == nil && optionsAttr == nil && multilineAttr == nil && multiselectAttr == nil {
+		return nil
+	}
+
+	if ret.Prompt == nil {
+		ret.Prompt = &DefineInputPrompt{}
+	}
+
+	type foldEntry struct {
+		attr   *ast.Attribute
+		target **ast.Attribute
+		field  string
+	}
+	for _, e := range []foldEntry{
+		{promptAttr, &ret.Prompt.Text, "text"},
+		{optionsAttr, &ret.Prompt.Options, "options"},
+		{multilineAttr, &ret.Prompt.Multiline, "multiline"},
+		{multiselectAttr, &ret.Prompt.Multiselect, "multiselect"},
+	} {
+		if e.attr == nil {
+			continue
+		}
+		if *e.target != nil {
+			return errors.E(
+				ErrTerramateSchema,
+				e.attr.Range,
+				"cannot use both %q attribute and prompt.%s in input %q",
+				e.attr.Name, e.field, ret.Name,
+			)
+		}
+		*e.target = e.attr
+	}
 	return nil
+}
+
+func parsePromptBlock(block *ast.MergedBlock, labels ast.LabelBlockType) (*DefineInputPrompt, error) {
+	if labels.NumLabels != 0 {
+		return nil, errors.E(
+			ErrTerramateSchema,
+			block.RawOrigins[0].LabelRanges(),
+			`unexpected label %q, prompt block must have no labels`,
+			labels.Labels[0],
+		)
+	}
+	prompt := &DefineInputPrompt{}
+	validAttrs := map[string]**ast.Attribute{
+		"text":        &prompt.Text,
+		"options":     &prompt.Options,
+		"condition":   &prompt.Condition,
+		"multiline":   &prompt.Multiline,
+		"multiselect": &prompt.Multiselect,
+	}
+	if err := parseBlockAttributes(block, validAttrs, ErrUnrecognizedInputAttribute); err != nil {
+		return nil, err
+	}
+	return prompt, nil
 }
 
 func parseDefineBundleExportBlock(exports map[string]*DefineExport, block *ast.MergedBlock, label ast.LabelBlockType) error {
@@ -1220,11 +1322,21 @@ func parseDefineSchemaBlock(label ast.LabelBlockType, block *ast.MergedBlock) (*
 				return nil, err
 			}
 			ret.ObjectAttributes = append(ret.ObjectAttributes, attr)
+		case "prompt":
+			if ret.Prompt != nil {
+				return nil, errors.E(ErrTerramateSchema, subBlock.RawOrigins[0].DefRange(),
+					"duplicate prompt block in schema %q", ret.Name)
+			}
+			prompt, err := parsePromptBlock(subBlock, labels)
+			if err != nil {
+				return nil, err
+			}
+			ret.Prompt = prompt
 		default:
 			return nil, errors.E(
 				ErrUnrecognizedDefineSubBlock,
 				subBlock.RawOrigins[0].DefRange(),
-				`unexpected block type %q, expected "attribute"`,
+				`unexpected block type %q, expected "attribute" or "prompt"`,
 				subBlock.Type,
 			)
 		}
@@ -1253,6 +1365,29 @@ func parseDefineObjectAttributeBlock(label ast.LabelBlockType, block *ast.Merged
 	if err := parseBlockAttributes(block, validAttrs, ErrUnrecognizedSchemaAttribute); err != nil {
 		return nil, err
 	}
+
+	for labels, subBlock := range block.Blocks {
+		switch subBlock.Type {
+		case "prompt":
+			if ret.Prompt != nil {
+				return nil, errors.E(ErrTerramateSchema, subBlock.RawOrigins[0].DefRange(),
+					"duplicate prompt block in attribute %q", ret.Name)
+			}
+			prompt, err := parsePromptBlock(subBlock, labels)
+			if err != nil {
+				return nil, err
+			}
+			ret.Prompt = prompt
+		default:
+			return nil, errors.E(
+				ErrUnrecognizedDefineSubBlock,
+				subBlock.RawOrigins[0].DefRange(),
+				`unexpected block type %q in attribute %q, expected "prompt"`,
+				subBlock.Type, ret.Name,
+			)
+		}
+	}
+
 	return ret, nil
 }
 

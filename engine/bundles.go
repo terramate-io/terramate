@@ -20,8 +20,8 @@ import (
 	"github.com/terramate-io/terramate/stdlib"
 )
 
-// LoadProjectBundles recursively collects all the bundles in the given dir and evaluates them.
-func LoadProjectBundles(root *config.Root, resolveAPI resolve.API, evalctx *eval.Context, allowFetch bool) (*config.Registry, error) {
+// EvalProjectBundles recursively collects all the bundles in the given dir and evaluates them.
+func EvalProjectBundles(root *config.Root, resolveAPI resolve.API, evalctx *eval.Context, allowFetch bool) (*config.Registry, error) {
 	var err error
 	var reg config.Registry
 
@@ -100,7 +100,7 @@ func applyBundleStacks(ctx context.Context, root *config.Root) error {
 	resolveAPI, _ := di.Get[resolve.API](ctx)
 
 	// TODO(snk): Cache this
-	reg, err := LoadProjectBundles(root, resolveAPI, evalctx, true)
+	reg, err := EvalProjectBundles(root, resolveAPI, evalctx, true)
 	if err != nil {
 		return err
 	}
