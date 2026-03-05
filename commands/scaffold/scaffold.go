@@ -350,7 +350,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 							hostOutputPath = filepath.Join(s.workingDir, outputPath)
 						}
 
-						hostOutputPath = fixupFileExtension(s.OutputFormat, hostOutputPath)
+						hostOutputPath = commands.FixupFileExtension(s.OutputFormat, hostOutputPath)
 
 						var content string
 						if s.OutputFormat == "yaml" {
@@ -952,29 +952,6 @@ func makePlaceholder(promptDefault cty.Value) string {
 	// Show the tokens as fallback.
 	tokens := ast.TokensForValue(promptDefault)
 	return fmt.Sprintf("[Default: %s]", string(tokens.Bytes()))
-}
-
-func fixupFileExtension(format, fn string) string {
-	switch format {
-	case "yaml":
-		if strings.HasSuffix(fn, ".hcl") {
-			return strings.TrimSuffix(fn, "hcl") + "yml"
-		}
-		if strings.HasSuffix(fn, ".tm") {
-			return fn + ".yml"
-		}
-	case "hcl":
-		if strings.HasSuffix(fn, ".yml") {
-			return strings.TrimSuffix(fn, "yml") + "hcl"
-		}
-		if strings.HasSuffix(fn, ".yaml") {
-			return strings.TrimSuffix(fn, "yaml") + "hcl"
-		}
-		if strings.HasSuffix(fn, ".tm") {
-			return fn + ".hcl"
-		}
-	}
-	return fn
 }
 
 func makeHCLInputField(inctx typeschema.EvalContext, def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {

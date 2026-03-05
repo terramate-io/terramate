@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/terramate-io/terramate/commands"
 )
 
 func TestFixupFileExtension(t *testing.T) {
@@ -47,7 +48,7 @@ func TestFixupFileExtension(t *testing.T) {
 		in:     "blabla.txt",
 		want:   "blabla.txt",
 	}} {
-		got := fixupFileExtension(tc.format, tc.in)
+		got := commands.FixupFileExtension(tc.format, tc.in)
 		assert.EqualStrings(t, tc.want, got)
 	}
 }

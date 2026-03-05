@@ -18,6 +18,7 @@ import (
 	"github.com/terramate-io/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl"
@@ -140,7 +141,7 @@ func NewCreateChange(
 		hostPath = filepath.Join(est.WorkingDir, outputPath)
 		projPath = project.PrjAbsPath(est.Root.HostDir(), hostPath).String()
 	}
-	hostPath = fixupFileExtension("yaml", hostPath)
+	hostPath = commands.FixupFileExtension("yaml", hostPath)
 
 	// If there is no explicit alias, we fallback to the <path>:<name> default.
 	// But we must do this only after these values are known.
@@ -595,7 +596,7 @@ func formatTmdoc(in string) string {
 	return strings.Join(lines, "\n")
 }
 
-func writeBundleInstance(outpath string, content string, overwrite bool) error {
+func writeBundleInstance(outpath string, content string, overwrite bool) (err error) {
 	if !overwrite {
 		_, err := os.Stat(outpath)
 		if err == nil {
@@ -621,27 +622,4 @@ func writeBundleInstance(outpath string, content string, overwrite bool) error {
 
 	_, err = f.WriteString(content)
 	return err
-}
-
-func fixupFileExtension(format, fn string) string {
-	switch format {
-	case "yaml":
-		if strings.HasSuffix(fn, ".hcl") {
-			return strings.TrimSuffix(fn, "hcl") + "yml"
-		}
-		if strings.HasSuffix(fn, ".tm") {
-			return fn + ".yml"
-		}
-	case "hcl":
-		if strings.HasSuffix(fn, ".yml") {
-			return strings.TrimSuffix(fn, "yml") + "hcl"
-		}
-		if strings.HasSuffix(fn, ".yaml") {
-			return strings.TrimSuffix(fn, "yaml") + "hcl"
-		}
-		if strings.HasSuffix(fn, ".tm") {
-			return fn + ".hcl"
-		}
-	}
-	return fn
 }

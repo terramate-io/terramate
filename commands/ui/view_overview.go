@@ -339,7 +339,15 @@ func changeLogEntry(c Change) string {
 			action += fmt.Sprintf(" [%s]", c.Env.ID)
 		}
 	case ChangePromote:
-		action = fmt.Sprintf("Promoted %s from [%s] to [%s]", c.DisplayName, c.FromEnv.ID, c.Env.ID)
+		fromEnvID := ""
+		if c.FromEnv != nil {
+			fromEnvID = c.FromEnv.ID
+		}
+		toEnvID := ""
+		if c.Env != nil {
+			toEnvID = c.Env.ID
+		}
+		action = fmt.Sprintf("Promoted %s from [%s] to [%s]", c.DisplayName, fromEnvID, toEnvID)
 	default:
 		panic("unsupported change kind " + c.Kind)
 	}
