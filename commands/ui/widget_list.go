@@ -30,6 +30,7 @@ type InlineListWidget struct {
 	numberMode    bool
 }
 
+// NewInlineListWidget creates a widget for editing a list of primitive values inline.
 func NewInlineListWidget(wctx *WidgetContext, valueType typeschema.Type) *InlineListWidget {
 	numberMode := valueType.String() == "number"
 
@@ -56,10 +57,12 @@ func NewInlineListWidget(wctx *WidgetContext, valueType typeschema.Type) *Inline
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *InlineListWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *InlineListWidget) Prepare() {
 	w.textInput.Reset()
 	w.textInput.Focus()
@@ -76,6 +79,7 @@ func (w *InlineListWidget) Prepare() {
 	w.textInput.Placeholder = "Type to add"
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *InlineListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	n := len(w.items)
 
@@ -83,9 +87,9 @@ func (w *InlineListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyEnter:
 			w.validationErr = nil
-			editVal := cty.NilVal
 			textVal := w.textInput.Value()
 			if textVal != "" {
+				var editVal cty.Value
 				if w.numberMode {
 					v, err := cty.ParseNumberVal(textVal)
 					if err != nil {
@@ -152,9 +156,9 @@ func (w *InlineListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 			return WidgetContinue, nil
 		case tea.KeyEnter:
 			w.validationErr = nil
-			addVal := cty.NilVal
 			textVal := w.textInput.Value()
 			if textVal != "" {
+				var addVal cty.Value
 				if w.numberMode {
 					v, err := cty.ParseNumberVal(textVal)
 					if err != nil {
@@ -211,6 +215,7 @@ func (w *InlineListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *InlineListWidget) Render() []string {
 	itemStyle := lipgloss.NewStyle().Foreground(colorText)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
@@ -268,6 +273,7 @@ func (w *InlineListWidget) setList(val cty.Value) {
 	}
 }
 
+// FormatDisplay returns a compact summary of the current list value.
 func (w *InlineListWidget) FormatDisplay() string {
 	val := w.wctx.Value
 	if val == cty.NilVal || val.IsNull() {
@@ -289,12 +295,14 @@ func (w *InlineListWidget) FormatDisplay() string {
 	return fmt.Sprintf("<%d items>", n)
 }
 
+// ForwardMsg forwards a bubbletea message to the underlying text input.
 func (w *InlineListWidget) ForwardMsg(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	w.textInput, cmd = w.textInput.Update(msg)
 	return cmd
 }
 
+// AcceptSubFormResult is a no-op; inline lists do not use sub-forms.
 func (w *InlineListWidget) AcceptSubFormResult(SubFormResult) bool { return true }
 
 // SubFormListWidget manages a list of complex items (objects, nested lists/maps,
@@ -309,6 +317,7 @@ type SubFormListWidget struct {
 	SubFormRequest *SubFormRequest
 }
 
+// NewSubFormListWidget creates a widget for editing a list of complex items via nested sub-forms.
 func NewSubFormListWidget(wctx *WidgetContext, valueType typeschema.Type) InputWidget {
 	return &SubFormListWidget{
 		wctx:      wctx,
@@ -317,10 +326,12 @@ func NewSubFormListWidget(wctx *WidgetContext, valueType typeschema.Type) InputW
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *SubFormListWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *SubFormListWidget) Prepare() {
 	w.SubFormRequest = nil
 	w.editIdx = -1
@@ -333,6 +344,7 @@ func (w *SubFormListWidget) Prepare() {
 	w.cursor = len(w.items)
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *SubFormListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	n := len(w.items)
 
@@ -356,10 +368,9 @@ func (w *SubFormListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 			w.SubFormRequest = w.buildSubFormRequest(false, cty.NilVal)
 			w.SubFormRequest.Title = fmt.Sprintf("Add item %d", n+1)
 			return WidgetNeedSubForm, nil
-		} else {
-			w.commitList()
-			return WidgetConfirmed, nil
 		}
+		w.commitList()
+		return WidgetConfirmed, nil
 	case tea.KeyDelete, tea.KeyBackspace:
 		if w.cursor < n && n > 0 {
 			w.items = append(w.items[:w.cursor], w.items[w.cursor+1:]...)
@@ -373,6 +384,7 @@ func (w *SubFormListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *SubFormListWidget) Render() []string {
 	itemStyle := lipgloss.NewStyle().Foreground(colorText)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
@@ -406,6 +418,7 @@ func (w *SubFormListWidget) Render() []string {
 	return lines
 }
 
+// FormatDisplay returns a compact summary of the current list value.
 func (w *SubFormListWidget) FormatDisplay() string {
 	n := len(w.items)
 	if n == 0 {
@@ -417,10 +430,12 @@ func (w *SubFormListWidget) FormatDisplay() string {
 	return fmt.Sprintf("<%d items>", n)
 }
 
+// ForwardMsg is a no-op; sub-form lists do not embed a text input.
 func (w *SubFormListWidget) ForwardMsg(tea.Msg) tea.Cmd {
 	return nil
 }
 
+// AcceptSubFormResult integrates a completed sub-form result into the list.
 func (w *SubFormListWidget) AcceptSubFormResult(result SubFormResult) bool {
 	val := subFormResultToValue(w.valueType, result.Values)
 	if val == cty.NilVal {

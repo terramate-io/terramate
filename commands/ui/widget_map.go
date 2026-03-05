@@ -42,6 +42,7 @@ type InlineMapWidget struct {
 	numberMode    bool
 }
 
+// NewInlineMapWidget creates a widget for editing a map of primitive key-value pairs inline.
 func NewInlineMapWidget(wctx *WidgetContext, valueType typeschema.Type) *InlineMapWidget {
 	numberMode := valueType.String() == "number"
 
@@ -67,10 +68,12 @@ func NewInlineMapWidget(wctx *WidgetContext, valueType typeschema.Type) *InlineM
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *InlineMapWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *InlineMapWidget) Prepare() {
 	w.textInput.Reset()
 	w.textInput.Focus()
@@ -92,6 +95,7 @@ func (w *InlineMapWidget) Prepare() {
 	w.cursor = len(w.items)
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *InlineMapWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	n := len(w.items)
 
@@ -134,7 +138,7 @@ func (w *InlineMapWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 			w.validationErr = nil
 			textVal := w.textInput.Value()
 			if textVal != "" {
-				editVal := cty.NilVal
+				var editVal cty.Value
 				if w.numberMode {
 					v, err := cty.ParseNumberVal(textVal)
 					if err != nil {
@@ -270,7 +274,7 @@ func (w *InlineMapWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 				if textVal == "" {
 					return WidgetContinue, nil
 				}
-				addVal := cty.NilVal
+				var addVal cty.Value
 				if w.numberMode {
 					v, err := cty.ParseNumberVal(textVal)
 					if err != nil {
@@ -355,6 +359,7 @@ func (w *InlineMapWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *InlineMapWidget) Render() []string {
 	itemStyle := lipgloss.NewStyle().Foreground(colorText)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
@@ -443,6 +448,7 @@ func (w *InlineMapWidget) setMap(val cty.Value) {
 	}
 }
 
+// FormatDisplay returns a compact summary of the current map value.
 func (w *InlineMapWidget) FormatDisplay() string {
 	val := w.wctx.Value
 	if val == cty.NilVal || val.IsNull() {
@@ -464,12 +470,14 @@ func (w *InlineMapWidget) FormatDisplay() string {
 	return fmt.Sprintf("<%d entries>", n)
 }
 
+// ForwardMsg forwards a bubbletea message to the underlying text input.
 func (w *InlineMapWidget) ForwardMsg(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	w.textInput, cmd = w.textInput.Update(msg)
 	return cmd
 }
 
+// AcceptSubFormResult is a no-op; inline map widgets do not use sub-forms.
 func (w *InlineMapWidget) AcceptSubFormResult(SubFormResult) bool { return true }
 
 // SubFormMapWidget manages a map with complex values (objects, nested lists/maps,
@@ -494,6 +502,7 @@ type subformMapEntry struct {
 	Value cty.Value
 }
 
+// NewSubFormMapWidget creates a widget for editing a map of complex values via nested sub-forms.
 func NewSubFormMapWidget(wctx *WidgetContext, valueType typeschema.Type) InputWidget {
 	ti := textinput.New()
 	ti.Prompt = ""
@@ -511,10 +520,12 @@ func NewSubFormMapWidget(wctx *WidgetContext, valueType typeschema.Type) InputWi
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *SubFormMapWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *SubFormMapWidget) Prepare() {
 	w.SubFormRequest = nil
 	w.editIdx = -1
@@ -535,6 +546,7 @@ func (w *SubFormMapWidget) Prepare() {
 	w.textInput.Focus()
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *SubFormMapWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	n := len(w.items)
 
@@ -660,6 +672,7 @@ func (w *SubFormMapWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *SubFormMapWidget) Render() []string {
 	itemStyle := lipgloss.NewStyle().Foreground(colorText)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
@@ -706,6 +719,7 @@ func (w *SubFormMapWidget) Render() []string {
 	return lines
 }
 
+// FormatDisplay returns a compact summary of the current map value.
 func (w *SubFormMapWidget) FormatDisplay() string {
 	n := len(w.items)
 	if n == 0 {
@@ -717,12 +731,14 @@ func (w *SubFormMapWidget) FormatDisplay() string {
 	return fmt.Sprintf("<%d entries>", n)
 }
 
+// ForwardMsg forwards a bubbletea message to the underlying text input.
 func (w *SubFormMapWidget) ForwardMsg(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	w.textInput, cmd = w.textInput.Update(msg)
 	return cmd
 }
 
+// AcceptSubFormResult integrates a completed sub-form result into the map.
 func (w *SubFormMapWidget) AcceptSubFormResult(result SubFormResult) bool {
 	val := subFormResultToValue(w.valueType, result.Values)
 	if val == cty.NilVal {

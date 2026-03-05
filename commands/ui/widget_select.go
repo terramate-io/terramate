@@ -19,6 +19,7 @@ type SelectWidget struct {
 	value   cty.Value
 }
 
+// NewSelectWidget creates a single-select option list widget.
 func NewSelectWidget(wctx *WidgetContext) *SelectWidget {
 	return &SelectWidget{
 		wctx:  wctx,
@@ -26,10 +27,12 @@ func NewSelectWidget(wctx *WidgetContext) *SelectWidget {
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *SelectWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *SelectWidget) Prepare() {
 	if w.wctx.Value != cty.NilVal {
 		w.setValue(w.wctx.Value)
@@ -57,6 +60,7 @@ func (w *SelectWidget) Prepare() {
 	}
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *SelectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyShiftTab, tea.KeyEsc:
@@ -79,6 +83,7 @@ func (w *SelectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *SelectWidget) Render() []string {
 	return renderOptionsList(w.options, w.cursor, nil)
 }
@@ -96,6 +101,7 @@ func (w *SelectWidget) setValue(val cty.Value) {
 	}
 }
 
+// FormatDisplay returns a display string for the currently selected option.
 func (w *SelectWidget) FormatDisplay() string {
 	val := w.wctx.Value
 	if val == cty.NilVal || val.IsNull() {
@@ -109,10 +115,12 @@ func (w *SelectWidget) FormatDisplay() string {
 	return ctyToDisplayString(val)
 }
 
+// ForwardMsg is a no-op; select widgets have no underlying input component.
 func (w *SelectWidget) ForwardMsg(tea.Msg) tea.Cmd {
 	return nil
 }
 
+// AcceptSubFormResult is a no-op; select widgets do not use sub-forms.
 func (w *SelectWidget) AcceptSubFormResult(SubFormResult) bool {
 	return true
 }
@@ -127,6 +135,7 @@ type MultiSelectWidget struct {
 	validationErr error
 }
 
+// NewMultiSelectWidget creates a multi-select option list widget with checkboxes.
 func NewMultiSelectWidget(wctx *WidgetContext) *MultiSelectWidget {
 	return &MultiSelectWidget{
 		wctx:     wctx,
@@ -135,10 +144,12 @@ func NewMultiSelectWidget(wctx *WidgetContext) *MultiSelectWidget {
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *MultiSelectWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
 
+// Prepare initializes the widget for a new editing session.
 func (w *MultiSelectWidget) Prepare() {
 	if w.wctx.Value != cty.NilVal {
 		w.setValue(w.wctx.Value)
@@ -176,6 +187,7 @@ func (w *MultiSelectWidget) Prepare() {
 	}
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *MultiSelectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyShiftTab, tea.KeyEsc:
@@ -209,6 +221,7 @@ func (w *MultiSelectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *MultiSelectWidget) Render() []string {
 	lines := renderOptionsList(w.options, w.cursor, w.selected)
 	if w.validationErr != nil {
@@ -236,6 +249,7 @@ func (w *MultiSelectWidget) setValue(val cty.Value) {
 	}
 }
 
+// FormatDisplay returns a comma-separated display string of the selected options.
 func (w *MultiSelectWidget) FormatDisplay() string {
 	val := w.wctx.Value
 	if val == cty.NilVal || val.IsNull() {
@@ -256,10 +270,12 @@ func (w *MultiSelectWidget) FormatDisplay() string {
 	return ctyToDisplayString(val)
 }
 
+// ForwardMsg is a no-op; multi-select widgets have no underlying input component.
 func (w *MultiSelectWidget) ForwardMsg(tea.Msg) tea.Cmd {
 	return nil
 }
 
+// AcceptSubFormResult is a no-op; multi-select widgets do not use sub-forms.
 func (w *MultiSelectWidget) AcceptSubFormResult(SubFormResult) bool {
 	return true
 }
@@ -273,6 +289,7 @@ type BundleRefWidget struct {
 	PendingRefClass string
 }
 
+// NewBundleRefWidget creates a widget for selecting or creating a bundle reference.
 func NewBundleRefWidget(wctx *WidgetContext, classID string) *BundleRefWidget {
 	return &BundleRefWidget{
 		wctx:    wctx,
@@ -281,14 +298,18 @@ func NewBundleRefWidget(wctx *WidgetContext, classID string) *BundleRefWidget {
 	}
 }
 
+// WidgetContext returns the widget's context.
 func (w *BundleRefWidget) WidgetContext() *WidgetContext {
 	return w.wctx
 }
+
+// Prepare initializes the widget for a new editing session.
 func (w *BundleRefWidget) Prepare() {
 	w.value = w.wctx.Value
 	w.cursor = 0
 }
 
+// Update handles keyboard input and returns the resulting signal.
 func (w *BundleRefWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	matching := w.wctx.Registry.MatchingBundleOptions(w.classID, w.wctx.Env)
 	n := len(matching) + 1 // +1 for "Add new" option
@@ -316,6 +337,7 @@ func (w *BundleRefWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	return WidgetContinue, nil
 }
 
+// Render returns the rendered display lines for the widget.
 func (w *BundleRefWidget) Render() []string {
 	matching := w.wctx.Registry.MatchingBundleOptions(w.classID, w.wctx.Env)
 	var lines []string
@@ -343,6 +365,7 @@ func (w *BundleRefWidget) Reload() {
 	w.value = w.wctx.Value
 }
 
+// FormatDisplay returns a display string for the selected bundle reference.
 func (w *BundleRefWidget) FormatDisplay() string {
 	if w.value == cty.NilVal || w.value.IsNull() {
 		return "<not set>"
@@ -362,10 +385,12 @@ func (w *BundleRefWidget) FormatDisplay() string {
 	return ctyToDisplayString(w.value)
 }
 
+// ForwardMsg is a no-op; bundle-ref widgets have no underlying input component.
 func (w *BundleRefWidget) ForwardMsg(tea.Msg) tea.Cmd {
 	return nil
 }
 
+// AcceptSubFormResult is a no-op; bundle-ref widgets do not use sub-forms.
 func (w *BundleRefWidget) AcceptSubFormResult(SubFormResult) bool { return true }
 
 // ---------------------------------------------------------------------------

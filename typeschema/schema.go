@@ -67,6 +67,7 @@ type EvalContext struct {
 	Schemas SchemaNamespaces
 }
 
+// ChildContext is a helper to call ChildContext on the evalctx.
 func (sc EvalContext) ChildContext() EvalContext {
 	return EvalContext{
 		Evalctx: sc.Evalctx.ChildContext(),

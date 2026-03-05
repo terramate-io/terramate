@@ -99,12 +99,13 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, keys.Enter):
-		if m.focus == FocusCommands {
+		switch m.focus {
+		case FocusCommands:
 			m.executeCommand()
 			if m.cancelled {
 				return m, tea.Quit
 			}
-		} else if m.focus == FocusSummary {
+		case FocusSummary:
 			if m.changesApplied {
 				m.changesApplied = false
 				m.savedChanges = nil

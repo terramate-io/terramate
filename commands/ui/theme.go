@@ -20,7 +20,6 @@ var (
 	// Semantic colors
 	colorError   = lipgloss.AdaptiveColor{Light: "#DC2626", Dark: "#F87171"} // Red
 	colorWarning = lipgloss.AdaptiveColor{Light: "#D97706", Dark: "#FBBF24"} // Amber
-	colorSuccess = lipgloss.AdaptiveColor{Light: "#059669", Dark: "#34D399"} // Green
 
 	// Command colors colors
 	colorCreate   = lipgloss.AdaptiveColor{Light: "#059669", Dark: "#34D399"} // Green
@@ -51,17 +50,6 @@ func renderTerramateLogo1() string {
 		" █▙▗▖   ▗▖▟█",
 		" ▄▄▐█████▌▄▄",
 		" ▀▀▝▜███▛▘▀▀",
-		" ▝█  ▝█▘  █▘",
-	}
-	return logoStyle.Render(strings.Join(lines, "\n"))
-}
-
-func renderTerramateLogo2() string {
-	logoStyle := lipgloss.NewStyle().Foreground(colorPrimary)
-	lines := []string{
-		" █▙▗▖   ▗▖▟█",
-		" ██▐█████▌██",
-		" ██▝▜███▛▘██",
 		" ▝█  ▝█▘  █▘",
 	}
 	return logoStyle.Render(strings.Join(lines, "\n"))

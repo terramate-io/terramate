@@ -30,6 +30,7 @@ import (
 // ChangeKind indicates the type of pending change.
 type ChangeKind string
 
+// ChangeCreate and the following constants enumerate the supported change kinds.
 const (
 	ChangeCreate   ChangeKind = "change_create"
 	ChangeReconfig ChangeKind = "change_reconfig"
@@ -78,6 +79,7 @@ type SavedChange struct {
 	HostPath    string
 }
 
+// NewCreateChange builds a Change that represents a new bundle creation.
 func NewCreateChange(
 	est *EngineState,
 	activeEnv *config.Environment,
@@ -105,11 +107,6 @@ func NewCreateChange(
 	alias, err := setupExplicitBundleAlias(schemactx.Evalctx, bde.Define)
 	if err != nil {
 		return Change{}, err
-	}
-
-	// We check if this is an explicit alias
-	if alias != "" {
-
 	}
 
 	bundleDef, err := config.EvalBundleDefinition(schemactx.Evalctx, bde.Define)
@@ -180,6 +177,7 @@ func NewCreateChange(
 	}, nil
 }
 
+// NewReconfigChange builds a Change that represents reconfiguring an existing bundle.
 func NewReconfigChange(
 	est *EngineState,
 	bundle *config.Bundle,
@@ -248,6 +246,7 @@ func NewReconfigChange(
 	}, nil
 }
 
+// NewPromoteChange builds a Change that represents promoting a bundle to another environment.
 func NewPromoteChange(
 	est *EngineState,
 	env *config.Environment,
@@ -318,6 +317,7 @@ func NewPromoteChange(
 	}, nil
 }
 
+// NewChangeFromExisting rebuilds a Change from a previously created change with updated values.
 func NewChangeFromExisting(
 	est *EngineState,
 	oldChange Change,
@@ -415,6 +415,7 @@ func reEvalAllInputs(
 	return result, nil
 }
 
+// Save writes the change to disk as a YAML bundle instance file.
 func (c *Change) Save(envs []*config.Environment) error {
 	var existing *yaml.BundleInstance
 	overwrite := c.Kind == ChangeReconfig || c.Kind == ChangePromote

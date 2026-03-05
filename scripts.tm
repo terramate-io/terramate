@@ -4,7 +4,7 @@
 globals {
   planfile = "out.tfplan"
 
-  lint_command = ["golangci-lint", "run", "--allow-parallel-runners", "."]
+  lint_command = ["golangci-lint", "run", "--allow-parallel-runners", "--timeout=15m", "."]
 }
 
 script "test" {
