@@ -236,7 +236,7 @@ func IsTarGzipLayer(mediaType string) bool {
 		"application/x-tar+gzip":
 		return true
 	}
-	// Also match any media type ending in .tar+gzip or tar.gz.
+	// Also match any media type ending in .tar+gzip or .tar.gzip.
 	return strings.HasSuffix(mediaType, ".tar+gzip") || strings.HasSuffix(mediaType, ".tar.gzip")
 }
 
@@ -306,14 +306,10 @@ func ExtractTarGz(r io.Reader, dir string) error {
 				return errors.E("file %s exceeds maximum size of %d bytes", hdr.Name, maxFileSize)
 			}
 		case tar.TypeSymlink:
-			// Validate symlink target doesn't escape.
-			linkTarget := filepath.Clean(filepath.Join(filepath.Dir(target), hdr.Linkname))
-			if !strings.HasPrefix(linkTarget, filepath.Clean(dir)) {
-				return errors.E("symlink %q -> %q escapes destination directory", hdr.Name, hdr.Linkname)
-			}
-			if err := os.Symlink(hdr.Linkname, target); err != nil {
-				return errors.E(err, "creating symlink %s", target)
-			}
+			// Symlinks are not supported in extracted OCI artifacts to prevent
+			// symlink-based path traversal attacks (TOCTOU via symlink chains).
+			log.Warn().Str("entry", hdr.Name).Str("link", hdr.Linkname).
+				Msg("skipping symlink in OCI artifact")
 		}
 	}
 
