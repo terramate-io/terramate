@@ -283,7 +283,8 @@ func ExtractTarGz(r io.Reader, dir string) error {
 		target := filepath.Join(dir, cleanName)
 
 		// Ensure the target is within the destination directory.
-		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(dir)) {
+		// Append os.PathSeparator to prevent prefix false positives (e.g. /tmp/cache vs /tmp/cachepwned).
+		if !strings.HasPrefix(filepath.Clean(target)+string(os.PathSeparator), filepath.Clean(dir)+string(os.PathSeparator)) {
 			return errors.E("tar entry %q escapes destination directory", hdr.Name)
 		}
 
@@ -296,7 +297,7 @@ func ExtractTarGz(r io.Reader, dir string) error {
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return errors.E(err, "creating parent directory for %s", target)
 			}
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode)&0o755)
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 			if err != nil {
 				return errors.E(err, "creating file %s", target)
 			}
