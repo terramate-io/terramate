@@ -36,6 +36,25 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     default = null
   }
   ```
+- Add new command `terramate ui`. This is the successor to `terramate scaffold` with many improvements and new features:
+  - Workflows for Reconfigure and environment Promote with diff viewer.
+  - Staging area to apply multiple changes during the same session.
+  - Custom input forms for all types of the new type system.
+    - Nested forms for objects, including input forms for attributes.
+    - Nested bundle creation.
+  - New `input.prompt{...}` block to deprecate `input.prompt = ...` etc. Example:
+    ```
+    input "multiline_input" {
+      type        = string
+      description = "Description"
+
+      prompt {
+        text = "Required Multiline input"
+        multiline = true
+      }
+    }
+    ```
+    This is supported for inputs and attributes.
 
 ## 0.16.0
 

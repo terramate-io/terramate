@@ -30,15 +30,14 @@ import (
 
 // BundleDefinition represents the definition of a bundle.
 type BundleDefinition struct {
-	Class string
-
 	ScaffoldingName string
 	ScaffoldingPath string
 }
 
 // Bundle represents the instantiation of a bundle.
 type Bundle struct {
-	Class          string
+	DefinitionMetadata Metadata
+
 	Alias          string
 	Name           string
 	UUID           string
@@ -87,16 +86,107 @@ type NamedValue struct {
 	Value cty.Value
 }
 
+// PromptConfig holds the evaluated prompt configuration shared between
+// InputDefinition and ObjectAttribute.
+type PromptConfig struct {
+	Text        string
+	Multiline   bool
+	Multiselect bool
+
+	optionsExpr   hhcl.Expression
+	conditionExpr hhcl.Expression
+}
+
+// ObjectAttribute is the evaluated config-level representation of an object attribute.
+// It wraps the type-level ObjectTypeAttribute and adds config-level fields.
+type ObjectAttribute struct {
+	Schema      *typeschema.ObjectTypeAttribute
+	Description string
+	Prompt      PromptConfig
+}
+
 // InputDefinition is the evaluated input definition.
 type InputDefinition struct {
-	Name          string
-	Prompt        string
-	PromptDefault cty.Value
-	Description   string
-	Type          typeschema.Type
-	Options       []NamedValue
-	Multiline     bool
-	Multiselect   bool
+	Name        string
+	Description string
+	Type        typeschema.Type
+	Immutable   bool
+
+	Prompt PromptConfig
+
+	ObjectAttributes []*ObjectAttribute
+
+	Dependencies map[string]struct{}
+
+	defaultExpr     hhcl.Expression
+	optionValueType typeschema.Type
+}
+
+// HasDefault returns if this input has a default value.
+func (def *InputDefinition) HasDefault() bool {
+	return def.defaultExpr != nil
+}
+
+// EvalDefault evaluates the stored default expression.
+func (def *InputDefinition) EvalDefault(schemactx typeschema.EvalContext) (cty.Value, error) {
+	if def.defaultExpr == nil {
+		return cty.NilVal, nil
+	}
+
+	val, err := schemactx.Evalctx.Eval(def.defaultExpr)
+	if err != nil {
+		return cty.NilVal, err
+	}
+	return val, nil
+}
+
+// TryEvalDefault tries to evaluate the default expression, and if it fails, returns the expression as a string.
+func (def *InputDefinition) TryEvalDefault(schemactx typeschema.EvalContext) cty.Value {
+	if def.defaultExpr == nil {
+		return cty.NilVal
+	}
+	val, _ := tryEvaluateExpr(schemactx.Evalctx, def.defaultExpr)
+	return val
+}
+
+// HasPromptCondition returns if this input has a prompt condition.
+func (def *InputDefinition) HasPromptCondition() bool {
+	return def.Prompt.conditionExpr != nil
+}
+
+// EvalPromptCondition evaluates the prompt.condition expression to determine if this
+// input should be shown in the interactive prompt. Returns true if no condition is set.
+func (def *InputDefinition) EvalPromptCondition(schemactx typeschema.EvalContext) (bool, error) {
+	if def.Prompt.conditionExpr == nil {
+		return true, nil
+	}
+	return EvalBool(schemactx.Evalctx, def.Prompt.conditionExpr, "prompt.condition")
+}
+
+// HasPromptOptions returns if this input has prompt options.
+func (def *InputDefinition) HasPromptOptions() bool {
+	return def.Prompt.optionsExpr != nil
+}
+
+// EvalPromptOptions evaluates the prompt options.
+func (def *InputDefinition) EvalPromptOptions(schemactx typeschema.EvalContext) ([]NamedValue, error) {
+	return evalOptions(schemactx, def.Name, def.Prompt.optionsExpr, def.optionValueType)
+}
+
+// ObjectAttrToInputDef converts an ObjectAttribute into an InputDefinition.
+func ObjectAttrToInputDef(attr *ObjectAttribute) *InputDefinition {
+	def := &InputDefinition{
+		Name:        attr.Schema.Name,
+		Description: attr.Description,
+		Type:        attr.Schema.Type,
+		Prompt:      attr.Prompt,
+	}
+	if attr.Prompt.Multiselect {
+		def.optionValueType = typeschema.UnwrapValueType(attr.Schema.Type)
+	} else {
+		def.optionValueType = attr.Schema.Type
+	}
+	return def
 }
 
 // Validate if all stack fields are correct.
@@ -281,11 +371,11 @@ func EvalBundle(ctx context.Context, root *Root, resolveAPI resolve.API, evalctx
 		return nil, err
 	}
 
-	// Required attribute
-	evaluated.Class, err = EvalString(evalctx, defineBundle.Metadata.Class.Expr, "class")
+	md, err := EvalMetadata(evalctx, defineBundleTree, &defineBundle.Metadata)
 	if err != nil {
 		return nil, err
 	}
+	evaluated.DefinitionMetadata = *md
 
 	var uuidVal cty.Value
 	if evaluated.UUID != "" {
@@ -305,7 +395,7 @@ func EvalBundle(ctx context.Context, root *Root, resolveAPI resolve.API, evalctx
 	evalctx = evalctx.ChildContext()
 
 	bundleNS := map[string]cty.Value{
-		"class":       cty.StringVal(evaluated.Class),
+		"class":       cty.StringVal(evaluated.DefinitionMetadata.Class),
 		"uuid":        uuidVal,
 		"environment": MakeEnvObject(evaluated.Environment),
 	}
@@ -316,14 +406,18 @@ func EvalBundle(ctx context.Context, root *Root, resolveAPI resolve.API, evalctx
 	// tm_bundle(key) is not available yet.
 	evalctx.SetFunction("tm_bundle", BundleFunc(ctx, reg, evaluated.Environment, true))
 
+	schemactx := typeschema.EvalContext{
+		Evalctx: evalctx,
+		Schemas: schemas,
+	}
+
 	evaluated.Inputs, err = EvalInputs(
-		evalctx,
+		schemactx,
 		"bundle",
 		inst.Info,
 		inst.Inputs,
 		inst.InputsAttr,
-		defineBundle.Inputs,
-		schemas)
+		defineBundle.Inputs)
 	if err != nil {
 		return nil, err
 	}
@@ -608,14 +702,16 @@ func checkBundleEnvironment(evalctx *eval.Context, inst *hcl.Bundle, def *hcl.De
 	return nil, errors.E(inst.Environment.Range, "bundle '%s' specifies environment '%s' but it was not found", inst.Name, envID)
 }
 
-// BundleDefinitionEntry pairs a config tree with its bundle definition.
+// BundleDefinitionEntry contains config tree, evaluated metadata, and the unevaluated bundle definition.
 type BundleDefinitionEntry struct {
-	Tree   *Tree
-	Define *hcl.DefineBundle
+	Source   string
+	Tree     *Tree
+	Metadata *Metadata
+	Define   *hcl.DefineBundle
 }
 
 // ListLocalBundleDefinitions lists all bundle definitions found under the given directory.
-func ListLocalBundleDefinitions(root *Root, dir project.Path) ([]BundleDefinitionEntry, error) {
+func ListLocalBundleDefinitions(root *Root, evalctx *eval.Context, dir project.Path) ([]BundleDefinitionEntry, error) {
 	srcHostDir := dir.HostPath(root.HostDir())
 	srcAbsDir := project.PrjAbsPath(root.HostDir(), srcHostDir)
 
@@ -637,9 +733,16 @@ func ListLocalBundleDefinitions(root *Root, dir project.Path) ([]BundleDefinitio
 				continue
 			}
 
+			md, err := EvalMetadata(evalctx, subdir, &def.Bundle.Metadata)
+			if err != nil {
+				return nil, err
+			}
+
 			r = append(r, BundleDefinitionEntry{
-				Tree:   subdir,
-				Define: def.Bundle,
+				Source:   md.Dir.String(),
+				Tree:     subdir,
+				Metadata: md,
+				Define:   def.Bundle,
 			})
 		}
 	}
@@ -651,16 +754,43 @@ func ListLocalBundleDefinitions(root *Root, dir project.Path) ([]BundleDefinitio
 	return r, nil
 }
 
-// LoadSingleBundleDefinition loads a single bundle definition from the given directory.
-func LoadSingleBundleDefinition(root *Root, dir project.Path) (*BundleDefinitionEntry, error) {
+// LoadSingleBundleDefinition loads and returns a single bundle definition from the given directory.
+func LoadSingleBundleDefinition(root *Root, dir project.Path) (*Tree, *hcl.DefineBundle, error) {
 	err := root.LoadSubTree(dir)
 	if err != nil {
-		return nil, errors.E(err, "failed to load bundle definitions")
+		return nil, nil, errors.E(err, "failed to load bundle definition")
 	}
 
 	tree, ok := root.Lookup(dir)
 	if !ok {
-		return nil, errors.E("no bundle definitions found")
+		return nil, nil, errors.E("no bundle definition found")
+	}
+
+	for _, def := range tree.Node.Defines {
+		if def.Bundle == nil {
+			continue
+		}
+		return tree, def.Bundle, nil
+	}
+
+	return nil, nil, errors.E("no bundle definition found")
+}
+
+// DownloadRemoteBundle downloads a remote bundle and loads it into the config tree.
+func DownloadRemoteBundle(root *Root, evalctx *eval.Context, resolveAPI resolve.API, source string) (*BundleDefinitionEntry, error) {
+	dir, err := resolveAPI.Resolve(root.HostDir(), source, resolve.Bundle, true)
+	if err != nil {
+		return nil, err
+	}
+
+	err = root.LoadSubTree(dir)
+	if err != nil {
+		return nil, errors.E(err, "failed to load bundle definition")
+	}
+
+	tree, ok := root.Lookup(dir)
+	if !ok {
+		return nil, errors.E("no bundle definition found")
 	}
 
 	for _, def := range tree.Node.Defines {
@@ -668,17 +798,23 @@ func LoadSingleBundleDefinition(root *Root, dir project.Path) (*BundleDefinition
 			continue
 		}
 
+		md, err := EvalMetadata(evalctx, tree, &def.Bundle.Metadata)
+		if err != nil {
+			return nil, err
+		}
+
 		return &BundleDefinitionEntry{
-			Tree:   tree,
-			Define: def.Bundle,
+			Source:   source,
+			Tree:     tree,
+			Metadata: md,
+			Define:   def.Bundle,
 		}, nil
 	}
-
-	return nil, errors.E("no bundle definitions found")
+	return nil, errors.E("no bundle definition found")
 }
 
 // EvalMetadata evaluates a metadata block into a Metadata value.
-func EvalMetadata(_ *Root, evalctx *eval.Context, tree *Tree, def *hcl.Metadata) (*Metadata, error) {
+func EvalMetadata(evalctx *eval.Context, tree *Tree, def *hcl.Metadata) (*Metadata, error) {
 	var err error
 	md := &Metadata{
 		Dir: tree.Dir(),
@@ -714,7 +850,7 @@ func EvalMetadata(_ *Root, evalctx *eval.Context, tree *Tree, def *hcl.Metadata)
 }
 
 // EvalBundleDefinition evaluates a bundle definition's scaffolding metadata.
-func EvalBundleDefinition(_ *Root, evalctx *eval.Context, def *hcl.DefineBundle) (*BundleDefinition, error) {
+func EvalBundleDefinition(evalctx *eval.Context, def *hcl.DefineBundle) (*BundleDefinition, error) {
 	r := &BundleDefinition{}
 	var err error
 
@@ -737,15 +873,19 @@ func EvalBundleDefinition(_ *Root, evalctx *eval.Context, def *hcl.DefineBundle)
 
 // EvalBundleInputDefinitions evaluates the input definitions of a bundle.
 // evalctx should contain exports.
-func EvalBundleInputDefinitions(evalctx *eval.Context, def *hcl.DefineBundle, schemas typeschema.SchemaNamespaces) ([]*InputDefinition, error) {
+func EvalBundleInputDefinitions(schemactx typeschema.EvalContext, def *hcl.DefineBundle) ([]*InputDefinition, error) {
 	var r []*InputDefinition
 
+	hasPromptText := func(d *hcl.DefineInput) bool {
+		return d.Prompt != nil && d.Prompt.Text != nil
+	}
 	partitionByPrompt := func(a, b *hcl.DefineInput) int {
-		if a.Prompt != nil && b.Prompt != nil {
+		aHas, bHas := hasPromptText(a), hasPromptText(b)
+		if aHas && bHas {
 			return 0
-		} else if a.Prompt != nil {
+		} else if aHas {
 			return -1
-		} else if b.Prompt != nil {
+		} else if bHas {
 			return 1
 		}
 		return 0
@@ -766,62 +906,83 @@ func EvalBundleInputDefinitions(evalctx *eval.Context, def *hcl.DefineBundle, sc
 			Name: inputDef.Name,
 		}
 
-		if inputDef.Prompt != nil {
-			input.Prompt, err = EvalString(evalctx, inputDef.Prompt.Expr, "prompt")
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if inputDef.Multiselect != nil {
-			input.Multiselect, err = EvalBool(evalctx, inputDef.Multiselect.Expr, "multiselect")
+		if inputDef.Description != nil {
+			input.Description, err = EvalString(schemactx.Evalctx, inputDef.Description.Expr, "description")
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		// This has been evaluated before already.
-		schema, err := schemas.Lookup("input." + inputDef.Name)
+		schema, err := schemactx.Schemas.Lookup("input." + inputDef.Name)
 		if err != nil {
 			return nil, err
 		}
+		input.Type = schema.Type
 
-		var optionValueType typeschema.Type
+		if inputDef.Immutable != nil {
+			input.Immutable, err = EvalBool(schemactx.Evalctx, inputDef.Immutable.Expr, "immutable")
+			if err != nil {
+				return nil, err
+			}
+		}
 
-		if input.Multiselect {
+		input.Dependencies = map[string]struct{}{}
+
+		pb := inputDef.Prompt
+		if pb != nil {
+			if pb.Text != nil {
+				input.Prompt.Text, err = EvalString(schemactx.Evalctx, pb.Text.Expr, "prompt.text")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if pb.Multiline != nil {
+				input.Prompt.Multiline, err = EvalBool(schemactx.Evalctx, pb.Multiline.Expr, "prompt.multiline")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if pb.Multiselect != nil {
+				input.Prompt.Multiselect, err = EvalBool(schemactx.Evalctx, pb.Multiselect.Expr, "prompt.multiselect")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if pb.Options != nil {
+				input.Prompt.optionsExpr = pb.Options.Expr
+				for _, dep := range extractInputVars("bundle", pb.Options) {
+					input.Dependencies[dep] = struct{}{}
+				}
+			}
+			if pb.Condition != nil {
+				input.Prompt.conditionExpr = pb.Condition.Expr
+				for _, dep := range extractInputVars("bundle", pb.Condition) {
+					input.Dependencies[dep] = struct{}{}
+				}
+			}
+		}
+
+		if len(inputDef.ObjectAttributes) > 0 {
+			input.ObjectAttributes, err = EvalObjectAttributes(schemactx.Evalctx, inputDef.ObjectAttributes)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if input.Prompt.Multiselect {
 			if !typeschema.IsCollectionType(schema.Type) {
 				return nil, errors.E(inputDef.DefRange, "type for multiselect must be a list/map, got %s instead", schema.Type.String())
 			}
-			optionValueType = typeschema.UnwrapValueType(schema.Type)
+			input.optionValueType = typeschema.UnwrapValueType(schema.Type)
 		} else {
-			optionValueType = schema.Type
+			input.optionValueType = schema.Type
 		}
-
-		input.Type = schema.Type
 
 		if inputDef.Default != nil {
-			// Try to evaluate, but it may fail if it contains variables.
-			input.PromptDefault, _ = tryEvaluateExpr(evalctx, inputDef.Default.Expr)
-		}
-
-		if inputDef.Multiline != nil {
-			input.Multiline, err = EvalBool(evalctx, inputDef.Multiline.Expr, "multiline")
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if inputDef.Options != nil {
-			input.Options, err = evalOptions(evalctx, inputDef.Name, inputDef.Options.Expr, optionValueType, schemas)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if inputDef.Description != nil {
-			input.Description, err = EvalString(evalctx, inputDef.Description.Expr, "description")
-			if err != nil {
-				return nil, err
+			input.defaultExpr = inputDef.Default.Expr
+			for _, dep := range extractInputVars("bundle", inputDef.Default) {
+				input.Dependencies[dep] = struct{}{}
 			}
 		}
 
@@ -831,7 +992,7 @@ func EvalBundleInputDefinitions(evalctx *eval.Context, def *hcl.DefineBundle, sc
 	return r, nil
 }
 
-func parseNamedValue(obj cty.Value, valueType typeschema.Type, evalctx *eval.Context, schemas typeschema.SchemaNamespaces) (NamedValue, error) {
+func parseNamedValue(obj cty.Value, valueType typeschema.Type, schemactx typeschema.EvalContext) (NamedValue, error) {
 	// precondition: val is an object/map
 	iter := obj.ElementIterator()
 	result := NamedValue{}
@@ -852,7 +1013,7 @@ func parseNamedValue(obj cty.Value, valueType typeschema.Type, evalctx *eval.Con
 			hasName = true
 		case "value":
 			var err error
-			val, err = valueType.Apply(val, evalctx, schemas, true)
+			val, err = valueType.Apply(val, schemactx, true)
 			if err != nil {
 				return NamedValue{}, err
 			}
@@ -870,10 +1031,10 @@ func parseNamedValue(obj cty.Value, valueType typeschema.Type, evalctx *eval.Con
 	return result, nil
 }
 
-func evalOptions(evalctx *eval.Context, inputName string, expr hhcl.Expression, valueType typeschema.Type, schemas typeschema.SchemaNamespaces) ([]NamedValue, error) {
+func evalOptions(schemactx typeschema.EvalContext, inputName string, expr hhcl.Expression, valueType typeschema.Type) ([]NamedValue, error) {
 	options := []NamedValue{}
 
-	val, err := evalctx.Eval(expr)
+	val, err := schemactx.Evalctx.Eval(expr)
 	if err != nil {
 		return nil, errors.E(err, expr.Range(), "%s: evaluating options", inputName)
 	}
@@ -904,7 +1065,7 @@ func evalOptions(evalctx *eval.Context, inputName string, expr hhcl.Expression, 
 			options = append(options, NamedValue{Name: elem.AsString(), Value: elem})
 
 		} else if elemType.IsObjectType() || elemType.IsMapType() {
-			namedValue, err := parseNamedValue(elem, valueType, evalctx, schemas)
+			namedValue, err := parseNamedValue(elem, valueType, schemactx)
 			if err != nil {
 				return nil, errors.E(err, expr.Range(), "%s: invalid element in options at index %d", inputName, index)
 			}

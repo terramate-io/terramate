@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-// Package of bundles and components that can be found at a common location.
-type Package struct {
+// Collection of bundles and components that can be found at a common location.
+type Collection struct {
 	// Name of the package.
 	Name string `json:"name"`
 
@@ -47,6 +47,9 @@ type Bundle struct {
 
 	// Technologies related to the bundle.
 	Technologies []string `json:"technologies,omitempty"`
+
+	// RequiresEnvironments is true if the bundle requires environments.
+	RequiresEnvironments bool `json:"requires_environments,omitempty"`
 }
 
 // Component description contained within a manifest.
@@ -71,16 +74,16 @@ type Component struct {
 }
 
 // LoadFile reads and parses a JSON manifest file at the given path.
-func LoadFile(path string) ([]*Package, error) {
+func LoadFile(path string) ([]*Collection, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var pkgs []*Package
-	if err := json.Unmarshal(data, &pkgs); err != nil {
+	var colls []*Collection
+	if err := json.Unmarshal(data, &colls); err != nil {
 		return nil, err
 	}
 
-	return pkgs, nil
+	return colls, nil
 }

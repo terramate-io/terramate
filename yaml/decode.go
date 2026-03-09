@@ -122,6 +122,7 @@ func decodeValue(node *yaml.Node) (Attribute[any], error) {
 			}
 			seqVal.HeadComment = seqNode.HeadComment
 			seqVal.LineComment = seqNode.LineComment
+			seqVal.FootComment = seqNode.FootComment
 			v[i] = SeqItem[any]{
 				Value: seqVal,
 			}
@@ -143,9 +144,18 @@ func decodeValue(node *yaml.Node) (Attribute[any], error) {
 			if err != nil {
 				return NilAttr, err
 			}
+			itemVal.HeadComment = valNode.HeadComment
 			itemVal.LineComment = valNode.LineComment
+			itemVal.FootComment = valNode.FootComment
 			v[i] = MapItem[any]{
-				Key:   Attribute[string]{V: itemKey, Line: keyNode.Line, Column: keyNode.Column, HeadComment: keyNode.HeadComment},
+				Key: Attribute[string]{
+					V:           itemKey,
+					Line:        keyNode.Line,
+					Column:      keyNode.Column,
+					HeadComment: keyNode.HeadComment,
+					LineComment: keyNode.LineComment,
+					FootComment: keyNode.FootComment,
+				},
 				Value: itemVal,
 			}
 		}
@@ -191,8 +201,15 @@ func decodeMapOfStructs[T any, PT interface {
 				return Attribute[Map[PT]]{}, err
 			}
 			ret = append(ret, MapItem[PT]{
-				Key:   mapItem.Key,
-				Value: Attribute[PT]{V: v, Line: mapItem.Key.Line, Column: mapItem.Key.Column, LineComment: mapItem.Value.LineComment},
+				Key: mapItem.Key,
+				Value: Attribute[PT]{
+					V:           v,
+					Line:        mapItem.Key.Line,
+					Column:      mapItem.Key.Column,
+					LineComment: mapItem.Value.LineComment,
+					HeadComment: mapItem.Value.HeadComment,
+					FootComment: mapItem.Value.FootComment,
+				},
 			})
 		case nil:
 			ret = append(ret, MapItem[PT]{

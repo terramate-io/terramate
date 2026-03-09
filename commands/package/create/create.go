@@ -63,12 +63,12 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 	}
 
 	// TODO: Could both be done in a single pass.
-	localBundles, err := config.ListLocalBundleDefinitions(root, project.NewPath("/bundles"))
+	localBundles, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/bundles"))
 	if err != nil {
 		return err
 	}
 
-	localComponents, err := config.ListLocalComponentDefinitions(root, project.NewPath("/components"))
+	localComponents, err := config.ListLocalComponentDefinitions(root, evalctx, project.NewPath("/components"))
 	if err != nil {
 		return err
 	}
@@ -77,39 +77,29 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 		s.PackageName = s.tryDetectPackageName()
 	}
 
-	pkg := manifest.Package{
+	pkg := manifest.Collection{
 		Name:        s.PackageName,
 		Location:    s.PackageLocation,
 		Description: s.PackageDescription,
 	}
 
 	for _, defEntry := range localBundles {
-		md, err := config.EvalMetadata(root, evalctx, defEntry.Tree, &defEntry.Define.Metadata)
-		if err != nil {
-			return err
-		}
-
 		pkg.Bundles = append(pkg.Bundles, manifest.Bundle{
 			Path:        defEntry.Tree.Dir().String(),
-			Name:        md.Name,
-			Class:       md.Class,
-			Version:     md.Version,
-			Description: md.Description,
+			Name:        defEntry.Metadata.Name,
+			Class:       defEntry.Metadata.Class,
+			Version:     defEntry.Metadata.Version,
+			Description: defEntry.Metadata.Description,
 		})
 	}
 
 	for _, defEntry := range localComponents {
-		md, err := config.EvalMetadata(root, evalctx, defEntry.Tree, &defEntry.Define.Metadata)
-		if err != nil {
-			return err
-		}
-
 		pkg.Components = append(pkg.Components, manifest.Component{
 			Path:        defEntry.Tree.Dir().String(),
-			Name:        md.Name,
-			Class:       md.Class,
-			Version:     md.Version,
-			Description: md.Description,
+			Name:        defEntry.Metadata.Name,
+			Class:       defEntry.Metadata.Class,
+			Version:     defEntry.Metadata.Version,
+			Description: defEntry.Metadata.Description,
 		})
 	}
 
@@ -117,7 +107,7 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 		return errors.E("no bundles or components found for packaging")
 	}
 
-	pkgs := []*manifest.Package{&pkg}
+	pkgs := []*manifest.Collection{&pkg}
 
 	manifestData, err := json.MarshalIndent(&pkgs, "", "  ")
 	if err != nil {

@@ -35,6 +35,7 @@ import (
 	createcmd "github.com/terramate-io/terramate/commands/stack/create"
 	listcmd "github.com/terramate-io/terramate/commands/stack/list"
 	triggercmd "github.com/terramate-io/terramate/commands/trigger"
+	uicmd "github.com/terramate-io/terramate/commands/ui"
 	"github.com/terramate-io/terramate/commands/version"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
@@ -245,6 +246,10 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 			OutputFormat: parsedArgs.Scaffold.OutputFormat,
 			Generate:     parsedArgs.Scaffold.Generate,
 		}, nil
+
+	case "ui":
+		c.SetCommandAnalytics("ui")
+		return &uicmd.Spec{}, nil
 
 	case "component create", "component create <path>":
 		c.SetCommandAnalytics("component-create")

@@ -365,7 +365,7 @@ func (g *gState) loadBundles() error {
 	evalctx.SetNamespace("terramate", g.root.Runtime())
 
 	var err error
-	g.registry, err = engine.LoadProjectBundles(g.root, g.resolveAPI, evalctx, true)
+	g.registry, err = engine.EvalProjectBundles(g.root, g.resolveAPI, evalctx, true)
 	if err != nil {
 		return err
 	}
