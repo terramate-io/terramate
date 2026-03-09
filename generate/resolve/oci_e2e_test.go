@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -353,22 +354,10 @@ component "network" {
 	if err != nil {
 		t.Fatalf("component main.tf not found: %v", err)
 	}
-	if !contains(string(gotTF), "aws_vpc") {
+	if !strings.Contains(string(gotTF), "aws_vpc") {
 		t.Fatalf("component main.tf doesn't contain expected resource, got: %s", gotTF)
 	}
 
 	t.Log("SUCCESS: Bundle with relative component resolution via OCI verified")
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && findSubstring(s, substr)
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

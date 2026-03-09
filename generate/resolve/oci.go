@@ -82,6 +82,12 @@ func ParseOCIReference(src string) (*OCIReference, error) {
 	if atIdx := strings.Index(remainder, "@"); atIdx != -1 {
 		ref.Repository = remainder[:atIdx]
 		ref.Digest = remainder[atIdx+1:]
+		if ref.Repository == "" {
+			return nil, errors.E("invalid OCI reference %q: empty repository", src)
+		}
+		if ref.Digest == "" {
+			return nil, errors.E("invalid OCI reference %q: empty digest", src)
+		}
 		return ref, nil
 	}
 
