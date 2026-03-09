@@ -295,11 +295,16 @@ func ExtractTarGz(r io.Reader, dir string) error {
 				return errors.E(err, "creating file %s", target)
 			}
 			// Limit copy size to prevent decompression bombs (256MB per file).
-			if _, err := io.Copy(f, io.LimitReader(tr, 256<<20)); err != nil {
+			const maxFileSize = 256 << 20
+			n, err := io.Copy(f, io.LimitReader(tr, maxFileSize+1))
+			if err != nil {
 				f.Close()
 				return errors.E(err, "writing file %s", target)
 			}
 			f.Close()
+			if n > maxFileSize {
+				return errors.E("file %s exceeds maximum size of %d bytes", hdr.Name, maxFileSize)
+			}
 		case tar.TypeSymlink:
 			// Validate symlink target doesn't escape.
 			linkTarget := filepath.Clean(filepath.Join(filepath.Dir(target), hdr.Linkname))

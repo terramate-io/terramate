@@ -145,7 +145,7 @@ func (r *Resolver) resolveRemote(rootdir, src string, kind Kind, allowFetch bool
 
 	pkgCacheSubdir := filepath.Join(pkgCacheDir, srcSubdir)
 
-	if _, err := os.Stat(pkgCacheSubdir); err == os.ErrNotExist {
+	if _, err := os.Stat(pkgCacheSubdir); os.IsNotExist(err) {
 		return project.Path{}, errors.E(err, "source directory does not exist in repository")
 	}
 
@@ -296,7 +296,7 @@ func (r *Resolver) resolveOCI(rootdir, src string, kind Kind, allowFetch bool) (
 
 	pkgCacheSubdir := filepath.Join(pkgCacheDir, srcSubdir)
 
-	if _, err := os.Stat(pkgCacheSubdir); err == os.ErrNotExist {
+	if _, err := os.Stat(pkgCacheSubdir); os.IsNotExist(err) {
 		return project.Path{}, errors.E(err, "source directory does not exist in OCI artifact")
 	}
 
