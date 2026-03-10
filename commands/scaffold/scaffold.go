@@ -466,7 +466,7 @@ func makeAllInputs(evalctx *eval.Context, selectedBundle *config.BundleDefinitio
 		vm := v.AsValueMap()
 		result[k] = vm["value"]
 	}
-	return result, evalctx, nil
+	return result, schemactx.Evalctx, nil
 }
 
 // TODO: Use a different method to write the block.
