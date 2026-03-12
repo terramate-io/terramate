@@ -70,6 +70,17 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde
 	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, m.selectedEnv, nil, values, values)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
+	return nil
+}
+
+// findBundleByLocation looks up a bundle in the registry by its location.
+func (m Model) findBundleByLocation(location string) *config.Bundle {
+	for _, b := range m.EngineState.Registry.Bundles {
+		if fmt.Sprintf("%s:%s", b.Workdir.String(), b.Name) == location {
+			return b
+		}
+	}
 	return nil
 }
 
@@ -172,24 +183,25 @@ func groupBundles(bundles []*config.Bundle) []bundleGroup {
 
 func (m Model) renderReconfigSelectView() string {
 	est := m.EngineState
+	panelWidth := m.effectiveWidth()
 
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth).
+		Width(panelWidth).
 		Height(uiContentHeight + 2)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	idStyle := lipgloss.NewStyle().
 		Foreground(colorTextSubtle)
 
-	contentStyle := lipgloss.NewStyle().Width(uiWidth - 4)
+	contentStyle := lipgloss.NewStyle().Width(panelWidth - 4)
 
-	title := m.renderHeader("reconfig")
+	title := m.renderHeader("reconfigure", panelWidth)
 
 	sectionTitle := lipgloss.NewStyle().Bold(true).Foreground(colorText).MarginBottom(1).Render("Select a Bundle to Reconfigure")
 	desc := lipgloss.NewStyle().Foreground(colorTextMuted).MarginBottom(2).Render("These bundles are currently deployed in your project.")
@@ -197,8 +209,6 @@ func (m Model) renderReconfigSelectView() string {
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	headerNameStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
 	fromStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
-
-	innerWidth := uiWidth - 8
 
 	groups := groupBundles(m.reconfigBundles)
 
@@ -273,15 +283,11 @@ func (m Model) renderReconfigSelectView() string {
 		}
 
 		headerPad := strings.Repeat(" ", globalMaxLeft-gr.headerLeftWidth+colGap)
-		header := gr.headerLeft + headerPad + fromStyle.Render(gr.headerSource)
-		header = truncateStyledRow(header, innerWidth)
-		lines = append(lines, header)
+		lines = append(lines, gr.headerLeft+headerPad+fromStyle.Render(gr.headerSource))
 
 		for _, r := range gr.entries {
 			entryPad := strings.Repeat(" ", globalMaxLeft-r.leftWidth+colGap)
-			line := r.left + entryPad + fromStyle.Render(r.source)
-			line = truncateStyledRow(line, innerWidth)
-			lines = append(lines, line)
+			lines = append(lines, r.left+entryPad+fromStyle.Render(r.source))
 		}
 	}
 
@@ -301,13 +307,14 @@ func (m Model) renderReconfigSelectView() string {
 }
 
 func (m Model) renderReconfigInputView() string {
+	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	b := m.reconfigBundle
 	headerContext := fmt.Sprintf("reconfigure / %s", b.Name)
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	formView := m.inputsForm.View()
 

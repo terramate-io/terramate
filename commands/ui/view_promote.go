@@ -69,6 +69,7 @@ func (m *Model) loadPromoteBundle(b *config.Bundle) error {
 	m.promoteBundle = b
 	m.selectedBundleDefEntry = bde
 	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, m.selectedEnv, b.Environment, values, values)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
 	return nil
 }
 
@@ -117,23 +118,25 @@ func (m Model) renderPromoteSelectView() string {
 
 	promoteFromName := envNameForID(est.Registry.Environments, m.selectedEnv.PromoteFrom)
 
+	panelWidth := m.effectiveWidth()
+
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth).
+		Width(panelWidth).
 		Height(uiContentHeight + 2)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	idStyle := lipgloss.NewStyle().
 		Foreground(colorTextSubtle)
 
-	contentStyle := lipgloss.NewStyle().Width(uiWidth - 4)
+	contentStyle := lipgloss.NewStyle().Width(panelWidth - 4)
 
-	title := m.renderHeader("promote")
+	title := m.renderHeader("promote", panelWidth)
 
 	sectionTitle := lipgloss.NewStyle().Bold(true).Foreground(colorText).MarginBottom(1).Render("Select a Bundle to Promote")
 	desc := lipgloss.NewStyle().Foreground(colorTextMuted).MarginBottom(2).
@@ -237,13 +240,14 @@ func (m Model) renderPromoteSelectView() string {
 }
 
 func (m Model) renderPromoteInputView() string {
+	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	b := m.promoteBundle
 	headerContext := fmt.Sprintf("promote / %s", b.Name)
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	formView := m.inputsForm.View()
 

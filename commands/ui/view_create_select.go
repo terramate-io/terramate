@@ -119,8 +119,8 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 		bde = &config.BundleDefinitionEntry{
 			Source:   source,
 			Tree:     tree,
-			Define:   define,
 			Metadata: md,
+			Define:   define,
 		}
 	}
 
@@ -167,6 +167,7 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 	m.selectedBundleDefEntry = bde
 	m.selectedBundleSource = source
 	m.inputsForm = NewInputsForm(inputDefs, schemactx, est.Registry, m.selectedEnv)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
 	return nil
 }
 
@@ -232,18 +233,19 @@ func checkBundleEnabled(evalctx *eval.Context, def *hcl.DefineBundle) error {
 
 func (m Model) renderBundleSelectView() string {
 	est := m.EngineState
-	innerWidth := uiWidth - 4
+	panelWidth := m.effectiveWidth()
+	innerWidth := panelWidth - 4
 
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth).
+		Width(panelWidth).
 		Height(uiContentHeight + 2)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth)
@@ -258,7 +260,7 @@ func (m Model) renderBundleSelectView() string {
 		headerContext = fmt.Sprintf("add bundle / %s", collName)
 	}
 
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	helpText := m.finalHelpText("esc: back")
 	help := helpStyle.Render(helpText)
@@ -367,7 +369,7 @@ func renderScrollbar(totalItems, visibleCount, offset, trackHeight int) string {
 
 func (m Model) renderCollectionPage() string {
 	est := m.EngineState
-	innerWidth := uiWidth - 4
+	innerWidth := m.effectiveWidth() - 4
 	scrollbarGutter := 4 // left gap(1) + scrollbar(1) + right gap(2)
 	contentWidth := innerWidth - scrollbarGutter
 
@@ -443,7 +445,7 @@ func (m Model) renderCollectionPage() string {
 
 func (m Model) renderBundlePage() string {
 	est := m.EngineState
-	innerWidth := uiWidth - 4
+	innerWidth := m.effectiveWidth() - 4
 	scrollbarGutter := 4 // left gap(1) + scrollbar(1) + right gap(2)
 	contentWidth := innerWidth - scrollbarGutter
 

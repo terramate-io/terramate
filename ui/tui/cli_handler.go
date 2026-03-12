@@ -249,7 +249,9 @@ func SelectCommand(ctx context.Context, c *CLI, command string, flags any) (cmd 
 
 	case "ui":
 		c.SetCommandAnalytics("ui")
-		return &uicmd.Spec{}, nil
+		return &uicmd.Spec{
+			ExperimentalAIPrompt: parsedArgs.UI.ExperimentalAIPrompt,
+		}, nil
 
 	case "component create", "component create <path>":
 		c.SetCommandAnalytics("component-create")
