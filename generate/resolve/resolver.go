@@ -84,6 +84,12 @@ func (r *Resolver) resolveRemote(rootdir, src string, kind Kind, allowFetch bool
 		Bool("allow_fetch", allowFetch).
 		Logger()
 
+	// OCI sources (oci://...) are handled separately from go-getter.
+	if IsOCISource(src) {
+		logger.Debug().Msg("detected OCI source")
+		return r.resolveOCI(rootdir, src, kind, allowFetch)
+	}
+
 	detectors := []getter.Detector{
 		new(getter.GitHubDetector),
 		new(getter.GitLabDetector),
@@ -139,7 +145,7 @@ func (r *Resolver) resolveRemote(rootdir, src string, kind Kind, allowFetch bool
 
 	pkgCacheSubdir := filepath.Join(pkgCacheDir, srcSubdir)
 
-	if _, err := os.Stat(pkgCacheSubdir); err == os.ErrNotExist {
+	if _, err := os.Stat(pkgCacheSubdir); os.IsNotExist(err) {
 		return project.Path{}, errors.E(err, "source directory does not exist in repository")
 	}
 
@@ -220,6 +226,93 @@ func (r *Resolver) getPackageInstallDir(srcDir, srcSubdir string, digest string,
 	pkgkey := hex.EncodeToString(hasher.Sum(nil))
 
 	return project.NewPath(path.Join("/.terramate", kindDir, string(pkgkey)))
+}
+
+// resolveOCI handles resolution of OCI registry sources (oci://...).
+// It follows the same cache/install pattern as the go-getter path but uses
+// oras-go to fetch OCI artifacts.
+func (r *Resolver) resolveOCI(rootdir, src string, kind Kind, allowFetch bool) (project.Path, error) {
+	logger := log.With().
+		Str("action", "source.resolveOCI()").
+		Str("src", src).
+		Logger()
+
+	srcDir, srcSubdir := getter.SourceDirSubdir(src)
+	pkgCacheDir := r.getPackageCacheDir(srcDir)
+	digestFile := filepath.Join(pkgCacheDir, ".oci_digest")
+
+	var digest string
+
+	if _, err := os.Stat(pkgCacheDir); err != nil {
+		logger.Debug().Msgf("OCI package does not exist in cache dir %s, fetching...", pkgCacheDir)
+
+		if !allowFetch {
+			return project.Path{}, errors.E("package for OCI source could not be found: %s", src)
+		}
+
+		ref, err := ParseOCIReference(srcDir)
+		if err != nil {
+			return project.Path{}, errors.E(err, "parsing OCI reference")
+		}
+
+		digest, err = fetchOCI(context.Background(), ref, pkgCacheDir)
+		if err != nil {
+			// Clean up partial cache on failure.
+			os.RemoveAll(pkgCacheDir)
+			return project.Path{}, errors.E(err, "fetching OCI package")
+		}
+
+		// Store the digest for future cache hits.
+		if err := os.WriteFile(digestFile, []byte(digest), 0o644); err != nil {
+			logger.Warn().Err(err).Msg("failed to write OCI digest file")
+		}
+	} else {
+		// Cache hit: read the stored digest.
+		if data, err := os.ReadFile(digestFile); err == nil {
+			digest = string(data)
+		}
+	}
+
+	pkgInstallDir := r.getPackageInstallDir(srcDir, srcSubdir, digest, kind)
+	absPkgInstallDir := project.AbsPath(rootdir, pkgInstallDir.String())
+
+	// Already installed.
+	if _, err := os.Stat(absPkgInstallDir); err == nil {
+		return pathForSourceKind(pkgInstallDir, kind), nil
+	}
+
+	logger.Debug().Msgf("OCI package does not exist in install dir %s, installing...", absPkgInstallDir)
+
+	// Copy to tmpdir, then rename for atomic install.
+	tmTempDir, err := os.MkdirTemp(rootdir, ".tm_pkg")
+	if err != nil {
+		return project.Path{}, errors.E(err, "creating tmp dir inside project")
+	}
+	defer func() {
+		if err := os.RemoveAll(tmTempDir); err != nil {
+			log.Warn().Err(err).Msg("deleting temp dir inside terramate project")
+		}
+	}()
+
+	pkgCacheSubdir := filepath.Join(pkgCacheDir, srcSubdir)
+
+	if _, err := os.Stat(pkgCacheSubdir); os.IsNotExist(err) {
+		return project.Path{}, errors.E(err, "source directory does not exist in OCI artifact")
+	}
+
+	if err := fs.CopyDir(tmTempDir, pkgCacheSubdir, filterForSourceKind(kind)); err != nil {
+		return project.Path{}, errors.E(err, "copying OCI package")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(absPkgInstallDir), 0o775); err != nil {
+		return project.Path{}, errors.E(err, "creating package dir")
+	}
+
+	if err := os.Rename(tmTempDir, absPkgInstallDir); err != nil {
+		return project.Path{}, errors.E(err, "moving package from tmp dir to install location")
+	}
+
+	return pathForSourceKind(pkgInstallDir, kind), nil
 }
 
 // CombineSources combines two sources based on specific rules.
