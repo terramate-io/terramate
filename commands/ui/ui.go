@@ -6,11 +6,13 @@ package ui
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/terramate-io/terramate/cloud"
 	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/di"
@@ -24,10 +26,13 @@ import (
 	"github.com/terramate-io/terramate/project"
 	"github.com/terramate-io/terramate/scaffold/manifest"
 	"github.com/terramate-io/terramate/stdlib"
+	"github.com/terramate-io/terramate/ui/tui/cliauth"
 )
 
 // Spec is the command specification for the prompt command.
 type Spec struct {
+	ExperimentalAIPrompt bool
+
 	workingDir string
 	engine     *engine.Engine
 	printers   printer.Printers
@@ -82,6 +87,17 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 		collections = append(collections, c...)
 	}
 
+	var llm llmConfig
+	if s.ExperimentalAIPrompt {
+		llm = detectLLMConfig()
+	}
+	llm.enabled = s.ExperimentalAIPrompt
+
+	cloudBaseURL, found := cliauth.EnvBaseURL()
+	if !found {
+		cloudBaseURL = cloud.BaseURL(s.engine.CloudRegion())
+	}
+
 	est := &EngineState{
 		Context:         ctx,
 		CLI:             cli,
@@ -93,9 +109,10 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 		LocalBundleDefs: localBundleDefs,
 		Collections:     collections,
 		CLIConfig:       cli.Config(),
+		CloudBaseURL:    cloudBaseURL,
 	}
 
-	m := NewModel(est)
+	m := NewModel(est, llm)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
@@ -184,6 +201,27 @@ func printChangeLog(printers printer.Printers, log []string) {
 		printers.Stdout.Println("  " + line)
 	}
 	printers.Stdout.Println("")
+}
+
+// detectLLMConfig reads environment variables to determine the LLM provider,
+// API key, and optional model override. It checks ANTHROPIC_API_KEY and
+// OPENAI_API_KEY; if both are set, Anthropic is preferred.
+func detectLLMConfig() llmConfig {
+	if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
+		return llmConfig{
+			Provider: "anthropic",
+			APIKey:   key,
+			Model:    os.Getenv("ANTHROPIC_MODEL"),
+		}
+	}
+	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
+		return llmConfig{
+			Provider: "openai",
+			APIKey:   key,
+			Model:    os.Getenv("OPENAI_MODEL"),
+		}
+	}
+	return llmConfig{}
 }
 
 func setupRootGlobals(root *config.Root, evalctx *eval.Context) {

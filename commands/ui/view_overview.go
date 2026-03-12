@@ -26,7 +26,75 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Ctrl+E opens environment selector from any focus area
 	if msg.String() == "ctrl+e" && len(est.Registry.Environments) > 0 {
 		m.viewState = ViewEnvSelect
+		m.promptInput.Blur()
 		return m, nil
+	}
+
+	// --- Prompt-focused: forward typing to textarea ---
+	if m.focus == FocusPrompt {
+		switch msg.String() {
+		case "tab":
+			if len(m.PendingChanges()) > 0 || m.changesApplied {
+				m.focus = FocusSummary
+				m.summaryOnButtons = true
+				m.summaryButtonIdx = 0
+				m.promptInput.Blur()
+			}
+			return m, nil
+
+		case "enter":
+			userText := strings.TrimSpace(m.promptInput.Value())
+			if userText == "" {
+				return m, nil
+			}
+			m.chatMessages = append(m.chatMessages, ChatMessage{
+				Role:    "user",
+				Content: userText,
+			})
+			m.promptInput.SetValue("")
+			m.promptInput.SetHeight(1)
+			m.chatThinking = true
+			m.viewState = ViewChat
+			m.updateChatViewport()
+			m.promptInput.Placeholder = "Type more ..."
+			m.promptInput.Focus()
+			history := m.buildChatHistory()
+			pendingProposals := m.pendingProposalIDs()
+			bundleDefs, bundleInstances := m.buildBundleContext()
+			cloudBaseURL := m.EngineState.CloudBaseURL
+			cloudAuth := &m.EngineState.cloudAuth
+			cliCfg := m.EngineState.CLIConfig
+			llm := m.llmConfig
+			return m, tea.Batch(
+				textarea.Blink,
+				func() tea.Msg {
+					resp, err := sendChatMessage(cloudBaseURL, cloudAuth, cliCfg, llm, userText, history, pendingProposals, bundleDefs, bundleInstances)
+					return chatResponseMsg{resp: resp, err: err}
+				},
+			)
+
+		case "esc":
+			if m.promptInput.Value() != "" {
+				m.promptInput.SetValue("")
+				m.promptInput.SetHeight(1)
+			} else {
+				m.focus = FocusCommands
+				m.promptInput.Blur()
+			}
+			return m, nil
+
+		default:
+			var cmd tea.Cmd
+			m.promptInput, cmd = m.promptInput.Update(msg)
+
+			if msg.String() == "down" && m.promptInput.Value() == "" {
+				m.focus = FocusCommands
+				m.promptInput.Blur()
+				return m, nil
+			}
+
+			return m, cmd
+		}
 	}
 
 	// --- Exit confirmation ---
@@ -88,13 +156,18 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.focus = FocusSummary
 				m.summaryOnButtons = true
 				m.summaryButtonIdx = 0
-			} else {
-				m.focus = FocusCommands
+			} else if m.aiEnabled {
+				m.focus = FocusPrompt
+				m.promptInput.Focus()
 				return m, textarea.Blink
 			}
 		case FocusSummary:
+			if m.aiEnabled {
+				m.focus = FocusPrompt
+				m.promptInput.Focus()
+				return m, textarea.Blink
+			}
 			m.focus = FocusCommands
-			return m, textarea.Blink
 		}
 		return m, nil
 
@@ -131,7 +204,11 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, keys.Up):
-		if m.focus == FocusSummary {
+		if m.focus == FocusCommands && m.aiEnabled {
+			m.focus = FocusPrompt
+			m.promptInput.Focus()
+			return m, textarea.Blink
+		} else if m.focus == FocusSummary {
 			if m.summaryOnButtons && len(m.PendingChanges()) > 0 {
 				m.summaryOnButtons = false
 				m.summaryCursor = len(m.PendingChanges()) - 1
@@ -349,7 +426,8 @@ func changeLogEntry(c Change) string {
 
 func (m Model) renderOverviewView() string {
 	est := m.EngineState
-	innerWidth := uiWidth - 4
+	panelWidth := m.effectiveWidth()
+	innerWidth := panelWidth - 4
 
 	sectionTitleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -359,39 +437,56 @@ func (m Model) renderOverviewView() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	unfocusedBorderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorder).
 		Padding(1, 2).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth)
 
-	title := m.renderHeader("overview")
+	title := m.renderHeader("overview", panelWidth)
 
-	commandsGrid := m.renderCommandGrid()
+	commandsGrid := m.renderCommandGrid(panelWidth)
+	separator := lipgloss.NewStyle().Foreground(colorBorder).Render(strings.Repeat("─", innerWidth))
 
 	var mainContent string
-
-	parts := []string{commandsGrid}
-	if m.currentErr != nil {
-		errStyle := lipgloss.NewStyle().Foreground(colorError).PaddingLeft(4).Width(innerWidth)
-		parts = append(parts, "", errStyle.Render(m.currentErr.Error()))
+	if m.aiEnabled {
+		promptView := lipgloss.JoinHorizontal(lipgloss.Top, " ✨ ", m.promptInput.View())
+		hasPromptText := m.promptInput.Value() != ""
+		if hasPromptText {
+			mainContent = contentStyle.Render(promptView)
+		} else {
+			parts := []string{promptView, separator, commandsGrid}
+			if m.currentErr != nil {
+				errStyle := lipgloss.NewStyle().Foreground(colorError).PaddingLeft(4).Width(innerWidth)
+				parts = append(parts, "", errStyle.Render(m.currentErr.Error()))
+			}
+			mainContent = contentStyle.Render(
+				lipgloss.JoinVertical(lipgloss.Left, parts...),
+			)
+		}
+	} else {
+		parts := []string{commandsGrid}
+		if m.currentErr != nil {
+			errStyle := lipgloss.NewStyle().Foreground(colorError).PaddingLeft(4).Width(innerWidth)
+			parts = append(parts, "", errStyle.Render(m.currentErr.Error()))
+		}
+		mainContent = contentStyle.Render(
+			lipgloss.JoinVertical(lipgloss.Left, parts...),
+		)
 	}
-	mainContent = contentStyle.Render(
-		lipgloss.JoinVertical(lipgloss.Left, parts...),
-	)
 
 	var mainSection string
 	borderStyle := unfocusedBorderStyle
-	if m.focus == FocusCommands {
+	if m.focus == FocusPrompt || m.focus == FocusCommands {
 		borderStyle = focusedBorderStyle
 	}
 	mainSection = borderStyle.Render(mainContent)
@@ -416,7 +511,7 @@ func (m Model) renderOverviewView() string {
 	if hint != "" {
 		hintRendered := lipgloss.NewStyle().Foreground(colorTextMuted).Italic(true).Render(hint)
 		leftRendered := lipgloss.NewStyle().Foreground(colorTextMuted).Render(helpText)
-		gap := uiWidth + 2 - lipgloss.Width(leftRendered) - lipgloss.Width(hintRendered)
+		gap := panelWidth + 2 - lipgloss.Width(leftRendered) - lipgloss.Width(hintRendered)
 		if gap < 2 {
 			gap = 2
 		}
@@ -441,9 +536,9 @@ func (m Model) renderOverviewView() string {
 
 		var summaryFull string
 		if m.changesApplied {
-			summaryFull = contentStyle.Render(m.renderSavedSummary())
+			summaryFull = contentStyle.Render(m.renderSavedSummary(panelWidth))
 		} else {
-			summaryBody := m.renderSummary()
+			summaryBody := m.renderSummary(panelWidth)
 			parts := []string{summaryTitle}
 			if m.saveErr != nil {
 				errStyle := lipgloss.NewStyle().Foreground(colorError).PaddingLeft(2).Width(innerWidth)
@@ -523,7 +618,8 @@ func (m Model) renderSummaryButtons() string {
 }
 
 // renderHeader renders the header with breadcrumbs and optional environment label.
-func (m Model) renderHeader(context string) string {
+// panelWidth controls the total span used to right-align the environment name.
+func (m Model) renderHeader(context string, panelWidth int) string {
 	slashStyle := lipgloss.NewStyle().
 		Foreground(colorText)
 
@@ -547,7 +643,7 @@ func (m Model) renderHeader(context string) string {
 	envStyle := lipgloss.NewStyle().Foreground(colorText)
 	envLabel := envStyle.Render(m.selectedEnv.Name)
 
-	gap := uiWidth + 2 - lipgloss.Width(left) - lipgloss.Width(envLabel)
+	gap := panelWidth + 2 - lipgloss.Width(left) - lipgloss.Width(envLabel)
 	if gap < 2 {
 		gap = 2
 	}
@@ -562,13 +658,11 @@ var commandMeta = map[string]struct {
 	"Create":      {color: colorCreate, hint: "Create infrastructure in your project"},
 	"Reconfigure": {color: colorReconfig, hint: "Reconfigure existing infrastructure"},
 	"Promote":     {color: colorPromote, hint: "Promote infrastructure to this environment"},
-	"Upgrade":     {color: colorAccent, hint: "Upgrade a bundle to a newer version"},
-	"Destroy":     {color: colorError, hint: "Remove a bundle from your project"},
 	"Quit":        {color: colorTextMuted, hint: "Quit Terramate"},
 }
 
-func (m Model) renderCommandGrid() string {
-	innerWidth := uiWidth - 4
+func (m Model) renderCommandGrid(panelWidth int) string {
+	innerWidth := panelWidth - 4
 
 	if m.confirmingExit {
 		promptStyle := lipgloss.NewStyle().Foreground(colorWarning).Bold(true)
@@ -603,8 +697,6 @@ func (m Model) renderCommandGrid() string {
 		return strings.Repeat(" ", gap) + line
 	}
 
-	indent := 4
-
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	normalStyle := lipgloss.NewStyle().Foreground(colorText)
 
@@ -613,24 +705,7 @@ func (m Model) renderCommandGrid() string {
 		return ""
 	}
 
-	totalTextWidth := 0
-	for _, cmd := range cmds {
-		totalTextWidth += len(cmd)
-	}
-
-	usableWidth := innerWidth - indent
-	totalButtonText := len(cmds)*indent + totalTextWidth
-	totalGap := usableWidth - totalButtonText
-	if totalGap < 0 {
-		totalGap = 0
-	}
-	numGaps := len(cmds) - 1
-	baseGap := 0
-	extraGaps := 0
-	if numGaps > 0 {
-		baseGap = totalGap / numGaps
-		extraGaps = totalGap % numGaps
-	}
+	const buttonGap = 6
 
 	var rowStr string
 	for i, cmd := range cmds {
@@ -648,11 +723,7 @@ func (m Model) renderCommandGrid() string {
 		}
 
 		if i > 0 {
-			g := baseGap
-			if i-1 < extraGaps {
-				g++
-			}
-			rowStr += strings.Repeat(" ", g)
+			rowStr += strings.Repeat(" ", buttonGap)
 		}
 		rowStr += rendered
 	}
@@ -671,7 +742,7 @@ func (m Model) selectedCommandHint() string {
 	return ""
 }
 
-func (m Model) renderSummary() string {
+func (m Model) renderSummary(panelWidth int) string {
 	if len(m.PendingChanges()) == 0 {
 		dimStyle := lipgloss.NewStyle().
 			Foreground(colorTextMuted).
@@ -753,7 +824,7 @@ func (m Model) renderSummary() string {
 		if change.Source != "" {
 			row += dimStyle.Render("from " + change.Source)
 		}
-		row = truncateStyledRow(row, uiWidth-4)
+		row = truncateStyledRow(row, panelWidth-4)
 		rows = append(rows, row)
 
 		if len(change.Warnings) > 0 {
@@ -766,12 +837,12 @@ func (m Model) renderSummary() string {
 	return strings.Join(rows, "\n")
 }
 
-func (m Model) renderSavedSummary() string {
+func (m Model) renderSavedSummary(panelWidth int) string {
 	actionStyle := lipgloss.NewStyle().Foreground(colorText)
 	nameStyle := lipgloss.NewStyle().Foreground(colorText).Bold(true)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
-	innerWidth := uiWidth - 8
+	innerWidth := panelWidth - 8
 
 	type fileLine struct {
 		action string
@@ -833,46 +904,4 @@ func (m Model) renderSavedSummary() string {
 	}
 
 	return strings.Join(rows, "\n")
-}
-
-// truncateStyledRow truncates a styled string to maxWidth visible characters,
-// appending "…" if truncated. It walks the string rune-by-rune, tracking visible
-// width while preserving ANSI escape sequences.
-func truncateStyledRow(s string, maxWidth int) string {
-	if maxWidth < 2 {
-		maxWidth = 2
-	}
-	target := maxWidth - 1 // reserve 1 char for "…"
-	var result []byte
-	visibleWidth := 0
-	i := 0
-	for i < len(s) {
-		if s[i] == '\x1b' {
-			// ANSI escape sequence — copy it entirely without counting width.
-			j := i + 1
-			if j < len(s) && s[j] == '[' {
-				j++
-				for j < len(s) && s[j] != 'm' {
-					j++
-				}
-				if j < len(s) {
-					j++ // include 'm'
-				}
-			}
-			result = append(result, s[i:j]...)
-			i = j
-			continue
-		}
-		if visibleWidth >= target {
-			break
-		}
-		result = append(result, s[i])
-		visibleWidth++
-		i++
-	}
-	if visibleWidth >= target && i < len(s) {
-		// Append ellipsis and reset to avoid style bleeding.
-		result = append(result, "\x1b[0m…"...)
-	}
-	return string(result)
 }
