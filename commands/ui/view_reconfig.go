@@ -70,6 +70,17 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde
 	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, m.selectedEnv, nil, values, values)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
+	return nil
+}
+
+// findBundleByLocation looks up a bundle in the registry by its location.
+func (m Model) findBundleByLocation(location string) *config.Bundle {
+	for _, b := range m.EngineState.Registry.Bundles {
+		if fmt.Sprintf("%s:%s", b.Workdir.String(), b.Name) == location {
+			return b
+		}
+	}
 	return nil
 }
 
@@ -170,37 +181,19 @@ func groupBundles(bundles []*config.Bundle) []bundleGroup {
 	return groups
 }
 
-func (m Model) renderReconfigSelectView() string {
+// renderGroupedBundleItems renders each bundle group as a single renderedItem block
+// and returns the group index containing the cursor, suitable for scrollWindowVar.
+// contentWidth controls the fixed width each line is padded/truncated to so that
+// the scrollbar column stays right-aligned.
+func (m Model) renderGroupedBundleItems(groups []bundleGroup, cursor, contentWidth int) (int, []renderedItem) {
 	est := m.EngineState
 
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(colorBorderFocus).
-		Padding(1, 2).
-		Width(uiWidth).
-		Height(uiContentHeight + 2)
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(colorTextMuted).
-		Width(uiWidth)
-
-	idStyle := lipgloss.NewStyle().
-		Foreground(colorTextSubtle)
-
-	contentStyle := lipgloss.NewStyle().Width(uiWidth - 4)
-
-	title := m.renderHeader("reconfig")
-
-	sectionTitle := lipgloss.NewStyle().Bold(true).Foreground(colorText).MarginBottom(1).Render("Select a Bundle to Reconfigure")
-	desc := lipgloss.NewStyle().Foreground(colorTextMuted).MarginBottom(2).Render("These bundles are currently deployed in your project.")
-
+	idStyle := lipgloss.NewStyle().Foreground(colorTextSubtle)
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	headerNameStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
 	fromStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
-	innerWidth := uiWidth - 8
-
-	groups := groupBundles(m.reconfigBundles)
+	lineStyle := lipgloss.NewStyle().Width(contentWidth)
 
 	const colGap = 2
 
@@ -209,7 +202,7 @@ func (m Model) renderReconfigSelectView() string {
 		leftWidth int
 		source    string
 	}
-	type groupRow struct {
+	type groupData struct {
 		headerLeft      string
 		headerLeftWidth int
 		headerSource    string
@@ -217,11 +210,9 @@ func (m Model) renderReconfigSelectView() string {
 	}
 
 	// First pass: build all rows and find the global max left width.
-	// visualIdx counts entries in the same order they will be displayed so that
-	// it matches m.reconfigCursor (which is also a sequential visual index
-	// thanks to buildReconfigBundles returning bundles in grouped order).
-	groupRows := make([]groupRow, len(groups))
+	allGroups := make([]groupData, len(groups))
 	globalMaxLeft := 0
+	selectedGroupIdx := 0
 	visualIdx := 0
 	for gi, g := range groups {
 		b0 := g.bundles[0]
@@ -236,7 +227,10 @@ func (m Model) renderReconfigSelectView() string {
 		entries := make([]entryRow, len(g.bundles))
 		for i, b := range g.bundles {
 			filename := project.PrjAbsPath(est.Root.HostDir(), b.Info.HostPath()).String()
-			isSelected := visualIdx == m.reconfigCursor
+			isSelected := visualIdx == cursor
+			if isSelected {
+				selectedGroupIdx = gi
+			}
 			visualIdx++
 			var left string
 			displayName := displayNameFromAlias(b.Alias, b.Name)
@@ -257,7 +251,7 @@ func (m Model) renderReconfigSelectView() string {
 			entries[i] = entryRow{left: left, leftWidth: w, source: filename}
 		}
 
-		groupRows[gi] = groupRow{
+		allGroups[gi] = groupData{
 			headerLeft:      headerLeft,
 			headerLeftWidth: headerLeftWidth,
 			headerSource:    b0.Source,
@@ -265,28 +259,72 @@ func (m Model) renderReconfigSelectView() string {
 		}
 	}
 
-	// Second pass: render lines with a unified source column.
-	var lines []string
-	for gi, gr := range groupRows {
-		if gi > 0 {
-			lines = append(lines, "")
-		}
-
+	// Second pass: render each group as a single block with fixed-width lines.
+	items := make([]renderedItem, len(allGroups))
+	for gi, gr := range allGroups {
+		var lines []string
 		headerPad := strings.Repeat(" ", globalMaxLeft-gr.headerLeftWidth+colGap)
-		header := gr.headerLeft + headerPad + fromStyle.Render(gr.headerSource)
-		header = truncateStyledRow(header, innerWidth)
-		lines = append(lines, header)
-
+		lines = append(lines, lineStyle.Render(gr.headerLeft+headerPad+fromStyle.Render(gr.headerSource)))
 		for _, r := range gr.entries {
 			entryPad := strings.Repeat(" ", globalMaxLeft-r.leftWidth+colGap)
-			line := r.left + entryPad + fromStyle.Render(r.source)
-			line = truncateStyledRow(line, innerWidth)
-			lines = append(lines, line)
+			lines = append(lines, lineStyle.Render(r.left+entryPad+fromStyle.Render(r.source)))
 		}
+		block := strings.Join(lines, "\n")
+		items[gi] = renderedItem{content: block, height: lipgloss.Height(block)}
 	}
 
-	listContent := strings.Join(lines, "\n")
-	inner := contentStyle.Render(lipgloss.JoinVertical(lipgloss.Left, sectionTitle, desc, listContent))
+	return selectedGroupIdx, items
+}
+
+func (m Model) renderReconfigSelectView() string {
+	panelWidth := m.effectiveWidth()
+	innerWidth := panelWidth - 4
+	scrollbarGutter := 4 // left gap(1) + scrollbar(1) + right gap(2)
+	contentWidth := innerWidth - scrollbarGutter
+
+	borderStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colorBorderFocus).
+		Padding(1, 2).
+		Width(panelWidth).
+		Height(uiContentHeight + 2)
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(colorTextMuted).
+		Width(panelWidth)
+
+	contentStyle := lipgloss.NewStyle().Width(innerWidth)
+
+	title := m.renderHeader("reconfigure", panelWidth)
+
+	sectionTitle := lipgloss.NewStyle().Bold(true).Foreground(colorText).MarginBottom(1).Render("Select a Bundle to Reconfigure")
+	desc := lipgloss.NewStyle().Foreground(colorTextMuted).MarginBottom(2).Render("These bundles are currently deployed in your project.")
+
+	header := lipgloss.JoinVertical(lipgloss.Left, sectionTitle, desc, "")
+	headerHeight := lipgloss.Height(header)
+	availableHeight := uiContentHeight - headerHeight
+
+	groups := groupBundles(m.reconfigBundles)
+	selectedGroupIdx, items := m.renderGroupedBundleItems(groups, m.reconfigCursor, contentWidth)
+
+	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight)
+
+	var sb strings.Builder
+	for i := start; i < end; i++ {
+		if i > start {
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString(items[i].content)
+	}
+	listContent := sb.String()
+
+	if len(items) > end-start {
+		trackHeight := lipgloss.Height(listContent)
+		scrollbar := renderScrollbar(len(items), end-start, start, trackHeight)
+		listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
+	}
+
+	inner := contentStyle.Render(lipgloss.JoinVertical(lipgloss.Left, header, listContent))
 
 	help := helpStyle.Render(m.finalHelpText("esc: back"))
 
@@ -301,13 +339,14 @@ func (m Model) renderReconfigSelectView() string {
 }
 
 func (m Model) renderReconfigInputView() string {
+	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	b := m.reconfigBundle
 	headerContext := fmt.Sprintf("reconfigure / %s", b.Name)
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	formView := m.inputsForm.View()
 

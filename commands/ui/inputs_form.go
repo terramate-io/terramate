@@ -100,6 +100,9 @@ type InputsForm struct {
 	// Validation error shown at the top of the completed panel (e.g. from finalizeChange).
 	validationErr error
 
+	// Layout — dynamic panel width; 0 means use uiWidth.
+	PanelWidth int
+
 	// Result
 	state InputsFormState
 }
@@ -209,8 +212,8 @@ func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx type
 		widgets:         widgets,
 		viewport:        vp,
 		editMode:        true,
-		reconfiguring:   len(originalValues) > 0 && (fromEnv == nil || env == fromEnv),
-		promoting:       len(originalValues) > 0 && (fromEnv != nil && env != fromEnv),
+		reconfiguring:   len(originalValues) > 0 && fromEnv == nil || env == fromEnv,
+		promoting:       len(originalValues) > 0 && fromEnv != nil && env != fromEnv,
 		reEditing:       hasPreExisting,
 		focus:           InputFocusCompleted,
 		completedCursor: 0,
@@ -961,7 +964,10 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 //
 // Review mode (edit-change) renders a single review list instead.
 func (f InputsForm) View() string {
-	panelWidth := uiWidth
+	panelWidth := f.PanelWidth
+	if panelWidth <= 0 {
+		panelWidth = uiWidth
+	}
 	innerWidth := panelWidth - 6 // border (2) + padding (4)
 
 	sectionTitleStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
@@ -1458,7 +1464,7 @@ func (f InputsForm) renderActiveSection() string {
 
 		var lines []string
 		if def.Description != "" {
-			descStyle := activeDescStyle.PaddingLeft(2).Width(f.activeWidget.WidgetContext().Width - 6)
+			descStyle := activeDescStyle.PaddingLeft(2).Width(f.activeWidget.WidgetContext().Width)
 			lines = append(lines, descStyle.Render(def.Description), "")
 		}
 

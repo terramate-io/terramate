@@ -92,7 +92,7 @@ func (m Model) renderCloudLoginView() string {
 		Foreground(colorTextMuted).
 		Width(uiWidth)
 
-	header := m.renderHeader("welcome")
+	header := m.renderHeader("welcome", uiWidth)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).

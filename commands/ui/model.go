@@ -6,6 +6,7 @@ package ui
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,14 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/terramate-io/terramate"
+	"github.com/terramate-io/terramate/cloud/api/agent"
 	"github.com/terramate-io/terramate/commands"
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -42,6 +47,8 @@ const (
 	ViewEdit                            // Edit pending change
 	ViewPromoteSelect                   // Selecting a bundle to promote to the current environment
 	ViewPromoteInput                    // Selecting a bundle to promote to the current environment
+	ViewChat                            // Interactive AI chat mode
+	ViewReviewProposal                  // Reviewing an AI-proposed change via the edit form
 )
 
 // FocusArea represents which section has focus in the overview.
@@ -49,7 +56,8 @@ type FocusArea int
 
 // FocusCommands and the following constants enumerate the overview focus areas.
 const (
-	FocusCommands FocusArea = iota
+	FocusPrompt FocusArea = iota
+	FocusCommands
 	FocusSummary
 )
 
@@ -61,6 +69,21 @@ const (
 	BundleSelectCollection BundleSelectPage = iota
 	BundleSelectBundle
 )
+
+// ChatMessage represents a single message in the AI chat conversation.
+type ChatMessage struct {
+	Role        string                 // "user" or "ai"
+	Content     string                 // The message text (for user messages) or prose response (for AI)
+	ToolCalls   []agent.ToolCall       // Raw tool calls from the LLM (for building history)
+	ToolResults []agent.ToolCallResult // Tool call results (for building history)
+	Hidden      bool                   // Hidden messages are included in history but not rendered
+	LocalOnly   bool                   // LocalOnly messages are rendered in the UI but not sent to the LLM
+
+	// rendered caches the glamour-rendered output for assistant messages.
+	// Invalidated when the viewport width changes.
+	rendered      string
+	renderedWidth int
+}
 
 // ObjectEditFrame captures the form state when suspending for nested object editing.
 type ObjectEditFrame struct {
@@ -100,7 +123,8 @@ type EngineState struct {
 	LocalBundleDefs []config.BundleDefinitionEntry
 	Collections     []*manifest.Collection
 	CLIConfig       cliconfig.Config
-	AgentAddress    string
+	CloudBaseURL    string
+	cloudAuth       cloudAuthCache
 }
 
 // Model is the main BubbleTea model for the prompt UI.
@@ -126,9 +150,11 @@ type Model struct {
 	selectedEnv *config.Environment
 
 	// Overview state
-	focus      FocusArea
-	commandIdx int
-	commands   []string
+	aiEnabled   bool // true when --experimental-ai-prompt is set
+	focus       FocusArea
+	promptInput textarea.Model
+	commandIdx  int
+	commands    []string
 
 	summaryCursor         int           // Selected row in the pending changes table
 	summaryButtonIdx      int           // 0 = Save, 1 = Discard (inline buttons on Pending Changes title)
@@ -173,6 +199,21 @@ type Model struct {
 	promoteCursor  int              // Cursor in promoteBundles
 	promoteBundle  *config.Bundle   // The bundle currently being promoted
 
+	// AI Chat state
+	llmConfig           llmConfig             // LLM provider/key/model, passed to cloud agent via headers
+	chatMessages        []ChatMessage         // Conversation history
+	chatRenderer        *glamour.TermRenderer // Cached glamour renderer (nil until first use)
+	chatRendererWidth   int                   // Width used to create chatRenderer
+	chatThinking        bool                  // True while waiting for AI response
+	chatViewport        viewport.Model        // Scrollable viewport for the chat log
+	chatProposalFocus   bool                  // True when navigating proposals (not typing)
+	chatProposalCursor  int                   // Flat index into pending proposals across messages
+	proposalButtonIdx   int                   // 0=Review, 1=Accept, 2=Reject (per-row)
+	proposalOnButtons   bool                  // True when focus is on the title-row buttons (Accept All / Reject All)
+	proposalTitleBtnIdx int                   // 0=Accept All, 1=Reject All
+	reviewingChange     int                   // Index into proposedChanges for the proposal being reviewed
+	nextProposalID      int
+
 	// Transient status
 	currentErr   error // Shown on the help line, cleared on next keypress
 	saveErr      error // Shown below pending changes, cleared on next keypress
@@ -187,11 +228,41 @@ const uiWidth = 100
 const uiContentHeight = 26                          // Max visible content lines inside bordered panels
 const uiInputsPanelHeight = uiContentHeight + 2 + 4 // Match select-panel outer height (content + padding + border)
 
+// effectiveWidth returns the effective panel width for views,
+// clamped between uiWidth and uiWidth*2 based on available terminal space.
+func (m Model) effectiveWidth() int {
+	if m.width <= 0 {
+		return uiWidth
+	}
+	w := m.width - 6 // outer Padding(1, 2) = 2 left + 2 right + border 1 left + 1 right
+	if w < uiWidth {
+		return uiWidth
+	}
+	if w > uiWidth*2 {
+		return uiWidth * 2
+	}
+	return w
+}
+
 // NewModel creates a new prompt model.
-func NewModel(est *EngineState) Model {
+func NewModel(
+	est *EngineState,
+	llm llmConfig,
+) Model {
+	vp := viewport.New(uiWidth-6-2, uiContentHeight)
+	vp.KeyMap = viewport.KeyMap{}
+
 	var initialViewState ViewState
 
-	if _, err := os.Stat(cliauth.CredentialFile(est.CLIConfig)); err != nil && shouldAskForLogin(est.CLIConfig) {
+	// Try to actually validate the credential, not just check if the file exists.
+	// This catches expired/revoked tokens that would otherwise fail at chat time.
+	if _, _, err := est.cloudAuth.auth(est.CloudBaseURL, est.CLIConfig); err == nil {
+		if len(est.Registry.Environments) > 0 {
+			initialViewState = ViewEnvSelect
+		} else {
+			initialViewState = ViewOverview
+		}
+	} else if _, err := os.Stat(cliauth.CredentialFile(est.CLIConfig)); err != nil && shouldAskForLogin(est.CLIConfig) {
 		initialViewState = ViewCloudLogin
 	} else {
 		if len(est.Registry.Environments) > 0 {
@@ -201,16 +272,28 @@ func NewModel(est *EngineState) Model {
 		}
 	}
 
+	aiEnabled := llm.enabled
+	initialFocus := FocusPrompt
+	if !aiEnabled {
+		initialFocus = FocusCommands
+	}
+
 	return Model{
 		EngineState: est,
+
 		viewState:   initialViewState,
+		aiEnabled:   aiEnabled,
+		llmConfig:   llm,
+		promptInput: newPromptInput(),
 		commands: []string{
 			"Create",
 			"Reconfigure",
 			"Promote",
 			"Quit",
 		},
-		focus: FocusCommands,
+		focus:          initialFocus,
+		chatViewport:   vp,
+		nextProposalID: 1,
 	}
 }
 
@@ -222,6 +305,40 @@ func inputsToValueMap(inputs map[string]cty.Value) map[string]cty.Value {
 		out[k] = v.GetAttr("value")
 	}
 	return out
+}
+
+func newPromptInput() textarea.Model {
+	ta := textarea.New()
+	ta.Placeholder = "Describe what you want to do ... or select an action from ↓"
+	ta.Prompt = ""
+	ta.CharLimit = 0 // no limit
+	ta.SetWidth(uiWidth - 8)
+	ta.SetHeight(1)
+	ta.ShowLineNumbers = false
+
+	ta.FocusedStyle.Base = lipgloss.NewStyle()
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(colorTextSubtle)
+	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(colorText)
+	ta.FocusedStyle.Prompt = lipgloss.NewStyle()
+	ta.FocusedStyle.EndOfBuffer = lipgloss.NewStyle()
+
+	ta.BlurredStyle.Base = lipgloss.NewStyle()
+	ta.BlurredStyle.CursorLine = lipgloss.NewStyle()
+	ta.BlurredStyle.Placeholder = lipgloss.NewStyle().Foreground(colorTextSubtle)
+	ta.BlurredStyle.Text = lipgloss.NewStyle().Foreground(colorTextMuted)
+	ta.BlurredStyle.Prompt = lipgloss.NewStyle()
+	ta.BlurredStyle.EndOfBuffer = lipgloss.NewStyle()
+
+	ta.Focus()
+
+	return ta
+}
+
+// chatResponseMsg carries the result of an async agent API call back to the BubbleTea loop.
+type chatResponseMsg struct {
+	resp *agent.ChatResponse
+	err  error
 }
 
 // ctrlCResetMsg is sent after the double-press window expires.
@@ -238,7 +355,84 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.promptInput.SetWidth(m.effectiveWidth() - 8)
+		m.inputsForm.PanelWidth = m.effectiveWidth()
 		return m, nil
+
+	case chatResponseMsg:
+		if msg.err != nil {
+			m.chatThinking = false
+			m.chatMessages = append(m.chatMessages, ChatMessage{
+				Role:    "ai",
+				Content: fmt.Sprintf("Error: %v", msg.err),
+			})
+			m.updateChatViewport()
+			return m, nil
+		}
+
+		resp := msg.resp
+
+		if len(resp.ToolCalls) == 0 {
+			m.chatThinking = false
+			m.chatMessages = append(m.chatMessages, ChatMessage{
+				Role:    "ai",
+				Content: resp.Text,
+			})
+			if len(m.ProposedChanges()) > 0 {
+				m.chatProposalFocus = true
+				m.chatProposalCursor = 0
+				m.proposalButtonIdx = 0
+				m.promptInput.Blur()
+			}
+			m.updateChatViewport()
+			return m, nil
+		}
+
+		// Tool-use round: process tool calls, add proposals, send results back.
+		outcomes, newChanges := m.processAgentToolCalls(resp.ToolCalls)
+		m.SetProposedChanges(append(m.ProposedChanges(), newChanges...))
+
+		toolCallResults := make([]agent.ToolCallResult, len(outcomes))
+		var userMessages []string
+		for i, o := range outcomes {
+			toolCallResults[i] = o.Result
+			if o.UserMessage != "" {
+				userMessages = append(userMessages, o.UserMessage)
+			}
+		}
+
+		m.chatMessages = append(m.chatMessages, ChatMessage{
+			Role:      "ai",
+			Content:   resp.Text,
+			ToolCalls: resp.ToolCalls,
+			Hidden:    true,
+		})
+		m.chatMessages = append(m.chatMessages, ChatMessage{
+			Role:        "user",
+			ToolResults: toolCallResults,
+			Hidden:      true,
+		})
+
+		if msg := strings.Join(userMessages, "\n"); msg != "" {
+			m.chatMessages = append(m.chatMessages, ChatMessage{
+				Role:      "ai",
+				Content:   msg,
+				LocalOnly: true,
+			})
+		}
+
+		m.updateChatViewport()
+		history := m.buildChatHistory()
+		pendingProposals := m.pendingProposalIDs()
+		bundleDefs, bundleInstances := m.buildBundleContext()
+		cloudBaseURL := m.EngineState.CloudBaseURL
+		cloudAuth := &m.EngineState.cloudAuth
+		cliCfg := m.EngineState.CLIConfig
+		llm := m.llmConfig
+		return m, func() tea.Msg {
+			resp, err := sendChatMessage(cloudBaseURL, cloudAuth, cliCfg, llm, "", history, pendingProposals, bundleDefs, bundleInstances)
+			return chatResponseMsg{resp: resp, err: err}
+		}
 
 	case ctrlCResetMsg:
 		m.ctrlCPending = false
@@ -250,6 +444,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentErr = msg.err
 			return m, nil
 		}
+		m.EngineState.cloudAuth.reset()
 		m.viewState = m.nextViewAfterCloudLogin()
 		return m, textarea.Blink
 
@@ -284,16 +479,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updatePromoteSelect(msg)
 		case ViewPromoteInput:
 			return m.updatePromoteInput(msg)
+		case ViewChat:
+			return m.updateChat(msg)
+		case ViewReviewProposal:
+			return m.updateReviewProposal(msg)
 		default:
 			return m.updateOverview(msg)
 		}
 
 	default:
 		switch m.viewState {
-		case ViewCreateInput, ViewReconfigInput, ViewPromoteInput, ViewEdit:
+		case ViewCreateInput, ViewReconfigInput, ViewEdit, ViewReviewProposal:
 			var cmd tea.Cmd
 			m.inputsForm, cmd = m.inputsForm.Update(msg)
 			return m, cmd
+
+		case ViewOverview, ViewChat:
+			if m.focus == FocusPrompt {
+				var cmd tea.Cmd
+				m.promptInput, cmd = m.promptInput.Update(msg)
+				return m, cmd
+			}
 		}
 	}
 
@@ -321,27 +527,31 @@ func (m Model) View() string {
 		return m.renderPromoteSelectView()
 	case ViewPromoteInput:
 		return m.renderPromoteInputView()
+	case ViewChat:
+		return m.renderChatView()
+	case ViewReviewProposal:
+		return m.renderReviewProposalView()
 	default:
 		return m.renderOverviewView()
 	}
 }
 
-// PendingChanges returns the list of changes that have been saved but not yet applied.
+// PendingChanges returns the pending changes from the registry.
 func (m *Model) PendingChanges() []Change {
 	return m.EngineState.Registry.PendingChanges
 }
 
-// SetPendingChanges replaces the current list of pending changes.
+// SetPendingChanges updates the pending changes in the registry.
 func (m *Model) SetPendingChanges(c []Change) {
 	m.EngineState.Registry.PendingChanges = c
 }
 
-// ProposedChanges returns the list of proposed (unsaved) changes in the current session.
+// ProposedChanges returns the pending changes from the registry.
 func (m *Model) ProposedChanges() []Change {
 	return m.EngineState.Registry.ProposedChanges
 }
 
-// SetProposedChanges replaces the current list of proposed changes.
+// SetProposedChanges updates the proposed changes in the registry.
 func (m *Model) SetProposedChanges(c []Change) {
 	m.EngineState.Registry.ProposedChanges = c
 }

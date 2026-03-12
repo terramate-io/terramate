@@ -36,7 +36,7 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.confirmingCreateExit = false
 				m.objectEditStack = nil
 				m.viewState = ViewOverview
-				m.focus = FocusCommands
+				m.focus = FocusPrompt
 				return m, textarea.Blink
 			}
 			m.confirmingCreateExit = false
@@ -161,6 +161,7 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		schemactx := m.inputsForm.Schemactx.ChildContext()
 		m.inputsForm = NewInputsForm(req.InputDefs, schemactx, est.Registry, m.selectedEnv)
+		m.inputsForm.PanelWidth = m.effectiveWidth()
 		if req.EditMode {
 			m.inputsForm.SeedValues(req.Values)
 		}
@@ -205,9 +206,10 @@ func setupExplicitBundleAlias(evalctx *eval.Context, bundleDef *hcl.DefineBundle
 
 func (m Model) renderCreateInputView() string {
 	est := m.EngineState
+	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	collName := strings.ToLower(est.Collections[m.selectedCollIdx].Name)
 	bundleName := ""
@@ -223,7 +225,7 @@ func (m Model) renderCreateInputView() string {
 		headerContext = fmt.Sprintf("add bundle / %s / %s", collName, bundleName)
 	}
 
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	var help string
 	if m.confirmingCreateExit {
@@ -263,7 +265,7 @@ func (m Model) renderCreateInputView() string {
 		if name := m.inputsForm.HighlightedInputName(); name != "" {
 			hintRendered := lipgloss.NewStyle().Foreground(colorTextMuted).Render("[" + name + "]")
 			leftRendered := lipgloss.NewStyle().Foreground(colorTextMuted).Render(helpText)
-			gap := uiWidth + 2 - lipgloss.Width(leftRendered) - lipgloss.Width(hintRendered)
+			gap := panelWidth + 2 - lipgloss.Width(leftRendered) - lipgloss.Width(hintRendered)
 			if gap < 2 {
 				gap = 2
 			}

@@ -56,6 +56,15 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     ```
     This is supported for inputs and attributes.
 
+- Add AI-assisted bundle management with `terramate ui --experimental-ai-prompt`. Note this flag is still experimental and disabled by default.
+  - Can be used for `add` and `reconfigure`.
+  - Requires Terramate Cloud, and either an OpenAI or Anthropic API key.
+    Models can be overriden, otherwise defaults are used.
+    The environment variables are:
+    - ANTHROPIC_API_KEY, ANTHROPIC_MODEL
+    - OPENAI_API_KEY, OPENAI_MODEL
+
+
 ## 0.16.0
 
 ### Merged from Terramate Catalyst

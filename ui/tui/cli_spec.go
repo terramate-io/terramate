@@ -125,6 +125,7 @@ type FlagSpec struct {
 	} `cmd:"" help:"Add existing bundles or components to your repository."`
 
 	UI struct {
+		ExperimentalAIPrompt bool `default:"false" help:"Enable the experimental AI prompt."`
 	} `cmd:"" help:"UI for infrastructure changes."`
 
 	Component struct {
