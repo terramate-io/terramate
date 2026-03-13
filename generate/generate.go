@@ -1275,6 +1275,16 @@ func hasGenHCLHeader(commentStyle genhcl.CommentStyle, code string) bool {
 		if strings.HasPrefix(code, header) {
 			return true
 		}
+		// Make sure to recognize headers also if the generated file has been converted
+		// to CRLF headers. Terramate itself never generates a file with CRLF headers, but
+		// this can happen if a tool, such as Git on Windows, converts the file endings
+		// to CRLF on checkout, e.g. if core.autocrlf.input is set to true, which is the
+		// default on Windows.
+		// Fixes bug: https://github.com/terramate-io/terramate/issues/2290
+		header_crlf := strings.ReplaceAll(header, "\n", "\r\n")
+		if strings.HasPrefix(code, header_crlf) {
+			return true
+		}
 	}
 	return false
 }

@@ -2121,6 +2121,35 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 	assert.EqualStrings(t, manualTfCode, actualTfCode, "tf code altered by generate")
 }
 
+func TestWillOverwriteGeneratedTerraformConvertedToCrlf(t *testing.T) {
+	t.Parallel()
+
+	const (
+		genFilename  = "test.tf"
+		generatedTfCode = "// TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT\r\n\r\nlocals {}\r\n"
+	)
+
+	generateHCLConfig := GenerateHCL(
+		Labels(genFilename),
+		Content(
+			Terraform(
+				Str("required_version", "1.11"),
+			),
+		),
+	)
+
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		fmt.Sprintf("f:%s:%s", terramate.DefaultFilename, generateHCLConfig.String()),
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:%s", genFilename, generatedTfCode),
+	})
+
+	generateAPI := newGenerateAPIForTest(t)
+	report := generateAPI.Do(s.Config(), project.NewPath("/"), 0, project.NewPath("/modules"), nil)
+	assert.EqualInts(t, 1, len(report.Successes), "want success")
+}
+
 func TestGenerateHCLStackFilters(t *testing.T) {
 	t.Parallel()
 
