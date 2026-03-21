@@ -1,0 +1,15 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: acme-corp-dns
+  uuid: a1b2c3d4-0001-4000-8000-000000000002
+spec:
+  source: /bundles/catalogue/tf-aws-dns-zone/v1
+  inputs:
+    domain_name: acme-corp.com
+    private_zone: false
+    enable_dnssec: true
+    comment: Primary domain for Acme Corp
+    tags:
+      project: dns
+      team: infrastructure

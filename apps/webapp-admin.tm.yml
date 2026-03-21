@@ -1,0 +1,31 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: webapp-admin
+  uuid: a1b2c3d4-0002-4000-8000-000000000002
+spec: {}
+environments:
+  dev:
+    source: /bundles/catalogue/tf-aws-web-app-env/v1
+    inputs:
+      name: admin-portal
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/admin:latest
+      domain_name: dev-admin.acme-corp.com
+      instance_size: small
+      desired_count: 1
+      enable_cdn: false
+      enable_cache: false
+      db_multi_az: false
+      environment_variables: {}
+  prd:
+    source: /bundles/catalogue/tf-aws-web-app-env/v1
+    inputs:
+      name: admin-portal
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/admin:v2.1.0
+      domain_name: admin.acme-corp.com
+      instance_size: medium
+      desired_count: 2
+      enable_cdn: true
+      enable_cache: true
+      db_multi_az: true
+      environment_variables: {}

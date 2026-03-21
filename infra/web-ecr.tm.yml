@@ -1,0 +1,16 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: web-ecr
+  uuid: a1b2c3d4-0001-4000-8000-000000000012
+spec:
+  source: /bundles/catalogue/tf-aws-container-registry/v1
+  inputs:
+    name: acme/web-frontend
+    image_tag_mutability: IMMUTABLE
+    scan_on_push: true
+    max_image_count: 30
+    replication_regions: []
+    tags:
+      project: web
+      team: frontend

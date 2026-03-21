@@ -1,0 +1,18 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: data-lake
+  uuid: a1b2c3d4-0001-4000-8000-000000000007
+spec:
+  source: /bundles/catalogue/tf-aws-secure-bucket/v1
+  inputs:
+    name: acme-data-lake
+    purpose: data-lake
+    encryption: "aws:kms"
+    enable_access_logging: true
+    lifecycle_ia_days: 90
+    lifecycle_glacier_days: 365
+    tags:
+      project: data-platform
+      team: data-engineering
+      compliance: pci

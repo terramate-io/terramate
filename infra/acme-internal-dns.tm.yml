@@ -1,0 +1,15 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: acme-internal-dns
+  uuid: a1b2c3d4-0001-4000-8000-000000000003
+spec:
+  source: /bundles/catalogue/tf-aws-dns-zone/v1
+  inputs:
+    domain_name: internal.acme-corp.com
+    private_zone: true
+    enable_dnssec: false
+    comment: Internal service discovery
+    tags:
+      project: dns
+      team: infrastructure

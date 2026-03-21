@@ -1,0 +1,19 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: docs-website
+  uuid: a1b2c3d4-0001-4000-8000-000000000006
+spec:
+  source: /bundles/catalogue/tf-aws-static-website/v1
+  inputs:
+    name: acme-docs
+    domain_name: docs.acme-corp.com
+    additional_domains: []
+    acm_certificate_arn: arn:aws:acm:us-east-1:123456789012:certificate/def-456
+    price_class: PriceClass_100
+    enable_waf: false
+    index_document: index.html
+    error_document: 404.html
+    tags:
+      project: documentation
+      team: developer-experience

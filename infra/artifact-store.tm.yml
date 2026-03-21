@@ -1,0 +1,17 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: artifact-store
+  uuid: a1b2c3d4-0001-4000-8000-000000000008
+spec:
+  source: /bundles/catalogue/tf-aws-secure-bucket/v1
+  inputs:
+    name: acme-build-artifacts
+    purpose: artifacts
+    encryption: AES256
+    enable_access_logging: false
+    lifecycle_ia_days: 30
+    lifecycle_glacier_days: 0
+    tags:
+      project: ci-cd
+      team: platform

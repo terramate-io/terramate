@@ -1,0 +1,18 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: order-events-pipeline
+  uuid: a1b2c3d4-0001-4000-8000-000000000009
+spec:
+  source: /bundles/catalogue/tf-aws-event-pipeline/v1
+  inputs:
+    name: order-events
+    num_consumers: 3
+    fifo: true
+    message_retention_days: 7
+    dlq_max_receives: 5
+    enable_lambda_consumer: true
+    lambda_runtime: nodejs22.x
+    tags:
+      project: orders
+      team: backend

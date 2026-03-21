@@ -1,0 +1,16 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: acme-monitoring
+  uuid: a1b2c3d4-0001-4000-8000-000000000004
+spec:
+  source: /bundles/catalogue/tf-aws-monitoring-stack/v1
+  inputs:
+    name: acme-central
+    alert_email: ops@acme-corp.com
+    slack_webhook_url: https://hooks.slack.com/services/T00/B00/xxxx
+    log_retention_days: 90
+    enable_anomaly_detection: true
+    tags:
+      project: observability
+      team: platform

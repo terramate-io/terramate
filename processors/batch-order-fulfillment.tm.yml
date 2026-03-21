@@ -1,0 +1,40 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: batch-order-fulfillment
+  uuid: a1b2c3d4-0005-4000-8000-000000000001
+spec: {}
+environments:
+  dev:
+    source: /bundles/catalogue/tf-aws-batch-processor-env/v1
+    inputs:
+      name: order-fulfillment
+      compute_type: lambda
+      concurrency: 2
+      timeout_seconds: 120
+      schedule_expression: ""
+      dlq_alarm_threshold: 5
+      environment_variables:
+        WAREHOUSE_API: https://dev-warehouse.internal.acme-corp.com
+  stg:
+    source: /bundles/catalogue/tf-aws-batch-processor-env/v1
+    inputs:
+      name: order-fulfillment
+      compute_type: lambda
+      concurrency: 5
+      timeout_seconds: 120
+      schedule_expression: ""
+      dlq_alarm_threshold: 10
+      environment_variables:
+        WAREHOUSE_API: https://stg-warehouse.internal.acme-corp.com
+  prd:
+    source: /bundles/catalogue/tf-aws-batch-processor-env/v1
+    inputs:
+      name: order-fulfillment
+      compute_type: ecs
+      concurrency: 20
+      timeout_seconds: 300
+      schedule_expression: ""
+      dlq_alarm_threshold: 5
+      environment_variables:
+        WAREHOUSE_API: https://warehouse.internal.acme-corp.com

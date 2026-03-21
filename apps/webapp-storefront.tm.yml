@@ -1,0 +1,49 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: webapp-storefront
+  uuid: a1b2c3d4-0002-4000-8000-000000000001
+spec: {}
+environments:
+  dev:
+    source: /bundles/catalogue/tf-aws-web-app-env/v1
+    inputs:
+      name: storefront
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/storefront:latest
+      domain_name: dev-store.acme-corp.com
+      instance_size: small
+      desired_count: 1
+      enable_cdn: false
+      enable_cache: true
+      db_multi_az: false
+      environment_variables:
+        STRIPE_MODE: test
+        LOG_LEVEL: debug
+  stg:
+    source: /bundles/catalogue/tf-aws-web-app-env/v1
+    inputs:
+      name: storefront
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/storefront:latest
+      domain_name: staging-store.acme-corp.com
+      instance_size: medium
+      desired_count: 2
+      enable_cdn: true
+      enable_cache: true
+      db_multi_az: false
+      environment_variables:
+        STRIPE_MODE: test
+        LOG_LEVEL: info
+  prd:
+    source: /bundles/catalogue/tf-aws-web-app-env/v1
+    inputs:
+      name: storefront
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/storefront:v3.8.2
+      domain_name: store.acme-corp.com
+      instance_size: large
+      desired_count: 4
+      enable_cdn: true
+      enable_cache: true
+      db_multi_az: true
+      environment_variables:
+        STRIPE_MODE: live
+        LOG_LEVEL: warn

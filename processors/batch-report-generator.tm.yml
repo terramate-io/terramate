@@ -1,0 +1,29 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: batch-report-generator
+  uuid: a1b2c3d4-0005-4000-8000-000000000002
+spec: {}
+environments:
+  dev:
+    source: /bundles/catalogue/tf-aws-batch-processor-env/v1
+    inputs:
+      name: report-generator
+      compute_type: lambda
+      concurrency: 1
+      timeout_seconds: 600
+      schedule_expression: "rate(1 day)"
+      dlq_alarm_threshold: 3
+      environment_variables:
+        REPORT_BUCKET: acme-reports-dev
+  prd:
+    source: /bundles/catalogue/tf-aws-batch-processor-env/v1
+    inputs:
+      name: report-generator
+      compute_type: ecs
+      concurrency: 3
+      timeout_seconds: 900
+      schedule_expression: "cron(0 6 * * ? *)"
+      dlq_alarm_threshold: 1
+      environment_variables:
+        REPORT_BUCKET: acme-reports-prd

@@ -1,0 +1,18 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: notification-pipeline
+  uuid: a1b2c3d4-0001-4000-8000-000000000010
+spec:
+  source: /bundles/catalogue/tf-aws-event-pipeline/v1
+  inputs:
+    name: notifications
+    num_consumers: 2
+    fifo: false
+    message_retention_days: 4
+    dlq_max_receives: 3
+    enable_lambda_consumer: true
+    lambda_runtime: python3.12
+    tags:
+      project: notifications
+      team: backend

@@ -1,0 +1,21 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: product-catalog-api
+  uuid: a1b2c3d4-0001-4000-8000-000000000015
+spec:
+  source: /bundles/catalogue/tf-aws-serverless-api/v1
+  inputs:
+    name: product-catalog
+    runtime: nodejs22.x
+    memory_size: 512
+    timeout: 10
+    custom_domain: catalog-api.acme-corp.com
+    enable_xray: true
+    throttle_rate_limit: 5000
+    environment_variables:
+      TABLE_NAME: product-catalog
+      CACHE_TTL: "300"
+    tags:
+      project: catalog
+      team: backend

@@ -1,0 +1,17 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: api-ecr
+  uuid: a1b2c3d4-0001-4000-8000-000000000011
+spec:
+  source: /bundles/catalogue/tf-aws-container-registry/v1
+  inputs:
+    name: acme/api-service
+    image_tag_mutability: IMMUTABLE
+    scan_on_push: true
+    max_image_count: 50
+    replication_regions:
+      - eu-west-1
+    tags:
+      project: api
+      team: backend

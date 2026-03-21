@@ -1,0 +1,49 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: svc-api
+  uuid: a1b2c3d4-0003-4000-8000-000000000001
+spec: {}
+environments:
+  dev:
+    source: /bundles/catalogue/tf-aws-container-service-env/v1
+    inputs:
+      name: api
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/api-service:latest
+      container_port: 8080
+      cpu: 256
+      memory: 512
+      desired_count: 1
+      max_count: 3
+      health_check_path: /health
+      environment_variables:
+        DB_HOST: main-dev.cluster.us-east-1.rds.amazonaws.com
+        REDIS_HOST: sessions-dev.cache.amazonaws.com
+  stg:
+    source: /bundles/catalogue/tf-aws-container-service-env/v1
+    inputs:
+      name: api
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/api-service:latest
+      container_port: 8080
+      cpu: 512
+      memory: 1024
+      desired_count: 2
+      max_count: 6
+      health_check_path: /health
+      environment_variables:
+        DB_HOST: main-stg.cluster.us-east-1.rds.amazonaws.com
+        REDIS_HOST: sessions-stg.cache.amazonaws.com
+  prd:
+    source: /bundles/catalogue/tf-aws-container-service-env/v1
+    inputs:
+      name: api
+      container_image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/api-service:v5.12.1
+      container_port: 8080
+      cpu: 1024
+      memory: 2048
+      desired_count: 4
+      max_count: 20
+      health_check_path: /health
+      environment_variables:
+        DB_HOST: main-prd.cluster.us-east-1.rds.amazonaws.com
+        REDIS_HOST: sessions-prd.cache.amazonaws.com

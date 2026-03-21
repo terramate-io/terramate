@@ -1,0 +1,17 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: stripe-api-key
+  uuid: a1b2c3d4-0001-4000-8000-000000000014
+spec:
+  source: /bundles/catalogue/tf-aws-secret/v1
+  inputs:
+    name: acme/payments/stripe-api-key
+    description: Stripe API key for payment processing
+    secret_type: api-key
+    enable_rotation: false
+    rotation_days: 90
+    recovery_window_days: 7
+    tags:
+      project: payments
+      team: backend

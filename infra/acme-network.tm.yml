@@ -1,0 +1,20 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: acme-network
+  uuid: a1b2c3d4-0001-4000-8000-000000000001
+spec:
+  source: /bundles/catalogue/tf-aws-vpc-network/v1
+  inputs:
+    name: acme-main
+    cidr_block: "10.0.0.0/16"
+    availability_zones:
+      - us-east-1a
+      - us-east-1b
+      - us-east-1c
+    nat_gateway_strategy: one_per_az
+    enable_flow_logs: true
+    enable_vpc_endpoints: true
+    tags:
+      project: platform
+      team: infrastructure

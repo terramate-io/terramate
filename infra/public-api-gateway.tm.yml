@@ -1,0 +1,21 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: public-api-gateway
+  uuid: a1b2c3d4-0001-4000-8000-000000000016
+spec:
+  source: /bundles/catalogue/tf-aws-api-gateway/v1
+  inputs:
+    name: acme-public-api
+    domain_name: api.acme-corp.com
+    backend_type: alb
+    backend_url: arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/api/abc123
+    cors_origins:
+      - https://www.acme-corp.com
+      - https://app.acme-corp.com
+    throttle_rate: 2000
+    throttle_burst: 5000
+    enable_waf: true
+    tags:
+      project: api
+      team: platform

@@ -1,0 +1,31 @@
+apiVersion: terramate.io/cli/v1
+kind: BundleInstance
+metadata:
+  name: datastore-analytics
+  uuid: a1b2c3d4-0004-4000-8000-000000000002
+spec: {}
+environments:
+  dev:
+    source: /bundles/catalogue/tf-aws-data-store-env/v1
+    inputs:
+      name: analytics
+      postgres_version: "16.4"
+      db_instance_class: db.t4g.micro
+      db_storage_gb: 20
+      multi_az: false
+      cache_node_type: cache.t4g.micro
+      cache_num_nodes: 1
+      backup_retention_days: 1
+      deletion_protection: false
+  prd:
+    source: /bundles/catalogue/tf-aws-data-store-env/v1
+    inputs:
+      name: analytics
+      postgres_version: "16.4"
+      db_instance_class: db.r7g.xlarge
+      db_storage_gb: 500
+      multi_az: true
+      cache_node_type: cache.r7g.large
+      cache_num_nodes: 2
+      backup_retention_days: 35
+      deletion_protection: true
