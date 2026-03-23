@@ -75,11 +75,17 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 }
 
 // findBundleByLocation looks up a bundle in the registry by its location.
+// When an environment is selected and the bundle has an environment, only
+// the bundle matching the selected environment is returned.
 func (m Model) findBundleByLocation(location string) *config.Bundle {
 	for _, b := range m.EngineState.Registry.Bundles {
-		if fmt.Sprintf("%s:%s", b.Workdir.String(), b.Name) == location {
-			return b
+		if fmt.Sprintf("%s:%s", b.Workdir.String(), b.Name) != location {
+			continue
 		}
+		if m.selectedEnv != nil && b.Environment != nil && b.Environment.ID != m.selectedEnv.ID {
+			continue
+		}
+		return b
 	}
 	return nil
 }
