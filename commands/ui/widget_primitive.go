@@ -431,7 +431,11 @@ func ctyToDisplayString(v cty.Value) string {
 	}
 	switch v.Type() {
 	case cty.String:
-		return v.AsString()
+		s := v.AsString()
+		if s == "" {
+			return "<not set>"
+		}
+		return s
 	case cty.Number:
 		bf := v.AsBigFloat()
 		return bf.Text('f', -1)
