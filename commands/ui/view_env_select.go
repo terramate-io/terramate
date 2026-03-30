@@ -31,18 +31,20 @@ func (m Model) updateEnvSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) renderEnvSelectView() string {
 	est := m.EngineState
+	panelWidth := m.effectiveWidth()
+
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth).
-		Height(uiContentHeight + 2)
+		Width(panelWidth).
+		Height(m.effectiveContentHeight() + 2)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
-	header := m.renderHeader("select environment")
+	header := m.renderHeader("select environment", panelWidth)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).

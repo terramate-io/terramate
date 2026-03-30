@@ -82,17 +82,19 @@ func (m Model) nextViewAfterCloudLogin() ViewState {
 }
 
 func (m Model) renderCloudLoginView() string {
+	panelWidth := m.effectiveWidth()
+
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
-	header := m.renderHeader("welcome")
+	header := m.renderHeader("welcome", panelWidth)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
