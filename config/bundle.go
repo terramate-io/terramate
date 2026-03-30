@@ -181,6 +181,9 @@ func ObjectAttrToInputDef(attr *ObjectAttribute) *InputDefinition {
 		Type:        attr.Schema.Type,
 		Prompt:      attr.Prompt,
 	}
+	if attr.Schema.Default != nil {
+		def.defaultExpr = attr.Schema.Default.Expr
+	}
 	if attr.Prompt.Multiselect {
 		def.optionValueType = typeschema.UnwrapValueType(attr.Schema.Type)
 	} else {
