@@ -183,9 +183,47 @@ type Model struct {
 	cancelled bool
 }
 
-const uiWidth = 100
-const uiContentHeight = 26                          // Max visible content lines inside bordered panels
-const uiInputsPanelHeight = uiContentHeight + 2 + 4 // Match select-panel outer height (content + padding + border)
+const uiWidth = 100         // Default/preferred panel width
+const minPanelWidth = 72    // Minimum panel width (fits 80-col terminals)
+const minContentHeight = 12 // Minimum visible content lines inside bordered panels
+
+// effectiveContentHeight returns the number of content lines available inside
+// bordered panels, scaling with the terminal height. The value is clamped to a
+// minimum of minContentHeight so the UI stays usable on small terminals.
+func (m Model) effectiveContentHeight() int {
+	if m.height <= 0 {
+		return minContentHeight
+	}
+	// Chrome: outer padding(2) + header(1) + help(1) + border(2) + inner padding(2) + margin(2) = 10
+	h := m.height - 10
+	if h < minContentHeight {
+		return minContentHeight
+	}
+	return h
+}
+
+// effectiveInputsPanelHeight returns the Height() budget for input-form panels.
+// It equals effectiveContentHeight()+6 so that input-form views fill the same
+// terminal space as select-panel views.
+func (m Model) effectiveInputsPanelHeight() int {
+	return m.effectiveContentHeight() + 6
+}
+
+// effectiveWidth returns the effective panel width for views,
+// clamped between minPanelWidth and uiWidth*2 based on available terminal space.
+func (m Model) effectiveWidth() int {
+	if m.width <= 0 {
+		return uiWidth
+	}
+	w := m.width - 6 // outer Padding(1, 2) = 2 left + 2 right + border 1 left + 1 right
+	if w < minPanelWidth {
+		return minPanelWidth
+	}
+	if w > uiWidth*2 {
+		return uiWidth * 2
+	}
+	return w
+}
 
 // NewModel creates a new prompt model.
 func NewModel(est *EngineState) Model {
@@ -238,6 +276,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.inputsForm.PanelWidth = m.effectiveWidth()
+		m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 		return m, nil
 
 	case ctrlCResetMsg:

@@ -15,7 +15,6 @@ var (
 	// Primary brand colors
 	colorPrimary   = lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"} // Purple/Violet
 	colorSecondary = lipgloss.AdaptiveColor{Light: "#059669", Dark: "#34D399"} // Green
-	colorAccent    = lipgloss.AdaptiveColor{Light: "#0891B2", Dark: "#22D3EE"} // Cyan
 
 	// Semantic colors
 	colorError   = lipgloss.AdaptiveColor{Light: "#DC2626", Dark: "#F87171"} // Red

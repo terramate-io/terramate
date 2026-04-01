@@ -349,7 +349,8 @@ func changeLogEntry(c Change) string {
 
 func (m Model) renderOverviewView() string {
 	est := m.EngineState
-	innerWidth := uiWidth - 4
+	panelWidth := m.effectiveWidth()
+	innerWidth := panelWidth - 4
 
 	sectionTitleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -359,24 +360,24 @@ func (m Model) renderOverviewView() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	unfocusedBorderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorder).
 		Padding(1, 2).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth)
 
-	title := m.renderHeader("overview")
+	title := m.renderHeader("overview", panelWidth)
 
-	commandsGrid := m.renderCommandGrid()
+	commandsGrid := m.renderCommandGrid(panelWidth)
 
 	var mainContent string
 
@@ -416,7 +417,7 @@ func (m Model) renderOverviewView() string {
 	if hint != "" {
 		hintRendered := lipgloss.NewStyle().Foreground(colorTextMuted).Italic(true).Render(hint)
 		leftRendered := lipgloss.NewStyle().Foreground(colorTextMuted).Render(helpText)
-		gap := uiWidth + 2 - lipgloss.Width(leftRendered) - lipgloss.Width(hintRendered)
+		gap := panelWidth + 2 - lipgloss.Width(leftRendered) - lipgloss.Width(hintRendered)
 		if gap < 2 {
 			gap = 2
 		}
@@ -441,9 +442,9 @@ func (m Model) renderOverviewView() string {
 
 		var summaryFull string
 		if m.changesApplied {
-			summaryFull = contentStyle.Render(m.renderSavedSummary())
+			summaryFull = contentStyle.Render(m.renderSavedSummary(panelWidth))
 		} else {
-			summaryBody := m.renderSummary()
+			summaryBody := m.renderSummary(panelWidth)
 			parts := []string{summaryTitle}
 			if m.saveErr != nil {
 				errStyle := lipgloss.NewStyle().Foreground(colorError).PaddingLeft(2).Width(innerWidth)
@@ -523,7 +524,8 @@ func (m Model) renderSummaryButtons() string {
 }
 
 // renderHeader renders the header with breadcrumbs and optional environment label.
-func (m Model) renderHeader(context string) string {
+// panelWidth controls the total span used to right-align the environment name.
+func (m Model) renderHeader(context string, panelWidth int) string {
 	slashStyle := lipgloss.NewStyle().
 		Foreground(colorText)
 
@@ -547,7 +549,7 @@ func (m Model) renderHeader(context string) string {
 	envStyle := lipgloss.NewStyle().Foreground(colorText)
 	envLabel := envStyle.Render(m.selectedEnv.Name)
 
-	gap := uiWidth + 2 - lipgloss.Width(left) - lipgloss.Width(envLabel)
+	gap := panelWidth + 2 - lipgloss.Width(left) - lipgloss.Width(envLabel)
 	if gap < 2 {
 		gap = 2
 	}
@@ -562,13 +564,11 @@ var commandMeta = map[string]struct {
 	"Create":      {color: colorCreate, hint: "Create infrastructure in your project"},
 	"Reconfigure": {color: colorReconfig, hint: "Reconfigure existing infrastructure"},
 	"Promote":     {color: colorPromote, hint: "Promote infrastructure to this environment"},
-	"Upgrade":     {color: colorAccent, hint: "Upgrade a bundle to a newer version"},
-	"Destroy":     {color: colorError, hint: "Remove a bundle from your project"},
 	"Quit":        {color: colorTextMuted, hint: "Quit Terramate"},
 }
 
-func (m Model) renderCommandGrid() string {
-	innerWidth := uiWidth - 4
+func (m Model) renderCommandGrid(panelWidth int) string {
+	innerWidth := panelWidth - 4
 
 	if m.confirmingExit {
 		promptStyle := lipgloss.NewStyle().Foreground(colorWarning).Bold(true)
@@ -603,8 +603,6 @@ func (m Model) renderCommandGrid() string {
 		return strings.Repeat(" ", gap) + line
 	}
 
-	indent := 4
-
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	normalStyle := lipgloss.NewStyle().Foreground(colorText)
 
@@ -613,24 +611,7 @@ func (m Model) renderCommandGrid() string {
 		return ""
 	}
 
-	totalTextWidth := 0
-	for _, cmd := range cmds {
-		totalTextWidth += len(cmd)
-	}
-
-	usableWidth := innerWidth - indent
-	totalButtonText := len(cmds)*indent + totalTextWidth
-	totalGap := usableWidth - totalButtonText
-	if totalGap < 0 {
-		totalGap = 0
-	}
-	numGaps := len(cmds) - 1
-	baseGap := 0
-	extraGaps := 0
-	if numGaps > 0 {
-		baseGap = totalGap / numGaps
-		extraGaps = totalGap % numGaps
-	}
+	const buttonGap = 6
 
 	var rowStr string
 	for i, cmd := range cmds {
@@ -648,11 +629,7 @@ func (m Model) renderCommandGrid() string {
 		}
 
 		if i > 0 {
-			g := baseGap
-			if i-1 < extraGaps {
-				g++
-			}
-			rowStr += strings.Repeat(" ", g)
+			rowStr += strings.Repeat(" ", buttonGap)
 		}
 		rowStr += rendered
 	}
@@ -671,7 +648,7 @@ func (m Model) selectedCommandHint() string {
 	return ""
 }
 
-func (m Model) renderSummary() string {
+func (m Model) renderSummary(panelWidth int) string {
 	if len(m.PendingChanges()) == 0 {
 		dimStyle := lipgloss.NewStyle().
 			Foreground(colorTextMuted).
@@ -753,7 +730,7 @@ func (m Model) renderSummary() string {
 		if change.Source != "" {
 			row += dimStyle.Render("from " + change.Source)
 		}
-		row = truncateStyledRow(row, uiWidth-4)
+		row = truncateStyledRow(row, panelWidth-4)
 		rows = append(rows, row)
 
 		if len(change.Warnings) > 0 {
@@ -766,12 +743,12 @@ func (m Model) renderSummary() string {
 	return strings.Join(rows, "\n")
 }
 
-func (m Model) renderSavedSummary() string {
+func (m Model) renderSavedSummary(panelWidth int) string {
 	actionStyle := lipgloss.NewStyle().Foreground(colorText)
 	nameStyle := lipgloss.NewStyle().Foreground(colorText).Bold(true)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
-	innerWidth := uiWidth - 8
+	innerWidth := panelWidth - 8
 
 	type fileLine struct {
 		action string

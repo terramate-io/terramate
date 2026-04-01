@@ -103,19 +103,22 @@ func (m *Model) openEditChange(idx int) error {
 		change.InputDefs, schemactx, m.EngineState.Registry, change.Env, change.FromEnv,
 		change.Values, change.OriginalValues,
 	)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
+	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 
 	m.viewState = ViewEdit
 	return nil
 }
 
 func (m Model) renderEditChangeView() string {
+	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	change := m.PendingChanges()[m.editingChangeIdx]
 	headerContext := fmt.Sprintf("edit bundle / %s", change.Name)
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	formView := m.inputsForm.View()
 

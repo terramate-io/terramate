@@ -13,7 +13,6 @@ import (
 
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
-	"github.com/terramate-io/terramate/project"
 )
 
 func (m Model) updatePromoteSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -69,6 +68,8 @@ func (m *Model) loadPromoteBundle(b *config.Bundle) error {
 	m.promoteBundle = b
 	m.selectedBundleDefEntry = bde
 	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, m.selectedEnv, b.Environment, values, values)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
+	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 	return nil
 }
 
@@ -117,112 +118,55 @@ func (m Model) renderPromoteSelectView() string {
 
 	promoteFromName := envNameForID(est.Registry.Environments, m.selectedEnv.PromoteFrom)
 
+	panelWidth := m.effectiveWidth()
+	innerWidth := panelWidth - 4
+	scrollbarGutter := 4 // left gap(1) + scrollbar(1) + right gap(2)
+	contentWidth := innerWidth - scrollbarGutter
+
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(colorBorderFocus).
 		Padding(1, 2).
-		Width(uiWidth).
-		Height(uiContentHeight + 2)
+		Width(panelWidth).
+		Height(m.effectiveContentHeight() + 2)
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
-	idStyle := lipgloss.NewStyle().
-		Foreground(colorTextSubtle)
+	contentStyle := lipgloss.NewStyle().Width(innerWidth)
 
-	contentStyle := lipgloss.NewStyle().Width(uiWidth - 4)
-
-	title := m.renderHeader("promote")
+	title := m.renderHeader("promote", panelWidth)
 
 	sectionTitle := lipgloss.NewStyle().Bold(true).Foreground(colorText).MarginBottom(1).Render("Select a Bundle to Promote")
 	desc := lipgloss.NewStyle().Foreground(colorTextMuted).MarginBottom(2).
 		Render("These bundles from " + promoteFromName + " are not yet in " + m.selectedEnv.Name + ".")
 
-	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
-	headerNameStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
-	fromStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+	header := lipgloss.JoinVertical(lipgloss.Left, sectionTitle, desc, "")
+	headerHeight := lipgloss.Height(header)
+	availableHeight := m.effectiveContentHeight() - headerHeight
 
 	groups := groupBundles(m.promoteBundles)
+	selectedGroupIdx, items := m.renderGroupedBundleItems(groups, m.promoteCursor, contentWidth)
 
-	const colGap = 2
+	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight)
 
-	type entryRow struct {
-		left      string
-		leftWidth int
-		source    string
+	var sb strings.Builder
+	for i := start; i < end; i++ {
+		if i > start {
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString(items[i].content)
 	}
-	type groupRow struct {
-		headerLeft      string
-		headerLeftWidth int
-		headerSource    string
-		entries         []entryRow
-	}
+	listContent := sb.String()
 
-	// See renderReconfigSelectView
-	groupRows := make([]groupRow, len(groups))
-	globalMaxLeft := 0
-	visualIdx := 0
-	for gi, g := range groups {
-		b0 := g.bundles[0]
-		version := "v" + b0.DefinitionMetadata.Version
-
-		headerLeft := "    " + headerNameStyle.Render(g.name) + " " + fromStyle.Render(version)
-		headerLeftWidth := lipgloss.Width(headerLeft)
-		if headerLeftWidth > globalMaxLeft {
-			globalMaxLeft = headerLeftWidth
-		}
-
-		entries := make([]entryRow, len(g.bundles))
-		for i, b := range g.bundles {
-			filename := project.PrjAbsPath(est.Root.HostDir(), b.Info.HostPath()).String()
-			isSelected := visualIdx == m.promoteCursor
-			visualIdx++
-			var left string
-			displayName := displayNameFromAlias(b.Alias, b.Name)
-			if isSelected {
-				left = selectedStyle.Render("  › " + displayName)
-			} else {
-				left = "    " + displayName
-			}
-			if b.Environment != nil {
-				idTag := idStyle.Render("[" + b.Environment.ID + "]")
-				left += " " + idTag
-			}
-
-			w := lipgloss.Width(left)
-			if w > globalMaxLeft {
-				globalMaxLeft = w
-			}
-			entries[i] = entryRow{left: left, leftWidth: w, source: filename}
-		}
-
-		groupRows[gi] = groupRow{
-			headerLeft:      headerLeft,
-			headerLeftWidth: headerLeftWidth,
-			headerSource:    b0.Source,
-			entries:         entries,
-		}
+	if len(items) > end-start {
+		trackHeight := lipgloss.Height(listContent)
+		scrollbar := renderScrollbar(len(items), end-start, start, trackHeight)
+		listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
 	}
 
-	// Second pass: render lines with a unified source column.
-	var lines []string
-	for gi, gr := range groupRows {
-		if gi > 0 {
-			lines = append(lines, "")
-		}
-
-		headerPad := strings.Repeat(" ", globalMaxLeft-gr.headerLeftWidth+colGap)
-		lines = append(lines, gr.headerLeft+headerPad+fromStyle.Render(gr.headerSource))
-
-		for _, r := range gr.entries {
-			entryPad := strings.Repeat(" ", globalMaxLeft-r.leftWidth+colGap)
-			lines = append(lines, r.left+entryPad+fromStyle.Render(r.source))
-		}
-	}
-
-	listContent := strings.Join(lines, "\n")
-	inner := contentStyle.Render(lipgloss.JoinVertical(lipgloss.Left, sectionTitle, desc, listContent))
+	inner := contentStyle.Render(lipgloss.JoinVertical(lipgloss.Left, header, listContent))
 
 	help := helpStyle.Render(m.finalHelpText("esc: back"))
 
@@ -237,13 +181,14 @@ func (m Model) renderPromoteSelectView() string {
 }
 
 func (m Model) renderPromoteInputView() string {
+	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
-		Width(uiWidth)
+		Width(panelWidth)
 
 	b := m.promoteBundle
 	headerContext := fmt.Sprintf("promote / %s", b.Name)
-	title := m.renderHeader(headerContext)
+	title := m.renderHeader(headerContext, panelWidth)
 
 	formView := m.inputsForm.View()
 

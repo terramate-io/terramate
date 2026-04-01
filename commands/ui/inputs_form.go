@@ -100,13 +100,27 @@ type InputsForm struct {
 	// Validation error shown at the top of the completed panel (e.g. from finalizeChange).
 	validationErr error
 
+	// Layout — dynamic panel dimensions; 0 means use defaults.
+	PanelWidth  int
+	PanelHeight int
+
 	// Result
 	state InputsFormState
 }
 
+// effectivePanelHeight returns the Height() budget for the input-form panel.
+// When PanelHeight has been set (via WindowSizeMsg), it is used directly;
+// otherwise a default derived from minContentHeight is returned.
+func (f InputsForm) effectivePanelHeight() int {
+	if f.PanelHeight > 0 {
+		return f.PanelHeight
+	}
+	return minContentHeight + 6
+}
+
 // NewInputsForm creates a new inputs form for the given inputs and schemas
 func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *Registry, env *config.Environment) InputsForm {
-	vp := viewport.New(uiWidth, uiInputsPanelHeight)
+	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 
 	prompted := filterPrompted(inputDefs)
@@ -147,7 +161,7 @@ func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.Eva
 
 // NewInputsFormWithValues creates an inputs form pre-populated with existing values.
 func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value) InputsForm {
-	vp := viewport.New(uiWidth, uiInputsPanelHeight)
+	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 
 	prompted := filterPrompted(inputDefs)
@@ -961,7 +975,10 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 //
 // Review mode (edit-change) renders a single review list instead.
 func (f InputsForm) View() string {
-	panelWidth := uiWidth
+	panelWidth := f.PanelWidth
+	if panelWidth <= 0 {
+		panelWidth = uiWidth
+	}
 	innerWidth := panelWidth - 6 // border (2) + padding (4)
 
 	sectionTitleStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
@@ -1069,7 +1086,7 @@ func (f InputsForm) View() string {
 
 	// Compute available height for the bottom panel.
 	topHeight := lipgloss.Height(topPanel)
-	botMaxContent := uiInputsPanelHeight - topHeight - botBorderOverhead - botTitleLines
+	botMaxContent := f.effectivePanelHeight() - topHeight - botBorderOverhead - botTitleLines
 	if botMaxContent < 1 {
 		botMaxContent = 1
 	}
@@ -1119,7 +1136,7 @@ func (f InputsForm) View() string {
 	}
 
 	// Fix the bottom panel height so the total layout stays consistent.
-	botFixedHeight := uiInputsPanelHeight - topHeight
+	botFixedHeight := f.effectivePanelHeight() - topHeight
 	if botFixedHeight < 6 {
 		botFixedHeight = 6
 	}
@@ -1176,7 +1193,7 @@ func (f InputsForm) renderSingleCompletedPanel(
 
 	completedContent := f.renderCompletedPanelContent()
 
-	maxContent := uiInputsPanelHeight - borderOverhead - titleLines
+	maxContent := f.effectivePanelHeight() - borderOverhead - titleLines
 	if maxContent < 1 {
 		maxContent = 1
 	}
@@ -1216,7 +1233,7 @@ func (f InputsForm) renderSingleCompletedPanel(
 	}
 	parts = append(parts, contentBlock)
 	inner := lipgloss.JoinVertical(lipgloss.Left, parts...)
-	return focusedBorder.Height(uiInputsPanelHeight - borderOverhead).Render(inner)
+	return focusedBorder.Height(f.effectivePanelHeight() - borderOverhead).Render(inner)
 }
 
 // renderScrollbar renders a vertical scrollbar track with a thumb.
@@ -1458,7 +1475,7 @@ func (f InputsForm) renderActiveSection() string {
 
 		var lines []string
 		if def.Description != "" {
-			descStyle := activeDescStyle.PaddingLeft(2).Width(f.activeWidget.WidgetContext().Width - 6)
+			descStyle := activeDescStyle.PaddingLeft(2).Width(f.activeWidget.WidgetContext().Width)
 			lines = append(lines, descStyle.Render(def.Description), "")
 		}
 
