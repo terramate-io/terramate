@@ -55,6 +55,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
     }
     ```
     This is supported for inputs and attributes.
+- Add `terramate.stack.parent.tags` metadata to stacks that are part of a parent-child hierarchy.
 
 ## 0.16.0
 
