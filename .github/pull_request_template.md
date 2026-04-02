@@ -1,6 +1,7 @@
 <!--  Thanks for sending a pull request!  Here are some tips for you:
 
-1. If this is your first time, please read our contributor guidelines: https://github.com/terramate-io/terramate/blob/main/CONTRIBUTING.md
+1. Please read our contribution policy: https://github.com/terramate-io/terramate/blob/main/CONTRIBUTING.md
+   Note: All code contributions are managed exclusively by the Terramate team.
 2. If the PR is unfinished, mark it as draft: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/changing-the-stage-of-a-pull-request
 3. Please update the PR title using the Conventional Commits convention: https://www.conventionalcommits.org/en/v1.0.0/
     Example: feat: add support for XYZ.
