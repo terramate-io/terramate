@@ -236,7 +236,8 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	}
 	if parentStack != nil {
 		stackMapVals["parent"] = cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal(parentStack.Node.Stack.ID),
+			"id":   cty.StringVal(parentStack.Node.Stack.ID),
+			"tags": toCtyStringList(parentStack.Node.Stack.Tags),
 		})
 	}
 	stack := cty.ObjectVal(stackMapVals)
