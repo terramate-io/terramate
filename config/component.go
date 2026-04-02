@@ -4,6 +4,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -70,7 +71,7 @@ func EvalComponentInputSchemas(evalctx *eval.Context, def *hcl.DefineComponent) 
 
 // EvalComponent evaluates a component and returns the component with the inputs resolved.
 // evalctx will be modified to contain `component.input`.
-func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, component *hcl.Component, bundles []*Bundle, envs []*Environment, allowFetch bool) (*Component, *hcl.Config, error) {
+func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, component *hcl.Component, reg *Registry, allowFetch bool) (*Component, *hcl.Config, error) {
 	if component.Source == nil {
 		return nil, nil, errors.E(
 			hcl.ErrComponentMissingSourceAttribute,
@@ -148,7 +149,7 @@ func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, co
 		return nil, nil, errors.E(component.Source.Range, "source '%s' is not a component definition", evaluated.Source)
 	}
 
-	evaluated.Environment, err = checkComponentEnvironment(evalctx, component, envs)
+	evaluated.Environment, err = checkComponentEnvironment(evalctx, component, reg.Environments)
 	if err != nil {
 		return nil, nil, err
 
@@ -159,22 +160,26 @@ func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, co
 		return nil, nil, err
 	}
 
-	evalctx.SetFunction("tm_bundle", BundleFunc(bundles, evaluated.Environment))
-	evalctx.SetFunction("tm_bundles", BundlesFunc(bundles, evaluated.Environment))
+	evalctx.SetFunction("tm_bundle", BundleFunc(context.TODO(), reg, evaluated.Environment, false))
+	evalctx.SetFunction("tm_bundles", BundlesFunc(reg, evaluated.Environment))
 
 	compNS := map[string]cty.Value{
 		"environment": MakeEnvObject(evaluated.Environment),
 	}
 	evalctx.SetNamespace("component", compNS)
 
+	schemactx := typeschema.EvalContext{
+		Evalctx: evalctx,
+		Schemas: schemas,
+	}
+
 	evaluated.Inputs, err = EvalInputs(
-		evalctx,
+		schemactx,
 		"component",
 		component.Info,
 		component.Inputs,
 		component.InputsAttr,
-		compDef.Inputs,
-		schemas)
+		compDef.Inputs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,7 +189,7 @@ func EvalComponent(root *Root, resolveAPI resolve.API, evalctx *eval.Context, co
 
 // EvalInputs evaluates input values against their definitions and schemas.
 // evalctx will be modified to contain `{rootNS}.input`.
-func EvalInputs(evalctx *eval.Context, rootNS string, instRange info.Range, inputs *ast.MergedBlock, inputsAttr *ast.Attribute, inputDefs map[string]*hcl.DefineInput, schemas typeschema.SchemaNamespaces) (map[string]cty.Value, error) {
+func EvalInputs(schemactx typeschema.EvalContext, rootNS string, instRange info.Range, inputs *ast.MergedBlock, inputsAttr *ast.Attribute, inputDefs map[string]*hcl.DefineInput) (map[string]cty.Value, error) {
 	type pendingProvided struct {
 		value    cty.Value
 		defRange info.Range
@@ -198,7 +203,7 @@ func EvalInputs(evalctx *eval.Context, rootNS string, instRange info.Range, inpu
 
 	// input blocks have precedence over inputs attribute
 	if inputsAttr != nil {
-		inputsObj, err := evalObject(evalctx, inputsAttr.Expr, "inputs")
+		inputsObj, err := evalObject(schemactx.Evalctx, inputsAttr.Expr, "inputs")
 		if err != nil {
 			return nil, errors.E(err, inputsAttr.Range)
 		}
@@ -224,7 +229,7 @@ func EvalInputs(evalctx *eval.Context, rootNS string, instRange info.Range, inpu
 				continue
 			}
 			// Override
-			v, err := evalctx.Eval(attr.Expr)
+			v, err := schemactx.Evalctx.Eval(attr.Expr)
 			if err != nil {
 				errs.Append(errors.E(attr.Range, err))
 				continue
@@ -290,13 +295,13 @@ func EvalInputs(evalctx *eval.Context, rootNS string, instRange info.Range, inpu
 	}
 
 	var nsVals map[string]cty.Value
-	if ns, ok := evalctx.GetNamespace(rootNS); ok {
+	if ns, ok := schemactx.Evalctx.GetNamespace(rootNS); ok {
 		nsVals = ns.AsValueMap()
 	} else {
 		nsVals = map[string]cty.Value{}
 	}
 
-	evalctx.SetNamespace(rootNS, nsVals)
+	schemactx.Evalctx.SetNamespace(rootNS, nsVals)
 
 	resultingInputs := map[string]cty.Value{}
 
@@ -311,17 +316,17 @@ func EvalInputs(evalctx *eval.Context, rootNS string, instRange info.Range, inpu
 
 		switch nodeVal := nodeVal.(type) {
 		case *pendingDefault:
-			v, err = evalctx.Eval(nodeVal.expr.Expr)
+			v, err = schemactx.Evalctx.Eval(nodeVal.expr.Expr)
 			if err != nil {
 				return nil, errors.E(nodeVal.expr.Expr.Range(), err)
 			}
-			v, err = applyInputSchema(string(inputName), v, evalctx, schemas)
+			v, err = applyInputSchema(string(inputName), v, schemactx)
 			if err != nil {
 				return nil, errors.E(err, nodeVal.expr.Expr.Range(), "%s: failed to validate input type", inputName)
 			}
 
 		case *pendingProvided:
-			v, err = applyInputSchema(string(inputName), nodeVal.value, evalctx, schemas)
+			v, err = applyInputSchema(string(inputName), nodeVal.value, schemactx)
 			if err != nil {
 				return nil, errors.E(err, nodeVal.defRange, "%s: failed to validate input type", inputName)
 			}
@@ -333,7 +338,7 @@ func EvalInputs(evalctx *eval.Context, rootNS string, instRange info.Range, inpu
 			"value": v,
 		})
 		nsVals["input"] = cty.ObjectVal(resultingInputs)
-		evalctx.SetNamespace(rootNS, nsVals)
+		schemactx.Evalctx.SetNamespace(rootNS, nsVals)
 	}
 	return resultingInputs, nil
 }
@@ -359,12 +364,13 @@ func checkComponentEnvironment(evalctx *eval.Context, inst *hcl.Component, envs 
 
 // ComponentDefinitionEntry pairs a config tree with its component definition.
 type ComponentDefinitionEntry struct {
-	Tree   *Tree
-	Define *hcl.DefineComponent
+	Tree     *Tree
+	Metadata *Metadata
+	Define   *hcl.DefineComponent
 }
 
 // ListLocalComponentDefinitions lists all component definitions found under the given directory.
-func ListLocalComponentDefinitions(root *Root, dir project.Path) ([]ComponentDefinitionEntry, error) {
+func ListLocalComponentDefinitions(root *Root, evalctx *eval.Context, dir project.Path) ([]ComponentDefinitionEntry, error) {
 	srcHostDir := dir.HostPath(root.HostDir())
 	srcAbsDir := project.PrjAbsPath(root.HostDir(), srcHostDir)
 
@@ -386,9 +392,15 @@ func ListLocalComponentDefinitions(root *Root, dir project.Path) ([]ComponentDef
 				continue
 			}
 
+			md, err := EvalMetadata(evalctx, subdir, &def.Bundle.Metadata)
+			if err != nil {
+				return nil, err
+			}
+
 			r = append(r, ComponentDefinitionEntry{
-				Tree:   subdir,
-				Define: def.Component,
+				Tree:     subdir,
+				Metadata: md,
+				Define:   def.Component,
 			})
 		}
 	}

@@ -124,6 +124,9 @@ type FlagSpec struct {
 		Generate     bool   `default:"false" help:"Run terramate generate after creating a bundle instance."`
 	} `cmd:"" help:"Add existing bundles or components to your repository."`
 
+	UI struct {
+	} `cmd:"" help:"UI for infrastructure changes."`
+
 	Component struct {
 		Create struct {
 			Path string `arg:"" name:"path" predictor:"file" help:"Path to the Terraform module directory. Relative paths are resolved from the working directory; absolute paths (e.g. /modules/s3-module) are resolved relative to the project root. Defaults to current directory." default:"."`

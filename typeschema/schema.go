@@ -21,8 +21,8 @@ type Schema struct {
 }
 
 // Apply validates and coerces the given value against this schema's type.
-func (s *Schema) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces) (cty.Value, error) {
-	return s.Type.Apply(val, evalctx, schemas, true)
+func (s *Schema) Apply(val cty.Value, schemactx EvalContext) (cty.Value, error) {
+	return s.Type.Apply(val, schemactx, true)
 }
 
 // SchemaNamespaces holds schemas organized by namespace.
@@ -59,4 +59,18 @@ func (s SchemaNamespaces) Lookup(schemaID string) (*Schema, error) {
 		return nil, errors.E("schema '%s' does not exist in namespace '%s'", name, namespace)
 	}
 	return schema, nil
+}
+
+// EvalContext combines an eval.Context with schema namespaces.
+type EvalContext struct {
+	Evalctx *eval.Context
+	Schemas SchemaNamespaces
+}
+
+// ChildContext is a helper to call ChildContext on the evalctx.
+func (sc EvalContext) ChildContext() EvalContext {
+	return EvalContext{
+		Evalctx: sc.Evalctx.ChildContext(),
+		Schemas: sc.Schemas,
+	}
 }

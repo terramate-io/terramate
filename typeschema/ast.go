@@ -12,7 +12,6 @@ import (
 
 	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/hcl/ast"
-	"github.com/terramate-io/terramate/hcl/eval"
 	"github.com/terramate-io/terramate/hcl/info"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -50,7 +49,7 @@ func Parse(typeStr string, inlineAttrs []*ObjectTypeAttribute) (Type, error) {
 
 // Type is the interface for all type representations.
 type Type interface {
-	Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, strict bool) (cty.Value, error)
+	Apply(val cty.Value, schemactx EvalContext, strict bool) (cty.Value, error)
 
 	Visit(func(Type) error) error
 
@@ -63,7 +62,7 @@ type PrimitiveType struct {
 }
 
 // Apply validates and coerces the given value to match this primitive type.
-func (p PrimitiveType) Apply(val cty.Value, _ *eval.Context, _ SchemaNamespaces, _ bool) (cty.Value, error) {
+func (p PrimitiveType) Apply(val cty.Value, _ EvalContext, _ bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -101,7 +100,7 @@ type ListType struct {
 }
 
 // Apply validates and coerces the given value to match this list type.
-func (l ListType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, _ bool) (cty.Value, error) {
+func (l ListType) Apply(val cty.Value, schemactx EvalContext, _ bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -116,7 +115,7 @@ func (l ListType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaName
 
 	for i, elemVal := range vals {
 		var err error
-		vals[i], err = l.ValueType.Apply(elemVal, evalctx, schemas, true)
+		vals[i], err = l.ValueType.Apply(elemVal, schemactx, true)
 		if err != nil {
 			return val, errors.E("list element error: %w", err)
 		}
@@ -143,7 +142,7 @@ type SetType struct {
 }
 
 // Apply validates and coerces the given value to match this set type.
-func (s SetType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, _ bool) (cty.Value, error) {
+func (s SetType) Apply(val cty.Value, schemactx EvalContext, _ bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -161,7 +160,7 @@ func (s SetType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNames
 	uniqueVals := make([]cty.Value, 0, len(vals))
 
 	for _, elemVal := range vals {
-		appliedVal, err := s.ValueType.Apply(elemVal, evalctx, schemas, true)
+		appliedVal, err := s.ValueType.Apply(elemVal, schemactx, true)
 		if err != nil {
 			return val, errors.E("set element error: %w", err)
 		}
@@ -195,7 +194,7 @@ type MapType struct {
 }
 
 // Apply validates and coerces the given value to match this map type.
-func (m MapType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, _ bool) (cty.Value, error) {
+func (m MapType) Apply(val cty.Value, schemactx EvalContext, _ bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -213,7 +212,7 @@ func (m MapType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNames
 
 	for k, elemVal := range valMap {
 		var err error
-		valMap[k], err = m.ValueType.Apply(elemVal, evalctx, schemas, true)
+		valMap[k], err = m.ValueType.Apply(elemVal, schemactx, true)
 		if err != nil {
 			return val, errors.E("map value error: %w", err)
 		}
@@ -242,7 +241,7 @@ type TupleType struct {
 }
 
 // Apply validates and coerces the given value to match this tuple type.
-func (t TupleType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, _ bool) (cty.Value, error) {
+func (t TupleType) Apply(val cty.Value, schemactx EvalContext, _ bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -259,7 +258,7 @@ func (t TupleType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNam
 	vals := val.AsValueSlice()
 	for i, elemVal := range vals {
 		var err error
-		vals[i], err = t.Elems[i].Apply(elemVal, evalctx, schemas, true)
+		vals[i], err = t.Elems[i].Apply(elemVal, schemactx, true)
 		if err != nil {
 			return val, errors.E("tuple item %d: %w", i, err)
 		}
@@ -294,14 +293,14 @@ type ReferenceType struct {
 }
 
 // Apply resolves the reference and delegates to the referenced schema type.
-func (r ReferenceType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, strict bool) (cty.Value, error) {
-	schema, err := schemas.Lookup(r.Name)
+func (r ReferenceType) Apply(val cty.Value, schemactx EvalContext, strict bool) (cty.Value, error) {
+	schema, err := schemactx.Schemas.Lookup(r.Name)
 	if err != nil {
 		return val, err
 	}
 
 	// Forward strict
-	return schema.Type.Apply(val, evalctx, schemas, strict)
+	return schema.Type.Apply(val, schemactx, strict)
 }
 
 // Visit calls fn on this type.
@@ -319,8 +318,8 @@ type NonStrictType struct {
 }
 
 // Apply delegates to the inner type with strict mode disabled.
-func (n NonStrictType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, _ bool) (cty.Value, error) {
-	return n.Inner.Apply(val, evalctx, schemas, false)
+func (n NonStrictType) Apply(val cty.Value, schemactx EvalContext, _ bool) (cty.Value, error) {
+	return n.Inner.Apply(val, schemactx, false)
 }
 
 // Visit calls fn on this type and its inner type.
@@ -343,16 +342,15 @@ type ObjectType struct {
 
 // ObjectTypeAttribute defines a single attribute within an object type.
 type ObjectTypeAttribute struct {
-	Name        string
-	Type        Type
-	Description string
-	Default     *ast.Attribute
-	Required    bool
-	Range       info.Range
+	Name     string
+	Type     Type
+	Default  *ast.Attribute
+	Required bool
+	Range    info.Range
 }
 
 // Apply validates and coerces the given value to match this object type.
-func (o ObjectType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, strict bool) (cty.Value, error) {
+func (o ObjectType) Apply(val cty.Value, schemactx EvalContext, strict bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -371,7 +369,7 @@ func (o ObjectType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNa
 		if !exists {
 			if attr.Default != nil {
 				var err error
-				fieldVal, err = evalctx.Eval(attr.Default.Expr)
+				fieldVal, err = schemactx.Evalctx.Eval(attr.Default.Expr)
 				if err != nil {
 					return val, err
 				}
@@ -385,7 +383,7 @@ func (o ObjectType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNa
 		}
 
 		var err error
-		fieldVal, err = attr.Type.Apply(fieldVal, evalctx, schemas, strict)
+		fieldVal, err = attr.Type.Apply(fieldVal, schemactx, strict)
 		if err != nil {
 			return val, errors.E(err, "failed to Apply '%s'", attr.Name)
 		}
@@ -433,13 +431,13 @@ type VariantType struct {
 }
 
 // Apply tries each variant option and returns the first successful match.
-func (v VariantType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, _ bool) (cty.Value, error) {
+func (v VariantType) Apply(val cty.Value, schemactx EvalContext, _ bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
 	var errs []string
 	for _, opt := range v.Options {
-		newVal, err := opt.Apply(val, evalctx, schemas, true)
+		newVal, err := opt.Apply(val, schemactx, true)
 		if err == nil {
 			return newVal, nil
 		}
@@ -475,7 +473,7 @@ type MergedObjectType struct {
 }
 
 // Apply validates the value against all merged object attributes.
-func (m MergedObjectType) Apply(val cty.Value, evalctx *eval.Context, schemas SchemaNamespaces, strict bool) (cty.Value, error) {
+func (m MergedObjectType) Apply(val cty.Value, schemactx EvalContext, strict bool) (cty.Value, error) {
 	if val.IsNull() {
 		return val, nil
 	}
@@ -488,7 +486,7 @@ func (m MergedObjectType) Apply(val cty.Value, evalctx *eval.Context, schemas Sc
 
 		switch x := t.(type) {
 		case *ReferenceType:
-			schema, err := schemas.Lookup(x.Name)
+			schema, err := schemactx.Schemas.Lookup(x.Name)
 			if err != nil {
 				return val, err
 			}
@@ -520,7 +518,7 @@ func (m MergedObjectType) Apply(val cty.Value, evalctx *eval.Context, schemas Sc
 
 	// Forward strict
 	tempSchema := &ObjectType{Attributes: mergedAttrs}
-	return tempSchema.Apply(val, evalctx, schemas, strict)
+	return tempSchema.Apply(val, schemactx, strict)
 }
 
 // Visit calls fn on this type and all constituent object types.
@@ -548,7 +546,7 @@ func (m MergedObjectType) String() string {
 type AnyType struct{}
 
 // Apply returns the value unchanged since AnyType matches anything.
-func (a AnyType) Apply(val cty.Value, _ *eval.Context, _ SchemaNamespaces, _ bool) (cty.Value, error) {
+func (a AnyType) Apply(val cty.Value, _ EvalContext, _ bool) (cty.Value, error) {
 	return val, nil
 }
 
@@ -581,6 +579,53 @@ func IsCollectionType(typ Type) bool {
 		return true
 	}
 	return false
+}
+
+// BundleType represents a bundle reference type.
+type BundleType struct {
+	ClassID string
+}
+
+// Apply validates the given value for a bundle type input.
+// Accepted value types:
+//   - null: passed through as-is
+//   - string: a bundle key (alias or UUID)
+//   - tuple/list [key, envID]: a bundle key with an explicit environment ID
+//
+// This method only validates; it does NOT resolve the bundle.
+func (b BundleType) Apply(val cty.Value, _ EvalContext, _ bool) (cty.Value, error) {
+	if val.IsNull() {
+		return val, nil
+	}
+
+	switch {
+	case val.Type() == cty.String:
+		return val, nil
+
+	case val.Type().IsTupleType() || val.Type().IsListType():
+		elems := val.AsValueSlice()
+		if len(elems) != 2 {
+			return val, errors.E("bundle type expects a [key, envID] tuple of length 2, got %d", len(elems))
+		}
+		for i, e := range elems {
+			if e.Type() != cty.String {
+				return val, errors.E("bundle type tuple element %d must be string, got %s", i, e.Type().FriendlyName())
+			}
+		}
+		return val, nil
+
+	default:
+		return val, errors.E("bundle type expects a string or [key, envID] tuple, got %s", val.Type().FriendlyName())
+	}
+}
+
+// Visit calls fn on this type.
+func (b *BundleType) Visit(fn func(Type) error) error {
+	return fn(b)
+}
+
+func (b BundleType) String() string {
+	return fmt.Sprintf("bundle(%q)", b.ClassID)
 }
 
 // IsAnyType returns true if the type is AnyType.

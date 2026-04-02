@@ -20,6 +20,43 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Added
+
+- Add support `type = bundle(<class>)` to inputs and attributes. Usage example:
+  ```hcl
+  input "parent_team" {
+    type        = bundle("terramate.io/tf-github-team")
+    prompt      = "Parent Team"
+    options = tm_concat(
+      [{ name = "-- None --", value = null }],
+      [for parent in tm_bundles("terramate.io/tf-github-team") : parent.alias]
+    )
+    default = null
+  }
+  ```
+- Add new command `terramate ui`. This is the successor to `terramate scaffold` with many improvements and new features:
+  - Workflows for Reconfigure and environment Promote with diff viewer.
+  - Staging area to apply multiple changes during the same session.
+  - Custom input forms for all types of the new type system.
+    - Nested forms for objects, including input forms for attributes.
+    - Nested bundle creation.
+  - New `input.prompt{...}` block to deprecate `input.prompt = ...` etc. Example:
+    ```
+    input "multiline_input" {
+      type        = string
+      description = "Description"
+
+      prompt {
+        text = "Required Multiline input"
+        multiline = true
+      }
+    }
+    ```
+    This is supported for inputs and attributes.
+- Add `terramate.stack.parent.tags` metadata to stacks that are part of a parent-child hierarchy.
+
 ## 0.16.0
 
 ### Merged from Terramate Catalyst

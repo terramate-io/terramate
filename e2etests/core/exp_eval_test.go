@@ -258,6 +258,36 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
+			name: "terramate.stack.parent.tags with tagged parent",
+			layout: []string{
+				`s:parent:id=parent-id;tags=["infra","prod"]`,
+				`s:parent/child`,
+			},
+			wd:   "parent/child",
+			expr: `terramate.stack.parent.tags`,
+			wantEval: RunExpected{
+				Stdout: addnl(`["infra", "prod"]`),
+			},
+			wantPartial: RunExpected{
+				Stdout: addnl(`["infra", "prod"]`),
+			},
+		},
+		{
+			name: "terramate.stack.parent.tags with untagged parent",
+			layout: []string{
+				`s:parent:id=parent-id`,
+				`s:parent/child`,
+			},
+			wd:   "parent/child",
+			expr: `terramate.stack.parent.tags`,
+			wantEval: RunExpected{
+				Stdout: addnl(`[]`),
+			},
+			wantPartial: RunExpected{
+				Stdout: addnl(`[]`),
+			},
+		},
+		{
 			// issue: https://github.com/terramate-io/terramate/issues/1327
 			name: "regression check: globals containing percents",
 			overrideGlobals: map[string]string{

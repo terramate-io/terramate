@@ -75,12 +75,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 	evalctx := eval.NewContext(stdlib.Functions(root.HostDir(), root.Tree().Node.Experiments()))
 	evalctx.SetNamespace("terramate", root.Runtime())
 
-	envs, err := config.EvalEnvironments(root, evalctx)
-	if err != nil {
-		return err
-	}
-
-	bundles, err := engine.LoadProjectBundles(root, resolveAPI, evalctx, true)
+	reg, err := engine.EvalProjectBundles(root, resolveAPI, evalctx, true)
 	if err != nil {
 		return err
 	}
@@ -94,14 +89,14 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 
 	// TODO: We could only do this when the local collection is selected,
 	// but to simplify the local, we do it all the time.
-	localBundleDefs, err := config.ListLocalBundleDefinitions(root, project.NewPath("/bundles"))
+	localBundleDefs, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/bundles"))
 	if err != nil {
 		return err
 	}
 
 	var localBundleOptions []huh.Option[int]
 	for i, defEntry := range localBundleDefs {
-		md, err := config.EvalMetadata(root, evalctx, defEntry.Tree, &defEntry.Define.Metadata)
+		md, err := config.EvalMetadata(evalctx, defEntry.Tree, &defEntry.Define.Metadata)
 		if err != nil {
 			return err
 		}
@@ -110,7 +105,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 		localBundleOptions = append(localBundleOptions, huh.NewOption(key, i))
 	}
 
-	var collections []*manifest.Package
+	var collections []*manifest.Collection
 	for _, manifestSrc := range manifestSources {
 		c, err := s.loadManifest(manifestSrc, resolveAPI)
 		if err != nil {
@@ -201,24 +196,20 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 
 								outputSource = bundleSourceFromManifest(col, colBundle)
 
-								bundleDir, err := resolveAPI.Resolve(root.HostDir(), outputSource, resolve.Bundle, true)
-								if err != nil {
-									return err
-								}
-
-								selectedBundle, err = config.LoadSingleBundleDefinition(root, bundleDir)
+								bde, err := config.DownloadRemoteBundle(root, evalctx, resolveAPI, outputSource)
 								if err != nil {
 									return errors.E(err, "failed to load remote bundle %s", outputSource)
 								}
+								selectedBundle = bde
 							}
 
-							envRequired, err = checkEnvRequired(evalctx, selectedBundle.Define, envs)
+							envRequired, err = checkEnvRequired(evalctx, selectedBundle.Define, reg.Environments)
 							if err != nil {
 								return err
 							}
 
 							if !envRequired {
-								evalctx = s.setupBundleContext(evalctx, bundles, nil)
+								evalctx = s.setupBundleContext(evalctx, reg, nil)
 
 								enabled, err := isBundleEnabled(evalctx, selectedBundle.Define)
 								if err != nil {
@@ -228,7 +219,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 									return fmt.Errorf("bundle is not enabled")
 								}
 							} else {
-								outputEnv = envs[0].ID
+								outputEnv = reg.Environments[0].ID
 							}
 							return nil
 						}),
@@ -238,21 +229,21 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 						Title("Select the target environment").
 						Value(&outputEnv).
 						OptionsFunc(func() []huh.Option[string] {
-							return makeEnvOptions(envs)
-						}, &envs).
+							return makeEnvOptions(reg.Environments)
+						}, &reg.Environments).
 						Validate(func(envID string) error {
 							if state.NavigatingBack {
 								return nil
 							}
 
 							var selectedEnv *config.Environment
-							for _, env := range envs {
+							for _, env := range reg.Environments {
 								if env.ID == envID {
 									selectedEnv = env
 									break
 								}
 							}
-							evalctx = s.setupBundleContext(evalctx, bundles, selectedEnv)
+							evalctx = s.setupBundleContext(evalctx, reg, selectedEnv)
 
 							enabled, err := isBundleEnabled(evalctx, selectedBundle.Define)
 							if err != nil {
@@ -274,16 +265,16 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 				return nil, errors.E(err, "failed to evalaute schema namespaces")
 			}
 
-			inputDefs, err = config.EvalBundleInputDefinitions(evalctx, selectedBundle.Define, schemas)
+			inctx := typeschema.EvalContext{Evalctx: evalctx, Schemas: schemas}
+
+			inputDefs, err = config.EvalBundleInputDefinitions(inctx, selectedBundle.Define)
 			if err != nil {
 				return nil, errors.E(err, "failed to evaluate input definitions")
 			}
 
-			inctx := inputCtx{evalctx: evalctx, schemas: schemas}
-
 			inputFields := []huh.Field{}
 			for _, def := range inputDefs {
-				if def.Prompt == "" {
+				if def.Prompt.Text == "" {
 					continue
 				}
 
@@ -341,7 +332,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 						}
 
 						// Eval the bundle definition itself after the inputs have been collected to evaluate default label and path.
-						bundleDef, err := config.EvalBundleDefinition(root, evalctx, selectedBundle.Define)
+						bundleDef, err := config.EvalBundleDefinition(evalctx, selectedBundle.Define)
 						if err != nil {
 							return err
 						}
@@ -442,17 +433,19 @@ func makeAllInputs(evalctx *eval.Context, selectedBundle *config.BundleDefinitio
 			})
 	}
 
-	evalctx = evalctx.ChildContext()
+	schemactx := typeschema.EvalContext{
+		Evalctx: evalctx.ChildContext(),
+		Schemas: schemas,
+	}
 
 	// These results still have the .value indirection, so we need to unwrap that again.
 	tempInputs, err := config.EvalInputs(
-		evalctx,
+		schemactx,
 		"bundle",
 		inst.Info,
 		inst.Inputs,
 		inst.InputsAttr,
-		selectedBundle.Define.Inputs,
-		schemas)
+		selectedBundle.Define.Inputs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -473,7 +466,7 @@ func makeAllInputs(evalctx *eval.Context, selectedBundle *config.BundleDefinitio
 		vm := v.AsValueMap()
 		result[k] = vm["value"]
 	}
-	return result, evalctx, nil
+	return result, schemactx.Evalctx, nil
 }
 
 // TODO: Use a different method to write the block.
@@ -718,7 +711,7 @@ func (i *numberListAccessor) Set(s string) {
 }
 
 type hclAccessor struct {
-	inctx inputCtx
+	inctx typeschema.EvalContext
 	v     *cty.Value
 }
 
@@ -737,7 +730,7 @@ func (i *hclAccessor) Set(s string) {
 	}
 	parsed, err := ast.ParseExpression(s, "input")
 	if err == nil {
-		newv, err := i.inctx.evalctx.Eval(parsed)
+		newv, err := i.inctx.Evalctx.Eval(parsed)
 		if err == nil {
 			*i.v = newv
 		}
@@ -773,44 +766,52 @@ func makeDefaultKeymap() *huh.KeyMap {
 
 var defaultKeymap = makeDefaultKeymap()
 
-func makeInputField(inctx inputCtx, def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
-	if def.Options != nil {
-		if def.Multiselect {
-			return makeMultiSelectInputField(def, v)
+func makeInputField(inctx typeschema.EvalContext, def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
+	promptDefault := def.TryEvalDefault(inctx)
+
+	if def.HasPromptOptions() {
+		options, err := def.EvalPromptOptions(inctx)
+		if err != nil {
+			return nil, err
 		}
-		return makeSelectInputField(def, v)
+
+		if def.Prompt.Multiselect {
+			return makeMultiSelectInputField(def, options, promptDefault, v)
+		}
+		return makeSelectInputField(def, options, promptDefault, v)
 	}
 	switch def.Type.String() {
 	case "bool":
-		return makeBoolInputField(def, v)
+		return makeBoolInputField(def, promptDefault, v)
 	case "string":
-		return makeStringInputField(def, v)
+		return makeStringInputField(def, promptDefault, v)
 	case "number":
-		return makeNumberInputField(def, v)
+		return makeNumberInputField(def, promptDefault, v)
 	case "list(string)":
-		return makeStringListInputField(def, v)
+		return makeStringListInputField(def, promptDefault, v)
 	case "list(number)":
-		return makeNumberListInputField(def, v)
+		return makeNumberListInputField(def, promptDefault, v)
 	default:
-		return makeHCLInputField(inctx, def, v)
+		return makeHCLInputField(inctx, def, promptDefault, v)
 	}
 }
 
-func makeSelectInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
+func makeSelectInputField(def *config.InputDefinition, options []config.NamedValue, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
 	bundleOptions := []huh.Option[cty.Value]{}
 	defaultIndex := -1
 
 	// Move the default to the top if found.
-	if def.PromptDefault != cty.NilVal {
-		for idx, e := range def.Options {
-			if c := def.PromptDefault.Equals(e.Value); c.Type() == cty.Bool && c.True() {
+	if promptDefault != cty.NilVal && !promptDefault.IsNull() {
+		for idx, e := range options {
+			if c := promptDefault.Equals(e.Value); c.Type() == cty.Bool && c.True() {
 				bundleOptions = append(bundleOptions, huh.NewOption(e.Name, e.Value))
 				defaultIndex = idx
+				break
 			}
 		}
 	}
 
-	for idx, e := range def.Options {
+	for idx, e := range options {
 		if idx != defaultIndex {
 			bundleOptions = append(bundleOptions, huh.NewOption(e.Name, e.Value))
 		}
@@ -818,7 +819,7 @@ func makeSelectInputField(def *config.InputDefinition, v *cty.Value) (huh.Field,
 
 	return huh.NewSelect[cty.Value]().
 		Value(v).
-		Title(def.Prompt).
+		Title(def.Prompt.Text).
 		Description(def.Description).
 		Options(bundleOptions...), nil
 }
@@ -837,21 +838,22 @@ func makeEnvOptions(envs []*config.Environment) []huh.Option[string] {
 	return envOptions
 }
 
-func makeMultiSelectInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
+func makeMultiSelectInputField(def *config.InputDefinition, options []config.NamedValue, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
 	bundleOptions := []huh.Option[cty.Value]{}
 	defaultIndex := -1
 
 	// Move the default to the top if found.
-	if def.PromptDefault != cty.NilVal {
-		for idx, e := range def.Options {
-			if c := def.PromptDefault.Equals(e.Value); c.Type() == cty.Bool && c.True() {
+	if promptDefault != cty.NilVal && !promptDefault.IsNull() {
+		for idx, e := range options {
+			if c := promptDefault.Equals(e.Value); c.Type() == cty.Bool && c.True() {
 				bundleOptions = append(bundleOptions, huh.NewOption(e.Name, e.Value))
 				defaultIndex = idx
+				break
 			}
 		}
 	}
 
-	for idx, e := range def.Options {
+	for idx, e := range options {
 		if idx != defaultIndex {
 			bundleOptions = append(bundleOptions, huh.NewOption(e.Name, e.Value))
 		}
@@ -859,14 +861,14 @@ func makeMultiSelectInputField(def *config.InputDefinition, v *cty.Value) (huh.F
 
 	return huh.NewMultiSelect[cty.Value]().
 		Accessor(&multiSelectAccessor{v: v}).
-		Title(def.Prompt).
+		Title(def.Prompt.Text).
 		Description(def.Description).
 		Options(bundleOptions...), nil
 }
 
-func makeBoolInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
-	if def.PromptDefault.Type() == cty.Bool {
-		*v = def.PromptDefault
+func makeBoolInputField(def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
+	if promptDefault.Type() == cty.Bool {
+		*v = promptDefault
 	} else {
 		*v = cty.BoolVal(false)
 	}
@@ -876,57 +878,57 @@ func makeBoolInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, e
 		Affirmative("Yes").
 		Negative("No").
 		Description(def.Description).
-		Title(def.Prompt), nil
+		Title(def.Prompt.Text), nil
 }
 
-func makeStringInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
-	isRequired := def.PromptDefault == cty.NilVal
-	if def.Multiline {
+func makeStringInputField(def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
+	isRequired := promptDefault == cty.NilVal
+	if def.Prompt.Multiline {
 		return huh.NewText().
-			Title(def.Prompt).
+			Title(def.Prompt.Text).
 			Description(def.Description).
 			Accessor(&stringAccessor{v: v}).
 			ExternalEditor(false).
-			Placeholder(makePlaceholder(def.PromptDefault)).
+			Placeholder(makePlaceholder(promptDefault)).
 			Validate(newStringValidator(isRequired)), nil
 	}
 	return huh.NewInput().
-		Title(def.Prompt).
+		Title(def.Prompt.Text).
 		Description(def.Description).
 		Accessor(&stringAccessor{v: v}).
-		Placeholder(makePlaceholder(def.PromptDefault)).
+		Placeholder(makePlaceholder(promptDefault)).
 		Validate(newStringValidator(isRequired)), nil
 }
 
-func makeNumberInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
-	isRequired := def.PromptDefault == cty.NilVal
+func makeNumberInputField(def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
+	isRequired := promptDefault == cty.NilVal
 	return huh.NewInput().
-		Title(def.Prompt).
+		Title(def.Prompt.Text).
 		Description(def.Description).
 		Accessor(&numberAccessor{v: v}).
-		Placeholder(makePlaceholder(def.PromptDefault)).
+		Placeholder(makePlaceholder(promptDefault)).
 		Validate(newNumberValidator(isRequired)), nil
 }
 
-func makeStringListInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
-	isRequired := def.PromptDefault == cty.NilVal
+func makeStringListInputField(def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
+	isRequired := promptDefault == cty.NilVal
 	return huh.NewText().
-		Title(def.Prompt).
+		Title(def.Prompt.Text).
 		Description(def.Description).
 		Accessor(&stringListAccessor{v: v}).
 		ExternalEditor(false).
-		Placeholder(makePlaceholder(def.PromptDefault)).
+		Placeholder(makePlaceholder(promptDefault)).
 		Validate(newStringListValidator(isRequired)), nil
 }
 
-func makeNumberListInputField(def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
-	isRequired := def.PromptDefault == cty.NilVal
+func makeNumberListInputField(def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
+	isRequired := promptDefault == cty.NilVal
 	return huh.NewText().
-		Title(def.Prompt).
+		Title(def.Prompt.Text).
 		Description(def.Description).
 		Accessor(&numberListAccessor{v: v}).
 		ExternalEditor(false).
-		Placeholder(makePlaceholder(def.PromptDefault)).
+		Placeholder(makePlaceholder(promptDefault)).
 		Validate(newNumberListValidator(isRequired)), nil
 }
 
@@ -975,15 +977,10 @@ func fixupFileExtension(format, fn string) string {
 	return fn
 }
 
-type inputCtx struct {
-	evalctx *eval.Context
-	schemas typeschema.SchemaNamespaces
-}
-
-func makeHCLInputField(inctx inputCtx, def *config.InputDefinition, v *cty.Value) (huh.Field, error) {
+func makeHCLInputField(inctx typeschema.EvalContext, def *config.InputDefinition, promptDefault cty.Value, v *cty.Value) (huh.Field, error) {
 	return huh.NewText().
-		Title(def.Prompt).
-		Placeholder(makePlaceholder(def.PromptDefault)).
+		Title(def.Prompt.Text).
+		Placeholder(makePlaceholder(promptDefault)).
 		Accessor(&hclAccessor{inctx: inctx, v: v}).
 		Description(def.Description).
 		Validate(newHCLValidator(inctx, def.Type)), nil
@@ -997,7 +994,7 @@ func valueToHCLExpr(v *cty.Value) (string, error) {
 	return string(tokens.Bytes()), nil
 }
 
-func newHCLValidator(inctx inputCtx, typ typeschema.Type) func(string) error {
+func newHCLValidator(inctx typeschema.EvalContext, typ typeschema.Type) func(string) error {
 	return func(s string) error {
 		if s == "" {
 			return nil
@@ -1006,12 +1003,12 @@ func newHCLValidator(inctx inputCtx, typ typeschema.Type) func(string) error {
 		if err != nil {
 			return err
 		}
-		v, err := inctx.evalctx.Eval(parsed)
+		v, err := inctx.Evalctx.Eval(parsed)
 		if err != nil {
 			return err
 		}
 
-		_, err = typ.Apply(v, inctx.evalctx, inctx.schemas, true)
+		_, err = typ.Apply(v, inctx, true)
 		return err
 	}
 }
@@ -1094,7 +1091,7 @@ func (s *Spec) lookupPackageSources(evalctx *eval.Context) ([]string, error) {
 	return nil, nil
 }
 
-func (s *Spec) loadManifest(manifestSrc string, resolveAPI resolve.API) ([]*manifest.Package, error) {
+func (s *Spec) loadManifest(manifestSrc string, resolveAPI resolve.API) ([]*manifest.Collection, error) {
 	cfg := s.engine.Config()
 	rootdir := cfg.HostDir()
 
@@ -1129,7 +1126,7 @@ func (s *Spec) loadManifest(manifestSrc string, resolveAPI resolve.API) ([]*mani
 	return pkgs, nil
 }
 
-func bundleSourceFromManifest(pkg *manifest.Package, bundle *manifest.Bundle) string {
+func bundleSourceFromManifest(pkg *manifest.Collection, bundle *manifest.Bundle) string {
 	addr, params, found := strings.Cut(pkg.Location, "?")
 	if found {
 		return fmt.Sprintf("%s//%s?%s", addr, bundle.Path, params)
@@ -1146,7 +1143,7 @@ func (s *Spec) setupGlobals(evalctx *eval.Context) *eval.Context {
 	return evalctx
 }
 
-func (s *Spec) setupBundleContext(evalctx *eval.Context, bundles []*config.Bundle, env *config.Environment) *eval.Context {
+func (s *Spec) setupBundleContext(evalctx *eval.Context, reg *config.Registry, env *config.Environment) *eval.Context {
 	var bundleVals map[string]cty.Value
 	if bundleNS, ok := evalctx.GetNamespace("bundle"); ok {
 		bundleVals = bundleNS.AsValueMap()
@@ -1156,8 +1153,8 @@ func (s *Spec) setupBundleContext(evalctx *eval.Context, bundles []*config.Bundl
 	bundleVals["environment"] = config.MakeEnvObject(env)
 	evalctx.SetNamespace("bundle", bundleVals)
 
-	evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(bundles, env))
-	evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(bundles, env))
+	evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), reg, env, false))
+	evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(reg, env))
 	return evalctx
 }
 
