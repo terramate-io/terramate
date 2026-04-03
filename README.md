@@ -142,11 +142,11 @@ and resources.
 - Follow us on [LinkedIn](https://www.linkedin.com/company/terramate-io)
 - Contact us via email at [hello@terramate.io](mailto:hello@terramate.io)
 
-## Reporting Bugs, Requesting Features, or Contributing to Terramate
+## Reporting Bugs or Requesting Features
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/terramate-io/terramate/issues/new)
 
-Interested in contributing to Terramate? Check out our [Contribution Guide](https://github.com/terramate-io/terramate/blob/main/CONTRIBUTING.md)
+We maintain all code in-house to ensure supply chain security and quality. See our [Contribution Policy](https://github.com/terramate-io/terramate/blob/main/CONTRIBUTING.md) for details.
 
 ## License
 
