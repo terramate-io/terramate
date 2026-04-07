@@ -147,7 +147,7 @@ func NewCreateChange(
 	// If there was an explicit alias, it can actually be used in path and name.
 	// Sounds circular but it isn't...
 	if alias == "" {
-		alias = fmt.Sprintf("%s:%s", outputPath, outputName)
+		alias = fmt.Sprintf("%s:%s", filepath.Dir(outputPath), outputName)
 	}
 
 	var env *config.Environment
@@ -156,7 +156,7 @@ func NewCreateChange(
 	}
 
 	// Final check: Is the bundle unique?
-	if err := est.Registry.IsBundleUnique(alias, bde.Metadata.Class, hostPath); err != nil {
+	if err := est.Registry.IsBundleUnique(alias, bde.Metadata.Class, hostPath, env); err != nil {
 		return Change{}, err
 	}
 
@@ -418,7 +418,9 @@ func reEvalAllInputs(
 // Save writes the change to disk as a YAML bundle instance file.
 func (c *Change) Save(envs []*config.Environment) error {
 	var existing *yaml.BundleInstance
-	overwrite := c.Kind == ChangeReconfig || c.Kind == ChangePromote
+
+	_, err := os.Stat(c.HostPath)
+	overwrite := err == nil
 
 	// If the change doesn't have an env, the bundle doesn't have envs, so no need for merging.
 	if overwrite && c.Env != nil {
@@ -433,7 +435,7 @@ func (c *Change) Save(envs []*config.Environment) error {
 	if err != nil {
 		return err
 	}
-	return writeBundleInstance(c.HostPath, content, overwrite)
+	return writeBundleInstance(c.HostPath, content)
 }
 
 func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*config.Environment) (string, error) {
@@ -595,14 +597,7 @@ func formatTmdoc(in string) string {
 	return strings.Join(lines, "\n")
 }
 
-func writeBundleInstance(outpath string, content string, overwrite bool) error {
-	if !overwrite {
-		_, err := os.Stat(outpath)
-		if err == nil {
-			return errors.E("a bundle with the same filename already exists: %s", outpath)
-		}
-	}
-
+func writeBundleInstance(outpath string, content string) error {
 	if err := os.MkdirAll(filepath.Dir(outpath), 0755); err != nil {
 		return errors.E(err, "failed to create directory")
 	}

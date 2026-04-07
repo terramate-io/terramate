@@ -506,25 +506,42 @@ func (r *Registry) MatchingBundleOptions(classID string, env *config.Environment
 }
 
 // IsBundleUnique checks that no existing or pending bundle conflicts with the given alias and class.
-func (r *Registry) IsBundleUnique(alias, classID, hostPath string) error {
-	if alias != "" {
-		for _, b := range r.Bundles {
-			bundleHostPath := b.Info.HostPath()
-			if classID == b.DefinitionMetadata.Class && alias == b.Alias {
+func (r *Registry) IsBundleUnique(alias, classID, hostPath string, env *config.Environment) error {
+	skipFileExistsCheck := false
+
+	for _, b := range r.Bundles {
+		bundleHostPath := b.Info.HostPath()
+		if classID == b.DefinitionMetadata.Class && alias == b.Alias {
+			if env != nil && b.Environment != nil {
+				if env.ID == b.Environment.ID {
+					return errors.E("A bundle with alias %q already exists for environment %s at %s", b.Alias, env.ID, bundleHostPath)
+				}
+				// Same alias+class, but different env. This is ok.
+				// We have to assume the file exists already in this case.
+				skipFileExistsCheck = true
+			} else {
 				return errors.E("A bundle with alias %q already exists at %s", b.Alias, bundleHostPath)
 			}
 		}
-		for _, b := range append(r.PendingChanges, r.ProposedChanges...) {
-			if b.MarkedForReplacement {
-				continue
-			}
-			if classID == b.BundleDefEntry.Metadata.Class && alias == b.Alias {
+	}
+	for _, b := range append(r.PendingChanges, r.ProposedChanges...) {
+		if b.MarkedForReplacement {
+			continue
+		}
+		if classID == b.BundleDefEntry.Metadata.Class && alias == b.Alias {
+			if env != nil && b.Env != nil {
+				if env.ID == b.Env.ID {
+					return errors.E("A bundle with alias %q is already pending to be created for environment %s at %s", b.Alias, env.ID, b.HostPath)
+				}
+				// See above.
+				skipFileExistsCheck = true
+			} else {
 				return errors.E("A bundle with alias %q is already pending to be created at %s", b.Alias, b.HostPath)
 			}
 		}
 	}
 
-	if hostPath != "" {
+	if hostPath != "" && !skipFileExistsCheck {
 		_, err := os.Stat(hostPath)
 		if err == nil {
 			return errors.E("A file already exists at the target output path %s", hostPath)
