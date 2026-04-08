@@ -539,9 +539,6 @@ func objectAttrsToInputDefs(attrs []*config.ObjectAttribute) []*config.InputDefi
 	defs := make([]*config.InputDefinition, len(attrs))
 	for i, attr := range attrs {
 		defs[i] = config.ObjectAttrToInputDef(attr)
-		if defs[i].Prompt.Text == "" {
-			defs[i].Prompt.Text = attr.Schema.Name
-		}
 	}
 	return defs
 }
