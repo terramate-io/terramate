@@ -33,17 +33,17 @@ type ViewState int
 
 // ViewCloudLogin and the following constants enumerate the possible view states.
 const (
-	ViewCloudLogin        ViewState = iota // Cloud login prompt (shown first)
-	ViewEnvSelect                         // Environment selection (unused, kept for compatibility)
-	ViewOverview                          // Main overview
-	ViewCreateSelect                      // Flat bundle selection (pre-inputs)
-	ViewCreateEnvSelect                   // Environment selection after bundle pick (Create only)
-	ViewCreateInput                       // Create-bundle wizard flow (inputs page)
-	ViewReconfigSelect                    // Selecting an existing bundle to reconfigure
-	ViewReconfigInput                     // Editing the selected existing bundle's inputs
-	ViewEdit                              // Edit pending change
-	ViewPromoteSelect                     // Selecting a bundle to promote
-	ViewPromoteInput                      // Editing promoted bundle's inputs
+	ViewCloudLogin      ViewState = iota // Cloud login prompt (shown first)
+	ViewEnvSelect                        // Environment selection (unused, kept for compatibility)
+	ViewOverview                         // Main overview
+	ViewCreateSelect                     // Flat bundle selection (pre-inputs)
+	ViewCreateEnvSelect                  // Environment selection after bundle pick (Create only)
+	ViewCreateInput                      // Create-bundle wizard flow (inputs page)
+	ViewReconfigSelect                   // Selecting an existing bundle to reconfigure
+	ViewReconfigInput                    // Editing the selected existing bundle's inputs
+	ViewEdit                             // Edit pending change
+	ViewPromoteSelect                    // Selecting a bundle to promote
+	ViewPromoteInput                     // Editing promoted bundle's inputs
 )
 
 // FocusArea represents which section has focus in the overview.
@@ -80,10 +80,10 @@ type flatBundleEntry struct {
 
 // envFilterState represents one valid filter option for env cycling.
 type envFilterState struct {
-	env      *config.Environment // nil for "without environment"
-	envLess  bool                // true for the "without environment" filter
-	label    string              // display label for breadcrumb (Name)
-	shortID  string              // short label for help text (ID or "env-less")
+	env     *config.Environment // nil for "without environment"
+	envLess bool                // true for the "without environment" filter
+	label   string              // display label for breadcrumb (Name)
+	shortID string              // short label for help text (ID or "env-less")
 }
 
 // InputOption represents a selectable option for select/multiselect inputs.
@@ -187,9 +187,9 @@ type Model struct {
 	promoteFilterPos  int                   // Current position in promoteFilters (-1 = all/no filter)
 
 	// Transient status
-	currentErr      error // Shown in the overview error area, cleared on next keypress
-	saveErr         error // Shown below pending changes, cleared on next keypress
-	ctrlCPending    bool  // true after first ctrl+c press, reset after 1s
+	currentErr       error  // Shown in the overview error area, cleared on next keypress
+	saveErr          error  // Shown below pending changes, cleared on next keypress
+	ctrlCPending     bool   // true after first ctrl+c press, reset after 1s
 	errorDialogTitle string // Title for the error dialog (e.g. "Bundle is not enabled")
 	errorDialogText  string // When non-empty, shows a dismissible error dialog overlay
 
@@ -389,13 +389,13 @@ func (m Model) View() string {
 	}
 
 	if m.errorDialogText != "" {
-		base = m.overlayErrorDialog(base)
+		base = m.overlayErrorDialog()
 	}
 	return base
 }
 
-// overlayErrorDialog renders an error dialog centered on top of the base view.
-func (m Model) overlayErrorDialog(base string) string {
+// overlayErrorDialog renders an error dialog centered on the screen.
+func (m Model) overlayErrorDialog() string {
 	dialogWidth := m.effectiveWidth() - 8
 	if dialogWidth < 40 {
 		dialogWidth = 40
