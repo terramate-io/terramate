@@ -1335,9 +1335,6 @@ func (f InputsForm) renderCompletedPanelContent() string {
 	for _, realIdx := range combined {
 		def := f.InputDefs[realIdx]
 		label := def.Prompt.Text
-		if label == "" {
-			label = def.Name
-		}
 		if len(label) > maxLabel {
 			maxLabel = len(label)
 		}
@@ -1363,9 +1360,6 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		isImmutable := def.Immutable && diffMode
 
 		label := def.Prompt.Text
-		if label == "" {
-			label = def.Name
-		}
 		labelPad := strings.Repeat(" ", maxLabel-len(label))
 
 		var prefix, statusIcon, nameCol string
