@@ -253,9 +253,9 @@ func groupBundles(bundles []*config.Bundle) []bundleGroup {
 	return groups
 }
 
-// renderGroupedBundleItems renders grouped bundles with compact instance rows.
-// Group headers show bundle name + version (non-selectable), instances show alias + env name.
-// Returns the group index containing the cursor, suitable for scrollWindowVar.
+// renderGroupedBundleItems renders grouped bundles as a flat list of renderedItems.
+// Group headers are non-selectable separator items, instances are individual items.
+// Returns the index of the selected item in the flat list, suitable for scrollWindowVar.
 func (m Model) renderGroupedBundleItems(groups []bundleGroup, cursor, contentWidth int) (int, []renderedItem) {
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	headerNameStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
@@ -264,45 +264,46 @@ func (m Model) renderGroupedBundleItems(groups []bundleGroup, cursor, contentWid
 
 	lineStyle := lipgloss.NewStyle().Width(contentWidth)
 
-	selectedGroupIdx := 0
+	var items []renderedItem
+	selectedItemIdx := 0
 	visualIdx := 0
 
-	items := make([]renderedItem, len(groups))
 	for gi, g := range groups {
-		var lines []string
 		b0 := g.bundles[0]
 
-		// Group header: name + version (not selectable)
-		headerLine := "  " + headerNameStyle.Render(g.name) + " " + versionStyle.Render("v"+b0.DefinitionMetadata.Version)
-		lines = append(lines, lineStyle.Render(headerLine))
+		// Empty line before group (except first)
+		if gi > 0 {
+			items = append(items, renderedItem{content: "", height: 1})
+		}
+
+		// Group header: non-selectable
+		headerLine := headerNameStyle.Render(g.name) + " " + versionStyle.Render("v"+b0.DefinitionMetadata.Version)
+		items = append(items, renderedItem{content: lineStyle.Render(headerLine), height: 1})
 
 		// Instance rows
 		for _, b := range g.bundles {
 			isSelected := visualIdx == cursor
 			if isSelected {
-				selectedGroupIdx = gi
+				selectedItemIdx = len(items)
 			}
 			visualIdx++
 
 			displayName := displayNameFromAlias(b.Alias, b.Name)
 			var line string
 			if isSelected {
-				line = selectedStyle.Render("    › " + displayName)
+				line = selectedStyle.Render("  › " + displayName)
 			} else {
-				line = "      " + displayName
+				line = "    " + displayName
 			}
 			if b.Environment != nil {
 				line += " " + envStyle.Render("["+b.Environment.Name+"]")
 			}
 
-			lines = append(lines, lineStyle.Render(line))
+			items = append(items, renderedItem{content: lineStyle.Render(line), height: 1})
 		}
-
-		block := strings.Join(lines, "\n")
-		items[gi] = renderedItem{content: block, height: lipgloss.Height(block)}
 	}
 
-	return selectedGroupIdx, items
+	return selectedItemIdx, items
 }
 
 func (m Model) renderReconfigSelectView() string {
@@ -346,9 +347,11 @@ func (m Model) renderReconfigSelectView() string {
 			fields = append(fields, detailField{label: "Class", value: b.DefinitionMetadata.Class, truncEnd: true})
 		}
 		fields = append(fields, detailField{label: "Alias", value: displayNameFromAlias(b.Alias, b.Name), truncEnd: true})
+		envName := "n/a"
 		if b.Environment != nil {
-			fields = append(fields, detailField{label: "Environment", value: b.Environment.Name, truncEnd: true})
+			envName = b.Environment.Name
 		}
+		fields = append(fields, detailField{label: "Environment", value: envName, truncEnd: true})
 		fields = append(fields, detailField{}) // separator
 		fields = append(fields, detailField{label: "Source", value: b.Source})
 		hostPath := project.PrjAbsPath(est.Root.HostDir(), b.Info.HostPath()).String()
@@ -365,20 +368,21 @@ func (m Model) renderReconfigSelectView() string {
 	groups := groupBundles(m.reconfigBundles)
 	selectedGroupIdx, items := m.renderGroupedBundleItems(groups, m.reconfigCursor, contentWidth)
 
-	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight)
+	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight, 0)
 
 	var sb strings.Builder
 	for i := start; i < end; i++ {
 		if i > start {
-			sb.WriteString("\n\n")
+			sb.WriteByte('\n')
 		}
 		sb.WriteString(items[i].content)
 	}
 	listContent := sb.String()
 
-	if len(items) > end-start {
+	visibleCount := end - start
+	if len(items) > visibleCount {
 		trackHeight := lipgloss.Height(listContent)
-		scrollbar := renderScrollbar(len(items), end-start, start, trackHeight)
+		scrollbar := renderScrollbar(len(items), visibleCount, start, trackHeight)
 		listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
 	}
 

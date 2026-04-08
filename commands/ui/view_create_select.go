@@ -638,17 +638,21 @@ func (m Model) renderFlatBundleList(contentWidth int) string {
 	availableHeight := m.effectiveContentHeight() - headerHeight
 
 	itemStyle := lipgloss.NewStyle().
-		PaddingLeft(2).
+		Bold(true).
 		Width(contentWidth)
 
 	selectedStyle := lipgloss.NewStyle().
-		PaddingLeft(2).
 		Foreground(colorPrimary).
 		Bold(true).
 		Width(contentWidth)
 
 	versionStyle := lipgloss.NewStyle().
 		Foreground(colorTextSubtle)
+
+	descStyle := lipgloss.NewStyle().
+		PaddingLeft(6).
+		Foreground(colorTextMuted).
+		Width(contentWidth)
 
 	var items []renderedItem
 	for i, entry := range m.flatBundles {
@@ -661,15 +665,19 @@ func (m Model) renderFlatBundleList(contentWidth int) string {
 			line = itemStyle.Render("  " + displayName)
 		}
 
-		items = append(items, renderedItem{content: line, height: lipgloss.Height(line)})
+		block := line
+		if entry.bundle.Description != "" {
+			block += "\n" + descStyle.Render(summaryLine(strings.TrimSpace(entry.bundle.Description)))
+		}
+		items = append(items, renderedItem{content: block, height: lipgloss.Height(block)})
 	}
 
-	start, end := scrollWindowVar(m.flatBundleCursor, items, availableHeight)
+	start, end := scrollWindowVar(m.flatBundleCursor, items, availableHeight, 1)
 
 	var sb strings.Builder
 	for i := start; i < end; i++ {
 		if i > start {
-			sb.WriteByte('\n')
+			sb.WriteString("\n\n")
 		}
 		sb.WriteString(items[i].content)
 	}
@@ -691,14 +699,12 @@ type renderedItem struct {
 
 // scrollWindowVar computes a visible window of variable-height items that fits
 // within availableHeight, keeping the selected item visible.
-// Each item beyond the first costs an extra line for the inter-item separator.
-func scrollWindowVar(selectedIdx int, items []renderedItem, availableHeight int) (start, end int) {
+// sep is the number of visual lines between items (1 for "\n\n", 0 for "\n").
+func scrollWindowVar(selectedIdx int, items []renderedItem, availableHeight, sep int) (start, end int) {
 	total := len(items)
 	if total == 0 {
 		return 0, 0
 	}
-
-	sep := 1 // blank line between items ("\n\n" adds 1 visual line)
 	totalH := 0
 	for i, it := range items {
 		totalH += it.height

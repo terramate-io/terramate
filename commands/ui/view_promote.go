@@ -264,20 +264,21 @@ func (m Model) renderPromoteSelectView() string {
 	groups := groupBundles(m.promoteBundles)
 	selectedGroupIdx, items := m.renderPromoteGroupedItems(groups, m.promoteCursor, contentWidth)
 
-	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight)
+	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight, 0)
 
 	var sb strings.Builder
 	for i := start; i < end; i++ {
 		if i > start {
-			sb.WriteString("\n\n")
+			sb.WriteByte('\n')
 		}
 		sb.WriteString(items[i].content)
 	}
 	listContent := sb.String()
 
-	if len(items) > end-start {
+	visibleCount := end - start
+	if len(items) > visibleCount {
 		trackHeight := lipgloss.Height(listContent)
-		scrollbar := renderScrollbar(len(items), end-start, start, trackHeight)
+		scrollbar := renderScrollbar(len(items), visibleCount, start, trackHeight)
 		listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
 	}
 
@@ -303,8 +304,9 @@ func (m Model) renderPromoteSelectView() string {
 	return lipgloss.NewStyle().Padding(1, 2).Render(content)
 }
 
-// renderPromoteGroupedItems renders grouped promote bundles with compact instance rows.
-// Group headers show bundle name + version (non-selectable), instances show alias + env flow.
+// renderPromoteGroupedItems renders grouped promote bundles as a flat list of renderedItems.
+// Group headers are non-selectable separator items, instances are individual items.
+// Returns the index of the selected item in the flat list, suitable for scrollWindowVar.
 func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWidth int) (int, []renderedItem) {
 	est := m.EngineState
 
@@ -315,32 +317,36 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 
 	lineStyle := lipgloss.NewStyle().Width(contentWidth)
 
-	selectedGroupIdx := 0
+	var items []renderedItem
+	selectedItemIdx := 0
 	visualIdx := 0
 
-	items := make([]renderedItem, len(groups))
 	for gi, g := range groups {
-		var lines []string
 		b0 := g.bundles[0]
 
-		// Group header: name + version (not selectable)
-		headerLine := "  " + headerNameStyle.Render(g.name) + " " + versionStyle.Render("v"+b0.DefinitionMetadata.Version)
-		lines = append(lines, lineStyle.Render(headerLine))
+		// Empty line before group (except first)
+		if gi > 0 {
+			items = append(items, renderedItem{content: "", height: 1})
+		}
+
+		// Group header: non-selectable
+		headerLine := headerNameStyle.Render(g.name) + " " + versionStyle.Render("v"+b0.DefinitionMetadata.Version)
+		items = append(items, renderedItem{content: lineStyle.Render(headerLine), height: 1})
 
 		// Instance rows
 		for i, b := range g.bundles {
 			isSelected := visualIdx == cursor
 			if isSelected {
-				selectedGroupIdx = gi
+				selectedItemIdx = len(items)
 			}
 			visualIdx++
 
 			displayName := displayNameFromAlias(b.Alias, b.Name)
 			var line string
 			if isSelected {
-				line = selectedStyle.Render("    › " + displayName)
+				line = selectedStyle.Render("  › " + displayName)
 			} else {
-				line = "      " + displayName
+				line = "    " + displayName
 			}
 
 			// Show env flow: source → target
@@ -351,14 +357,11 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 				line += "  " + envStyle.Render(sourceEnvName+" → "+targetEnvName)
 			}
 
-			lines = append(lines, lineStyle.Render(line))
+			items = append(items, renderedItem{content: lineStyle.Render(line), height: 1})
 		}
-
-		block := strings.Join(lines, "\n")
-		items[gi] = renderedItem{content: block, height: lipgloss.Height(block)}
 	}
 
-	return selectedGroupIdx, items
+	return selectedItemIdx, items
 }
 
 func (m Model) renderPromoteInputView() string {
