@@ -75,9 +75,6 @@ func (m Model) updateCloudLogin(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) nextViewAfterCloudLogin() ViewState {
-	if len(m.EngineState.Registry.Environments) > 0 {
-		return ViewEnvSelect
-	}
 	return ViewOverview
 }
 

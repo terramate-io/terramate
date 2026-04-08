@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/terramate-io/terramate"
@@ -32,16 +33,17 @@ type ViewState int
 
 // ViewCloudLogin and the following constants enumerate the possible view states.
 const (
-	ViewCloudLogin     ViewState = iota // Cloud login prompt (shown first)
-	ViewEnvSelect                       // Initial environment selection
-	ViewOverview                        // Main overview
-	ViewCreateSelect                    // Collection/bundle selection (pre-inputs)
-	ViewCreateInput                     // Create-bundle wizard flow (inputs page)
-	ViewReconfigSelect                  // Selecting an existing bundle to reconfigure
-	ViewReconfigInput                   // Editing the selected existing bundle's inputs
-	ViewEdit                            // Edit pending change
-	ViewPromoteSelect                   // Selecting a bundle to promote to the current environment
-	ViewPromoteInput                    // Selecting a bundle to promote to the current environment
+	ViewCloudLogin        ViewState = iota // Cloud login prompt (shown first)
+	ViewEnvSelect                         // Environment selection (unused, kept for compatibility)
+	ViewOverview                          // Main overview
+	ViewCreateSelect                      // Flat bundle selection (pre-inputs)
+	ViewCreateEnvSelect                   // Environment selection after bundle pick (Create only)
+	ViewCreateInput                       // Create-bundle wizard flow (inputs page)
+	ViewReconfigSelect                    // Selecting an existing bundle to reconfigure
+	ViewReconfigInput                     // Editing the selected existing bundle's inputs
+	ViewEdit                              // Edit pending change
+	ViewPromoteSelect                     // Selecting a bundle to promote
+	ViewPromoteInput                      // Editing promoted bundle's inputs
 )
 
 // FocusArea represents which section has focus in the overview.
@@ -53,15 +55,6 @@ const (
 	FocusSummary
 )
 
-// BundleSelectPage represents the current page in the bundle selection view.
-type BundleSelectPage int
-
-// BundleSelectCollection and the following constants enumerate the bundle selection pages.
-const (
-	BundleSelectCollection BundleSelectPage = iota
-	BundleSelectBundle
-)
-
 // ObjectEditFrame captures the form state when suspending for nested object editing.
 type ObjectEditFrame struct {
 	inputsForm    InputsForm
@@ -71,11 +64,26 @@ type ObjectEditFrame struct {
 
 // CreateFrame captures the wizard state when suspending for nested bundle creation.
 type CreateFrame struct {
-	bundleSelectPage  BundleSelectPage
-	selectedCollIdx   int
-	selectedBundleIdx int
-	inputsForm        InputsForm
-	parentBundleName  string // name of the bundle being configured (for UI context)
+	flatBundleCursor int
+	inputsForm       InputsForm
+	parentBundleName string // name of the bundle being configured (for UI context)
+}
+
+// flatBundleEntry maps a row in the flat bundle list back to its collection/bundle origin.
+type flatBundleEntry struct {
+	collIdx   int
+	bundleIdx int
+	bundle    *manifest.Bundle
+	collName  string
+	isLocal   bool
+}
+
+// envFilterState represents one valid filter option for env cycling.
+type envFilterState struct {
+	env      *config.Environment // nil for "without environment"
+	envLess  bool                // true for the "without environment" filter
+	label    string              // display label for breadcrumb (Name)
+	shortID  string              // short label for help text (ID or "env-less")
 }
 
 // InputOption represents a selectable option for select/multiselect inputs.
@@ -146,15 +154,15 @@ type Model struct {
 	editDiscardConfirmIdx int           // 0 = Yes, 1 = No
 	editingChangeIdx      int           // Index of the change being edited (for ViewEditCreate)
 
-	// Bundle selection state
-	bundleSelectPage       BundleSelectPage
-	selectedCollIdx        int
-	selectedBundleIdx      int
+	// Bundle selection state (flat list)
+	flatBundles            []flatBundleEntry
+	flatBundleCursor       int
+	selectedCollIdx        int // Set by selectFlatBundle, used by loadBundleDef
+	selectedBundleIdx      int // Set by selectFlatBundle, used by loadBundleDef
 	selectedBundleDefEntry *config.BundleDefinitionEntry
 	selectedBundleSource   string
 	inputsForm             InputsForm
-	lastUsedCollIdx        int // -1 means no last used
-	hasLastUsedColl        bool
+	createEnvCursor        int // Cursor for ViewCreateEnvSelect
 
 	// Bundle reference / nested creation state
 	createStack    []CreateFrame // Stack of suspended wizard states
@@ -164,19 +172,26 @@ type Model struct {
 	objectEditStack []ObjectEditFrame // Stack for nested object input editing
 
 	// Reconfigure state
-	reconfigBundles []*config.Bundle // Filtered bundles (excludes pending changes), rebuilt on entry
-	reconfigCursor  int              // Cursor in reconfigBundles
-	reconfigBundle  *config.Bundle   // The bundle currently being reconfigured
+	reconfigBundles   []*config.Bundle // Filtered bundles for current filter, rebuilt on filter change
+	reconfigCursor    int              // Cursor in reconfigBundles
+	reconfigBundle    *config.Bundle   // The bundle currently being reconfigured
+	reconfigFilters   []envFilterState // Precomputed valid filter states
+	reconfigFilterPos int              // Current position in reconfigFilters (-1 = all/no filter)
 
 	// Promote state
-	promoteBundles []*config.Bundle // Bundles eligible for promotion, rebuilt on entry
-	promoteCursor  int              // Cursor in promoteBundles
-	promoteBundle  *config.Bundle   // The bundle currently being promoted
+	promoteBundles    []*config.Bundle      // Filtered bundles for current filter
+	promoteTargetEnvs []*config.Environment // Target env per bundle (parallel to promoteBundles)
+	promoteCursor     int                   // Cursor in promoteBundles
+	promoteBundle     *config.Bundle        // The bundle currently being promoted
+	promoteFilters    []envFilterState      // Precomputed valid filter states
+	promoteFilterPos  int                   // Current position in promoteFilters (-1 = all/no filter)
 
 	// Transient status
-	currentErr   error // Shown on the help line, cleared on next keypress
-	saveErr      error // Shown below pending changes, cleared on next keypress
-	ctrlCPending bool  // true after first ctrl+c press, reset after 1s
+	currentErr      error // Shown in the overview error area, cleared on next keypress
+	saveErr         error // Shown below pending changes, cleared on next keypress
+	ctrlCPending    bool  // true after first ctrl+c press, reset after 1s
+	errorDialogTitle string // Title for the error dialog (e.g. "Bundle is not enabled")
+	errorDialogText  string // When non-empty, shows a dismissible error dialog overlay
 
 	// Result
 	err       error
@@ -232,11 +247,7 @@ func NewModel(est *EngineState) Model {
 	if _, err := os.Stat(cliauth.CredentialFile(est.CLIConfig)); err != nil && shouldAskForLogin(est.CLIConfig) {
 		initialViewState = ViewCloudLogin
 	} else {
-		if len(est.Registry.Environments) > 0 {
-			initialViewState = ViewEnvSelect
-		} else {
-			initialViewState = ViewOverview
-		}
+		initialViewState = ViewOverview
 	}
 
 	return Model{
@@ -305,6 +316,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 
+		// Error dialog intercept — dismiss on any key
+		if m.errorDialogText != "" {
+			m.errorDialogTitle = ""
+			m.errorDialogText = ""
+			return m, nil
+		}
+
 		switch m.viewState {
 		case ViewCloudLogin:
 			return m.updateCloudLogin(msg)
@@ -312,6 +330,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateEnvSelect(msg)
 		case ViewCreateSelect:
 			return m.updateCreateSelect(msg)
+		case ViewCreateEnvSelect:
+			return m.updateCreateEnvSelect(msg)
 		case ViewCreateInput:
 			return m.updateCreateInput(msg)
 		case ViewEdit:
@@ -342,28 +362,75 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the current view.
 func (m Model) View() string {
+	var base string
 	switch m.viewState {
 	case ViewCloudLogin:
-		return m.renderCloudLoginView()
+		base = m.renderCloudLoginView()
 	case ViewEnvSelect:
-		return m.renderEnvSelectView()
+		base = m.renderEnvSelectView()
 	case ViewCreateSelect:
-		return m.renderBundleSelectView()
+		base = m.renderBundleSelectView()
+	case ViewCreateEnvSelect:
+		base = m.renderCreateEnvSelectView()
 	case ViewCreateInput:
-		return m.renderCreateInputView()
+		base = m.renderCreateInputView()
 	case ViewEdit:
-		return m.renderEditChangeView()
+		base = m.renderEditChangeView()
 	case ViewReconfigSelect:
-		return m.renderReconfigSelectView()
+		base = m.renderReconfigSelectView()
 	case ViewReconfigInput:
-		return m.renderReconfigInputView()
+		base = m.renderReconfigInputView()
 	case ViewPromoteSelect:
-		return m.renderPromoteSelectView()
+		base = m.renderPromoteSelectView()
 	case ViewPromoteInput:
-		return m.renderPromoteInputView()
+		base = m.renderPromoteInputView()
 	default:
-		return m.renderOverviewView()
+		base = m.renderOverviewView()
 	}
+
+	if m.errorDialogText != "" {
+		base = m.overlayErrorDialog(base)
+	}
+	return base
+}
+
+// overlayErrorDialog renders an error dialog centered on top of the base view.
+func (m Model) overlayErrorDialog(base string) string {
+	dialogWidth := m.effectiveWidth() - 8
+	if dialogWidth < 40 {
+		dialogWidth = 40
+	}
+
+	borderStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colorError).
+		Padding(1, 2).
+		Width(dialogWidth)
+
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(colorError)
+	msgStyle := lipgloss.NewStyle().Foreground(colorText).Width(dialogWidth - 6)
+	hintStyle := lipgloss.NewStyle().Foreground(colorTextMuted).MarginTop(1)
+
+	dialog := borderStyle.Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			titleStyle.Render(m.errorDialogTitle),
+			"",
+			msgStyle.Render(m.errorDialogText),
+			hintStyle.Render("Press any key to dismiss"),
+		),
+	)
+
+	w := m.width
+	h := m.height
+	if w == 0 {
+		w = 100
+	}
+	if h == 0 {
+		h = 30
+	}
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, dialog,
+		lipgloss.WithWhitespaceChars(" "),
+	)
 }
 
 // PendingChanges returns the list of changes that have been saved but not yet applied.
@@ -434,7 +501,14 @@ var keys = keyMap{
 }
 
 func (m Model) updateError(err error) (tea.Model, tea.Cmd) {
-	m.currentErr = err
+	m.errorDialogTitle = "Error"
+	m.errorDialogText = err.Error()
+	return m, nil
+}
+
+func (m Model) updateErrorWithTitle(title string, err error) (tea.Model, tea.Cmd) {
+	m.errorDialogTitle = title
+	m.errorDialogText = err.Error()
 	return m, nil
 }
 

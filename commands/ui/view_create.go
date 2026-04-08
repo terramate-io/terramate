@@ -35,8 +35,7 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.createExitConfirmIdx == 0 {
 				m.confirmingCreateExit = false
 				m.objectEditStack = nil
-				m.viewState = ViewOverview
-				m.focus = FocusCommands
+				m.viewState = m.createBackView()
 				return m, textarea.Blink
 			}
 			m.confirmingCreateExit = false
@@ -80,11 +79,10 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.inputsForm.hasAnyValues() {
 			m.confirmingCreateExit = true
-			m.createExitConfirmIdx = 1
+			m.createExitConfirmIdx = 1 // default to "No" (don't discard)
 			return m, nil
 		}
-		m.viewState = ViewCreateSelect
-		m.bundleSelectPage = BundleSelectBundle
+		m.viewState = m.createBackView()
 		return m, nil
 	}
 
@@ -124,12 +122,11 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		m.SetPendingChanges(append(m.PendingChanges(), change))
 		m.changesApplied = false
-		m.lastUsedCollIdx = m.selectedCollIdx
-		m.hasLastUsedColl = true
 
 		if len(m.createStack) > 0 {
 			m.restoreCreateFrame(change.Alias)
 		} else {
+			m.selectedEnv = nil
 			m.viewState = ViewOverview
 		}
 	case InputsFormDiscarded:
@@ -144,14 +141,13 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.createStack) > 0 {
 			m.restoreCreateFrame("")
 		} else {
-			m.viewState = ViewOverview
+			m.viewState = m.createBackView()
 		}
 	case InputsFormCreateRef:
 		m.pushCreateFrame()
 		if err := m.startNestedCreate(m.inputsForm.PendingRefClass()); err != nil {
-			m.currentErr = err
 			m.restoreCreateFrame("")
-			return m, nil
+			return m.updateErrorWithTitle("Bundle is not enabled", err)
 		}
 		return m, m.inputsForm.FocusActiveInput()
 	case InputsFormSubForm:
@@ -206,24 +202,27 @@ func setupExplicitBundleAlias(evalctx *eval.Context, bundleDef *hcl.DefineBundle
 }
 
 func (m Model) renderCreateInputView() string {
-	est := m.EngineState
 	panelWidth := m.effectiveWidth()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(colorTextMuted).
 		Width(panelWidth)
 
-	collName := strings.ToLower(est.Collections[m.selectedCollIdx].Name)
 	bundleName := ""
-	if m.selectedBundleIdx < len(est.Collections[m.selectedCollIdx].Bundles) {
-		bundleName = est.Collections[m.selectedCollIdx].Bundles[m.selectedBundleIdx].Name
+	if m.flatBundleCursor < len(m.flatBundles) {
+		bundleName = m.flatBundles[m.flatBundleCursor].bundle.Name
+	}
+
+	envLabel := "Without Environment"
+	if m.selectedEnv != nil {
+		envLabel = m.selectedEnv.Name
 	}
 
 	var headerContext string
 	if len(m.createStack) > 0 {
 		parentName := m.createStack[len(m.createStack)-1].parentBundleName
-		headerContext = fmt.Sprintf("add bundle / %s / %s (for %s)", collName, bundleName, parentName)
+		headerContext = fmt.Sprintf("Create %s (%s, for %s)", bundleName, envLabel, parentName)
 	} else {
-		headerContext = fmt.Sprintf("add bundle / %s / %s", collName, bundleName)
+		headerContext = fmt.Sprintf("Create %s (%s)", bundleName, envLabel)
 	}
 
 	title := m.renderHeader(headerContext, panelWidth)
@@ -240,7 +239,7 @@ func (m Model) renderCreateInputView() string {
 			Foreground(lipgloss.Color("#000000")).
 			Bold(true)
 
-		prompt := promptStyle.Render("Entered values will be lost. Continue?")
+		prompt := promptStyle.Render("Discard entered values?")
 
 		var yesBtn, noBtn string
 		if m.createExitConfirmIdx == 0 {
@@ -291,16 +290,27 @@ func (m Model) renderInputsPage() string {
 	return m.inputsForm.View()
 }
 
+// createBackView returns the correct view to navigate back to from the input form.
+// For env-requiring bundles, goes back to env select. Otherwise, goes to bundle select.
+func (m Model) createBackView() ViewState {
+	if m.selectedBundleDefEntry != nil &&
+		bundleRequiresEnv(m.EngineState.Evalctx, m.selectedBundleDefEntry.Define) &&
+		len(m.EngineState.Registry.Environments) > 0 {
+		return ViewCreateEnvSelect
+	}
+	return ViewCreateSelect
+}
+
 // pushCreateFrame saves the current create state onto the stack.
 func (m *Model) pushCreateFrame() {
-	est := m.EngineState
-	bundleName := est.Collections[m.selectedCollIdx].Bundles[m.selectedBundleIdx].Name
+	bundleName := ""
+	if m.flatBundleCursor < len(m.flatBundles) {
+		bundleName = m.flatBundles[m.flatBundleCursor].bundle.Name
+	}
 	frame := CreateFrame{
-		bundleSelectPage:  m.bundleSelectPage,
-		selectedCollIdx:   m.selectedCollIdx,
-		selectedBundleIdx: m.selectedBundleIdx,
-		inputsForm:        m.inputsForm,
-		parentBundleName:  bundleName,
+		flatBundleCursor: m.flatBundleCursor,
+		inputsForm:       m.inputsForm,
+		parentBundleName: bundleName,
 	}
 	m.createStack = append(m.createStack, frame)
 }
@@ -314,9 +324,7 @@ func (m *Model) restoreCreateFrame(newBundleAlias string) {
 	frame := m.createStack[len(m.createStack)-1]
 	m.createStack = m.createStack[:len(m.createStack)-1]
 	m.viewState = ViewCreateInput
-	m.bundleSelectPage = frame.bundleSelectPage
-	m.selectedCollIdx = frame.selectedCollIdx
-	m.selectedBundleIdx = frame.selectedBundleIdx
+	m.flatBundleCursor = frame.flatBundleCursor
 	m.inputsForm = frame.inputsForm
 	m.inputsForm.state = InputsFormActive
 	m.nestedRefClass = ""
@@ -336,23 +344,20 @@ func (m *Model) pushObjectEditFrame() {
 	})
 }
 
-// startNestedCreate scans collections for a bundle matching refClass, loads it,
-// and enters the wizard. Falls back to the collection page if no match is found.
+// startNestedCreate scans the flat bundle list for a bundle matching refClass,
+// loads it, and enters the wizard. Falls back to the bundle list if no match is found.
 func (m *Model) startNestedCreate(refClass string) error {
-	est := m.EngineState
 	m.nestedRefClass = refClass
-	for collIdx, coll := range est.Collections {
-		for bundleIdx, bundle := range coll.Bundles {
-			if bundle.Class == refClass {
-				if err := m.loadBundleDef(collIdx, bundleIdx); err != nil {
-					return err
-				}
-				m.viewState = ViewCreateInput
-				return nil
+	for i, entry := range m.flatBundles {
+		if entry.bundle.Class == refClass {
+			m.flatBundleCursor = i
+			if err := m.loadBundleDef(entry.collIdx, entry.bundleIdx); err != nil {
+				return err
 			}
+			m.viewState = ViewCreateInput
+			return nil
 		}
 	}
 	m.viewState = ViewCreateSelect
-	m.bundleSelectPage = BundleSelectCollection
 	return errors.E("No bundle found for class %q", refClass)
 }

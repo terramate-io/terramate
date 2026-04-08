@@ -95,7 +95,7 @@ func (m *Model) openEditChange(idx int) error {
 	change := m.PendingChanges()[idx]
 	m.editingChangeIdx = idx
 
-	schemactx, err := m.loadBundleEvalContext(change.BundleDefEntry)
+	schemactx, err := m.loadBundleEvalContext(change.BundleDefEntry, change.Env)
 	if err != nil {
 		return err
 	}

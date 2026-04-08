@@ -17,17 +17,9 @@ import (
 )
 
 func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	est := m.EngineState
-
 	// Clear transient errors on update.
 	m.currentErr = nil
 	m.saveErr = nil
-
-	// Ctrl+E opens environment selector from any focus area
-	if msg.String() == "ctrl+e" && len(est.Registry.Environments) > 0 {
-		m.viewState = ViewEnvSelect
-		return m, nil
-	}
 
 	// --- Exit confirmation ---
 	if m.confirmingExit {
@@ -216,15 +208,16 @@ func (m *Model) executeCommand() {
 			m.currentErr = errors.E("No collections available. Configure package sources to get started.")
 			return
 		}
-		m.viewState = ViewCreateSelect
-		m.bundleSelectPage = BundleSelectCollection
-		if m.hasLastUsedColl {
-			m.selectedCollIdx = m.lastUsedCollIdx
-		} else {
-			m.selectedCollIdx = 0
+		m.flatBundles = buildFlatBundles(est)
+		if len(m.flatBundles) == 0 {
+			m.currentErr = errors.E("No bundles available.")
+			return
 		}
-		m.selectedBundleIdx = 0
+		m.viewState = ViewCreateSelect
+		m.flatBundleCursor = 0
 	case "Reconfigure":
+		m.reconfigFilterPos = -1
+		m.reconfigFilters = m.buildReconfigFilters()
 		m.reconfigBundles = m.buildReconfigBundles()
 		if len(m.reconfigBundles) == 0 {
 			if len(est.Registry.Bundles) == 0 {
@@ -237,17 +230,15 @@ func (m *Model) executeCommand() {
 		m.viewState = ViewReconfigSelect
 		m.reconfigCursor = 0
 	case "Promote":
-		if m.selectedEnv == nil {
-			m.currentErr = errors.E("This action requires environments, but none are configured.")
-			return
-		}
-		if m.selectedEnv.PromoteFrom == "" {
-			m.currentErr = errors.E("The current environment does not have promote_from configured.")
-			return
-		}
-		m.promoteBundles = m.buildPromoteBundles()
+		m.promoteFilterPos = -1
+		m.promoteFilters = m.buildPromoteFilters()
+		m.promoteBundles, m.promoteTargetEnvs = m.buildAllPromoteBundles()
 		if len(m.promoteBundles) == 0 {
-			m.currentErr = errors.E("No bundles available to promote from %s.", m.selectedEnv.PromoteFrom)
+			if len(est.Registry.Environments) == 0 {
+				m.currentErr = errors.E("This action requires environments, but none are configured.")
+			} else {
+				m.currentErr = errors.E("No bundles available for promotion.")
+			}
 			return
 		}
 		m.viewState = ViewPromoteSelect
@@ -348,7 +339,6 @@ func changeLogEntry(c Change) string {
 }
 
 func (m Model) renderOverviewView() string {
-	est := m.EngineState
 	panelWidth := m.effectiveWidth()
 	innerWidth := panelWidth - 4
 
@@ -375,7 +365,7 @@ func (m Model) renderOverviewView() string {
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth)
 
-	title := m.renderHeader("overview", panelWidth)
+	title := m.renderHeader("Select an Action", panelWidth)
 
 	commandsGrid := m.renderCommandGrid(panelWidth)
 
@@ -399,18 +389,13 @@ func (m Model) renderOverviewView() string {
 
 	showSummaryPanel := len(m.PendingChanges()) > 0 || m.changesApplied
 
-	hasEnvs := len(est.Registry.Environments) > 0
-	envHint := ""
-	if hasEnvs {
-		envHint = "ctrl+e: environment • "
-	}
-	helpText := envHint
+	helpText := ""
 	if m.changesApplied && m.focus == FocusSummary {
-		helpText = "enter: clear • tab: switch section • " + envHint
+		helpText = "enter: clear • tab: switch section"
 	} else if showSummaryPanel {
-		helpText = "tab: switch section • " + envHint
+		helpText = "tab: switch section"
 	}
-	helpText = m.finalHelpText(strings.TrimSuffix(helpText, " • "))
+	helpText = m.finalHelpText(helpText)
 
 	hint := m.selectedCommandHint()
 	var help string
@@ -536,10 +521,18 @@ func (m Model) renderHeader(context string, panelWidth int) string {
 		Bold(true).
 		Foreground(colorPrimary)
 
-	left := terramateStyle.Render("terramate")
+	left := terramateStyle.Render("Terramate Catalyst")
 	if context != "" {
-		left += slashStyle.Render(" / ") +
-			contextStyle.Render(context)
+		// Make the last breadcrumb segment bold
+		parts := strings.Split(context, " / ")
+		for i, part := range parts {
+			left += slashStyle.Render(" / ")
+			if i == len(parts)-1 {
+				left += lipgloss.NewStyle().Bold(true).Foreground(colorText).Render(part)
+			} else {
+				left += contextStyle.Render(part)
+			}
+		}
 	}
 
 	if m.viewState == ViewCloudLogin || m.viewState == ViewEnvSelect || m.selectedEnv == nil {
