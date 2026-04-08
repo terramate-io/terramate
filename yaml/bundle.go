@@ -192,6 +192,9 @@ func decodeUUID(v Attribute[any]) (Attribute[string], error) {
 
 // EncodeStruct encodes the environment into a Map.
 func (e *BundleEnvironment) EncodeStruct() (Map[any], error) {
+	if e == nil {
+		return Map[any]{}, nil
+	}
 	r := Map[any]{}
 	if e.Source.V != nil {
 		r = append(r, attrToMapItem("source", e.Source))
