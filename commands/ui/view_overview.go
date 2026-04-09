@@ -189,6 +189,40 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case msg.String() == "c":
+		if m.focus == FocusCommands {
+			m.commandIdx = 0 // Create
+			m.executeCommand()
+			if m.cancelled {
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+
+	case msg.String() == "r":
+		if m.focus == FocusCommands {
+			m.commandIdx = 1 // Reconfigure
+			m.executeCommand()
+		}
+		return m, nil
+
+	case msg.String() == "p":
+		if m.focus == FocusCommands {
+			m.commandIdx = 2 // Promote
+			m.executeCommand()
+		}
+		return m, nil
+
+	case msg.String() == "q":
+		if m.focus == FocusCommands {
+			m.commandIdx = 3 // Quit
+			m.executeCommand()
+			if m.cancelled {
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+
 	}
 
 	return m, nil
@@ -389,11 +423,11 @@ func (m Model) renderOverviewView() string {
 
 	showSummaryPanel := len(m.PendingChanges()) > 0 || m.changesApplied
 
-	helpText := ""
+	helpText := "c: create • r: reconfigure • p: promote • q: quit"
 	if m.changesApplied && m.focus == FocusSummary {
 		helpText = "enter: clear • tab: switch section"
 	} else if showSummaryPanel {
-		helpText = "tab: switch section"
+		helpText = "c: create • r: reconfigure • p: promote • q: quit • tab: switch section"
 	}
 	helpText = m.finalHelpText(helpText)
 
