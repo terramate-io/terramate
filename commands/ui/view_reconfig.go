@@ -358,7 +358,7 @@ func (m Model) renderReconfigSelectView() string {
 		if hostPath != "" {
 			fields = append(fields, detailField{label: "Config", value: hostPath})
 		}
-		detailBox = renderDetailBox(contentWidth, "Bundle Instance Details", fields)
+		detailBox = renderDetailBox(innerWidth, "Bundle Instance Details", fields)
 	}
 
 	header := lipgloss.JoinVertical(lipgloss.Left, detailBox, "")

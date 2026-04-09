@@ -357,7 +357,6 @@ func (m Model) renderCreateEnvSelectView() string {
 		Width(panelWidth)
 
 	innerWidth := panelWidth - 4
-	contentWidth := innerWidth - 4 // scrollbar gutter
 
 	bundleName := ""
 	if m.flatBundleCursor < len(m.flatBundles) {
@@ -393,7 +392,7 @@ func (m Model) renderCreateEnvSelectView() string {
 			source = bundleSourceFromManifest(coll, entry.bundle)
 		}
 		fields = append(fields, detailField{label: "Source", value: source})
-		detailBox = renderDetailBox(contentWidth, "Bundle Details", fields)
+		detailBox = renderDetailBox(innerWidth, "Bundle Details", fields)
 	}
 
 	itemStyle := lipgloss.NewStyle().
@@ -437,8 +436,6 @@ func (m Model) renderCreateEnvSelectView() string {
 func (m Model) renderBundleSelectView() string {
 	panelWidth := m.effectiveWidth()
 	innerWidth := panelWidth - 4
-	scrollbarGutter := 4 // left gap(1) + scrollbar(1) + right gap(2)
-	contentWidth := innerWidth - scrollbarGutter
 
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -458,7 +455,7 @@ func (m Model) renderBundleSelectView() string {
 
 	help := helpStyle.Render(m.finalHelpText("↑↓: Select Bundle • esc: back"))
 
-	content := m.renderFlatBundleList(contentWidth)
+	content := m.renderFlatBundleList(innerWidth)
 
 	section := borderStyle.Render(contentStyle.Render(content))
 
@@ -602,7 +599,10 @@ func truncateStart(s string, maxWidth int) string {
 	return "..." + s[len(s)-maxWidth+3:]
 }
 
-func (m Model) renderFlatBundleList(contentWidth int) string {
+func (m Model) renderFlatBundleList(innerWidth int) string {
+	scrollbarGutter := 4
+	contentWidth := innerWidth - scrollbarGutter
+
 	// Detail box for the highlighted bundle
 	var detailBox string
 	if m.flatBundleCursor < len(m.flatBundles) {
@@ -630,7 +630,7 @@ func (m Model) renderFlatBundleList(contentWidth int) string {
 			source = bundleSourceFromManifest(coll, entry.bundle)
 		}
 		fields = append(fields, detailField{label: "Source", value: source})
-		detailBox = renderDetailBox(contentWidth, "Bundle Details", fields)
+		detailBox = renderDetailBox(innerWidth, "Bundle Details", fields)
 	}
 
 	header := lipgloss.JoinVertical(lipgloss.Left, detailBox, "")
