@@ -392,7 +392,7 @@ func ListLocalComponentDefinitions(root *Root, evalctx *eval.Context, dir projec
 				continue
 			}
 
-			md, err := EvalMetadata(evalctx, subdir, &def.Bundle.Metadata)
+			md, err := EvalMetadata(evalctx, subdir, &def.Component.Metadata)
 			if err != nil {
 				return nil, err
 			}
