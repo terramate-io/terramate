@@ -521,7 +521,7 @@ func (m Model) renderHeader(context string, panelWidth int) string {
 		Bold(true).
 		Foreground(colorPrimary)
 
-	left := terramateStyle.Render("Terramate Catalyst")
+	left := terramateStyle.Render("Terramate UI")
 	if context != "" {
 		// Make the last breadcrumb segment bold
 		parts := strings.Split(context, " / ")

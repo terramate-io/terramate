@@ -317,6 +317,17 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 
 	lineStyle := lipgloss.NewStyle().Width(contentWidth)
 
+	// First pass: find max alias width for alignment
+	maxAliasWidth := 0
+	for _, g := range groups {
+		for _, b := range g.bundles {
+			w := len(displayNameFromAlias(b.Alias, b.Name))
+			if w > maxAliasWidth {
+				maxAliasWidth = w
+			}
+		}
+	}
+
 	var items []renderedItem
 	selectedItemIdx := 0
 	visualIdx := 0
@@ -342,11 +353,13 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 			visualIdx++
 
 			displayName := displayNameFromAlias(b.Alias, b.Name)
+			pad := strings.Repeat(" ", maxAliasWidth-len(displayName)+2)
+
 			var line string
 			if isSelected {
-				line = selectedStyle.Render("  › " + displayName)
+				line = selectedStyle.Render("  › "+displayName) + pad
 			} else {
-				line = "    " + displayName
+				line = "    " + displayName + pad
 			}
 
 			// Show env flow: source → target
@@ -354,7 +367,7 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 			if globalBundleIdx < len(m.promoteTargetEnvs) && b.Environment != nil {
 				sourceEnvName := envNameForID(est.Registry.Environments, b.Environment.ID)
 				targetEnvName := m.promoteTargetEnvs[globalBundleIdx].Name
-				line += "  " + envStyle.Render(sourceEnvName+" → "+targetEnvName)
+				line += envStyle.Render(sourceEnvName + " → " + targetEnvName)
 			}
 
 			items = append(items, renderedItem{content: lineStyle.Render(line), height: 1})
