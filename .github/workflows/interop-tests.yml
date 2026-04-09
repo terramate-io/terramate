@@ -3,11 +3,14 @@
 
 name: interop
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
       - '**.go'
       - '**.tm'
       - '**.tm.hcl'
+  workflow_dispatch:
 
 jobs:
   interop-tests:
