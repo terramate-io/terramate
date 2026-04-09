@@ -35,6 +35,7 @@ jobs:
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version-file: "go.mod"
+          check-latest: true
 
       - name: check all packages with tests are Terramate Stacks
         run: ./hack/check-stacks.sh
@@ -190,6 +191,7 @@ jobs:
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version-file: "go.mod"
+          check-latest: true
       - name: install cosign
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
       - name: install goreleaser
