@@ -38,6 +38,7 @@ jobs:
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version-file: "go.mod"
+          check-latest: true
 
       - uses: opentofu/setup-opentofu@592200bd4b9bbf4772ace78f887668b1aee8f716 # pin@v1.0.5
         with:
@@ -136,6 +137,7 @@ jobs:
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # pin@v5
         with:
           go-version-file: "go.mod"
+          check-latest: true
       - name: install cosign
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.2.4
       - name: install goreleaser
