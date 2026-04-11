@@ -526,7 +526,7 @@ func renderDetailBox(innerWidth int, boxTitle string, fields []detailField) stri
 		}
 		var line string
 		if f.label != "" {
-			paddedLabel := f.label + ": " + strings.Repeat(" ", maxLabelWidth-len(f.label)-2)
+			paddedLabel := f.label + ": " + strings.Repeat(" ", maxLabelWidth-lipgloss.Width(f.label)-2)
 			label := labelStyle.Render(paddedLabel)
 			labelWidth := lipgloss.Width(label)
 			availWidth := contentWidth - labelWidth
