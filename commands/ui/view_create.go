@@ -157,7 +157,7 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.pushCreateFrame()
 		if err := m.startNestedCreate(m.inputsForm.PendingRefClass()); err != nil {
 			m.restoreCreateFrame("")
-			return m.updateErrorWithTitle("Bundle is not enabled", err)
+			return m.updateError(err)
 		}
 		return m, m.inputsForm.FocusActiveInput()
 	case InputsFormSubForm:

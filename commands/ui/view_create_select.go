@@ -87,7 +87,7 @@ func (m Model) selectFlatBundle() (tea.Model, tea.Cmd) {
 	m.selectedEnv = nil // reset so env picker shows for each bundle
 
 	if err := m.loadBundleDef(entry.collIdx, entry.bundleIdx); err != nil {
-		return m.updateErrorWithTitle("Bundle is not enabled", err)
+		return m.updateError(err)
 	}
 
 	// If the bundle requires an environment and environments are configured,
@@ -339,7 +339,7 @@ func (m Model) updateCreateEnvSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.selectedEnv = est.Registry.Environments[m.createEnvCursor]
 		if err := m.finalizeBundleWithEnv(); err != nil {
 			m.selectedEnv = nil // rollback so env picker shows again
-			return m.updateErrorWithTitle("Bundle is not enabled", err)
+			return m.updateError(err)
 		}
 		m.viewState = ViewCreateInput
 		return m, m.inputsForm.FocusActiveInput()
