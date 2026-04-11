@@ -279,13 +279,13 @@ func NewPromoteChange(
 		values,
 	)
 	if err != nil {
-		return Change{}, err
+		return Change{}, wrapMissingBundleRefError(err)
 	}
 
 	// This will only be set if there is an explicit alias.
 	newAlias, err := setupExplicitBundleAlias(schemactx.Evalctx, bde.Define)
 	if err != nil {
-		return Change{}, err
+		return Change{}, wrapMissingBundleRefError(err)
 	}
 
 	var warnings []string
@@ -421,6 +421,16 @@ func reEvalAllInputs(
 		result[k] = vm["value"]
 	}
 	return result, nil
+}
+
+// wrapMissingBundleRefError adds a user-friendly message when a promote/reconfigure
+// fails because a referenced bundle doesn't exist in the target environment.
+func wrapMissingBundleRefError(err error) error {
+	msg := err.Error()
+	if strings.Contains(msg, "null") && strings.Contains(msg, "does not have any attributes") {
+		return errors.E(err, "A referenced bundle has not been promoted to this environment yet. Promote dependencies first.")
+	}
+	return err
 }
 
 // Save writes the change to disk as a YAML bundle instance file.
