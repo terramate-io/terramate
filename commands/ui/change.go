@@ -5,6 +5,7 @@ package ui
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/typeschema"
 	"github.com/terramate-io/terramate/yaml"
 )
@@ -89,6 +91,12 @@ func NewCreateChange(
 	values map[string]cty.Value,
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
+
+	// Rebind bundle() functions to the current registry so that references
+	// to bundles created during this session (e.g. nested bundles that were
+	// saved immediately) are resolvable.
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), est.Registry.Registry, activeEnv, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry.Registry, activeEnv))
 
 	// The form may or may not contain values for all defaults.
 	// In this step we re-run input evaluation like it would be done if this was a bundle instance that

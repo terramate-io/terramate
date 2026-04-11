@@ -197,6 +197,7 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 	m.selectedBundleDefEntry = bde
 	m.selectedBundleSource = source
 	m.inputsForm = NewInputsForm(inputDefs, schemactx, est.Registry, m.selectedEnv)
+	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 	return nil
@@ -243,6 +244,7 @@ func (m *Model) finalizeBundleWithEnv() error {
 	}
 
 	m.inputsForm = NewInputsForm(inputDefs, schemactx, est.Registry, m.selectedEnv)
+	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 	return nil

@@ -119,8 +119,19 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		m.SetPendingChanges(append(m.PendingChanges(), change))
-		m.changesApplied = false
+		// Save immediately — bundles must be in the registry for
+		// reference resolution (nested bundles, alias evaluation).
+		if err := change.Save(est.Registry.Environments); err != nil {
+			m.inputsForm.SetValidationError(err)
+			m.inputsForm.state = InputsFormActive
+			break
+		}
+		if err := m.reloadAll(); err != nil {
+			m.inputsForm.SetValidationError(err)
+			m.inputsForm.state = InputsFormActive
+			break
+		}
+		m.changeLog = append(m.changeLog, changeLogEntry(change))
 
 		if len(m.createStack) > 0 {
 			m.restoreCreateFrame(change.Alias)
