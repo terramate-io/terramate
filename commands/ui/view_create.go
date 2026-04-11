@@ -347,19 +347,13 @@ func (m *Model) pushObjectEditFrame() {
 // startNestedCreate scans the flat bundle list for a bundle matching refClass,
 // loads it, and enters the wizard. Falls back to the bundle list if no match is found.
 func (m *Model) startNestedCreate(refClass string) error {
+	// Nested bundles inherit the parent's environment — no env re-selection needed.
 	m.nestedRefClass = refClass
 	for i, entry := range m.flatBundles {
 		if entry.bundle.Class == refClass {
 			m.flatBundleCursor = i
-			m.selectedEnv = nil
 			if err := m.loadBundleDef(entry.collIdx, entry.bundleIdx); err != nil {
 				return err
-			}
-			// If env selection is needed, redirect to env picker
-			if m.selectedEnv == nil && len(m.EngineState.Registry.Environments) > 0 {
-				m.createEnvCursor = 0
-				m.viewState = ViewCreateEnvSelect
-				return nil
 			}
 			m.viewState = ViewCreateInput
 			return nil

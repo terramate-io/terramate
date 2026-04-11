@@ -149,7 +149,8 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 	// If the bundle requires an environment but none is selected yet,
 	// defer checkBundleEnabled and schema evaluation to finalizeBundleWithEnv
 	// which runs after the user picks an environment.
-	if bundleRequiresEnv(est.Evalctx, bde.Define) && m.selectedEnv == nil && len(est.Registry.Environments) > 0 {
+	// Skip deferral for nested creates — they inherit the parent's env.
+	if bundleRequiresEnv(est.Evalctx, bde.Define) && m.selectedEnv == nil && len(est.Registry.Environments) > 0 && len(m.createStack) == 0 {
 		m.selectedCollIdx = collIdx
 		m.selectedBundleIdx = bundleIdx
 		m.selectedBundleDefEntry = bde
