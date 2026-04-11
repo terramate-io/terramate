@@ -569,18 +569,7 @@ func (m Model) renderHeader(context string, panelWidth int) string {
 		}
 	}
 
-	if m.viewState == ViewCloudLogin || m.viewState == ViewEnvSelect || m.selectedEnv == nil {
-		return left
-	}
-
-	envStyle := lipgloss.NewStyle().Foreground(colorText)
-	envLabel := envStyle.Render(m.selectedEnv.Name)
-
-	gap := panelWidth + 2 - lipgloss.Width(left) - lipgloss.Width(envLabel)
-	if gap < 2 {
-		gap = 2
-	}
-	return left + strings.Repeat(" ", gap) + envLabel
+	return left
 }
 
 // commandMeta maps each command name to its color and hint text.
