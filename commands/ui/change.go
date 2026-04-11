@@ -457,6 +457,14 @@ func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*confi
 			continue
 		}
 
+		// Bundle-ref values are stored as resolved objects internally
+		// but must be written as alias strings in the YAML config.
+		if _, isBundleType := def.Type.(*typeschema.BundleType); isBundleType {
+			if v.IsKnown() && !v.IsNull() && v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
+				v = v.GetAttr("alias")
+			}
+		}
+
 		yv, err := yaml.ConvertFromCty(v)
 		if err != nil {
 			return "", err

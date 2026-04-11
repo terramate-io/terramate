@@ -614,6 +614,18 @@ func (b BundleType) Apply(val cty.Value, _ EvalContext, _ bool) (cty.Value, erro
 		}
 		return val, nil
 
+	case val.Type().IsObjectType() || val.Type().IsMapType():
+		// Already-resolved bundle object (from reconfigure/promote where
+		// the stored value went through resolveBundleType). Extract the
+		// alias so it can be re-resolved in the target env context.
+		if val.Type().HasAttribute("alias") {
+			alias := val.GetAttr("alias")
+			if alias.IsKnown() && alias.Type() == cty.String {
+				return alias, nil
+			}
+		}
+		return val, errors.E("bundle type: resolved object missing alias attribute")
+
 	default:
 		return val, errors.E("bundle type expects a string or [key, envID] tuple, got %s", val.Type().FriendlyName())
 	}

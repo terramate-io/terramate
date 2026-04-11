@@ -193,7 +193,19 @@ func (m Model) buildAllPromoteBundles() ([]*config.Bundle, []*config.Environment
 			targetEnvs = append(targetEnvs, targetEnv)
 		}
 	}
-	return bundles, targetEnvs
+
+	// Sort into grouped display order so the flat cursor index matches
+	// the visual position. Keep targetEnvs in sync.
+	groups := groupBundles(bundles)
+	sorted := make([]*config.Bundle, 0, len(bundles))
+	sortedEnvs := make([]*config.Environment, 0, len(bundles))
+	for _, g := range groups {
+		for _, idx := range g.offsets {
+			sorted = append(sorted, bundles[idx])
+			sortedEnvs = append(sortedEnvs, targetEnvs[idx])
+		}
+	}
+	return sorted, sortedEnvs
 }
 
 func envNameForID(envs []*config.Environment, envID string) string {

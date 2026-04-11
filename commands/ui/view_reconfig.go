@@ -4,7 +4,9 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -230,7 +232,7 @@ type bundleGroup struct {
 }
 
 // groupBundles groups bundles by definition identity (name + version + source),
-// preserving the order of first appearance.
+// sorted alphabetically by group name, with instances sorted by alias within each group.
 func groupBundles(bundles []*config.Bundle) []bundleGroup {
 	var groups []bundleGroup
 	seen := map[string]int{}
@@ -250,6 +252,32 @@ func groupBundles(bundles []*config.Bundle) []bundleGroup {
 			offsets: []int{i},
 		})
 	}
+
+	// Sort groups alphabetically by name
+	slices.SortFunc(groups, func(a, b bundleGroup) int {
+		return cmp.Compare(a.name, b.name)
+	})
+
+	// Sort instances within each group by alias
+	for i := range groups {
+		g := &groups[i]
+		indices := make([]int, len(g.bundles))
+		for j := range indices {
+			indices[j] = j
+		}
+		slices.SortFunc(indices, func(a, b int) int {
+			return cmp.Compare(g.bundles[a].Alias, g.bundles[b].Alias)
+		})
+		sortedBundles := make([]*config.Bundle, len(g.bundles))
+		sortedOffsets := make([]int, len(g.offsets))
+		for j, idx := range indices {
+			sortedBundles[j] = g.bundles[idx]
+			sortedOffsets[j] = g.offsets[idx]
+		}
+		g.bundles = sortedBundles
+		g.offsets = sortedOffsets
+	}
+
 	return groups
 }
 
