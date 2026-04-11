@@ -219,8 +219,17 @@ func (m Model) renderCreateInputView() string {
 
 	var headerContext string
 	if len(m.createStack) > 0 {
-		parentName := m.createStack[len(m.createStack)-1].parentBundleName
-		headerContext = fmt.Sprintf("Create %s (%s, for %s)", bundleName, envLabel, parentName)
+		// Build chain: Create VPC (staging) / Create Subnet / Create SecurityGroup
+		parts := make([]string, 0, len(m.createStack)+1)
+		for i, frame := range m.createStack {
+			if i == 0 {
+				parts = append(parts, fmt.Sprintf("Create %s (%s)", frame.parentBundleName, envLabel))
+			} else {
+				parts = append(parts, "Create "+frame.parentBundleName)
+			}
+		}
+		parts = append(parts, "Create "+bundleName)
+		headerContext = strings.Join(parts, " / ")
 	} else {
 		headerContext = fmt.Sprintf("Create %s (%s)", bundleName, envLabel)
 	}
