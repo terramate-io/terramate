@@ -34,7 +34,7 @@ type ViewState int
 // ViewCloudLogin and the following constants enumerate the possible view states.
 const (
 	ViewCloudLogin      ViewState = iota // Cloud login prompt (shown first)
-	ViewEnvSelect                        // Environment selection (unused, kept for compatibility)
+	ViewEnvSelect                        // Unused, kept to preserve iota values
 	ViewOverview                         // Main overview
 	ViewCreateSelect                     // Flat bundle selection (pre-inputs)
 	ViewCreateEnvSelect                  // Environment selection after bundle pick (Create only)
@@ -134,7 +134,6 @@ type Model struct {
 	cloudSignupMsg      string
 
 	// Environment selection state
-	envCursor   int
 	selectedEnv *config.Environment
 
 	// Overview state
@@ -305,7 +304,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentErr = msg.err
 			return m, nil
 		}
-		m.viewState = m.nextViewAfterCloudLogin()
+		m.viewState = ViewOverview
 		return m, textarea.Blink
 
 	case tea.KeyMsg:
@@ -330,8 +329,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.viewState {
 		case ViewCloudLogin:
 			return m.updateCloudLogin(msg)
-		case ViewEnvSelect:
-			return m.updateEnvSelect(msg)
 		case ViewCreateSelect:
 			return m.updateCreateSelect(msg)
 		case ViewCreateEnvSelect:
@@ -370,8 +367,6 @@ func (m Model) View() string {
 	switch m.viewState {
 	case ViewCloudLogin:
 		base = m.renderCloudLoginView()
-	case ViewEnvSelect:
-		base = m.renderEnvSelectView()
 	case ViewCreateSelect:
 		base = m.renderBundleSelectView()
 	case ViewCreateEnvSelect:
