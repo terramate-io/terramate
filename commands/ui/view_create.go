@@ -316,9 +316,13 @@ func (m *Model) pushCreateFrame() {
 		bundleName = m.flatBundles[m.flatBundleCursor].bundle.Name
 	}
 	frame := CreateFrame{
-		flatBundleCursor: m.flatBundleCursor,
-		inputsForm:       m.inputsForm,
-		parentBundleName: bundleName,
+		flatBundleCursor:       m.flatBundleCursor,
+		selectedCollIdx:        m.selectedCollIdx,
+		selectedBundleIdx:      m.selectedBundleIdx,
+		selectedBundleDefEntry: m.selectedBundleDefEntry,
+		selectedBundleSource:   m.selectedBundleSource,
+		inputsForm:             m.inputsForm,
+		parentBundleName:       bundleName,
 	}
 	m.createStack = append(m.createStack, frame)
 }
@@ -333,6 +337,10 @@ func (m *Model) restoreCreateFrame(newBundleAlias string) {
 	m.createStack = m.createStack[:len(m.createStack)-1]
 	m.viewState = ViewCreateInput
 	m.flatBundleCursor = frame.flatBundleCursor
+	m.selectedCollIdx = frame.selectedCollIdx
+	m.selectedBundleIdx = frame.selectedBundleIdx
+	m.selectedBundleDefEntry = frame.selectedBundleDefEntry
+	m.selectedBundleSource = frame.selectedBundleSource
 	m.inputsForm = frame.inputsForm
 	m.inputsForm.state = InputsFormActive
 	m.nestedRefClass = ""

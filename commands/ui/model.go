@@ -64,9 +64,13 @@ type ObjectEditFrame struct {
 
 // CreateFrame captures the wizard state when suspending for nested bundle creation.
 type CreateFrame struct {
-	flatBundleCursor int
-	inputsForm       InputsForm
-	parentBundleName string // name of the bundle being configured (for UI context)
+	flatBundleCursor       int
+	selectedCollIdx        int
+	selectedBundleIdx      int
+	selectedBundleDefEntry *config.BundleDefinitionEntry
+	selectedBundleSource   string
+	inputsForm             InputsForm
+	parentBundleName       string // name of the bundle being configured (for UI context)
 }
 
 // flatBundleEntry maps a row in the flat bundle list back to its collection/bundle origin.
