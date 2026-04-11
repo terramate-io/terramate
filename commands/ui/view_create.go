@@ -351,8 +351,15 @@ func (m *Model) startNestedCreate(refClass string) error {
 	for i, entry := range m.flatBundles {
 		if entry.bundle.Class == refClass {
 			m.flatBundleCursor = i
+			m.selectedEnv = nil
 			if err := m.loadBundleDef(entry.collIdx, entry.bundleIdx); err != nil {
 				return err
+			}
+			// If env selection is needed, redirect to env picker
+			if m.selectedEnv == nil && len(m.EngineState.Registry.Environments) > 0 {
+				m.createEnvCursor = 0
+				m.viewState = ViewCreateEnvSelect
+				return nil
 			}
 			m.viewState = ViewCreateInput
 			return nil
