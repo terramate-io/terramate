@@ -425,9 +425,10 @@ func reEvalAllInputs(
 
 // wrapMissingBundleRefError adds a user-friendly message when a promote/reconfigure
 // fails because a referenced bundle doesn't exist in the target environment.
+// Detects the HCL error pattern for accessing attributes on a null value.
 func wrapMissingBundleRefError(err error) error {
 	msg := err.Error()
-	if strings.Contains(msg, "null") && strings.Contains(msg, "does not have any attributes") {
+	if strings.Contains(msg, "This value is null") || strings.Contains(msg, "does not have any attributes") {
 		return errors.E(err, "A referenced bundle has not been promoted to this environment yet. Promote dependencies first.")
 	}
 	return err

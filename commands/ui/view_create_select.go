@@ -78,6 +78,9 @@ func (m Model) updateCreateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) selectFlatBundle() (tea.Model, tea.Cmd) {
+	if m.flatBundleCursor >= len(m.flatBundles) {
+		return m, nil
+	}
 	entry := m.flatBundles[m.flatBundleCursor]
 	m.selectedCollIdx = entry.collIdx
 	m.selectedBundleIdx = entry.bundleIdx
@@ -585,10 +588,11 @@ func truncateEnd(s string, maxWidth int) string {
 	if maxWidth <= 3 {
 		return s
 	}
-	if len(s) <= maxWidth {
+	runes := []rune(s)
+	if len(runes) <= maxWidth {
 		return s
 	}
-	return s[:maxWidth-3] + "..."
+	return string(runes[:maxWidth-3]) + "..."
 }
 
 // truncateStart truncates a string at the start: "/very/long/path/file" → ".../long/path/file"
@@ -596,10 +600,11 @@ func truncateStart(s string, maxWidth int) string {
 	if maxWidth <= 3 {
 		return s
 	}
-	if len(s) <= maxWidth {
+	runes := []rune(s)
+	if len(runes) <= maxWidth {
 		return s
 	}
-	return "..." + s[len(s)-maxWidth+3:]
+	return "..." + string(runes[len(runes)-maxWidth+3:])
 }
 
 func (m Model) renderFlatBundleList(innerWidth int) string {

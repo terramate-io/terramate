@@ -189,37 +189,29 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.String() == "c":
-		if m.focus == FocusCommands {
-			m.commandIdx = 0 // Create
-			m.executeCommand()
-			if m.cancelled {
-				return m, tea.Quit
-			}
+	case msg.String() == "c" && m.focus == FocusCommands:
+		m.commandIdx = 0 // Create
+		m.executeCommand()
+		if m.cancelled {
+			return m, tea.Quit
 		}
 		return m, nil
 
-	case msg.String() == "r":
-		if m.focus == FocusCommands {
-			m.commandIdx = 1 // Reconfigure
-			m.executeCommand()
-		}
+	case msg.String() == "r" && m.focus == FocusCommands:
+		m.commandIdx = 1 // Reconfigure
+		m.executeCommand()
 		return m, nil
 
-	case msg.String() == "p":
-		if m.focus == FocusCommands {
-			m.commandIdx = 2 // Promote
-			m.executeCommand()
-		}
+	case msg.String() == "p" && m.focus == FocusCommands:
+		m.commandIdx = 2 // Promote
+		m.executeCommand()
 		return m, nil
 
-	case msg.String() == "q":
-		if m.focus == FocusCommands {
-			m.commandIdx = 3 // Quit
-			m.executeCommand()
-			if m.cancelled {
-				return m, tea.Quit
-			}
+	case msg.String() == "q" && m.focus == FocusCommands:
+		m.commandIdx = 3 // Quit
+		m.executeCommand()
+		if m.cancelled {
+			return m, tea.Quit
 		}
 		return m, nil
 
