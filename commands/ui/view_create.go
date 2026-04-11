@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -212,9 +211,13 @@ func (m Model) renderCreateInputView() string {
 		bundleName = m.flatBundles[m.flatBundleCursor].bundle.Name
 	}
 
-	envLabel := "Without Environment"
+	var envTag string
 	if m.selectedEnv != nil {
-		envLabel = m.selectedEnv.Name
+		envStyle := lipgloss.NewStyle().Foreground(colorPromote)
+		envTag = envStyle.Render("[" + m.selectedEnv.Name + "]")
+	} else {
+		envStyle := lipgloss.NewStyle().Foreground(colorWarning)
+		envTag = envStyle.Render("[Without Environment]")
 	}
 
 	var headerContext string
@@ -224,10 +227,10 @@ func (m Model) renderCreateInputView() string {
 		for _, frame := range m.createStack {
 			parts = append(parts, "Create "+frame.parentBundleName)
 		}
-		parts = append(parts, fmt.Sprintf("Create %s [%s]", bundleName, envLabel))
+		parts = append(parts, "Create "+bundleName+" "+envTag)
 		headerContext = strings.Join(parts, " / ")
 	} else {
-		headerContext = fmt.Sprintf("Create %s [%s]", bundleName, envLabel)
+		headerContext = "Create " + bundleName + " " + envTag
 	}
 
 	title := m.renderHeader(headerContext, panelWidth)
