@@ -391,7 +391,7 @@ func (m Model) renderOverviewView() string {
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth)
 
-	title := m.renderHeader("Select an Action", panelWidth)
+	title := m.renderHeader("Select an Action")
 
 	commandsGrid := m.renderCommandGrid(panelWidth)
 
@@ -534,9 +534,8 @@ func (m Model) renderSummaryButtons() string {
 	return strings.Join(parts, " ")
 }
 
-// renderHeader renders the header with breadcrumbs and optional environment label.
-// panelWidth controls the total span used to right-align the environment name.
-func (m Model) renderHeader(context string, panelWidth int) string {
+// renderHeader renders the header with breadcrumbs.
+func (m Model) renderHeader(context string) string {
 	slashStyle := lipgloss.NewStyle().
 		Foreground(colorText)
 

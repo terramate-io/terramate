@@ -242,7 +242,7 @@ func (m Model) renderPromoteSelectView() string {
 	if f := m.currentPromoteFilter(); f != nil {
 		breadcrumb = "Promote Bundle Instance to " + f.label
 	}
-	title := m.renderHeader(breadcrumb, panelWidth)
+	title := m.renderHeader(breadcrumb)
 
 	// Detail box for highlighted bundle
 	var detailBox string
@@ -397,7 +397,7 @@ func (m Model) renderPromoteInputView() string {
 
 	b := m.promoteBundle
 	headerContext := fmt.Sprintf("Promote Bundle Instance / %s", b.Name)
-	title := m.renderHeader(headerContext, panelWidth)
+	title := m.renderHeader(headerContext)
 
 	formView := m.inputsForm.View()
 

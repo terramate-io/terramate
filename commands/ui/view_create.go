@@ -244,7 +244,7 @@ func (m Model) renderCreateInputView() string {
 		headerContext = "Create " + bundleName + " " + envTag
 	}
 
-	title := m.renderHeader(headerContext, panelWidth)
+	title := m.renderHeader(headerContext)
 
 	var help string
 	if m.confirmingCreateExit {

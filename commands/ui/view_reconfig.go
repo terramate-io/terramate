@@ -362,7 +362,7 @@ func (m Model) renderReconfigSelectView() string {
 			breadcrumb = "Reconfigure Bundle Instance in " + f.label
 		}
 	}
-	title := m.renderHeader(breadcrumb, panelWidth)
+	title := m.renderHeader(breadcrumb)
 
 	// Detail box for highlighted bundle
 	var detailBox string
@@ -444,7 +444,7 @@ func (m Model) renderReconfigInputView() string {
 
 	b := m.reconfigBundle
 	headerContext := fmt.Sprintf("Reconfigure Bundle Instance / %s", b.Name)
-	title := m.renderHeader(headerContext, panelWidth)
+	title := m.renderHeader(headerContext)
 
 	formView := m.inputsForm.View()
 

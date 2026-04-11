@@ -118,7 +118,7 @@ func (m Model) renderEditChangeView() string {
 
 	change := m.PendingChanges()[m.editingChangeIdx]
 	headerContext := fmt.Sprintf("edit bundle / %s", change.Name)
-	title := m.renderHeader(headerContext, panelWidth)
+	title := m.renderHeader(headerContext)
 
 	formView := m.inputsForm.View()
 
