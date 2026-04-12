@@ -309,6 +309,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if key.Matches(msg, keys.Quit) {
+			// Clear error dialog so it doesn't block the second Ctrl+C
+			m.errorDialogTitle = ""
+			m.errorDialogText = ""
 			if m.ctrlCPending {
 				m.cancelled = true
 				return m, tea.Quit
