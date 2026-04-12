@@ -253,9 +253,12 @@ func groupBundles(bundles []*config.Bundle) []bundleGroup {
 		})
 	}
 
-	// Sort groups alphabetically by name
+	// Sort groups deterministically by name, then detail (version+source) as tiebreaker
 	slices.SortFunc(groups, func(a, b bundleGroup) int {
-		return cmp.Compare(a.name, b.name)
+		if c := cmp.Compare(a.name, b.name); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.detail, b.detail)
 	})
 
 	// Sort instances within each group by alias
