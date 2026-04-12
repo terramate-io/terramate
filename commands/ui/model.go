@@ -505,7 +505,6 @@ func (m Model) updateError(err error) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-
 func (m Model) finalHelpText(base string) string {
 	if m.ctrlCPending {
 		return "press ctrl+c again to exit"
