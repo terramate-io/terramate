@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/engine"
 	"github.com/terramate-io/terramate/errors"
 )
@@ -19,67 +20,16 @@ import (
 func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Clear transient errors on update.
 	m.currentErr = nil
-	m.saveErr = nil
 
-	// --- Exit confirmation ---
-	if m.confirmingExit {
-		switch {
-		case key.Matches(msg, keys.Left):
-			if m.exitConfirmIdx > 0 {
-				m.exitConfirmIdx--
-			}
-		case key.Matches(msg, keys.Right):
-			if m.exitConfirmIdx < 1 {
-				m.exitConfirmIdx++
-			}
-		case key.Matches(msg, keys.Enter):
-			if m.exitConfirmIdx == 0 {
-				m.cancelled = true
-				return m, tea.Quit
-			}
-			m.confirmingExit = false
-		case key.Matches(msg, keys.Escape):
-			m.confirmingExit = false
-		}
-		return m, nil
-	}
-
-	// --- Discard confirmation ---
-	if m.confirmingDiscard {
-		switch {
-		case key.Matches(msg, keys.Left):
-			if m.discardConfirmIdx > 0 {
-				m.discardConfirmIdx--
-			}
-		case key.Matches(msg, keys.Right):
-			if m.discardConfirmIdx < 1 {
-				m.discardConfirmIdx++
-			}
-		case key.Matches(msg, keys.Enter):
-			if m.discardConfirmIdx == 0 {
-				m.SetPendingChanges(nil)
-				m.summaryCursor = 0
-				m.summaryOnButtons = false
-				m.confirmingDiscard = false
-				m.focus = FocusCommands
-			} else {
-				m.confirmingDiscard = false
-			}
-		case key.Matches(msg, keys.Escape):
-			m.confirmingDiscard = false
-		}
-		return m, nil
-	}
+	sessionBundles := m.sessionBundles()
 
 	// --- Commands / Summary focus ---
 	switch {
 	case key.Matches(msg, keys.Tab):
 		switch m.focus {
 		case FocusCommands:
-			if len(m.PendingChanges()) > 0 || m.changesApplied {
+			if len(sessionBundles) > 0 {
 				m.focus = FocusSummary
-				m.summaryOnButtons = true
-				m.summaryButtonIdx = 0
 			} else {
 				m.focus = FocusCommands
 				return m, textarea.Blink
@@ -98,65 +48,31 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case FocusSummary:
-			if m.changesApplied {
-				m.changesApplied = false
-				m.savedChanges = nil
-				m.focus = FocusCommands
-			} else if m.summaryOnButtons && len(m.PendingChanges()) > 0 {
-				if m.summaryButtonIdx == 0 {
-					if err := m.saveChanges(); err != nil {
-						m.saveErr = err
-						return m, nil
-					}
-				} else {
-					m.confirmingDiscard = true
-					m.discardConfirmIdx = 1
+			if m.summaryCursor < len(sessionBundles) {
+				if err := m.loadReconfigBundle(sessionBundles[m.summaryCursor]); err != nil {
+					return m.updateError(err)
 				}
-			} else if len(m.PendingChanges()) > 0 {
-				if err := m.openEditChange(m.summaryCursor); err != nil {
-					m.currentErr = err
-					return m, nil
-				}
+				m.reconfigFromOverview = true
+				m.viewState = ViewReconfigInput
 				return m, m.inputsForm.FocusActiveInput()
 			}
 		}
 		return m, nil
 
 	case key.Matches(msg, keys.Up):
-		if m.focus == FocusSummary {
-			if m.summaryOnButtons && len(m.PendingChanges()) > 0 {
-				m.summaryOnButtons = false
-				m.summaryCursor = len(m.PendingChanges()) - 1
-			} else if m.summaryCursor > 0 {
-				m.summaryCursor--
-			} else if len(m.PendingChanges()) > 0 {
-				m.summaryOnButtons = true
-			}
+		if m.focus == FocusSummary && m.summaryCursor > 0 {
+			m.summaryCursor--
 		}
 		return m, nil
 
 	case key.Matches(msg, keys.Down):
-		if m.focus == FocusSummary {
-			if m.summaryOnButtons && len(m.PendingChanges()) > 0 {
-				m.summaryOnButtons = false
-				m.summaryCursor = 0
-			} else if !m.summaryOnButtons && m.summaryCursor < len(m.PendingChanges())-1 {
-				m.summaryCursor++
-			} else if !m.summaryOnButtons && m.summaryCursor >= len(m.PendingChanges())-1 {
-				m.summaryOnButtons = true
-			}
+		if m.focus == FocusSummary && m.summaryCursor < len(sessionBundles)-1 {
+			m.summaryCursor++
 		}
 		return m, nil
 
 	case key.Matches(msg, keys.Right):
-		if m.focus == FocusSummary && m.summaryOnButtons {
-			if m.summaryButtonIdx < 1 {
-				m.summaryButtonIdx++
-			}
-		} else if m.focus == FocusSummary && len(m.PendingChanges()) > 0 {
-			m.summaryOnButtons = true
-			m.summaryButtonIdx = 0
-		} else if m.focus == FocusCommands {
+		if m.focus == FocusCommands {
 			if m.commandIdx < len(m.commands)-1 {
 				m.commandIdx++
 			} else {
@@ -166,15 +82,7 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, keys.Left):
-		if m.focus == FocusSummary && m.summaryOnButtons {
-			if m.summaryButtonIdx > 0 {
-				m.summaryButtonIdx--
-			} else {
-				if len(m.PendingChanges()) > 0 {
-					m.summaryOnButtons = false
-				}
-			}
-		} else if m.focus == FocusCommands {
+		if m.focus == FocusCommands {
 			if m.commandIdx > 0 {
 				m.commandIdx--
 			} else {
@@ -184,31 +92,9 @@ func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, keys.Escape):
-		if m.focus == FocusSummary && !m.summaryOnButtons {
-			m.summaryOnButtons = true
-		}
 		return m, nil
 
-	case msg.String() == "c" && m.focus == FocusCommands:
-		m.commandIdx = 0 // Create
-		m.executeCommand()
-		if m.cancelled {
-			return m, tea.Quit
-		}
-		return m, nil
-
-	case msg.String() == "r" && m.focus == FocusCommands:
-		m.commandIdx = 1 // Reconfigure
-		m.executeCommand()
-		return m, nil
-
-	case msg.String() == "p" && m.focus == FocusCommands:
-		m.commandIdx = 2 // Promote
-		m.executeCommand()
-		return m, nil
-
-	case msg.String() == "q" && m.focus == FocusCommands:
-		m.commandIdx = 3 // Quit
+	case m.focus == FocusCommands && m.selectCommandByKey(msg.String()):
 		m.executeCommand()
 		if m.cancelled {
 			return m, tea.Quit
@@ -249,7 +135,7 @@ func (m *Model) executeCommand() {
 			if len(est.Registry.Bundles) == 0 {
 				m.currentErr = errors.E("No bundles found in the project. Add bundles first.")
 			} else {
-				m.currentErr = errors.E("All bundles already have pending changes.")
+				m.currentErr = errors.E("No bundles available for reconfiguration.")
 			}
 			return
 		}
@@ -270,12 +156,7 @@ func (m *Model) executeCommand() {
 		m.viewState = ViewPromoteSelect
 		m.promoteCursor = 0
 	case "Quit":
-		if len(m.PendingChanges()) > 0 {
-			m.confirmingExit = true
-			m.exitConfirmIdx = 1
-		} else {
-			m.cancelled = true
-		}
+		m.cancelled = true
 	}
 }
 
@@ -297,48 +178,42 @@ func (m *Model) reloadAll() error {
 	return nil
 }
 
-// saveChanges persists all pending changes to disk and reloads them.
-// Successfully saved changes are moved to the change log even on partial failure.
-func (m *Model) saveChanges() error {
-	est := m.EngineState
+// sessionBundleKey returns a unique key for a bundle instance (host path + env ID).
+func sessionBundleKey(hostPath string, env *config.Environment) string {
+	if env != nil {
+		return hostPath + "\x00" + env.ID
+	}
+	return hostPath
+}
 
-	errs := errors.L()
-	var saved []SavedChange
-	var failed []Change
+// recordSessionChange tracks a saved change for the session history panel and CLI exit log.
+func (m *Model) recordSessionChange(c Change) {
+	m.changeLog = append(m.changeLog, changeLogEntry(c))
+	if m.sessionChanges == nil {
+		m.sessionChanges = make(map[string][]ChangeKind)
+	}
+	key := sessionBundleKey(c.HostPath, c.Env)
+	m.sessionChanges[key] = append(m.sessionChanges[key], c.Kind)
+}
 
-	for i, c := range m.PendingChanges() {
-		err := m.PendingChanges()[i].Save(est.Registry.Environments)
-		if err != nil {
-			errs.Append(err)
-			failed = append(failed, c)
-		} else {
-			var envID, fromEnvID string
-			if c.Env != nil {
-				envID = c.Env.ID
-			}
-			if c.FromEnv != nil {
-				fromEnvID = c.FromEnv.ID
-			}
-			saved = append(saved, SavedChange{
-				Kind:        c.Kind,
-				Name:        c.DisplayName,
-				HostPath:    c.HostPath,
-				ProjectPath: c.ProjectPath,
-				EnvID:       envID,
-				FromEnvID:   fromEnvID,
-			})
-			m.changeLog = append(m.changeLog, changeLogEntry(c))
+// sessionBundles returns the registry bundles that were modified this session,
+// sorted into grouped display order.
+func (m Model) sessionBundles() []*config.Bundle {
+	if len(m.sessionChanges) == 0 {
+		return nil
+	}
+	var bundles []*config.Bundle
+	for _, b := range m.EngineState.Registry.Bundles {
+		if _, ok := m.sessionChanges[sessionBundleKey(b.Info.HostPath(), b.Environment)]; ok {
+			bundles = append(bundles, b)
 		}
 	}
-
-	m.savedChanges = saved
-	errs.Append(m.reloadAll())
-
-	m.changesApplied = len(saved) > 0
-	m.SetPendingChanges(failed)
-	m.summaryCursor = 0
-	m.summaryOnButtons = false
-	return errs.AsError()
+	groups := groupBundles(bundles)
+	sorted := make([]*config.Bundle, 0, len(bundles))
+	for _, g := range groups {
+		sorted = append(sorted, g.bundles...)
+	}
+	return sorted
 }
 
 func changeLogEntry(c Change) string {
@@ -413,12 +288,13 @@ func (m Model) renderOverviewView() string {
 	}
 	mainSection = borderStyle.Render(mainContent)
 
-	showSummaryPanel := len(m.PendingChanges()) > 0 || m.changesApplied
+	sessionBundles := m.sessionBundles()
+	showHistoryPanel := len(sessionBundles) > 0
 
 	helpText := "c: create • r: reconfigure • p: promote • q: quit"
-	if m.changesApplied && m.focus == FocusSummary {
-		helpText = "enter: clear • tab: switch section"
-	} else if showSummaryPanel {
+	if showHistoryPanel && m.focus == FocusSummary {
+		helpText = "↑↓: navigate • enter: reconfigure • tab: switch section"
+	} else if showHistoryPanel {
 		helpText = "c: create • r: reconfigure • p: promote • q: quit • tab: switch section"
 	}
 	helpText = m.finalHelpText(helpText)
@@ -438,45 +314,56 @@ func (m Model) renderOverviewView() string {
 	}
 
 	var content string
-	if showSummaryPanel {
-		summaryTitle := sectionTitleStyle.Render("Pending Changes")
-
-		if len(m.PendingChanges()) > 0 {
-			buttons := m.renderSummaryButtons()
-			titleContentWidth := innerWidth
-			gap := titleContentWidth - lipgloss.Width(summaryTitle) - lipgloss.Width(buttons)
-			if gap < 1 {
-				gap = 1
-			}
-			summaryTitle = summaryTitle + strings.Repeat(" ", gap) + buttons
-		}
-
-		var summaryFull string
-		if m.changesApplied {
-			summaryFull = contentStyle.Render(m.renderSavedSummary(panelWidth))
-		} else {
-			summaryBody := m.renderSummary(panelWidth)
-			parts := []string{summaryTitle}
-			if m.saveErr != nil {
-				errStyle := lipgloss.NewStyle().Foreground(colorError).PaddingLeft(2).Width(innerWidth)
-				parts = append(parts, "", errStyle.Render(m.saveErr.Error()))
-			}
-			parts = append(parts, "", contentStyle.Render(summaryBody))
-			summaryFull = lipgloss.JoinVertical(lipgloss.Left, parts...)
-		}
-
-		var summarySection string
+	if showHistoryPanel {
+		var summaryTitle string
 		if m.focus == FocusSummary {
-			summarySection = focusedBorderStyle.Render(summaryFull)
+			summaryTitle = sectionTitleStyle.Render("Recently Changed — Select to Reconfigure")
 		} else {
-			summarySection = unfocusedBorderStyle.Render(summaryFull)
+			summaryTitle = lipgloss.NewStyle().Foreground(colorTextMuted).Render("Recently Changed — Select to Reconfigure")
+		}
+
+		scrollbarGutter := 4
+		contentWidth := innerWidth - scrollbarGutter
+		groups := groupBundles(sessionBundles)
+		selectedGroupIdx, items := m.renderSessionBundleItems(groups, m.summaryCursor, contentWidth)
+
+		availableHeight := m.effectiveContentHeight()
+		start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight, 0)
+
+		var sb strings.Builder
+		for i := start; i < end; i++ {
+			if i > start {
+				sb.WriteByte('\n')
+			}
+			sb.WriteString(items[i].content)
+		}
+		listContent := sb.String()
+
+		visibleCount := end - start
+		if len(items) > visibleCount {
+			trackHeight := lipgloss.Height(listContent)
+			scrollbar := renderScrollbar(len(items), visibleCount, start, trackHeight)
+			listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
+		}
+
+		summaryFull := lipgloss.JoinVertical(lipgloss.Left,
+			summaryTitle,
+			"",
+			contentStyle.Render(listContent),
+		)
+
+		var historySection string
+		if m.focus == FocusSummary {
+			historySection = focusedBorderStyle.Render(summaryFull)
+		} else {
+			historySection = unfocusedBorderStyle.Render(summaryFull)
 		}
 
 		content = lipgloss.JoinVertical(
 			lipgloss.Left,
 			title,
 			mainSection,
-			summarySection,
+			historySection,
 			help,
 		)
 	} else {
@@ -489,49 +376,6 @@ func (m Model) renderOverviewView() string {
 	}
 
 	return lipgloss.NewStyle().Padding(1, 2).Render(content)
-}
-
-func (m Model) renderSummaryButtons() string {
-	buttonStyle := lipgloss.NewStyle().
-		Padding(0, 1).
-		Background(colorBgSubtle).
-		Foreground(colorText)
-	activeStyle := lipgloss.NewStyle().
-		Padding(0, 1).
-		Background(colorPrimary).
-		Foreground(lipgloss.Color("#000000")).
-		Bold(true)
-
-	if m.confirmingDiscard {
-		promptStyle := lipgloss.NewStyle().Foreground(colorWarning).Bold(true)
-		prompt := promptStyle.Render("Discard all changes?")
-
-		var yesBtn, noBtn string
-		if m.discardConfirmIdx == 0 {
-			yesBtn = activeStyle.Render("Yes")
-		} else {
-			yesBtn = buttonStyle.Render("Yes")
-		}
-		if m.discardConfirmIdx == 1 {
-			noBtn = activeStyle.Render("No")
-		} else {
-			noBtn = buttonStyle.Render("No")
-		}
-		return prompt + "  " + lipgloss.JoinHorizontal(lipgloss.Top, yesBtn, " ", noBtn)
-	}
-
-	focused := m.focus == FocusSummary && m.summaryOnButtons
-
-	labels := []string{"Save", "Discard"}
-	var parts []string
-	for i, label := range labels {
-		if focused && i == m.summaryButtonIdx {
-			parts = append(parts, activeStyle.Render(label))
-		} else {
-			parts = append(parts, buttonStyle.Render(label))
-		}
-	}
-	return strings.Join(parts, " ")
 }
 
 // renderHeader renders the header with breadcrumbs.
@@ -563,55 +407,34 @@ func (m Model) renderHeader(context string) string {
 	return left
 }
 
-// commandMeta maps each command name to its color and hint text.
-var commandMeta = map[string]struct {
-	color lipgloss.AdaptiveColor
-	hint  string
-}{
-	"Create":      {color: colorCreate, hint: "Create infrastructure in your project"},
-	"Reconfigure": {color: colorReconfig, hint: "Reconfigure existing infrastructure"},
-	"Promote":     {color: colorPromote, hint: "Promote infrastructure to this environment"},
-	"Quit":        {color: colorTextMuted, hint: "Quit Terramate"},
+// selectCommandByKey matches a key press to a command's configured hotkey.
+// Returns true if a command was matched and commandIdx was updated.
+func (m *Model) selectCommandByKey(key string) bool {
+	for i, cmd := range m.commands {
+		if cm, ok := commandMeta[cmd]; ok && cm.hotkey == key {
+			m.commandIdx = i
+			return true
+		}
+	}
+	return false
 }
 
-func (m Model) renderCommandGrid(panelWidth int) string {
-	innerWidth := panelWidth - 4
+// commandMeta maps each command name to its color, hotkey, and hint text.
+var commandMeta = map[string]struct {
+	color  lipgloss.AdaptiveColor
+	hotkey string // keyboard shortcut to activate this command
+	hint   string
+}{
+	"Create":      {color: colorCreate, hotkey: "c", hint: "Create infrastructure in your project"},
+	"Reconfigure": {color: colorReconfig, hotkey: "r", hint: "Reconfigure existing infrastructure"},
+	"Promote":     {color: colorPromote, hotkey: "p", hint: "Promote infrastructure to this environment"},
+	"Quit":        {color: colorTextMuted, hotkey: "q", hint: "Quit Terramate"},
+}
 
-	if m.confirmingExit {
-		promptStyle := lipgloss.NewStyle().Foreground(colorWarning).Bold(true)
-		buttonStyle := lipgloss.NewStyle().
-			Padding(0, 1).
-			Foreground(colorTextMuted)
-		activeStyle := lipgloss.NewStyle().
-			Padding(0, 1).
-			Background(colorPrimary).
-			Foreground(lipgloss.Color("#000000")).
-			Bold(true)
-
-		prompt := promptStyle.Render("You still have unsaved changes. Exit anyway?")
-
-		var yesBtn, noBtn string
-		if m.exitConfirmIdx == 0 {
-			yesBtn = activeStyle.Render("Yes")
-		} else {
-			yesBtn = buttonStyle.Render("Yes")
-		}
-		if m.exitConfirmIdx == 1 {
-			noBtn = activeStyle.Render("No")
-		} else {
-			noBtn = buttonStyle.Render("No")
-		}
-
-		line := prompt + "  " + lipgloss.JoinHorizontal(lipgloss.Top, yesBtn, " ", noBtn)
-		gap := innerWidth - lipgloss.Width(line)
-		if gap < 0 {
-			gap = 0
-		}
-		return strings.Repeat(" ", gap) + line
-	}
-
+func (m Model) renderCommandGrid(_ int) string {
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	normalStyle := lipgloss.NewStyle().Foreground(colorText)
+	hotkeyStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
 	cmds := m.commands
 	if len(cmds) == 0 {
@@ -623,16 +446,19 @@ func (m Model) renderCommandGrid(panelWidth int) string {
 	var rowStr string
 	for i, cmd := range cmds {
 		isSelected := m.focus == FocusCommands && i == m.commandIdx
+		cm := commandMeta[cmd]
+
+		var hotkey string
+		if cm.hotkey != "" {
+			hotkey = " " + hotkeyStyle.Render("["+cm.hotkey+"]")
+		}
 
 		var rendered string
 		if isSelected {
-			indicator := "›"
-			if cm, ok := commandMeta[cmd]; ok {
-				indicator = lipgloss.NewStyle().Foreground(cm.color).Render("›")
-			}
-			rendered = fmt.Sprintf("  %s %s", indicator, selectedStyle.Render(cmd))
+			indicator := lipgloss.NewStyle().Foreground(cm.color).Render("›")
+			rendered = fmt.Sprintf("  %s %s%s", indicator, selectedStyle.Render(cmd), hotkey)
 		} else {
-			rendered = fmt.Sprintf("    %s", normalStyle.Render(cmd))
+			rendered = fmt.Sprintf("    %s%s", normalStyle.Render(cmd), hotkey)
 		}
 
 		if i > 0 {
@@ -655,208 +481,94 @@ func (m Model) selectedCommandHint() string {
 	return ""
 }
 
-func (m Model) renderSummary(panelWidth int) string {
-	if len(m.PendingChanges()) == 0 {
-		dimStyle := lipgloss.NewStyle().
-			Foreground(colorTextMuted).
-			Italic(true)
-		return dimStyle.Render("No pending changes")
-	}
-
-	iconStyle := map[ChangeKind]lipgloss.Style{
-		ChangeCreate:   lipgloss.NewStyle().Foreground(colorCreate),
-		ChangeReconfig: lipgloss.NewStyle().Foreground(colorReconfig),
-		ChangePromote:  lipgloss.NewStyle().Foreground(colorPromote),
-	}
-	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
-	nameStyle := lipgloss.NewStyle().Foreground(colorText)
-	selectedNameStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
-
-	envStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
-
-	maxBundle, maxDisplay, maxEnv := 0, 0, 0
-	for _, c := range m.PendingChanges() {
-		if len(c.Metadata.Name) > maxBundle {
-			maxBundle = len(c.Metadata.Name)
-		}
-		if len(c.DisplayName) > maxDisplay {
-			maxDisplay = len(c.DisplayName)
-		}
-
-		envLen := 0
-		if c.Env != nil {
-			envLen += len(c.Env.ID)
-		}
-		if c.FromEnv != nil && c.FromEnv != c.Env {
-			envLen += len(c.FromEnv.ID)
-		}
-		if envLen > maxEnv {
-			maxEnv = envLen
-		}
-	}
-
+// renderSessionBundleItems renders grouped session bundles with change kind tags.
+func (m Model) renderSessionBundleItems(groups []bundleGroup, cursor, contentWidth int) (int, []renderedItem) {
 	focused := m.focus == FocusSummary
 
-	var rows []string
-	for i, change := range m.PendingChanges() {
-		icon := iconStyle[change.Kind].Render("◆")
-		isSelected := focused && !m.summaryOnButtons && i == m.summaryCursor
-
-		bundleName := change.Metadata.Name
-		bundleCol := dimStyle.Render(bundleName + strings.Repeat(" ", maxBundle-len(bundleName)))
-
-		display := change.DisplayName
-		var displayCol string
-		if isSelected {
-			displayCol = selectedNameStyle.Render(display + strings.Repeat(" ", maxDisplay-len(display)))
-		} else {
-			displayCol = nameStyle.Render(display + strings.Repeat(" ", maxDisplay-len(display)))
-		}
-
-		envCol := ""
-		if maxEnv > 0 {
-			if change.Env != nil && change.FromEnv != nil && change.FromEnv != change.Env {
-				envLen := len(change.Env.ID) + len(change.FromEnv.ID)
-				envCol = envStyle.Render("["+change.Env.ID+" ← "+change.FromEnv.ID+"]") + strings.Repeat(" ", maxEnv-envLen)
-			} else if change.Env != nil {
-				envCol = envStyle.Render("["+change.Env.ID+"]") + strings.Repeat(" ", maxEnv-len(change.Env.ID))
-			} else {
-				envCol = strings.Repeat(" ", maxEnv+2)
-			}
-			envCol += "  "
-		}
-
-		var prefix string
-		if isSelected {
-			prefix = "› "
-		} else {
-			prefix = "  "
-		}
-
-		row := fmt.Sprintf("%s%s  %s  %s  %s", prefix, icon, bundleCol, displayCol, envCol)
-		if change.Source != "" {
-			row += dimStyle.Render("from " + change.Source)
-		}
-		row = truncateStyledRow(row, panelWidth-4)
-		rows = append(rows, row)
-
-		if len(change.Warnings) > 0 {
-			warnStyle := lipgloss.NewStyle().Foreground(colorWarning)
-			for _, w := range change.Warnings {
-				rows = append(rows, "     "+warnStyle.Render("⚠ "+w))
-			}
-		}
-	}
-	return strings.Join(rows, "\n")
-}
-
-func (m Model) renderSavedSummary(panelWidth int) string {
-	actionStyle := lipgloss.NewStyle().Foreground(colorText)
-	nameStyle := lipgloss.NewStyle().Foreground(colorText).Bold(true)
 	dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
-	innerWidth := panelWidth - 8
-
-	type fileLine struct {
-		action string
-		detail string
-		path   string
+	var selectedStyle, headerNameStyle, versionStyle, envStyle lipgloss.Style
+	if focused {
+		selectedStyle = lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
+		headerNameStyle = lipgloss.NewStyle().Bold(true).Foreground(colorText)
+		versionStyle = lipgloss.NewStyle().Foreground(colorTextSubtle)
+		envStyle = lipgloss.NewStyle().Foreground(colorTextMuted)
+	} else {
+		selectedStyle = dimStyle
+		headerNameStyle = dimStyle
+		versionStyle = dimStyle
+		envStyle = dimStyle
 	}
 
-	var lines []fileLine
-	for _, c := range m.savedChanges {
-		var action, detail string
-		switch c.Kind {
-		case ChangeCreate:
-			action = "Created"
-			if c.EnvID != "" {
-				detail = fmt.Sprintf("%s [%s]", c.Name, c.EnvID)
-			} else {
-				detail = c.Name
+	lineStyle := lipgloss.NewStyle().Width(contentWidth)
+
+	kindLabels := map[ChangeKind]struct {
+		label string
+		color lipgloss.AdaptiveColor
+	}{
+		ChangeCreate:   {label: "created", color: colorCreate},
+		ChangeReconfig: {label: "reconfigured", color: colorReconfig},
+		ChangePromote:  {label: "promoted", color: colorPromote},
+	}
+
+	var items []renderedItem
+	selectedItemIdx := 0
+	visualIdx := 0
+
+	for gi, g := range groups {
+		b0 := g.bundles[0]
+
+		if gi > 0 {
+			items = append(items, renderedItem{content: "", height: 1})
+		}
+
+		headerLine := headerNameStyle.Render(g.name) + " " + versionStyle.Render("v"+b0.DefinitionMetadata.Version)
+		items = append(items, renderedItem{content: lineStyle.Render(headerLine), height: 1})
+
+		for _, b := range g.bundles {
+			isSelected := focused && visualIdx == cursor
+			if isSelected {
+				selectedItemIdx = len(items)
 			}
-		case ChangeReconfig:
-			action = "Reconfigured"
-			if c.EnvID != "" {
-				detail = fmt.Sprintf("%s [%s]", c.Name, c.EnvID)
+			visualIdx++
+
+			displayName := displayNameFromAlias(b.Alias, b.Name)
+			var line string
+			if isSelected {
+				line = selectedStyle.Render("  › " + displayName)
+			} else if focused {
+				line = "    " + displayName
 			} else {
-				detail = c.Name
+				line = "    " + dimStyle.Render(displayName)
 			}
-		case ChangePromote:
-			action = "Promoted"
-			detail = fmt.Sprintf("%s from [%s] to [%s]", c.Name, c.FromEnvID, c.EnvID)
-		default:
-			panic("unsupported change kind " + c.Kind)
-		}
-		lines = append(lines, fileLine{action: action, detail: detail, path: c.ProjectPath})
-	}
+			if b.Environment != nil {
+				line += " " + envStyle.Render("["+b.Environment.Name+"]")
+			}
 
-	maxAction := 0
-	maxDetail := 0
-	for _, l := range lines {
-		if len(l.action) > maxAction {
-			maxAction = len(l.action)
-		}
-		if len(l.detail) > maxDetail {
-			maxDetail = len(l.detail)
-		}
-	}
-
-	var rows []string
-	for _, l := range lines {
-		actionPad := strings.Repeat(" ", maxAction-len(l.action))
-		namePad := strings.Repeat(" ", maxDetail-len(l.detail))
-		row := fmt.Sprintf("  ✅ %s%s %s %s%s %s %s",
-			actionStyle.Render(l.action), actionPad,
-			nameStyle.Render("bundle"),
-			nameStyle.Render(l.detail), namePad,
-			dimStyle.Render("at"),
-			dimStyle.Render(l.path),
-		)
-		row = truncateStyledRow(row, innerWidth)
-		rows = append(rows, row)
-	}
-
-	return strings.Join(rows, "\n")
-}
-
-// truncateStyledRow truncates a styled string to maxWidth visible characters,
-// appending "…" if truncated. It walks the string rune-by-rune, tracking visible
-// width while preserving ANSI escape sequences.
-func truncateStyledRow(s string, maxWidth int) string {
-	if maxWidth < 2 {
-		maxWidth = 2
-	}
-	target := maxWidth - 1 // reserve 1 char for "…"
-	var result []byte
-	visibleWidth := 0
-	i := 0
-	for i < len(s) {
-		if s[i] == '\x1b' {
-			// ANSI escape sequence — copy it entirely without counting width.
-			j := i + 1
-			if j < len(s) && s[j] == '[' {
-				j++
-				for j < len(s) && s[j] != 'm' {
-					j++
-				}
-				if j < len(s) {
-					j++ // include 'm'
+			// Append change kind tags
+			key := sessionBundleKey(b.Info.HostPath(), b.Environment)
+			if kinds, ok := m.sessionChanges[key]; ok {
+				seen := make(map[ChangeKind]bool)
+				for _, k := range kinds {
+					if seen[k] {
+						continue
+					}
+					seen[k] = true
+					if kl, ok := kindLabels[k]; ok {
+						var tagStyle lipgloss.Style
+						if focused {
+							tagStyle = lipgloss.NewStyle().Foreground(kl.color)
+						} else {
+							tagStyle = dimStyle
+						}
+						line += " " + tagStyle.Render(kl.label)
+					}
 				}
 			}
-			result = append(result, s[i:j]...)
-			i = j
-			continue
+
+			items = append(items, renderedItem{content: lineStyle.Render(line), height: 1})
 		}
-		if visibleWidth >= target {
-			break
-		}
-		result = append(result, s[i])
-		visibleWidth++
-		i++
 	}
-	if visibleWidth >= target && i < len(s) {
-		// Append ellipsis and reset to avoid style bleeding.
-		result = append(result, "\x1b[0m…"...)
-	}
-	return string(result)
+
+	return selectedItemIdx, items
 }

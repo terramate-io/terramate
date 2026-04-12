@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -88,6 +87,7 @@ func (m *Model) loadPromoteBundle(b *config.Bundle, targetEnv *config.Environmen
 	m.promoteBundle = b
 	m.selectedBundleDefEntry = bde
 	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, targetEnv, b.Environment, values, values)
+	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 	return nil
@@ -333,7 +333,7 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 	maxAliasWidth := 0
 	for _, g := range groups {
 		for _, b := range g.bundles {
-			w := len(displayNameFromAlias(b.Alias, b.Name))
+			w := lipgloss.Width(displayNameFromAlias(b.Alias, b.Name))
 			if w > maxAliasWidth {
 				maxAliasWidth = w
 			}
@@ -365,7 +365,7 @@ func (m Model) renderPromoteGroupedItems(groups []bundleGroup, cursor, contentWi
 			visualIdx++
 
 			displayName := displayNameFromAlias(b.Alias, b.Name)
-			pad := strings.Repeat(" ", maxAliasWidth-len(displayName)+2)
+			pad := strings.Repeat(" ", maxAliasWidth-lipgloss.Width(displayName)+2)
 
 			var line string
 			if isSelected {
@@ -396,7 +396,15 @@ func (m Model) renderPromoteInputView() string {
 		Width(panelWidth)
 
 	b := m.promoteBundle
-	headerContext := fmt.Sprintf("Promote Bundle Instance / %s", b.Name)
+	aliasStyle := lipgloss.NewStyle().Foreground(colorCreate)
+	alias := aliasStyle.Render(displayNameFromAlias(b.Alias, b.Name))
+	var envTag string
+	if m.promoteCursor < len(m.promoteTargetEnvs) {
+		targetEnv := m.promoteTargetEnvs[m.promoteCursor]
+		envStyle := lipgloss.NewStyle().Foreground(colorPromote)
+		envTag = " " + envStyle.Render("["+targetEnv.Name+"]")
+	}
+	headerContext := "Promote " + b.DefinitionMetadata.Name + ": " + alias + envTag
 	title := m.renderHeader(headerContext)
 
 	formView := m.inputsForm.View()
@@ -420,7 +428,7 @@ func (m Model) renderPromoteInputView() string {
 func (m Model) updatePromoteInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	est := m.EngineState
 
-	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() {
+	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
 		m.viewState = ViewPromoteSelect
 		return m, nil
 	}
@@ -440,8 +448,17 @@ func (m Model) updatePromoteInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputsForm.state = InputsFormActive
 			break
 		}
-		m.SetPendingChanges(append(m.PendingChanges(), change))
-		m.changesApplied = false
+		if err := change.Save(est.Registry.Environments); err != nil {
+			m.inputsForm.SetValidationError(err)
+			m.inputsForm.state = InputsFormActive
+			break
+		}
+		if err := m.reloadAll(); err != nil {
+			m.inputsForm.SetValidationError(err)
+			m.inputsForm.state = InputsFormActive
+			break
+		}
+		m.recordSessionChange(change)
 
 		m.viewState = ViewOverview
 	case InputsFormDiscarded:

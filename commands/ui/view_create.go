@@ -131,7 +131,7 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputsForm.state = InputsFormActive
 			break
 		}
-		m.changeLog = append(m.changeLog, changeLogEntry(change))
+		m.recordSessionChange(change)
 
 		if len(m.createStack) > 0 {
 			m.restoreCreateFrame(change.Alias)

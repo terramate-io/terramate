@@ -536,7 +536,7 @@ func renderDetailBox(innerWidth int, boxTitle string, fields []detailField) stri
 			// Split name+version for the Bundle field
 			name, version := splitNameVersion(f.value)
 			if version != "" {
-				val := truncateEnd(name, availWidth-len(version)-1)
+				val := truncateEnd(name, availWidth-lipgloss.Width(version)-1)
 				line = label + nameStyle.Render(val) + " " + versionStyle.Render(version)
 			} else {
 				var val string
@@ -549,7 +549,7 @@ func renderDetailBox(innerWidth int, boxTitle string, fields []detailField) stri
 			}
 		} else {
 			name, version := splitNameVersion(f.value)
-			line = nameStyle.Render(truncateEnd(name, contentWidth-len(version)-1))
+			line = nameStyle.Render(truncateEnd(name, contentWidth-lipgloss.Width(version)-1))
 			if version != "" {
 				line += " " + versionStyle.Render(version)
 			}

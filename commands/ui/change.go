@@ -29,7 +29,7 @@ import (
 	"github.com/terramate-io/terramate/yaml"
 )
 
-// ChangeKind indicates the type of pending change.
+// ChangeKind indicates the type of change.
 type ChangeKind string
 
 // ChangeCreate and the following constants enumerate the supported change kinds.
@@ -39,7 +39,7 @@ const (
 	ChangePromote  ChangeKind = "change_promote"
 )
 
-// Change represents a pending change in the summary.
+// Change represents a bundle change (create, reconfigure, or promote).
 type Change struct {
 	Kind        ChangeKind
 	HostPath    string
@@ -64,21 +64,6 @@ type Change struct {
 
 	Warnings []string // Non-fatal warnings surfaced after resolving the change
 
-	// Simple incremental ID returned to the LLM so it can track this change reliably.
-	ProposalID int
-
-	// Set to exclude from uniqueness checks, so an edited change doesn't conflict with itself.
-	MarkedForReplacement bool
-}
-
-// SavedChange is a lightweight summary of a change that was persisted to disk.
-type SavedChange struct {
-	Kind        ChangeKind
-	Name        string
-	EnvID       string
-	FromEnvID   string
-	ProjectPath string
-	HostPath    string
 }
 
 // NewCreateChange builds a Change that represents a new bundle creation.
@@ -196,6 +181,11 @@ func NewReconfigChange(
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
 
+	// Rebind bundle() functions to the current registry so that references
+	// to bundles created/reconfigured during this session are resolvable.
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), est.Registry.Registry, bundle.Environment, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry.Registry, bundle.Environment))
+
 	hostPath := bundle.Info.HostPath()
 	projPath := project.PrjAbsPath(est.Root.HostDir(), hostPath).String()
 
@@ -266,6 +256,11 @@ func NewPromoteChange(
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
 
+	// Rebind bundle() functions to the current registry so that references
+	// to bundles promoted during this session are resolvable.
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), est.Registry.Registry, env, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry.Registry, env))
+
 	hostPath := bundle.Info.HostPath()
 	projPath := project.PrjAbsPath(est.Root.HostDir(), hostPath).String()
 
@@ -323,48 +318,6 @@ func NewPromoteChange(
 		OriginalValues: inputsToValueMap(bundle.Inputs),
 		Warnings:       warnings,
 	}, nil
-}
-
-// NewChangeFromExisting rebuilds a Change from a previously created change with updated values.
-func NewChangeFromExisting(
-	est *EngineState,
-	oldChange Change,
-	schemactx typeschema.EvalContext,
-	inputDefs []*config.InputDefinition,
-	values map[string]cty.Value,
-) (Change, error) {
-	switch oldChange.Kind {
-	case ChangeCreate:
-		return NewCreateChange(
-			est,
-			oldChange.Env,
-			oldChange.BundleDefEntry,
-			schemactx,
-			inputDefs,
-			values,
-		)
-	case ChangeReconfig:
-		return NewReconfigChange(
-			est,
-			oldChange.OriginalBundle,
-			oldChange.BundleDefEntry,
-			schemactx,
-			inputDefs,
-			values,
-		)
-	case ChangePromote:
-		return NewPromoteChange(
-			est,
-			oldChange.Env,
-			oldChange.OriginalBundle,
-			oldChange.BundleDefEntry,
-			schemactx,
-			inputDefs,
-			values,
-		)
-	default:
-		panic("unsupported ChangeKind " + oldChange.Kind)
-	}
 }
 
 // reEvalAllInputs evaluates the bundle's input definitions using the prompted

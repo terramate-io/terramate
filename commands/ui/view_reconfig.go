@@ -90,6 +90,7 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde
 	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, b.Environment, nil, values, values)
+	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 	return nil
@@ -115,20 +116,10 @@ func (m Model) nextReconfigFilterName() string {
 // buildReconfigFilters precomputes the list of valid filter states
 // (environments that have reconfigurable bundles, plus env-less if applicable).
 func (m Model) buildReconfigFilters() []envFilterState {
-	pending := make(map[string]bool, len(m.PendingChanges()))
-	for _, c := range m.PendingChanges() {
-		if c.Kind == ChangeReconfig {
-			pending[c.HostPath] = true
-		}
-	}
-
 	// Check which envs have bundles, and whether env-less bundles exist
 	envHas := make(map[string]bool)
 	hasEnvLess := false
 	for _, b := range m.EngineState.Registry.Bundles {
-		if pending[b.Info.HostPath()] {
-			continue
-		}
 		if b.Environment == nil {
 			hasEnvLess = true
 		} else {
@@ -190,19 +181,8 @@ func makeBundleDefinitionEntry(root *config.Root, b *config.Bundle) *config.Bund
 // ChangeReconfig entry, sorted into grouped display order so that
 // the flat cursor index matches the visual position.
 func (m Model) buildReconfigBundles() []*config.Bundle {
-	pending := make(map[string]bool, len(m.PendingChanges()))
-	for _, c := range m.PendingChanges() {
-		if c.Kind == ChangeReconfig {
-			pending[c.HostPath] = true
-		}
-	}
-
 	var filtered []*config.Bundle
 	for _, b := range m.EngineState.Registry.Bundles {
-		if pending[b.Info.HostPath()] {
-			continue
-		}
-
 		f := m.currentReconfigFilter()
 		if f != nil {
 			if f.envLess {
@@ -446,7 +426,14 @@ func (m Model) renderReconfigInputView() string {
 		Width(panelWidth)
 
 	b := m.reconfigBundle
-	headerContext := fmt.Sprintf("Reconfigure Bundle Instance / %s", b.Name)
+	aliasStyle := lipgloss.NewStyle().Foreground(colorCreate)
+	alias := aliasStyle.Render(displayNameFromAlias(b.Alias, b.Name))
+	var envTag string
+	if b.Environment != nil {
+		envStyle := lipgloss.NewStyle().Foreground(colorPromote)
+		envTag = " " + envStyle.Render("["+b.Environment.Name+"]")
+	}
+	headerContext := "Reconfigure " + b.DefinitionMetadata.Name + ": " + alias + envTag
 	title := m.renderHeader(headerContext)
 
 	formView := m.inputsForm.View()
@@ -470,8 +457,20 @@ func (m Model) renderReconfigInputView() string {
 func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	est := m.EngineState
 
-	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() {
-		m.viewState = ViewReconfigSelect
+	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
+		if m.inputsForm.HasPendingChanges() {
+			m.inputsForm.preDiscardFocus = m.inputsForm.focus
+			m.inputsForm.confirmingDiscard = true
+			m.inputsForm.discardConfirmIdx = 1
+			m.inputsForm.focus = InputFocusActive
+			return m, nil
+		}
+		if m.reconfigFromOverview {
+			m.reconfigFromOverview = false
+			m.viewState = ViewOverview
+		} else {
+			m.viewState = ViewReconfigSelect
+		}
 		return m, nil
 	}
 
@@ -490,11 +489,22 @@ func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.inputsForm.state = InputsFormActive
 				break
 			}
-			m.SetPendingChanges(append(m.PendingChanges(), change))
-			m.changesApplied = false
+			if err := change.Save(est.Registry.Environments); err != nil {
+				m.inputsForm.SetValidationError(err)
+				m.inputsForm.state = InputsFormActive
+				break
+			}
+			if err := m.reloadAll(); err != nil {
+				m.inputsForm.SetValidationError(err)
+				m.inputsForm.state = InputsFormActive
+				break
+			}
+			m.recordSessionChange(change)
 		}
+		m.reconfigFromOverview = false
 		m.viewState = ViewOverview
 	case InputsFormDiscarded:
+		m.reconfigFromOverview = false
 		m.viewState = ViewOverview
 	}
 
