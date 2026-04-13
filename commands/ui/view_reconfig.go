@@ -182,9 +182,9 @@ func makeBundleDefinitionEntry(root *config.Root, b *config.Bundle) *config.Bund
 // ChangeReconfig entry, sorted into grouped display order so that
 // the flat cursor index matches the visual position.
 func (m Model) buildReconfigBundles() []*config.Bundle {
+	f := m.currentReconfigFilter()
 	var filtered []*config.Bundle
 	for _, b := range m.EngineState.Registry.Bundles {
-		f := m.currentReconfigFilter()
 		if f != nil {
 			if f.envLess {
 				if b.Environment != nil {

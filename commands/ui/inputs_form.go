@@ -271,7 +271,9 @@ func (f *InputsForm) confirmCurrent() {
 
 	// In reconfig/promote mode, return focus to the completed panel on the
 	// just-edited input so the user can continue editing nearby inputs.
-	if f.reconfiguring || f.promoting {
+	// Only do this when all inputs are still filled — if clearDependents
+	// created unfilled inputs, advanceToNextPending already set the active input.
+	if (f.reconfiguring || f.promoting) && f.allInputsDone() {
 		visible := f.allVisibleIndices()
 		for vi, idx := range visible {
 			if idx == editedIdx {
