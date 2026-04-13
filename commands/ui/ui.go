@@ -89,7 +89,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 		Root:            root,
 		Evalctx:         evalctx,
 		ResolveAPI:      resolveAPI,
-		Registry:        &Registry{Registry: reg},
+		Registry:        reg,
 		LocalBundleDefs: localBundleDefs,
 		Collections:     collections,
 		CLIConfig:       cli.Config(),

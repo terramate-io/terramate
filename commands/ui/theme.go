@@ -32,7 +32,6 @@ var (
 
 	// Background colors
 	colorBgSubtle = lipgloss.AdaptiveColor{Light: "#F3F4F6", Dark: "#374151"} // Subtle background
-	colorBgMuted  = lipgloss.AdaptiveColor{Light: "#E5E7EB", Dark: "#4B5563"} // Muted background
 
 	// Border colors
 	colorBorder      = lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#4B5563"}

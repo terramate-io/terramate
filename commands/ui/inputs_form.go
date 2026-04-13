@@ -65,17 +65,14 @@ type InputsForm struct {
 	buttonIdx int // 0 = Add, 1 = Discard
 
 	// Split panel focus state
-	focus                InputFocusArea // Which panel currently has focus
-	completedCursor      int            // Cursor position in the completed inputs panel
-	savedCompletedCursor int            // Saved cursor when leaving list via Right arrow
+	focus           InputFocusArea // Which panel currently has focus
+	completedCursor int            // Cursor position in the completed inputs panel
 
 	reconfiguring bool
 	promoting     bool
 
 	// Edit mode — true when editing an existing change (button label: Apply vs Add).
-	editMode  bool
-	hasEdited bool // true once the user has re-edited at least one input (hides Actions until then)
-	reEditing bool // true when re-editing a Change that already had pending changes
+	editMode bool
 
 	// Bundle reference support
 	pendingRefClass string // Class to create when state is InputsFormCreateRef
@@ -88,14 +85,12 @@ type InputsForm struct {
 	parentTitle     string          // Title inherited from the parent form (used as fallback for subform panel title)
 
 	// Discard confirmation (two-step: Discard -> "Are you sure?" Yes/No)
-	confirmingDiscard  bool           // True when the discard confirmation prompt is shown
-	discardConfirmIdx  int            // 0 = Yes, 1 = No
-	preDiscardFocus    InputFocusArea // Focus to restore when discard is cancelled
-	skipDiscardConfirm bool           // When true, skip the "Are you sure?" confirmation
+	confirmingDiscard bool           // True when the discard confirmation prompt is shown
+	discardConfirmIdx int            // 0 = Yes, 1 = No
+	preDiscardFocus   InputFocusArea // Focus to restore when discard is cancelled
 
 	// Customizable button labels (empty = defaults: "Confirm" / "Cancel")
 	confirmLabel string
-	cancelLabel  string
 
 	// Validation error shown at the top of the completed panel (e.g. from finalizeChange).
 	validationErr error
@@ -119,7 +114,7 @@ func (f InputsForm) effectivePanelHeight() int {
 }
 
 // NewInputsForm creates a new inputs form for the given inputs and schemas
-func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *Registry, env *config.Environment) InputsForm {
+func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *config.Registry, env *config.Environment) InputsForm {
 	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 
@@ -160,7 +155,7 @@ func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.Eva
 }
 
 // NewInputsFormWithValues creates an inputs form pre-populated with existing values.
-func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value) InputsForm {
+func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *config.Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value) InputsForm {
 	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 
@@ -201,20 +196,6 @@ func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx type
 		}
 	}
 
-	hasPreExisting := false
-	if originalValues != nil {
-		for _, def := range prompted {
-			curVal := cty.NilVal
-			if v, ok := values[def.Name]; ok {
-				curVal = v
-			}
-			if !ctyValueEquals(curVal, origCopy[def.Name]) {
-				hasPreExisting = true
-				break
-			}
-		}
-	}
-
 	f := InputsForm{
 		Schemactx:       schemactx,
 		InputDefs:       prompted,
@@ -225,12 +206,12 @@ func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx type
 		editMode:        true,
 		reconfiguring:   len(originalValues) > 0 && (fromEnv == nil || env == fromEnv),
 		promoting:       len(originalValues) > 0 && (fromEnv != nil && env != fromEnv),
-		reEditing:       hasPreExisting,
 		focus:           InputFocusCompleted,
 		completedCursor: 0,
 	}
 
 	f.buttonIdx = 0
+	f.completedCursor = f.firstSelectableCursor()
 	f.syncAllValuesToEvalctx()
 	return f
 }
@@ -255,7 +236,6 @@ func (f *InputsForm) ReenterAt(idx int) {
 	}
 	f.activeIdx = idx
 	f.focus = InputFocusActive
-	f.hasEdited = true
 	f.confirmingDiscard = false
 	f.prepareInput(idx)
 }
@@ -281,12 +261,28 @@ func (f *InputsForm) confirmCurrent() {
 	if f.activeIdx >= len(f.InputDefs) || f.activeWidget == nil {
 		return
 	}
+	editedIdx := f.activeIdx
 	def := f.InputDefs[f.activeIdx]
 	newVal := f.valueByName(def.Name)
 	if !ctyValueEquals(f.preEditValue, newVal) {
 		f.clearDependents(def.Name)
 	}
 	f.advanceToNextPending()
+
+	// In reconfig/promote mode, return focus to the completed panel on the
+	// just-edited input so the user can continue editing nearby inputs.
+	// Only do this when all inputs are still filled — if clearDependents
+	// created unfilled inputs, advanceToNextPending already set the active input.
+	if (f.reconfiguring || f.promoting) && f.allInputsDone() {
+		visible := f.allVisibleIndices()
+		for vi, idx := range visible {
+			if idx == editedIdx {
+				f.completedCursor = vi
+				break
+			}
+		}
+		f.focus = InputFocusCompleted
+	}
 }
 
 // advanceToNextPending finds the first visible unfilled input whose dependencies
@@ -343,14 +339,7 @@ func (f *InputsForm) ShowsTwoPanels() bool {
 
 // buttonsVisible returns true when the inline Confirm/Cancel buttons should be shown.
 func (f *InputsForm) buttonsVisible() bool {
-	if !f.allInputsDone() || f.objectMode {
-		return false
-	}
-	if f.reconfiguring && !f.reEditing && !f.HasPendingChanges() {
-		// Initial reconfigure: only show buttons when there are actual changes.
-		return false
-	}
-	return true
+	return f.allInputsDone() && !f.objectMode
 }
 
 // HasPendingChanges returns true when any visible value differs from the original baseline.
@@ -359,7 +348,7 @@ func (f *InputsForm) buttonsVisible() bool {
 // reverts all visible values back to their originals.
 // Always returns false when not in reconfiguring mode.
 func (f *InputsForm) HasPendingChanges() bool {
-	if !f.reconfiguring {
+	if !f.reconfiguring && !f.promoting {
 		return false
 	}
 	for _, idx := range f.allVisibleIndices() {
@@ -384,8 +373,7 @@ func (f *InputsForm) HighlightedInputName() string {
 	if f.focus != InputFocusCompleted {
 		return ""
 	}
-	changed, unchanged := f.completedVisibleIndices()
-	combined := append(changed, unchanged...)
+	combined := f.allVisibleIndices()
 	if f.completedCursor < 0 || f.completedCursor >= len(combined) {
 		return ""
 	}
@@ -396,54 +384,30 @@ func (f *InputsForm) HighlightedInputName() string {
 	return name
 }
 
-// completedVisibleIndices splits visible input indices into changed and unchanged.
-// In edit mode, changed inputs (value differs from original) come first.
-// In non-edit mode, changed is empty and unchanged contains all visible indices.
-func (f *InputsForm) completedVisibleIndices() (changed, unchanged []int) {
-	all := f.allVisibleIndices()
-	if !f.reconfiguring && !f.promoting {
-		return nil, all
-	}
-	for _, idx := range all {
-		if f.isDefChanged(f.InputDefs[idx]) {
-			changed = append(changed, idx)
-		} else {
-			unchanged = append(unchanged, idx)
-		}
-	}
-	return changed, unchanged
+// focusButtons switches focus to the button bar, selecting the first button.
+func (f *InputsForm) focusButtons() {
+	f.focus = InputFocusActive
+	f.buttonIdx = 0
 }
 
-// completedCursorToLine maps a cursor index in the combined (changed + unchanged) list
-// to the visual line number in the rendered content, accounting for section headers
-// and multi-line changed items.
-func (f *InputsForm) completedCursorToLine(cursor int, changed, unchanged []int) int {
-	if len(changed) == 0 {
-		// No changes — flat list, 1 line per item
-		return cursor
+// firstSelectableCursor returns the first cursor index that is not immutable or disabled.
+// Returns -1 if no selectable item exists (all inputs are immutable/disabled).
+func (f *InputsForm) firstSelectableCursor() int {
+	diffMode := f.reconfiguring || f.promoting
+	visible := f.allVisibleIndices()
+	for i, idx := range visible {
+		def := f.InputDefs[idx]
+		if (def.Immutable && diffMode) || f.hasPendingDependencies(def) {
+			continue
+		}
+		return i
 	}
+	return -1
+}
 
-	line := 0
-	// Changed items start at the top of the content (panel title is "Changed Inputs").
-
-	if cursor < len(changed) {
-		// Cursor is in the changed section: each item is 2 lines
-		line += cursor * 2
-		return line
-	}
-
-	// Past the changed section: account for all changed items (2 lines each)
-	line += len(changed) * 2
-
-	// Blank separator + "Inputs" header + blank line (only if unchanged items exist)
-	if len(unchanged) > 0 {
-		line += 3
-	}
-
-	// Cursor offset into the unchanged section
-	unchIdx := cursor - len(changed)
-	line += unchIdx
-	return line
+// hasSelectableInputs returns true when at least one input can be edited.
+func (f *InputsForm) hasSelectableInputs() bool {
+	return f.firstSelectableCursor() >= 0
 }
 
 // Remaining returns the number of visible inputs that have not been filled yet.
@@ -724,8 +688,8 @@ func (f InputsForm) Update(msg tea.Msg) (InputsForm, tea.Cmd) {
 				visible := f.allVisibleIndices()
 				if len(visible) > 0 {
 					f.focus = InputFocusCompleted
-					// Position cursor on the currently active input
-					f.completedCursor = 0
+					// Position cursor on the currently active input, or first selectable
+					f.completedCursor = f.firstSelectableCursor()
 					for vi, idx := range visible {
 						if idx == f.activeIdx {
 							f.completedCursor = vi
@@ -790,39 +754,55 @@ func (f InputsForm) Update(msg tea.Msg) (InputsForm, tea.Cmd) {
 
 // updateCompleted handles key messages when the inputs panel is focused.
 func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
-	changed, unchanged := f.completedVisibleIndices()
-	combined := append(changed, unchanged...)
+	combined := f.allVisibleIndices()
 	if len(combined) == 0 {
 		return f, nil
 	}
 
 	diffMode := f.reconfiguring || f.promoting
 
+	isSkippable := func(idx int) bool {
+		if idx < 0 || idx >= len(combined) {
+			return false
+		}
+		def := f.InputDefs[combined[idx]]
+		return (def.Immutable && diffMode) || f.hasPendingDependencies(def)
+	}
+
 	switch msg.Type {
 	case tea.KeyUp:
-		if f.completedCursor > 0 {
-			f.completedCursor--
-		} else if f.buttonsVisible() {
-			// At the top of the list — return focus to the buttons
-			f.focus = InputFocusActive
+		moved := false
+		for next := f.completedCursor - 1; next >= 0; next-- {
+			if !isSkippable(next) {
+				f.completedCursor = next
+				moved = true
+				break
+			}
+		}
+		if !moved {
+			// Wrap to last selectable input
+			for i := len(combined) - 1; i > f.completedCursor; i-- {
+				if !isSkippable(i) {
+					f.completedCursor = i
+					break
+				}
+			}
 		}
 	case tea.KeyDown:
-		if f.completedCursor < len(combined)-1 {
-			f.completedCursor++
-		} else if f.buttonsVisible() {
-			// At the bottom of the list — wrap to buttons
-			f.focus = InputFocusActive
+		moved := false
+		for next := f.completedCursor + 1; next < len(combined); next++ {
+			if !isSkippable(next) {
+				f.completedCursor = next
+				moved = true
+				break
+			}
 		}
-	case tea.KeyRight:
-		if f.buttonsVisible() {
-			// Save cursor position and jump to the Accept button
-			f.savedCompletedCursor = f.completedCursor
-			f.focus = InputFocusActive
-			f.buttonIdx = 0
+		if !moved && f.buttonsVisible() {
+			f.focusButtons()
 		}
 	case tea.KeyDelete, tea.KeyBackspace:
 		// Reset a changed input to its original value.
-		if diffMode && f.completedCursor < len(combined) {
+		if diffMode && f.completedCursor >= 0 && f.completedCursor < len(combined) {
 			realIdx := combined[f.completedCursor]
 			def := f.InputDefs[realIdx]
 			if def.Immutable {
@@ -831,8 +811,7 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 			if f.isDefChanged(def) {
 				origVal := f.originalValues[def.Name]
 				f.setValueByName(def.Name, origVal)
-				newChanged, newUnchanged := f.completedVisibleIndices()
-				newTotal := len(newChanged) + len(newUnchanged)
+				newTotal := len(f.allVisibleIndices())
 				if f.completedCursor >= newTotal && newTotal > 0 {
 					f.completedCursor = newTotal - 1
 				}
@@ -840,6 +819,9 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		}
 		return f, nil
 	case tea.KeyEnter:
+		if f.completedCursor < 0 || f.completedCursor >= len(combined) {
+			return f, nil
+		}
 		realIdx := combined[f.completedCursor]
 		def := f.InputDefs[realIdx]
 		isImmutable := def.Immutable && diffMode
@@ -891,7 +873,7 @@ func (f InputsForm) updateInput(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 	if !f.buttonsVisible() {
 		f.focus = InputFocusCompleted
-		f.completedCursor = 0
+		f.completedCursor = f.firstSelectableCursor()
 		return f.updateCompleted(msg)
 	}
 
@@ -921,45 +903,65 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 	}
 
 	// Normal state: Accept / Discard
-	changed, unchanged := f.completedVisibleIndices()
-	combined := append(changed, unchanged...)
+	combined := f.allVisibleIndices()
+	hasChanges := f.HasPendingChanges()
+
+	// Button count: no changes in reconfig → 1 button (Back), otherwise → 2 (Save, Cancel)
+	// Promote always has 2 buttons since it creates a new bundle.
+	maxButton := 1 // 0=Save, 1=Cancel
+	if f.reconfiguring && !hasChanges {
+		maxButton = 0 // Only Back button at index 0
+	}
+
+	// lastSelectableCursor finds the last non-immutable, non-disabled input.
+	lastSelectable := func() int {
+		for i := len(combined) - 1; i >= 0; i-- {
+			def := f.InputDefs[combined[i]]
+			if (!def.Immutable || (!f.reconfiguring && !f.promoting)) && !f.hasPendingDependencies(def) {
+				return i
+			}
+		}
+		return f.firstSelectableCursor()
+	}
+
 	switch msg.Type {
-	case tea.KeyLeft:
+	case tea.KeyUp:
 		if f.buttonIdx > 0 {
 			f.buttonIdx--
 		} else {
-			// Left on Accept — return to the completed list, restoring saved cursor
+			// Up from first button → back to last selectable input
 			if len(combined) > 0 {
 				f.focus = InputFocusCompleted
-				if f.savedCompletedCursor < len(combined) {
-					f.completedCursor = f.savedCompletedCursor
-				} else {
-					f.completedCursor = len(combined) - 1
-				}
+				f.completedCursor = lastSelectable()
 			}
+		}
+	case tea.KeyDown:
+		if f.buttonIdx < maxButton {
+			f.buttonIdx++
+		} else {
+			// Down from last button → wrap to first selectable input
+			if len(combined) > 0 {
+				f.focus = InputFocusCompleted
+				f.completedCursor = f.firstSelectableCursor()
+			}
+		}
+	case tea.KeyLeft:
+		if f.buttonIdx > 0 {
+			f.buttonIdx--
 		}
 	case tea.KeyRight:
-		if f.buttonIdx < 1 {
+		if f.buttonIdx < maxButton {
 			f.buttonIdx++
-		}
-	case tea.KeyUp, tea.KeyDown:
-		// Switch to the completed list so the user can navigate and re-enter inputs.
-		if len(combined) > 0 {
-			f.focus = InputFocusCompleted
-			if msg.Type == tea.KeyUp {
-				f.completedCursor = len(combined) - 1
-			} else {
-				f.completedCursor = 0
-			}
 		}
 	case tea.KeyShiftTab:
 		f.goBack()
 		return f, nil
 	case tea.KeyEnter:
-		if f.buttonIdx == 0 {
-			f.state = InputsFormAccepted
-		} else if f.skipDiscardConfirm {
+		if f.reconfiguring && !hasChanges {
+			// Back button — discard without confirmation
 			f.state = InputsFormDiscarded
+		} else if f.buttonIdx == 0 {
+			f.state = InputsFormAccepted
 		} else {
 			f.preDiscardFocus = f.focus
 			f.confirmingDiscard = true
@@ -1062,20 +1064,6 @@ func (f InputsForm) View() string {
 		} else {
 			botTitleText = "Attributes"
 		}
-	} else if f.reconfiguring {
-		changed, _ := f.completedVisibleIndices()
-		if len(changed) > 0 {
-			botTitleText = "Changed"
-		} else {
-			botTitleText = "Edit Inputs"
-		}
-	} else if f.promoting {
-		changed, _ := f.completedVisibleIndices()
-		if len(changed) > 0 {
-			botTitleText = "Changed"
-		} else {
-			botTitleText = "Promoted Inputs"
-		}
 	}
 	botTitle := sectionTitleStyle.Render(botTitleText)
 	completedContent := f.renderCompletedPanelContent()
@@ -1157,43 +1145,25 @@ func (f InputsForm) renderSingleCompletedPanel(
 	sectionTitleStyle, contentStyle, focusedBorder lipgloss.Style,
 	innerWidth, borderOverhead, titleLines int,
 ) string {
-	// Panel title: "Changed Inputs" when there are changed values, "Inputs" otherwise.
-	changed, _ := f.completedVisibleIndices()
-	hasChanges := len(changed) > 0
-
 	botTitleText := "Inputs"
 	if f.isObjectForm {
 		botTitleText = "Attributes"
-	} else if f.reconfiguring {
-		if hasChanges {
-			botTitleText = "Changed"
-		} else {
-			botTitleText = "Edit Inputs"
-		}
-	} else if f.promoting {
-		if hasChanges {
-			botTitleText = "Changed"
-		} else {
-			botTitleText = "Promoted Inputs"
-		}
 	}
 	titleRendered := sectionTitleStyle.Render(botTitleText)
-
-	// Show inline buttons when they should be visible.
-	showButtons := f.buttonsVisible()
-	if showButtons {
-		buttons := f.renderInlineButtons()
-		titleContentWidth := innerWidth + 2
-		gap := titleContentWidth - lipgloss.Width(titleRendered) - lipgloss.Width(buttons)
-		if gap < 1 {
-			gap = 1
-		}
-		titleRendered = titleRendered + strings.Repeat(" ", gap) + buttons
-	}
+	showButtons := f.allInputsDone() && !f.objectMode
 
 	completedContent := f.renderCompletedPanelContent()
+	if !f.hasSelectableInputs() && (f.reconfiguring || f.promoting) {
+		noteStyle := lipgloss.NewStyle().Foreground(colorTextMuted).Italic(true)
+		completedContent = completedContent + "\n\n" + noteStyle.Render("  All inputs are immutable — this bundle is not configurable.")
+	}
 
-	maxContent := f.effectivePanelHeight() - borderOverhead - titleLines
+	// Reserve space for buttons at the bottom (blank line + button row).
+	buttonLines := 0
+	if showButtons {
+		buttonLines = 2
+	}
+	maxContent := f.effectivePanelHeight() - borderOverhead - titleLines - buttonLines
 	if maxContent < 1 {
 		maxContent = 1
 	}
@@ -1209,8 +1179,10 @@ func (f InputsForm) renderSingleCompletedPanel(
 		f.viewport.SetContent(completedContent)
 
 		if !f.browsing {
-			changed, unchanged := f.completedVisibleIndices()
-			focusLine := f.completedCursorToLine(f.completedCursor, changed, unchanged)
+			focusLine := 0
+			if f.completedCursor >= 0 {
+				focusLine = f.completedCursor
+			}
 			if focusLine < f.viewport.YOffset {
 				f.viewport.SetYOffset(focusLine)
 			} else if focusLine >= f.viewport.YOffset+f.viewport.Height {
@@ -1232,6 +1204,9 @@ func (f InputsForm) renderSingleCompletedPanel(
 		parts = append(parts, errStyle.Render(f.validationErr.Error()), "")
 	}
 	parts = append(parts, contentBlock)
+	if showButtons {
+		parts = append(parts, "", "  "+f.renderInlineButtons())
+	}
 	inner := lipgloss.JoinVertical(lipgloss.Left, parts...)
 	return focusedBorder.Height(f.effectivePanelHeight() - borderOverhead).Render(inner)
 }
@@ -1320,17 +1295,16 @@ var (
 	validationStyle = lipgloss.NewStyle().Foreground(colorError)
 )
 
-// renderCompletedPanelContent renders all visible inputs for the bottom panel.
-// Shows completed (checkmark + value), active (highlighted), and pending (dimmed) inputs.
-// In edit mode, splits into "Changed Inputs" (top) and "Inputs" (bottom) sections.
+// renderCompletedPanelContent renders all visible inputs in their natural order.
+// Changed inputs are marked with a ~ icon and inline diff (new ← old).
+// Immutable inputs show a blue value and "immutable" tag.
 func (f InputsForm) renderCompletedPanelContent() string {
-	changed, unchanged := f.completedVisibleIndices()
-	combined := append(changed, unchanged...)
+	combined := f.allVisibleIndices()
 	if len(combined) == 0 {
 		return ""
 	}
 
-	// Compute max label width for alignment across both sections.
+	// Compute max label width for alignment.
 	maxLabel := 0
 	for _, realIdx := range combined {
 		def := f.InputDefs[realIdx]
@@ -1346,9 +1320,25 @@ func (f InputsForm) renderCompletedPanelContent() string {
 	disabledLabelStyle := lipgloss.NewStyle().Foreground(colorTextMuted).Faint(true)
 	activeLabelStyle := lipgloss.NewStyle().Foreground(colorText).Bold(true)
 	hintStyle := lipgloss.NewStyle().Foreground(colorTextMuted).Italic(true)
-	sectionHeaderStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
 	changedIconStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	changedValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	immutableValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
 	wasStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+
+	// Compute max value display width for tag alignment.
+	maxValueWidth := 0
+	for _, realIdx := range combined {
+		if f.isInputFilled(realIdx) {
+			w := len(f.formatCompletedValue(realIdx))
+			if f.isDefChanged(f.InputDefs[realIdx]) {
+				// Changed values also show " ← original"
+				w += 3 + len(f.formatOriginalValue(realIdx))
+			}
+			if w > maxValueWidth {
+				maxValueWidth = w
+			}
+		}
+	}
 
 	renderItem := func(cursorIdx int, realIdx int, isChanged bool) []string {
 		def := f.InputDefs[realIdx]
@@ -1365,12 +1355,10 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		var prefix, statusIcon, nameCol string
 
 		if isImmutable {
+			// Immutable: not selectable, always show tag
 			prefix = "  "
-			if isCursorSelected {
-				prefix = promptStyle.Render("›") + " "
-			}
 			statusIcon = " "
-			nameCol = disabledLabelStyle.Render(label) + labelPad
+			nameCol = completedLabelStyle.Render(label) + labelPad
 		} else if isDisabled {
 			prefix = "  "
 			statusIcon = " "
@@ -1380,7 +1368,7 @@ func (f InputsForm) renderCompletedPanelContent() string {
 			if isActive {
 				statusIcon = selectedLabelStyle.Render("○")
 			} else if isChanged {
-				statusIcon = selectedLabelStyle.Render("~")
+				statusIcon = changedIconStyle.Render("~")
 			} else if isFilled && !diffMode {
 				statusIcon = checkStyle.Render("✓")
 			} else {
@@ -1411,51 +1399,62 @@ func (f InputsForm) renderCompletedPanelContent() string {
 
 		arrowStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
-		var line string
-		if isFilled && !isDisabled {
+		// Build the value portion and compute its visible width for tag alignment.
+		var valueStr string
+		var valueWidth int
+		if isImmutable && isFilled {
+			v := f.formatCompletedValue(realIdx)
+			valueStr = immutableValueStyle.Render(v)
+			valueWidth = len(v)
+		} else if isFilled && !isDisabled {
 			if isChanged && diffMode {
 				origDisplay := f.formatOriginalValue(realIdx)
 				newDisplay := f.formatCompletedValue(realIdx)
-				valueStr := completedValueStyle.Render(newDisplay) + " " + arrowStyle.Render("←") + " " + wasStyle.Render(origDisplay)
-				line = fmt.Sprintf("%s%s %s = %s", prefix, statusIcon, nameCol, valueStr)
+				valueStr = changedValueStyle.Render(newDisplay) + " " + arrowStyle.Render("←") + " " + wasStyle.Render(origDisplay)
+				valueWidth = len(newDisplay) + 3 + len(origDisplay)
 			} else {
-				line = fmt.Sprintf("%s%s %s = %s", prefix, statusIcon, nameCol, completedValueStyle.Render(f.formatCompletedValue(realIdx)))
+				v := f.formatCompletedValue(realIdx)
+				valueStr = completedValueStyle.Render(v)
+				valueWidth = len(v)
 			}
 		} else if !isFilled && !isDisabled && diffMode {
 			origDisplay := f.formatOriginalValue(realIdx)
-			valueStr := wasStyle.Render("?") + " " + arrowStyle.Render("←") + " " + wasStyle.Render(origDisplay)
+			valueStr = wasStyle.Render("?") + " " + arrowStyle.Render("←") + " " + wasStyle.Render(origDisplay)
+			valueWidth = 1 + 3 + len(origDisplay)
+		}
+
+		// Build the base line.
+		var line string
+		if valueStr != "" {
 			line = fmt.Sprintf("%s%s %s = %s", prefix, statusIcon, nameCol, valueStr)
 		} else {
 			line = fmt.Sprintf("%s%s %s", prefix, statusIcon, nameCol)
 		}
-		if isCursorSelected && isImmutable {
-			line += "  " + hintStyle.Render("immutable")
+
+		// Build the tag (immutable, enter to edit, etc.) and align to a common column.
+		var tag string
+		if isImmutable {
+			tag = hintStyle.Render("immutable")
 		} else if isCursorSelected && !isDisabled {
-			line += "  " + hintStyle.Render("enter to edit")
+			tag = hintStyle.Render("enter to edit")
 		} else if isCursorSelected && isDisabled {
-			line += "  " + hintStyle.Render("waiting for dependencies")
+			tag = hintStyle.Render("waiting for dependencies")
 		}
+
+		if tag != "" {
+			pad := maxValueWidth - valueWidth
+			if pad < 0 {
+				pad = 0
+			}
+			line += strings.Repeat(" ", pad) + "  " + tag
+		}
+
 		return []string{line}
 	}
 
 	var lines []string
-
-	if len(changed) > 0 {
-		// Changed items listed directly (the panel title is "Changed Inputs").
-		for ci, realIdx := range changed {
-			lines = append(lines, renderItem(ci, realIdx, true)...)
-		}
-
-		if len(unchanged) > 0 {
-			lines = append(lines, "")
-			lines = append(lines, sectionHeaderStyle.Render("Unchanged"))
-			lines = append(lines, "")
-		}
-	}
-
-	for ui, realIdx := range unchanged {
-		cursorIdx := len(changed) + ui
-		lines = append(lines, renderItem(cursorIdx, realIdx, false)...)
+	for ci, realIdx := range combined {
+		lines = append(lines, renderItem(ci, realIdx, f.isDefChanged(f.InputDefs[realIdx]))...)
 	}
 
 	return strings.Join(lines, "\n")
@@ -1520,11 +1519,6 @@ func (f InputsForm) renderInlineButtons() string {
 		Foreground(lipgloss.Color("0")).
 		Bold(true)
 
-	dimSelectedStyle := lipgloss.NewStyle().
-		Padding(0, 1).
-		Background(colorBgMuted).
-		Foreground(colorTextMuted)
-
 	if f.confirmingDiscard {
 		// Always show confirm prompt as active regardless of focus
 		promptStyle := lipgloss.NewStyle().Foreground(colorWarning).Bold(true)
@@ -1544,33 +1538,42 @@ func (f InputsForm) renderInlineButtons() string {
 		return prompt + "  " + lipgloss.JoinHorizontal(lipgloss.Top, yesBtn, " ", noBtn)
 	}
 
-	// When the user is navigating the completed list, dim the selected button
 	activeStyle := selectedButtonStyle
 	if f.focus != InputFocusActive {
-		activeStyle = dimSelectedStyle
+		activeStyle = buttonStyle
 	}
+
+	hasChanges := f.HasPendingChanges()
 
 	confirmText := f.confirmLabel
 	if confirmText == "" {
 		confirmText = "Confirm"
 	}
-	cancelText := f.cancelLabel
-	if cancelText == "" {
-		cancelText = "Cancel"
+	cancelText := "Cancel"
+
+	// No changes in reconfig: show only "Back" button (no Save, no Cancel)
+	// Promote always shows Save since it creates a new bundle.
+	if f.reconfiguring && !hasChanges {
+		backText := "Back"
+		if f.focus == InputFocusActive {
+			return activeStyle.Render(backText)
+		}
+		return buttonStyle.Render(backText)
 	}
 
-	var confirmBtn, discardBtn string
+	// Has changes: show both Save and Cancel
+	var confirmBtn, cancelBtn string
 	if f.buttonIdx == 0 {
 		confirmBtn = activeStyle.Render(confirmText)
 	} else {
 		confirmBtn = buttonStyle.Render(confirmText)
 	}
 	if f.buttonIdx == 1 {
-		discardBtn = activeStyle.Render(cancelText)
+		cancelBtn = activeStyle.Render(cancelText)
 	} else {
-		discardBtn = buttonStyle.Render(cancelText)
+		cancelBtn = buttonStyle.Render(cancelText)
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, confirmBtn, " ", discardBtn)
+	return lipgloss.JoinHorizontal(lipgloss.Top, confirmBtn, " ", cancelBtn)
 }
 
 const (

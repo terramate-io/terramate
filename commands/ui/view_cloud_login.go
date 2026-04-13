@@ -36,7 +36,7 @@ func (m Model) updateCloudLogin(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.cloudLoginLoading {
 		if key.Matches(msg, keys.Enter) {
 			m.cloudLoginLoading = false
-			m.viewState = m.nextViewAfterCloudLogin()
+			m.viewState = ViewOverview
 			return m, textarea.Blink
 		}
 		return m, nil
@@ -67,18 +67,11 @@ func (m Model) updateCloudLogin(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case 2:
 			// Ignore the error.
 			_ = setLoginSkipped(m.EngineState.CLIConfig)
-			m.viewState = m.nextViewAfterCloudLogin()
+			m.viewState = ViewOverview
 			return m, textarea.Blink
 		}
 	}
 	return m, nil
-}
-
-func (m Model) nextViewAfterCloudLogin() ViewState {
-	if len(m.EngineState.Registry.Environments) > 0 {
-		return ViewEnvSelect
-	}
-	return ViewOverview
 }
 
 func (m Model) renderCloudLoginView() string {
@@ -94,7 +87,7 @@ func (m Model) renderCloudLoginView() string {
 		Foreground(colorTextMuted).
 		Width(panelWidth)
 
-	header := m.renderHeader("welcome", panelWidth)
+	header := m.renderHeader("welcome")
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).

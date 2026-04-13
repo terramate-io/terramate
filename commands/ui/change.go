@@ -23,11 +23,12 @@ import (
 	"github.com/terramate-io/terramate/hcl"
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/project"
+	"github.com/terramate-io/terramate/stdlib"
 	"github.com/terramate-io/terramate/typeschema"
 	"github.com/terramate-io/terramate/yaml"
 )
 
-// ChangeKind indicates the type of pending change.
+// ChangeKind indicates the type of change.
 type ChangeKind string
 
 // ChangeCreate and the following constants enumerate the supported change kinds.
@@ -37,7 +38,7 @@ const (
 	ChangePromote  ChangeKind = "change_promote"
 )
 
-// Change represents a pending change in the summary.
+// Change represents a bundle change (create, reconfigure, or promote).
 type Change struct {
 	Kind        ChangeKind
 	HostPath    string
@@ -62,21 +63,6 @@ type Change struct {
 
 	Warnings []string // Non-fatal warnings surfaced after resolving the change
 
-	// Simple incremental ID returned to the LLM so it can track this change reliably.
-	ProposalID int
-
-	// Set to exclude from uniqueness checks, so an edited change doesn't conflict with itself.
-	MarkedForReplacement bool
-}
-
-// SavedChange is a lightweight summary of a change that was persisted to disk.
-type SavedChange struct {
-	Kind        ChangeKind
-	Name        string
-	EnvID       string
-	FromEnvID   string
-	ProjectPath string
-	HostPath    string
 }
 
 // NewCreateChange builds a Change that represents a new bundle creation.
@@ -90,6 +76,12 @@ func NewCreateChange(
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
 
+	// Rebind bundle() functions to the current registry so that references
+	// to bundles created during this session (e.g. nested bundles that were
+	// saved immediately) are resolvable.
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, activeEnv, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, activeEnv))
+
 	// The form may or may not contain values for all defaults.
 	// In this step we re-run input evaluation like it would be done if this was a bundle instance that
 	// has the form values as inputs. This will ensure we get all the inputs.
@@ -100,6 +92,9 @@ func NewCreateChange(
 		values,
 	)
 	if err != nil {
+		return Change{}, err
+	}
+	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 
@@ -156,7 +151,7 @@ func NewCreateChange(
 	}
 
 	// Final check: Is the bundle unique?
-	if err := est.Registry.IsBundleUnique(alias, bde.Metadata.Class, hostPath, env); err != nil {
+	if err := IsBundleUnique(est.Registry, alias, bde.Metadata.Class, hostPath, env); err != nil {
 		return Change{}, err
 	}
 
@@ -188,6 +183,11 @@ func NewReconfigChange(
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
 
+	// Rebind bundle() functions to the current registry so that references
+	// to bundles created/reconfigured during this session are resolvable.
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, bundle.Environment, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, bundle.Environment))
+
 	hostPath := bundle.Info.HostPath()
 	projPath := project.PrjAbsPath(est.Root.HostDir(), hostPath).String()
 
@@ -201,6 +201,9 @@ func NewReconfigChange(
 		values,
 	)
 	if err != nil {
+		return Change{}, err
+	}
+	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 
@@ -258,6 +261,11 @@ func NewPromoteChange(
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
 
+	// Rebind bundle() functions to the current registry so that references
+	// to bundles promoted during this session are resolvable.
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, env, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, env))
+
 	hostPath := bundle.Info.HostPath()
 	projPath := project.PrjAbsPath(est.Root.HostDir(), hostPath).String()
 
@@ -271,6 +279,9 @@ func NewPromoteChange(
 		values,
 	)
 	if err != nil {
+		return Change{}, err
+	}
+	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 
@@ -315,48 +326,6 @@ func NewPromoteChange(
 		OriginalValues: inputsToValueMap(bundle.Inputs),
 		Warnings:       warnings,
 	}, nil
-}
-
-// NewChangeFromExisting rebuilds a Change from a previously created change with updated values.
-func NewChangeFromExisting(
-	est *EngineState,
-	oldChange Change,
-	schemactx typeschema.EvalContext,
-	inputDefs []*config.InputDefinition,
-	values map[string]cty.Value,
-) (Change, error) {
-	switch oldChange.Kind {
-	case ChangeCreate:
-		return NewCreateChange(
-			est,
-			oldChange.Env,
-			oldChange.BundleDefEntry,
-			schemactx,
-			inputDefs,
-			values,
-		)
-	case ChangeReconfig:
-		return NewReconfigChange(
-			est,
-			oldChange.OriginalBundle,
-			oldChange.BundleDefEntry,
-			schemactx,
-			inputDefs,
-			values,
-		)
-	case ChangePromote:
-		return NewPromoteChange(
-			est,
-			oldChange.Env,
-			oldChange.OriginalBundle,
-			oldChange.BundleDefEntry,
-			schemactx,
-			inputDefs,
-			values,
-		)
-	default:
-		panic("unsupported ChangeKind " + oldChange.Kind)
-	}
 }
 
 // reEvalAllInputs evaluates the bundle's input definitions using the prompted
@@ -415,6 +384,47 @@ func reEvalAllInputs(
 	return result, nil
 }
 
+// normalizeBundleRefValues converts resolved bundle objects back to alias strings.
+// When reconfiguring or promoting, bundle-ref inputs are loaded as full objects
+// (with alias, uuid, etc.) from disk. The type system expects strings, so we
+// extract the alias before the values enter the form.
+func normalizeBundleRefValues(inputDefs []*config.InputDefinition, values map[string]cty.Value) map[string]cty.Value {
+	for _, def := range inputDefs {
+		if _, isBundleType := def.Type.(*typeschema.BundleType); !isBundleType {
+			continue
+		}
+		v, ok := values[def.Name]
+		if !ok || v == cty.NilVal || v.IsNull() || !v.IsKnown() {
+			continue
+		}
+		if v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
+			alias := v.GetAttr("alias")
+			if alias.IsKnown() && alias.Type() == cty.String {
+				values[def.Name] = alias
+			}
+		}
+	}
+	return values
+}
+
+// checkBundleRefsResolved verifies that all bundle-ref inputs resolved to non-null
+// values. Returns a user-friendly error if any referenced bundle is missing.
+func checkBundleRefsResolved(inputDefs []*config.InputDefinition, values map[string]cty.Value) error {
+	for _, def := range inputDefs {
+		if _, isBundleType := def.Type.(*typeschema.BundleType); !isBundleType {
+			continue
+		}
+		v, ok := values[def.Name]
+		if !ok || v == cty.NilVal {
+			continue
+		}
+		if v.IsNull() {
+			return errors.E("Input %q references a bundle that does not exist in this environment. Promote dependencies first.", def.Name)
+		}
+	}
+	return nil
+}
+
 // Save writes the change to disk as a YAML bundle instance file.
 func (c *Change) Save(envs []*config.Environment) error {
 	var existing *yaml.BundleInstance
@@ -447,6 +457,14 @@ func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*confi
 		v, found := c.Values[def.Name]
 		if !found {
 			continue
+		}
+
+		// Bundle-ref values are stored as resolved objects internally
+		// but must be written as alias strings in the YAML config.
+		if _, isBundleType := def.Type.(*typeschema.BundleType); isBundleType {
+			if v.IsKnown() && !v.IsNull() && v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
+				v = v.GetAttr("alias")
+			}
 		}
 
 		yv, err := yaml.ConvertFromCty(v)

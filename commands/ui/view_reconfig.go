@@ -4,7 +4,9 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -20,6 +22,11 @@ import (
 func (m Model) updateReconfigSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, keys.Escape):
+		if m.reconfigFilterPos >= 0 {
+			m.reconfigFilterPos = -1
+			m.applyReconfigFilter()
+			return m, nil
+		}
 		m.viewState = ViewOverview
 		return m, nil
 
@@ -35,6 +42,13 @@ func (m Model) updateReconfigSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case msg.String() == "e":
+		if len(m.reconfigFilters) > 0 {
+			m.reconfigFilterPos = (m.reconfigFilterPos + 1) % len(m.reconfigFilters)
+			m.applyReconfigFilter()
+		}
+		return m, nil
+
 	case key.Matches(msg, keys.Enter):
 		if m.reconfigCursor < len(m.reconfigBundles) {
 			if err := m.loadReconfigBundle(m.reconfigBundles[m.reconfigCursor]); err != nil {
@@ -47,6 +61,12 @@ func (m Model) updateReconfigSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// applyReconfigFilter rebuilds the bundle list based on the current filter position.
+func (m *Model) applyReconfigFilter() {
+	m.reconfigBundles = m.buildReconfigBundles()
+	m.reconfigCursor = 0
+}
+
 // loadReconfigBundle loads the bundle definition for the given bundle,
 // evaluates its input definitions, and creates the inputs form pre-populated
 // with the bundle's current values.
@@ -55,7 +75,7 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	// We create a BundleDefinitionEntry
 	bde := makeBundleDefinitionEntry(est.Root, b)
 
-	schemactx, err := m.loadBundleEvalContext(bde)
+	schemactx, err := m.loadBundleEvalContext(bde, b.Environment)
 	if err != nil {
 		return err
 	}
@@ -66,19 +86,72 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	}
 
 	values := inputsToValueMap(b.Inputs)
+	normalizeBundleRefValues(inputDefs, values)
 
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde
-	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, m.selectedEnv, nil, values, values)
+	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, b.Environment, nil, values, values)
+	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
 	return nil
 }
 
+// currentReconfigFilter returns the current filter state, or nil if showing all.
+func (m Model) currentReconfigFilter() *envFilterState {
+	if m.reconfigFilterPos >= 0 && m.reconfigFilterPos < len(m.reconfigFilters) {
+		return &m.reconfigFilters[m.reconfigFilterPos]
+	}
+	return nil
+}
+
+// nextReconfigFilterName returns the short ID of the next filter in the cycle.
+func (m Model) nextReconfigFilterName() string {
+	if len(m.reconfigFilters) == 0 {
+		return ""
+	}
+	nextPos := (m.reconfigFilterPos + 1) % len(m.reconfigFilters)
+	return m.reconfigFilters[nextPos].shortID
+}
+
+// buildReconfigFilters precomputes the list of valid filter states
+// (environments that have reconfigurable bundles, plus env-less if applicable).
+func (m Model) buildReconfigFilters() []envFilterState {
+	// Check which envs have bundles, and whether env-less bundles exist
+	envHas := make(map[string]bool)
+	hasEnvLess := false
+	for _, b := range m.EngineState.Registry.Bundles {
+		if b.Environment == nil {
+			hasEnvLess = true
+		} else {
+			envHas[b.Environment.ID] = true
+		}
+	}
+
+	var states []envFilterState
+	for _, env := range m.EngineState.Registry.Environments {
+		if envHas[env.ID] {
+			states = append(states, envFilterState{
+				env:     env,
+				label:   env.Name,
+				shortID: env.ID,
+			})
+		}
+	}
+	if hasEnvLess {
+		states = append(states, envFilterState{
+			envLess: true,
+			label:   "Without Environment",
+			shortID: "env-less",
+		})
+	}
+	return states
+}
+
 // loadBundleEvalContext creates a bundle eval context and loads the schema namespaces for the given bundle.
-func (m Model) loadBundleEvalContext(bde *config.BundleDefinitionEntry) (typeschema.EvalContext, error) {
+func (m Model) loadBundleEvalContext(bde *config.BundleDefinitionEntry, env *config.Environment) (typeschema.EvalContext, error) {
 	est := m.EngineState
-	evalctx := newBundleEvalContext(est.Evalctx, est.Registry.Registry, m.selectedEnv)
+	evalctx := newBundleEvalContext(est.Evalctx, est.Registry, env)
 	schemas, err := config.EvalBundleSchemaNamespaces(est.Root, est.ResolveAPI, evalctx, bde.Define, true)
 	if err != nil {
 		return typeschema.EvalContext{}, errors.E(err, "Failed to load bundle schema.")
@@ -106,28 +179,19 @@ func makeBundleDefinitionEntry(root *config.Root, b *config.Bundle) *config.Bund
 }
 
 // buildReconfigBundles returns bundles that do not already have a pending
-// ChangeModify entry in m.pendingChanges, sorted into grouped display order so that
+// ChangeReconfig entry, sorted into grouped display order so that
 // the flat cursor index matches the visual position.
 func (m Model) buildReconfigBundles() []*config.Bundle {
-	pending := make(map[string]bool, len(m.PendingChanges()))
-	for _, c := range m.PendingChanges() {
-		if c.Kind == ChangeReconfig {
-			pending[c.HostPath] = true
-		}
-	}
-
+	f := m.currentReconfigFilter()
 	var filtered []*config.Bundle
 	for _, b := range m.EngineState.Registry.Bundles {
-		if pending[b.Info.HostPath()] {
-			continue
-		}
-
-		if m.selectedEnv != nil {
-			// Show bundles from current environment, and those without an environment.
-			if b.Environment != nil {
-				if b.Environment.ID != m.selectedEnv.ID {
+		if f != nil {
+			if f.envLess {
+				if b.Environment != nil {
 					continue
 				}
+			} else if b.Environment == nil || b.Environment.ID != f.env.ID {
+				continue
 			}
 		}
 		filtered = append(filtered, b)
@@ -149,7 +213,7 @@ type bundleGroup struct {
 }
 
 // groupBundles groups bundles by definition identity (name + version + source),
-// preserving the order of first appearance.
+// sorted alphabetically by group name, with instances sorted by alias within each group.
 func groupBundles(bundles []*config.Bundle) []bundleGroup {
 	var groups []bundleGroup
 	seen := map[string]int{}
@@ -169,105 +233,93 @@ func groupBundles(bundles []*config.Bundle) []bundleGroup {
 			offsets: []int{i},
 		})
 	}
+
+	// Sort groups deterministically by name, then detail (version+source) as tiebreaker
+	slices.SortFunc(groups, func(a, b bundleGroup) int {
+		if c := cmp.Compare(a.name, b.name); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.detail, b.detail)
+	})
+
+	// Sort instances within each group by alias
+	for i := range groups {
+		g := &groups[i]
+		indices := make([]int, len(g.bundles))
+		for j := range indices {
+			indices[j] = j
+		}
+		slices.SortFunc(indices, func(a, b int) int {
+			return cmp.Compare(g.bundles[a].Alias, g.bundles[b].Alias)
+		})
+		sortedBundles := make([]*config.Bundle, len(g.bundles))
+		sortedOffsets := make([]int, len(g.offsets))
+		for j, idx := range indices {
+			sortedBundles[j] = g.bundles[idx]
+			sortedOffsets[j] = g.offsets[idx]
+		}
+		g.bundles = sortedBundles
+		g.offsets = sortedOffsets
+	}
+
 	return groups
 }
 
-// renderGroupedBundleItems renders each bundle group as a single renderedItem block
-// and returns the group index containing the cursor, suitable for scrollWindowVar.
-// contentWidth controls the fixed width each line is padded/truncated to so that
-// the scrollbar column stays right-aligned.
+// renderGroupedBundleItems renders grouped bundles as a flat list of renderedItems.
+// Group headers are non-selectable separator items, instances are individual items.
+// Returns the index of the selected item in the flat list, suitable for scrollWindowVar.
 func (m Model) renderGroupedBundleItems(groups []bundleGroup, cursor, contentWidth int) (int, []renderedItem) {
-	est := m.EngineState
-
-	idStyle := lipgloss.NewStyle().Foreground(colorTextSubtle)
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 	headerNameStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
-	fromStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+	versionStyle := lipgloss.NewStyle().Foreground(colorTextSubtle)
+	envStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 
 	lineStyle := lipgloss.NewStyle().Width(contentWidth)
 
-	const colGap = 2
-
-	type entryRow struct {
-		left      string
-		leftWidth int
-		source    string
-	}
-	type groupData struct {
-		headerLeft      string
-		headerLeftWidth int
-		headerSource    string
-		entries         []entryRow
-	}
-
-	// First pass: build all rows and find the global max left width.
-	allGroups := make([]groupData, len(groups))
-	globalMaxLeft := 0
-	selectedGroupIdx := 0
+	var items []renderedItem
+	selectedItemIdx := 0
 	visualIdx := 0
+
 	for gi, g := range groups {
 		b0 := g.bundles[0]
-		version := "v" + b0.DefinitionMetadata.Version
 
-		headerLeft := "    " + headerNameStyle.Render(g.name) + " " + fromStyle.Render(version)
-		headerLeftWidth := lipgloss.Width(headerLeft)
-		if headerLeftWidth > globalMaxLeft {
-			globalMaxLeft = headerLeftWidth
+		// Empty line before group (except first)
+		if gi > 0 {
+			items = append(items, renderedItem{content: "", height: 1})
 		}
 
-		entries := make([]entryRow, len(g.bundles))
-		for i, b := range g.bundles {
-			filename := project.PrjAbsPath(est.Root.HostDir(), b.Info.HostPath()).String()
+		// Group header: non-selectable
+		headerLine := headerNameStyle.Render(g.name) + " " + versionStyle.Render("v"+b0.DefinitionMetadata.Version)
+		items = append(items, renderedItem{content: lineStyle.Render(headerLine), height: 1})
+
+		// Instance rows
+		for _, b := range g.bundles {
 			isSelected := visualIdx == cursor
 			if isSelected {
-				selectedGroupIdx = gi
+				selectedItemIdx = len(items)
 			}
 			visualIdx++
-			var left string
+
 			displayName := displayNameFromAlias(b.Alias, b.Name)
+			var line string
 			if isSelected {
-				left = selectedStyle.Render("  › " + displayName)
+				line = selectedStyle.Render("  › " + displayName)
 			} else {
-				left = "    " + displayName
+				line = "    " + displayName
 			}
 			if b.Environment != nil {
-				idTag := idStyle.Render("[" + b.Environment.ID + "]")
-				left += " " + idTag
+				line += " " + envStyle.Render("["+b.Environment.Name+"]")
 			}
 
-			w := lipgloss.Width(left)
-			if w > globalMaxLeft {
-				globalMaxLeft = w
-			}
-			entries[i] = entryRow{left: left, leftWidth: w, source: filename}
-		}
-
-		allGroups[gi] = groupData{
-			headerLeft:      headerLeft,
-			headerLeftWidth: headerLeftWidth,
-			headerSource:    b0.Source,
-			entries:         entries,
+			items = append(items, renderedItem{content: lineStyle.Render(line), height: 1})
 		}
 	}
 
-	// Second pass: render each group as a single block with fixed-width lines.
-	items := make([]renderedItem, len(allGroups))
-	for gi, gr := range allGroups {
-		var lines []string
-		headerPad := strings.Repeat(" ", globalMaxLeft-gr.headerLeftWidth+colGap)
-		lines = append(lines, lineStyle.Render(gr.headerLeft+headerPad+fromStyle.Render(gr.headerSource)))
-		for _, r := range gr.entries {
-			entryPad := strings.Repeat(" ", globalMaxLeft-r.leftWidth+colGap)
-			lines = append(lines, lineStyle.Render(r.left+entryPad+fromStyle.Render(r.source)))
-		}
-		block := strings.Join(lines, "\n")
-		items[gi] = renderedItem{content: block, height: lipgloss.Height(block)}
-	}
-
-	return selectedGroupIdx, items
+	return selectedItemIdx, items
 }
 
 func (m Model) renderReconfigSelectView() string {
+	est := m.EngineState
 	panelWidth := m.effectiveWidth()
 	innerWidth := panelWidth - 4
 	scrollbarGutter := 4 // left gap(1) + scrollbar(1) + right gap(2)
@@ -286,38 +338,77 @@ func (m Model) renderReconfigSelectView() string {
 
 	contentStyle := lipgloss.NewStyle().Width(innerWidth)
 
-	title := m.renderHeader("reconfigure", panelWidth)
+	breadcrumb := "Reconfigure Bundle Instance"
+	if f := m.currentReconfigFilter(); f != nil {
+		if f.envLess {
+			breadcrumb = "Reconfigure Bundle Instance Without Environment"
+		} else {
+			breadcrumb = "Reconfigure Bundle Instance in " + f.label
+		}
+	}
+	title := m.renderHeader(breadcrumb)
 
-	sectionTitle := lipgloss.NewStyle().Bold(true).Foreground(colorText).MarginBottom(1).Render("Select a Bundle to Reconfigure")
-	desc := lipgloss.NewStyle().Foreground(colorTextMuted).MarginBottom(2).Render("These bundles are currently deployed in your project.")
+	// Detail box for highlighted bundle
+	var detailBox string
+	if m.reconfigCursor < len(m.reconfigBundles) {
+		b := m.reconfigBundles[m.reconfigCursor]
+		fields := []detailField{
+			{label: "Bundle", value: b.DefinitionMetadata.Name + " v" + b.DefinitionMetadata.Version, truncEnd: true},
+		}
+		if b.DefinitionMetadata.Class != "" {
+			fields = append(fields, detailField{label: "Class", value: b.DefinitionMetadata.Class, truncEnd: true})
+		}
+		fields = append(fields, detailField{label: "Alias", value: displayNameFromAlias(b.Alias, b.Name), truncEnd: true})
+		envName := "n/a"
+		if b.Environment != nil {
+			envName = b.Environment.Name
+		}
+		fields = append(fields, detailField{label: "Environment", value: envName, truncEnd: true})
+		fields = append(fields, detailField{}) // separator
+		fields = append(fields, detailField{label: "Source", value: b.Source})
+		hostPath := project.PrjAbsPath(est.Root.HostDir(), b.Info.HostPath()).String()
+		if hostPath != "" {
+			fields = append(fields, detailField{label: "Config", value: hostPath})
+		}
+		detailBox = renderDetailBox(innerWidth, "Bundle Instance Details", fields)
+	}
 
-	header := lipgloss.JoinVertical(lipgloss.Left, sectionTitle, desc, "")
+	header := lipgloss.JoinVertical(lipgloss.Left, detailBox, "")
 	headerHeight := lipgloss.Height(header)
 	availableHeight := m.effectiveContentHeight() - headerHeight
 
 	groups := groupBundles(m.reconfigBundles)
 	selectedGroupIdx, items := m.renderGroupedBundleItems(groups, m.reconfigCursor, contentWidth)
 
-	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight)
+	start, end := scrollWindowVar(selectedGroupIdx, items, availableHeight, 0)
 
 	var sb strings.Builder
 	for i := start; i < end; i++ {
 		if i > start {
-			sb.WriteString("\n\n")
+			sb.WriteByte('\n')
 		}
 		sb.WriteString(items[i].content)
 	}
 	listContent := sb.String()
 
-	if len(items) > end-start {
+	visibleCount := end - start
+	if len(items) > visibleCount {
 		trackHeight := lipgloss.Height(listContent)
-		scrollbar := renderScrollbar(len(items), end-start, start, trackHeight)
+		scrollbar := renderScrollbar(len(items), visibleCount, start, trackHeight)
 		listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
 	}
 
 	inner := contentStyle.Render(lipgloss.JoinVertical(lipgloss.Left, header, listContent))
 
-	help := helpStyle.Render(m.finalHelpText("esc: back"))
+	escLabel := "esc: back"
+	if m.reconfigFilterPos >= 0 {
+		escLabel = "esc: reset filter"
+	}
+	helpParts := "↑↓: Select Bundle • " + escLabel
+	if len(m.reconfigFilters) > 0 {
+		helpParts += " • e: show only " + m.nextReconfigFilterName()
+	}
+	help := helpStyle.Render(m.finalHelpText(helpParts))
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -336,8 +427,17 @@ func (m Model) renderReconfigInputView() string {
 		Width(panelWidth)
 
 	b := m.reconfigBundle
-	headerContext := fmt.Sprintf("reconfigure / %s", b.Name)
-	title := m.renderHeader(headerContext, panelWidth)
+	aliasStyle := lipgloss.NewStyle().Foreground(colorCreate)
+	alias := aliasStyle.Render(displayNameFromAlias(b.Alias, b.Name))
+	envStyle := lipgloss.NewStyle().Foreground(colorPromote)
+	var envTag string
+	if b.Environment != nil {
+		envTag = " " + envStyle.Render("["+b.Environment.Name+"]")
+	} else {
+		envTag = " " + envStyle.Render("[Without Environment]")
+	}
+	headerContext := "Reconfigure " + b.DefinitionMetadata.Name + ": " + alias + envTag
+	title := m.renderHeader(headerContext)
 
 	formView := m.inputsForm.View()
 
@@ -360,8 +460,20 @@ func (m Model) renderReconfigInputView() string {
 func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	est := m.EngineState
 
-	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() {
-		m.viewState = ViewReconfigSelect
+	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
+		if m.inputsForm.HasPendingChanges() {
+			m.inputsForm.preDiscardFocus = m.inputsForm.focus
+			m.inputsForm.confirmingDiscard = true
+			m.inputsForm.discardConfirmIdx = 1
+			m.inputsForm.focus = InputFocusActive
+			return m, nil
+		}
+		if m.reconfigFromOverview {
+			m.reconfigFromOverview = false
+			m.viewState = ViewOverview
+		} else {
+			m.viewState = ViewReconfigSelect
+		}
 		return m, nil
 	}
 
@@ -380,12 +492,27 @@ func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.inputsForm.state = InputsFormActive
 				break
 			}
-			m.SetPendingChanges(append(m.PendingChanges(), change))
-			m.changesApplied = false
+			if err := change.Save(est.Registry.Environments); err != nil {
+				m.inputsForm.SetValidationError(err)
+				m.inputsForm.state = InputsFormActive
+				break
+			}
+			if err := m.reloadAll(); err != nil {
+				m.inputsForm.SetValidationError(err)
+				m.inputsForm.state = InputsFormActive
+				break
+			}
+			m.recordSessionChange(change)
 		}
+		m.reconfigFromOverview = false
 		m.viewState = ViewOverview
 	case InputsFormDiscarded:
-		m.viewState = ViewOverview
+		if m.reconfigFromOverview {
+			m.reconfigFromOverview = false
+			m.viewState = ViewOverview
+		} else {
+			m.viewState = ViewReconfigSelect
+		}
 	}
 
 	return m, cmd

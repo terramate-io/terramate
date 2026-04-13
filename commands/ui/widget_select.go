@@ -311,7 +311,7 @@ func (w *BundleRefWidget) Prepare() {
 
 // Update handles keyboard input and returns the resulting signal.
 func (w *BundleRefWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
-	matching := w.wctx.Registry.MatchingBundleOptions(w.classID, w.wctx.Env)
+	matching := MatchingBundleOptions(w.wctx.Registry, w.classID, w.wctx.Env)
 	n := len(matching) + 1 // +1 for "Add new" option
 
 	switch msg.Type {
@@ -339,7 +339,7 @@ func (w *BundleRefWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 
 // Render returns the rendered display lines for the widget.
 func (w *BundleRefWidget) Render() []string {
-	matching := w.wctx.Registry.MatchingBundleOptions(w.classID, w.wctx.Env)
+	matching := MatchingBundleOptions(w.wctx.Registry, w.classID, w.wctx.Env)
 	var lines []string
 	for i, b := range matching {
 		label := b.Alias
@@ -367,22 +367,42 @@ func (w *BundleRefWidget) Reload() {
 
 // FormatDisplay returns a display string for the selected bundle reference.
 func (w *BundleRefWidget) FormatDisplay() string {
-	if w.value == cty.NilVal || w.value.IsNull() {
+	// FormatDisplay may be called before Prepare(), so check wctx.Value too.
+	val := w.value
+	if val == cty.NilVal {
+		val = w.wctx.Value
+	}
+	if val == cty.NilVal || val.IsNull() {
 		return "<not set>"
 	}
-	if w.value.Type() == cty.String {
-		alias := w.value.AsString()
-		for _, opt := range w.wctx.Registry.MatchingBundleOptions(w.classID, w.wctx.Env) {
-			if opt.Alias == alias {
-				return opt.Name
-			}
-		}
-		if len(alias) > 8 {
-			return alias[:8] + "..."
-		}
-		return alias
+	// The value can be a string (alias), a resolved bundle object, or a
+	// cty.DynamicVal placeholder (unresolved null).
+	if !val.IsKnown() {
+		return "<not set>"
 	}
-	return ctyToDisplayString(w.value)
+	var alias string
+	switch {
+	case val.Type() == cty.String:
+		alias = val.AsString()
+	case val.Type().IsObjectType() && val.Type().HasAttribute("alias"):
+		a := val.GetAttr("alias")
+		if a.IsKnown() && a.Type() == cty.String {
+			alias = a.AsString()
+		} else {
+			return ctyToDisplayString(val)
+		}
+	default:
+		return ctyToDisplayString(val)
+	}
+	for _, opt := range MatchingBundleOptions(w.wctx.Registry, w.classID, w.wctx.Env) {
+		if opt.Alias == alias {
+			return opt.Name
+		}
+	}
+	if len(alias) > 8 {
+		return alias[:8] + "..."
+	}
+	return alias
 }
 
 // ForwardMsg is a no-op; bundle-ref widgets have no underlying input component.
