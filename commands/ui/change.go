@@ -94,6 +94,9 @@ func NewCreateChange(
 	if err != nil {
 		return Change{}, err
 	}
+	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
+		return Change{}, err
+	}
 
 	// We check if the bundle has an explicit alias and add it to the context if yes.
 	alias, err := setupExplicitBundleAlias(schemactx.Evalctx, bde.Define)
@@ -198,6 +201,9 @@ func NewReconfigChange(
 		values,
 	)
 	if err != nil {
+		return Change{}, err
+	}
+	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 

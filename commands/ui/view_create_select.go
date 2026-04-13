@@ -392,7 +392,7 @@ func (m Model) renderCreateEnvSelectView() string {
 		}
 		fields = append(fields, detailField{label: "Collection", value: collDetail})
 		var source string
-		if entry.isLocal {
+		if entry.isLocal && entry.bundleIdx < len(est.LocalBundleDefs) {
 			source = est.LocalBundleDefs[entry.bundleIdx].Tree.Dir().String()
 		} else {
 			source = bundleSourceFromManifest(coll, entry.bundle)
@@ -632,7 +632,7 @@ func (m Model) renderFlatBundleList(innerWidth int) string {
 		fields = append(fields, detailField{label: "Collection", value: collDetail})
 		// Source: the real resolved source path to the bundle definition
 		var source string
-		if entry.isLocal {
+		if entry.isLocal && entry.bundleIdx < len(est.LocalBundleDefs) {
 			source = est.LocalBundleDefs[entry.bundleIdx].Tree.Dir().String()
 		} else {
 			source = bundleSourceFromManifest(coll, entry.bundle)
