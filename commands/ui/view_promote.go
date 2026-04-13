@@ -463,7 +463,7 @@ func (m Model) updatePromoteInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		m.viewState = ViewOverview
 	case InputsFormDiscarded:
-		m.viewState = ViewOverview
+		m.viewState = ViewPromoteSelect
 	}
 
 	return m, cmd

@@ -507,8 +507,12 @@ func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.reconfigFromOverview = false
 		m.viewState = ViewOverview
 	case InputsFormDiscarded:
-		m.reconfigFromOverview = false
-		m.viewState = ViewOverview
+		if m.reconfigFromOverview {
+			m.reconfigFromOverview = false
+			m.viewState = ViewOverview
+		} else {
+			m.viewState = ViewReconfigSelect
+		}
 	}
 
 	return m, cmd
