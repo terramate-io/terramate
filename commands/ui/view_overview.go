@@ -18,8 +18,9 @@ import (
 )
 
 func (m Model) updateOverview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Clear transient errors on update.
+	// Clear transient state on update.
 	m.currentErr = nil
+	m.lastSavedKey = ""
 
 	sessionBundles := m.sessionBundles()
 
@@ -194,6 +195,7 @@ func (m *Model) recordSessionChange(c Change) {
 	}
 	key := sessionBundleKey(c.HostPath, c.Env)
 	m.sessionChanges[key] = append(m.sessionChanges[key], c.Kind)
+	m.lastSavedKey = key
 }
 
 // sessionBundles returns the registry bundles that were modified this session,
@@ -407,9 +409,10 @@ func (m Model) renderHeader(context string) string {
 	return left
 }
 
-// selectCommandByKey matches a key press to a command's configured hotkey.
+// selectCommandByKey matches a key press to a command's configured hotkey (case-insensitive).
 // Returns true if a command was matched and commandIdx was updated.
 func (m *Model) selectCommandByKey(key string) bool {
+	key = strings.ToLower(key)
 	for i, cmd := range m.commands {
 		if cm, ok := commandMeta[cmd]; ok && cm.hotkey == key {
 			m.commandIdx = i
@@ -433,8 +436,22 @@ var commandMeta = map[string]struct {
 
 func (m Model) renderCommandGrid(_ int) string {
 	selectedStyle := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
+	selectedUnderline := selectedStyle.Underline(true)
 	normalStyle := lipgloss.NewStyle().Foreground(colorText)
-	hotkeyStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+	normalUnderline := normalStyle.Underline(true)
+
+	// renderCmdWithHotkey underlines the hotkey letter within the command name.
+	renderCmdWithHotkey := func(cmd, hotkey string, style, underlineStyle lipgloss.Style) string {
+		if hotkey == "" {
+			return style.Render(cmd)
+		}
+		// Find the hotkey letter position in the command name (case-insensitive).
+		idx := strings.Index(strings.ToLower(cmd), strings.ToLower(hotkey))
+		if idx < 0 {
+			return style.Render(cmd)
+		}
+		return style.Render(cmd[:idx]) + underlineStyle.Render(cmd[idx:idx+len(hotkey)]) + style.Render(cmd[idx+len(hotkey):])
+	}
 
 	cmds := m.commands
 	if len(cmds) == 0 {
@@ -448,17 +465,12 @@ func (m Model) renderCommandGrid(_ int) string {
 		isSelected := m.focus == FocusCommands && i == m.commandIdx
 		cm := commandMeta[cmd]
 
-		var hotkey string
-		if cm.hotkey != "" {
-			hotkey = " " + hotkeyStyle.Render("["+cm.hotkey+"]")
-		}
-
 		var rendered string
 		if isSelected {
 			indicator := lipgloss.NewStyle().Foreground(cm.color).Render("›")
-			rendered = fmt.Sprintf("  %s %s%s", indicator, selectedStyle.Render(cmd), hotkey)
+			rendered = fmt.Sprintf("  %s %s", indicator, renderCmdWithHotkey(cmd, cm.hotkey, selectedStyle, selectedUnderline))
 		} else {
-			rendered = fmt.Sprintf("    %s%s", normalStyle.Render(cmd), hotkey)
+			rendered = fmt.Sprintf("    %s", renderCmdWithHotkey(cmd, cm.hotkey, normalStyle, normalUnderline))
 		}
 
 		if i > 0 {
@@ -533,9 +545,15 @@ func (m Model) renderSessionBundleItems(groups []bundleGroup, cursor, contentWid
 			visualIdx++
 
 			displayName := displayNameFromAlias(b.Alias, b.Name)
+			key := sessionBundleKey(b.Info.HostPath(), b.Environment)
+			isLastSaved := m.lastSavedKey != "" && key == m.lastSavedKey
+
 			var line string
 			if isSelected {
 				line = selectedStyle.Render("  › " + displayName)
+			} else if isLastSaved {
+				savedStyle := lipgloss.NewStyle().Bold(true).Foreground(colorText)
+				line = "    " + savedStyle.Render(displayName)
 			} else if focused {
 				line = "    " + displayName
 			} else {
@@ -546,7 +564,6 @@ func (m Model) renderSessionBundleItems(groups []bundleGroup, cursor, contentWid
 			}
 
 			// Append change kind tags
-			key := sessionBundleKey(b.Info.HostPath(), b.Environment)
 			if kinds, ok := m.sessionChanges[key]; ok {
 				seen := make(map[ChangeKind]bool)
 				for _, k := range kinds {
@@ -564,6 +581,11 @@ func (m Model) renderSessionBundleItems(groups []bundleGroup, cursor, contentWid
 						line += " " + tagStyle.Render(kl.label)
 					}
 				}
+			}
+
+			if isLastSaved {
+				savedTagStyle := lipgloss.NewStyle().Foreground(colorCreate).Italic(true)
+				line += " " + savedTagStyle.Render("✓ saved")
 			}
 
 			items = append(items, renderedItem{content: lineStyle.Render(line), height: 1})

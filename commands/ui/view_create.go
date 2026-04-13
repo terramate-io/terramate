@@ -227,7 +227,7 @@ func (m Model) renderCreateInputView() string {
 		envStyle := lipgloss.NewStyle().Foreground(colorPromote)
 		envTag = envStyle.Render("[" + m.selectedEnv.Name + "]")
 	} else {
-		envStyle := lipgloss.NewStyle().Foreground(colorWarning)
+		envStyle := lipgloss.NewStyle().Foreground(colorPromote)
 		envTag = envStyle.Render("[Without Environment]")
 	}
 

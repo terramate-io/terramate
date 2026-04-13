@@ -142,6 +142,7 @@ type Model struct {
 	summaryCursor        int                     // Selected row in the session bundles list
 	changeLog            []string                // cumulative log of all saved changes across the session (for CLI exit)
 	sessionChanges       map[string][]ChangeKind // bundle key → ordered list of change kinds applied this session
+	lastSavedKey         string                  // bundle key of the most recently saved change (cleared on next keypress)
 	confirmingCreateExit bool                    // true when showing wizard exit confirmation
 	createExitConfirmIdx int                     // 0 = Yes, 1 = No
 

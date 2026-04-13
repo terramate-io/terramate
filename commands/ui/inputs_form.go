@@ -943,6 +943,14 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 				f.completedCursor = f.firstSelectableCursor()
 			}
 		}
+	case tea.KeyLeft:
+		if f.buttonIdx > 0 {
+			f.buttonIdx--
+		}
+	case tea.KeyRight:
+		if f.buttonIdx < maxButton {
+			f.buttonIdx++
+		}
 	case tea.KeyShiftTab:
 		f.goBack()
 		return f, nil
