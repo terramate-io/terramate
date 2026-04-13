@@ -175,7 +175,9 @@ func (m *Model) reloadAll() error {
 		return errors.E(err, "Failed to evaluate new bundles.")
 	}
 
-	est.Registry = newReg
+	// Update in-place so that existing pointers (e.g. SharedWidgetContext.Registry
+	// in parent forms during nested creation) see the new data.
+	*est.Registry = *newReg
 	return nil
 }
 
