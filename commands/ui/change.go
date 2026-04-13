@@ -273,13 +273,16 @@ func NewPromoteChange(
 		values,
 	)
 	if err != nil {
-		return Change{}, wrapMissingBundleRefError(err)
+		return Change{}, err
+	}
+	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
+		return Change{}, err
 	}
 
 	// This will only be set if there is an explicit alias.
 	newAlias, err := setupExplicitBundleAlias(schemactx.Evalctx, bde.Define)
 	if err != nil {
-		return Change{}, wrapMissingBundleRefError(err)
+		return Change{}, err
 	}
 
 	var warnings []string
@@ -375,15 +378,45 @@ func reEvalAllInputs(
 	return result, nil
 }
 
-// wrapMissingBundleRefError adds a user-friendly message when a promote/reconfigure
-// fails because a referenced bundle doesn't exist in the target environment.
-// Detects the HCL error pattern for accessing attributes on a null value.
-func wrapMissingBundleRefError(err error) error {
-	msg := err.Error()
-	if strings.Contains(msg, "This value is null") || strings.Contains(msg, "does not have any attributes") {
-		return errors.E(err, "A referenced bundle has not been promoted to this environment yet. Promote dependencies first.")
+// normalizeBundleRefValues converts resolved bundle objects back to alias strings.
+// When reconfiguring or promoting, bundle-ref inputs are loaded as full objects
+// (with alias, uuid, etc.) from disk. The type system expects strings, so we
+// extract the alias before the values enter the form.
+func normalizeBundleRefValues(inputDefs []*config.InputDefinition, values map[string]cty.Value) map[string]cty.Value {
+	for _, def := range inputDefs {
+		if _, isBundleType := def.Type.(*typeschema.BundleType); !isBundleType {
+			continue
+		}
+		v, ok := values[def.Name]
+		if !ok || v == cty.NilVal || v.IsNull() || !v.IsKnown() {
+			continue
+		}
+		if v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
+			alias := v.GetAttr("alias")
+			if alias.IsKnown() && alias.Type() == cty.String {
+				values[def.Name] = alias
+			}
+		}
 	}
-	return err
+	return values
+}
+
+// checkBundleRefsResolved verifies that all bundle-ref inputs resolved to non-null
+// values. Returns a user-friendly error if any referenced bundle is missing.
+func checkBundleRefsResolved(inputDefs []*config.InputDefinition, values map[string]cty.Value) error {
+	for _, def := range inputDefs {
+		if _, isBundleType := def.Type.(*typeschema.BundleType); !isBundleType {
+			continue
+		}
+		v, ok := values[def.Name]
+		if !ok || v == cty.NilVal {
+			continue
+		}
+		if v.IsNull() {
+			return errors.E("Input %q references a bundle that does not exist in this environment. Promote dependencies first.", def.Name)
+		}
+	}
+	return nil
 }
 
 // Save writes the change to disk as a YAML bundle instance file.

@@ -86,6 +86,7 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	}
 
 	values := inputsToValueMap(b.Inputs)
+	normalizeBundleRefValues(inputDefs, values)
 
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde
@@ -428,10 +429,12 @@ func (m Model) renderReconfigInputView() string {
 	b := m.reconfigBundle
 	aliasStyle := lipgloss.NewStyle().Foreground(colorCreate)
 	alias := aliasStyle.Render(displayNameFromAlias(b.Alias, b.Name))
+	envStyle := lipgloss.NewStyle().Foreground(colorPromote)
 	var envTag string
 	if b.Environment != nil {
-		envStyle := lipgloss.NewStyle().Foreground(colorPromote)
 		envTag = " " + envStyle.Render("["+b.Environment.Name+"]")
+	} else {
+		envTag = " " + envStyle.Render("[Without Environment]")
 	}
 	headerContext := "Reconfigure " + b.DefinitionMetadata.Name + ": " + alias + envTag
 	title := m.renderHeader(headerContext)
