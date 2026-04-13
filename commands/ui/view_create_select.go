@@ -161,7 +161,7 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 		return nil
 	}
 
-	bundleEvalctx := newBundleEvalContext(est.Evalctx, est.Registry.Registry, m.selectedEnv)
+	bundleEvalctx := newBundleEvalContext(est.Evalctx, est.Registry, m.selectedEnv)
 
 	if err := checkBundleEnabled(bundleEvalctx, bde.Define); err != nil {
 		return err
@@ -212,7 +212,7 @@ func (m *Model) finalizeBundleWithEnv() error {
 	est := m.EngineState
 	bde := m.selectedBundleDefEntry
 
-	bundleEvalctx := newBundleEvalContext(est.Evalctx, est.Registry.Registry, m.selectedEnv)
+	bundleEvalctx := newBundleEvalContext(est.Evalctx, est.Registry, m.selectedEnv)
 
 	if err := checkBundleEnabled(bundleEvalctx, bde.Define); err != nil {
 		return err

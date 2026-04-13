@@ -175,7 +175,7 @@ func (m *Model) reloadAll() error {
 		return errors.E(err, "Failed to evaluate new bundles.")
 	}
 
-	est.Registry.Registry = newReg
+	est.Registry = newReg
 	return nil
 }
 

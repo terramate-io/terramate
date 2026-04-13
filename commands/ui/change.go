@@ -5,7 +5,6 @@ package ui
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,8 +79,8 @@ func NewCreateChange(
 	// Rebind bundle() functions to the current registry so that references
 	// to bundles created during this session (e.g. nested bundles that were
 	// saved immediately) are resolvable.
-	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), est.Registry.Registry, activeEnv, false))
-	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry.Registry, activeEnv))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, activeEnv, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, activeEnv))
 
 	// The form may or may not contain values for all defaults.
 	// In this step we re-run input evaluation like it would be done if this was a bundle instance that
@@ -149,7 +148,7 @@ func NewCreateChange(
 	}
 
 	// Final check: Is the bundle unique?
-	if err := est.Registry.IsBundleUnique(alias, bde.Metadata.Class, hostPath, env); err != nil {
+	if err := IsBundleUnique(est.Registry, alias, bde.Metadata.Class, hostPath, env); err != nil {
 		return Change{}, err
 	}
 
@@ -183,8 +182,8 @@ func NewReconfigChange(
 
 	// Rebind bundle() functions to the current registry so that references
 	// to bundles created/reconfigured during this session are resolvable.
-	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), est.Registry.Registry, bundle.Environment, false))
-	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry.Registry, bundle.Environment))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, bundle.Environment, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, bundle.Environment))
 
 	hostPath := bundle.Info.HostPath()
 	projPath := project.PrjAbsPath(est.Root.HostDir(), hostPath).String()
@@ -258,8 +257,8 @@ func NewPromoteChange(
 
 	// Rebind bundle() functions to the current registry so that references
 	// to bundles promoted during this session are resolvable.
-	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(context.TODO(), est.Registry.Registry, env, false))
-	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry.Registry, env))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, env, false))
+	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, env))
 
 	hostPath := bundle.Info.HostPath()
 	projPath := project.PrjAbsPath(est.Root.HostDir(), hostPath).String()

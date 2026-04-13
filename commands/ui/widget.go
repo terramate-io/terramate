@@ -78,7 +78,7 @@ type BundleOption struct {
 // SharedWidgetContext provides shared resources to widgets.
 type SharedWidgetContext struct {
 	Schemactx typeschema.EvalContext
-	Registry  *Registry
+	Registry  *config.Registry
 	Env       *config.Environment
 	FromEnv   *config.Environment
 }

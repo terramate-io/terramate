@@ -150,7 +150,7 @@ func (m Model) buildReconfigFilters() []envFilterState {
 // loadBundleEvalContext creates a bundle eval context and loads the schema namespaces for the given bundle.
 func (m Model) loadBundleEvalContext(bde *config.BundleDefinitionEntry, env *config.Environment) (typeschema.EvalContext, error) {
 	est := m.EngineState
-	evalctx := newBundleEvalContext(est.Evalctx, est.Registry.Registry, env)
+	evalctx := newBundleEvalContext(est.Evalctx, est.Registry, env)
 	schemas, err := config.EvalBundleSchemaNamespaces(est.Root, est.ResolveAPI, evalctx, bde.Define, true)
 	if err != nil {
 		return typeschema.EvalContext{}, errors.E(err, "Failed to load bundle schema.")

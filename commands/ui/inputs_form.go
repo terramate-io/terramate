@@ -114,7 +114,7 @@ func (f InputsForm) effectivePanelHeight() int {
 }
 
 // NewInputsForm creates a new inputs form for the given inputs and schemas
-func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *Registry, env *config.Environment) InputsForm {
+func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *config.Registry, env *config.Environment) InputsForm {
 	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 
@@ -155,7 +155,7 @@ func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.Eva
 }
 
 // NewInputsFormWithValues creates an inputs form pre-populated with existing values.
-func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value) InputsForm {
+func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *config.Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value) InputsForm {
 	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 

@@ -106,7 +106,7 @@ type EngineState struct {
 	Root            *config.Root
 	Evalctx         *eval.Context // This is the base evalctx. Should be cloned instead of modifie directly.
 	ResolveAPI      resolve.API
-	Registry        *Registry
+	Registry        *config.Registry
 	LocalBundleDefs []config.BundleDefinitionEntry
 	Collections     []*manifest.Collection
 	CLIConfig       cliconfig.Config
@@ -487,14 +487,8 @@ func displayNameFromAlias(alias, name string) string {
 	return alias
 }
 
-// Registry wraps config.Registry with session-local state.
-type Registry struct {
-	*config.Registry
-}
-
-// MatchingBundleOptions returns a merged list of existing and session-created
-// bundles that match the given class ID and environment.
-func (r *Registry) MatchingBundleOptions(classID string, env *config.Environment) []BundleOption {
+// MatchingBundleOptions returns bundles that match the given class ID and environment.
+func MatchingBundleOptions(r *config.Registry, classID string, env *config.Environment) []BundleOption {
 	var options []BundleOption
 	for _, b := range r.Bundles {
 		if classID != b.DefinitionMetadata.Class {
@@ -518,7 +512,7 @@ func (r *Registry) MatchingBundleOptions(classID string, env *config.Environment
 }
 
 // IsBundleUnique checks that no existing bundle conflicts with the given alias and class.
-func (r *Registry) IsBundleUnique(alias, classID, hostPath string, env *config.Environment) error {
+func IsBundleUnique(r *config.Registry, alias, classID, hostPath string, env *config.Environment) error {
 	skipFileExistsCheck := false
 
 	for _, b := range r.Bundles {
