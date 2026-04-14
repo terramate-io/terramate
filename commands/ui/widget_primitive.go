@@ -97,6 +97,13 @@ func (w *TextWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 			newVal = w.defaultValue
 		}
 
+		if w.wctx.Def.Validate != nil {
+			if err := w.wctx.Def.Validate(newVal); err != nil {
+				w.validationErr = err
+				return WidgetContinue, nil
+			}
+		}
+
 		w.wctx.UpdateValue(newVal)
 		return WidgetConfirmed, nil
 
@@ -441,9 +448,9 @@ func ctyToDisplayString(v cty.Value) string {
 		return bf.Text('f', -1)
 	case cty.Bool:
 		if v.True() {
-			return "true"
+			return "Yes"
 		}
-		return "false"
+		return "No"
 	default:
 		if v.CanIterateElements() {
 			return fmt.Sprintf("<%d items>", v.LengthInt())

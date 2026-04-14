@@ -13,6 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/errors"
 	"github.com/terramate-io/terramate/typeschema"
 )
 
@@ -54,6 +55,13 @@ type InputsForm struct {
 	activeWidget InputWidget // Currently active widget (cached for hot path)
 	preEditValue cty.Value   // Snapshot of the active input's value before editing began
 
+	// userModified tracks which inputs were explicitly set by the user (vs default-seeded).
+	userModified map[string]bool
+
+	// originalUserKeys preserves which inputs were user-provided when loaded from YAML.
+	// Used in diff mode to restore the correct userModified state on reset.
+	originalUserKeys map[string]bool
+
 	// Scrollable viewport
 	viewport viewport.Model
 
@@ -91,6 +99,9 @@ type InputsForm struct {
 
 	// Customizable button labels (empty = defaults: "Confirm" / "Cancel")
 	confirmLabel string
+
+	// Filter: when true, only required (non-defaulted) inputs are shown in the list.
+	requiredOnly bool
 
 	// Validation error shown at the top of the completed panel (e.g. from finalizeChange).
 	validationErr error
@@ -139,12 +150,15 @@ func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.Eva
 	}
 
 	f := InputsForm{
-		Schemactx: schemactx,
-		InputDefs: prompted,
-		activeIdx: 0,
-		widgets:   widgets,
-		viewport:  vp,
+		Schemactx:    schemactx,
+		InputDefs:    prompted,
+		activeIdx:    0,
+		widgets:      widgets,
+		viewport:     vp,
+		userModified: make(map[string]bool),
 	}
+
+	f.seedDefaults()
 
 	if len(prompted) > 0 {
 		f.activeIdx = -1
@@ -155,7 +169,9 @@ func NewInputsForm(inputDefs []*config.InputDefinition, schemactx typeschema.Eva
 }
 
 // NewInputsFormWithValues creates an inputs form pre-populated with existing values.
-func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *config.Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value) InputsForm {
+// userKeys, when non-nil, restricts which values are considered user-provided (vs default-seeded).
+// When nil, all pre-existing values are treated as user-provided.
+func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx typeschema.EvalContext, registry *config.Registry, env, fromEnv *config.Environment, values, originalValues map[string]cty.Value, userKeys map[string]bool) InputsForm {
 	vp := viewport.New(uiWidth, minContentHeight+6)
 	vp.SetContent("")
 
@@ -196,18 +212,36 @@ func NewInputsFormWithValues(inputDefs []*config.InputDefinition, schemactx type
 		}
 	}
 
+	// Mark which values are user-provided vs default-seeded.
+	um := make(map[string]bool, len(prompted))
+	for _, def := range prompted {
+		if v, ok := values[def.Name]; ok && v != cty.NilVal {
+			if userKeys == nil || userKeys[def.Name] {
+				um[def.Name] = true
+			}
+		}
+	}
+
+	// Snapshot the initial user keys for diff-mode reset.
+	origUserKeys := make(map[string]bool, len(um))
+	for k, v := range um {
+		origUserKeys[k] = v
+	}
+
 	f := InputsForm{
-		Schemactx:       schemactx,
-		InputDefs:       prompted,
-		activeIdx:       len(prompted),
-		originalValues:  origCopy,
-		widgets:         widgets,
-		viewport:        vp,
-		editMode:        true,
-		reconfiguring:   len(originalValues) > 0 && (fromEnv == nil || env == fromEnv),
-		promoting:       len(originalValues) > 0 && (fromEnv != nil && env != fromEnv),
-		focus:           InputFocusCompleted,
-		completedCursor: 0,
+		Schemactx:        schemactx,
+		InputDefs:        prompted,
+		activeIdx:        len(prompted),
+		originalValues:   origCopy,
+		widgets:          widgets,
+		viewport:         vp,
+		userModified:     um,
+		originalUserKeys: origUserKeys,
+		editMode:         true,
+		reconfiguring:    len(originalValues) > 0 && (fromEnv == nil || env == fromEnv),
+		promoting:        len(originalValues) > 0 && (fromEnv != nil && env != fromEnv),
+		focus:            InputFocusCompleted,
+		completedCursor:  0,
 	}
 
 	f.buttonIdx = 0
@@ -263,10 +297,12 @@ func (f *InputsForm) confirmCurrent() {
 	}
 	editedIdx := f.activeIdx
 	def := f.InputDefs[f.activeIdx]
+	f.userModified[def.Name] = true
 	newVal := f.valueByName(def.Name)
 	if !ctyValueEquals(f.preEditValue, newVal) {
 		f.clearDependents(def.Name)
 	}
+	f.seedDefaults()
 	f.advanceToNextPending()
 
 	// In reconfig/promote mode, return focus to the completed panel on the
@@ -292,6 +328,8 @@ func (f *InputsForm) confirmCurrent() {
 func (f *InputsForm) advanceToNextPending() {
 	for _, idx := range f.allVisibleIndices() {
 		def := f.InputDefs[idx]
+		// Skip inputs with a filled value (either user-set or successfully default-seeded).
+		// Inputs with HasDefault() but no filled value (e.g. default eval failed) are still prompted.
 		if !f.isInputFilled(idx) && !f.hasPendingDependencies(def) {
 			f.activeIdx = idx
 			f.prepareInput(idx)
@@ -390,6 +428,14 @@ func (f *InputsForm) focusButtons() {
 	f.buttonIdx = 0
 }
 
+// maxButtonIdx returns the index of the last button (0-based).
+func (f *InputsForm) maxButtonIdx() int {
+	if f.reconfiguring && !f.HasPendingChanges() {
+		return 0
+	}
+	return 1
+}
+
 // firstSelectableCursor returns the first cursor index that is not immutable or disabled.
 // Returns -1 if no selectable item exists (all inputs are immutable/disabled).
 func (f *InputsForm) firstSelectableCursor() int {
@@ -398,6 +444,9 @@ func (f *InputsForm) firstSelectableCursor() int {
 	for i, idx := range visible {
 		def := f.InputDefs[idx]
 		if (def.Immutable && diffMode) || f.hasPendingDependencies(def) {
+			continue
+		}
+		if f.isFilteredByRequiredOnly(idx) {
 			continue
 		}
 		return i
@@ -414,6 +463,7 @@ func (f *InputsForm) hasSelectableInputs() bool {
 func (f *InputsForm) Remaining() int {
 	count := 0
 	for _, idx := range f.allVisibleIndices() {
+		// Count unfilled inputs — defaults that failed to seed are still unfilled.
 		if !f.isInputFilled(idx) {
 			count++
 		}
@@ -453,6 +503,49 @@ func (f *InputsForm) PendingSubForm() *SubFormRequest {
 	return f.pendingSubForm
 }
 
+// ExtraHelpHints returns contextual help hints for the current state.
+// The caller appends these to the help line.
+func (f *InputsForm) ExtraHelpHints() string {
+	if f.focus == InputFocusCompleted && !f.reconfiguring && !f.promoting && f.hasOptionalInputs() {
+		return "◂▸: filter"
+	}
+	return ""
+}
+
+// cursorToRenderedLine maps a cursor index (into the combined visible list) to
+// the rendered line index, accounting for items hidden by the requiredOnly filter.
+func (f *InputsForm) cursorToRenderedLine(cursor int, combined []int) int {
+	line := 0
+	for i := 0; i < cursor && i < len(combined); i++ {
+		if f.isFilteredByRequiredOnly(combined[i]) {
+			continue
+		}
+		line++
+	}
+	return line
+}
+
+// isFilteredByRequiredOnly returns true if the input at the given real index is
+// hidden by the requiredOnly filter (i.e. it's a default-seeded input that
+// the user has not explicitly modified, and is not currently active).
+func (f *InputsForm) isFilteredByRequiredOnly(realIdx int) bool {
+	if !f.requiredOnly || realIdx == f.activeIdx {
+		return false
+	}
+	def := f.InputDefs[realIdx]
+	return !f.userModified[def.Name] && def.HasDefault()
+}
+
+// hasOptionalInputs returns true if any visible input has a default value.
+func (f *InputsForm) hasOptionalInputs() bool {
+	for _, idx := range f.allVisibleIndices() {
+		if f.InputDefs[idx].HasDefault() {
+			return true
+		}
+	}
+	return false
+}
+
 // activeTitle returns the current top-panel title as a composed breadcrumb.
 // When parentTitle is set and the active input has a PromptText, they are
 // joined with " / " to maintain the navigation context.
@@ -488,13 +581,26 @@ func (f *InputsForm) Values() map[string]cty.Value {
 	return cp
 }
 
+// UserValues returns only the values that were explicitly set by the user,
+// excluding default-seeded values. Used when writing to YAML so that defaults
+// are evaluated at runtime rather than baked into the config.
+func (f *InputsForm) UserValues() map[string]cty.Value {
+	cp := make(map[string]cty.Value, len(f.widgets))
+	for name, w := range f.widgets {
+		if f.userModified[name] || isPseudoKey(name) {
+			cp[name] = w.WidgetContext().Value
+		}
+	}
+	return cp
+}
+
 // hasAnyValues returns true if the user has entered any non-pseudo values.
 func (f *InputsForm) hasAnyValues() bool {
-	for name, w := range f.widgets {
+	for name := range f.widgets {
 		if isPseudoKey(name) {
 			continue
 		}
-		if w.WidgetContext().Value != cty.NilVal {
+		if f.userModified[name] {
 			return true
 		}
 	}
@@ -556,10 +662,12 @@ func (f *InputsForm) setBundleRefValue(bundleID string) {
 	def := f.InputDefs[f.activeIdx]
 	v := cty.StringVal(bundleID)
 	f.setValueByName(def.Name, v)
+	f.userModified[def.Name] = true
 	if bw, ok := f.activeWidget.(*BundleRefWidget); ok {
 		bw.Reload()
 	}
 	f.state = InputsFormActive
+	f.seedDefaults()
 	f.advanceToNextPending()
 }
 
@@ -587,6 +695,47 @@ func (f *InputsForm) setValueByName(name string, val cty.Value) {
 		w.WidgetContext().Value = val
 		syncInputToEvalctx(f.Schemactx.Evalctx, name, val)
 	}
+}
+
+// seedDefaults evaluates default expressions for all inputs that haven't been
+// explicitly set by the user. Runs in a fixpoint loop so that cascading
+// defaults (B depends on A's default) are resolved iteratively.
+func (f *InputsForm) seedDefaults() {
+	// Cap iterations to guard against pathological cases where a default expression
+	// has an undeclared dependency and produces new values on each pass.
+	maxIterations := 2 * len(f.InputDefs)
+	for range maxIterations {
+		seeded := false
+		for _, def := range f.InputDefs {
+			if f.userModified[def.Name] {
+				continue
+			}
+			if !def.HasDefault() {
+				continue
+			}
+			if f.hasPendingDependencies(def) {
+				continue
+			}
+			val, err := def.EvalDefault(f.Schemactx)
+			if err != nil || val == cty.NilVal {
+				continue
+			}
+			prev := f.valueByName(def.Name)
+			if ctyValueEquals(prev, val) {
+				continue
+			}
+			f.setValueByName(def.Name, val)
+			seeded = true
+		}
+		if !seeded {
+			return
+		}
+	}
+}
+
+// isUserModified returns true if the input at the given index was explicitly set by the user.
+func (f *InputsForm) isUserModified(idx int) bool {
+	return f.userModified[f.InputDefs[idx].Name]
 }
 
 // SeedValues sets initial values onto widgets without triggering side effects.
@@ -631,6 +780,7 @@ func (f *InputsForm) clearDependents(name string) {
 			continue
 		}
 		f.setValueByName(def.Name, cty.NilVal)
+		delete(f.userModified, def.Name)
 		f.clearDependents(def.Name)
 	}
 }
@@ -736,6 +886,7 @@ func (f InputsForm) Update(msg tea.Msg) (InputsForm, tea.Cmd) {
 		}
 
 		f.browsing = false
+
 		if f.allInputsDone() {
 			return f.updateButtons(msg)
 		}
@@ -765,8 +916,12 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		if idx < 0 || idx >= len(combined) {
 			return false
 		}
-		def := f.InputDefs[combined[idx]]
-		return (def.Immutable && diffMode) || f.hasPendingDependencies(def)
+		realIdx := combined[idx]
+		def := f.InputDefs[realIdx]
+		if (def.Immutable && diffMode) || f.hasPendingDependencies(def) {
+			return true
+		}
+		return f.isFilteredByRequiredOnly(realIdx)
 	}
 
 	switch msg.Type {
@@ -780,11 +935,17 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 			}
 		}
 		if !moved {
-			// Wrap to last selectable input
-			for i := len(combined) - 1; i > f.completedCursor; i-- {
-				if !isSkippable(i) {
-					f.completedCursor = i
-					break
+			if f.buttonsVisible() {
+				// Up from first entry → last button (cancel)
+				f.focus = InputFocusActive
+				f.buttonIdx = f.maxButtonIdx()
+			} else {
+				// Wrap to last selectable input
+				for i := len(combined) - 1; i > f.completedCursor; i-- {
+					if !isSkippable(i) {
+						f.completedCursor = i
+						break
+					}
 				}
 			}
 		}
@@ -797,24 +958,47 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 				break
 			}
 		}
-		if !moved && f.buttonsVisible() {
-			f.focusButtons()
+		if !moved {
+			if f.buttonsVisible() {
+				// Down from last entry → first button (save)
+				f.focusButtons()
+			} else {
+				// Wrap to first selectable input
+				first := f.firstSelectableCursor()
+				if first != f.completedCursor {
+					f.completedCursor = first
+				}
+			}
 		}
 	case tea.KeyDelete, tea.KeyBackspace:
-		// Reset a changed input to its original value.
-		if diffMode && f.completedCursor >= 0 && f.completedCursor < len(combined) {
+		if f.completedCursor >= 0 && f.completedCursor < len(combined) {
 			realIdx := combined[f.completedCursor]
 			def := f.InputDefs[realIdx]
 			if def.Immutable {
 				return f, nil
 			}
-			if f.isDefChanged(def) {
-				origVal := f.originalValues[def.Name]
-				f.setValueByName(def.Name, origVal)
-				newTotal := len(f.allVisibleIndices())
-				if f.completedCursor >= newTotal && newTotal > 0 {
-					f.completedCursor = newTotal - 1
+			if diffMode {
+				// In diff mode, reset to original value and restore original user-modified state.
+				if f.isDefChanged(def) {
+					origVal := f.originalValues[def.Name]
+					f.setValueByName(def.Name, origVal)
+					if f.originalUserKeys[def.Name] {
+						f.userModified[def.Name] = true
+					} else {
+						delete(f.userModified, def.Name)
+					}
+					newTotal := len(f.allVisibleIndices())
+					if f.completedCursor >= newTotal && newTotal > 0 {
+						f.completedCursor = newTotal - 1
+					}
 				}
+			} else if f.userModified[def.Name] {
+				// In create mode, unset user value and re-seed defaults.
+				delete(f.userModified, def.Name)
+				f.setValueByName(def.Name, cty.NilVal)
+				f.clearDependents(def.Name)
+				f.seedDefaults()
+				f.advanceToNextPending()
 			}
 		}
 		return f, nil
@@ -830,6 +1014,18 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		}
 		f.ReenterAt(realIdx)
 		f.focus = InputFocusActive
+		return f, nil
+	case tea.KeyLeft, tea.KeyRight:
+		if !f.reconfiguring && !f.promoting && f.hasOptionalInputs() {
+			f.requiredOnly = !f.requiredOnly
+			// Ensure cursor is still on a visible item after toggling.
+			if isSkippable(f.completedCursor) {
+				first := f.firstSelectableCursor()
+				if first >= 0 {
+					f.completedCursor = first
+				}
+			}
+		}
 		return f, nil
 	case tea.KeyEsc:
 		f.focus = InputFocusActive
@@ -913,13 +1109,18 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		maxButton = 0 // Only Back button at index 0
 	}
 
-	// lastSelectableCursor finds the last non-immutable, non-disabled input.
+	// lastSelectableCursor finds the last non-immutable, non-disabled, non-filtered input.
 	lastSelectable := func() int {
 		for i := len(combined) - 1; i >= 0; i-- {
-			def := f.InputDefs[combined[i]]
-			if (!def.Immutable || (!f.reconfiguring && !f.promoting)) && !f.hasPendingDependencies(def) {
-				return i
+			idx := combined[i]
+			def := f.InputDefs[idx]
+			if (def.Immutable && (f.reconfiguring || f.promoting)) || f.hasPendingDependencies(def) {
+				continue
 			}
+			if f.isFilteredByRequiredOnly(idx) {
+				continue
+			}
+			return i
 		}
 		return f.firstSelectableCursor()
 	}
@@ -1017,6 +1218,10 @@ func (f InputsForm) View() string {
 		topTitle = f.InputDefs[f.activeIdx].Prompt.Text
 	}
 	topTitleText := sectionTitleStyle.Render(topTitle)
+	if !f.reconfiguring && !f.promoting && f.activeIdx < len(f.InputDefs) && !f.InputDefs[f.activeIdx].HasDefault() {
+		reqHintStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+		topTitleText += " " + reqHintStyle.Render("(required)")
+	}
 
 	var counterText string
 	if !f.objectMode {
@@ -1065,7 +1270,27 @@ func (f InputsForm) View() string {
 			botTitleText = "Attributes"
 		}
 	}
-	botTitle := sectionTitleStyle.Render(botTitleText)
+	botTitleRendered := sectionTitleStyle.Render(botTitleText)
+
+	// Filter toggle: show only in create mode when there are optional (defaulted) inputs.
+	var botTitle string
+	if !f.reconfiguring && !f.promoting && f.hasOptionalInputs() {
+		filterStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+		var filterText string
+		if f.requiredOnly {
+			filterText = filterStyle.Render("◂ required ▸")
+		} else {
+			filterText = filterStyle.Render("◂ all ▸")
+		}
+		gap := innerWidth - lipgloss.Width(botTitleRendered) - lipgloss.Width(filterText)
+		if gap < 1 {
+			gap = 1
+		}
+		botTitle = botTitleRendered + strings.Repeat(" ", gap) + filterText
+	} else {
+		botTitle = botTitleRendered
+	}
+
 	completedContent := f.renderCompletedPanelContent()
 	if completedContent == "" {
 		dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted).Italic(true)
@@ -1094,16 +1319,16 @@ func (f InputsForm) View() string {
 
 		if !f.browsing {
 			// Determine which row to keep visible.
+			visible := f.allVisibleIndices()
 			focusRow := 0
 			if f.focus == InputFocusCompleted {
 				// Keep the cursor row visible when navigating the panel.
-				focusRow = f.completedCursor
+				focusRow = f.cursorToRenderedLine(f.completedCursor, visible)
 			} else {
 				// Keep the active input row visible when the top panel has focus.
-				visible := f.allVisibleIndices()
 				for vi, idx := range visible {
 					if idx == f.activeIdx {
-						focusRow = vi
+						focusRow = f.cursorToRenderedLine(vi, visible)
 						break
 					}
 				}
@@ -1181,7 +1406,7 @@ func (f InputsForm) renderSingleCompletedPanel(
 		if !f.browsing {
 			focusLine := 0
 			if f.completedCursor >= 0 {
-				focusLine = f.completedCursor
+				focusLine = f.cursorToRenderedLine(f.completedCursor, f.allVisibleIndices())
 			}
 			if focusLine < f.viewport.YOffset {
 				f.viewport.SetYOffset(focusLine)
@@ -1198,7 +1423,26 @@ func (f InputsForm) renderSingleCompletedPanel(
 		contentBlock = contentStyle.Render(vpView)
 	}
 
-	parts := []string{titleRendered, ""}
+	// Filter toggle indicator (create mode only).
+	var titleLine string
+	if !f.reconfiguring && !f.promoting && f.hasOptionalInputs() {
+		filterStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+		var filterText string
+		if f.requiredOnly {
+			filterText = filterStyle.Render("◂ required ▸")
+		} else {
+			filterText = filterStyle.Render("◂ all ▸")
+		}
+		gap := innerWidth - lipgloss.Width(titleRendered) - lipgloss.Width(filterText)
+		if gap < 1 {
+			gap = 1
+		}
+		titleLine = titleRendered + strings.Repeat(" ", gap) + filterText
+	} else {
+		titleLine = titleRendered
+	}
+
+	parts := []string{titleLine, ""}
 	if f.validationErr != nil {
 		errStyle := validationStyle.PaddingLeft(2).Width(innerWidth)
 		parts = append(parts, errStyle.Render(f.validationErr.Error()), "")
@@ -1341,6 +1585,9 @@ func (f InputsForm) renderCompletedPanelContent() string {
 	}
 
 	renderItem := func(cursorIdx int, realIdx int, isChanged bool) []string {
+		if f.isFilteredByRequiredOnly(realIdx) {
+			return nil
+		}
 		def := f.InputDefs[realIdx]
 		isCursorSelected := focused && cursorIdx == f.completedCursor
 		isFilled := f.isInputFilled(realIdx)
@@ -1348,11 +1595,16 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		isDisabled := f.hasPendingDependencies(def)
 		diffMode := f.reconfiguring || f.promoting
 		isImmutable := def.Immutable && diffMode
+		userSet := f.isUserModified(realIdx)
 
 		label := def.Prompt.Text
 		labelPad := strings.Repeat(" ", maxLabel-len(label))
 
 		var prefix, statusIcon, nameCol string
+
+		// Required: no value at all, non-disabled, non-immutable, no default.
+		requiredIcon := lipgloss.NewStyle().Foreground(colorText).Bold(true).Render("*")
+		isRequired := !isFilled && !isDisabled && !isImmutable && !def.HasDefault() && !diffMode
 
 		if isImmutable {
 			// Immutable: not selectable, always show tag
@@ -1368,9 +1620,11 @@ func (f InputsForm) renderCompletedPanelContent() string {
 			if isActive {
 				statusIcon = selectedLabelStyle.Render("○")
 			} else if isChanged {
-				statusIcon = changedIconStyle.Render("~")
-			} else if isFilled && !diffMode {
+				statusIcon = selectedLabelStyle.Render("~")
+			} else if userSet && !diffMode {
 				statusIcon = checkStyle.Render("✓")
+			} else if isRequired {
+				statusIcon = requiredIcon
 			} else {
 				statusIcon = " "
 			}
@@ -1383,30 +1637,36 @@ func (f InputsForm) renderCompletedPanelContent() string {
 			prefix = "  "
 			statusIcon = changedIconStyle.Render("~")
 			nameCol = completedLabelStyle.Render(label) + labelPad
-		} else if isFilled && !diffMode {
+		} else if userSet && !diffMode {
 			prefix = "  "
 			statusIcon = checkStyle.Render("✓")
 			nameCol = completedLabelStyle.Render(label) + labelPad
-		} else if isFilled {
+		} else if isFilled && diffMode {
 			prefix = "  "
 			statusIcon = " "
 			nameCol = completedLabelStyle.Render(label) + labelPad
 		} else {
 			prefix = "  "
-			statusIcon = " "
+			if isRequired {
+				statusIcon = requiredIcon
+			} else {
+				statusIcon = " "
+			}
 			nameCol = pendingLabelStyle.Render(label) + labelPad
 		}
 
 		arrowStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+		dimStyle := lipgloss.NewStyle().Foreground(colorTextSubtle).Faint(true)
 
 		// Build the value portion and compute its visible width for tag alignment.
 		var valueStr string
 		var valueWidth int
+		dimEquals := false
 		if isImmutable && isFilled {
 			v := f.formatCompletedValue(realIdx)
 			valueStr = immutableValueStyle.Render(v)
 			valueWidth = len(v)
-		} else if isFilled && !isDisabled {
+		} else if isFilled && !isDisabled && userSet {
 			if isChanged && diffMode {
 				origDisplay := f.formatOriginalValue(realIdx)
 				newDisplay := f.formatCompletedValue(realIdx)
@@ -1417,6 +1677,12 @@ func (f InputsForm) renderCompletedPanelContent() string {
 				valueStr = completedValueStyle.Render(v)
 				valueWidth = len(v)
 			}
+		} else if isFilled && !isDisabled && !userSet {
+			// Default-seeded value: show in dim.
+			v := f.formatCompletedValue(realIdx)
+			valueStr = dimStyle.Render(v)
+			valueWidth = len(v)
+			dimEquals = true
 		} else if !isFilled && !isDisabled && diffMode {
 			origDisplay := f.formatOriginalValue(realIdx)
 			valueStr = wasStyle.Render("?") + " " + arrowStyle.Render("←") + " " + wasStyle.Render(origDisplay)
@@ -1426,7 +1692,11 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		// Build the base line.
 		var line string
 		if valueStr != "" {
-			line = fmt.Sprintf("%s%s %s = %s", prefix, statusIcon, nameCol, valueStr)
+			eq := "="
+			if dimEquals {
+				eq = dimStyle.Render("=")
+			}
+			line = fmt.Sprintf("%s%s %s %s %s", prefix, statusIcon, nameCol, eq, valueStr)
 		} else {
 			line = fmt.Sprintf("%s%s %s", prefix, statusIcon, nameCol)
 		}
@@ -1436,7 +1706,11 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		if isImmutable {
 			tag = hintStyle.Render("immutable")
 		} else if isCursorSelected && !isDisabled {
-			tag = hintStyle.Render("enter to edit")
+			hint := "enter to edit"
+			if userSet {
+				hint += " · del to reset"
+			}
+			tag = hintStyle.Render(hint)
 		} else if isCursorSelected && isDisabled {
 			tag = hintStyle.Render("waiting for dependencies")
 		}
@@ -1500,7 +1774,7 @@ func (f InputsForm) formatOriginalValue(idx int) string {
 	if orig == cty.NilVal || orig.IsNull() {
 		return "<none>"
 	}
-	return ctyToDisplayString(orig)
+	return FormatDisplayValue(orig, def.Type)
 }
 
 // renderInlineButtons returns compact inline buttons for the title line.
@@ -1591,6 +1865,18 @@ func pseudoStringInput(name, title, description string) *config.InputDefinition 
 		Type:        &typeschema.PrimitiveType{Name: "string"},
 		Prompt:      config.PromptConfig{Text: title},
 	}
+}
+
+func pseudoOutputPathInput(title, description string) *config.InputDefinition {
+	def := pseudoStringInput(pseudoKeyOutputPath, title, description)
+	def.Validate = func(val cty.Value) error {
+		s := val.AsString()
+		if !strings.HasSuffix(s, ".tm.yaml") && !strings.HasSuffix(s, ".tm.yml") {
+			return errors.E("Output file must end with .tm.yaml or .tm.yml")
+		}
+		return nil
+	}
+	return def
 }
 
 // extractPseudoString reads a synthetic string value from a values map.

@@ -90,7 +90,7 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde
-	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, b.Environment, nil, values, values)
+	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, b.Environment, nil, values, values, rawInputKeys(b, schemactx.Evalctx))
 	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
@@ -445,6 +445,9 @@ func (m Model) renderReconfigInputView() string {
 	if m.inputsForm.ShowsTwoPanels() {
 		helpText = "tab: switch section • esc: back"
 	}
+	if extra := m.inputsForm.ExtraHelpHints(); extra != "" {
+		helpText += " • " + extra
+	}
 	help := helpStyle.Render(m.finalHelpText(helpText))
 
 	content := lipgloss.JoinVertical(
@@ -485,7 +488,7 @@ func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.inputsForm.HasPendingChanges() {
 			change, err := NewReconfigChange(
 				est, m.reconfigBundle, m.selectedBundleDefEntry,
-				m.inputsForm.Schemactx, m.inputsForm.InputDefs, m.inputsForm.Values(),
+				m.inputsForm.Schemactx, m.inputsForm.InputDefs, m.inputsForm.UserValues(),
 			)
 			if err != nil {
 				m.inputsForm.SetValidationError(err)

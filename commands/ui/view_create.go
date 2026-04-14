@@ -111,7 +111,7 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.selectedBundleDefEntry,
 			m.inputsForm.Schemactx,
 			m.inputsForm.InputDefs,
-			m.inputsForm.Values(),
+			m.inputsForm.UserValues(),
 		)
 		if err != nil {
 			m.inputsForm.SetValidationError(err)
@@ -278,6 +278,9 @@ func (m Model) renderCreateInputView() string {
 		helpText := "esc: back"
 		if m.inputsForm.ShowsTwoPanels() {
 			helpText = "tab: switch section • esc: back"
+		}
+		if extra := m.inputsForm.ExtraHelpHints(); extra != "" {
+			helpText += " • " + extra
 		}
 		helpText = m.finalHelpText(helpText)
 
