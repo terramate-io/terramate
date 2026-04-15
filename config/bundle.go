@@ -114,6 +114,9 @@ type InputDefinition struct {
 
 	Prompt PromptConfig
 
+	// Optional validation function.
+	Validate func(cty.Value) error
+
 	ObjectAttributes []*ObjectAttribute
 
 	Dependencies map[string]struct{}

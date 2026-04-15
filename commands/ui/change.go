@@ -53,7 +53,8 @@ type Change struct {
 
 	BundleDefEntry *config.BundleDefinitionEntry
 	InputDefs      []*config.InputDefinition // Original input definitions
-	Values         map[string]cty.Value      // Collected values at time of creation
+	Values         map[string]cty.Value      // All values (user + defaults) for validation
+	UserValues     map[string]cty.Value      // Only user-set values (written to YAML)
 
 	Env     *config.Environment
 	FromEnv *config.Environment
@@ -75,10 +76,6 @@ func NewCreateChange(
 	values map[string]cty.Value,
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
-
-	// Rebind bundle() functions to the current registry so that references
-	// to bundles created during this session (e.g. nested bundles that were
-	// saved immediately) are resolvable.
 	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, activeEnv, false))
 	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, activeEnv))
 
@@ -169,6 +166,7 @@ func NewCreateChange(
 		BundleDefEntry: bde,
 		InputDefs:      inputDefs,
 		Values:         allValues,
+		UserValues:     values,
 	}, nil
 }
 
@@ -182,9 +180,6 @@ func NewReconfigChange(
 	values map[string]cty.Value,
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
-
-	// Rebind bundle() functions to the current registry so that references
-	// to bundles created/reconfigured during this session are resolvable.
 	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, bundle.Environment, false))
 	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, bundle.Environment))
 
@@ -243,6 +238,7 @@ func NewReconfigChange(
 		BundleDefEntry: bde,
 		InputDefs:      inputDefs,
 		Values:         allValues,
+		UserValues:     values,
 		OriginalBundle: bundle,
 		OriginalValues: inputsToValueMap(bundle.Inputs),
 		Warnings:       warnings,
@@ -260,9 +256,6 @@ func NewPromoteChange(
 	values map[string]cty.Value,
 ) (Change, error) {
 	schemactx = schemactx.ChildContext()
-
-	// Rebind bundle() functions to the current registry so that references
-	// to bundles promoted during this session are resolvable.
 	schemactx.Evalctx.SetFunction(stdlib.Name("bundle"), config.BundleFunc(est.Context, est.Registry, env, false))
 	schemactx.Evalctx.SetFunction(stdlib.Name("bundles"), config.BundlesFunc(est.Registry, env))
 
@@ -322,6 +315,7 @@ func NewPromoteChange(
 		BundleDefEntry: bde,
 		InputDefs:      inputDefs,
 		Values:         allValues,
+		UserValues:     values,
 		OriginalBundle: bundle,
 		OriginalValues: inputsToValueMap(bundle.Inputs),
 		Warnings:       warnings,
@@ -454,8 +448,8 @@ func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*confi
 		if isPseudoKey(def.Name) {
 			continue
 		}
-		v, found := c.Values[def.Name]
-		if !found {
+		v, found := c.UserValues[def.Name]
+		if !found || v == cty.NilVal {
 			continue
 		}
 

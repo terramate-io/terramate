@@ -189,8 +189,7 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 		))
 	}
 	if bde.Define.Scaffolding.Path == nil {
-		inputDefs = append(inputDefs, pseudoStringInput(
-			pseudoKeyOutputPath, "Output file",
+		inputDefs = append(inputDefs, pseudoOutputPathInput("Output file",
 			"Path of the created code file.\nPaths starting with / are relative to the project root.\nOtherwise, they are relative to the current directory.",
 		))
 	}
@@ -240,8 +239,7 @@ func (m *Model) finalizeBundleWithEnv() error {
 		))
 	}
 	if bde.Define.Scaffolding.Path == nil {
-		inputDefs = append(inputDefs, pseudoStringInput(
-			pseudoKeyOutputPath, "Output file",
+		inputDefs = append(inputDefs, pseudoOutputPathInput("Output file",
 			"Path of the created code file.\nPaths starting with / are relative to the project root.\nOtherwise, they are relative to the current directory.",
 		))
 	}

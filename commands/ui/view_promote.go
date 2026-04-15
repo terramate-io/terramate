@@ -87,7 +87,7 @@ func (m *Model) loadPromoteBundle(b *config.Bundle, targetEnv *config.Environmen
 
 	m.promoteBundle = b
 	m.selectedBundleDefEntry = bde
-	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, targetEnv, b.Environment, values, values)
+	m.inputsForm = NewInputsFormWithValues(inputDefs, schemactx, est.Registry, targetEnv, b.Environment, values, values, rawInputKeys(b, schemactx.Evalctx))
 	m.inputsForm.confirmLabel = "Save"
 	m.inputsForm.PanelWidth = m.effectiveWidth()
 	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
@@ -414,6 +414,9 @@ func (m Model) renderPromoteInputView() string {
 	if m.inputsForm.ShowsTwoPanels() {
 		helpText = "tab: switch section • esc: back"
 	}
+	if extra := m.inputsForm.ExtraHelpHints(); extra != "" {
+		helpText += " • " + extra
+	}
 	help := helpStyle.Render(m.finalHelpText(helpText))
 
 	content := lipgloss.JoinVertical(
@@ -442,7 +445,7 @@ func (m Model) updatePromoteInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		targetEnv := m.promoteTargetEnvs[m.promoteCursor]
 		change, err := NewPromoteChange(
 			est, targetEnv, m.promoteBundle, m.selectedBundleDefEntry,
-			m.inputsForm.Schemactx, m.inputsForm.InputDefs, m.inputsForm.Values(),
+			m.inputsForm.Schemactx, m.inputsForm.InputDefs, m.inputsForm.UserValues(),
 		)
 		if err != nil {
 			m.inputsForm.SetValidationError(err)

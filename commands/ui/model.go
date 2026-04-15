@@ -265,6 +265,31 @@ func inputsToValueMap(inputs map[string]cty.Value) map[string]cty.Value {
 	return out
 }
 
+// rawInputKeys returns the set of input names that were explicitly provided
+// in the bundle's YAML file (before default evaluation).
+func rawInputKeys(b *config.Bundle, evalctx *eval.Context) map[string]bool {
+	keys := make(map[string]bool)
+	if b.Inst == nil {
+		return keys
+	}
+	// Block-style: inputs { key = val }
+	if b.Inst.Inputs != nil {
+		for name := range b.Inst.Inputs.Attributes {
+			keys[name] = true
+		}
+	}
+	// Attribute-style: inputs = { key = val }
+	if b.Inst.InputsAttr != nil && evalctx != nil {
+		val, err := evalctx.Eval(b.Inst.InputsAttr.Expr)
+		if err == nil && val.Type().IsObjectType() {
+			for name := range val.AsValueMap() {
+				keys[name] = true
+			}
+		}
+	}
+	return keys
+}
+
 // ctrlCResetMsg is sent after the double-press window expires.
 type ctrlCResetMsg struct{}
 
