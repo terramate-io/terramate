@@ -13,7 +13,7 @@ require (
 	github.com/cli/safeexec v1.0.0
 	github.com/emicklei/dot v0.16.0
 	github.com/fatih/color v1.18.0
-	github.com/go-git/go-git/v5 v5.17.1
+	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-test/deep v1.1.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
