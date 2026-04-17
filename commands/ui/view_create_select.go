@@ -61,12 +61,14 @@ func (m Model) updateCreateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, keys.Up):
 		if m.flatBundleCursor > 0 {
 			m.flatBundleCursor--
+			m.bundleSelectErr = ""
 		}
 		return m, nil
 
 	case key.Matches(msg, keys.Down):
 		if m.flatBundleCursor < len(m.flatBundles)-1 {
 			m.flatBundleCursor++
+			m.bundleSelectErr = ""
 		}
 		return m, nil
 
@@ -87,7 +89,8 @@ func (m Model) selectFlatBundle() (tea.Model, tea.Cmd) {
 	m.selectedEnv = nil // reset so env picker shows for each bundle
 
 	if err := m.loadBundleDef(entry.collIdx, entry.bundleIdx); err != nil {
-		return m.updateError(err)
+		m.bundleSelectErr = err.Error()
+		return m, nil
 	}
 
 	// If the bundle requires an environment and environments are configured,
@@ -124,17 +127,17 @@ func (m *Model) loadBundleDef(collIdx, bundleIdx int) error {
 
 		bundleDir, err := est.ResolveAPI.Resolve(est.Root.HostDir(), source, resolve.Bundle, true)
 		if err != nil {
-			return errors.E("Failed to resolve bundle")
+			return errors.E(err, "Failed to resolve bundle")
 		}
 
 		tree, define, err := config.LoadSingleBundleDefinition(est.Root, bundleDir)
 		if err != nil {
-			return errors.E("Failed to load bundle")
+			return errors.E(err, "Failed to load bundle")
 		}
 
 		md, err := config.EvalMetadata(est.Evalctx, tree, &define.Metadata)
 		if err != nil {
-			return errors.E("Failed to load bundle")
+			return errors.E(err, "Failed to load bundle")
 		}
 
 		bde = &config.BundleDefinitionEntry{
@@ -457,7 +460,7 @@ func (m Model) renderBundleSelectView() string {
 
 	title := m.renderHeader("Create Bundle Instance")
 
-	help := helpStyle.Render(m.finalHelpText("↑↓: Select Bundle • esc: back"))
+	help := helpStyle.Render(m.finalHelpText("esc: back"))
 
 	content := m.renderFlatBundleList(innerWidth)
 
@@ -570,6 +573,45 @@ func renderDetailBox(innerWidth int, boxTitle string, fields []detailField) stri
 	return strings.Join(all, "\n")
 }
 
+// renderErrorBox renders an error message in a red-bordered box matching the
+// dimensions of the detail box.
+func renderErrorBox(innerWidth int, msg string) string {
+	borderColor := lipgloss.NewStyle().Foreground(colorError)
+	textStyle := lipgloss.NewStyle().Foreground(colorError)
+
+	contentWidth := innerWidth - 4 // border 1 + padding 1 on each side
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+
+	titleText := borderColor.Render(" Error ")
+	titleVisualWidth := lipgloss.Width(titleText)
+	fillWidth := innerWidth - 2 - 1 - titleVisualWidth
+	if fillWidth < 0 {
+		fillWidth = 0
+	}
+	topBorder := borderColor.Render("╭─") + titleText + borderColor.Render(strings.Repeat("─", fillWidth)+"╮")
+
+	// Word-wrap the message to fit inside the box.
+	wrapped := lipgloss.NewStyle().Width(contentWidth).Render(msg)
+	var contentLines []string
+	for _, line := range strings.Split(wrapped, "\n") {
+		lineWidth := lipgloss.Width(line)
+		pad := contentWidth - lineWidth
+		if pad < 0 {
+			pad = 0
+		}
+		contentLines = append(contentLines, borderColor.Render("│")+" "+textStyle.Render(line)+strings.Repeat(" ", pad)+" "+borderColor.Render("│"))
+	}
+
+	bottomBorder := borderColor.Render("╰" + strings.Repeat("─", innerWidth-2) + "╯")
+
+	all := []string{topBorder}
+	all = append(all, contentLines...)
+	all = append(all, bottomBorder)
+	return strings.Join(all, "\n")
+}
+
 // splitNameVersion splits "Some Name vX.Y.Z" into ("Some Name", "vX.Y.Z").
 func splitNameVersion(s string) (string, string) {
 	// Find the last " v" followed by a digit
@@ -639,7 +681,12 @@ func (m Model) renderFlatBundleList(innerWidth int) string {
 		detailBox = renderDetailBox(innerWidth, "Bundle Details", fields)
 	}
 
-	header := lipgloss.JoinVertical(lipgloss.Left, detailBox, "")
+	headerParts := []string{detailBox}
+	if m.bundleSelectErr != "" {
+		headerParts = append(headerParts, renderErrorBox(innerWidth, m.bundleSelectErr))
+	}
+	headerParts = append(headerParts, "")
+	header := lipgloss.JoinVertical(lipgloss.Left, headerParts...)
 	headerHeight := lipgloss.Height(header)
 	availableHeight := m.effectiveContentHeight() - headerHeight
 
@@ -660,9 +707,11 @@ func (m Model) renderFlatBundleList(innerWidth int) string {
 		Foreground(colorTextMuted).
 		Width(contentWidth)
 
+	collStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
+
 	var items []renderedItem
 	for i, entry := range m.flatBundles {
-		displayName := fmt.Sprintf("%s %s", entry.bundle.Name, versionStyle.Render("v"+entry.bundle.Version))
+		displayName := entry.bundle.Name + " " + versionStyle.Render("v"+entry.bundle.Version) + " " + collStyle.Render("• "+entry.collName)
 
 		var line string
 		if i == m.flatBundleCursor {

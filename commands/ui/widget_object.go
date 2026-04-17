@@ -19,7 +19,6 @@ type ObjectWidget struct {
 	wctx    *WidgetContext
 	objType *typeschema.ObjectType
 	value   cty.Value
-	cursor  int // 0 = first action, 1 = second action (if available)
 
 	// SubFormRequest is populated when the widget signals WidgetNeedSubForm.
 	SubFormRequest *SubFormRequest
@@ -43,39 +42,20 @@ func (w *ObjectWidget) WidgetContext() *WidgetContext {
 func (w *ObjectWidget) Prepare() {
 	w.value = w.wctx.Value
 	w.SubFormRequest = nil
-	w.cursor = 0
 }
 
 // Update handles keyboard input and returns the resulting signal.
 func (w *ObjectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	hasValue := w.value != cty.NilVal && !w.value.IsNull()
-	maxCursor := 0
-	if hasValue {
-		maxCursor = 1
-	}
 
 	switch msg.Type {
-	case tea.KeyUp:
-		if w.cursor > 0 {
-			w.cursor--
-		}
-	case tea.KeyDown:
-		if w.cursor < maxCursor {
-			w.cursor++
-		}
 	case tea.KeyShiftTab, tea.KeyEsc:
 		return WidgetBack, nil
 	case tea.KeyEnter:
-		if hasValue && w.cursor == 1 {
-			w.value = cty.NilVal
-			w.wctx.UpdateValue(cty.NilVal)
-			w.cursor = 0
-			return WidgetContinue, nil
-		}
 		req := &SubFormRequest{
 			InputID:   w.wctx.Def.Name,
 			InputDefs: objectAttrsToInputDefs(w.wctx.Def.ObjectAttributes),
-			EditMode:  hasValue && w.cursor == 0,
+			EditMode:  hasValue,
 		}
 		if req.EditMode {
 			req.Values = extractObjectAttrs(w.value)
@@ -117,20 +97,11 @@ func (w *ObjectWidget) Render() []string {
 		lines = append(lines, "")
 	}
 
-	type action struct{ label string }
-	var actions []action
+	label := "Set values"
 	if hasValue {
-		actions = []action{{"Edit values"}, {"Reset values"}}
-	} else {
-		actions = []action{{"Set values"}}
+		label = "Edit values"
 	}
-	for i, a := range actions {
-		if w.cursor == i {
-			lines = append(lines, activeOptionStyle.Render("› "+a.label))
-		} else {
-			lines = append(lines, optionStyle.Render("  "+a.label))
-		}
-	}
+	lines = append(lines, activeOptionStyle.Render("› "+label))
 	return lines
 }
 
