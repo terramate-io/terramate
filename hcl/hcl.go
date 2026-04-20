@@ -202,6 +202,11 @@ type RunConfig struct {
 	Env *RunEnv
 }
 
+// OrderOfExecutionConfig represents the order_of_execution block.
+type OrderOfExecutionConfig struct {
+	Nested *bool // If filesystem order is enabled.
+}
+
 // RunEnv represents Terramate run environment.
 type RunEnv struct {
 	// Attributes is the collection of attribute definitions within the env block.
@@ -284,6 +289,7 @@ type RootConfig struct {
 	Generate          *GenerateRootConfig
 	ChangeDetection   *ChangeDetectionConfig
 	Run               *RunConfig
+	OrderOfExecution  *OrderOfExecutionConfig
 	Cloud             *CloudConfig
 	Experiments       []string
 	DisableSafeguards safeguard.Keywords
@@ -1535,7 +1541,16 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "generate", "change_detection", "run", "cloud", "targets", "telemetry"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks(
+		"git",
+		"generate",
+		"change_detection",
+		"run",
+		"order_of_execution",
+		"cloud",
+		"targets",
+		"telemetry",
+	))
 
 	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
@@ -1545,6 +1560,12 @@ func (p *TerramateParser) parseRootConfig(cfg *RootConfig, block *ast.MergedBloc
 	runBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("run")]
 	if ok {
 		errs.Append(parseRunConfig(cfg, runBlock))
+	}
+
+	orderExecBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("order_of_execution")]
+	if ok {
+		cfg.OrderOfExecution = &OrderOfExecutionConfig{}
+		errs.Append(parseOrderOfExecutionConfig(cfg.OrderOfExecution, orderExecBlock))
 	}
 
 	cloudBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("cloud")]
@@ -1623,6 +1644,36 @@ func parseRunConfig(cfg *RootConfig, runBlock *ast.MergedBlock) error {
 		errs.Append(parseRunEnv(runCfg.Env, block))
 	}
 
+	return errs.AsError()
+}
+
+func parseOrderOfExecutionConfig(cfg *OrderOfExecutionConfig, orderExecBlock *ast.MergedBlock) error {
+	errs := errors.L()
+	for _, attr := range orderExecBlock.Attributes {
+		value, err := attr.Expr.Value(nil)
+		if err != nil {
+			errs.Append(errors.E(err, "failed to evaluate terramate.config.order_of_execution.%s attribute", attr.Name))
+			continue
+		}
+
+		switch attr.Name {
+		case "nested":
+			if value.Type() != cty.Bool {
+				errs.Append(attrErr(attr,
+					"terramate.config.order_of_execution.nested is not a bool but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
+			t := value.True()
+			cfg.Nested = &t
+		default:
+			errs.Append(errors.E(attr.NameRange,
+				"unrecognized attribute terramate.config.order_of_execution.%s",
+				attr.Name,
+			))
+		}
+	}
 	return errs.AsError()
 }
 
