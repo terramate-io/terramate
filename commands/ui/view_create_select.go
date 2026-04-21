@@ -665,11 +665,7 @@ func (m Model) renderFlatBundleList(innerWidth int) string {
 		fields = append(fields, detailField{}) // separator
 		// Collection: name and location
 		coll := est.Collections[entry.collIdx]
-		collDetail := coll.Name
-		if coll.Location != "" {
-			collDetail += " (" + coll.Location + ")"
-		}
-		fields = append(fields, detailField{label: "Collection", value: collDetail})
+		fields = append(fields, detailField{label: "Collection", value: coll.Name})
 		// Source: the real resolved source path to the bundle definition
 		var source string
 		if entry.isLocal && entry.bundleIdx < len(est.LocalBundleDefs) {
