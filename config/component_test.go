@@ -3,6 +3,98 @@
 
 package config_test
 
+import (
+	"sort"
+	"testing"
+
+	"github.com/madlambda/spells/assert"
+
+	"github.com/terramate-io/terramate/config"
+	"github.com/terramate-io/terramate/project"
+	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
+	"github.com/terramate-io/terramate/test/sandbox"
+)
+
+func defineComponentHCL(name string) string {
+	return Block("define",
+		Labels("component"),
+		Block("metadata",
+			Str("class", "test_class"),
+			Str("name", name),
+			Str("version", "1.0.0"),
+		),
+	).String()
+}
+
+func componentDirsOf(entries []config.ComponentDefinitionEntry) []string {
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Tree.Dir().String())
+	}
+	sort.Strings(out)
+	return out
+}
+
+func TestListLocalComponentDefinitionsFromRoot(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		"f:/components/a/define.tm:" + defineComponentHCL("component_a"),
+		"f:/custom/place/b/define.tm:" + defineComponentHCL("component_b"),
+		"f:/deeply/nested/path/c/define.tm:" + defineComponentHCL("component_c"),
+	})
+
+	root, err := config.LoadRoot(s.RootDir(), false)
+	assert.NoError(t, err)
+
+	entries, err := config.ListLocalComponentDefinitions(root, newEvalCtxForRoot(root), project.NewPath("/"))
+	assert.NoError(t, err)
+
+	got := componentDirsOf(entries)
+	want := []string{"/components/a", "/custom/place/b", "/deeply/nested/path/c"}
+	assert.EqualInts(t, len(want), len(got), "got: %v", got)
+	for i, w := range want {
+		assert.EqualStrings(t, w, got[i])
+	}
+}
+
+func TestListLocalComponentDefinitionsSkipsInstalledRemotePackages(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+	s.BuildTree([]string{
+		"f:/components/a/define.tm:" + defineComponentHCL("component_a"),
+		"f:/.terramate/components/remote/define.tm:" + defineComponentHCL("remote_component"),
+	})
+
+	root, err := config.LoadRoot(s.RootDir(), false)
+	assert.NoError(t, err)
+
+	entries, err := config.ListLocalComponentDefinitions(root, newEvalCtxForRoot(root), project.NewPath("/"))
+	assert.NoError(t, err)
+
+	got := componentDirsOf(entries)
+	want := []string{"/components/a"}
+	assert.EqualInts(t, len(want), len(got), "got: %v", got)
+	for i, w := range want {
+		assert.EqualStrings(t, w, got[i])
+	}
+}
+
+func TestListLocalComponentDefinitionsEmpty(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.NoGit(t, true)
+
+	root, err := config.LoadRoot(s.RootDir(), false)
+	assert.NoError(t, err)
+
+	entries, err := config.ListLocalComponentDefinitions(root, newEvalCtxForRoot(root), project.NewPath("/"))
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(entries))
+}
+
 /*
 import (
 	"path/filepath"

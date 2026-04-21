@@ -65,7 +65,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 		return err
 	}
 
-	localBundleDefs, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/bundles"))
+	localBundleDefs, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/"))
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,6 @@ func makeLocalCollection(localBundleDefs []config.BundleDefinitionEntry) *manife
 	return &manifest.Collection{
 		Name:        "Local Repository",
 		Description: "Bundles from local /bundles directory",
-		Location:    "/bundles",
 		Bundles:     bundles,
 	}
 }

@@ -63,12 +63,12 @@ func (s *Spec) Exec(_ context.Context, cli commands.CLI) error {
 	}
 
 	// TODO: Could both be done in a single pass.
-	localBundles, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/bundles"))
+	localBundles, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/"))
 	if err != nil {
 		return err
 	}
 
-	localComponents, err := config.ListLocalComponentDefinitions(root, evalctx, project.NewPath("/components"))
+	localComponents, err := config.ListLocalComponentDefinitions(root, evalctx, project.NewPath("/"))
 	if err != nil {
 		return err
 	}

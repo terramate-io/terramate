@@ -89,7 +89,7 @@ func (s *Spec) Exec(ctx context.Context, cli commands.CLI) error {
 
 	// TODO: We could only do this when the local collection is selected,
 	// but to simplify the local, we do it all the time.
-	localBundleDefs, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/bundles"))
+	localBundleDefs, err := config.ListLocalBundleDefinitions(root, evalctx, project.NewPath("/"))
 	if err != nil {
 		return err
 	}
