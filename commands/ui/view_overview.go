@@ -128,6 +128,7 @@ func (m *Model) executeCommand() {
 		}
 		m.viewState = ViewCreateSelect
 		m.flatBundleCursor = 0
+		m.bundleSelectErr = ""
 	case "Reconfigure":
 		m.reconfigFilterPos = -1
 		m.reconfigFilters = m.buildReconfigFilters()

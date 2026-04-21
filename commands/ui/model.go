@@ -181,6 +181,7 @@ type Model struct {
 
 	// Transient status
 	currentErr       error  // Shown in the overview error area, cleared on next keypress
+	bundleSelectErr  string // Inline error shown in the bundle list view, cleared on cursor move
 	ctrlCPending     bool   // true after first ctrl+c press, reset after 1s
 	errorDialogTitle string // Title for the error dialog (e.g. "Bundle is not enabled")
 	errorDialogText  string // When non-empty, shows a dismissible error dialog overlay
