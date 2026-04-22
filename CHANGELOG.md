@@ -61,6 +61,10 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Local bundles and component definitions are no longer limited to the `/bundles` and `/components` root, but can be anywhere in the project.
 
+### Fixed
+
+- Fix non-deterministic order of `tm_bundles` results.
+
 ## 0.16.0
 
 ### Merged from Terramate Catalyst
