@@ -4,9 +4,11 @@
 package config
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -154,7 +156,7 @@ func BundlesFunc(reg *Registry, currentEnv *Environment) function.Function {
 				envID = currentEnv.ID
 			}
 
-			var r []cty.Value
+			var matched []*Bundle
 			for _, b := range reg.Bundles {
 				if class != "*" && class != b.DefinitionMetadata.Class {
 					continue
@@ -166,12 +168,30 @@ func BundlesFunc(reg *Registry, currentEnv *Environment) function.Function {
 						continue
 					}
 				}
-
-				r = append(r, MakeObjectFromBundle(b))
+				matched = append(matched, b)
+			}
+			if len(matched) == 0 {
+				return cty.EmptyTupleVal, nil
 			}
 
-			if len(r) == 0 {
-				return cty.EmptyTupleVal, nil
+			slices.SortFunc(matched, func(a, b *Bundle) int {
+				aEnv, bEnv := "", ""
+				if a.Environment != nil {
+					aEnv = a.Environment.ID
+				}
+				if b.Environment != nil {
+					bEnv = b.Environment.ID
+				}
+				return cmp.Or(
+					cmp.Compare(a.DefinitionMetadata.Class, b.DefinitionMetadata.Class),
+					cmp.Compare(aEnv, bEnv),
+					cmp.Compare(a.Alias, b.Alias),
+				)
+			})
+
+			r := make([]cty.Value, 0, len(matched))
+			for _, b := range matched {
+				r = append(r, MakeObjectFromBundle(b))
 			}
 			return cty.TupleVal(r), nil
 		},
