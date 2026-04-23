@@ -720,13 +720,22 @@ func (w *SubFormMapWidget) Render() []string {
 }
 
 // FormatDisplay returns a compact summary of the current map value.
+// FormatDisplay may be called before Prepare(), so read from wctx.Value
+// directly rather than the widget's edit buffer.
 func (w *SubFormMapWidget) FormatDisplay() string {
-	n := len(w.items)
+	val := w.wctx.Value
+	if val == cty.NilVal || val.IsNull() || !val.CanIterateElements() {
+		return "<empty>"
+	}
+	n := val.LengthInt()
 	if n == 0 {
 		return "<empty>"
 	}
 	if n == 1 {
-		return fmt.Sprintf("%s = %s", w.items[0].Key, FormatDisplayValue(w.items[0].Value, w.valueType))
+		it := val.ElementIterator()
+		it.Next()
+		k, v := it.Element()
+		return fmt.Sprintf("%s = %s", k.AsString(), FormatDisplayValue(v, w.valueType))
 	}
 	return fmt.Sprintf("<%d entries>", n)
 }

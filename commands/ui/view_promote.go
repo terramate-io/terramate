@@ -301,7 +301,7 @@ func (m Model) renderPromoteSelectView() string {
 	if m.promoteFilterPos >= 0 {
 		escLabel = "esc: reset filter"
 	}
-	helpParts := "↑↓: Select Bundle • " + escLabel
+	helpParts := escLabel
 	if len(m.promoteFilters) > 0 {
 		helpParts += " • e: show target env " + m.nextPromoteFilterName()
 	}
@@ -432,17 +432,31 @@ func (m Model) renderPromoteInputView() string {
 func (m Model) updatePromoteInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	est := m.EngineState
 
-	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
+	if key.Matches(msg, keys.Escape) {
+		if handled, cmd := m.trySubFormEscape(); handled {
+			return m, cmd
+		}
+	}
+
+	if key.Matches(msg, keys.Escape) && len(m.objectEditStack) == 0 && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
 		m.viewState = ViewPromoteSelect
 		return m, nil
+	}
+
+	var targetEnv *config.Environment
+	if m.promoteCursor < len(m.promoteTargetEnvs) {
+		targetEnv = m.promoteTargetEnvs[m.promoteCursor]
 	}
 
 	var cmd tea.Cmd
 	m.inputsForm, cmd = m.inputsForm.Update(msg)
 
+	if handled, scmd := m.trySubFormStateTransition(targetEnv); handled {
+		return m, scmd
+	}
+
 	switch m.inputsForm.State() {
 	case InputsFormAccepted:
-		targetEnv := m.promoteTargetEnvs[m.promoteCursor]
 		change, err := NewPromoteChange(
 			est, targetEnv, m.promoteBundle, m.selectedBundleDefEntry,
 			m.inputsForm.Schemactx, m.inputsForm.InputDefs, m.inputsForm.UserValues(),

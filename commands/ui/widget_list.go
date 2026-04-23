@@ -419,13 +419,22 @@ func (w *SubFormListWidget) Render() []string {
 }
 
 // FormatDisplay returns a compact summary of the current list value.
+// FormatDisplay may be called before Prepare(), so read from wctx.Value
+// directly rather than the widget's edit buffer.
 func (w *SubFormListWidget) FormatDisplay() string {
-	n := len(w.items)
+	val := w.wctx.Value
+	if val == cty.NilVal || val.IsNull() || !val.CanIterateElements() {
+		return "<empty>"
+	}
+	n := val.LengthInt()
 	if n == 0 {
 		return "<empty>"
 	}
 	if n == 1 {
-		return FormatDisplayValue(w.items[0], w.valueType)
+		it := val.ElementIterator()
+		it.Next()
+		_, elem := it.Element()
+		return FormatDisplayValue(elem, w.valueType)
 	}
 	return fmt.Sprintf("<%d items>", n)
 }

@@ -404,7 +404,7 @@ func (m Model) renderReconfigSelectView() string {
 	if m.reconfigFilterPos >= 0 {
 		escLabel = "esc: reset filter"
 	}
-	helpParts := "↑↓: Select Bundle • " + escLabel
+	helpParts := escLabel
 	if len(m.reconfigFilters) > 0 {
 		helpParts += " • e: show only " + m.nextReconfigFilterName()
 	}
@@ -463,7 +463,13 @@ func (m Model) renderReconfigInputView() string {
 func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	est := m.EngineState
 
-	if key.Matches(msg, keys.Escape) && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
+	if key.Matches(msg, keys.Escape) {
+		if handled, cmd := m.trySubFormEscape(); handled {
+			return m, cmd
+		}
+	}
+
+	if key.Matches(msg, keys.Escape) && len(m.objectEditStack) == 0 && !m.inputsForm.IsMultilineActive() && !m.inputsForm.confirmingDiscard {
 		if m.inputsForm.HasPendingChanges() {
 			m.inputsForm.preDiscardFocus = m.inputsForm.focus
 			m.inputsForm.confirmingDiscard = true
@@ -482,6 +488,10 @@ func (m Model) updateReconfigInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	m.inputsForm, cmd = m.inputsForm.Update(msg)
+
+	if handled, scmd := m.trySubFormStateTransition(m.reconfigBundle.Environment); handled {
+		return m, scmd
+	}
 
 	switch m.inputsForm.State() {
 	case InputsFormAccepted:
