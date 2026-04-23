@@ -18,7 +18,6 @@ import (
 type ObjectWidget struct {
 	wctx    *WidgetContext
 	objType *typeschema.ObjectType
-	value   cty.Value
 
 	// SubFormRequest is populated when the widget signals WidgetNeedSubForm.
 	SubFormRequest *SubFormRequest
@@ -29,7 +28,6 @@ func NewObjectWidget(wctx *WidgetContext, objType *typeschema.ObjectType) *Objec
 	return &ObjectWidget{
 		wctx:    wctx,
 		objType: objType,
-		value:   cty.NilVal,
 	}
 }
 
@@ -40,13 +38,13 @@ func (w *ObjectWidget) WidgetContext() *WidgetContext {
 
 // Prepare initializes the widget for a new editing session.
 func (w *ObjectWidget) Prepare() {
-	w.value = w.wctx.Value
 	w.SubFormRequest = nil
 }
 
 // Update handles keyboard input and returns the resulting signal.
 func (w *ObjectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
-	hasValue := w.value != cty.NilVal && !w.value.IsNull()
+	val := w.wctx.Value
+	hasValue := val != cty.NilVal && !val.IsNull()
 
 	switch msg.Type {
 	case tea.KeyShiftTab, tea.KeyEsc:
@@ -58,7 +56,7 @@ func (w *ObjectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 			EditMode:  hasValue,
 		}
 		if req.EditMode {
-			req.Values = extractObjectAttrs(w.value)
+			req.Values = extractObjectAttrs(val)
 		}
 		w.SubFormRequest = req
 		return WidgetNeedSubForm, nil
@@ -70,9 +68,10 @@ func (w *ObjectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 func (w *ObjectWidget) Render() []string {
 	var lines []string
 
-	hasValue := w.value != cty.NilVal && !w.value.IsNull()
+	val := w.wctx.Value
+	hasValue := val != cty.NilVal && !val.IsNull()
 
-	if hasValue && w.value.CanIterateElements() {
+	if hasValue && val.CanIterateElements() {
 		dimStyle := lipgloss.NewStyle().Foreground(colorTextMuted)
 		valStyle := lipgloss.NewStyle().Foreground(colorSecondary)
 		nameStyle := lipgloss.NewStyle().Foreground(colorText)
@@ -86,8 +85,8 @@ func (w *ObjectWidget) Render() []string {
 		for _, attr := range w.objType.Attributes {
 			pad := maxN - len(attr.Name)
 			line := fmt.Sprintf("    %s%*s", nameStyle.Render(attr.Name), pad, "")
-			if w.value.Type().HasAttribute(attr.Name) {
-				v := w.value.GetAttr(attr.Name)
+			if val.Type().HasAttribute(attr.Name) {
+				v := val.GetAttr(attr.Name)
 				line += " = " + valStyle.Render(FormatDisplayValue(v, attr.Type))
 			} else {
 				line += " " + dimStyle.Render("<not set>")
@@ -105,17 +104,13 @@ func (w *ObjectWidget) Render() []string {
 	return lines
 }
 
-// SetValue updates the widget's internal value directly.
-func (w *ObjectWidget) SetValue(val cty.Value) {
-	w.value = val
-}
-
 // FormatDisplay returns a display string for the current object value.
 func (w *ObjectWidget) FormatDisplay() string {
-	if w.value == cty.NilVal || w.value.IsNull() {
+	val := w.wctx.Value
+	if val == cty.NilVal || val.IsNull() {
 		return "<not set>"
 	}
-	return FormatDisplayValue(w.value, w.objType)
+	return FormatDisplayValue(val, w.objType)
 }
 
 // ForwardMsg is a no-op; object widgets have no underlying input component.
@@ -132,12 +127,9 @@ func (w *ObjectWidget) AcceptSubFormResult(result SubFormResult) bool {
 		}
 	}
 	if len(m) == 0 {
-		w.value = cty.NilVal
+		w.wctx.UpdateValue(cty.NilVal)
 		return true
 	}
-	w.value = cty.ObjectVal(m)
-	if w.wctx != nil {
-		w.wctx.UpdateValue(w.value)
-	}
+	w.wctx.UpdateValue(cty.ObjectVal(m))
 	return true
 }

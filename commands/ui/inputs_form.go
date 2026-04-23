@@ -1449,7 +1449,7 @@ func (f InputsForm) renderSingleCompletedPanel(
 	}
 	parts = append(parts, contentBlock)
 	if showButtons {
-		parts = append(parts, "", "  "+f.renderInlineButtons())
+		parts = append(parts, "", f.renderInlineButtons())
 	}
 	inner := lipgloss.JoinVertical(lipgloss.Left, parts...)
 	return focusedBorder.Height(f.effectivePanelHeight() - borderOverhead).Render(inner)
@@ -1885,4 +1885,106 @@ func extractPseudoString(values map[string]cty.Value, key string) string {
 		return v.AsString()
 	}
 	return ""
+}
+
+// pushObjectEditFrame saves the current inputs form state for object input editing.
+func (m *Model) pushObjectEditFrame() {
+	def := m.inputsForm.InputDefs[m.inputsForm.activeIdx]
+	m.objectEditStack = append(m.objectEditStack, ObjectEditFrame{
+		inputsForm:    m.inputsForm,
+		objectInputID: def.Name,
+		objectName:    def.Name,
+	})
+}
+
+// popObjectEditFrame removes the top of the object edit stack and restores the
+// parent form. Callers must ensure the stack is non-empty.
+func (m *Model) popObjectEditFrame() {
+	frame := m.objectEditStack[len(m.objectEditStack)-1]
+	m.objectEditStack = m.objectEditStack[:len(m.objectEditStack)-1]
+	m.inputsForm = frame.inputsForm
+	m.inputsForm.state = InputsFormActive
+}
+
+// trySubFormEscape handles Escape when a sub-form is active. Returns true if
+// it consumed the event.
+func (m *Model) trySubFormEscape() (bool, tea.Cmd) {
+	if len(m.objectEditStack) == 0 || m.inputsForm.IsMultilineActive() {
+		return false, nil
+	}
+	if m.inputsForm.focus != InputFocusActive && !m.inputsForm.allInputsDone() {
+		return false, nil
+	}
+
+	subResult := SubFormResult{Values: m.inputsForm.Values()}
+	subDone := m.inputsForm.allInputsDone()
+	m.popObjectEditFrame()
+	if subDone {
+		if m.inputsForm.activeWidget.AcceptSubFormResult(subResult) {
+			m.inputsForm.confirmCurrent()
+		}
+	} else {
+		switch m.inputsForm.activeWidget.(type) {
+		case *SubFormListWidget, *SubFormMapWidget:
+			// Cancelled sub-form for a list/map item — stay on the widget.
+		default:
+			m.inputsForm.prepareInput(m.inputsForm.activeIdx)
+		}
+	}
+	return true, m.inputsForm.FocusActiveInput()
+}
+
+// trySubFormStateTransition handles form state transitions related to nested
+// sub-forms. It opens a sub-form on InputsFormSubForm and, when the current
+// form is itself a sub-form, pops the stack on Accepted/Discarded. Returns
+// true if it handled the transition; the caller should then return immediately.
+func (m *Model) trySubFormStateTransition(env *config.Environment) (bool, tea.Cmd) {
+	switch m.inputsForm.State() {
+	case InputsFormAccepted:
+		if len(m.objectEditStack) == 0 {
+			return false, nil
+		}
+		subResult := SubFormResult{Values: m.inputsForm.Values()}
+		m.popObjectEditFrame()
+		if m.inputsForm.activeWidget.AcceptSubFormResult(subResult) {
+			m.inputsForm.confirmCurrent()
+		}
+		return true, m.inputsForm.FocusActiveInput()
+
+	case InputsFormDiscarded:
+		if len(m.objectEditStack) == 0 {
+			return false, nil
+		}
+		m.popObjectEditFrame()
+		return true, m.inputsForm.FocusActiveInput()
+
+	case InputsFormSubForm:
+		m.openSubForm(env)
+		return true, m.inputsForm.FocusActiveInput()
+	}
+	return false, nil
+}
+
+// openSubForm pushes the current form onto the object edit stack and replaces
+// it with a new form built from the pending SubFormRequest.
+func (m *Model) openSubForm(env *config.Environment) {
+	prevTitle := m.inputsForm.activeTitle()
+	m.pushObjectEditFrame()
+	req := m.inputsForm.PendingSubForm()
+
+	schemactx := m.inputsForm.Schemactx.ChildContext()
+	m.inputsForm = NewInputsForm(req.InputDefs, schemactx, m.EngineState.Registry, env)
+	m.inputsForm.PanelWidth = m.effectiveWidth()
+	m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
+	if req.EditMode {
+		m.inputsForm.SeedValues(req.Values)
+	}
+	m.inputsForm.objectMode = true
+	m.inputsForm.isObjectForm = !req.SingleInput
+	m.inputsForm.singleInputForm = req.SingleInput
+	if req.Title != "" {
+		m.inputsForm.parentTitle = prevTitle + " / " + req.Title
+	} else {
+		m.inputsForm.parentTitle = prevTitle
+	}
 }

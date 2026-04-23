@@ -44,30 +44,9 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if key.Matches(msg, keys.Escape) && len(m.objectEditStack) > 0 && !m.inputsForm.IsMultilineActive() {
-		if m.inputsForm.focus == InputFocusActive || m.inputsForm.allInputsDone() {
-			subResult := SubFormResult{
-				Values: m.inputsForm.Values(),
-			}
-			subDone := m.inputsForm.allInputsDone()
-			frame := m.objectEditStack[len(m.objectEditStack)-1]
-			m.objectEditStack = m.objectEditStack[:len(m.objectEditStack)-1]
-
-			m.inputsForm = frame.inputsForm
-			m.inputsForm.state = InputsFormActive
-			if subDone {
-				if m.inputsForm.activeWidget.AcceptSubFormResult(subResult) {
-					m.inputsForm.confirmCurrent()
-				}
-			} else {
-				switch m.inputsForm.activeWidget.(type) {
-				case *SubFormListWidget, *SubFormMapWidget:
-					// Cancelled sub-form for a list/map item — stay on the widget.
-				default:
-					m.inputsForm.prepareInput(m.inputsForm.activeIdx)
-				}
-			}
-			return m, m.inputsForm.FocusActiveInput()
+	if key.Matches(msg, keys.Escape) {
+		if handled, cmd := m.trySubFormEscape(); handled {
+			return m, cmd
 		}
 	}
 
@@ -88,23 +67,12 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.inputsForm, cmd = m.inputsForm.Update(msg)
 
+	if handled, scmd := m.trySubFormStateTransition(m.selectedEnv); handled {
+		return m, scmd
+	}
+
 	switch m.inputsForm.State() {
 	case InputsFormAccepted:
-		if len(m.objectEditStack) > 0 {
-			subResult := SubFormResult{
-				Values: m.inputsForm.Values(),
-			}
-			frame := m.objectEditStack[len(m.objectEditStack)-1]
-			m.objectEditStack = m.objectEditStack[:len(m.objectEditStack)-1]
-			m.inputsForm = frame.inputsForm
-			m.inputsForm.state = InputsFormActive
-
-			if m.inputsForm.activeWidget.AcceptSubFormResult(subResult) {
-				m.inputsForm.confirmCurrent()
-			}
-			return m, m.inputsForm.FocusActiveInput()
-		}
-
 		change, err := NewCreateChange(
 			est,
 			m.selectedEnv,
@@ -140,14 +108,6 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.viewState = ViewOverview
 		}
 	case InputsFormDiscarded:
-		if len(m.objectEditStack) > 0 {
-			frame := m.objectEditStack[len(m.objectEditStack)-1]
-			m.objectEditStack = m.objectEditStack[:len(m.objectEditStack)-1]
-			m.inputsForm = frame.inputsForm
-			m.inputsForm.state = InputsFormActive
-			return m, m.inputsForm.FocusActiveInput()
-		}
-
 		if len(m.createStack) > 0 {
 			m.restoreCreateFrame("")
 		} else {
@@ -158,27 +118,6 @@ func (m Model) updateCreateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if err := m.startNestedCreate(m.inputsForm.PendingRefClass()); err != nil {
 			m.restoreCreateFrame("")
 			return m.updateError(err)
-		}
-		return m, m.inputsForm.FocusActiveInput()
-	case InputsFormSubForm:
-		prevTitle := m.inputsForm.activeTitle()
-		m.pushObjectEditFrame()
-		req := m.inputsForm.PendingSubForm()
-
-		schemactx := m.inputsForm.Schemactx.ChildContext()
-		m.inputsForm = NewInputsForm(req.InputDefs, schemactx, est.Registry, m.selectedEnv)
-		m.inputsForm.PanelWidth = m.effectiveWidth()
-		m.inputsForm.PanelHeight = m.effectiveInputsPanelHeight()
-		if req.EditMode {
-			m.inputsForm.SeedValues(req.Values)
-		}
-		m.inputsForm.objectMode = true
-		m.inputsForm.isObjectForm = !req.SingleInput
-		m.inputsForm.singleInputForm = req.SingleInput
-		if req.Title != "" {
-			m.inputsForm.parentTitle = prevTitle + " / " + req.Title
-		} else {
-			m.inputsForm.parentTitle = prevTitle
 		}
 		return m, m.inputsForm.FocusActiveInput()
 	}
@@ -362,16 +301,6 @@ func (m *Model) restoreCreateFrame(newBundleAlias string) {
 	if newBundleAlias != "" {
 		m.inputsForm.setBundleRefValue(newBundleAlias)
 	}
-}
-
-// pushObjectEditFrame saves the current inputs form state for object input editing.
-func (m *Model) pushObjectEditFrame() {
-	def := m.inputsForm.InputDefs[m.inputsForm.activeIdx]
-	m.objectEditStack = append(m.objectEditStack, ObjectEditFrame{
-		inputsForm:    m.inputsForm,
-		objectInputID: def.Name,
-		objectName:    def.Name,
-	})
 }
 
 // startNestedCreate scans the flat bundle list for a bundle matching refClass,
