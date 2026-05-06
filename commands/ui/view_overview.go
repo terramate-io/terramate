@@ -116,7 +116,7 @@ func (m *Model) executeCommand() {
 	cmd := m.commands[m.commandIdx]
 
 	switch cmd {
-	case "Create":
+	case "Scaffold":
 		if len(est.Collections) == 0 {
 			m.currentErr = errors.E("No collections available. Configure package sources to get started.")
 			return
@@ -296,11 +296,11 @@ func (m Model) renderOverviewView() string {
 	sessionBundles := m.sessionBundles()
 	showHistoryPanel := len(sessionBundles) > 0
 
-	helpText := "c: create • r: reconfigure • p: promote • q: quit"
+	helpText := "s: scaffold • r: reconfigure • p: promote • q: quit"
 	if showHistoryPanel && m.focus == FocusSummary {
-		helpText = "↑↓: navigate • enter: reconfigure • tab: switch section"
+		helpText = "enter: reconfigure • tab: switch section"
 	} else if showHistoryPanel {
-		helpText = "c: create • r: reconfigure • p: promote • q: quit • tab: switch section"
+		helpText = "s: scaffold • r: reconfigure • p: promote • q: quit • tab: switch section"
 	}
 	helpText = m.finalHelpText(helpText)
 
@@ -431,7 +431,7 @@ var commandMeta = map[string]struct {
 	hotkey string // keyboard shortcut to activate this command
 	hint   string
 }{
-	"Create":      {color: colorCreate, hotkey: "c", hint: "Create infrastructure in your project"},
+	"Scaffold":    {color: colorCreate, hotkey: "s", hint: "Scaffold infrastructure in your project"},
 	"Reconfigure": {color: colorReconfig, hotkey: "r", hint: "Reconfigure existing infrastructure"},
 	"Promote":     {color: colorPromote, hotkey: "p", hint: "Promote infrastructure to this environment"},
 	"Quit":        {color: colorTextMuted, hotkey: "q", hint: "Quit Terramate"},

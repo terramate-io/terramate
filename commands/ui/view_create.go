@@ -175,12 +175,12 @@ func (m Model) renderCreateInputView() string {
 		// Build chain: Create ECS / Create VPC [staging]
 		parts := make([]string, 0, len(m.createStack)+1)
 		for _, frame := range m.createStack {
-			parts = append(parts, "Create "+frame.parentBundleName)
+			parts = append(parts, "Scaffold "+frame.parentBundleName)
 		}
-		parts = append(parts, "Create "+bundleName+" "+envTag)
+		parts = append(parts, "Scaffold "+bundleName+" "+envTag)
 		headerContext = strings.Join(parts, " / ")
 	} else {
-		headerContext = "Create " + bundleName + " " + envTag
+		headerContext = "Scaffold " + bundleName + " " + envTag
 	}
 
 	title := m.renderHeader(headerContext)
