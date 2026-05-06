@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/terramate-io/terramate/config"
 	"github.com/terramate-io/terramate/errors"
@@ -190,6 +191,9 @@ func (m Model) buildAllPromoteBundles() ([]*config.Bundle, []*config.Environment
 			if existing[b.Alias] {
 				continue
 			}
+			if err := m.checkMissingPromoteBundles(b, targetEnv); err != nil {
+				continue
+			}
 			bundles = append(bundles, b)
 			targetEnvs = append(targetEnvs, targetEnv)
 		}
@@ -207,6 +211,75 @@ func (m Model) buildAllPromoteBundles() ([]*config.Bundle, []*config.Environment
 		}
 	}
 	return sorted, sortedEnvs
+}
+
+// checkMissingPromoteBundles verifies that every other bundle referenced from
+// the inputs of b also exists in targetEnv. References are detected as cty
+// objects with alias, class, and environment.available == true (the shape
+// produced by tm_bundle). If any referenced alias is missing in targetEnv, an
+// error listing the missing aliases is returned so the user knows which
+// bundles must be promoted first.
+func (m Model) checkMissingPromoteBundles(b *config.Bundle, targetEnv *config.Environment) error {
+	if targetEnv == nil {
+		return nil
+	}
+
+	existingTargetBundles := make(map[string]bool)
+	for _, existing := range m.EngineState.Registry.Bundles {
+		if existing.Environment != nil && existing.Environment.ID == targetEnv.ID {
+			existingTargetBundles[existing.Alias] = true
+		}
+	}
+
+	seen := make(map[string]bool)
+	var missing []string
+
+	var walk func(v cty.Value)
+	walk = func(v cty.Value) {
+		if !v.IsKnown() || v.IsNull() {
+			return
+		}
+		t := v.Type()
+		if t.IsObjectType() &&
+			t.HasAttribute("alias") &&
+			t.HasAttribute("class") &&
+			t.HasAttribute("environment") {
+			envVal := v.GetAttr("environment")
+			if envVal.IsKnown() && !envVal.IsNull() &&
+				envVal.Type().IsObjectType() &&
+				envVal.Type().HasAttribute("available") {
+				avail := envVal.GetAttr("available")
+				if avail.IsKnown() && !avail.IsNull() && avail.True() {
+					alias := v.GetAttr("alias").AsString()
+					if !existingTargetBundles[alias] && !seen[alias] {
+						seen[alias] = true
+						missing = append(missing, alias)
+					}
+				}
+			}
+		}
+
+		if t.IsObjectType() || t.IsMapType() ||
+			t.IsListType() || t.IsTupleType() || t.IsSetType() {
+			for it := v.ElementIterator(); it.Next(); {
+				_, elem := it.Element()
+				walk(elem)
+			}
+		}
+	}
+
+	for _, v := range b.Inputs {
+		walk(v)
+	}
+
+	if len(missing) == 0 {
+		return nil
+	}
+
+	return errors.E(
+		"bundle %q cannot be promoted to %q: the following referenced bundles must be promoted first: %s",
+		b.Alias, targetEnv.Name, strings.Join(missing, ", "),
+	)
 }
 
 func envNameForID(envs []*config.Environment, envID string) string {
