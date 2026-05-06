@@ -369,7 +369,7 @@ func (m Model) renderCreateEnvSelectView() string {
 	if m.flatBundleCursor < len(m.flatBundles) {
 		bundleName = m.flatBundles[m.flatBundleCursor].bundle.Name
 	}
-	header := m.renderHeader(fmt.Sprintf("Create %s", bundleName))
+	header := m.renderHeader(fmt.Sprintf("Scaffold %s", bundleName))
 
 	// Bundle detail box — full details plus currently highlighted environment
 	var detailBox string
@@ -458,7 +458,7 @@ func (m Model) renderBundleSelectView() string {
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth)
 
-	title := m.renderHeader("Create Bundle Instance")
+	title := m.renderHeader("Scaffold Bundle Instance")
 
 	help := helpStyle.Render(m.finalHelpText("esc: back"))
 

@@ -247,7 +247,7 @@ func NewModel(est *EngineState) Model {
 		EngineState: est,
 		viewState:   initialViewState,
 		commands: []string{
-			"Create",
+			"Scaffold",
 			"Reconfigure",
 			"Promote",
 			"Quit",
