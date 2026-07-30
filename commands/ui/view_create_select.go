@@ -402,34 +402,64 @@ func (m Model) renderCreateEnvSelectView() string {
 		detailBox = renderDetailBox(innerWidth, "Bundle Details", fields)
 	}
 
+	scrollbarGutter := 4
+	contentWidth := innerWidth - scrollbarGutter
+
 	itemStyle := lipgloss.NewStyle().
-		PaddingLeft(2)
+		PaddingLeft(2).
+		Width(contentWidth)
 
 	selectedStyle := lipgloss.NewStyle().
 		PaddingLeft(2).
 		Foreground(colorPrimary).
-		Bold(true)
+		Bold(true).
+		Width(contentWidth)
 
 	itemDescStyle := lipgloss.NewStyle().
 		PaddingLeft(4).
-		Foreground(colorTextMuted)
+		Foreground(colorTextMuted).
+		Width(contentWidth)
 
 	idStyle := lipgloss.NewStyle().
 		Foreground(colorTextSubtle)
 
-	var items []string
+	envHeader := lipgloss.JoinVertical(lipgloss.Left, detailBox, "")
+	availableHeight := m.effectiveContentHeight() - lipgloss.Height(envHeader)
+
+	var items []renderedItem
 	for i, env := range est.Registry.Environments {
 		idTag := idStyle.Render("[" + env.ID + "]")
+
+		var block string
 		if i == m.createEnvCursor {
-			items = append(items, selectedStyle.Render("› "+env.Name)+" "+idTag)
+			block = selectedStyle.Render("› " + env.Name + " " + idTag)
 		} else {
-			items = append(items, itemStyle.Render("  "+env.Name)+" "+idTag)
+			block = itemStyle.Render("  " + env.Name + " " + idTag)
 		}
-		items = append(items, itemDescStyle.Render(env.Description))
-		items = append(items, "")
+		if env.Description != "" {
+			block += "\n" + itemDescStyle.Render(summaryLine(strings.TrimSpace(env.Description)))
+		}
+		items = append(items, renderedItem{content: block, height: lipgloss.Height(block)})
 	}
 
-	panelContent := lipgloss.JoinVertical(lipgloss.Left, append([]string{detailBox, ""}, items...)...)
+	start, end := scrollWindowVar(m.createEnvCursor, items, availableHeight, 1)
+
+	var sb strings.Builder
+	for i := start; i < end; i++ {
+		if i > start {
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString(items[i].content)
+	}
+	listContent := sb.String()
+
+	if len(items) > end-start {
+		trackHeight := lipgloss.Height(listContent)
+		scrollbar := renderScrollbar(len(items), end-start, start, trackHeight)
+		listContent = lipgloss.JoinHorizontal(lipgloss.Top, listContent, " ", scrollbar, "  ")
+	}
+
+	panelContent := lipgloss.JoinVertical(lipgloss.Left, envHeader, listContent)
 	panel := borderStyle.Render(panelContent)
 
 	help := helpStyle.Render(m.finalHelpText("↑↓: Select Environment • esc: back"))

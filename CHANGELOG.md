@@ -25,6 +25,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix misleading error message when a remote bundle/component source is not found.
+- Fix missing scrolling in `terramate ui` scaffold environment selection.
 
 ## 0.17.1
 
