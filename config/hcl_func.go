@@ -26,25 +26,28 @@ type Registry struct {
 	Bundles      []*Bundle
 }
 
-// BundleAliasAwaitKey computes the preempt await key for a bundle alias and environment ID.
-func BundleAliasAwaitKey(alias, envID string) string {
-	return fmt.Sprintf("%s:%s", envID, alias)
+// BundleAliasAwaitKey computes the preempt await key for a bundle with the given
+// class and alias, looked up from the environment envID.
+func BundleAliasAwaitKey(class, alias, envID string) string {
+	return fmt.Sprintf("alias:%s:%s:%s", envID, class, alias)
 }
 
-// BundleUUIDAwaitKey computes the preempt await key for a bundle UUID and environment ID.
-func BundleUUIDAwaitKey(uuid, envID string) string {
-	return fmt.Sprintf("%s:%s", envID, uuid)
+// BundleUUIDAwaitKey computes the preempt await key for a bundle with the given class
+// and UUID, looked up from the environment envID.
+func BundleUUIDAwaitKey(class, uuid, envID string) string {
+	return fmt.Sprintf("uuid:%s:%s:%s", envID, class, uuid)
 }
 
-// BundleAwaitKeys returns all preempt await keys for the given bundle.
+// BundleAwaitKeys returns all preempt await keys produced by the given bundle.
 func BundleAwaitKeys(b *Bundle) []string {
 	envID := ""
 	if b.Environment != nil {
 		envID = b.Environment.ID
 	}
-	keys := []string{BundleAliasAwaitKey(b.Alias, envID)}
+	class := b.DefinitionMetadata.Class
+	keys := []string{BundleAliasAwaitKey(class, b.Alias, envID)}
 	if b.UUID != "" {
-		keys = append(keys, BundleUUIDAwaitKey(b.UUID, envID))
+		keys = append(keys, BundleUUIDAwaitKey(class, b.UUID, envID))
 	}
 	return keys
 }
@@ -87,14 +90,14 @@ func BundleFunc(ctx context.Context, reg *Registry, currentEnv *Environment, use
 				pred = func(b *Bundle) bool {
 					return b.UUID == key
 				}
-				awaitKey = BundleUUIDAwaitKey(key, envID)
+				awaitKey = BundleUUIDAwaitKey(class, key, envID)
 
 			} else {
 				keyKind = "alias"
 				pred = func(b *Bundle) bool {
 					return b.Alias == key
 				}
-				awaitKey = BundleAliasAwaitKey(key, envID)
+				awaitKey = BundleAliasAwaitKey(class, key, envID)
 			}
 
 			if useAwait {
