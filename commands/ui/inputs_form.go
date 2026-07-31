@@ -743,6 +743,9 @@ func (f *InputsForm) isUserModified(idx int) bool {
 func (f *InputsForm) SeedValues(vals map[string]cty.Value) {
 	for name, v := range vals {
 		f.setValueByName(name, v)
+		if v != cty.NilVal {
+			f.userModified[name] = true
+		}
 	}
 	if f.activeIdx >= 0 && f.activeIdx < len(f.InputDefs) {
 		f.prepareInput(f.activeIdx)
