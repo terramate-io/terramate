@@ -20,6 +20,12 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 - Backward compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased.
 - Backward compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased.
 
+## Unreleased
+
+### Fixed
+
+- Fix inputs without a `prompt` block being dropped from the config when a bundle instance is reconfigured or promoted in `terramate ui`.
+
 ## 0.17.2
 
 ### Fixed

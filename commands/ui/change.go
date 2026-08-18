@@ -435,12 +435,9 @@ func checkBundleRefsResolved(inputDefs []*config.InputDefinition, values map[str
 func (c *Change) Save(envs []*config.Environment) error {
 	var existing *yaml.BundleInstance
 
-	_, err := os.Stat(c.HostPath)
-	overwrite := err == nil
-
-	// If the change doesn't have an env, the bundle doesn't have envs, so no need for merging.
-	if overwrite && c.Env != nil {
-		var err error
+	// The existing config is needed for merging environments and to carry over
+	// inputs that are not part of the change, i.e. the ones without a prompt.
+	if _, err := os.Stat(c.HostPath); err == nil {
 		existing, err = loadBundleYAMLConfig(c.HostPath)
 		if err != nil {
 			return err
@@ -456,10 +453,16 @@ func (c *Change) Save(envs []*config.Environment) error {
 
 func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*config.Environment) (string, error) {
 	inputs := yaml.Map[any]{}
+	// The change is only authoritative for the inputs it knows about. Inputs
+	// without a prompt never make it into a change, so they must be carried over
+	// from the existing config instead.
+	owned := make(map[string]bool, len(c.InputDefs))
 	for _, def := range c.InputDefs {
 		if isPseudoKey(def.Name) {
 			continue
 		}
+		owned[def.Name] = true
+
 		v, found := c.UserValues[def.Name]
 		if !found || v == cty.NilVal {
 			continue
@@ -482,6 +485,8 @@ func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*confi
 			Value: yaml.Attr(yv),
 		})
 	}
+
+	inputs = mergeInputs(inputs, c.existingInputs(existing), owned)
 
 	var envID string
 	if c.Env != nil {
@@ -563,6 +568,66 @@ func loadBundleYAMLConfig(p string) (*yaml.BundleInstance, error) {
 
 func hasYAMLConfigExt(fn string) bool {
 	return strings.HasSuffix(fn, ".tm.yml") || strings.HasSuffix(fn, ".tm.yaml")
+}
+
+// existingInputs returns the inputs of the config block the change is derived
+// from, which is the environment a bundle is promoted from, the environment
+// being written, or the spec of a bundle without environments.
+func (c *Change) existingInputs(existing *yaml.BundleInstance) yaml.Map[any] {
+	if existing == nil {
+		return nil
+	}
+	if c.Env == nil {
+		return existing.Inputs.V
+	}
+
+	envID := c.Env.ID
+	if c.FromEnv != nil {
+		envID = c.FromEnv.ID
+	}
+	for _, item := range existing.Environments.V {
+		if item.Key.V == envID && item.Value.V != nil {
+			return item.Value.V.Inputs.V
+		}
+	}
+	return nil
+}
+
+// mergeInputs merges the generated inputs into the inputs of the existing
+// config. Entries the change is not authoritative for are carried over
+// unchanged, which keeps their original order and comments. Owned entries are
+// replaced by the generated value, or dropped if the change has no value for
+// them anymore.
+func mergeInputs(generated, existing yaml.Map[any], owned map[string]bool) yaml.Map[any] {
+	if len(existing) == 0 {
+		return generated
+	}
+
+	generatedByKey := make(map[string]yaml.MapItem[any], len(generated))
+	for _, item := range generated {
+		generatedByKey[item.Key.V] = item
+	}
+
+	merged := make(yaml.Map[any], 0, len(generated)+len(existing))
+	carried := make(map[string]bool, len(existing))
+	for _, item := range existing {
+		carried[item.Key.V] = true
+		if !owned[item.Key.V] {
+			merged = append(merged, item)
+			continue
+		}
+		if gen, found := generatedByKey[item.Key.V]; found {
+			merged = append(merged, gen)
+		}
+	}
+
+	// Inputs that are not in the existing config yet are appended.
+	for _, item := range generated {
+		if !carried[item.Key.V] {
+			merged = append(merged, item)
+		}
+	}
+	return merged
 }
 
 func mergeBundleYAMLEnv(existing yaml.BundleInstance, envID string, env *yaml.BundleEnvironment, envs []*config.Environment) yaml.BundleInstance {
