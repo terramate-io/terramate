@@ -327,10 +327,9 @@ func (f *InputsForm) confirmCurrent() {
 // If all visible inputs are filled, the form moves to the done/buttons state.
 func (f *InputsForm) advanceToNextPending() {
 	for _, idx := range f.allVisibleIndices() {
-		def := f.InputDefs[idx]
 		// Skip inputs with a filled value (either user-set or successfully default-seeded).
 		// Inputs with HasDefault() but no filled value (e.g. default eval failed) are still prompted.
-		if !f.isInputFilled(idx) && !f.hasPendingDependencies(def) {
+		if !f.isInputFilled(idx) && f.canActivate(idx) {
 			f.activeIdx = idx
 			f.prepareInput(idx)
 			return
@@ -353,8 +352,7 @@ func (f *InputsForm) goBack() bool {
 	f.confirmingDiscard = false
 	idx := f.activeIdx - 1
 	for idx >= 0 {
-		def := f.InputDefs[idx]
-		if !f.evalCondition(def) || f.hasPendingDependencies(def) {
+		if !f.canActivate(idx) {
 			idx--
 			continue
 		}
@@ -363,6 +361,33 @@ func (f *InputsForm) goBack() bool {
 		return true
 	}
 	return false
+}
+
+// canActivate reports whether the input at idx can become the active input.
+// A read-only input never can - it has no editor to show - and neither can one
+// whose prompt condition is false or whose dependencies are unresolved. Every
+// search for a new active input goes through this, forwards and backwards.
+func (f *InputsForm) canActivate(idx int) bool {
+	if idx < 0 || idx >= len(f.InputDefs) {
+		return false
+	}
+	def := f.InputDefs[idx]
+	return f.evalCondition(def) && !f.isReadOnly(idx) && !f.hasPendingDependencies(def)
+}
+
+// isReadOnly reports whether the input at idx is shown but cannot be edited:
+// either it is immutable in a diff view, or its type has no editor. Read-only
+// inputs are never made active and cannot be selected in the completed panel.
+func (f *InputsForm) isReadOnly(idx int) bool {
+	if idx < 0 || idx >= len(f.InputDefs) {
+		return false
+	}
+	def := f.InputDefs[idx]
+	if def.Immutable && (f.reconfiguring || f.promoting) {
+		return true
+	}
+	_, noEditor := f.widgets[def.Name].(*readOnlyWidget)
+	return noEditor
 }
 
 // allInputsDone returns true when all inputs have been filled in.
@@ -436,14 +461,13 @@ func (f *InputsForm) maxButtonIdx() int {
 	return 1
 }
 
-// firstSelectableCursor returns the first cursor index that is not immutable or disabled.
-// Returns -1 if no selectable item exists (all inputs are immutable/disabled).
+// firstSelectableCursor returns the first cursor index that is not read-only or disabled.
+// Returns -1 if no selectable item exists (all inputs are read-only/disabled).
 func (f *InputsForm) firstSelectableCursor() int {
-	diffMode := f.reconfiguring || f.promoting
 	visible := f.allVisibleIndices()
 	for i, idx := range visible {
 		def := f.InputDefs[idx]
-		if (def.Immutable && diffMode) || f.hasPendingDependencies(def) {
+		if f.isReadOnly(idx) || f.hasPendingDependencies(def) {
 			continue
 		}
 		if f.isFilteredByRequiredOnly(idx) {
@@ -921,7 +945,7 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		}
 		realIdx := combined[idx]
 		def := f.InputDefs[realIdx]
-		if (def.Immutable && diffMode) || f.hasPendingDependencies(def) {
+		if f.isReadOnly(realIdx) || f.hasPendingDependencies(def) {
 			return true
 		}
 		return f.isFilteredByRequiredOnly(realIdx)
@@ -1011,8 +1035,7 @@ func (f InputsForm) updateCompleted(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		}
 		realIdx := combined[f.completedCursor]
 		def := f.InputDefs[realIdx]
-		isImmutable := def.Immutable && diffMode
-		if isImmutable || f.hasPendingDependencies(def) {
+		if f.isReadOnly(realIdx) || f.hasPendingDependencies(def) {
 			return f, nil
 		}
 		f.ReenterAt(realIdx)
@@ -1117,7 +1140,7 @@ func (f InputsForm) updateButtons(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 		for i := len(combined) - 1; i >= 0; i-- {
 			idx := combined[i]
 			def := f.InputDefs[idx]
-			if (def.Immutable && (f.reconfiguring || f.promoting)) || f.hasPendingDependencies(def) {
+			if f.isReadOnly(idx) || f.hasPendingDependencies(def) {
 				continue
 			}
 			if f.isFilteredByRequiredOnly(idx) {
@@ -1597,7 +1620,7 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		isActive := realIdx == f.activeIdx
 		isDisabled := f.hasPendingDependencies(def)
 		diffMode := f.reconfiguring || f.promoting
-		isImmutable := def.Immutable && diffMode
+		isReadOnly := f.isReadOnly(realIdx)
 		userSet := f.isUserModified(realIdx)
 
 		label := def.Prompt.Text
@@ -1607,10 +1630,10 @@ func (f InputsForm) renderCompletedPanelContent() string {
 
 		// Required: no value at all, non-disabled, non-immutable, no default.
 		requiredIcon := lipgloss.NewStyle().Foreground(colorText).Bold(true).Render("*")
-		isRequired := !isFilled && !isDisabled && !isImmutable && !def.HasDefault() && !diffMode
+		isRequired := !isFilled && !isDisabled && !isReadOnly && !def.HasDefault() && !diffMode
 
-		if isImmutable {
-			// Immutable: not selectable, always show tag
+		if isReadOnly {
+			// Read-only: not selectable, always show tag
 			prefix = "  "
 			statusIcon = " "
 			nameCol = completedLabelStyle.Render(label) + labelPad
@@ -1665,7 +1688,7 @@ func (f InputsForm) renderCompletedPanelContent() string {
 		var valueStr string
 		var valueWidth int
 		dimEquals := false
-		if isImmutable && isFilled {
+		if isReadOnly && isFilled {
 			v := f.formatCompletedValue(realIdx)
 			valueStr = immutableValueStyle.Render(v)
 			valueWidth = len(v)
@@ -1706,8 +1729,12 @@ func (f InputsForm) renderCompletedPanelContent() string {
 
 		// Build the tag (immutable, enter to edit, etc.) and align to a common column.
 		var tag string
-		if isImmutable {
-			tag = hintStyle.Render("immutable")
+		if isReadOnly {
+			if def.Immutable {
+				tag = hintStyle.Render("immutable")
+			} else {
+				tag = hintStyle.Render("read-only")
+			}
 		} else if isCursorSelected && !isDisabled {
 			hint := "enter to edit"
 			if userSet {
