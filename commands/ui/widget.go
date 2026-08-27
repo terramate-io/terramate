@@ -140,9 +140,33 @@ func NewWidget(wctx *WidgetContext, typ typeschema.Type) InputWidget {
 	case *typeschema.NonStrictType:
 		return NewWidget(wctx, t.Inner)
 	}
-	// Will crash.
-	return nil
+	// No editor for this type - any, tuple, any_of, schema references, merged
+	// objects. The input is still listed with its value, just not editable.
+	return newReadOnlyWidget(wctx, typ)
 }
+
+// readOnlyWidget holds the value of an input the form has no editor for.
+//
+// It exists so such an input is still listed with its value, reusing the
+// read-only presentation of immutable inputs. The form never makes it active -
+// see InputsForm.isReadOnly - so it needs no editing behaviour of its own.
+type readOnlyWidget struct {
+	wctx *WidgetContext
+	typ  typeschema.Type
+}
+
+func newReadOnlyWidget(wctx *WidgetContext, typ typeschema.Type) *readOnlyWidget {
+	return &readOnlyWidget{wctx: wctx, typ: typ}
+}
+
+func (w *readOnlyWidget) WidgetContext() *WidgetContext { return w.wctx }
+func (w *readOnlyWidget) FormatDisplay() string         { return FormatDisplayValue(w.wctx.Value, w.typ) }
+func (w *readOnlyWidget) Prepare()                      {}
+func (w *readOnlyWidget) Render() []string              { return nil }
+func (w *readOnlyWidget) ForwardMsg(tea.Msg) tea.Cmd    { return nil }
+
+func (w *readOnlyWidget) Update(tea.KeyMsg) (WidgetSignal, tea.Cmd) { return WidgetBack, nil }
+func (w *readOnlyWidget) AcceptSubFormResult(SubFormResult) bool    { return true }
 
 // isStructuredObject returns true if typ is an ObjectType with at least one
 // defined attribute. An ObjectType with no attributes is treated as a free-form

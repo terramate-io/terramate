@@ -24,6 +24,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ### Fixed
 
+- Fix `terramate ui` crash when using specific input types that are not supported by a form.
 - Fix inputs without a `prompt` block being dropped from the config when a bundle instance is reconfigured or promoted in `terramate ui`.
 
 ## 0.17.2
