@@ -2872,6 +2872,135 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "tm_alltrue with literal list of bool",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_alltrue([true, 1==1, false==false, !false])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "val", `true`),
+				),
+			},
+		},
+		{
+			name:   "tm_alltrue with literal tuple containing non-boolean",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_alltrue([true, 1==1, "string", {}])`),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "tm_alltrue with literal for-loop",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_alltrue([for i in [true, 1==1, !false] : i])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "val", `true`),
+				),
+			},
+		},
+		{
+			name:   "tm_alltrue with funcall",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_alltrue(tm_distinct([true, !false, 1==1]))`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "val", `true`),
+				),
+			},
+		},
+
+		{
+			name:   "tm_anytrue with literal list of bool",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_anytrue([false, 1!=1, false==false, !false])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "val", `true`),
+				),
+			},
+		},
+		{
+			name:   "tm_anytrue with literal tuple containing non-boolean",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_anytrue([false, 1!=1, "string", {}])`),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "tm_anytrue with literal for-loop",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_anytrue([for i in [false, 1!=1, !false] : i])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "val", `true`),
+				),
+			},
+		},
+		{
+			name:   "tm_anytrue with funcall",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_anytrue(tm_distinct([false, false, 1==1]))`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "val", `true`),
+				),
+			},
+		},
+		{
 			name:   "globals.map label conflicts with global name",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
