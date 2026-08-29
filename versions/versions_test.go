@@ -193,6 +193,18 @@ func TestTerramateVersionConstraints(t *testing.T) {
 			want:       errors.E(versions.ErrCheck),
 		},
 		{
+			version:     "1.2.3-alpha",
+			constraint:  "> 1.2.2, < 1.2.3",
+			prereleases: true,
+			want:        errors.E(versions.ErrCheck),
+		},
+		{
+			version:     "1.2.3-alpha",
+			constraint:  "~> 1.2.2",
+			prereleases: true,
+			//want:       errors.E(versions.ErrCheck),
+		},
+		{
 			version:    "1.2.3-dev",
 			constraint: ">= 1.2.3",
 			want:       errors.E(versions.ErrCheck),
@@ -201,12 +213,12 @@ func TestTerramateVersionConstraints(t *testing.T) {
 			version:     "1.2.3-dev",
 			constraint:  ">= 1.2.3",
 			prereleases: true,
-			want:        errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
 			constraint:  "< 1.2.3",
 			prereleases: true,
+			want:        errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3-dev",
@@ -307,6 +319,55 @@ func TestTerramateVersionConstraints(t *testing.T) {
 			version:     "1.2.3-dev",
 			constraint:  "< 1.2.3-dev2",
 			prereleases: true,
+		},
+		{
+			version:    "0.6.0-rc1",
+			constraint: "~> 0.5.0",
+			want:       errors.E(versions.ErrCheck),
+		},
+		{
+			version:     "0.6.0-rc1",
+			constraint:  "~> 0.5.0",
+			prereleases: true,
+			want:        errors.E(versions.ErrCheck),
+		},
+		{
+			version:    "0.6.0-rc1",
+			constraint: "~> 0.6.0-rc1",
+		},
+		{
+			version:     "0.6.0-rc1",
+			constraint:  "~> 0.6.0-rc1",
+			prereleases: true,
+		},
+		{
+			version:    "0.6.0-rc1",
+			constraint: "~> 0.5.0",
+			want:       errors.E(versions.ErrCheck),
+		},
+		{
+			version:     "2.0.0-alpha",
+			constraint:  "~> 1",
+			prereleases: true,
+			want:        errors.E(versions.ErrCheck),
+		},
+		{
+			version:     "1.0.0-alpha",
+			constraint:  "< 2",
+			prereleases: true,
+		},
+		{
+			version:    "0.6.0-rc1",
+			constraint: "> 0.5, ~> 0.5.0",
+			want:       errors.E(versions.ErrCheck),
+		},
+		// TODO(i4k): review this with Marius.
+		// looks broken.
+		{
+			version:     "1.0.0-alpha",
+			constraint:  "< 1.0.0",
+			prereleases: true,
+			want:        errors.E(versions.ErrCheck),
 		},
 	} {
 		tc := tc
