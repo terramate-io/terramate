@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -56,6 +57,11 @@ type Change struct {
 	Values         map[string]cty.Value      // All values (user + defaults) for validation
 	UserValues     map[string]cty.Value      // Only user-set values (written to YAML)
 
+	// Schemactx is the context the values were evaluated in. It is needed to
+	// walk input types when writing the values back out, e.g. to translate
+	// resolved bundle references back into keys.
+	Schemactx typeschema.EvalContext
+
 	Env     *config.Environment
 	FromEnv *config.Environment
 
@@ -91,7 +97,7 @@ func NewCreateChange(
 	if err != nil {
 		return Change{}, err
 	}
-	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
+	if err := checkBundleRefsResolved(schemactx, inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 
@@ -171,6 +177,7 @@ func NewCreateChange(
 		InputDefs:      inputDefs,
 		Values:         allValues,
 		UserValues:     values,
+		Schemactx:      schemactx,
 	}, nil
 }
 
@@ -202,7 +209,7 @@ func NewReconfigChange(
 	if err != nil {
 		return Change{}, err
 	}
-	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
+	if err := checkBundleRefsResolved(schemactx, inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 
@@ -247,6 +254,7 @@ func NewReconfigChange(
 		InputDefs:      inputDefs,
 		Values:         allValues,
 		UserValues:     values,
+		Schemactx:      schemactx,
 		OriginalBundle: bundle,
 		OriginalValues: inputsToValueMap(bundle.Inputs),
 		Warnings:       warnings,
@@ -282,7 +290,7 @@ func NewPromoteChange(
 	if err != nil {
 		return Change{}, err
 	}
-	if err := checkBundleRefsResolved(inputDefs, allValues); err != nil {
+	if err := checkBundleRefsResolved(schemactx, inputDefs, allValues); err != nil {
 		return Change{}, err
 	}
 
@@ -328,6 +336,7 @@ func NewPromoteChange(
 		InputDefs:      inputDefs,
 		Values:         allValues,
 		UserValues:     values,
+		Schemactx:      schemactx,
 		OriginalBundle: bundle,
 		OriginalValues: inputsToValueMap(bundle.Inputs),
 		Warnings:       warnings,
@@ -390,42 +399,79 @@ func reEvalAllInputs(
 	return result, nil
 }
 
+// bundleRefKey converts a resolved bundle object back to the key that is written
+// to a bundle instance file. Values that are not resolved bundles - plain keys,
+// [key, envID] tuples, nulls - are returned unchanged.
+func bundleRefKey(v cty.Value) cty.Value {
+	if v == cty.NilVal || !v.IsKnown() || v.IsNull() {
+		return v
+	}
+	if v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
+		alias := v.GetAttr("alias")
+		if alias.IsKnown() && !alias.IsNull() && alias.Type() == cty.String {
+			return alias
+		}
+	}
+	return v
+}
+
 // normalizeBundleRefValues converts resolved bundle objects back to alias strings.
 // When reconfiguring or promoting, bundle-ref inputs are loaded as full objects
-// (with alias, uuid, etc.) from disk. The type system expects strings, so we
-// extract the alias before the values enter the form.
-func normalizeBundleRefValues(inputDefs []*config.InputDefinition, values map[string]cty.Value) map[string]cty.Value {
+// (with alias, uuid, etc.) from disk. The type system expects keys, so we extract
+// the alias before the values enter the form. References nested in collections or
+// object attributes are normalized too.
+func normalizeBundleRefValues(schemactx typeschema.EvalContext, inputDefs []*config.InputDefinition, values map[string]cty.Value) map[string]cty.Value {
 	for _, def := range inputDefs {
-		if _, isBundleType := def.Type.(*typeschema.BundleType); !isBundleType {
-			continue
-		}
 		v, ok := values[def.Name]
 		if !ok || v == cty.NilVal || v.IsNull() || !v.IsKnown() {
 			continue
 		}
-		if v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
-			alias := v.GetAttr("alias")
-			if alias.IsKnown() && alias.Type() == cty.String {
-				values[def.Name] = alias
-			}
+		normalized, err := typeschema.MapBundleRefs(def.Type, v, schemactx,
+			func(_ *typeschema.BundleType, ref cty.Value, _ typeschema.BundleRefPath) (cty.Value, error) {
+				return bundleRefKey(ref), nil
+			})
+		if err != nil {
+			continue
 		}
+		values[def.Name] = normalized
 	}
 	return values
 }
 
-// checkBundleRefsResolved verifies that all bundle-ref inputs resolved to non-null
-// values. Returns a user-friendly error if any referenced bundle is missing.
-func checkBundleRefsResolved(inputDefs []*config.InputDefinition, values map[string]cty.Value) error {
+// checkBundleRefsResolved verifies that all bundle references resolved to
+// non-null values. Returns a user-friendly error if any referenced bundle is
+// missing, naming the element for references nested in collections or objects.
+func checkBundleRefsResolved(schemactx typeschema.EvalContext, inputDefs []*config.InputDefinition, values map[string]cty.Value) error {
 	for _, def := range inputDefs {
-		if _, isBundleType := def.Type.(*typeschema.BundleType); !isBundleType {
-			continue
-		}
 		v, ok := values[def.Name]
 		if !ok || v == cty.NilVal {
 			continue
 		}
-		if v.IsNull() {
-			return errors.E("Input %q references a bundle that does not exist in this environment. Promote dependencies first.", def.Name)
+
+		var unresolved []string
+		_, err := typeschema.MapBundleRefs(def.Type, v, schemactx,
+			func(_ *typeschema.BundleType, ref cty.Value, path typeschema.BundleRefPath) (cty.Value, error) {
+				if ref != cty.NilVal && ref.IsKnown() && ref.IsNull() {
+					unresolved = append(unresolved, def.Name+path.String())
+				}
+				return ref, nil
+			})
+		if err != nil {
+			return err
+		}
+		switch len(unresolved) {
+		case 0:
+		case 1:
+			return errors.E("Input %q references a bundle that does not exist in this environment. Promote dependencies first.",
+				unresolved[0])
+		default:
+			slices.Sort(unresolved)
+			quoted := make([]string, len(unresolved))
+			for i, name := range unresolved {
+				quoted[i] = strconv.Quote(name)
+			}
+			return errors.E("Inputs %s reference bundles that do not exist in this environment. Promote dependencies first.",
+				strings.Join(quoted, ", "))
 		}
 	}
 	return nil
@@ -468,12 +514,14 @@ func (c *Change) generateBundleYAML(existing *yaml.BundleInstance, envs []*confi
 			continue
 		}
 
-		// Bundle-ref values are stored as resolved objects internally
-		// but must be written as alias strings in the YAML config.
-		if _, isBundleType := def.Type.(*typeschema.BundleType); isBundleType {
-			if v.IsKnown() && !v.IsNull() && v.Type().IsObjectType() && v.Type().HasAttribute("alias") {
-				v = v.GetAttr("alias")
-			}
+		// Bundle references are stored as resolved objects internally but must
+		// be written as alias strings in the YAML config, at any depth.
+		v, err := typeschema.MapBundleRefs(def.Type, v, c.Schemactx,
+			func(_ *typeschema.BundleType, ref cty.Value, _ typeschema.BundleRefPath) (cty.Value, error) {
+				return bundleRefKey(ref), nil
+			})
+		if err != nil {
+			return "", err
 		}
 
 		yv, err := yaml.ConvertFromCty(v)

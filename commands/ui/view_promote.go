@@ -84,7 +84,7 @@ func (m *Model) loadPromoteBundle(b *config.Bundle, targetEnv *config.Environmen
 	}
 
 	values := inputsToValueMap(b.Inputs)
-	normalizeBundleRefValues(inputDefs, values)
+	normalizeBundleRefValues(schemactx, inputDefs, values)
 
 	m.promoteBundle = b
 	m.selectedBundleDefEntry = bde
