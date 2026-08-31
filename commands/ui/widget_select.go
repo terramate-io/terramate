@@ -255,11 +255,16 @@ func (w *MultiSelectWidget) FormatDisplay() string {
 	if val == cty.NilVal || val.IsNull() {
 		return "<none>"
 	}
-	if len(w.options) > 0 {
+	if len(w.options) > 0 && val.CanIterateElements() {
 		var labels []string
-		for i, opt := range w.options {
-			if w.selected[i] {
-				labels = append(labels, opt.Label)
+		for _, opt := range w.options {
+			it := val.ElementIterator()
+			for it.Next() {
+				_, elem := it.Element()
+				if optValEquals(opt.Value, elem) {
+					labels = append(labels, opt.Label)
+					break
+				}
 			}
 		}
 		if len(labels) == 0 {
@@ -268,6 +273,12 @@ func (w *MultiSelectWidget) FormatDisplay() string {
 		return strings.Join(labels, ", ")
 	}
 	return ctyToDisplayString(val)
+}
+
+// HelpHints returns the key hints shown in the bottom help line while the
+// multi-select is the active input.
+func (w *MultiSelectWidget) HelpHints() string {
+	return "enter: confirm • space: toggle"
 }
 
 // ForwardMsg is a no-op; multi-select widgets have no underlying input component.

@@ -530,6 +530,11 @@ func (f *InputsForm) PendingSubForm() *SubFormRequest {
 // ExtraHelpHints returns contextual help hints for the current state.
 // The caller appends these to the help line.
 func (f *InputsForm) ExtraHelpHints() string {
+	if f.IsEditingInput() && f.activeWidget != nil {
+		if h, ok := f.activeWidget.(HelpHinter); ok {
+			return h.HelpHints()
+		}
+	}
 	if f.focus == InputFocusCompleted && !f.reconfiguring && !f.promoting && f.hasOptionalInputs() {
 		return "◂▸: filter"
 	}

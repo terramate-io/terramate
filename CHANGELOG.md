@@ -26,6 +26,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix `terramate ui` crash when using specific input types that are not supported by a form.
 - Fix inputs without a `prompt` block being dropped from the config when a bundle instance is reconfigured or promoted in `terramate ui`.
+- Fix multiselect list changes being applied to the input form before confirmation in `terramate ui`.
 
 ## 0.17.2
 
