@@ -50,6 +50,13 @@ type InputWidget interface {
 	AcceptSubFormResult(result SubFormResult) bool
 }
 
+// HelpHinter is an optional interface for widgets that contribute contextual
+// key hints to the bottom help line while they are the active input.
+// Hints use the same " • " separator as the rest of the help line.
+type HelpHinter interface {
+	HelpHints() string
+}
+
 // SubFormResult carries the output of a completed sub-form back to its
 // parent widget.
 type SubFormResult struct {
