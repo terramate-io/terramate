@@ -22,6 +22,11 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 ## Unreleased
 
+### Added
+
+- Add support for collections of bundle references, e.g. `type = list(bundle(<class>))`.
+  In `terramate ui` such an input is a multi-select over the bundles of that class.
+
 ### Fixed
 
 - Fix `terramate ui` crash when using specific input types that are not supported by a form.

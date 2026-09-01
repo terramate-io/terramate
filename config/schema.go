@@ -91,6 +91,9 @@ func EvalDefineSchema(evalctx *eval.Context, schemaHCL *hcl.DefineSchema) (*type
 	if err != nil {
 		return nil, err
 	}
+	if err := typeschema.ValidateBundleRefPositions(ret.Type); err != nil {
+		return nil, errors.E(err, schemaHCL.DefRange, "schema '%s'", schemaHCL.Name)
+	}
 
 	return ret, nil
 }
@@ -109,6 +112,9 @@ func EvalObjectAttributes(evalctx *eval.Context, attrsHCL []*hcl.DefineObjectAtt
 		attrTyp, err := typeschema.Parse(typeStr, nil)
 		if err != nil {
 			return nil, errors.E(err, "failed to parse typestr %s", typeStr)
+		}
+		if err := typeschema.ValidateBundleRefPositions(attrTyp); err != nil {
+			return nil, errors.E(err, attrHCL.DefRange, "attribute '%s'", attrHCL.Name)
 		}
 
 		desc := ""
@@ -202,6 +208,9 @@ func EvalInputSchema(evalctx *eval.Context, inputHCL *hcl.DefineInput) (*typesch
 	if err != nil {
 		return nil, errors.E(err, "failed to parse typestr %s", typeStr)
 	}
+	if err := typeschema.ValidateBundleRefPositions(schema.Type); err != nil {
+		return nil, errors.E(err, inputHCL.DefRange, "input '%s'", inputHCL.Name)
+	}
 
 	return schema, nil
 }
@@ -220,15 +229,31 @@ func applyInputSchema(name string, v cty.Value, sc typeschema.EvalContext) (cty.
 	if err != nil {
 		return v, err
 	}
-	if bt, ok := schema.Type.(*typeschema.BundleType); ok {
-		return resolveBundleType(bt, name, v, sc.Evalctx)
-	}
-	return v, nil
+	return resolveBundleRefs(schema.Type, v, sc, name)
 }
 
-// resolveBundleType resolves a bundle-typed input value by calling tm_bundle.
-func resolveBundleType(bt *typeschema.BundleType, name string, v cty.Value, evalctx *eval.Context) (cty.Value, error) {
-	if v.IsNull() {
+// resolveBundleRefs resolves every bundle-typed position in val by calling
+// tm_bundle. Bundle references are not necessarily the whole input value: they
+// can be nested inside collections (`list(bundle(...))`), object attributes or
+// schema references, so the value is walked alongside its type.
+func resolveBundleRefs(typ typeschema.Type, val cty.Value, sc typeschema.EvalContext, inputName string) (cty.Value, error) {
+	return typeschema.MapBundleRefs(typ, val, sc,
+		func(bt *typeschema.BundleType, ref cty.Value, path typeschema.BundleRefPath) (cty.Value, error) {
+			return resolveBundleRef(bt, ref, sc.Evalctx, inputName, path)
+		})
+}
+
+// resolveBundleRef resolves a single bundle reference by calling tm_bundle.
+// Accepted reference values:
+//   - null: passed through as-is
+//   - string: a bundle key (alias or UUID)
+//   - tuple/list [key, envID]: a bundle key with an explicit environment ID
+//   - object/map: an already resolved bundle, passed through as-is
+//
+// An unresolvable reference yields a null value, which callers detect and report
+// with a domain specific message.
+func resolveBundleRef(bt *typeschema.BundleType, v cty.Value, evalctx *eval.Context, inputName string, path typeschema.BundleRefPath) (cty.Value, error) {
+	if !v.IsKnown() || v.IsNull() {
 		return v, nil
 	}
 
@@ -240,13 +265,18 @@ func resolveBundleType(bt *typeschema.BundleType, name string, v cty.Value, eval
 
 	case v.Type().IsTupleType() || v.Type().IsListType():
 		elems := v.AsValueSlice()
+		if len(elems) != 2 {
+			return v, errors.E("bundle input %q expects a [key, envID] tuple of length 2, got %d",
+				inputName+path.String(), len(elems))
+		}
 		args = []cty.Value{cty.StringVal(bt.ClassID), elems[0], elems[1]}
 
 	case v.Type().IsObjectType() || v.Type().IsMapType():
 		return v, nil
 
 	default:
-		return v, errors.E("unexpected value type %s for bundle input %q", v.Type().FriendlyName(), name)
+		return v, errors.E("unexpected value type %s for bundle input %q",
+			v.Type().FriendlyName(), inputName+path.String())
 	}
 
 	hclctx := evalctx.Unwrap()
@@ -257,7 +287,7 @@ func resolveBundleType(bt *typeschema.BundleType, name string, v cty.Value, eval
 
 	result, err := fn.Call(args)
 	if err != nil {
-		return v, err
+		return v, errors.E(err, "resolving bundle input %q", inputName+path.String())
 	}
 	return result, nil
 }

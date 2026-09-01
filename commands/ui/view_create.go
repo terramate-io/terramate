@@ -276,8 +276,10 @@ func (m *Model) pushCreateFrame() {
 		selectedBundleSource:   m.selectedBundleSource,
 		inputsForm:             m.inputsForm,
 		parentBundleName:       bundleName,
+		objectEditStack:        m.objectEditStack,
 	}
 	m.createStack = append(m.createStack, frame)
+	m.objectEditStack = nil
 }
 
 // restoreCreateFrame pops the last frame and restores the wizard state.
@@ -296,6 +298,7 @@ func (m *Model) restoreCreateFrame(newBundleAlias string) {
 	m.selectedBundleSource = frame.selectedBundleSource
 	m.inputsForm = frame.inputsForm
 	m.inputsForm.state = InputsFormActive
+	m.objectEditStack = frame.objectEditStack
 	m.nestedRefClass = ""
 
 	if newBundleAlias != "" {

@@ -5,6 +5,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zclconf/go-cty/cty"
@@ -191,6 +192,8 @@ func NewListWidget(wctx *WidgetContext, valTyp typeschema.Type) InputWidget {
 		case "string", "number":
 			return NewInlineListWidget(wctx, t)
 		}
+	case *typeschema.BundleType:
+		return NewBundleRefListWidget(wctx, t.ClassID)
 	}
 	return NewSubFormListWidget(wctx, valTyp)
 }
@@ -252,6 +255,12 @@ func FormatDisplayValue(val cty.Value, typ typeschema.Type) string {
 
 	switch t := typ.(type) {
 	case *typeschema.PrimitiveType:
+		return ctyToDisplayString(val)
+
+	case *typeschema.BundleType:
+		if alias, ok := bundleRefAlias(val); ok {
+			return alias
+		}
 		return ctyToDisplayString(val)
 
 	case *typeschema.ListType:
@@ -326,6 +335,18 @@ func formatCollectionDisplay(val cty.Value, elemType typeschema.Type) string {
 	n := val.LengthInt()
 	if n == 0 {
 		return "<empty>"
+	}
+	if _, isBundleType := elemType.(*typeschema.BundleType); isBundleType {
+		aliases := make([]string, 0, n)
+		for it := val.ElementIterator(); it.Next(); {
+			_, elem := it.Element()
+			alias, ok := bundleRefAlias(elem)
+			if !ok {
+				alias = "<unresolved>"
+			}
+			aliases = append(aliases, alias)
+		}
+		return strings.Join(aliases, ", ")
 	}
 	if n == 1 {
 		it := val.ElementIterator()

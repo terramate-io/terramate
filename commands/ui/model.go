@@ -70,6 +70,11 @@ type CreateFrame struct {
 	selectedBundleSource   string
 	inputsForm             InputsForm
 	parentBundleName       string // name of the bundle being configured (for UI context)
+
+	// objectEditStack holds the sub-forms that were open when the creation
+	// started. The nested bundle gets its own form and must not be mistaken for
+	// a sub-form of the suspended one, so the stack travels with the frame.
+	objectEditStack []ObjectEditFrame
 }
 
 // flatBundleEntry maps a row in the flat bundle list back to its collection/bundle origin.

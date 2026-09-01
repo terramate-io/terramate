@@ -86,7 +86,7 @@ func (m *Model) loadReconfigBundle(b *config.Bundle) error {
 	}
 
 	values := inputsToValueMap(b.Inputs)
-	normalizeBundleRefValues(inputDefs, values)
+	normalizeBundleRefValues(schemactx, inputDefs, values)
 
 	m.reconfigBundle = b
 	m.selectedBundleDefEntry = bde

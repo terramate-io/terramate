@@ -5,10 +5,13 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/terramate-io/terramate/typeschema"
 )
 
 // SelectWidget provides a cursor-based single-select option list.
@@ -323,7 +326,7 @@ func (w *BundleRefWidget) Prepare() {
 // Update handles keyboard input and returns the resulting signal.
 func (w *BundleRefWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 	matching := MatchingBundleOptions(w.wctx.Registry, w.classID, w.wctx.Env)
-	n := len(matching) + 1 // +1 for "Add new" option
+	n := len(matching) + 1 // +1 for the "Add new" row
 
 	switch msg.Type {
 	case tea.KeyShiftTab, tea.KeyEsc:
@@ -364,9 +367,9 @@ func (w *BundleRefWidget) Render() []string {
 		}
 	}
 	if w.cursor == len(matching) {
-		lines = append(lines, activeOptionStyle.Render("› + Add new"))
+		lines = append(lines, activeOptionStyle.Render("+ Add new"))
 	} else {
-		lines = append(lines, dimOptionStyle.Render("  + Add new"))
+		lines = append(lines, dimOptionStyle.Render("  Add new"))
 	}
 	return lines
 }
@@ -423,6 +426,258 @@ func (w *BundleRefWidget) ForwardMsg(tea.Msg) tea.Cmd {
 
 // AcceptSubFormResult is a no-op; bundle-ref widgets do not use sub-forms.
 func (w *BundleRefWidget) AcceptSubFormResult(SubFormResult) bool { return true }
+
+// bundleRefAcceptor is implemented by widgets that can take over the alias of a
+// bundle the user created inline through the "Add new" row.
+type bundleRefAcceptor interface {
+	AcceptCreatedBundleRef(alias string) (done bool)
+}
+
+// BundleRefListWidget lets the user pick any number of bundles of one class.
+type BundleRefListWidget struct {
+	wctx     *WidgetContext
+	classID  string
+	selected []string // Aliases, in selection order.
+	cursor   int      // 0..n-1 = bundles, n = "Add new"
+
+	PendingRefClass string
+}
+
+// NewBundleRefListWidget creates a widget for selecting multiple bundle references.
+func NewBundleRefListWidget(wctx *WidgetContext, classID string) *BundleRefListWidget {
+	return &BundleRefListWidget{
+		wctx:    wctx,
+		classID: classID,
+	}
+}
+
+// WidgetContext returns the widget's context.
+func (w *BundleRefListWidget) WidgetContext() *WidgetContext {
+	return w.wctx
+}
+
+// Prepare initializes the widget for a new editing session.
+func (w *BundleRefListWidget) Prepare() {
+	w.PendingRefClass = ""
+	val := w.wctx.Value
+	if val == cty.NilVal {
+		val, _ = w.wctx.Def.EvalDefault(w.wctx.Schemactx)
+	}
+	w.setSelection(val)
+	w.cursor = 0
+}
+
+// bundleRefRow is one selectable bundle in the widget. Rows come from the registry, plus
+// any selected alias the registry does not know about - a bundle created during
+// this session that a stale registry has not picked up yet.
+type bundleRefRow struct {
+	alias string
+	label string
+}
+
+func (w *BundleRefListWidget) rows() []bundleRefRow {
+	var rows []bundleRefRow
+	known := map[string]bool{}
+	for _, opt := range MatchingBundleOptions(w.wctx.Registry, w.classID, w.wctx.Env) {
+		label := opt.Name
+		if label == "" {
+			label = opt.Alias
+		}
+		if opt.EnvID != "" {
+			label += " [" + opt.EnvID + "]"
+		}
+		rows = append(rows, bundleRefRow{alias: opt.Alias, label: label})
+		known[opt.Alias] = true
+	}
+	for _, alias := range w.selected {
+		if !known[alias] {
+			rows = append(rows, bundleRefRow{alias: alias, label: alias})
+			known[alias] = true
+		}
+	}
+	return rows
+}
+
+// Update handles keyboard input and returns the resulting signal.
+func (w *BundleRefListWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
+	rows := w.rows()
+	n := len(rows)
+
+	switch msg.Type {
+	case tea.KeyShiftTab, tea.KeyEsc:
+		return WidgetBack, nil
+	case tea.KeyUp:
+		if w.cursor > 0 {
+			w.cursor--
+		}
+	case tea.KeyDown:
+		if w.cursor < n {
+			w.cursor++
+		}
+	case tea.KeySpace:
+		if w.cursor < n {
+			w.toggle(rows[w.cursor].alias)
+		}
+	case tea.KeyEnter:
+		if w.cursor == n {
+			w.PendingRefClass = w.classID
+			return WidgetNeedSubForm, nil
+		}
+		w.commit()
+		return WidgetConfirmed, nil
+	}
+	return WidgetContinue, nil
+}
+
+// Render returns the rendered display lines for the widget.
+func (w *BundleRefListWidget) Render() []string {
+	rows := w.rows()
+	n := len(rows)
+
+	var lines []string
+	for i, row := range rows {
+		prefix := checkboxOff.Render("[ ]")
+		if w.isSelected(row.alias) {
+			prefix = checkboxOn.Render("[✓]")
+		}
+		if i == w.cursor {
+			lines = append(lines, activeOptionStyle.Render(fmt.Sprintf("› %s %s", prefix, row.label)))
+		} else {
+			lines = append(lines, optionStyle.Render(fmt.Sprintf("  %s %s", prefix, row.label)))
+		}
+	}
+
+	// The add row carries its own marker: the "+" sits in the cursor column
+	// instead of the "›" the bundle rows use.
+	if w.cursor == n {
+		lines = append(lines, activeOptionStyle.Render("+ Add new"))
+	} else {
+		lines = append(lines, dimOptionStyle.Render("  Add new"))
+	}
+	return lines
+}
+
+// HelpHints returns the key hints shown in the bottom help line while the
+// bundle multi-select is the active input. The "Add new" row speaks for itself,
+// so it drops the hints rather than repeating what its label already says - and
+// the selection hints would be wrong there anyway.
+func (w *BundleRefListWidget) HelpHints() string {
+	if w.cursor == len(w.rows()) {
+		return ""
+	}
+	return "enter: confirm • space: toggle"
+}
+
+// Reload syncs the widget's internal state from the WidgetContext value.
+func (w *BundleRefListWidget) Reload() {
+	w.setSelection(w.wctx.Value)
+}
+
+// FormatDisplay returns a comma-separated summary of the selected bundles.
+func (w *BundleRefListWidget) FormatDisplay() string {
+	val := w.wctx.Value
+	if val == cty.NilVal || val.IsNull() || !val.IsKnown() || !val.CanIterateElements() {
+		return "<none>"
+	}
+	if val.LengthInt() == 0 {
+		return "<none>"
+	}
+	return FormatDisplayValue(val, &typeschema.ListType{
+		ValueType: &typeschema.BundleType{ClassID: w.classID},
+	})
+}
+
+// ForwardMsg is a no-op; bundle-ref lists have no underlying input component.
+func (w *BundleRefListWidget) ForwardMsg(tea.Msg) tea.Cmd {
+	return nil
+}
+
+// AcceptSubFormResult is a no-op; bundle-ref lists do not use sub-forms.
+func (w *BundleRefListWidget) AcceptSubFormResult(SubFormResult) bool { return true }
+
+// AcceptCreatedBundleRef adds the newly created bundle to the selection. The
+// input stays active so that more references can be added.
+func (w *BundleRefListWidget) AcceptCreatedBundleRef(alias string) bool {
+	w.PendingRefClass = ""
+	if !w.isSelected(alias) {
+		w.selected = append(w.selected, alias)
+	}
+	w.commit()
+	// Park the cursor on "Add new" again, which is where the user left off.
+	w.cursor = len(w.rows())
+	return false
+}
+
+func (w *BundleRefListWidget) isSelected(alias string) bool {
+	return slices.Contains(w.selected, alias)
+}
+
+func (w *BundleRefListWidget) toggle(alias string) {
+	if i := slices.Index(w.selected, alias); i >= 0 {
+		w.selected = slices.Delete(w.selected, i, i+1)
+		return
+	}
+	w.selected = append(w.selected, alias)
+}
+
+// setSelection reads the selection from an input value. Values loaded from disk
+// hold resolved bundle objects, so each element is reduced to its alias.
+func (w *BundleRefListWidget) setSelection(val cty.Value) {
+	w.selected = nil
+	if val == cty.NilVal || val.IsNull() || !val.IsKnown() || !val.CanIterateElements() {
+		return
+	}
+	for it := val.ElementIterator(); it.Next(); {
+		_, elem := it.Element()
+		if alias, ok := bundleRefAlias(elem); ok && !w.isSelected(alias) {
+			w.selected = append(w.selected, alias)
+		}
+	}
+}
+
+func (w *BundleRefListWidget) commit() {
+	val := cty.EmptyTupleVal
+	if len(w.selected) > 0 {
+		elems := make([]cty.Value, len(w.selected))
+		for i, alias := range w.selected {
+			elems[i] = cty.StringVal(alias)
+		}
+		val = cty.TupleVal(elems)
+	}
+	w.wctx.UpdateValue(val)
+}
+
+// bundleRefAlias extracts the alias from a bundle reference value, which is
+// either a key string or a resolved bundle object.
+func bundleRefAlias(val cty.Value) (string, bool) {
+	if val == cty.NilVal || val.IsNull() || !val.IsKnown() {
+		return "", false
+	}
+	switch {
+	case val.Type() == cty.String:
+		return val.AsString(), true
+	case val.Type().IsObjectType() && val.Type().HasAttribute("alias"):
+		alias := val.GetAttr("alias")
+		if alias.IsKnown() && !alias.IsNull() && alias.Type() == cty.String {
+			return alias.AsString(), true
+		}
+	case val.Type().IsTupleType() && val.LengthInt() == 2:
+		// The [key, envID] form.
+		if key := val.AsValueSlice()[0]; key.IsKnown() && key.Type() == cty.String {
+			return key.AsString(), true
+		}
+	}
+	return "", false
+}
+
+// AcceptCreatedBundleRef makes the newly created bundle the value of the input,
+// which completes it.
+func (w *BundleRefWidget) AcceptCreatedBundleRef(alias string) bool {
+	w.PendingRefClass = ""
+	w.value = cty.StringVal(alias)
+	w.wctx.UpdateValue(w.value)
+	return true
+}
 
 // ---------------------------------------------------------------------------
 // Shared helpers

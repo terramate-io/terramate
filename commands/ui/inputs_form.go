@@ -683,21 +683,27 @@ func (f *InputsForm) ForwardMsg(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-// setBundleRefValue sets the current bundle-ref input to the given ID and advances.
+// setBundleRefValue hands the alias of a bundle that was just created inline to
+// the active widget. A single reference is complete once it is set, so the form
+// advances; a collection of references stays active for further additions.
 func (f *InputsForm) setBundleRefValue(bundleID string) {
 	if f.activeIdx >= len(f.InputDefs) {
 		return
 	}
 	def := f.InputDefs[f.activeIdx]
-	v := cty.StringVal(bundleID)
-	f.setValueByName(def.Name, v)
-	f.userModified[def.Name] = true
-	if bw, ok := f.activeWidget.(*BundleRefWidget); ok {
-		bw.Reload()
+
+	done := true
+	if acceptor, ok := f.activeWidget.(bundleRefAcceptor); ok {
+		done = acceptor.AcceptCreatedBundleRef(bundleID)
+	} else {
+		f.setValueByName(def.Name, cty.StringVal(bundleID))
 	}
+	f.userModified[def.Name] = true
 	f.state = InputsFormActive
 	f.seedDefaults()
-	f.advanceToNextPending()
+	if done {
+		f.advanceToNextPending()
+	}
 }
 
 // syncAllValuesToEvalctx seeds the eval context with all current values at once.
@@ -1080,6 +1086,9 @@ func (f InputsForm) updateInput(msg tea.KeyMsg) (InputsForm, tea.Cmd) {
 	case WidgetNeedSubForm:
 		if bw, ok := f.activeWidget.(*BundleRefWidget); ok {
 			f.pendingRefClass = bw.PendingRefClass
+			f.state = InputsFormCreateRef
+		} else if blw, ok := f.activeWidget.(*BundleRefListWidget); ok {
+			f.pendingRefClass = blw.PendingRefClass
 			f.state = InputsFormCreateRef
 		} else if ow, ok := f.activeWidget.(*ObjectWidget); ok && ow.SubFormRequest != nil {
 			f.pendingSubForm = ow.SubFormRequest
