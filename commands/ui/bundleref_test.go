@@ -369,21 +369,53 @@ func TestBundleRefListWidgetEmptySelectionCommitsEmptyTuple(t *testing.T) {
 	}
 }
 
-// The completed-inputs panel has to name the referenced bundles; a list of
-// resolved bundle objects would otherwise render as an opaque item count.
-func TestFormatDisplayValueNamesBundleRefsInCollection(t *testing.T) {
+// A collection of references collapses the same way every other list type does,
+// so a handful of long aliases cannot crowd out the rest of the panel. The
+// single-element case still names the bundle rather than showing the object it
+// resolved to.
+func TestFormatDisplayValueCollapsesBundleRefCollections(t *testing.T) {
 	t.Parallel()
 
 	typ, err := typeschema.Parse(`list(bundle("test.class/v1"))`, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	val := cty.TupleVal([]cty.Value{
-		resolvedBundle("platform"),
-		cty.StringVal("payments"), // Not yet resolved, still a key.
-	})
 
-	if got := FormatDisplayValue(val, typ); got != "platform, payments" {
-		t.Fatalf("unexpected display: %q", got)
+	for _, tc := range []struct {
+		name string
+		val  cty.Value
+		want string
+	}{
+		{
+			name: "empty",
+			val:  cty.EmptyTupleVal,
+			want: "<empty>",
+		},
+		{
+			name: "one resolved reference is named",
+			val:  cty.TupleVal([]cty.Value{resolvedBundle("platform")}),
+			want: "platform",
+		},
+		{
+			name: "one unresolved key is named",
+			val:  cty.TupleVal([]cty.Value{cty.StringVal("platform")}),
+			want: "platform",
+		},
+		{
+			name: "several collapse to a count",
+			val: cty.TupleVal([]cty.Value{
+				resolvedBundle("platform"),
+				cty.StringVal("payments"), // Not yet resolved, still a key.
+			}),
+			want: "<2 items>",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := FormatDisplayValue(tc.val, typ); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

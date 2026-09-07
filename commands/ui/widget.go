@@ -5,7 +5,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zclconf/go-cty/cty"
@@ -335,18 +334,6 @@ func formatCollectionDisplay(val cty.Value, elemType typeschema.Type) string {
 	n := val.LengthInt()
 	if n == 0 {
 		return "<empty>"
-	}
-	if _, isBundleType := elemType.(*typeschema.BundleType); isBundleType {
-		aliases := make([]string, 0, n)
-		for it := val.ElementIterator(); it.Next(); {
-			_, elem := it.Element()
-			alias, ok := bundleRefAlias(elem)
-			if !ok {
-				alias = "<unresolved>"
-			}
-			aliases = append(aliases, alias)
-		}
-		return strings.Join(aliases, ", ")
 	}
 	if n == 1 {
 		it := val.ElementIterator()
