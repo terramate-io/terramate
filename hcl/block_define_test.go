@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	hhcl "github.com/terramate-io/hcl/v2"
 
 	"github.com/terramate-io/terramate/errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/terramate-io/terramate/hcl/ast"
 	"github.com/terramate-io/terramate/test"
 	errtest "github.com/terramate-io/terramate/test/errors"
+	"github.com/terramate-io/terramate/test/hclwrite"
 	. "github.com/terramate-io/terramate/test/hclwrite/hclutils"
 )
 
@@ -2069,5 +2071,71 @@ func TestDefineBlockFailCases(t *testing.T) {
 		},
 	} {
 		testParser(t, tc)
+	}
+}
+
+func TestDefineObjectAttributesKeepDefinitionOrder(t *testing.T) {
+	t.Parallel()
+
+	wantNames := []string{
+		"zeta", "alpha", "mike", "bravo", "yankee", "charlie", "xray", "delta",
+		"whiskey", "echo", "victor", "foxtrot", "uniform", "golf", "tango", "hotel",
+	}
+
+	withAttributes := func(blockType, label string) *hclwrite.Block {
+		builders := []hclwrite.BlockBuilder{Labels(label)}
+		for _, attrName := range wantNames {
+			builders = append(builders, Block("attribute",
+				Labels(attrName),
+				Expr("type", `string`),
+			))
+		}
+		return Block(blockType, builders...)
+	}
+
+	for _, tc := range []struct {
+		name  string
+		body  *hclwrite.Block
+		attrs func(cfg *hcl.Config) []*hcl.DefineObjectAttribute
+	}{
+		{
+			name: "bundle input",
+			body: Block("define", Block("bundle", withAttributes("input", "obj"))),
+			attrs: func(cfg *hcl.Config) []*hcl.DefineObjectAttribute {
+				return cfg.Defines[0].Bundle.Inputs["obj"].ObjectAttributes
+			},
+		},
+		{
+			name: "component input",
+			body: Block("define", Block("component", withAttributes("input", "obj"))),
+			attrs: func(cfg *hcl.Config) []*hcl.DefineObjectAttribute {
+				return cfg.Defines[0].Component.Inputs["obj"].ObjectAttributes
+			},
+		},
+		{
+			name: "schema",
+			body: Block("define", withAttributes("schema", "my_schema")),
+			attrs: func(cfg *hcl.Config) []*hcl.DefineObjectAttribute {
+				return cfg.Defines[0].Schemas[0].ObjectAttributes
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			configsDir := test.TempDir(t)
+			test.WriteFile(t, configsDir, "defines.tm", tc.body.String())
+
+			got, err := parse(testcase{rootdir: configsDir, parsedir: configsDir})
+			assert.NoError(t, err)
+
+			var gotNames []string
+			for _, attr := range tc.attrs(got) {
+				gotNames = append(gotNames, attr.Name)
+			}
+			if !slices.Equal(gotNames, wantNames) {
+				t.Fatalf("object attributes order mismatch:\n got:  %v\n want: %v", gotNames, wantNames)
+			}
+		})
 	}
 }
