@@ -4,6 +4,7 @@
 package hcl
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -1003,6 +1004,7 @@ func parseInputBody(block *ast.MergedBlock, ret *DefineInput) error {
 			)
 		}
 	}
+	sortObjectAttributes(ret.ObjectAttributes)
 
 	return foldDeprecatedPromptAttrs(ret, promptAttr, optionsAttr, multilineAttr, multiselectAttr)
 }
@@ -1392,7 +1394,17 @@ func parseDefineSchemaBlock(label ast.LabelBlockType, block *ast.MergedBlock) (*
 			)
 		}
 	}
+	sortObjectAttributes(ret.ObjectAttributes)
 	return ret, nil
+}
+
+func sortObjectAttributes(attrs []*DefineObjectAttribute) {
+	slices.SortFunc(attrs, func(a, b *DefineObjectAttribute) int {
+		return cmp.Or(
+			strings.Compare(a.DefRange.Filename, b.DefRange.Filename),
+			cmp.Compare(a.DefRange.Start.Line, b.DefRange.Start.Line),
+		)
+	})
 }
 
 func parseDefineObjectAttributeBlock(label ast.LabelBlockType, block *ast.MergedBlock) (*DefineObjectAttribute, error) {
