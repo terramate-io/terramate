@@ -46,8 +46,35 @@ func Match(version, constraint string, allowPrereleases bool) (bool, error) {
 			return false, errors.E(ErrCheck, "invalid constraint", err)
 		}
 
-		allowed := versions.MeetingConstraintsExact(spec)
-		return allowed.Has(semver), nil
+		// Prereleases for an upcoming breaking change MUST NOT match the previous release.
+		// In other words, Semantic Version defines the order below:
+		// 0.9.9 < 1.0.0-alpha < 1.0.0 < 1.0.1
+		//
+		// But we want the behavior below:
+		//
+		// The constraint `~> 0.5.0` must not match `0.6.0-rc1` release.
+		// The reasoning is that v0.6.0-rc1 could already introduce some (or all) of
+		// the v0.6.0 release and then the loose `~> 0.5.0` could put users at risk.
+
+		var plainConstraints, rcConstraints constraints.IntersectionSpec
+		for _, sel := range spec {
+			if sel.Boundary.Prerelease != "" {
+				rcConstraints = append(rcConstraints, sel)
+			} else {
+				plainConstraints = append(plainConstraints, sel)
+			}
+		}
+
+		plainAllowed := versions.MeetingConstraintsExact(plainConstraints)
+		copied := semver
+		copied.Prerelease = ""
+		has := plainAllowed.Has(copied)
+		if !has {
+			return false, nil
+		}
+
+		rcAllowed := versions.MeetingConstraintsExact(rcConstraints)
+		return rcAllowed.Has(semver), nil
 	}
 
 	spec, err := hclversion.NewConstraint(constraint)
