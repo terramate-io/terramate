@@ -324,6 +324,112 @@ func TestGenerateBundle(t *testing.T) {
 			},
 		},
 		{
+			name: "generate bundle with nested stacks",
+			layout: []string{
+				"s:stacks/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path: "/components/example.com/my-component/v1",
+					add: Doc(
+						Block("define",
+							Labels("component", "metadata"),
+							Str("class", "my-component"),
+							Str("name", "my-name"),
+							Str("version", "1.2.3"),
+							Str("description", "My component"),
+						),
+
+						Block("define",
+							Labels("component", "input", "test"),
+							Str("prompt", "Test value"),
+							Str("description", "Test value"),
+						),
+
+						Block("generate_hcl",
+							Labels("main.tf"),
+							Block("content",
+								Expr("value", "component.input.test.value"),
+							),
+						),
+					),
+				},
+				{
+					path: "/bundles/example.com/my-bundle/v1",
+					add: Doc(
+						Block("define",
+							Labels("bundle", "metadata"),
+							Str("class", "my-bundle"),
+							Str("name", "my-name"),
+							Str("version", "1.2.3"),
+							Str("description", "My bundle"),
+						),
+						Block("define",
+							Labels("bundle", "stack", "parent"),
+							Block("metadata",
+								Str("path", "parent"),
+								Str("name", "parent"),
+							),
+							Block("component",
+								Labels("parent-comp"),
+								Str("source", "/components/example.com/my-component/v1"),
+								Block("inputs",
+									Str("test", "parent"),
+								),
+							),
+						),
+						Block("define",
+							Labels("bundle", "stack", "child"),
+							Block("metadata",
+								Str("path", "parent/child"),
+								Str("name", "child"),
+							),
+							Block("component",
+								Labels("child-comp"),
+								Str("source", "/components/example.com/my-component/v1"),
+								Block("inputs",
+									Str("test", "child"),
+								),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: Block("bundle",
+						Labels("name"),
+						Str("source", "/bundles/example.com/my-bundle/v1"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1/parent",
+					files: map[string]fmt.Stringer{
+						"component_parent-comp_main.tf": stringer(`value = "parent"`),
+					},
+				},
+				{
+					dir: "/stacks/stack-1/parent/child",
+					files: map[string]fmt.Stringer{
+						"component_child-comp_main.tf": stringer(`value = "child"`),
+					},
+				},
+			},
+			wantReport: genreport.Report{
+				Successes: []genreport.Result{
+					{
+						Dir:     project.NewPath("/stacks/stack-1/parent"),
+						Created: []string{"component_parent-comp_main.tf", "stack.tm.hcl"},
+					},
+					{
+						Dir:     project.NewPath("/stacks/stack-1/parent/child"),
+						Created: []string{"component_child-comp_main.tf", "stack.tm.hcl"},
+					},
+				},
+			},
+		},
+		{
 			name: "don't generate files in .terramate/ for bundle references",
 			layout: []string{
 				`s:.terramate/stack:id=s1;tags=["genstack"]`,
