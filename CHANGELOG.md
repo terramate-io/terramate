@@ -26,6 +26,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
 - Fix non-deterministic ordering of attributes in `terramate ui`.
 - Fix chance of skipped components in nested bundle stacks on first run of `terramate generate`.
+- Fix multiselect inputs with `prompt.options` not accepting an empty selection in `terramate ui`.
 
 ## 0.17.3
 
