@@ -213,7 +213,7 @@ func (w *MultiSelectWidget) Update(msg tea.KeyMsg) (WidgetSignal, tea.Cmd) {
 				vals = append(vals, opt.Value)
 			}
 		}
-		val := cty.NilVal
+		val := cty.EmptyTupleVal
 		if len(vals) > 0 {
 			val = cty.TupleVal(vals)
 		}
