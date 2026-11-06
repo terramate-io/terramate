@@ -25,6 +25,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 ### Fixed
 
 - Fix non-deterministic ordering of attributes in `terramate ui`.
+- Fix chance of skipped components in nested bundle stacks on first run of `terramate generate`.
 
 ## 0.17.3
 
